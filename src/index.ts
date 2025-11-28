@@ -92,6 +92,47 @@ export type {
 } from './websocket/index.js';
 
 // =============================================================================
+// Core Utilities
+// =============================================================================
+
+// Rate Limiter
+export { RateLimiter } from './core/RateLimiter.js';
+export type { RateLimiterConfig } from './core/RateLimiter.js';
+
+// PnL Calculations
+export {
+  calculateUnrealizedPnl,
+  calculateLiquidationPrice,
+  calculateRequiredMargin,
+  calculatePositionValue,
+  calculateROE,
+  calculateMarginRatio,
+  calculateEffectiveLeverage,
+  calculateFundingPayment,
+  calculateBreakEvenPrice,
+  calculateMaxPositionSize,
+  calculateAverageEntryPrice,
+  calculateMarkToMarket,
+} from './core/calculations/pnl.js';
+
+// Symbol Utilities
+export {
+  parseSymbol,
+  buildSymbol,
+  isValidSymbol,
+  getBaseCurrency,
+  getQuoteCurrency,
+  getSettleCurrency,
+  isPerpetual,
+  normalizeSymbol,
+  compareSymbols,
+  filterByBase,
+  filterByQuote,
+  groupByBase,
+} from './utils/symbols.js';
+export type { SymbolParts } from './utils/symbols.js';
+
+// =============================================================================
 // Validation
 // =============================================================================
 
