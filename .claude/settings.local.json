@@ -8,7 +8,10 @@
       "Bash(git commit:*)",
       "Bash(npm run build:*)",
       "Bash(npm run typecheck:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm install:*)",
+      "Bash(cat:*)",
+      "Bash(python -c \"\nwith open(''utils.ts'', ''r'', encoding=''utf-8'') as f:\n    lines = f.readlines()\n\nlines[149] = ''  const [base = \"\"\"\", rest = \"\"\"\"] = unifiedSymbol.split(\"\"/\"\");\\n''\nlines[150] = ''  const [quote = \"\"\"\", settle = \"\"\"\"] = rest.split(\"\":\"\");\\n''\n\nwith open(''utils.ts'', ''w'', encoding=''utf-8'') as f:\n    f.writelines(lines)\n\")"
     ],
     "deny": [],
     "ask": []

@@ -6,14 +6,15 @@
 
 import type { ExchangeConfig, IExchangeAdapter } from './types/index.js';
 import { HyperliquidAdapter, type HyperliquidConfig } from './adapters/hyperliquid/index.js';
-import { GRVTAdapter, type GRVTAdapterConfig } from './adapters/grvt/index.js';
+import { LighterAdapter, type LighterConfig } from './adapters/lighter/index.js';
+// import { GRVTAdapter, type GRVTAdapterConfig } from './adapters/grvt/index.js';
 
 export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack';
 
 export type ExchangeConfigMap = {
   hyperliquid: HyperliquidConfig;
-  lighter: ExchangeConfig;
-  grvt: GRVTAdapterConfig;
+  lighter: LighterConfig;
+  grvt: ExchangeConfig;
   paradex: ExchangeConfig;
   edgex: ExchangeConfig;
   backpack: ExchangeConfig;
@@ -50,10 +51,10 @@ export function createExchange<T extends SupportedExchange>(
       return new HyperliquidAdapter(config as HyperliquidConfig);
 
     case 'lighter':
-      throw new Error('Lighter adapter not yet implemented');
+      return new LighterAdapter(config as LighterConfig);
 
     case 'grvt':
-      return new GRVTAdapter(config as GRVTAdapterConfig);
+      throw new Error('GRVT adapter temporarily disabled - under development');
 
     case 'paradex':
       throw new Error('Paradex adapter not yet implemented');

@@ -161,9 +161,13 @@ export { BaseAdapter } from './adapters/base/BaseAdapter.js';
 export { HyperliquidAdapter, HyperliquidAuth } from './adapters/hyperliquid/index.js';
 export type { HyperliquidConfig } from './adapters/hyperliquid/index.js';
 
-// GRVT
-export { GRVTAdapter, GRVTAuth } from './adapters/grvt/index.js';
-export type { GRVTAdapterConfig, GRVTAuthConfig } from './adapters/grvt/index.js';
+// Lighter
+export { LighterAdapter } from './adapters/lighter/index.js';
+export type { LighterConfig } from './adapters/lighter/index.js';
+
+// GRVT (temporarily disabled - under development)
+// export { GRVTAdapter, GRVTAuth } from './adapters/grvt/index.js';
+// export type { GRVTAdapterConfig, GRVTAuthConfig } from './adapters/grvt/index.js';
 
 // =============================================================================
 // Version

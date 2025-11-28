@@ -147,8 +147,8 @@ export function normalizePosition(hlPosition: HyperliquidPosition): Position {
  */
 export function normalizeMarket(asset: HyperliquidAsset, index: number): Market {
   const unifiedSymbol = hyperliquidToUnified(asset.name);
-  const [base, rest] = unifiedSymbol.split('/');
-  const [quote, settle] = rest.split(':');
+  const [base = "", rest = ""] = unifiedSymbol.split("/");
+  const [quote = "", settle = ""] = rest.split(":");
 
   return {
     id: index.toString(),
