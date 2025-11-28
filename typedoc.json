@@ -1,0 +1,33 @@
+{
+  "entryPoints": ["./src/index.ts"],
+  "out": "./docs/api",
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "includeVersion": true,
+  "readme": "./README.md",
+  "name": "Perp DEX SDK",
+  "plugin": [],
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Factory",
+    "Types",
+    "Errors",
+    "Adapters",
+    "WebSocket",
+    "Utilities",
+    "Validation",
+    "*"
+  ],
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "sort": ["source-order"],
+  "searchInComments": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  }
+}
