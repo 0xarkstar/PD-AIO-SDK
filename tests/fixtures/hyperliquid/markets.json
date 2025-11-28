@@ -1,0 +1,22 @@
+{
+  "universe": [
+    {
+      "name": "BTC-PERP",
+      "szDecimals": 3,
+      "maxLeverage": 50,
+      "onlyIsolated": false
+    },
+    {
+      "name": "ETH-PERP",
+      "szDecimals": 2,
+      "maxLeverage": 50,
+      "onlyIsolated": false
+    },
+    {
+      "name": "SOL-PERP",
+      "szDecimals": 1,
+      "maxLeverage": 20,
+      "onlyIsolated": false
+    }
+  ]
+}
