@@ -4,6 +4,11 @@
 
 import { createExchange, getSupportedExchanges, isExchangeSupported } from '../../src/factory.js';
 import { HyperliquidAdapter } from '../../src/adapters/hyperliquid/index.js';
+import { LighterAdapter } from '../../src/adapters/lighter/index.js';
+import { GRVTAdapter } from '../../src/adapters/grvt/index.js';
+import { ParadexAdapter } from '../../src/adapters/paradex/index.js';
+import { EdgeXAdapter } from '../../src/adapters/edgex/index.js';
+import { BackpackAdapter } from '../../src/adapters/backpack/index.js';
 
 describe('createExchange', () => {
   test('creates Hyperliquid adapter', () => {
@@ -14,12 +19,12 @@ describe('createExchange', () => {
     expect(exchange.name).toBe('Hyperliquid');
   });
 
-  test('throws for unimplemented exchanges', () => {
-    expect(() => createExchange('lighter')).toThrow('Lighter adapter not yet implemented');
-    expect(() => createExchange('grvt')).toThrow('GRVT adapter not yet implemented');
-    expect(() => createExchange('paradex')).toThrow('Paradex adapter not yet implemented');
-    expect(() => createExchange('edgex')).toThrow('EdgeX adapter not yet implemented');
-    expect(() => createExchange('backpack')).toThrow('Backpack adapter not yet implemented');
+  test('creates all exchange adapters', () => {
+    expect(createExchange('lighter', {})).toBeInstanceOf(LighterAdapter);
+    expect(createExchange('grvt', { apiKey: 'test-key' })).toBeInstanceOf(GRVTAdapter);
+    expect(createExchange('paradex', { apiKey: 'test-key' })).toBeInstanceOf(ParadexAdapter);
+    expect(createExchange('edgex', { apiKey: 'test-key' })).toBeInstanceOf(EdgeXAdapter);
+    expect(createExchange('backpack', { apiKey: 'test-key' })).toBeInstanceOf(BackpackAdapter);
   });
 
   test('passes config to adapter', () => {

@@ -178,7 +178,8 @@ export function compareSymbols(symbol1: string, symbol2: string): boolean {
     return (
       parts1.base === parts2.base &&
       parts1.quote === parts2.quote &&
-      parts1.settle === parts2.settle
+      parts1.settle === parts2.settle &&
+      parts1.type === parts2.type
     );
   } catch {
     return false;

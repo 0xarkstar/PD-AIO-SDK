@@ -80,11 +80,27 @@ export class GRVTAuth implements IAuthStrategy {
 
     return {
       ...request,
-      headers: {
-        ...request.headers,
-        ...headers,
-      },
+      headers,
     };
+  }
+
+  /**
+   * Get authentication headers
+   */
+  getHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.apiKey) {
+      headers['X-API-KEY'] = this.apiKey;
+    }
+
+    if (this.sessionCookie && this.isSessionValid()) {
+      headers['Cookie'] = `session=${this.sessionCookie.token}`;
+    }
+
+    return headers;
   }
 
   /**

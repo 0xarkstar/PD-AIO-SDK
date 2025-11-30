@@ -48,3 +48,4 @@ credentials.json
 
 # OS
 Thumbs.db
+.claude/

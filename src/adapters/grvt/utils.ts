@@ -64,8 +64,8 @@ export function toGRVTSymbol(symbol: string): string {
 
   if (parts.length === 2) {
     // Perpetual format
-    const [pair] = parts;
-    const [base] = pair.split('/');
+    const [pair = ""] = parts;
+    const [base = ""] = pair.split('/');
     return `${base}-PERP`;
   }
 
@@ -78,7 +78,6 @@ export function toGRVTSymbol(symbol: string): string {
  */
 export function normalizeMarket(grvtMarket: GRVTMarket): Market {
   const symbol = normalizeSymbol(grvtMarket.instrument);
-  const isPerp = grvtMarket.instrument_type === 'PERP';
 
   return {
     id: grvtMarket.instrument_id,
@@ -86,39 +85,16 @@ export function normalizeMarket(grvtMarket: GRVTMarket): Market {
     base: grvtMarket.base_currency,
     quote: grvtMarket.quote_currency,
     settle: grvtMarket.settlement_currency,
-    type: isPerp ? 'swap' : 'spot',
-    spot: !isPerp,
-    margin: true,
-    swap: isPerp,
-    future: false,
-    option: false,
     active: grvtMarket.is_active,
-    contract: isPerp,
-    linear: true,
-    inverse: false,
+    minAmount: parseFloat(grvtMarket.min_size),
+    pricePrecision: countDecimals(grvtMarket.tick_size),
+    amountPrecision: countDecimals(grvtMarket.step_size),
+    priceTickSize: parseFloat(grvtMarket.tick_size),
+    amountStepSize: parseFloat(grvtMarket.step_size),
     makerFee: parseFloat(grvtMarket.maker_fee),
     takerFee: parseFloat(grvtMarket.taker_fee),
     maxLeverage: parseFloat(grvtMarket.max_leverage),
     fundingIntervalHours: 8,
-    limits: {
-      amount: {
-        min: parseFloat(grvtMarket.min_size),
-        max: parseFloat(grvtMarket.max_size),
-      },
-      price: {
-        min: parseFloat(grvtMarket.tick_size),
-        max: undefined,
-      },
-      cost: {
-        min: undefined,
-        max: undefined,
-      },
-    },
-    precision: {
-      amount: countDecimals(grvtMarket.step_size),
-      price: countDecimals(grvtMarket.tick_size),
-    },
-    info: grvtMarket,
   };
 }
 
@@ -146,8 +122,8 @@ export function normalizeOrder(grvtOrder: GRVTOrder): Order {
     postOnly: grvtOrder.post_only,
     reduceOnly: grvtOrder.reduce_only,
     timestamp: grvtOrder.created_at,
-    lastTradeTimestamp: grvtOrder.updated_at,
-    info: grvtOrder,
+    lastUpdateTimestamp: grvtOrder.updated_at,
+    info: grvtOrder as unknown as Record<string, unknown>,
   };
 }
 
@@ -162,6 +138,7 @@ export function normalizePosition(grvtPosition: GRVTPosition): Position {
   return {
     symbol,
     side,
+    marginMode: 'cross',
     size: Math.abs(size),
     entryPrice: parseFloat(grvtPosition.entry_price),
     markPrice: parseFloat(grvtPosition.mark_price),
@@ -172,8 +149,10 @@ export function normalizePosition(grvtPosition: GRVTPosition): Position {
     realizedPnl: parseFloat(grvtPosition.realized_pnl),
     margin: parseFloat(grvtPosition.margin),
     leverage: parseFloat(grvtPosition.leverage),
+    maintenanceMargin: parseFloat(grvtPosition.margin) * 0.005,
+    marginRatio: 0,
     timestamp: grvtPosition.timestamp,
-    info: grvtPosition,
+    info: grvtPosition as unknown as Record<string, unknown>,
   };
 }
 
@@ -186,7 +165,7 @@ export function normalizeBalance(grvtBalance: GRVTBalance): Balance {
     total: parseFloat(grvtBalance.total),
     free: parseFloat(grvtBalance.available),
     used: parseFloat(grvtBalance.reserved),
-    info: grvtBalance,
+    info: grvtBalance as unknown as Record<string, unknown>,
   };
 }
 
@@ -196,6 +175,7 @@ export function normalizeBalance(grvtBalance: GRVTBalance): Balance {
 export function normalizeOrderBook(grvtOrderBook: GRVTOrderBook): OrderBook {
   return {
     symbol: normalizeSymbol(grvtOrderBook.instrument),
+    exchange: 'grvt',
     bids: grvtOrderBook.bids.map(([price, size]) => [
       parseFloat(price),
       parseFloat(size),
@@ -205,7 +185,7 @@ export function normalizeOrderBook(grvtOrderBook: GRVTOrderBook): OrderBook {
       parseFloat(size),
     ]),
     timestamp: grvtOrderBook.timestamp,
-    nonce: grvtOrderBook.sequence,
+    // nonce: grvtOrderBook.sequence,
   };
 }
 
@@ -213,15 +193,18 @@ export function normalizeOrderBook(grvtOrderBook: GRVTOrderBook): OrderBook {
  * Normalize GRVT trade to unified format
  */
 export function normalizeTrade(grvtTrade: GRVTTrade): Trade {
+  const price = parseFloat(grvtTrade.price);
+  const amount = parseFloat(grvtTrade.size);
+
   return {
     id: grvtTrade.trade_id,
     symbol: normalizeSymbol(grvtTrade.instrument),
     side: normalizeOrderSide(grvtTrade.side),
-    price: parseFloat(grvtTrade.price),
-    amount: parseFloat(grvtTrade.size),
+    price,
+    amount,
+    cost: price * amount,
     timestamp: grvtTrade.timestamp,
-    takerOrMaker: grvtTrade.is_buyer_maker ? 'maker' : 'taker',
-    info: grvtTrade,
+    info: grvtTrade as unknown as Record<string, unknown>,
   };
 }
 
@@ -229,16 +212,23 @@ export function normalizeTrade(grvtTrade: GRVTTrade): Trade {
  * Normalize GRVT ticker to unified format
  */
 export function normalizeTicker(grvtTicker: GRVTTicker): Ticker {
+  const last = parseFloat(grvtTicker.last_price);
+
   return {
     symbol: normalizeSymbol(grvtTicker.instrument),
-    last: parseFloat(grvtTicker.last_price),
+    last,
+    open: last,
+    close: last,
     bid: parseFloat(grvtTicker.best_bid),
     ask: parseFloat(grvtTicker.best_ask),
     high: parseFloat(grvtTicker.high_24h),
     low: parseFloat(grvtTicker.low_24h),
-    volume: parseFloat(grvtTicker.volume_24h),
+    change: 0,
+    percentage: 0,
+    baseVolume: parseFloat(grvtTicker.volume_24h),
+    quoteVolume: 0,
     timestamp: grvtTicker.timestamp,
-    info: grvtTicker,
+    info: grvtTicker as unknown as Record<string, unknown>,
   };
 }
 
@@ -273,7 +263,7 @@ function normalizeOrderStatus(grvtStatus: string): OrderStatus {
     OPEN: 'open',
     PARTIALLY_FILLED: 'partiallyFilled',
     FILLED: 'filled',
-    CANCELLED: 'cancelled',
+    CANCELLED: 'canceled',
     REJECTED: 'rejected',
   };
 
@@ -346,7 +336,7 @@ export function toGRVTTimeInForce(tif?: TimeInForce, postOnly?: boolean): string
  */
 function countDecimals(value: string): number {
   const parts = value.split('.');
-  return parts.length === 2 ? parts[1].length : 0;
+  return parts.length === 2 && parts[1] ? parts[1].length : 0;
 }
 
 /**
@@ -378,7 +368,7 @@ export function mapGRVTError(error: unknown): { code: string; message: string } 
       default:
         return {
           code: 'UNKNOWN_ERROR',
-          message: err.message ?? 'Unknown error occurred',
+          message: (err.message as string | undefined) ?? 'Unknown error occurred',
         };
     }
   }

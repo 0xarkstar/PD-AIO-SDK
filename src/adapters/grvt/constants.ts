@@ -89,7 +89,7 @@ export const GRVT_ORDER_STATUS = {
   OPEN: 'open',
   PARTIALLY_FILLED: 'partiallyFilled',
   FILLED: 'filled',
-  CANCELLED: 'cancelled',
+  CANCELLED: 'canceled',
   REJECTED: 'rejected',
 } as const;
 
@@ -131,7 +131,7 @@ export const GRVT_EIP712_ORDER_TYPE = {
     { name: 'nonce', type: 'uint256' },
     { name: 'expiry', type: 'uint256' },
   ],
-} as const;
+};
 
 /**
  * GRVT precision defaults

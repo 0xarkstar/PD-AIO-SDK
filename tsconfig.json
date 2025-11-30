@@ -23,5 +23,5 @@
     "noUncheckedIndexedAccess": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests", "examples", "src/adapters/grvt"]
+  "exclude": ["node_modules", "dist", "tests", "examples"]
 }

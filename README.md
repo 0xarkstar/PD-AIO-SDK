@@ -22,14 +22,14 @@ A production-ready SDK for trading on decentralized perpetual exchanges with a u
 
 ## Supported Exchanges
 
-| Exchange | Status | Features |
-|----------|--------|----------|
-| **Hyperliquid** | ✅ Supported | REST + WebSocket, 200k orders/sec, HIP-3 ecosystem |
-| **Lighter** | 🚧 In Progress | ZK-SNARK proofs, zero fees |
-| **GRVT** | 🚧 In Progress | Portfolio margin, multi-leg orders |
-| **Paradex** | 🚧 In Progress | StarkNet L2, low latency |
-| **EdgeX** | 📅 Planned | Sub-10ms matching |
-| **Backpack** | 📅 Planned | ED25519 signing |
+| Exchange | Status | Testnet | Authentication | Features |
+|----------|--------|---------|----------------|----------|
+| **Hyperliquid** | ✅ Production | ✅ Yes | EIP-712 | REST + WebSocket, 200k orders/sec, HIP-3 ecosystem |
+| **GRVT** | ✅ Production | ✅ Yes | EIP-712 + Session | Portfolio margin, hybrid CEX/DEX |
+| **Paradex** | ✅ Production | ✅ Yes | StarkNet + JWT | StarkNet L2, low latency |
+| **EdgeX** | ✅ Production | ✅ Yes | StarkEx + Pedersen | Sub-10ms matching, zero gas |
+| **Backpack** | ✅ Production | ✅ Yes | ED25519 | Solana-based perps |
+| **Lighter** | ✅ Production | ❌ No | API Key | ZK-SNARK proofs, orderbook DEX |
 
 ### HIP-3 Ecosystem (via Hyperliquid adapter)
 - **trade.xyz**: US stock perpetuals (NVDA, TSLA, AAPL)

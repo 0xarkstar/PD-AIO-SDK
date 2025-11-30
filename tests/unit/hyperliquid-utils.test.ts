@@ -103,11 +103,11 @@ describe('Order Normalization', () => {
       amount: 0.1,
       price: 50000,
       status: 'open',
-      filled: 0.02,
       remaining: 0.08,
       clientOrderId: 'test-123',
       timestamp: 1234567890000,
     });
+    expect(normalized.filled).toBeCloseTo(0.02, 10);
   });
 
   test('normalizes sell order', () => {

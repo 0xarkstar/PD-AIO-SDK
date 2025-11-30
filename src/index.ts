@@ -165,9 +165,21 @@ export type { HyperliquidConfig } from './adapters/hyperliquid/index.js';
 export { LighterAdapter } from './adapters/lighter/index.js';
 export type { LighterConfig } from './adapters/lighter/index.js';
 
-// GRVT (temporarily disabled - under development)
-// export { GRVTAdapter, GRVTAuth } from './adapters/grvt/index.js';
-// export type { GRVTAdapterConfig, GRVTAuthConfig } from './adapters/grvt/index.js';
+// GRVT
+export { GRVTAdapter, GRVTAuth } from './adapters/grvt/index.js';
+export type { GRVTAdapterConfig, GRVTAuthConfig } from './adapters/grvt/index.js';
+
+// Paradex
+export { ParadexAdapter, ParadexAuth } from './adapters/paradex/index.js';
+export type { ParadexConfig, ParadexAuthConfig } from './adapters/paradex/index.js';
+
+// EdgeX
+export { EdgeXAdapter } from './adapters/edgex/index.js';
+export type { EdgeXConfig } from './adapters/edgex/index.js';
+
+// Backpack
+export { BackpackAdapter } from './adapters/backpack/index.js';
+export type { BackpackConfig } from './adapters/backpack/index.js';
 
 // =============================================================================
 // Version

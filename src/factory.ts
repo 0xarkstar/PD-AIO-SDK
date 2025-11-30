@@ -7,17 +7,20 @@
 import type { ExchangeConfig, IExchangeAdapter } from './types/index.js';
 import { HyperliquidAdapter, type HyperliquidConfig } from './adapters/hyperliquid/index.js';
 import { LighterAdapter, type LighterConfig } from './adapters/lighter/index.js';
-// import { GRVTAdapter, type GRVTAdapterConfig } from './adapters/grvt/index.js';
+import { GRVTAdapter, type GRVTAdapterConfig } from './adapters/grvt/index.js';
+import { ParadexAdapter, type ParadexConfig } from './adapters/paradex/index.js';
+import { EdgeXAdapter, type EdgeXConfig } from './adapters/edgex/index.js';
+import { BackpackAdapter, type BackpackConfig } from './adapters/backpack/index.js';
 
 export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack';
 
 export type ExchangeConfigMap = {
   hyperliquid: HyperliquidConfig;
   lighter: LighterConfig;
-  grvt: ExchangeConfig;
-  paradex: ExchangeConfig;
-  edgex: ExchangeConfig;
-  backpack: ExchangeConfig;
+  grvt: GRVTAdapterConfig;
+  paradex: ParadexConfig;
+  edgex: EdgeXConfig;
+  backpack: BackpackConfig;
 };
 
 /**
@@ -54,16 +57,16 @@ export function createExchange<T extends SupportedExchange>(
       return new LighterAdapter(config as LighterConfig);
 
     case 'grvt':
-      throw new Error('GRVT adapter temporarily disabled - under development');
+      return new GRVTAdapter(config as GRVTAdapterConfig);
 
     case 'paradex':
-      throw new Error('Paradex adapter not yet implemented');
+      return new ParadexAdapter(config as ParadexConfig);
 
     case 'edgex':
-      throw new Error('EdgeX adapter not yet implemented');
+      return new EdgeXAdapter(config as EdgeXConfig);
 
     case 'backpack':
-      throw new Error('Backpack adapter not yet implemented');
+      return new BackpackAdapter(config as BackpackConfig);
 
     default:
       throw new Error(`Unknown exchange: ${exchange as string}`);

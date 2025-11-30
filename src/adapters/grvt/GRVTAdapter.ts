@@ -3,6 +3,7 @@
  */
 
 import { BaseAdapter } from '../base/BaseAdapter.js';
+import { WebSocketManager } from '../../websocket/WebSocketManager.js';
 import type {
   Market,
   Order,
@@ -14,11 +15,13 @@ import type {
   FundingRate,
   OrderRequest,
   MarketParams,
+  OrderBookParams,
+  TradeParams,
 } from '../../types/common.js';
 import type { FeatureMap } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import {
-  TradingError,
+  PerpDEXError,
   InsufficientMarginError,
   OrderNotFoundError,
   InvalidOrderError,
@@ -96,35 +99,17 @@ export class GRVTAdapter extends BaseAdapter {
     fetchTicker: true,
     fetchOrderBook: true,
     fetchTrades: true,
-    fetchOHLCV: false,
     fetchFundingRate: true,
-    fetchFundingHistory: false,
+    fetchFundingRateHistory: false,
     fetchPositions: true,
     fetchBalance: true,
-    fetchLeverage: true,
-    fetchOpenOrders: true,
-    fetchClosedOrders: true,
-    fetchMyTrades: true,
     createOrder: true,
     createBatchOrders: true,
     cancelOrder: true,
     cancelAllOrders: true,
-    modifyOrder: true,
-    fetchOrder: true,
-    setLeverage: true,
-    setMarginMode: false,
-    addMargin: true,
-    reduceMargin: true,
-    fetchDeposits: true,
-    fetchWithdrawals: true,
-    transfer: true,
-    withdraw: false,
     watchOrderBook: true,
     watchTrades: true,
-    watchTicker: true,
     watchPositions: true,
-    watchOrders: true,
-    watchBalance: true,
   };
 
   private readonly apiUrl: string;
@@ -132,9 +117,10 @@ export class GRVTAdapter extends BaseAdapter {
   private readonly auth: GRVTAuth;
   private readonly rateLimiter: RateLimiter;
   private readonly testnet: boolean;
+  private readonly wsManager: WebSocketManager;
 
-  constructor(config: GRVTAdapterConfig) {
-    super();
+  constructor(config: GRVTAdapterConfig = {}) {
+    super(config);
 
     this.testnet = config.testnet ?? false;
 
@@ -145,10 +131,13 @@ export class GRVTAdapter extends BaseAdapter {
     this.auth = new GRVTAuth(config);
 
     this.rateLimiter = new RateLimiter({
-      maxRequests: GRVT_RATE_LIMITS.rest.maxRequests,
+      maxTokens: GRVT_RATE_LIMITS.rest.maxRequests,
+      refillRate: GRVT_RATE_LIMITS.rest.maxRequests / (GRVT_RATE_LIMITS.rest.windowMs / 1000),
       windowMs: GRVT_RATE_LIMITS.rest.windowMs,
       weights: GRVT_ENDPOINT_WEIGHTS,
     });
+
+    this.wsManager = new WebSocketManager({ url: this.wsUrl });
   }
 
   async initialize(): Promise<void> {
@@ -157,16 +146,17 @@ export class GRVTAdapter extends BaseAdapter {
     if (!isValid) {
       throw new InvalidSignatureError(
         'Failed to verify GRVT credentials',
+        'INVALID_CREDENTIALS',
         'grvt'
       );
     }
 
-    await this.wsManager.connect(this.wsUrl);
+    this._isReady = true;
   }
 
   async disconnect(): Promise<void> {
-    await this.wsManager.disconnect();
     this.auth.clearSessionCookie();
+    this._isReady = false;
   }
 
   // ==================== Market Data Methods ====================
@@ -189,11 +179,6 @@ export class GRVTAdapter extends BaseAdapter {
       markets = markets.filter((m) => m.active === params.active);
     }
 
-    if (params?.symbols && params.symbols.length > 0) {
-      const symbolSet = new Set(params.symbols);
-      markets = markets.filter((m) => symbolSet.has(m.symbol));
-    }
-
     return markets;
   }
 
@@ -214,16 +199,17 @@ export class GRVTAdapter extends BaseAdapter {
     return normalizeTicker(response.result);
   }
 
-  async fetchOrderBook(symbol: string, limit?: number): Promise<OrderBook> {
+  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     await this.rateLimiter.acquire('fetchOrderBook');
 
     const grvtSymbol = toGRVTSymbol(symbol);
+    const limit = params?.limit;
 
-    const params = limit ? `?depth=${limit}` : '';
+    const queryParams = limit ? `?depth=${limit}` : '';
 
     const response = await this.request<GRVTResponse<GRVTOrderBook>>(
       'GET',
-      `${this.apiUrl}/orderbook/${grvtSymbol}${params}`
+      `${this.apiUrl}/orderbook/${grvtSymbol}${queryParams}`
     );
 
     if (response.error) {
@@ -233,20 +219,16 @@ export class GRVTAdapter extends BaseAdapter {
     return normalizeOrderBook(response.result);
   }
 
-  async fetchTrades(
-    symbol: string,
-    since?: number,
-    limit?: number
-  ): Promise<Trade[]> {
+  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
     await this.rateLimiter.acquire('fetchTrades');
 
     const grvtSymbol = toGRVTSymbol(symbol);
 
-    const params = new URLSearchParams();
-    if (since) params.append('since', since.toString());
-    if (limit) params.append('limit', limit.toString());
+    const queryParams = new URLSearchParams();
+    if (params?.since) queryParams.append('since', params.since.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
 
-    const queryString = params.toString();
+    const queryString = queryParams.toString();
     const url = `${this.apiUrl}/trades/${grvtSymbol}${queryString ? `?${queryString}` : ''}`;
 
     const response = await this.request<GRVTResponse<GRVTTrade[]>>(
@@ -285,10 +267,12 @@ export class GRVTAdapter extends BaseAdapter {
     return {
       symbol: normalizeSymbol(data.instrument),
       fundingRate: parseFloat(data.funding_rate),
+      fundingTimestamp: Date.now(),
       markPrice: parseFloat(data.mark_price),
+      indexPrice: parseFloat(data.mark_price), // GRVT doesn't provide separate index price
       nextFundingTimestamp: data.next_funding_time,
-      timestamp: Date.now(),
-      info: data,
+      fundingIntervalHours: 8,
+      info: data as unknown as Record<string, unknown>,
     };
   }
 
@@ -301,11 +285,11 @@ export class GRVTAdapter extends BaseAdapter {
 
     const grvtRequest: GRVTOrderRequest = {
       instrument: grvtSymbol,
-      order_type: toGRVTOrderType(request.type, request.postOnly),
-      side: toGRVTOrderSide(request.side),
+      order_type: toGRVTOrderType(request.type, request.postOnly) as 'MARKET' | 'LIMIT' | 'LIMIT_MAKER',
+      side: toGRVTOrderSide(request.side) as 'BUY' | 'SELL',
       size: request.amount.toString(),
       price: request.price?.toString(),
-      time_in_force: toGRVTTimeInForce(request.timeInForce, request.postOnly),
+      time_in_force: toGRVTTimeInForce(request.timeInForce, request.postOnly) as 'GTC' | 'IOC' | 'FOK' | 'POST_ONLY',
       reduce_only: request.reduceOnly ?? false,
       post_only: request.postOnly ?? false,
       client_order_id: request.clientOrderId,
@@ -329,11 +313,11 @@ export class GRVTAdapter extends BaseAdapter {
 
     const grvtRequests: GRVTOrderRequest[] = requests.map((request) => ({
       instrument: toGRVTSymbol(request.symbol),
-      order_type: toGRVTOrderType(request.type, request.postOnly),
-      side: toGRVTOrderSide(request.side),
+      order_type: toGRVTOrderType(request.type, request.postOnly) as 'MARKET' | 'LIMIT' | 'LIMIT_MAKER',
+      side: toGRVTOrderSide(request.side) as 'BUY' | 'SELL',
       size: request.amount.toString(),
       price: request.price?.toString(),
-      time_in_force: toGRVTTimeInForce(request.timeInForce, request.postOnly),
+      time_in_force: toGRVTTimeInForce(request.timeInForce, request.postOnly) as 'GTC' | 'IOC' | 'FOK' | 'POST_ONLY',
       reduce_only: request.reduceOnly ?? false,
       post_only: request.postOnly ?? false,
       client_order_id: request.clientOrderId,
@@ -352,10 +336,10 @@ export class GRVTAdapter extends BaseAdapter {
     return response.result.map(normalizeOrder);
   }
 
-  async cancelOrder(orderId: string, symbol: string): Promise<void> {
+  async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
     await this.rateLimiter.acquire('cancelOrder');
 
-    const response = await this.authenticatedRequest<GRVTResponse<void>>(
+    const response = await this.authenticatedRequest<GRVTResponse<GRVTOrder>>(
       'DELETE',
       `${this.apiUrl}/orders/${orderId}`
     );
@@ -363,14 +347,16 @@ export class GRVTAdapter extends BaseAdapter {
     if (response.error) {
       throw this.mapError(response.error);
     }
+
+    return normalizeOrder(response.result);
   }
 
-  async cancelAllOrders(symbol?: string): Promise<void> {
+  async cancelAllOrders(symbol?: string): Promise<Order[]> {
     await this.rateLimiter.acquire('cancelAllOrders');
 
     const body = symbol ? { instrument: toGRVTSymbol(symbol) } : {};
 
-    const response = await this.authenticatedRequest<GRVTResponse<void>>(
+    const response = await this.authenticatedRequest<GRVTResponse<GRVTOrder[]>>(
       'DELETE',
       `${this.apiUrl}/orders/all`,
       body
@@ -379,6 +365,8 @@ export class GRVTAdapter extends BaseAdapter {
     if (response.error) {
       throw this.mapError(response.error);
     }
+
+    return response.result.map(normalizeOrder);
   }
 
   async fetchOpenOrders(symbol?: string): Promise<Order[]> {
@@ -519,7 +507,7 @@ export class GRVTAdapter extends BaseAdapter {
    * Make authenticated API request
    */
   private async authenticatedRequest<T>(
-    method: string,
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     url: string,
     body?: unknown
   ): Promise<T> {
@@ -537,7 +525,7 @@ export class GRVTAdapter extends BaseAdapter {
   /**
    * Make HTTP request
    */
-  private async request<T>(
+  protected async request<T>(
     method: string,
     url: string,
     body?: unknown,
@@ -573,21 +561,44 @@ export class GRVTAdapter extends BaseAdapter {
 
     switch (code) {
       case 'INVALID_ORDER':
-        return new InvalidOrderError(message, 'grvt', error);
+        return new InvalidOrderError(message, code, 'grvt', error);
       case 'INSUFFICIENT_MARGIN':
-        return new InsufficientMarginError(message, 'grvt', error);
+        return new InsufficientMarginError(message, code, 'grvt', error);
       case 'ORDER_NOT_FOUND':
-        return new OrderNotFoundError(message, 'grvt', error);
+        return new OrderNotFoundError(message, code, 'grvt', error);
       case 'INVALID_SIGNATURE':
-        return new InvalidSignatureError(message, 'grvt', error);
+        return new InvalidSignatureError(message, code, 'grvt', error);
       case 'EXPIRED_AUTH':
-        return new ExpiredAuthError(message, 'grvt', error);
+        return new ExpiredAuthError(message, code, 'grvt', error);
       case 'RATE_LIMIT_EXCEEDED':
-        return new RateLimitError(message, 'grvt', error);
+        return new RateLimitError(message, code, 'grvt', undefined, error);
       case 'EXCHANGE_UNAVAILABLE':
-        return new ExchangeUnavailableError(message, 'grvt', error);
+        return new ExchangeUnavailableError(message, code, 'grvt', error);
       default:
-        return new TradingError(message, code, 'grvt', error);
+        return new PerpDEXError(message, code, 'grvt', error);
     }
+  }
+
+  // ==================== Required BaseAdapter Methods ====================
+
+  async fetchFundingRateHistory(
+    symbol: string,
+    since?: number,
+    limit?: number
+  ): Promise<FundingRate[]> {
+    throw new Error('GRVT does not support funding rate history');
+  }
+
+  async setLeverage(symbol: string, leverage: number): Promise<void> {
+    // GRVT uses automatic cross-margin, leverage is not set per position
+    throw new Error('GRVT uses cross-margin, leverage cannot be set manually');
+  }
+
+  symbolToExchange(symbol: string): string {
+    return toGRVTSymbol(symbol);
+  }
+
+  symbolFromExchange(exchangeSymbol: string): string {
+    return normalizeSymbol(exchangeSymbol);
   }
 }

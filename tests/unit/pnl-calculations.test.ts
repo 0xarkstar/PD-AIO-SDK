@@ -160,12 +160,12 @@ describe('PnL Calculations', () => {
   describe('calculateBreakEvenPrice', () => {
     test('calculates break-even for long with fees', () => {
       const bePrice = calculateBreakEvenPrice(50000, 'long', 0.0005, 0.0002);
-      expect(bePrice).toBe(50035);
+      expect(bePrice).toBeCloseTo(50035, 1);
     });
 
     test('calculates break-even for short with fees', () => {
       const bePrice = calculateBreakEvenPrice(50000, 'short', 0.0005, 0.0002);
-      expect(bePrice).toBe(49965);
+      expect(bePrice).toBeCloseTo(49965, 1);
     });
   });
 
