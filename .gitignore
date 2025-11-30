@@ -19,9 +19,11 @@ coverage/
 .env.local
 .env.*.local
 
-# IDE
+# IDE and AI Coding Tools
 .vscode/
 .idea/
+.cursor/
+.claude/
 *.swp
 *.swo
 *~
@@ -48,4 +50,3 @@ credentials.json
 
 # OS
 Thumbs.db
-.claude/
