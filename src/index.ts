@@ -44,7 +44,20 @@ export type {
   AuthenticatedRequest,
   ExchangeConfig,
   RateLimitConfig,
+  // Health types
+  HealthStatus,
+  HealthCheckResult,
+  HealthCheckConfig,
+  ComponentHealth,
+  AuthHealth,
+  WebSocketHealth,
 } from './types/index.js';
+
+export {
+  determineHealthStatus,
+  isHealthy,
+  isCriticallyUnhealthy,
+} from './types/health.js';
 
 export {
   // Constants
@@ -99,6 +112,16 @@ export type {
 export { RateLimiter } from './core/RateLimiter.js';
 export type { RateLimiterConfig } from './core/RateLimiter.js';
 
+// Retry Logic
+export {
+  withRetry,
+  withRetryWrapper,
+  withLinearRetry,
+  withRetryStats,
+  RetryStats,
+} from './core/retry.js';
+export type { RetryConfig } from './core/retry.js';
+
 // PnL Calculations
 export {
   calculateUnrealizedPnl,
@@ -117,6 +140,7 @@ export {
 
 // Symbol Utilities
 export {
+  createSymbol,
   parseSymbol,
   buildSymbol,
   isValidSymbol,
@@ -131,6 +155,19 @@ export {
   groupByBase,
 } from './utils/symbols.js';
 export type { SymbolParts } from './utils/symbols.js';
+
+// Configuration Utilities
+export {
+  validateConfig,
+  validateMultipleConfigs,
+  getRequiredEnvVars,
+  getConfigErrorMessage,
+  isValidPrivateKey,
+  isValidApiKey,
+  hasEnvironmentSupport,
+  maskSensitive,
+  ConfigurationError,
+} from './utils/config.js';
 
 // =============================================================================
 // Validation

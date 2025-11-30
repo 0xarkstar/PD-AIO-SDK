@@ -3,6 +3,7 @@
  */
 
 import {
+  createSymbol,
   parseSymbol,
   buildSymbol,
   isValidSymbol,
@@ -18,6 +19,63 @@ import {
 } from '../../src/utils/symbols.js';
 
 describe('Symbol Utilities', () => {
+  describe('createSymbol', () => {
+    test('creates symbol with default USDT quote', () => {
+      expect(createSymbol('hyperliquid', 'BTC')).toBe('BTC/USDT:USDT');
+      expect(createSymbol('lighter', 'ETH')).toBe('ETH/USDT:USDT');
+      expect(createSymbol('grvt', 'SOL')).toBe('SOL/USDT:USDT');
+    });
+
+    test('creates symbol with custom quote currency', () => {
+      expect(createSymbol('hyperliquid', 'BTC', 'USDC')).toBe('BTC/USDC:USDC');
+      expect(createSymbol('paradex', 'ETH', 'USD')).toBe('ETH/USD:USD');
+    });
+
+    test('normalizes input to uppercase', () => {
+      expect(createSymbol('hyperliquid', 'btc')).toBe('BTC/USDT:USDT');
+      expect(createSymbol('lighter', 'eth', 'usdc')).toBe('ETH/USDC:USDC');
+    });
+
+    test('trims whitespace from inputs', () => {
+      expect(createSymbol('hyperliquid', ' BTC ')).toBe('BTC/USDT:USDT');
+      expect(createSymbol('lighter', 'ETH ', ' USDC ')).toBe('ETH/USDC:USDC');
+    });
+
+    test('throws on empty base currency', () => {
+      expect(() => createSymbol('hyperliquid', '')).toThrow('Base currency cannot be empty');
+      expect(() => createSymbol('hyperliquid', '  ')).toThrow('Base currency cannot be empty');
+    });
+
+    test('throws on empty quote currency', () => {
+      expect(() => createSymbol('hyperliquid', 'BTC', '')).toThrow('Quote currency cannot be empty');
+      expect(() => createSymbol('hyperliquid', 'BTC', '  ')).toThrow('Quote currency cannot be empty');
+    });
+
+    test('throws on invalid base currency characters', () => {
+      expect(() => createSymbol('hyperliquid', 'BTC-USD')).toThrow('Invalid base currency');
+      expect(() => createSymbol('hyperliquid', 'BTC/ETH')).toThrow('Invalid base currency');
+    });
+
+    test('throws on invalid quote currency characters', () => {
+      expect(() => createSymbol('hyperliquid', 'BTC', 'USD-T')).toThrow('Invalid quote currency');
+      expect(() => createSymbol('hyperliquid', 'BTC', 'US/DT')).toThrow('Invalid quote currency');
+    });
+
+    test('works with all supported exchanges', () => {
+      expect(createSymbol('hyperliquid', 'BTC')).toBe('BTC/USDT:USDT');
+      expect(createSymbol('lighter', 'BTC')).toBe('BTC/USDT:USDT');
+      expect(createSymbol('grvt', 'BTC')).toBe('BTC/USDT:USDT');
+      expect(createSymbol('paradex', 'BTC')).toBe('BTC/USDT:USDT');
+      expect(createSymbol('edgex', 'BTC')).toBe('BTC/USDT:USDT');
+      expect(createSymbol('backpack', 'BTC')).toBe('BTC/USDT:USDT');
+    });
+
+    test('handles numeric characters in symbols', () => {
+      expect(createSymbol('hyperliquid', '1INCH')).toBe('1INCH/USDT:USDT');
+      expect(createSymbol('lighter', 'APE3S')).toBe('APE3S/USDT:USDT');
+    });
+  });
+
   describe('parseSymbol', () => {
     test('parses perpetual symbol correctly', () => {
       const parts = parseSymbol('BTC/USDT:USDT');

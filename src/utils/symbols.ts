@@ -4,6 +4,58 @@
  * Utilities for parsing and converting trading pair symbols
  */
 
+import type { SupportedExchange } from '../factory.js';
+
+/**
+ * Create a symbol in unified format for a specific exchange
+ *
+ * @param exchange - Exchange identifier
+ * @param base - Base currency (e.g., 'BTC', 'ETH')
+ * @param quote - Quote currency (default: 'USDT')
+ * @returns Unified symbol format (e.g., 'BTC/USDT:USDT')
+ *
+ * @example
+ * ```typescript
+ * import { createSymbol } from 'perp-dex-sdk';
+ *
+ * // Simple usage with defaults
+ * const btc = createSymbol('hyperliquid', 'BTC');  // "BTC/USDT:USDT"
+ *
+ * // Custom quote currency
+ * const eth = createSymbol('lighter', 'ETH', 'USDC');  // "ETH/USDC:USDC"
+ *
+ * // Works with all supported exchanges
+ * const sol = createSymbol('backpack', 'SOL');  // "SOL/USDT:USDT"
+ * ```
+ */
+export function createSymbol(
+  exchange: SupportedExchange,
+  base: string,
+  quote: string = 'USDT'
+): string {
+  // Normalize to uppercase
+  const normalizedBase = base.toUpperCase().trim();
+  const normalizedQuote = quote.toUpperCase().trim();
+
+  // Validate inputs
+  if (!normalizedBase) {
+    throw new Error('Base currency cannot be empty');
+  }
+  if (!normalizedQuote) {
+    throw new Error('Quote currency cannot be empty');
+  }
+  if (!/^[A-Z0-9]+$/.test(normalizedBase)) {
+    throw new Error(`Invalid base currency: ${base}`);
+  }
+  if (!/^[A-Z0-9]+$/.test(normalizedQuote)) {
+    throw new Error(`Invalid quote currency: ${quote}`);
+  }
+
+  // All supported exchanges use perpetual contracts with same settlement currency as quote
+  // Format: BASE/QUOTE:SETTLE where SETTLE === QUOTE for perpetuals
+  return `${normalizedBase}/${normalizedQuote}:${normalizedQuote}`;
+}
+
 /**
  * Parse unified symbol into components
  *

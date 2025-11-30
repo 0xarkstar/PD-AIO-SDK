@@ -115,7 +115,7 @@ export class GRVTAdapter extends BaseAdapter {
   private readonly apiUrl: string;
   private readonly wsUrl: string;
   private readonly auth: GRVTAuth;
-  private readonly rateLimiter: RateLimiter;
+  protected readonly rateLimiter: RateLimiter;
   private readonly testnet: boolean;
   private readonly wsManager: WebSocketManager;
 
