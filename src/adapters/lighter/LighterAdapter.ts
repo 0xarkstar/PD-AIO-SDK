@@ -64,7 +64,7 @@ export class LighterAdapter extends BaseAdapter {
   private readonly wsUrl: string;
   private readonly apiKey?: string;
   private readonly apiSecret?: string;
-  private readonly rateLimiter: RateLimiter;
+  protected readonly rateLimiter: RateLimiter;
 
   constructor(config: LighterConfig = {}) {
     super(config);

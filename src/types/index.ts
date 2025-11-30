@@ -45,6 +45,22 @@ export type {
   RateLimitConfig,
 } from './adapter.js';
 
+// Health types
+export type {
+  HealthStatus,
+  HealthCheckResult,
+  HealthCheckConfig,
+  ComponentHealth,
+  AuthHealth,
+  WebSocketHealth,
+} from './health.js';
+
+export {
+  determineHealthStatus,
+  isHealthy,
+  isCriticallyUnhealthy,
+} from './health.js';
+
 // Errors
 export {
   PerpDEXError,

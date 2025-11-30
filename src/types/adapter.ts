@@ -96,8 +96,50 @@ export interface IExchangeAdapter {
 
   /**
    * Disconnect and cleanup resources
+   *
+   * Cleans up:
+   * - WebSocket connections
+   * - Active timers and intervals
+   * - Pending HTTP requests
+   * - Cached data
    */
   disconnect(): Promise<void>;
+
+  /**
+   * Check if adapter has been disconnected
+   *
+   * @returns true if disconnect() has been called
+   */
+  isDisconnected(): boolean;
+
+  /**
+   * Clear all cached data
+   */
+  clearCache(): void;
+
+  /**
+   * Perform health check on exchange adapter
+   *
+   * Checks:
+   * - API connectivity and latency
+   * - WebSocket connection (if applicable)
+   * - Authentication validity (if authenticated)
+   * - Rate limit status
+   *
+   * @param config - Health check configuration
+   * @returns Promise resolving to health check result
+   *
+   * @example
+   * ```typescript
+   * const health = await exchange.healthCheck();
+   * if (health.status === 'healthy') {
+   *   console.log('Exchange is operational');
+   * } else {
+   *   console.warn('Exchange issues detected:', health);
+   * }
+   * ```
+   */
+  healthCheck(config?: import('./health.js').HealthCheckConfig): Promise<import('./health.js').HealthCheckResult>;
 
   // ===========================================================================
   // Market Data (Public)

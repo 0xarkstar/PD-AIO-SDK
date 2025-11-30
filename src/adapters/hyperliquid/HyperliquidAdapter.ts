@@ -113,7 +113,7 @@ export class HyperliquidAdapter extends BaseAdapter {
   private wsUrl: string;
   private wsManager?: WebSocketManager;
   private auth?: HyperliquidAuth;
-  private rateLimiter: RateLimiter;
+  protected rateLimiter: RateLimiter;
 
   constructor(config: HyperliquidConfig = {}) {
     super(config);
@@ -477,7 +477,8 @@ export class HyperliquidAdapter extends BaseAdapter {
           const canceled = await this.cancelOrder(order.id, order.symbol);
           canceledOrders.push(canceled);
         } catch (error) {
-          this.debug(`Failed to cancel order ${order.id}:`, error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.debug('Failed to cancel order', { orderId: order.id, error: errorMessage });
         }
       }
 
