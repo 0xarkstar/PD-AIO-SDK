@@ -1,8 +1,16 @@
 {
   "name": "pd-aio-sdk",
   "version": "0.1.0",
-  "description": "PD AIO SDK - Perp DEX All-In-One SDK: Unified TypeScript SDK for 6+ decentralized perpetual exchanges (Hyperliquid, Lighter, GRVT, Paradex, EdgeX, Backpack)",
+  "description": "PD AIO SDK - Perp DEX All-In-One SDK: Unified TypeScript SDK for 7 decentralized perpetual exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado)",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xarkstar/PD-AIO-SDK.git"
+  },
+  "bugs": {
+    "url": "https://github.com/0xarkstar/PD-AIO-SDK/issues"
+  },
+  "homepage": "https://github.com/0xarkstar/PD-AIO-SDK#readme",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -37,11 +45,13 @@
     "paradex",
     "edgex",
     "backpack",
+    "nado",
     "trading",
     "crypto",
     "defi",
     "sdk",
-    "unified-api"
+    "unified-api",
+    "typescript"
   ],
   "author": "",
   "license": "MIT",

@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Exchange Support
+- **Nado Adapter** - 7th supported exchange
+  - Built on Ink L2 by Kraken team
+  - 5-15ms matching engine latency
+  - EIP-712 typed data signing
+  - X18 decimal format (18 decimals)
+  - Full REST + WebSocket API support
+  - Public testnet available (Chain ID: 763373)
+  - Mainnet production ready (Chain ID: 57073)
+  - 31 new unit tests
+  - 20 integration test cases
+  - Complete documentation and examples
+
 #### Developer Experience (P0)
 - **Simple Symbol Helper** (`createSymbol`) - Easy symbol generation with exchange-aware defaults
   - `createSymbol('hyperliquid', 'BTC')` → `"BTC/USDT:USDT"`
