@@ -31,12 +31,12 @@
 - **Python aliases** available (snake_case for Python developers)
 
 ### 🌐 Multi-Exchange Support
-- **Hyperliquid** - 200k orders/sec, EIP-712 auth, HIP-3 ecosystem
-- **GRVT** - Hybrid CEX/DEX, portfolio margin
-- **Paradex** - StarkNet L2, ultra-low latency
-- **EdgeX** - Sub-10ms matching, zero gas fees
-- **Backpack** - Solana-based perpetuals
-- **Lighter** - ZK-SNARK proofs, orderbook DEX
+- **Hyperliquid** - Production + Testnet, 200k orders/sec, HIP-3 ecosystem
+- **GRVT** - Production + Testnet, Hybrid CEX/DEX, portfolio margin
+- **Paradex** - Production + Testnet (Sepolia), StarkNet L2
+- **EdgeX** - Production only (V1), Sub-10ms matching, $130B+ volume
+- **Backpack** - Production only, Solana-based, multi-market support
+- **Lighter** - Beta + Testnet, ZK-SNARK proofs, orderbook DEX
 
 ### 🔐 Production-Grade Security
 - **EIP-712 signatures** (Hyperliquid, GRVT)
@@ -121,12 +121,14 @@ await exchange.disconnect();
 
 | Exchange | Status | Testnet | Auth Method | Special Features |
 |----------|--------|---------|-------------|------------------|
-| **Hyperliquid** | ✅ Production | ✅ Yes | EIP-712 | 200k orders/sec, HIP-3 ecosystem support |
-| **GRVT** | ✅ Production | ✅ Yes | EIP-712 + Session | Hybrid CEX/DEX, portfolio margin |
-| **Paradex** | ✅ Production | ✅ Yes | StarkNet + JWT | StarkNet L2, ultra-low latency |
-| **EdgeX** | ✅ Production | ✅ Yes | StarkEx + Pedersen | Sub-10ms matching, zero gas |
-| **Backpack** | ✅ Production | ✅ Yes | ED25519 | Solana-based perpetuals |
-| **Lighter** | ✅ Production | ❌ Mainnet only | API Key | ZK-SNARK proofs, orderbook DEX |
+| **Hyperliquid** | ✅ Production | ✅ Public | EIP-712 | 200k orders/sec, HIP-3 ecosystem, faucet available |
+| **GRVT** | ✅ Production | ✅ Public | EIP-712 + Session | Hybrid CEX/DEX, portfolio margin |
+| **Paradex** | ✅ Production | ✅ Public (Sepolia) | StarkNet + JWT | StarkNet L2, ultra-low latency |
+| **EdgeX** | ✅ Production (V1) | ❌ Mainnet only* | StarkEx + Pedersen | Sub-10ms matching, $130B+ volume |
+| **Backpack** | ✅ Production | ❌ Mainnet only | ED25519 | Solana-based, multi-market types |
+| **Lighter** | ⚠️ Beta | ✅ Public (ETH testnet) | API Key | ZK-SNARK proofs, orderbook DEX |
+
+> *EdgeX V2 testnet planned for Q3 2025
 
 ### 🎁 Bonus: HIP-3 Ecosystem (via Hyperliquid)
 
