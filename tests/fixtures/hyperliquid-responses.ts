@@ -69,12 +69,12 @@ export const mockHyperliquidResponses = {
     coin: 'BTC',
     levels: [
       [
-        { px: '50000.0', sz: '0.5', n: 1 },
-        { px: '49900.0', sz: '1.0', n: 2 },
+        ['50000.0', '0.5'],
+        ['49900.0', '1.0'],
       ],
       [
-        { px: '50100.0', sz: '0.3', n: 1 },
-        { px: '50200.0', sz: '0.8', n: 3 },
+        ['50100.0', '0.3'],
+        ['50200.0', '0.8'],
       ],
     ],
     time: 1234567890000,
@@ -115,6 +115,52 @@ export const mockHyperliquidResponses = {
         ],
       },
     },
+  },
+
+  // Order response (for createOrder tests)
+  orderResponse: {
+    statuses: [
+      {
+        resting: {
+          oid: 12345,
+        },
+      },
+    ],
+  },
+
+  // Market order response
+  marketOrderResponse: {
+    statuses: [
+      {
+        filled: {
+          oid: 12346,
+          totalSz: '0.05',
+          avgPx: '50005.0',
+        },
+      },
+    ],
+  },
+
+  // Post-only order response
+  postOnlyOrderResponse: {
+    statuses: [
+      {
+        resting: {
+          oid: 12347,
+        },
+      },
+    ],
+  },
+
+  // Reduce-only order response
+  reduceOnlyOrderResponse: {
+    statuses: [
+      {
+        resting: {
+          oid: 12348,
+        },
+      },
+    ],
   },
 
   // Open orders response
@@ -224,11 +270,21 @@ export const mockHyperliquidResponses = {
     ],
   ],
 
+  // Portfolio value alias (for tests)
+  get portfolioValue() {
+    return this.portfolio;
+  },
+
   // User rate limit (Phase 0 Bug Fix #3)
   userRateLimit: {
     cumVlm: '2854574.593578',
     nRequestsUsed: 2890,
     nRequestsCap: 2864574,
+  },
+
+  // Rate limit status alias (for tests)
+  get rateLimitStatus() {
+    return this.userRateLimit;
   },
 
   // Cancel order response
@@ -279,12 +335,12 @@ export const mockHyperliquidWebSocketMessages = {
       coin: 'BTC',
       levels: [
         [
-          { px: '50000.0', sz: '0.5', n: 1 },
-          { px: '49900.0', sz: '1.0', n: 2 },
+          ['50000.0', '0.5'],
+          ['49900.0', '1.0'],
         ],
         [
-          { px: '50100.0', sz: '0.3', n: 1 },
-          { px: '50200.0', sz: '0.8', n: 3 },
+          ['50100.0', '0.3'],
+          ['50200.0', '0.8'],
         ],
       ],
       time: 1234567890000,
