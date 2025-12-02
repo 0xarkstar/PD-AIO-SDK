@@ -443,6 +443,60 @@ export interface Ticker {
 }
 
 // =============================================================================
+// Transaction Types (Deposits/Withdrawals)
+// =============================================================================
+
+export const TRANSACTION_TYPES = ['deposit', 'withdrawal'] as const;
+export type TransactionType = (typeof TRANSACTION_TYPES)[number];
+
+export const TRANSACTION_STATUSES = ['pending', 'processing', 'completed', 'failed', 'canceled'] as const;
+export type TransactionStatus = (typeof TRANSACTION_STATUSES)[number];
+
+/**
+ * Deposit or withdrawal transaction
+ */
+export interface Transaction {
+  /** Transaction ID */
+  id: string;
+
+  /** Transaction type */
+  type: TransactionType;
+
+  /** Currency code */
+  currency: string;
+
+  /** Transaction amount */
+  amount: number;
+
+  /** Transaction status */
+  status: TransactionStatus;
+
+  /** Transaction fee */
+  fee?: number;
+
+  /** Blockchain transaction hash */
+  txid?: string;
+
+  /** Deposit/withdrawal address */
+  address?: string;
+
+  /** Address tag/memo (for certain currencies) */
+  tag?: string;
+
+  /** Network/chain (e.g., "ERC20", "TRC20") */
+  network?: string;
+
+  /** Transaction timestamp (ms) */
+  timestamp: number;
+
+  /** Update timestamp (ms) */
+  updated?: number;
+
+  /** Exchange-specific metadata */
+  info?: Record<string, unknown>;
+}
+
+// =============================================================================
 // Parameter Types
 // =============================================================================
 
@@ -474,4 +528,91 @@ export interface TradeParams {
 
   /** Start timestamp (ms) */
   since?: number;
+}
+
+// =============================================================================
+// Fee Types
+// =============================================================================
+
+/**
+ * User fee information
+ */
+export interface UserFees {
+  /** Maker fee rate (negative for rebate) */
+  maker: number;
+
+  /** Taker fee rate */
+  taker: number;
+
+  /** Fee tier level */
+  tier?: string;
+
+  /** 30-day volume (for fee calculation) */
+  volume30d?: number;
+
+  /** Exchange-specific metadata */
+  info?: Record<string, unknown>;
+}
+
+// =============================================================================
+// Portfolio Types
+// =============================================================================
+
+/**
+ * Portfolio performance metrics
+ */
+export interface Portfolio {
+  /** Total portfolio value */
+  totalValue: number;
+
+  /** Daily PnL */
+  dailyPnl: number;
+
+  /** Daily PnL percentage */
+  dailyPnlPercentage: number;
+
+  /** Weekly PnL */
+  weeklyPnl?: number;
+
+  /** Weekly PnL percentage */
+  weeklyPnlPercentage?: number;
+
+  /** Monthly PnL */
+  monthlyPnl?: number;
+
+  /** Monthly PnL percentage */
+  monthlyPnlPercentage?: number;
+
+  /** All-time PnL */
+  allTimePnl?: number;
+
+  /** Timestamp */
+  timestamp: number;
+
+  /** Exchange-specific metadata */
+  info?: Record<string, unknown>;
+}
+
+// =============================================================================
+// Rate Limit Types
+// =============================================================================
+
+/**
+ * Rate limit status
+ */
+export interface RateLimitStatus {
+  /** Remaining requests in current window */
+  remaining: number;
+
+  /** Maximum requests per window */
+  limit: number;
+
+  /** Window reset timestamp (ms) */
+  resetAt: number;
+
+  /** Percentage of limit used */
+  percentUsed: number;
+
+  /** Exchange-specific metadata */
+  info?: Record<string, unknown>;
 }

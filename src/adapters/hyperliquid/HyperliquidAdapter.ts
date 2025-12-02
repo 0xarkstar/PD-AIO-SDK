@@ -21,6 +21,7 @@ import type {
   Trade,
   TradeParams,
 } from '../../types/index.js';
+import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { WebSocketManager } from '../../websocket/index.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
@@ -39,10 +40,12 @@ import { HyperliquidAuth } from './HyperliquidAuth.js';
 import type {
   HyperliquidAction,
   HyperliquidAllMids,
+  HyperliquidHistoricalOrder,
   HyperliquidL2Book,
   HyperliquidMeta,
   HyperliquidOpenOrder,
   HyperliquidOrderResponse,
+  HyperliquidUserFill,
   HyperliquidUserState,
   HyperliquidWsL2BookUpdate,
   HyperliquidWsSubscription,
@@ -52,12 +55,14 @@ import {
   convertOrderRequest,
   mapError,
   normalizeBalance,
+  normalizeHistoricalOrder,
   normalizeMarket,
   normalizeOrder,
   normalizeOrderBook,
   normalizePosition,
   normalizeTicker,
   normalizeTrade,
+  normalizeUserFill,
 } from './utils.js';
 
 export interface HyperliquidConfig extends ExchangeConfig {
@@ -79,7 +84,7 @@ export class HyperliquidAdapter extends BaseAdapter {
     fetchOrderBook: true,
     fetchTrades: true,
     fetchFundingRate: true,
-    fetchFundingRateHistory: false,
+    fetchFundingRateHistory: true,
 
     // Trading
     createOrder: true,
@@ -88,6 +93,12 @@ export class HyperliquidAdapter extends BaseAdapter {
     createBatchOrders: true,
     cancelBatchOrders: true,
     editOrder: false,
+
+    // Account History
+    fetchOrderHistory: true,
+    fetchMyTrades: true,
+    fetchDeposits: false,
+    fetchWithdrawals: false,
 
     // Positions & Balance
     fetchPositions: true,
@@ -107,6 +118,11 @@ export class HyperliquidAdapter extends BaseAdapter {
     // Advanced
     twapOrders: false,
     vaultTrading: false,
+
+    // Additional Info
+    fetchUserFees: true,
+    fetchPortfolio: true,
+    fetchRateLimitStatus: true,
   };
 
   private apiUrl: string;
@@ -309,7 +325,58 @@ export class HyperliquidAdapter extends BaseAdapter {
     since?: number,
     limit?: number
   ): Promise<FundingRate[]> {
-    throw new Error('fetchFundingRateHistory not supported by Hyperliquid');
+    await this.rateLimiter.acquire('fetchFundingRateHistory');
+
+    try {
+      const exchangeSymbol = this.symbolToExchange(symbol);
+
+      // Default to last 7 days if since not provided
+      const startTime = since ?? Date.now() - 7 * 24 * 3600 * 1000;
+
+      const response = await this.request<Array<{ coin: string; fundingRate: string; premium: string; time: number }>>(
+        'POST',
+        `${this.apiUrl}/info`,
+        {
+          type: 'fundingHistory',
+          coin: exchangeSymbol,
+          startTime,
+        }
+      );
+
+      if (!response || response.length === 0) {
+        return [];
+      }
+
+      // Fetch current mark price for all rates
+      const allMids = await this.request<HyperliquidAllMids>('POST', `${this.apiUrl}/info`, {
+        type: 'allMids',
+      });
+
+      const markPrice = parseFloat(allMids.mids[exchangeSymbol] ?? '0');
+
+      // Convert to unified format
+      let fundingRates = response.map((rate) => ({
+        symbol,
+        fundingRate: parseFloat(rate.fundingRate),
+        fundingTimestamp: rate.time,
+        nextFundingTimestamp: rate.time + 8 * 3600 * 1000, // 8 hours
+        markPrice,
+        indexPrice: markPrice,
+        fundingIntervalHours: 8,
+      }));
+
+      // Sort by timestamp descending (newest first)
+      fundingRates.sort((a, b) => b.fundingTimestamp - a.fundingTimestamp);
+
+      // Apply limit if provided
+      if (limit) {
+        fundingRates = fundingRates.slice(0, limit);
+      }
+
+      return fundingRates;
+    } catch (error) {
+      throw mapError(error);
+    }
   }
 
   // ===========================================================================
@@ -489,6 +556,96 @@ export class HyperliquidAdapter extends BaseAdapter {
   }
 
   // ===========================================================================
+  // Account History
+  // ===========================================================================
+
+  async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+    this.ensureInitialized();
+
+    if (!this.auth) {
+      throw new Error('Authentication required');
+    }
+
+    await this.rateLimiter.acquire('fetchOrderHistory');
+
+    try {
+      const response = await this.request<HyperliquidHistoricalOrder[]>(
+        'POST',
+        `${this.apiUrl}/info`,
+        {
+          type: 'historicalOrders',
+          user: this.auth.getAddress(),
+        }
+      );
+
+      let orders = response.map(normalizeHistoricalOrder);
+
+      // Filter by symbol if provided
+      if (symbol) {
+        orders = orders.filter((order) => order.symbol === symbol);
+      }
+
+      // Filter by since timestamp if provided
+      if (since) {
+        orders = orders.filter((order) => order.timestamp >= since);
+      }
+
+      // Sort by timestamp descending (newest first)
+      orders.sort((a, b) => b.timestamp - a.timestamp);
+
+      // Apply limit if provided
+      if (limit) {
+        orders = orders.slice(0, limit);
+      }
+
+      return orders;
+    } catch (error) {
+      throw mapError(error);
+    }
+  }
+
+  async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+    this.ensureInitialized();
+
+    if (!this.auth) {
+      throw new Error('Authentication required');
+    }
+
+    await this.rateLimiter.acquire('fetchMyTrades');
+
+    try {
+      const response = await this.request<HyperliquidUserFill[]>('POST', `${this.apiUrl}/info`, {
+        type: 'userFills',
+        user: this.auth.getAddress(),
+      });
+
+      let trades = response.map(normalizeUserFill);
+
+      // Filter by symbol if provided
+      if (symbol) {
+        trades = trades.filter((trade) => trade.symbol === symbol);
+      }
+
+      // Filter by since timestamp if provided
+      if (since) {
+        trades = trades.filter((trade) => trade.timestamp >= since);
+      }
+
+      // Sort by timestamp descending (newest first)
+      trades.sort((a, b) => b.timestamp - a.timestamp);
+
+      // Apply limit if provided
+      if (limit) {
+        trades = trades.slice(0, limit);
+      }
+
+      return trades;
+    } catch (error) {
+      throw mapError(error);
+    }
+  }
+
+  // ===========================================================================
   // Positions & Balance
   // ===========================================================================
 
@@ -569,6 +726,161 @@ export class HyperliquidAdapter extends BaseAdapter {
       // In Hyperliquid, leverage for isolated positions is set when opening
       // For cross-margin, it's automatic based on account equity
       // This is more of a placeholder/documentation than functional implementation
+    } catch (error) {
+      throw mapError(error);
+    }
+  }
+
+  // ===========================================================================
+  // Additional Info Methods
+  // ===========================================================================
+
+  async fetchUserFees(): Promise<import('../../types/common.js').UserFees> {
+    this.ensureInitialized();
+
+    if (!this.auth) {
+      throw new Error('Authentication required');
+    }
+
+    await this.rateLimiter.acquire('fetchUserFees');
+
+    try {
+      const response = await this.request<import('./types.js').HyperliquidUserFees>(
+        'POST',
+        `${this.apiUrl}/info`,
+        {
+          type: 'userFees',
+          user: this.auth.getAddress(),
+        }
+      );
+
+      // Extract fee rates from response
+      const makerFee = parseFloat(response.userAddRate);
+      const takerFee = parseFloat(response.userCrossRate);
+
+      return {
+        maker: makerFee,
+        taker: takerFee,
+        info: response as unknown as Record<string, unknown>,
+      };
+    } catch (error) {
+      throw mapError(error);
+    }
+  }
+
+  async fetchPortfolio(): Promise<import('../../types/common.js').Portfolio> {
+    this.ensureInitialized();
+
+    if (!this.auth) {
+      throw new Error('Authentication required');
+    }
+
+    await this.rateLimiter.acquire('fetchPortfolio');
+
+    try {
+      const response = await this.request<import('./types.js').HyperliquidPortfolio>(
+        'POST',
+        `${this.apiUrl}/info`,
+        {
+          type: 'portfolio',
+          user: this.auth.getAddress(),
+        }
+      );
+
+      // Find the 'day' period data
+      const dayPeriod = response.find(([period]) => period === 'day');
+      if (!dayPeriod) {
+        throw new PerpDEXError(
+          'Day period data not found in portfolio response',
+          'INVALID_RESPONSE',
+          'hyperliquid'
+        );
+      }
+
+      const [, dayData] = dayPeriod;
+
+      // Extract latest values from history arrays
+      const latestAccountValue =
+        dayData.accountValueHistory.length > 0
+          ? parseFloat(dayData.accountValueHistory[dayData.accountValueHistory.length - 1]![1])
+          : 0;
+
+      const latestDailyPnl =
+        dayData.pnlHistory.length > 0
+          ? parseFloat(dayData.pnlHistory[dayData.pnlHistory.length - 1]![1])
+          : 0;
+
+      // Find week and month periods for additional metrics
+      const weekPeriod = response.find(([period]) => period === 'week');
+      const monthPeriod = response.find(([period]) => period === 'month');
+
+      const weeklyPnl =
+        weekPeriod && weekPeriod[1].pnlHistory.length > 0
+          ? parseFloat(weekPeriod[1].pnlHistory[weekPeriod[1].pnlHistory.length - 1]![1])
+          : 0;
+
+      const monthlyPnl =
+        monthPeriod && monthPeriod[1].pnlHistory.length > 0
+          ? parseFloat(monthPeriod[1].pnlHistory[monthPeriod[1].pnlHistory.length - 1]![1])
+          : 0;
+
+      // Calculate percentage changes (use account value as base)
+      const dailyPnlPercentage =
+        latestAccountValue > 0 ? (latestDailyPnl / latestAccountValue) * 100 : 0;
+      const weeklyPnlPercentage =
+        latestAccountValue > 0 ? (weeklyPnl / latestAccountValue) * 100 : 0;
+      const monthlyPnlPercentage =
+        latestAccountValue > 0 ? (monthlyPnl / latestAccountValue) * 100 : 0;
+
+      return {
+        totalValue: latestAccountValue,
+        dailyPnl: latestDailyPnl,
+        dailyPnlPercentage,
+        weeklyPnl,
+        weeklyPnlPercentage,
+        monthlyPnl,
+        monthlyPnlPercentage,
+        timestamp: Date.now(),
+        info: response as unknown as Record<string, unknown>,
+      };
+    } catch (error) {
+      throw mapError(error);
+    }
+  }
+
+  async fetchRateLimitStatus(): Promise<import('../../types/common.js').RateLimitStatus> {
+    this.ensureInitialized();
+
+    if (!this.auth) {
+      throw new Error('Authentication required');
+    }
+
+    await this.rateLimiter.acquire('fetchRateLimitStatus');
+
+    try {
+      const response = await this.request<import('./types.js').HyperliquidUserRateLimit>(
+        'POST',
+        `${this.apiUrl}/info`,
+        {
+          type: 'userRateLimit',
+          user: this.auth.getAddress(),
+        }
+      );
+
+      // Extract rate limit info from response
+      const used = response.nRequestsUsed;
+      const cap = response.nRequestsCap;
+
+      // Hyperliquid uses a 60-second rolling window
+      const windowMs = 60000;
+
+      return {
+        remaining: cap - used,
+        limit: cap,
+        resetAt: Date.now() + windowMs,
+        percentUsed: cap > 0 ? (used / cap) * 100 : 0,
+        info: response as unknown as Record<string, unknown>,
+      };
     } catch (error) {
       throw mapError(error);
     }

@@ -159,6 +159,78 @@ export const mockHyperliquidResponses = {
     },
   ],
 
+  // User fees (Phase 0 Bug Fix #1)
+  userFees: {
+    userCrossRate: '0.000315', // Taker fee
+    userAddRate: '0.000105', // Maker fee
+    userSpotCrossRate: '0.0002',
+    userSpotAddRate: '0.0001',
+    activeReferralDiscount: '0',
+    dailyUserVlm: [
+      {
+        date: '2025-12-01',
+        userCross: '1000.0',
+        userAdd: '500.0',
+        exchange: 'Hyperliquid',
+      },
+    ],
+    feeSchedule: {
+      cross: '0.00035',
+      add: '0.00015',
+      spotCross: '0.0002',
+      spotAdd: '0.0001',
+      tiers: [
+        {
+          tier: 1,
+          vlm: '0',
+          crossRate: '0.00035',
+          addRate: '0.00015',
+        },
+      ],
+    },
+  },
+
+  // Portfolio (Phase 0 Bug Fix #2)
+  portfolio: [
+    [
+      'day',
+      {
+        accountValueHistory: [
+          [1733097600000, '10000.0'],
+          [1733184000000, '10250.5'],
+        ],
+        pnlHistory: [
+          [1733097600000, '0'],
+          [1733184000000, '250.5'],
+        ],
+        vlm: '5000.0',
+      },
+    ],
+    [
+      'week',
+      {
+        accountValueHistory: [[1733097600000, '10000.0']],
+        pnlHistory: [[1733097600000, '500.0']],
+        vlm: '25000.0',
+      },
+    ],
+    [
+      'month',
+      {
+        accountValueHistory: [[1733097600000, '10000.0']],
+        pnlHistory: [[1733097600000, '1000.0']],
+        vlm: '100000.0',
+      },
+    ],
+  ],
+
+  // User rate limit (Phase 0 Bug Fix #3)
+  userRateLimit: {
+    cumVlm: '2854574.593578',
+    nRequestsUsed: 2890,
+    nRequestsCap: 2864574,
+  },
+
   // Cancel order response
   orderCancelled: {
     status: 'ok',

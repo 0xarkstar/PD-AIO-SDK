@@ -289,6 +289,52 @@ await exchange.fetchMarkets();   // camelCase (JavaScript/TypeScript)
 await exchange.fetch_markets();  // snake_case (Python)
 ```
 
+#### Account History & Analytics
+
+```typescript
+// Fetch order history
+const orderHistory = await exchange.fetchOrderHistory('BTC/USDT:USDT', Date.now() - 86400000, 100);
+console.log('Last 100 orders for BTC in last 24h:', orderHistory.length);
+
+// Fetch trade history (fills)
+const trades = await exchange.fetchMyTrades('ETH/USDT:USDT');
+trades.forEach(trade => {
+  console.log(`${trade.side} ${trade.amount} @ ${trade.price}`);
+});
+
+// Get user fee rates
+const fees = await exchange.fetchUserFees();
+console.log(`Maker fee: ${fees.maker * 100}%`);
+console.log(`Taker fee: ${fees.taker * 100}%`);
+
+// Portfolio performance (Hyperliquid)
+const portfolio = await exchange.fetchPortfolio();
+console.log(`Total value: $${portfolio.totalValue}`);
+console.log(`Daily PnL: $${portfolio.dailyPnl} (${portfolio.dailyPnlPercentage}%)`);
+console.log(`Weekly PnL: $${portfolio.weeklyPnl} (${portfolio.weeklyPnlPercentage}%)`);
+
+// Check rate limit status
+const rateLimit = await exchange.fetchRateLimitStatus();
+console.log(`${rateLimit.remaining}/${rateLimit.limit} requests remaining`);
+console.log(`Rate limit resets at: ${new Date(rateLimit.resetAt)}`);
+```
+
+#### Funding Rate History
+
+```typescript
+// Fetch funding rate history
+const fundingHistory = await exchange.fetchFundingRateHistory(
+  'BTC/USDT:USDT',
+  Date.now() - 7 * 86400000,  // Last 7 days
+  168  // 1 per hour for 7 days
+);
+
+fundingHistory.forEach(rate => {
+  const timestamp = new Date(rate.fundingTimestamp);
+  console.log(`${timestamp}: ${(rate.fundingRate * 100).toFixed(4)}%`);
+});
+```
+
 ## Architecture
 
 ```

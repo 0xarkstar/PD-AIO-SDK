@@ -413,4 +413,51 @@ describe('HyperliquidAdapter Integration Tests', () => {
       expect(orderBook2.symbol).toBe('BTC/USDT:USDT');
     });
   });
+
+  describe('Phase 0 Bug Fixes', () => {
+    test('fetchUserFees - correctly parses userCrossRate and userAddRate', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockHyperliquidResponses.userFees,
+      });
+
+      const fees = await adapter.fetchUserFees();
+
+      expect(fees.maker).toBeCloseTo(0.000105);
+      expect(fees.taker).toBeCloseTo(0.000315);
+      expect(fees.info).toHaveProperty('userCrossRate', '0.000315');
+      expect(fees.info).toHaveProperty('userAddRate', '0.000105');
+    });
+
+    test('fetchPortfolio - correctly parses array structure', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockHyperliquidResponses.portfolio,
+      });
+
+      const portfolio = await adapter.fetchPortfolio();
+
+      expect(portfolio.totalValue).toBeCloseTo(10250.5);
+      expect(portfolio.dailyPnl).toBeCloseTo(250.5);
+      expect(portfolio.dailyPnlPercentage).toBeGreaterThan(0);
+      expect(portfolio.weeklyPnl).toBeCloseTo(500.0);
+      expect(portfolio.monthlyPnl).toBeCloseTo(1000.0);
+      expect(portfolio.timestamp).toBeDefined();
+    });
+
+    test('fetchRateLimitStatus - correctly parses nRequestsUsed and nRequestsCap', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockHyperliquidResponses.userRateLimit,
+      });
+
+      const rateLimit = await adapter.fetchRateLimitStatus();
+
+      expect(rateLimit.remaining).toBe(2864574 - 2890);
+      expect(rateLimit.limit).toBe(2864574);
+      expect(rateLimit.percentUsed).toBeGreaterThan(0);
+      expect(rateLimit.percentUsed).toBeLessThan(1);
+      expect(rateLimit.resetAt).toBeGreaterThan(Date.now());
+    });
+  });
 });

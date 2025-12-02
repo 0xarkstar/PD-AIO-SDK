@@ -62,6 +62,8 @@ export class ParadexAdapter extends BaseAdapter {
     fetchFundingRateHistory: true,
     fetchPositions: true,
     fetchBalance: true,
+    fetchOrderHistory: true,
+    fetchMyTrades: true,
     createOrder: true,
     cancelOrder: true,
     cancelAllOrders: true,
@@ -337,6 +339,52 @@ export class ParadexAdapter extends BaseAdapter {
       market,
       leverage: leverage.toString(),
     });
+  }
+
+  /**
+   * Fetch order history
+   */
+  async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+    const params = new URLSearchParams();
+    if (symbol) params.append('market', toParadexSymbol(symbol));
+    if (since) params.append('start_at', since.toString());
+    if (limit) params.append('page_size', limit.toString());
+
+    const queryString = params.toString();
+    const response = await this.makeRequest(
+      'GET',
+      `/orders/history${queryString ? `?${queryString}` : ''}`,
+      'fetchOrderHistory'
+    );
+
+    if (!Array.isArray(response.results)) {
+      throw new PerpDEXError('Invalid order history response', 'INVALID_RESPONSE', 'paradex');
+    }
+
+    return response.results.map(normalizeOrder);
+  }
+
+  /**
+   * Fetch user trade history
+   */
+  async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+    const params = new URLSearchParams();
+    if (symbol) params.append('market', toParadexSymbol(symbol));
+    if (since) params.append('start_at', since.toString());
+    if (limit) params.append('page_size', limit.toString());
+
+    const queryString = params.toString();
+    const response = await this.makeRequest(
+      'GET',
+      `/fills${queryString ? `?${queryString}` : ''}`,
+      'fetchMyTrades'
+    );
+
+    if (!Array.isArray(response.results)) {
+      throw new PerpDEXError('Invalid fills response', 'INVALID_RESPONSE', 'paradex');
+    }
+
+    return response.results.map(normalizeTrade);
   }
 
   /**

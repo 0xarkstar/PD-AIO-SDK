@@ -12,7 +12,16 @@ export default {
         useESM: true,
       },
     ],
+    '^.+\\.jsx?$': [
+      'ts-jest',
+      {
+        useESM: true,
+      },
+    ],
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@noble|starknet|@scure)/)',
+  ],
   testMatch: [
     '**/tests/unit/**/*.test.ts',
     '**/tests/integration/**/*.test.ts',

@@ -594,6 +594,30 @@ export class GRVTAdapter extends BaseAdapter {
     throw new Error('GRVT uses cross-margin, leverage cannot be set manually');
   }
 
+  /**
+   * Fetch order history
+   * TODO: Implement when GRVT API documentation becomes accessible
+   */
+  async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+    throw new PerpDEXError(
+      'fetchOrderHistory not yet implemented for GRVT',
+      'NOT_IMPLEMENTED',
+      'grvt'
+    );
+  }
+
+  /**
+   * Fetch user trade history
+   * TODO: Implement when GRVT API documentation becomes accessible
+   */
+  async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+    throw new PerpDEXError(
+      'fetchMyTrades not yet implemented for GRVT',
+      'NOT_IMPLEMENTED',
+      'grvt'
+    );
+  }
+
   symbolToExchange(symbol: string): string {
     return toGRVTSymbol(symbol);
   }

@@ -33,10 +33,12 @@ import type {
   HyperliquidAsset,
   HyperliquidFill,
   HyperliquidFundingRate,
+  HyperliquidHistoricalOrder,
   HyperliquidL2Book,
   HyperliquidOpenOrder,
   HyperliquidOrderRequest,
   HyperliquidPosition,
+  HyperliquidUserFill,
   HyperliquidUserState,
   HyperliquidWsTrade,
 } from './types.js';
@@ -234,6 +236,83 @@ export function normalizeFill(fill: HyperliquidFill): Trade {
       fee: fill.fee,
       closedPnl: fill.closedPnl,
       tid: fill.tid,
+    },
+  };
+}
+
+/**
+ * Normalize Hyperliquid user fill to unified trade format
+ */
+export function normalizeUserFill(fill: HyperliquidUserFill): Trade {
+  const unifiedSymbol = hyperliquidToUnified(fill.coin);
+  const isBuy = fill.side === 'B';
+  const price = parseFloat(fill.px);
+  const amount = parseFloat(fill.sz);
+
+  return {
+    id: fill.hash,
+    symbol: unifiedSymbol,
+    orderId: fill.oid.toString(),
+    side: isBuy ? 'buy' : 'sell',
+    price,
+    amount,
+    cost: price * amount,
+    timestamp: fill.time,
+    info: {
+      fee: fill.fee,
+      feeToken: fill.feeToken,
+      closedPnl: fill.closedPnl,
+      tid: fill.tid,
+    },
+  };
+}
+
+/**
+ * Normalize Hyperliquid historical order to unified format
+ */
+export function normalizeHistoricalOrder(historicalOrder: HyperliquidHistoricalOrder): Order {
+  const order = historicalOrder.order;
+  const unifiedSymbol = hyperliquidToUnified(order.coin);
+  const isBuy = order.side === 'B';
+  const origSize = parseFloat(order.origSz);
+  const currentSize = parseFloat(order.sz);
+
+  // Map Hyperliquid status to unified status
+  let status: Order['status'];
+  switch (historicalOrder.status) {
+    case 'filled':
+      status = 'filled';
+      break;
+    case 'canceled':
+      status = 'canceled';
+      break;
+    case 'rejected':
+      status = 'rejected';
+      break;
+    case 'open':
+      status = 'open';
+      break;
+    default:
+      status = 'open';
+  }
+
+  return {
+    id: order.oid.toString(),
+    symbol: unifiedSymbol,
+    type: 'limit', // Historical orders are typically limits
+    side: isBuy ? 'buy' : 'sell',
+    amount: origSize,
+    price: parseFloat(order.limitPx),
+    status,
+    filled: origSize - currentSize,
+    remaining: currentSize,
+    reduceOnly: false,
+    postOnly: false,
+    clientOrderId: order.cloid,
+    timestamp: order.timestamp,
+    lastUpdateTimestamp: historicalOrder.statusTimestamp,
+    info: {
+      orderType: order.orderType,
     },
   };
 }
