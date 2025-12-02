@@ -31,12 +31,12 @@
 - **Python 별칭 지원** - Python 개발자를 위한 snake_case 메서드
 
 ### 🌐 다중 거래소 지원
-- **Hyperliquid** - 초당 20만 주문, EIP-712 인증, HIP-3 생태계
-- **GRVT** - CEX/DEX 하이브리드, 포트폴리오 마진
-- **Paradex** - StarkNet L2, 초저지연
-- **EdgeX** - 10ms 미만 매칭, 제로 가스
-- **Backpack** - 솔라나 기반 영구선물
-- **Lighter** - ZK-SNARK 증명, 오더북 DEX
+- **Hyperliquid** - 프로덕션 + 테스트넷, 초당 20만 주문, HIP-3 생태계
+- **GRVT** - 프로덕션 + 테스트넷, CEX/DEX 하이브리드, 포트폴리오 마진
+- **Paradex** - 프로덕션 + 테스트넷 (Sepolia), StarkNet L2
+- **EdgeX** - 프로덕션만 (V1), 10ms 미만 매칭, $130B+ 거래량
+- **Backpack** - 프로덕션만, 솔라나 기반, 다양한 마켓 지원
+- **Lighter** - 베타 + 테스트넷, ZK-SNARK 증명, 오더북 DEX
 
 ### 🔐 프로덕션급 보안
 - **EIP-712 서명** (Hyperliquid, GRVT)
@@ -121,12 +121,14 @@ await exchange.disconnect();
 
 | 거래소 | 상태 | 테스트넷 | 인증 방식 | 특별 기능 |
 |----------|--------|---------|-------------|------------------|
-| **Hyperliquid** | ✅ 프로덕션 | ✅ 지원 | EIP-712 | 초당 20만 주문, HIP-3 생태계 지원 |
-| **GRVT** | ✅ 프로덕션 | ✅ 지원 | EIP-712 + Session | CEX/DEX 하이브리드, 포트폴리오 마진 |
-| **Paradex** | ✅ 프로덕션 | ✅ 지원 | StarkNet + JWT | StarkNet L2, 초저지연 |
-| **EdgeX** | ✅ 프로덕션 | ✅ 지원 | StarkEx + Pedersen | 10ms 미만 매칭, 제로 가스 |
-| **Backpack** | ✅ 프로덕션 | ✅ 지원 | ED25519 | 솔라나 기반 영구선물 |
-| **Lighter** | ✅ 프로덕션 | ❌ 메인넷만 | API Key | ZK-SNARK 증명, 오더북 DEX |
+| **Hyperliquid** | ✅ 프로덕션 | ✅ 공개 | EIP-712 | 초당 20만 주문, HIP-3 생태계, 파우셋 제공 |
+| **GRVT** | ✅ 프로덕션 | ✅ 공개 | EIP-712 + Session | CEX/DEX 하이브리드, 포트폴리오 마진 |
+| **Paradex** | ✅ 프로덕션 | ✅ 공개 (Sepolia) | StarkNet + JWT | StarkNet L2, 초저지연 |
+| **EdgeX** | ✅ 프로덕션 (V1) | ❌ 메인넷만* | StarkEx + Pedersen | 10ms 미만 매칭, $130B+ 거래량 |
+| **Backpack** | ✅ 프로덕션 | ❌ 메인넷만 | ED25519 | 솔라나 기반, 다양한 마켓 타입 |
+| **Lighter** | ⚠️ 베타 | ✅ 공개 (ETH 테스트넷) | API Key | ZK-SNARK 증명, 오더북 DEX |
+
+> *EdgeX V2 테스트넷은 2025년 Q3에 출시 예정
 
 ### 🎁 보너스: HIP-3 생태계 (Hyperliquid 경유)
 
