@@ -1,9 +1,13 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+# PD AIO SDK - Change Log
+
+All notable changes to **PD AIO SDK** (Perp DEX All-In-One SDK) will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+**[한국어](./CHANGELOG.ko.md)** | English
 
 ## [Unreleased]
 
@@ -131,9 +135,12 @@ const exchange = createExchange('hyperliquid', config);
 ## [0.1.0] - 2025-12-01
 
 ### Added
-- Initial release
+- **Initial release of PD AIO SDK**
 - Support for 6 exchanges: Hyperliquid, Lighter, GRVT, Paradex, EdgeX, Backpack
+- HIP-3 ecosystem support (7+ platforms via Hyperliquid adapter)
 - Unified interface following CCXT patterns
 - WebSocket streaming infrastructure
 - Comprehensive type safety (TypeScript + Zod)
-- 80%+ test coverage
+- 395 tests with 100% pass rate
+- Production-grade authentication for all exchanges
+- English + Korean documentation

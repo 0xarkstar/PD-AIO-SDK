@@ -1,7 +1,7 @@
 {
-  "name": "perp-dex-sdk",
+  "name": "pd-aio-sdk",
   "version": "0.1.0",
-  "description": "Unified TypeScript SDK for decentralized perpetual exchanges (Hyperliquid, Lighter, GRVT, Paradex, EdgeX, Backpack)",
+  "description": "PD AIO SDK - Perp DEX All-In-One SDK: Unified TypeScript SDK for 6+ decentralized perpetual exchanges (Hyperliquid, Lighter, GRVT, Paradex, EdgeX, Backpack)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,6 +26,9 @@
     "prepublishOnly": "npm run build && npm run test"
   },
   "keywords": [
+    "pd-aio-sdk",
+    "perp-dex",
+    "all-in-one",
     "perpetual",
     "dex",
     "hyperliquid",
@@ -37,7 +40,8 @@
     "trading",
     "crypto",
     "defi",
-    "sdk"
+    "sdk",
+    "unified-api"
   ],
   "author": "",
   "license": "MIT",

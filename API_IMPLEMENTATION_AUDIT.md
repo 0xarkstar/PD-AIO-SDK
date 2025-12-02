@@ -1,15 +1,19 @@
-# Perp DEX SDK - API Implementation Audit Report
+# PD AIO SDK - API Implementation Audit Report
+
+**P**erp **D**EX **A**ll-**I**n-**O**ne SDK - API Compliance Verification
 
 **Date**: 2025-12-02
 **Version**: 0.1.0
 **Auditor**: Claude Code
 **Status**: ✅ PRODUCTION READY
 
+**[한국어](./API_IMPLEMENTATION_AUDIT.ko.md)** | English
+
 ---
 
 ## Executive Summary
 
-This report presents a comprehensive audit of the Perp DEX SDK implementation, verifying that all 6 exchange adapters (Hyperliquid, Paradex, Backpack, Lighter, GRVT, EdgeX) accurately implement their respective official API specifications. The audit included:
+This report presents a comprehensive audit of the **PD AIO SDK** (Perp DEX All-In-One SDK) implementation, verifying that all 6 exchange adapters (Hyperliquid, Paradex, Backpack, Lighter, GRVT, EdgeX) accurately implement their respective official API specifications. The audit included:
 
 1. **Documentation Verification**: Cross-referenced official API documentation for all 6 exchanges
 2. **Implementation Review**: Analyzed adapter code for compliance with API specifications
