@@ -9,6 +9,7 @@ import { GRVTAdapter } from '../../src/adapters/grvt/index.js';
 import { ParadexAdapter } from '../../src/adapters/paradex/index.js';
 import { EdgeXAdapter } from '../../src/adapters/edgex/index.js';
 import { BackpackAdapter } from '../../src/adapters/backpack/index.js';
+import { NadoAdapter } from '../../src/adapters/nado/index.js';
 
 describe('createExchange', () => {
   test('creates Hyperliquid adapter', () => {
@@ -25,6 +26,12 @@ describe('createExchange', () => {
     expect(createExchange('paradex', { apiKey: 'test-key' })).toBeInstanceOf(ParadexAdapter);
     expect(createExchange('edgex', { apiKey: 'test-key' })).toBeInstanceOf(EdgeXAdapter);
     expect(createExchange('backpack', { apiKey: 'test-key' })).toBeInstanceOf(BackpackAdapter);
+    expect(
+      createExchange('nado', {
+        testnet: true,
+        privateKey: '0x0000000000000000000000000000000000000000000000000000000000000001',
+      })
+    ).toBeInstanceOf(NadoAdapter);
   });
 
   test('passes config to adapter', () => {
@@ -49,6 +56,7 @@ describe('getSupportedExchanges', () => {
       'paradex',
       'edgex',
       'backpack',
+      'nado',
     ]);
   });
 });

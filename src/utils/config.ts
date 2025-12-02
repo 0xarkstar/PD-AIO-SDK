@@ -16,6 +16,7 @@ const EXCHANGE_ENV_REQUIREMENTS: Record<SupportedExchange, string[]> = {
   paradex: ['PARADEX_PRIVATE_KEY', 'PARADEX_L1_RPC_URL'],
   edgex: ['EDGEX_PRIVATE_KEY', 'EDGEX_STARK_PRIVATE_KEY'],
   backpack: ['BACKPACK_API_KEY', 'BACKPACK_SECRET_KEY'],
+  nado: ['NADO_PRIVATE_KEY'],
 };
 
 /**
@@ -126,6 +127,7 @@ export function getConfigErrorMessage(exchange: SupportedExchange, missingVars: 
     paradex: 'Generate a StarkNet wallet key (different from Ethereum!)',
     edgex: 'Register at edgex.exchange and get both Ethereum and StarkEx keys',
     backpack: 'Register at backpack.exchange and create ED25519 API credentials',
+    nado: 'Export your MetaMask private key for Ink L2 trading on Nado',
   };
 
   return (
