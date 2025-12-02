@@ -2,10 +2,11 @@
 
 > **P**erp **D**EX **A**ll-**I**n-**O**ne SDK - Unified TypeScript SDK for Decentralized Perpetual Exchanges
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-395%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-409%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![npm version](https://img.shields.io/badge/npm-v0.1.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
+[![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
 **[한국어 문서](./README.ko.md)** | English
 
@@ -13,11 +14,11 @@
 
 ## 🎯 What is PD AIO SDK?
 
-**PD AIO SDK** (Perp DEX All-In-One SDK) is a production-ready, unified TypeScript SDK that lets you trade on **6+ decentralized perpetual exchanges** through a single, consistent interface. No more learning different APIs for each exchange - write once, trade anywhere.
+**PD AIO SDK** (Perp DEX All-In-One SDK) is a production-ready, unified TypeScript SDK that lets you trade on **7 decentralized perpetual exchanges** through a single, consistent interface. No more learning different APIs for each exchange - write once, trade anywhere.
 
 ### Why "All-In-One"?
 
-- **One Interface** → 6+ Exchanges (Hyperliquid, Lighter, GRVT, Paradex, EdgeX, Backpack)
+- **One Interface** → 7 Exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado)
 - **One Codebase** → All Trading Operations (market data, orders, positions, WebSocket)
 - **One Installation** → Full-Stack Solution (authentication, rate limiting, error handling)
 
@@ -38,11 +39,13 @@
 - **EdgeX** - Production only (V1), Sub-10ms matching, $130B+ volume
 - **Backpack** - Production only, Solana-based, multi-market support
 - **Lighter** - Beta + Testnet, ZK-SNARK proofs, orderbook DEX
+- **Nado** - Production + Testnet, Ink L2 by Kraken, 5-15ms latency
 
 ### 🔐 Production-Grade Security
-- **EIP-712 signatures** (Hyperliquid, GRVT)
+- **EIP-712 signatures** (Hyperliquid, GRVT, Nado)
 - **StarkNet ECDSA** (Paradex, EdgeX)
 - **ED25519** (Backpack)
+- **API Key authentication** (Lighter)
 - **Secure credential management** with validation
 
 ### ⚡ Enterprise Features
@@ -54,10 +57,12 @@
 - **Type safety** - Runtime validation (Zod) + TypeScript strict mode
 
 ### 📊 Developer Experience
-- **395 tests** - 100% pass rate, production-ready
+- **409 tests** - 100% pass rate, production-ready
 - **Structured logging** - JSON logs with sensitive data masking
 - **Health checks** - Built-in system monitoring
 - **Comprehensive docs** - English + Korean documentation
+- **TypeScript strict mode** - Full type safety
+- **Examples included** - 10+ ready-to-use examples
 
 ---
 
