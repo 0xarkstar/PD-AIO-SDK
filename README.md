@@ -27,6 +27,7 @@
 
 ### 🔌 Unified Interface
 - **CCXT-style API** - Familiar interface for developers
+- **Fully Async/Await** - All methods return Promises, no callbacks
 - **Consistent method names** across all exchanges
 - **Python aliases** available (snake_case for Python developers)
 
