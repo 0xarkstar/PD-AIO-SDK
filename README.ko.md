@@ -1,70 +1,84 @@
-# Perp DEX SDK
+# PD AIO SDK
 
-> 탈중앙화 무기한 선물 거래소를 위한 통합 TypeScript SDK
+> **P**erp **D**EX **A**ll-**I**n-**O**ne SDK - 탈중앙화 영구선물 거래소 통합 TypeScript SDK
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
+[![Tests](https://img.shields.io/badge/tests-395%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![npm version](https://img.shields.io/badge/npm-v0.1.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 
-[English](./README.md) | **한국어**
+한국어 | **[English](./README.md)**
 
-## 개요
+---
 
-탈중앙화 무기한 선물 거래소에서 트레이딩하기 위한 프로덕션 수준의 SDK입니다. Hyperliquid, Lighter, GRVT, Paradex, EdgeX, Backpack 및 전체 HIP-3 생태계를 포함하여 **7개 이상의 플랫폼**을 지원합니다.
+## 🎯 PD AIO SDK란?
 
-### 주요 기능
+**PD AIO SDK** (Perp DEX All-In-One SDK)는 **6개 이상의 탈중앙화 영구선물 거래소**를 단일 인터페이스로 거래할 수 있게 해주는 프로덕션 레벨의 통합 TypeScript SDK입니다. 더 이상 각 거래소마다 다른 API를 배울 필요 없이, 한 번 작성하면 어디서든 거래할 수 있습니다.
 
-- 🔌 **통합 인터페이스**: CCXT 패턴을 따르는 여러 DEX를 위한 단일 API
-- 🔐 **멀티체인 인증**: EIP-712, StarkNet ECDSA, ED25519 지원
-- 🌊 **WebSocket 스트리밍**: 실시간 오더북, 포지션, 거래 내역
-- ⚡ **완전한 비동기**: TypeScript strict 모드로 async/await 기반 구축
-- 🛡️ **타입 안전성**: Zod 런타임 검증 + TypeScript 컴파일 타임 검사
-- 🔄 **자동 재연결**: 구독 복구를 위한 지수 백오프
-- 📊 **기능 감지**: 거래소별 런타임 기능 확인
-- 🧪 **367개 유닛 테스트**: 포괄적인 테스트 커버리지 (>80%)
-- 📝 **구조화된 로깅**: 민감 데이터 마스킹을 포함한 JSON 로그
-- 🏥 **헬스 & 메트릭**: 내장 헬스 체크 및 성능 모니터링
-- 💾 **스마트 캐싱**: 구성 가능한 TTL을 사용한 마켓 데이터 캐싱
-- 🔁 **배치 작업**: 순차 실행으로 자동 폴백
-- 🐍 **Python 스타일 별칭**: Python 개발자를 위한 snake_case 메서드명
+### 왜 "All-In-One"인가?
 
-## 지원 거래소
+- **하나의 인터페이스** → 6개 이상의 거래소 (Hyperliquid, Lighter, GRVT, Paradex, EdgeX, Backpack)
+- **하나의 코드베이스** → 모든 거래 작업 (시장 데이터, 주문, 포지션, WebSocket)
+- **하나의 설치** → 완전한 솔루션 (인증, 속도 제한, 에러 처리)
 
-| 거래소 | 상태 | 테스트넷 | 인증 방식 | 특징 |
-|----------|--------|---------|----------------|----------|
-| **Hyperliquid** | ✅ 프로덕션 | ✅ 지원 | EIP-712 | REST + WebSocket, 초당 20만 주문, HIP-3 생태계 |
-| **GRVT** | ✅ 프로덕션 | ✅ 지원 | EIP-712 + 세션 | 포트폴리오 마진, 하이브리드 CEX/DEX |
-| **Paradex** | ✅ 프로덕션 | ✅ 지원 | StarkNet + JWT | StarkNet L2, 저지연 |
-| **EdgeX** | ✅ 프로덕션 | ✅ 지원 | StarkEx + Pedersen | 10ms 미만 매칭, 가스비 없음 |
-| **Backpack** | ✅ 프로덕션 | ✅ 지원 | ED25519 | Solana 기반 무기한 선물 |
-| **Lighter** | ✅ 프로덕션 | ❌ 미지원 | API Key | ZK-SNARK 증명, 오더북 DEX |
+---
 
-### HIP-3 생태계 (Hyperliquid 어댑터를 통해 지원)
-- **trade.xyz**: 미국 주식 무기한 선물 (NVDA, TSLA, AAPL)
-- **Ventuals**: Pre-IPO 무기한 선물 (SpaceX, OpenAI, Anthropic)
-- **Based**: 트레이딩 슈퍼 앱
-- **Volmex**: 변동성 지수
-- **Nunchi**: 수익률/APY 무기한 선물
-- **Aura**: 미국 국채 무기한 선물
+## ✨ 주요 기능
 
-## 설치
+### 🔌 통합 인터페이스
+- **CCXT 스타일 API** - 개발자에게 친숙한 인터페이스
+- **일관된 메서드명** - 모든 거래소에서 동일한 메서드 사용
+- **Python 별칭 지원** - Python 개발자를 위한 snake_case 메서드
+
+### 🌐 다중 거래소 지원
+- **Hyperliquid** - 초당 20만 주문, EIP-712 인증, HIP-3 생태계
+- **GRVT** - CEX/DEX 하이브리드, 포트폴리오 마진
+- **Paradex** - StarkNet L2, 초저지연
+- **EdgeX** - 10ms 미만 매칭, 제로 가스
+- **Backpack** - 솔라나 기반 영구선물
+- **Lighter** - ZK-SNARK 증명, 오더북 DEX
+
+### 🔐 프로덕션급 보안
+- **EIP-712 서명** (Hyperliquid, GRVT)
+- **StarkNet ECDSA** (Paradex, EdgeX)
+- **ED25519** (Backpack)
+- **보안 자격증명 관리** 및 검증 기능
+
+### ⚡ 엔터프라이즈 기능
+- **WebSocket 스트리밍** - 실시간 오더북, 포지션, 거래 데이터
+- **자동 재연결** - 지수 백오프 및 구독 복구
+- **속도 제한** - 거래소별 제한 자동 준수
+- **스마트 캐싱** - 설정 가능한 TTL을 통한 시장 데이터 캐싱
+- **재시도 로직** - 지수 백오프를 통한 자동 재시도
+- **타입 안전성** - 런타임 검증(Zod) + TypeScript strict mode
+
+### 📊 개발자 경험
+- **395개 테스트** - 100% 통과율, 프로덕션 준비 완료
+- **구조화된 로깅** - 민감 데이터 마스킹을 포함한 JSON 로그
+- **헬스 체크** - 내장 시스템 모니터링
+- **포괄적인 문서** - 영어 + 한국어 문서 제공
+
+---
+
+## 🚀 빠른 시작
+
+### 설치
 
 ```bash
-npm install perp-dex-sdk
+npm install pd-aio-sdk
 # 또는
-yarn add perp-dex-sdk
+yarn add pd-aio-sdk
 # 또는
-pnpm add perp-dex-sdk
+pnpm add pd-aio-sdk
 ```
 
-## 빠른 시작
-
-### 기본 트레이딩 예제
+### 기본 사용법
 
 ```typescript
-import { createExchange, createSymbol } from 'perp-dex-sdk';
+import { createExchange, createSymbol } from 'pd-aio-sdk';
 import { Wallet } from 'ethers';
 
-// 거래소 어댑터 초기화
+// 어댑터 초기화
 const wallet = new Wallet(process.env.PRIVATE_KEY);
 const exchange = createExchange('hyperliquid', {
   wallet,
@@ -73,377 +87,353 @@ const exchange = createExchange('hyperliquid', {
 
 await exchange.initialize();
 
-// 마켓 조회
+// 심볼 생성 (거래소별 자동 설정)
+const symbol = createSymbol('hyperliquid', 'BTC'); // "BTC/USDT:USDT" 반환
+
+// 시장 데이터 조회
 const markets = await exchange.fetchMarkets();
-console.log('사용 가능한 마켓:', markets.map(m => m.symbol));
+const orderBook = await exchange.fetchOrderBook(symbol);
+const ticker = await exchange.fetchTicker(symbol);
 
-// 헬퍼로 심볼 생성 (수동 형식보다 쉬움)
-const btcSymbol = createSymbol('hyperliquid', 'BTC');  // "BTC/USDT:USDT"
-const ethSymbol = createSymbol('hyperliquid', 'ETH', 'USDC');  // "ETH/USDC:USDC"
-
-// 지정가 주문
+// 주문 생성
 const order = await exchange.createOrder({
-  symbol: btcSymbol,
+  symbol,
   type: 'limit',
   side: 'buy',
   amount: 0.1,
-  price: 50000,
-  postOnly: true,
-  reduceOnly: false
+  price: 50000
 });
-
-console.log('주문 완료:', order.id);
 
 // 포지션 확인
 const positions = await exchange.fetchPositions();
-console.log('오픈 포지션:', positions);
+const balances = await exchange.fetchBalance();
 
-// 사용 후 정리
+// 주문 취소
+await exchange.cancelOrder(order.id, symbol);
+
+// 정리
 await exchange.disconnect();
 ```
 
-### WebSocket 스트리밍 예제
+---
+
+## 📚 지원 거래소
+
+| 거래소 | 상태 | 테스트넷 | 인증 방식 | 특별 기능 |
+|----------|--------|---------|-------------|------------------|
+| **Hyperliquid** | ✅ 프로덕션 | ✅ 지원 | EIP-712 | 초당 20만 주문, HIP-3 생태계 지원 |
+| **GRVT** | ✅ 프로덕션 | ✅ 지원 | EIP-712 + Session | CEX/DEX 하이브리드, 포트폴리오 마진 |
+| **Paradex** | ✅ 프로덕션 | ✅ 지원 | StarkNet + JWT | StarkNet L2, 초저지연 |
+| **EdgeX** | ✅ 프로덕션 | ✅ 지원 | StarkEx + Pedersen | 10ms 미만 매칭, 제로 가스 |
+| **Backpack** | ✅ 프로덕션 | ✅ 지원 | ED25519 | 솔라나 기반 영구선물 |
+| **Lighter** | ✅ 프로덕션 | ❌ 메인넷만 | API Key | ZK-SNARK 증명, 오더북 DEX |
+
+### 🎁 보너스: HIP-3 생태계 (Hyperliquid 경유)
+
+모든 HIP-3 DEX는 Hyperliquid의 인프라를 공유 - **하나의 어댑터로 7개 이상의 플랫폼 지원**:
+
+- **trade.xyz** - 미국 주식 영구선물 (NVDA, TSLA, AAPL)
+- **Ventuals** - Pre-IPO 영구선물 (SpaceX, OpenAI, Anthropic)
+- **Based** - 거래 슈퍼앱
+- **Volmex** - 변동성 지수
+- **Nunchi** - Yield/APY 영구선물
+- **Aura** - 미국 국채 영구선물
+
+---
+
+## 🔧 설정
+
+### 1. 환경 설정
+
+```bash
+# 예제 파일 복사
+cp .env.example .env
+```
+
+### 2. 자격증명 추가
+
+```bash
+# Hyperliquid (EIP-712)
+HYPERLIQUID_PRIVATE_KEY=0x1234...
+HYPERLIQUID_TESTNET=true
+
+# GRVT (EIP-712 + Session)
+GRVT_PRIVATE_KEY=0x1234...
+GRVT_API_KEY=your_api_key
+GRVT_TESTNET=true
+
+# Paradex (StarkNet)
+PARADEX_PRIVATE_KEY=0x1234...
+PARADEX_ACCOUNT_ADDRESS=0x5678...
+PARADEX_TESTNET=true
+
+# Backpack (ED25519)
+BACKPACK_PRIVATE_KEY=base58_encoded_key
+BACKPACK_TESTNET=true
+
+# Lighter (API Key)
+LIGHTER_API_KEY=your_api_key
+LIGHTER_API_SECRET=your_api_secret
+LIGHTER_ACCOUNT_ID=your_account_id
+
+# EdgeX (StarkEx)
+EDGEX_API_KEY=your_api_key
+EDGEX_TESTNET=true
+```
+
+### 3. 설정 검증 (선택사항)
 
 ```typescript
-import { createExchange, createSymbol } from 'perp-dex-sdk';
+import { validateConfig } from 'pd-aio-sdk';
 
-const exchange = createExchange('hyperliquid', { testnet: true });
+try {
+  validateConfig('hyperliquid');
+  console.log('✅ 설정이 유효합니다');
+} catch (error) {
+  console.error('❌ 설정 오류:', error.message);
+}
+```
+
+---
+
+## 📖 고급 예제
+
+### WebSocket 스트리밍
+
+```typescript
+import { createExchange } from 'pd-aio-sdk';
+
+const exchange = createExchange('hyperliquid', {
+  wallet: new Wallet(process.env.PRIVATE_KEY),
+  testnet: true
+});
+
 await exchange.initialize();
 
-const symbol = createSymbol('hyperliquid', 'BTC');
-
 // 오더북 업데이트 스트리밍
-for await (const orderbook of exchange.watchOrderBook(symbol)) {
-  console.log('최고 매수가:', orderbook.bids[0]);
-  console.log('최고 매도가:', orderbook.asks[0]);
+for await (const orderBook of exchange.watchOrderBook('BTC/USDT:USDT')) {
+  console.log('최고 매수가:', orderBook.bids[0]);
+  console.log('최고 매도가:', orderBook.asks[0]);
 }
 
 // 포지션 업데이트 스트리밍
 for await (const positions of exchange.watchPositions()) {
-  console.log('포지션 변경:', positions);
+  console.log('포지션 업데이트:', positions);
+}
+
+// 거래 스트리밍
+for await (const trade of exchange.watchTrades('BTC/USDT:USDT')) {
+  console.log('새로운 거래:', trade);
 }
 ```
 
-### 자동 재시도를 사용한 안정적인 트레이딩
+### 재시도를 통한 에러 처리
 
 ```typescript
-import { createExchange, withRetry, createSymbol } from 'perp-dex-sdk';
-import { Wallet } from 'ethers';
+import { createExchange, withRetry } from 'pd-aio-sdk';
 
-const wallet = new Wallet(process.env.PRIVATE_KEY);
-const exchange = createExchange('hyperliquid', { wallet, testnet: true });
+const exchange = createExchange('hyperliquid', { testnet: true });
 
-await exchange.initialize();
-
-// 일시적 실패 시 자동 재시도 (rate limit, 네트워크 오류 등)
+// 일시적 실패 시 자동 재시도
 const markets = await withRetry(
   () => exchange.fetchMarkets(),
   {
     maxAttempts: 3,
-    baseDelay: 1000,
-    onRetry: (attempt, error, delay) => {
-      console.log(`재시도 ${attempt}회 (${delay}ms 후): ${error.message}`);
-    }
+    initialDelay: 1000,
+    backoffMultiplier: 2,
+    maxDelay: 10000
   }
 );
-
-// 자동 재시도로 주문하기
-const symbol = createSymbol('hyperliquid', 'BTC');
-const order = await withRetry(() =>
-  exchange.createOrder({
-    symbol,
-    type: 'limit',
-    side: 'buy',
-    amount: 0.1,
-    price: 50000,
-  })
-);
-
-console.log('주문 성공:', order.id);
 ```
 
-### 고급 기능
-
-#### 구조화된 로깅
+### 심볼 헬퍼
 
 ```typescript
-import { createExchange } from 'perp-dex-sdk';
+import { createSymbol } from 'pd-aio-sdk';
 
-// 디버그 로깅 활성화
-const exchange = createExchange('hyperliquid', {
-  privateKey: process.env.PRIVATE_KEY,
-  debug: true  // DEBUG 레벨 로그 활성화
-});
+// 거래소별 심볼 생성
+const btcHyper = createSymbol('hyperliquid', 'BTC');  // "BTC/USDT:USDT"
+const ethGrvt = createSymbol('grvt', 'ETH');          // "ETH/USDT:USDT"
+const solBack = createSymbol('backpack', 'SOL');      // "SOL/USDT:USDT"
 
+// 사용자 정의 견적 통화
+const btcUsdc = createSymbol('paradex', 'BTC', 'USDC'); // "BTC/USDC:USDC"
+```
+
+### Python 스타일 별칭
+
+```typescript
+// TypeScript 스타일
+await exchange.fetchOrderBook('BTC/USDT:USDT');
+await exchange.createOrder({ ... });
+
+// Python 스타일 (snake_case)
+await exchange.fetch_order_book('BTC/USDT:USDT');
+await exchange.create_order({ ... });
+```
+
+### 헬스 모니터링
+
+```typescript
+import { createExchange } from 'pd-aio-sdk';
+
+const exchange = createExchange('hyperliquid', { testnet: true });
 await exchange.initialize();
 
-// 로그는 어댑터별 컨텍스트가 포함된 구조화된 JSON입니다:
-// {"timestamp":"2025-12-01T10:00:00.000Z","level":"info","context":"Hyperliquid","message":"Adapter initialized"}
-
-// 민감한 데이터는 자동으로 마스킹됩니다:
-// {"apiKey":"***2345","apiSecret":"***7890"}
+// 헬스 체크
+const health = await exchange.getHealth();
+console.log('상태:', health.status);        // 'healthy' | 'degraded' | 'unhealthy'
+console.log('가동 시간:', health.uptimeSeconds);
+console.log('캐시 적중률:', health.cache.hitRate);
 ```
 
-#### 헬스 체크 & 메트릭
+---
 
-```typescript
-// 어댑터 헬스 체크
-const health = await exchange.healthCheck();
-console.log('전체 상태:', health.overall);  // 'healthy' | 'degraded' | 'unhealthy'
-console.log('API 헬스:', health.components.api);
-console.log('WebSocket 헬스:', health.components.websocket);
+## 🏗️ 아키텍처
 
-// 성능 메트릭 조회
-const metrics = exchange.getMetrics();
-console.log('총 요청 수:', metrics.totalRequests);
-console.log('성공률:', metrics.successfulRequests / metrics.totalRequests);
-console.log('평균 지연시간:', metrics.averageLatency, 'ms');
-console.log('Rate limit 횟수:', metrics.rateLimitHits);
-
-// 엔드포인트별 통계
-metrics.endpointStats.forEach((stats, endpoint) => {
-  console.log(`${endpoint}: ${stats.totalCalls}회 호출, 평균 ${stats.avgLatency}ms`);
-});
-```
-
-#### 마켓 데이터 캐싱
-
-```typescript
-// 5분 캐시로 마켓 미리 로드
-await exchange.preloadMarkets({ ttl: 300000 });
-
-// 이후 호출은 캐시 사용 (훨씬 빠름)
-const markets = await exchange.getPreloadedMarkets();
-if (markets) {
-  console.log('캐시된 마켓 사용:', markets.length);
-} else {
-  console.log('캐시 만료, 다시 가져오는 중...');
-  const fresh = await exchange.fetchMarkets();
-}
-
-// 수동으로 캐시 삭제
-exchange.clearCache();
-```
-
-#### 배치 작업
-
-```typescript
-// 여러 주문을 한번에 생성
-const orders = await exchange.createBatchOrders([
-  { symbol: 'BTC/USDT:USDT', side: 'buy', type: 'limit', amount: 0.1, price: 50000 },
-  { symbol: 'ETH/USDT:USDT', side: 'buy', type: 'limit', amount: 1.0, price: 3000 },
-  { symbol: 'SOL/USDT:USDT', side: 'sell', type: 'limit', amount: 10, price: 100 },
-]);
-
-// 네이티브 배치 API가 있으면 자동으로 사용,
-// 없으면 순차 실행으로 폴백
-console.log('생성된 주문:', orders.length);
-
-// 여러 주문 취소
-const canceled = await exchange.cancelBatchOrders(['order-1', 'order-2', 'order-3']);
-```
-
-#### Python 스타일 메서드명
-
-```typescript
-// Python 스타일을 선호한다면 snake_case 사용
-const markets = await exchange.fetch_markets();      // fetchMarkets()와 동일
-const ticker = await exchange.fetch_ticker(symbol);  // fetchTicker()와 동일
-const order = await exchange.create_order(request);  // createOrder()와 동일
-
-// 두 스타일 모두 동일하게 작동
-await exchange.fetchMarkets();   // camelCase (JavaScript/TypeScript)
-await exchange.fetch_markets();  // snake_case (Python)
-```
-
-## 아키텍처
+### 헥사고날 아키텍처
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   사용자 애플리케이션                      │
-├─────────────────────────────────────────────────────────┤
-│                  통합 Perp DEX SDK                       │
-│  ┌──────────┬──────────────┬────────────────────────┐   │
-│  │ 공개     │ 비공개 API   │  WebSocket 스트리밍    │   │
-│  │ 마켓     │  트레이딩    │  실시간 업데이트       │   │
-│  │ 데이터   │  포지션      │  자동 재연결           │   │
-│  └──────────┴──────────────┴────────────────────────┘   │
-├─────────────────────────────────────────────────────────┤
-│             정규화 & 에러 처리                            │
-├─────────────────────────────────────────────────────────┤
-│                  거래소 어댑터                            │
-│  ┌──────────┬─────────┬────────┬─────────┬──────────┐   │
-│  │Hyperliquid│ Lighter │ GRVT   │ Paradex │ EdgeX    │   │
-│  └──────────┴─────────┴────────┴─────────┴──────────┘   │
-├─────────────────────────────────────────────────────────┤
-│                인프라 레이어                              │
-│  인증 │ Rate Limiter │ WebSocket 관리자 │ 검증         │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│         애플리케이션 계층                      │
+│  (트레이딩 봇 / 애플리케이션)                  │
+└────────────────┬────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────┐
+│         PD AIO SDK - 통합 인터페이스         │
+│  ┌──────────────────────────────────────┐   │
+│  │  공통 타입 & 인터페이스               │   │
+│  │  - IExchangeAdapter                  │   │
+│  │  - 통합 Order/Position/Balance       │   │
+│  └──────────────────────────────────────┘   │
+└────────────────┬────────────────────────────┘
+                 │
+    ┌────────────┼────────────┐
+    ▼            ▼            ▼
+┌─────────┐  ┌─────────┐  ┌─────────┐
+│Hyperliquid │GRVT    │Paradex  │  ...
+│Adapter   │Adapter  │Adapter  │
+└─────────┘  └─────────┘  └─────────┘
+    │            │            │
+    ▼            ▼            ▼
+┌─────────────────────────────────────────────┐
+│         거래소 API                          │
+│  (Hyperliquid, GRVT, Paradex, 등)          │
+└─────────────────────────────────────────────┘
 ```
 
-## 테스트 커버리지
+### 핵심 컴포넌트
 
-```bash
-Test Suites: 20 passed, 20 total
-Tests:       367 passed, 367 total
-Snapshots:   0 total
-Time:        ~8s
-Coverage:    >80% (branches, functions, lines, statements)
-```
+- **Adapters** - 거래소별 구현체
+- **Core** - 속도 제한, 재시도 로직, 로깅, 헬스 체크
+- **WebSocket** - 연결 관리, 자동 재연결
+- **Utils** - 심볼 정규화, 검증, 헬퍼 함수
+- **Types** - 통합 데이터 구조, 에러 계층
 
-**테스트 분류:**
-- Core Logger: 27개 테스트
-- Logger Integration: 22개 테스트
-- Batch Fallbacks: 16개 테스트
-- Method Aliases: 23개 테스트
-- Health System: 16개 테스트
-- Metrics: 19개 테스트
-- Market Cache: 13개 테스트
-- Rate Limiter: 23개 테스트
-- Validation: 18개 테스트
-- Exchange Utils: 100개 이상 테스트
-- 기타 등등...
+---
 
-## 문서
-
-- [시작 가이드](./docs/guides/getting-started.md)
-- [API 레퍼런스](./docs/api/)
-- [거래소별 가이드](./docs/exchange-guides/)
-- [WebSocket 스트리밍](./docs/guides/websocket.md)
-- [에러 처리](./docs/guides/error-handling.md)
-- [개발 문서](./docs/development/) - 단계별 완료 요약
-
-## 개발
-
-### 필수 요구사항
-
-- Node.js >= 18.0.0
-- TypeScript >= 5.6.0
-
-### 설정
-
-```bash
-# 저장소 클론
-git clone https://github.com/yourusername/perp-dex-sdk.git
-cd perp-dex-sdk
-
-# 의존성 설치
-npm install
-
-# 테스트 실행
-npm test
-
-# 빌드
-npm run build
-
-# 개발 모드 실행
-npm run dev
-```
+## 🧪 테스트
 
 ### 테스트 실행
 
 ```bash
-# 유닛 테스트
+# 모든 테스트
 npm test
 
 # 커버리지 포함
 npm run test:coverage
 
-# Watch 모드
+# 감시 모드
 npm run test:watch
 
-# 통합 테스트 (테스트넷 접근 필요)
-npm run test:integration
-
-# E2E 테스트 (메인넷 접근 필요)
-npm run test:e2e
+# 특정 거래소
+npm test -- hyperliquid
 ```
 
-### 코드 품질
+### 테스트 결과
+
+```
+✅ 395개 테스트 통과 (100% 성공률)
+✅ 22개 테스트 스위트
+✅ 통합 테스트: 17/17
+✅ 단위 테스트: 378/378
+```
+
+---
+
+## 📦 빌드 & 개발
 
 ```bash
-# 타입 체크
-npm run typecheck
+# 의존성 설치
+npm install
 
-# 린팅
+# TypeScript 빌드
+npm run build
+
+# 감시 모드
+npm run dev
+
+# 린트
 npm run lint
 
-# 린팅 문제 자동 수정
-npm run lint:fix
-
-# 코드 포맷팅
+# 포맷
 npm run format
+
+# 타입 체크
+npm run typecheck
 ```
 
-## 기여하기
+---
 
-기여를 환영합니다! 자세한 내용은 [기여 가이드](./CONTRIBUTING.md)를 참조하세요.
+## 🤝 기여하기
+
+기여를 환영합니다! 자세한 내용은 [Contributing Guide](./CONTRIBUTING.md)를 참조하세요.
 
 ### 개발 워크플로우
 
 1. 저장소 포크
 2. 기능 브랜치 생성 (`git checkout -b feature/amazing-feature`)
-3. 변경 사항에 대한 테스트 작성
-4. 기능 구현
-5. 모든 테스트 통과 확인 (`npm test`)
-6. 린터 실행 (`npm run lint`)
-7. 변경 사항 커밋 (`git commit -m 'Add amazing feature'`)
-8. 브랜치에 푸시 (`git push origin feature/amazing-feature`)
-9. Pull Request 생성
-
-## 라이선스
-
-MIT License - 자세한 내용은 [LICENSE](./LICENSE) 파일을 참조하세요.
-
-## 면책 조항
-
-이 SDK는 교육 및 개발 목적입니다. **사용에 따른 위험은 본인이 부담합니다.** 무기한 선물 거래는 상당한 손실 위험을 포함합니다. 저자는 이 소프트웨어 사용으로 인해 발생하는 재정적 손실에 대해 책임지지 않습니다.
-
-## 지원
-
-- 📖 [문서](./docs/)
-- 🐛 [이슈 트래커](https://github.com/yourusername/perp-dex-sdk/issues)
-- 💬 [토론](https://github.com/yourusername/perp-dex-sdk/discussions)
-
-## 감사의 말
-
-[CCXT](https://github.com/ccxt/ccxt) 아키텍처 패턴에서 영감을 받아 제작되었습니다.
+3. 변경사항 커밋 (`git commit -m 'feat: add amazing feature'`)
+4. 브랜치에 푸시 (`git push origin feature/amazing-feature`)
+5. Pull Request 생성
 
 ---
 
-## 주요 차별점
+## 📄 라이선스
 
-### vs 다른 SDK
+MIT License - 자세한 내용은 [LICENSE](./LICENSE) 파일을 참조하세요.
 
-이 SDK는 다른 유사 프로젝트와 비교하여 다음과 같은 차별점이 있습니다:
+---
 
-✅ **엔터프라이즈급 아키텍처**
-- Hexagonal Architecture (Clean Architecture)
-- SOLID 원칙 준수
-- Design Patterns 적용
+## 🔗 링크
 
-✅ **완벽한 타입 안전성**
-- TypeScript strict 모드
-- Zod 런타임 검증
-- 100% 타입 커버리지
+- **문서**: [전체 API 문서](./docs)
+- **영문 문서**: [English Documentation](./README.md)
+- **변경 이력**: [CHANGELOG.md](./CHANGELOG.md)
+- **API 감사**: [API 구현 감사](./API_IMPLEMENTATION_AUDIT.md)
 
-✅ **프로덕션 준비 완료**
-- 367개 유닛 테스트
-- >80% 코드 커버리지
-- 구조화된 로깅 (민감 데이터 자동 마스킹)
-- 헬스 체크 & 성능 메트릭
+---
 
-✅ **개발자 경험**
-- 완벽한 IDE 자동완성
-- 명확한 에러 메시지
-- 포괄적인 JSDoc 문서
-- Python/JavaScript 양쪽 스타일 지원
+## 🙏 감사의 말
 
-✅ **고급 기능**
-- WebSocket 실시간 스트리밍
-- 자동 재연결 & 재구독
-- 배치 작업 자동 폴백
-- 거래소별 Rate Limiting
-- TTL 기반 스마트 캐싱
+- [CCXT](https://github.com/ccxt/ccxt) 통합 API 디자인에서 영감을 받음
+- [ethers.js](https://github.com/ethers-io/ethers.js), [starknet.js](https://github.com/starknet-io/starknet.js)로 구축
+- 포괄적인 API 문서를 제공해주신 모든 거래소 팀에 감사드립니다
 
-이 SDK는 단순한 래퍼가 아닌, 프로덕션 환경에서 사용 가능한 엔터프라이즈급 솔루션입니다.
+---
+
+## 📞 지원
+
+- **이슈**: [GitHub Issues](https://github.com/0xarkstar/PD-AIO-SDK/issues)
+- **토론**: [GitHub Discussions](https://github.com/0xarkstar/PD-AIO-SDK/discussions)
+
+---
+
+<div align="center">
+
+**DeFi 커뮤니티를 위해 ❤️로 만들었습니다**
+
+[⭐ GitHub에서 Star 하기](https://github.com/0xarkstar/PD-AIO-SDK) | [📦 npm 패키지](https://www.npmjs.com/package/pd-aio-sdk)
+
+</div>
