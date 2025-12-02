@@ -11,8 +11,9 @@ import { GRVTAdapter, type GRVTAdapterConfig } from './adapters/grvt/index.js';
 import { ParadexAdapter, type ParadexConfig } from './adapters/paradex/index.js';
 import { EdgeXAdapter, type EdgeXConfig } from './adapters/edgex/index.js';
 import { BackpackAdapter, type BackpackConfig } from './adapters/backpack/index.js';
+import { NadoAdapter, type NadoConfig } from './adapters/nado/index.js';
 
-export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack';
+export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'nado';
 
 export type ExchangeConfigMap = {
   hyperliquid: HyperliquidConfig;
@@ -21,6 +22,7 @@ export type ExchangeConfigMap = {
   paradex: ParadexConfig;
   edgex: EdgeXConfig;
   backpack: BackpackConfig;
+  nado: NadoConfig;
 };
 
 /**
@@ -68,6 +70,9 @@ export function createExchange<T extends SupportedExchange>(
     case 'backpack':
       return new BackpackAdapter(config as BackpackConfig);
 
+    case 'nado':
+      return new NadoAdapter(config as NadoConfig);
+
     default:
       throw new Error(`Unknown exchange: ${exchange as string}`);
   }
@@ -77,7 +82,7 @@ export function createExchange<T extends SupportedExchange>(
  * Get list of supported exchanges
  */
 export function getSupportedExchanges(): SupportedExchange[] {
-  return ['hyperliquid', 'lighter', 'grvt', 'paradex', 'edgex', 'backpack'];
+  return ['hyperliquid', 'lighter', 'grvt', 'paradex', 'edgex', 'backpack', 'nado'];
 }
 
 /**

@@ -128,6 +128,7 @@ await exchange.disconnect();
 | **EdgeX** | ✅ Production (V1) | ❌ Mainnet only* | StarkEx + Pedersen | Sub-10ms matching, $130B+ volume |
 | **Backpack** | ✅ Production | ❌ Mainnet only | ED25519 | Solana-based, multi-market types |
 | **Lighter** | ⚠️ Beta | ✅ Public (ETH testnet) | API Key | ZK-SNARK proofs, orderbook DEX |
+| **Nado** | ✅ Production | ✅ Public (Ink L2) | EIP-712 | Ink L2 by Kraken, 5-15ms latency |
 
 > *EdgeX V2 testnet planned for Q3 2025
 

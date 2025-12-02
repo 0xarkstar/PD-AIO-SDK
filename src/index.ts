@@ -218,6 +218,10 @@ export type { EdgeXConfig } from './adapters/edgex/index.js';
 export { BackpackAdapter } from './adapters/backpack/index.js';
 export type { BackpackConfig } from './adapters/backpack/index.js';
 
+// Nado
+export { NadoAdapter } from './adapters/nado/index.js';
+export type { NadoConfig } from './adapters/nado/index.js';
+
 // =============================================================================
 // Version
 // =============================================================================
