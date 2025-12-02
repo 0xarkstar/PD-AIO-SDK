@@ -20,6 +20,12 @@ export type {
   FundingRate,
   Balance,
   Ticker,
+  Transaction,
+  TransactionType,
+  TransactionStatus,
+  UserFees,
+  Portfolio,
+  RateLimitStatus,
   MarketParams,
   OrderBookParams,
   TradeParams,
@@ -32,6 +38,8 @@ export {
   TIME_IN_FORCE,
   POSITION_SIDES,
   MARGIN_MODES,
+  TRANSACTION_TYPES,
+  TRANSACTION_STATUSES,
 } from './common.js';
 
 // Adapter interface

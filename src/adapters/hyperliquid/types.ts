@@ -148,6 +148,39 @@ export interface HyperliquidFill {
   tid: number;
 }
 
+export interface HyperliquidHistoricalOrder {
+  order: {
+    coin: string;
+    side: 'B' | 'A';
+    limitPx: string;
+    sz: string;
+    oid: number;
+    timestamp: number;
+    origSz: string;
+    cloid?: string;
+    orderType?: string;
+  };
+  status: 'filled' | 'canceled' | 'open' | 'rejected';
+  statusTimestamp: number;
+}
+
+export interface HyperliquidUserFill {
+  coin: string;
+  px: string;
+  sz: string;
+  side: 'B' | 'A';
+  time: number;
+  startPosition: string;
+  dir: string;
+  closedPnl: string;
+  hash: string;
+  oid: number;
+  crossed: boolean;
+  fee: string;
+  tid: number;
+  feeToken: string;
+}
+
 // =============================================================================
 // Request Types
 // =============================================================================
@@ -183,4 +216,55 @@ export interface HyperliquidSignedAction {
     v: number;
   };
   vaultAddress?: string;
+}
+
+export interface HyperliquidUserFees {
+  userCrossRate: string; // Taker fee
+  userAddRate: string; // Maker fee
+  userSpotCrossRate: string;
+  userSpotAddRate: string;
+  activeReferralDiscount: string;
+  dailyUserVlm: Array<{
+    date: string;
+    userCross: string;
+    userAdd: string;
+    exchange: string;
+  }>;
+  feeSchedule: {
+    cross: string;
+    add: string;
+    spotCross: string;
+    spotAdd: string;
+    tiers: Array<{
+      tier: number;
+      vlm: string;
+      crossRate: string;
+      addRate: string;
+    }>;
+  };
+}
+
+export type PortfolioPeriod =
+  | 'day'
+  | 'week'
+  | 'month'
+  | 'allTime'
+  | 'perpDay'
+  | 'perpWeek'
+  | 'perpMonth'
+  | 'perpAllTime';
+
+export interface HyperliquidPortfolioPeriodData {
+  accountValueHistory: Array<[number, string]>;
+  pnlHistory: Array<[number, string]>;
+  vlm: string;
+}
+
+export type HyperliquidPortfolio = Array<[PortfolioPeriod, HyperliquidPortfolioPeriodData]>;
+
+export interface HyperliquidUserRateLimit {
+  cumVlm: string;
+  nRequestsUsed: number;
+  nRequestsCap: number;
+  nRequestsSurplus?: number;
 }

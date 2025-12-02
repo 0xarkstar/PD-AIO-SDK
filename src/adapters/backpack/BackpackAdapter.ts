@@ -4,6 +4,7 @@
  * Centralized exchange with perpetual futures using ED25519 signatures
  */
 
+import * as ed from '@noble/ed25519';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type {
   Market,
@@ -61,6 +62,8 @@ export class BackpackAdapter extends BaseAdapter {
     fetchFundingRateHistory: false,
     fetchPositions: true,
     fetchBalance: true,
+    fetchOrderHistory: true,
+    fetchMyTrades: true,
     createOrder: true,
     cancelOrder: true,
     cancelAllOrders: true,
@@ -319,6 +322,52 @@ export class BackpackAdapter extends BaseAdapter {
   }
 
   /**
+   * Fetch order history
+   */
+  async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+    const params = new URLSearchParams();
+    if (symbol) params.append('symbol', toBackpackSymbol(symbol));
+    if (since) params.append('startTime', since.toString());
+    if (limit) params.append('limit', limit.toString());
+
+    const queryString = params.toString();
+    const response = await this.makeRequest(
+      'GET',
+      `/history/orders${queryString ? `?${queryString}` : ''}`,
+      'fetchOrderHistory'
+    );
+
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError('Invalid order history response', 'INVALID_RESPONSE', 'backpack');
+    }
+
+    return response.map(normalizeOrder);
+  }
+
+  /**
+   * Fetch user trade history
+   */
+  async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+    const params = new URLSearchParams();
+    if (symbol) params.append('symbol', toBackpackSymbol(symbol));
+    if (since) params.append('startTime', since.toString());
+    if (limit) params.append('limit', limit.toString());
+
+    const queryString = params.toString();
+    const response = await this.makeRequest(
+      'GET',
+      `/fills${queryString ? `?${queryString}` : ''}`,
+      'fetchMyTrades'
+    );
+
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError('Invalid fills response', 'INVALID_RESPONSE', 'backpack');
+    }
+
+    return response.map(normalizeTrade);
+  }
+
+  /**
    * Convert unified symbol to exchange format
    */
   symbolToExchange(symbol: string): string {
@@ -355,7 +404,7 @@ export class BackpackAdapter extends BaseAdapter {
     if (this.apiSecret) {
       const timestamp = Date.now().toString();
       headers['X-Timestamp'] = timestamp;
-      headers['X-Signature'] = this.signRequest(method, path, timestamp, body);
+      headers['X-Signature'] = await this.signRequest(method, path, timestamp, body);
     }
 
     try {
@@ -382,21 +431,38 @@ export class BackpackAdapter extends BaseAdapter {
   }
 
   /**
-   * Sign request with ED25519 signature (placeholder)
+   * Sign request with ED25519 signature
    */
-  private signRequest(
+  private async signRequest(
     method: string,
     path: string,
     timestamp: string,
     body?: Record<string, unknown>
-  ): string {
+  ): Promise<string> {
     if (!this.apiSecret) {
       return '';
     }
 
-    // Placeholder signature - would implement actual ED25519 signature in production
-    // using tweetnacl or @noble/ed25519
-    const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ''}`;
-    return Buffer.from(`${this.apiSecret}:${message}`).toString('base64');
+    try {
+      // Create message to sign
+      const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ''}`;
+      const messageBytes = new TextEncoder().encode(message);
+
+      // Convert private key from hex string to Uint8Array
+      const privateKeyHex = this.apiSecret.startsWith('0x') ? this.apiSecret.slice(2) : this.apiSecret;
+      const privateKey = Uint8Array.from(Buffer.from(privateKeyHex, 'hex'));
+
+      // Sign the message with ED25519
+      const signature = await ed.signAsync(messageBytes, privateKey);
+
+      // Return signature as hex string
+      return Buffer.from(signature).toString('hex');
+    } catch (error) {
+      throw new PerpDEXError(
+        `Failed to sign request: ${error instanceof Error ? error.message : String(error)}`,
+        'SIGNATURE_ERROR',
+        'backpack'
+      );
+    }
   }
 }

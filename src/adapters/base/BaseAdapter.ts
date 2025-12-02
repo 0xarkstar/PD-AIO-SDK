@@ -17,10 +17,14 @@ import type {
   OrderBook,
   OrderBookParams,
   OrderRequest,
+  Portfolio,
   Position,
+  RateLimitStatus,
   Ticker,
   Trade,
   TradeParams,
+  Transaction,
+  UserFees,
 } from '../../types/index.js';
 import type {
   HealthCheckConfig,
@@ -398,6 +402,35 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   abstract cancelAllOrders(symbol?: string): Promise<Order[]>;
 
   // ===========================================================================
+  // Account History - must be implemented by subclasses
+  // ===========================================================================
+
+  abstract fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
+  abstract fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
+
+  /**
+   * Fetch deposit history
+   * Default implementation throws if not supported by exchange
+   */
+  async fetchDeposits(currency?: string, since?: number, limit?: number): Promise<Transaction[]> {
+    if (!this.has.fetchDeposits) {
+      throw new Error(`${this.name} does not support fetching deposit history`);
+    }
+    throw new Error('fetchDeposits must be implemented by subclass');
+  }
+
+  /**
+   * Fetch withdrawal history
+   * Default implementation throws if not supported by exchange
+   */
+  async fetchWithdrawals(currency?: string, since?: number, limit?: number): Promise<Transaction[]> {
+    if (!this.has.fetchWithdrawals) {
+      throw new Error(`${this.name} does not support fetching withdrawal history`);
+    }
+    throw new Error('fetchWithdrawals must be implemented by subclass');
+  }
+
+  // ===========================================================================
   // Batch Operations - with automatic fallback to sequential execution
   // ===========================================================================
 
@@ -602,6 +635,43 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     }
     throw new Error('watchFundingRate must be implemented by subclass');
     yield {} as FundingRate; // Type system requirement
+  }
+
+  // ===========================================================================
+  // Additional Info Methods
+  // ===========================================================================
+
+  /**
+   * Fetch user fee rates
+   * Default implementation throws if not supported by exchange
+   */
+  async fetchUserFees(): Promise<UserFees> {
+    if (!this.has.fetchUserFees) {
+      throw new Error(`${this.name} does not support fetching user fees`);
+    }
+    throw new Error('fetchUserFees must be implemented by subclass');
+  }
+
+  /**
+   * Fetch portfolio performance metrics
+   * Default implementation throws if not supported by exchange
+   */
+  async fetchPortfolio(): Promise<Portfolio> {
+    if (!this.has.fetchPortfolio) {
+      throw new Error(`${this.name} does not support fetching portfolio metrics`);
+    }
+    throw new Error('fetchPortfolio must be implemented by subclass');
+  }
+
+  /**
+   * Fetch current rate limit status
+   * Default implementation throws if not supported by exchange
+   */
+  async fetchRateLimitStatus(): Promise<RateLimitStatus> {
+    if (!this.has.fetchRateLimitStatus) {
+      throw new Error(`${this.name} does not support fetching rate limit status`);
+    }
+    throw new Error('fetchRateLimitStatus must be implemented by subclass');
   }
 
   // ===========================================================================
@@ -997,4 +1067,34 @@ export abstract class BaseAdapter implements IExchangeAdapter {
    * @see clearCache
    */
   clear_cache = this.clearCache.bind(this);
+
+  /**
+   * Alias for fetchDeposits() - Python-style naming
+   * @see fetchDeposits
+   */
+  fetch_deposits = this.fetchDeposits.bind(this);
+
+  /**
+   * Alias for fetchWithdrawals() - Python-style naming
+   * @see fetchWithdrawals
+   */
+  fetch_withdrawals = this.fetchWithdrawals.bind(this);
+
+  /**
+   * Alias for fetchOrderHistory() - Python-style naming
+   * Note: Subclasses must implement fetchOrderHistory
+   * @see fetchOrderHistory
+   */
+  get fetch_order_history() {
+    return this.fetchOrderHistory.bind(this);
+  }
+
+  /**
+   * Alias for fetchMyTrades() - Python-style naming
+   * Note: Subclasses must implement fetchMyTrades
+   * @see fetchMyTrades
+   */
+  get fetch_my_trades() {
+    return this.fetchMyTrades.bind(this);
+  }
 }

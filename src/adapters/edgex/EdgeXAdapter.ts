@@ -4,6 +4,7 @@
  * StarkEx-based perpetual DEX with Pedersen hash signatures
  */
 
+import { ec, hash } from 'starknet';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type {
   Market,
@@ -319,6 +320,30 @@ export class EdgeXAdapter extends BaseAdapter {
   }
 
   /**
+   * Fetch order history
+   * TODO: Implement when EdgeX API documentation is available
+   */
+  async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+    throw new PerpDEXError(
+      'fetchOrderHistory not yet implemented for EdgeX',
+      'NOT_IMPLEMENTED',
+      'edgex'
+    );
+  }
+
+  /**
+   * Fetch user trade history
+   * TODO: Implement when EdgeX API documentation is available
+   */
+  async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+    throw new PerpDEXError(
+      'fetchMyTrades not yet implemented for EdgeX',
+      'NOT_IMPLEMENTED',
+      'edgex'
+    );
+  }
+
+  /**
    * Convert unified symbol to exchange format
    */
   symbolToExchange(symbol: string): string {
@@ -355,7 +380,7 @@ export class EdgeXAdapter extends BaseAdapter {
     if (this.apiSecret) {
       const timestamp = Date.now().toString();
       headers['X-Timestamp'] = timestamp;
-      headers['X-Signature'] = this.signRequest(method, path, timestamp, body);
+      headers['X-Signature'] = await this.signRequest(method, path, timestamp, body);
     }
 
     try {
@@ -382,20 +407,36 @@ export class EdgeXAdapter extends BaseAdapter {
   }
 
   /**
-   * Sign request with API secret
+   * Sign request with StarkEx ECDSA signature
    */
-  private signRequest(
+  private async signRequest(
     method: string,
     path: string,
     timestamp: string,
     body?: Record<string, unknown>
-  ): string {
+  ): Promise<string> {
     if (!this.apiSecret) {
       return '';
     }
 
-    // Placeholder signature - would implement actual StarkEx signature in production
-    const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ''}`;
-    return Buffer.from(`${this.apiSecret}:${message}`).toString('base64');
+    try {
+      // Create message to sign
+      const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ''}`;
+
+      // Hash the message using Pedersen hash (StarkEx standard)
+      const messageHash = hash.computeHashOnElements([message]);
+
+      // Sign with StarkEx ECDSA
+      const signature = ec.starkCurve.sign(messageHash, this.apiSecret);
+
+      // Return signature in hex format: r,s
+      return `0x${signature.r.toString(16)},0x${signature.s.toString(16)}`;
+    } catch (error) {
+      throw new PerpDEXError(
+        `Failed to sign StarkEx request: ${error instanceof Error ? error.message : String(error)}`,
+        'SIGNATURE_ERROR',
+        'edgex'
+      );
+    }
   }
 }

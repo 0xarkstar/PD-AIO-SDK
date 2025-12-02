@@ -13,10 +13,14 @@ import type {
   OrderBook,
   OrderBookParams,
   OrderRequest,
+  Portfolio,
   Position,
+  RateLimitStatus,
   Ticker,
   Trade,
   TradeParams,
+  Transaction,
+  UserFees,
 } from './common.js';
 
 /**
@@ -39,6 +43,12 @@ export interface FeatureMap {
   cancelBatchOrders: boolean;
   editOrder: boolean;
 
+  // Account History
+  fetchOrderHistory: boolean;
+  fetchMyTrades: boolean;
+  fetchDeposits: boolean;
+  fetchWithdrawals: boolean;
+
   // Positions & Balance
   fetchPositions: boolean;
   fetchBalance: boolean;
@@ -57,6 +67,11 @@ export interface FeatureMap {
   // Advanced Features
   twapOrders: boolean;
   vaultTrading: boolean;
+
+  // Additional Info
+  fetchUserFees: boolean;
+  fetchPortfolio: boolean;
+  fetchRateLimitStatus: boolean;
 }
 
 /**
@@ -314,6 +329,75 @@ export interface IExchangeAdapter {
   setMarginMode(symbol: string, marginMode: 'cross' | 'isolated'): Promise<void>;
 
   // ===========================================================================
+  // Account History
+  // ===========================================================================
+
+  /**
+   * Fetch order history
+   *
+   * @param symbol - Optional symbol to filter (fetches all symbols if not provided)
+   * @param since - Optional start timestamp (ms)
+   * @param limit - Optional maximum number of orders
+   * @returns Promise resolving to array of historical orders
+   * @throws {ExchangeUnavailableError} If API is unavailable
+   *
+   * @example
+   * ```typescript
+   * // Fetch all order history
+   * const orders = await exchange.fetchOrderHistory();
+   *
+   * // Fetch BTC orders from last 24h
+   * const btcOrders = await exchange.fetchOrderHistory(
+   *   'BTC/USDT:USDT',
+   *   Date.now() - 86400000
+   * );
+   * ```
+   */
+  fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
+
+  /**
+   * Fetch trade history (user fills)
+   *
+   * @param symbol - Optional symbol to filter (fetches all symbols if not provided)
+   * @param since - Optional start timestamp (ms)
+   * @param limit - Optional maximum number of trades
+   * @returns Promise resolving to array of trade fills
+   * @throws {ExchangeUnavailableError} If API is unavailable
+   *
+   * @example
+   * ```typescript
+   * // Fetch all trade history
+   * const trades = await exchange.fetchMyTrades();
+   *
+   * // Fetch recent ETH trades
+   * const ethTrades = await exchange.fetchMyTrades('ETH/USDT:USDT', undefined, 100);
+   * ```
+   */
+  fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
+
+  /**
+   * Fetch deposit history
+   *
+   * @param currency - Optional currency to filter
+   * @param since - Optional start timestamp (ms)
+   * @param limit - Optional maximum number of records
+   * @returns Promise resolving to array of deposits
+   * @throws {ExchangeUnavailableError} If API is unavailable
+   */
+  fetchDeposits(currency?: string, since?: number, limit?: number): Promise<Transaction[]>;
+
+  /**
+   * Fetch withdrawal history
+   *
+   * @param currency - Optional currency to filter
+   * @param since - Optional start timestamp (ms)
+   * @param limit - Optional maximum number of records
+   * @returns Promise resolving to array of withdrawals
+   * @throws {ExchangeUnavailableError} If API is unavailable
+   */
+  fetchWithdrawals(currency?: string, since?: number, limit?: number): Promise<Transaction[]>;
+
+  // ===========================================================================
   // WebSocket Streams
   // ===========================================================================
 
@@ -379,6 +463,52 @@ export interface IExchangeAdapter {
    * @returns Async generator yielding funding rate updates
    */
   watchFundingRate(symbol: string): AsyncGenerator<FundingRate>;
+
+  // ===========================================================================
+  // Additional Info Methods
+  // ===========================================================================
+
+  /**
+   * Fetch user fee rates
+   *
+   * @returns Promise resolving to user fee information
+   * @throws {ExchangeUnavailableError} If API is unavailable
+   *
+   * @example
+   * ```typescript
+   * const fees = await exchange.fetchUserFees();
+   * console.log(`Maker: ${fees.maker * 100}%, Taker: ${fees.taker * 100}%`);
+   * ```
+   */
+  fetchUserFees(): Promise<UserFees>;
+
+  /**
+   * Fetch portfolio performance metrics
+   *
+   * @returns Promise resolving to portfolio information
+   * @throws {ExchangeUnavailableError} If API is unavailable
+   *
+   * @example
+   * ```typescript
+   * const portfolio = await exchange.fetchPortfolio();
+   * console.log(`Daily PnL: ${portfolio.dailyPnl}`);
+   * ```
+   */
+  fetchPortfolio(): Promise<Portfolio>;
+
+  /**
+   * Fetch current rate limit status
+   *
+   * @returns Promise resolving to rate limit information
+   * @throws {ExchangeUnavailableError} If API is unavailable
+   *
+   * @example
+   * ```typescript
+   * const status = await exchange.fetchRateLimitStatus();
+   * console.log(`${status.remaining}/${status.limit} requests remaining`);
+   * ```
+   */
+  fetchRateLimitStatus(): Promise<RateLimitStatus>;
 }
 
 /**

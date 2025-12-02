@@ -2,6 +2,7 @@
  * Paradex authentication strategy
  */
 
+import { Account, ec, hash, encode } from 'starknet';
 import type { IAuthStrategy, AuthenticatedRequest, RequestParams } from '../../types/adapter.js';
 import { PARADEX_JWT_EXPIRY_BUFFER } from './constants.js';
 import type { ParadexJWT } from './types.js';
@@ -187,13 +188,22 @@ export class ParadexAuth implements IAuthStrategy {
       throw new Error('StarkNet private key required for signing requests');
     }
 
-    // Create signature payload
-    const timestamp = Date.now();
-    const message = this.createSignatureMessage(request, timestamp);
+    try {
+      // Create signature payload
+      const timestamp = Date.now();
+      const message = this.createSignatureMessage(request, timestamp);
 
-    // For now, return placeholder signature
-    // Full StarkNet signing would require starknet.js library
-    return this.createPlaceholderSignature(message);
+      // Hash the message using Pedersen hash (StarkNet standard)
+      const messageHash = hash.computeHashOnElements([message]);
+
+      // Sign with StarkNet ECDSA
+      const signature = ec.starkCurve.sign(messageHash, this.starkPrivateKey);
+
+      // Return signature in format: r,s
+      return `0x${signature.r.toString(16)},0x${signature.s.toString(16)}`;
+    } catch (error) {
+      throw new Error(`Failed to sign StarkNet request: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -208,20 +218,22 @@ export class ParadexAuth implements IAuthStrategy {
   }
 
   /**
-   * Create placeholder signature (to be replaced with actual StarkNet signing)
-   */
-  private createPlaceholderSignature(message: string): string {
-    // This is a placeholder - in production, use starknet.js to sign
-    // const signature = await account.signMessage(message);
-    return `0x${Buffer.from(message).toString('hex').slice(0, 128)}`;
-  }
-
-  /**
-   * Get StarkNet address (placeholder)
+   * Get StarkNet address from private key
    */
   getAddress(): string | undefined {
-    // This would derive address from starkPrivateKey
-    // Requires starknet.js implementation
-    return undefined;
+    if (!this.starkPrivateKey) {
+      return undefined;
+    }
+
+    try {
+      // Get public key from private key using StarkNet curve
+      const publicKey = ec.starkCurve.getStarkKey(this.starkPrivateKey);
+
+      // Return the public key as the address (StarkNet format)
+      return publicKey;
+    } catch (error) {
+      console.error('Failed to derive StarkNet address:', error);
+      return undefined;
+    }
   }
 }
