@@ -7,9 +7,15 @@
  * Features demonstrated:
  * - Exchange initialization with wallet
  * - Market data fetching
- * - Order placement and cancellation
+ * - Order placement and cancellation (with EIP-712 signing)
  * - Position and balance monitoring
- * - WebSocket streaming
+ * - WebSocket streaming (order book, balance updates)
+ *
+ * Architecture:
+ * - NadoAuth: Handles EIP-712 signing and nonce management
+ * - NadoAPIClient: HTTP communication with retry logic
+ * - NadoNormalizer: Data transformation with precision safety
+ * - WebSocket: Real-time updates via subscription builder
  */
 
 import { createExchange, createSymbol } from '../src/index.js';
@@ -198,7 +204,41 @@ async function main() {
   console.log(`   📊 Received ${updates.length} order book updates`);
 
   // ============================================================================
-  // 9. Cleanup
+  // 9. Watch Balance Updates (New Feature!)
+  // ============================================================================
+
+  console.log('\n💰 Watching balance updates (WebSocket)...');
+  console.log('   (Streaming for 5 seconds...)');
+
+  const balanceStream = nado.watchBalance();
+  const balanceUpdates: number[] = [];
+
+  const balanceStreamPromise = (async () => {
+    try {
+      for await (const balances of balanceStream) {
+        balanceUpdates.push(Date.now());
+        if (balanceUpdates.length === 1) {
+          console.log('   ✅ First balance update received:');
+          balances.forEach(bal => {
+            console.log(`      ${bal.currency}: ${bal.total.toLocaleString()} (free: ${bal.free.toLocaleString()})`);
+          });
+        }
+
+        // Stop after 5 seconds
+        if (balanceUpdates.length > 0 && Date.now() - balanceUpdates[0] > 5000) {
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('   Balance stream error:', error);
+    }
+  })();
+
+  await balanceStreamPromise;
+  console.log(`   📊 Received ${balanceUpdates.length} balance updates`);
+
+  // ============================================================================
+  // 10. Cleanup
   // ============================================================================
 
   console.log('\n🧹 Cleaning up...');
