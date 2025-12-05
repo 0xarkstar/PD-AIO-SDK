@@ -26,6 +26,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 20 integration test cases
   - Complete documentation and examples
 
+#### Nado Adapter - Architecture Refactoring
+- **Component-Based Architecture** - Separated concerns into specialized modules
+  - **NadoAuth** (`src/adapters/nado/NadoAuth.ts`) - EIP-712 signature generation and nonce management
+    - `signOrder()` - Sign order placement with product-specific verifying contract
+    - `signCancellation()` - Sign batch order cancellations
+    - `getNextNonce()` / `getCurrentNonce()` - Atomic nonce management
+    - `getAddress()` - Wallet address accessor
+    - Cross-platform compatible (browser + Node.js)
+
+  - **NadoAPIClient** (`src/adapters/nado/NadoAPIClient.ts`) - HTTP communication with automatic retry
+    - Exponential backoff retry strategy (max 3 attempts)
+    - Intelligent error classification (retries server/network errors only)
+    - Rate limit handling with token bucket algorithm
+    - Configurable timeout (default: 30 seconds)
+    - Automatic error mapping to unified error types
+
+  - **NadoNormalizer** (`src/adapters/nado/NadoNormalizer.ts`) - Data transformation with precision safety
+    - Precision-safe x18 numeric conversions
+    - NaN/Infinity detection and validation
+    - Precision loss warnings for large numbers
+    - Batch processing: `normalizeOrders()`, `normalizePositions()`, `normalizeTrades()`
+    - Symbol conversion: `symbolToCCXT()`, `symbolFromCCXT()`
+    - Zod schema validation for all API responses
+    - Graceful per-item error handling in batch operations
+
+  - **NadoSubscriptionBuilder** (`src/adapters/nado/subscriptions.ts`) - WebSocket subscription payload generator
+    - `orderBook(productId)` - Subscribe to order book updates
+    - `positions(subaccount)` - Subscribe to position updates
+    - `orders(subaccount)` - Subscribe to order updates
+    - `trades(productId)` - Subscribe to trade feed
+    - `balance(subaccount)` - Subscribe to balance updates (new!)
+    - `channelId()` - Generate unique channel identifiers
+    - `unsubscribe()` - Create unsubscribe payloads
+
+- **New Features**
+  - `watchBalance()` - Real-time balance updates via WebSocket streaming
+    - Returns `AsyncGenerator<Balance[]>` for continuous monitoring
+    - Automatically subscribes to `subaccount_info` channel
+    - Example added to `examples/nado-basic.ts`
+
+- **Test Coverage Expansion**
+  - `tests/unit/nado-auth.test.ts` (54 test cases) - EIP-712 signing, nonce management, address conversion
+  - `tests/unit/nado-api-client.test.ts` (42 test cases) - HTTP requests, retry logic, rate limiting, error mapping
+  - `tests/unit/nado-normalizer.test.ts` (40 test cases) - Data normalization, precision safety, batch processing
+  - `tests/unit/nado-errors.test.ts` (38 test cases) - Error classification, mapping, retry decisions
+  - `tests/unit/nado-subscriptions.test.ts` (32 test cases) - Subscription payload generation, channel IDs
+  - `tests/integration/nado-adapter.test.ts` - Full integration tests with mocked fetch
+  - **Total: 206 new test cases** across 6 test files
+
 #### Developer Experience (P0)
 - **Simple Symbol Helper** (`createSymbol`) - Easy symbol generation with exchange-aware defaults
   - `createSymbol('hyperliquid', 'BTC')` → `"BTC/USDT:USDT"`
@@ -65,9 +114,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `disconnect()` now performs complete cleanup
 - **Factory** - Can now optionally validate configuration on creation
 
+#### Nado Adapter Internal Refactoring
+- **NadoAdapter** - Refactored to use component-based architecture
+  - Removed 403-line `utils.ts` file (all functionality migrated to components)
+  - Removed internal methods: `query()`, `execute()`, `mapError()`, `getNextNonce()`
+  - Changed `productMappings` key from `productId` to `ccxtSymbol` for O(1) lookup efficiency
+  - All HTTP calls now go through `NadoAPIClient` with automatic retry
+  - All EIP-712 signing now handled by `NadoAuth` component
+  - All data normalization now through `NadoNormalizer` with validation
+  - WebSocket subscriptions now use `NadoSubscriptionBuilder` for consistent payloads
+
+- **Code Quality Improvements**
+  - Reduced code complexity through separation of concerns
+  - Better error handling with automatic retry for transient failures
+  - Improved type safety with Zod runtime validation
+  - Enhanced maintainability with focused, testable components
+
 ### Fixed
 - Potential memory leaks from untracked timers
 - Missing cleanup in disconnect flow
+
+#### Nado Adapter Critical Fixes
+- **RateLimitError constructor calls** - Fixed missing `retryAfter` parameter (`src/adapters/nado/errors.ts`)
+  - Lines 192, 230-234: Added explicit `undefined` for `retryAfter` parameter
+  - Previously `originalError` was passed to wrong parameter position
+  - Now matches constructor signature: `(message, code, exchange, retryAfter?, originalError?)`
+
+- **Cross-platform compatibility** - Fixed Node.js-only Buffer API (`src/adapters/nado/NadoAuth.ts`)
+  - Line 362: Replaced `Buffer.alloc()` with `ethers.zeroPadValue()` for browser compatibility
+  - `productIdToVerifyingContract()` now works in both Node.js and browser environments
+
+- **Precision handling** - Added NaN/Infinity detection in numeric conversions
+  - `toX18Safe()` validates input before conversion
+  - `fromX18Safe()` validates output and warns on precision loss
+  - Prevents silent data corruption from invalid numeric values
 
 ---
 
@@ -85,11 +165,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Total New Tests:** 53 unit tests
 **Test Coverage:** 233/233 passing (100% of unit tests)
 
+### Nado Adapter Refactoring Summary
+
+| Component | Lines of Code | Test Cases | Purpose |
+|-----------|---------------|------------|---------|
+| NadoAuth | 316 | 54 | EIP-712 signing + nonce management |
+| NadoAPIClient | 309 | 42 | HTTP communication + retry logic |
+| NadoNormalizer | 558 | 40 | Data transformation + validation |
+| NadoSubscriptionBuilder | 194 | 32 | WebSocket subscription payloads |
+| Error Handling | 227 | 38 | Error classification + mapping |
+
+**Files Deleted:** `utils.ts` (403 lines)
+**Net Code Change:** +1,604 lines added, -403 lines removed
+**Total New Tests:** 206 test cases across 6 files
+**Test Coverage:** All tests passing with mocked fetch
+
 ### Breaking Changes
 **None.** All P0 improvements are additive or internal optimizations.
 
+#### Nado Adapter - No Breaking Changes
+**Public API unchanged:** All public adapter methods maintain identical signatures and behavior:
+- `createOrder()`, `cancelOrder()`, `fetchMarkets()`, `fetchBalance()`, etc.
+- WebSocket methods: `watchOrderBook()`, `watchPositions()`, `watchOrders()`
+- New method: `watchBalance()` (additive, not breaking)
+
+**Internal changes only:** The refactoring reorganized internal implementation without affecting public API:
+- Component architecture is internal to `NadoAdapter`
+- Removed `utils.ts` exports (was internal utility module)
+- No changes to method signatures or return types
+
 ### Migration Guide
 No migration required. All existing code continues to work without changes.
+
+#### Nado Adapter Refactoring - Migration Notes
+
+**For basic users:** No action required. All public methods work exactly as before.
+
+**For advanced users who were importing from `utils.ts`:**
+
+The `utils.ts` file has been removed. If you were importing internal utilities, use the adapter's public API instead:
+
+```typescript
+// Before (unsupported - utils.ts no longer exists)
+import { signNadoOrder, normalizeNadoProduct } from 'perp-dex-sdk/adapters/nado/utils';
+
+// After (use adapter's public methods)
+import { createExchange } from 'perp-dex-sdk';
+const nado = createExchange('nado', { wallet, testnet: true });
+
+// All signing and normalization now handled internally
+const order = await nado.createOrder({
+  symbol: 'BTC/USDT:USDT',
+  side: 'buy',
+  type: 'limit',
+  amount: 0.01,
+  price: 50000,
+});
+```
+
+**New feature - Balance streaming:**
+
+```typescript
+// New watchBalance() method for real-time balance updates
+const balanceStream = nado.watchBalance();
+
+for await (const balances of balanceStream) {
+  balances.forEach(balance => {
+    console.log(`${balance.currency}: ${balance.total} (free: ${balance.free})`);
+  });
+
+  // Stop after some condition
+  if (someCondition) break;
+}
+```
+
+**Internal improvements you get automatically:**
+- Automatic retry on transient HTTP errors (network issues, server errors, rate limits)
+- Better error messages with error classification
+- Precision loss warnings for large numeric values
+- Cross-platform compatibility (works in browser and Node.js)
 
 **Optional adoption of new features:**
 

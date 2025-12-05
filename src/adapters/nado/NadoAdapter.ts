@@ -65,22 +65,10 @@ import {
   NadoTickerSchema,
   NadoContractsSchema,
 } from './types.js';
-import {
-  normalizeNadoProduct,
-  normalizeNadoOrder,
-  normalizeNadoPosition,
-  normalizeNadoBalance,
-  normalizeNadoTrade,
-  normalizeNadoTicker,
-  normalizeNadoOrderBook,
-  nadoSymbolToCCXT,
-  ccxtSymbolToNado,
-  signNadoOrder,
-  signNadoCancellation,
-  toX18,
-  fromX18,
-  productIdToVerifyingContract,
-} from './utils.js';
+import { NadoAuth } from './NadoAuth.js';
+import { NadoAPIClient } from './NadoAPIClient.js';
+import { NadoNormalizer } from './NadoNormalizer.js';
+import { NadoSubscriptionBuilder } from './subscriptions.js';
 
 export class NadoAdapter extends BaseAdapter {
   readonly id = 'nado';
@@ -137,15 +125,17 @@ export class NadoAdapter extends BaseAdapter {
   private apiUrl: string;
   private wsUrl: string;
   private wsManager?: WebSocketManager;
-  private wallet?: Wallet;
   protected rateLimiter: RateLimiter;
+
+  // New component instances
+  private auth!: NadoAuth;
+  private apiClient!: NadoAPIClient;
+  private normalizer: NadoNormalizer;
 
   // Nado-specific state
   private chainId: number;
   private contractsInfo?: NadoContracts;
-  private productMappings: Map<number, ProductMapping> = new Map();
-  private symbolToProductId: Map<string, number> = new Map();
-  private currentNonce: number = 0;
+  private productMappings: Map<string, ProductMapping> = new Map();
 
   constructor(config: NadoConfig = {}) {
     super(config);
@@ -160,11 +150,7 @@ export class NadoAdapter extends BaseAdapter {
     }
 
     // Initialize wallet
-    if (config.wallet) {
-      this.wallet = config.wallet;
-    } else if (config.privateKey) {
-      this.wallet = new Wallet(config.privateKey);
-    }
+    const wallet = config.wallet || new Wallet(config.privateKey!);
 
     // Set API URLs
     const urls = config.testnet ? NADO_API_URLS.testnet : NADO_API_URLS.mainnet;
@@ -184,6 +170,15 @@ export class NadoAdapter extends BaseAdapter {
       },
       exchange: 'nado',
     });
+
+    // Initialize new components
+    this.auth = new NadoAuth(wallet, this.chainId);
+    this.apiClient = new NadoAPIClient({
+      apiUrl: this.apiUrl,
+      rateLimiter: this.rateLimiter,
+      timeout: NADO_REQUEST_CONFIG.timeout,
+    });
+    this.normalizer = new NadoNormalizer();
   }
 
   // ===========================================================================
@@ -208,7 +203,7 @@ export class NadoAdapter extends BaseAdapter {
 
       // 2. Fetch current nonce
       await this.fetchCurrentNonce();
-      this.debug('Current nonce fetched', { nonce: this.currentNonce });
+      this.debug('Current nonce fetched', { nonce: this.auth.getCurrentNonce() });
 
       // 3. Preload markets and build product mappings
       await this.preloadMarkets();
@@ -256,7 +251,6 @@ export class NadoAdapter extends BaseAdapter {
 
     // Clear product mappings
     this.productMappings.clear();
-    this.symbolToProductId.clear();
 
     // Call parent disconnect for resource cleanup
     await super.disconnect();
@@ -268,118 +262,12 @@ export class NadoAdapter extends BaseAdapter {
   // Private Helper Methods
   // ===========================================================================
 
-  /**
-   * Make a query request to Nado API
-   */
-  private async query<T>(type: string, params: any = {}): Promise<T> {
-    await this.rateLimiter.acquire('query', 1);
-
-    const startTime = Date.now();
-    const controller = new AbortController();
-    this.abortControllers.add(controller);
-
-    try {
-      const response = await fetch(`${this.apiUrl}/query`, {
-        method: 'POST',
-        headers: NADO_REQUEST_CONFIG.headers,
-        body: JSON.stringify({
-          type,
-          ...params,
-        }),
-        signal: controller.signal,
-        // @ts-ignore - timeout not in standard fetch types
-        timeout: NADO_REQUEST_CONFIG.timeout,
-      });
-
-      if (!response.ok) {
-        throw new ExchangeUnavailableError(
-          `Nado API error: ${response.status} ${response.statusText}`,
-          'API_ERROR',
-          this.id
-        );
-      }
-
-      const data: NadoResponse<T> = await response.json();
-
-      // Track metrics
-      this.trackRequest('query', Date.now() - startTime, data.status === 'success');
-
-      if (data.status === 'failure') {
-        throw new PerpDEXError(
-          `Nado query failed: ${data.error}`,
-          data.error_code?.toString() || 'QUERY_FAILED',
-          this.id
-        );
-      }
-
-      return data.data as T;
-    } catch (error) {
-      this.trackRequest('query', Date.now() - startTime, false);
-      throw this.mapError(error);
-    } finally {
-      this.abortControllers.delete(controller);
-    }
-  }
-
-  /**
-   * Make an execute request to Nado API (requires EIP712 signature)
-   */
-  private async execute<T>(type: string, payload: any, signature: string): Promise<T> {
-    await this.rateLimiter.acquire('execute', 2);
-
-    const startTime = Date.now();
-    const controller = new AbortController();
-    this.abortControllers.add(controller);
-
-    try {
-      const response = await fetch(`${this.apiUrl}/execute`, {
-        method: 'POST',
-        headers: NADO_REQUEST_CONFIG.headers,
-        body: JSON.stringify({
-          type,
-          payload,
-          signature,
-        }),
-        signal: controller.signal,
-        // @ts-ignore
-        timeout: NADO_REQUEST_CONFIG.timeout,
-      });
-
-      if (!response.ok) {
-        throw new ExchangeUnavailableError(
-          `Nado API error: ${response.status} ${response.statusText}`,
-          'API_ERROR',
-          this.id
-        );
-      }
-
-      const data: NadoResponse<T> = await response.json();
-
-      // Track metrics
-      this.trackRequest('execute', Date.now() - startTime, data.status === 'success');
-
-      if (data.status === 'failure') {
-        throw new InvalidOrderError(
-          `Nado execute failed: ${data.error}`,
-          data.error_code?.toString() || 'EXECUTE_FAILED',
-          this.id
-        );
-      }
-
-      return data.data as T;
-    } catch (error) {
-      this.trackRequest('execute', Date.now() - startTime, false);
-      throw this.mapError(error);
-    } finally {
-      this.abortControllers.delete(controller);
-    }
-  }
 
   /**
    * Fetch contracts information
    */
   private async fetchContracts(): Promise<NadoContracts> {
-    const data = await this.query<NadoContracts>(NADO_QUERY_TYPES.CONTRACTS);
+    const data = await this.apiClient.query<NadoContracts>(NADO_QUERY_TYPES.CONTRACTS);
     return NadoContractsSchema.parse(data);
   }
 
@@ -387,40 +275,20 @@ export class NadoAdapter extends BaseAdapter {
    * Fetch current nonce for the wallet
    */
   private async fetchCurrentNonce(): Promise<void> {
-    if (!this.wallet) {
-      throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
-    }
-
-    const data = await this.query<{ nonce: number }>(NADO_QUERY_TYPES.NONCES, {
-      subaccount: this.wallet.address,
+    const data = await this.apiClient.query<{ nonce: number }>(NADO_QUERY_TYPES.NONCES, {
+      subaccount: this.auth.getAddress(),
     });
 
-    this.currentNonce = data.nonce;
+    this.auth.setNonce(data.nonce);
   }
 
-  /**
-   * Get next nonce and increment
-   */
-  private getNextNonce(): number {
-    return this.currentNonce++;
-  }
 
   /**
    * Get product mapping by symbol
    */
   private getProductMapping(symbol: string): ProductMapping {
-    const nadoSymbol = ccxtSymbolToNado(symbol);
-    const productId = this.symbolToProductId.get(nadoSymbol);
+    const mapping = this.productMappings.get(symbol);
 
-    if (productId === undefined) {
-      throw new InvalidOrderError(
-        `Unknown symbol: ${symbol}`,
-        'UNKNOWN_SYMBOL',
-        this.id
-      );
-    }
-
-    const mapping = this.productMappings.get(productId);
     if (!mapping) {
       throw new InvalidOrderError(
         `Product mapping not found for ${symbol}`,
@@ -432,20 +300,6 @@ export class NadoAdapter extends BaseAdapter {
     return mapping;
   }
 
-  /**
-   * Map errors to unified error types
-   */
-  private mapError(error: any): Error {
-    if (error instanceof PerpDEXError) {
-      return error;
-    }
-
-    if (error.name === 'AbortError') {
-      return new ExchangeUnavailableError('Request timeout', 'TIMEOUT', this.id, error);
-    }
-
-    return new PerpDEXError(error.message || 'Unknown error', 'UNKNOWN_ERROR', this.id, error);
-  }
 
   /**
    * Track request metrics
@@ -485,27 +339,25 @@ export class NadoAdapter extends BaseAdapter {
   protected async fetchMarketsFromAPI(params?: MarketParams): Promise<Market[]> {
     this.debug('Fetching markets from API...');
 
-    const products = await this.query<NadoProduct[]>(NADO_QUERY_TYPES.ALL_PRODUCTS);
+    const products = await this.apiClient.query<NadoProduct[]>(NADO_QUERY_TYPES.ALL_PRODUCTS);
 
     // Build product mappings
     this.productMappings.clear();
-    this.symbolToProductId.clear();
 
     const markets: Market[] = [];
 
     for (const product of products) {
-      const market = normalizeNadoProduct(product);
+      const market = this.normalizer.normalizeProduct(product);
       markets.push(market);
 
-      // Store mappings
+      // Store mappings (key: ccxtSymbol for direct lookup)
       const mapping: ProductMapping = {
         productId: product.product_id,
         symbol: product.symbol,
         ccxtSymbol: market.symbol,
       };
 
-      this.productMappings.set(product.product_id, mapping);
-      this.symbolToProductId.set(product.symbol, product.product_id);
+      this.productMappings.set(market.symbol, mapping);
     }
 
     this.debug('Markets fetched', { count: markets.length });
@@ -515,21 +367,21 @@ export class NadoAdapter extends BaseAdapter {
   async fetchTicker(symbol: string): Promise<Ticker> {
     const mapping = this.getProductMapping(symbol);
 
-    const ticker = await this.query<NadoTicker>(NADO_QUERY_TYPES.MARKET_PRICES, {
+    const ticker = await this.apiClient.query<NadoTicker>(NADO_QUERY_TYPES.MARKET_PRICES, {
       product_id: mapping.productId,
     });
 
-    return normalizeNadoTicker(NadoTickerSchema.parse(ticker));
+    return this.normalizer.normalizeTicker(NadoTickerSchema.parse(ticker));
   }
 
   async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     const mapping = this.getProductMapping(symbol);
 
-    const orderBook = await this.query<NadoOrderBook>(NADO_QUERY_TYPES.MARKET_LIQUIDITY, {
+    const orderBook = await this.apiClient.query<NadoOrderBook>(NADO_QUERY_TYPES.MARKET_LIQUIDITY, {
       product_id: mapping.productId,
     });
 
-    return normalizeNadoOrderBook(NadoOrderBookSchema.parse(orderBook), symbol);
+    return this.normalizer.normalizeOrderBook(NadoOrderBookSchema.parse(orderBook), symbol);
   }
 
   async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
@@ -567,10 +419,6 @@ export class NadoAdapter extends BaseAdapter {
   // ===========================================================================
 
   async createOrder(request: OrderRequest): Promise<Order> {
-    if (!this.wallet) {
-      throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
-    }
-
     if (!this.contractsInfo) {
       throw new PerpDEXError('Contracts info not loaded', 'NO_CONTRACTS', this.id);
     }
@@ -578,13 +426,13 @@ export class NadoAdapter extends BaseAdapter {
     const mapping = this.getProductMapping(request.symbol);
 
     // Convert order to Nado format
-    const priceX18 = toX18(request.price || 0);
-    const amount = toX18(request.amount);
+    const priceX18 = ethers.parseUnits((request.price || 0).toString(), 18).toString();
+    const amount = ethers.parseUnits(request.amount.toString(), 18).toString();
     const expiration = Math.floor(Date.now() / 1000) + 86400; // 24 hours from now
-    const nonce = this.getNextNonce();
+    const nonce = this.auth.getNextNonce();
 
     const orderData: NadoEIP712Order = {
-      sender: this.wallet.address,
+      sender: this.auth.getAddress(),
       priceX18,
       amount,
       expiration,
@@ -597,75 +445,65 @@ export class NadoAdapter extends BaseAdapter {
       },
     };
 
-    // Sign the order
-    const signature = await signNadoOrder(
-      this.wallet,
-      orderData,
-      this.chainId,
-      mapping.productId
-    );
-
-    // Execute the order
-    const response = await this.execute<NadoOrder>(
+    // Sign and execute the order
+    const signature = await this.auth.signOrder(orderData, mapping.productId);
+    const response = await this.apiClient.execute<NadoOrder>(
       NADO_EXECUTE_TYPES.PLACE_ORDER,
       orderData,
       signature
     );
 
-    return normalizeNadoOrder(NadoOrderSchema.parse(response), mapping);
+    return this.normalizer.normalizeOrder(NadoOrderSchema.parse(response), mapping);
   }
 
   async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
-    if (!this.wallet) {
-      throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
-    }
-
     if (!this.contractsInfo) {
       throw new PerpDEXError('Contracts info not loaded', 'NO_CONTRACTS', this.id);
     }
 
     // Fetch the order to get its digest
-    const order = await this.query<NadoOrder>(NADO_QUERY_TYPES.ORDER, {
+    const order = await this.apiClient.query<NadoOrder>(NADO_QUERY_TYPES.ORDER, {
       order_id: orderId,
     });
 
-    const mapping = this.productMappings.get(order.product_id);
+    // Find product mapping by productId
+    const mapping = Array.from(this.productMappings.values()).find(
+      m => m.productId === order.product_id
+    );
     if (!mapping) {
       throw new InvalidOrderError('Product mapping not found', 'MAPPING_NOT_FOUND', this.id);
     }
 
     const cancellationData: NadoEIP712Cancellation = {
-      sender: this.wallet.address,
+      sender: this.auth.getAddress(),
       productIds: [order.product_id],
       digests: [order.digest],
-      nonce: this.getNextNonce(),
+      nonce: this.auth.getNextNonce(),
     };
 
-    const signature = await signNadoCancellation(
-      this.wallet,
+    const signature = await this.auth.signCancellation(
       cancellationData,
-      this.chainId,
       this.contractsInfo.endpoint_address
     );
 
-    await this.execute(NADO_EXECUTE_TYPES.CANCEL_ORDERS, cancellationData, signature);
+    await this.apiClient.execute(
+      NADO_EXECUTE_TYPES.CANCEL_ORDERS,
+      cancellationData,
+      signature
+    );
 
     // Return updated order
-    return normalizeNadoOrder(NadoOrderSchema.parse(order), mapping);
+    return this.normalizer.normalizeOrder(NadoOrderSchema.parse(order), mapping);
   }
 
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
-    if (!this.wallet) {
-      throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
-    }
-
     if (!this.contractsInfo) {
       throw new PerpDEXError('Contracts info not loaded', 'NO_CONTRACTS', this.id);
     }
 
     // Fetch all open orders
-    const orders = await this.query<NadoOrder[]>(NADO_QUERY_TYPES.ORDERS, {
-      subaccount: this.wallet.address,
+    const orders = await this.apiClient.query<NadoOrder[]>(NADO_QUERY_TYPES.ORDERS, {
+      subaccount: this.auth.getAddress(),
       status: 'open',
     });
 
@@ -682,49 +520,53 @@ export class NadoAdapter extends BaseAdapter {
 
     // Build cancellation data
     const cancellationData: NadoEIP712Cancellation = {
-      sender: this.wallet.address,
+      sender: this.auth.getAddress(),
       productIds: ordersToCancel.map((o) => o.product_id),
       digests: ordersToCancel.map((o) => o.digest),
-      nonce: this.getNextNonce(),
+      nonce: this.auth.getNextNonce(),
     };
 
-    const signature = await signNadoCancellation(
-      this.wallet,
+    const signature = await this.auth.signCancellation(
       cancellationData,
-      this.chainId,
       this.contractsInfo.endpoint_address
     );
 
-    await this.execute(NADO_EXECUTE_TYPES.CANCEL_ORDERS, cancellationData, signature);
+    await this.apiClient.execute(
+      NADO_EXECUTE_TYPES.CANCEL_ORDERS,
+      cancellationData,
+      signature
+    );
 
     // Return cancelled orders
+    const mappingsArray = Array.from(this.productMappings.values());
     return ordersToCancel.map((order) => {
-      const mapping = this.productMappings.get(order.product_id)!;
-      return normalizeNadoOrder(order, mapping);
+      const mapping = mappingsArray.find(m => m.productId === order.product_id)!;
+      return this.normalizer.normalizeOrder(order, mapping);
     });
   }
 
   async fetchPositions(symbols?: string[]): Promise<Position[]> {
-    if (!this.wallet) {
-      throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
-    }
-
-    const positions = await this.query<NadoPosition[]>(
+    const positions = await this.apiClient.query<NadoPosition[]>(
       NADO_QUERY_TYPES.ISOLATED_POSITIONS,
       {
-        subaccount: this.wallet.address,
+        subaccount: this.auth.getAddress(),
       }
     );
 
+    const mappingsArray = Array.from(this.productMappings.values());
     const normalized: Position[] = [];
+
     for (const position of positions) {
-      const mapping = this.productMappings.get(position.product_id);
+      const mapping = mappingsArray.find(m => m.productId === position.product_id);
       if (!mapping) {
         this.warn(`Product mapping not found for product ID ${position.product_id}`);
         continue;
       }
 
-      const normalizedPosition = normalizeNadoPosition(NadoPositionSchema.parse(position), mapping);
+      const normalizedPosition = this.normalizer.normalizePosition(
+        NadoPositionSchema.parse(position),
+        mapping
+      );
       if (normalizedPosition) {
         normalized.push(normalizedPosition);
       }
@@ -734,15 +576,11 @@ export class NadoAdapter extends BaseAdapter {
   }
 
   async fetchBalance(): Promise<Balance[]> {
-    if (!this.wallet) {
-      throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
-    }
-
-    const balance = await this.query<NadoBalance>(NADO_QUERY_TYPES.SUBACCOUNT_INFO, {
-      subaccount: this.wallet.address,
+    const balance = await this.apiClient.query<NadoBalance>(NADO_QUERY_TYPES.SUBACCOUNT_INFO, {
+      subaccount: this.auth.getAddress(),
     });
 
-    return normalizeNadoBalance(NadoBalanceSchema.parse(balance));
+    return this.normalizer.normalizeBalance(NadoBalanceSchema.parse(balance));
   }
 
   /**
@@ -765,12 +603,8 @@ export class NadoAdapter extends BaseAdapter {
    * ```
    */
   async fetchOpenOrders(symbol?: string): Promise<Order[]> {
-    if (!this.wallet) {
-      throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
-    }
-
-    const orders = await this.query<NadoOrder[]>(NADO_QUERY_TYPES.ORDERS, {
-      subaccount: this.wallet.address,
+    const orders = await this.apiClient.query<NadoOrder[]>(NADO_QUERY_TYPES.ORDERS, {
+      subaccount: this.auth.getAddress(),
       status: 'open',
     });
 
@@ -786,11 +620,12 @@ export class NadoAdapter extends BaseAdapter {
     }
 
     // Normalize and return
+    const mappingsArray = Array.from(this.productMappings.values());
     return filteredOrders
       .map((order) => {
-        const mapping = this.productMappings.get(order.product_id);
+        const mapping = mappingsArray.find(m => m.productId === order.product_id);
         if (!mapping) return null;
-        return normalizeNadoOrder(order, mapping);
+        return this.normalizer.normalizeOrder(order, mapping);
       })
       .filter((o): o is Order => o !== null);
   }
@@ -805,20 +640,11 @@ export class NadoAdapter extends BaseAdapter {
     }
 
     const mapping = this.getProductMapping(symbol);
+    const subscription = NadoSubscriptionBuilder.orderBook(mapping.productId);
+    const channelId = NadoSubscriptionBuilder.channelId(NADO_WS_CHANNELS.ORDERBOOK, mapping.productId);
 
-    const subscription = {
-      type: 'subscribe',
-      channel: NADO_WS_CHANNELS.ORDERBOOK,
-      product_id: mapping.productId,
-    };
-
-    const channel = `${NADO_WS_CHANNELS.ORDERBOOK}:${mapping.productId}`;
-
-    for await (const update of this.wsManager.watch<NadoOrderBook>(
-      channel,
-      subscription
-    )) {
-      yield normalizeNadoOrderBook(update, symbol);
+    for await (const update of this.wsManager.watch<NadoOrderBook>(channelId, subscription)) {
+      yield this.normalizer.normalizeOrderBook(update, symbol);
     }
   }
 
@@ -827,27 +653,18 @@ export class NadoAdapter extends BaseAdapter {
       throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
     }
 
-    if (!this.wallet) {
-      throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
-    }
+    const walletAddress = this.auth.getAddress();
+    const subscription = NadoSubscriptionBuilder.positions(walletAddress);
+    const channelId = NadoSubscriptionBuilder.channelId(NADO_WS_CHANNELS.POSITIONS, walletAddress);
 
-    const subscription = {
-      type: 'subscribe',
-      channel: NADO_WS_CHANNELS.POSITIONS,
-      subaccount: this.wallet.address,
-    };
-
-    const channel = `${NADO_WS_CHANNELS.POSITIONS}:${this.wallet.address}`;
-
-    for await (const positions of this.wsManager.watch<NadoPosition[]>(
-      channel,
-      subscription
-    )) {
+    for await (const positions of this.wsManager.watch<NadoPosition[]>(channelId, subscription)) {
+      const mappingsArray = Array.from(this.productMappings.values());
       const normalized: Position[] = [];
+
       for (const position of positions) {
-        const mapping = this.productMappings.get(position.product_id);
+        const mapping = mappingsArray.find(m => m.productId === position.product_id);
         if (!mapping) continue;
-        const normalizedPos = normalizeNadoPosition(position, mapping);
+        const normalizedPos = this.normalizer.normalizePosition(position, mapping);
         if (normalizedPos) normalized.push(normalizedPos);
       }
 
@@ -860,27 +677,18 @@ export class NadoAdapter extends BaseAdapter {
       throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
     }
 
-    if (!this.wallet) {
-      throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
-    }
+    const walletAddress = this.auth.getAddress();
+    const subscription = NadoSubscriptionBuilder.orders(walletAddress);
+    const channelId = NadoSubscriptionBuilder.channelId(NADO_WS_CHANNELS.ORDERS, walletAddress);
 
-    const subscription = {
-      type: 'subscribe',
-      channel: NADO_WS_CHANNELS.ORDERS,
-      subaccount: this.wallet.address,
-    };
-
-    const channel = `${NADO_WS_CHANNELS.ORDERS}:${this.wallet.address}`;
-
-    for await (const orders of this.wsManager.watch<NadoOrder[]>(
-      channel,
-      subscription
-    )) {
+    for await (const orders of this.wsManager.watch<NadoOrder[]>(channelId, subscription)) {
+      const mappingsArray = Array.from(this.productMappings.values());
       const normalized: Order[] = [];
+
       for (const order of orders) {
-        const mapping = this.productMappings.get(order.product_id);
+        const mapping = mappingsArray.find(m => m.productId === order.product_id);
         if (!mapping) continue;
-        normalized.push(normalizeNadoOrder(order, mapping));
+        normalized.push(this.normalizer.normalizeOrder(order, mapping));
       }
 
       yield normalized;
@@ -893,20 +701,42 @@ export class NadoAdapter extends BaseAdapter {
     }
 
     const mapping = this.getProductMapping(symbol);
+    const subscription = NadoSubscriptionBuilder.trades(mapping.productId);
+    const channelId = NadoSubscriptionBuilder.channelId(NADO_WS_CHANNELS.TRADES, mapping.productId);
 
-    const subscription = {
-      type: 'subscribe',
-      channel: NADO_WS_CHANNELS.TRADES,
-      product_id: mapping.productId,
-    };
+    for await (const trade of this.wsManager.watch<NadoTrade>(channelId, subscription)) {
+      yield this.normalizer.normalizeTrade(trade, mapping);
+    }
+  }
 
-    const channel = `${NADO_WS_CHANNELS.TRADES}:${mapping.productId}`;
+  /**
+   * Watch balance updates in real-time via WebSocket
+   *
+   * Streams balance changes for the authenticated wallet's subaccount.
+   * Updates are pushed whenever deposits, withdrawals, or P&L changes occur.
+   *
+   * @returns Async generator yielding balance arrays
+   * @throws {PerpDEXError} If WebSocket is not initialized
+   *
+   * @example
+   * ```typescript
+   * for await (const balances of adapter.watchBalance()) {
+   *   console.log('Balances updated:', balances);
+   *   // [{ asset: 'USDT', free: 1000, used: 200, total: 1200 }]
+   * }
+   * ```
+   */
+  async *watchBalance(): AsyncGenerator<Balance[]> {
+    if (!this.wsManager) {
+      throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
+    }
 
-    for await (const trade of this.wsManager.watch<NadoTrade>(
-      channel,
-      subscription
-    )) {
-      yield normalizeNadoTrade(trade, mapping);
+    const walletAddress = this.auth.getAddress();
+    const subscription = NadoSubscriptionBuilder.balance(walletAddress);
+    const channelId = NadoSubscriptionBuilder.channelId(NADO_WS_CHANNELS.SUBACCOUNT, walletAddress);
+
+    for await (const balance of this.wsManager.watch<NadoBalance>(channelId, subscription)) {
+      yield this.normalizer.normalizeBalance(balance);
     }
   }
 
@@ -915,11 +745,11 @@ export class NadoAdapter extends BaseAdapter {
   // ===========================================================================
 
   protected symbolToExchange(symbol: string): string {
-    return ccxtSymbolToNado(symbol);
+    return this.normalizer.symbolFromCCXT(symbol);
   }
 
   protected symbolFromExchange(exchangeSymbol: string): string {
-    return nadoSymbolToCCXT(exchangeSymbol);
+    return this.normalizer.symbolToCCXT(exchangeSymbol);
   }
 
   // ===========================================================================
@@ -943,19 +773,16 @@ export class NadoAdapter extends BaseAdapter {
     _since?: number,
     _limit?: number
   ): Promise<Order[]> {
-    if (!this.wallet) {
-      throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
-    }
-
-    const orders = await this.query<NadoOrder[]>(NADO_QUERY_TYPES.ORDERS, {
-      subaccount: this.wallet.address,
+    const orders = await this.apiClient.query<NadoOrder[]>(NADO_QUERY_TYPES.ORDERS, {
+      subaccount: this.auth.getAddress(),
     });
 
+    const mappingsArray = Array.from(this.productMappings.values());
     return orders
       .map((order) => {
-        const mapping = this.productMappings.get(order.product_id);
+        const mapping = mappingsArray.find(m => m.productId === order.product_id);
         if (!mapping) return null;
-        return normalizeNadoOrder(order, mapping);
+        return this.normalizer.normalizeOrder(order, mapping);
       })
       .filter((o): o is Order => o !== null);
   }
