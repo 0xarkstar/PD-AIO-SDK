@@ -1010,6 +1010,26 @@ export class HyperliquidAdapter extends BaseAdapter {
     }
   }
 
+  /**
+   * Watch open orders in real-time
+   *
+   * Subscribes to the USER_FILLS WebSocket channel and yields updated order lists
+   * whenever fills occur. Provides real-time updates of the open order book.
+   *
+   * @returns AsyncGenerator that yields arrays of open orders
+   * @throws {Error} If WebSocket manager or authentication is not initialized
+   *
+   * @example
+   * ```typescript
+   * // Watch for order updates
+   * for await (const orders of adapter.watchOrders()) {
+   *   console.log(`Current open orders: ${orders.length}`);
+   *   orders.forEach(order => {
+   *     console.log(`${order.symbol}: ${order.side} ${order.amount} @ ${order.price}`);
+   *   });
+   * }
+   * ```
+   */
   async *watchOrders(): AsyncGenerator<Order[]> {
     this.ensureInitialized();
 
@@ -1017,18 +1037,28 @@ export class HyperliquidAdapter extends BaseAdapter {
       throw new Error('WebSocket manager or auth not initialized');
     }
 
-    // Use user events channel for order updates
+    // Use user fills channel for order updates
+    // When fills occur, we fetch the latest open orders
     const subscription: HyperliquidWsSubscription = {
       method: 'subscribe',
       subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.USER_EVENTS,
+        type: HYPERLIQUID_WS_CHANNELS.USER_FILLS,
         user: this.auth.getAddress(),
       },
     };
 
-    // Would need to track order state and emit updates
-    throw new Error('watchOrders not yet fully implemented');
-    yield [] as Order[];
+    // Yield initial orders
+    yield await this.fetchOpenOrders();
+
+    // Watch for fill events and fetch updated orders
+    for await (const _fillEvent of this.wsManager.watch<HyperliquidUserFill>(
+      `${HYPERLIQUID_WS_CHANNELS.USER_FILLS}:${this.auth.getAddress()}`,
+      subscription
+    )) {
+      // When a fill occurs, fetch updated open orders
+      const orders = await this.fetchOpenOrders();
+      yield orders;
+    }
   }
 
   // ===========================================================================
@@ -1044,9 +1074,25 @@ export class HyperliquidAdapter extends BaseAdapter {
   }
 
   /**
-   * Fetch open orders (helper method)
+   * Fetch open orders
+   *
+   * Retrieves all open (unfilled) orders for the authenticated user.
+   * Can be filtered by symbol to get orders for a specific trading pair.
+   *
+   * @param symbol - Optional symbol to filter orders (e.g., "BTC/USDT:USDT")
+   * @returns Array of open orders
+   * @throws {Error} If authentication is required but not available
+   *
+   * @example
+   * ```typescript
+   * // Get all open orders
+   * const allOrders = await adapter.fetchOpenOrders();
+   *
+   * // Get open orders for specific symbol
+   * const ethOrders = await adapter.fetchOpenOrders('ETH/USDT:USDT');
+   * ```
    */
-  private async fetchOpenOrders(symbol?: string): Promise<Order[]> {
+  async fetchOpenOrders(symbol?: string): Promise<Order[]> {
     if (!this.auth) {
       throw new Error('Authentication required');
     }

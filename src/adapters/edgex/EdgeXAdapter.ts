@@ -321,11 +321,11 @@ export class EdgeXAdapter extends BaseAdapter {
 
   /**
    * Fetch order history
-   * TODO: Implement when EdgeX API documentation is available
+   * Note: Not currently implemented - EdgeX API documentation required
    */
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
     throw new PerpDEXError(
-      'fetchOrderHistory not yet implemented for EdgeX',
+      'fetchOrderHistory not yet implemented for EdgeX - API documentation required',
       'NOT_IMPLEMENTED',
       'edgex'
     );
@@ -333,7 +333,7 @@ export class EdgeXAdapter extends BaseAdapter {
 
   /**
    * Fetch user trade history
-   * TODO: Implement when EdgeX API documentation is available
+   * Note: Not currently implemented - EdgeX API documentation required
    */
   async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
     throw new PerpDEXError(

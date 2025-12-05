@@ -745,6 +745,56 @@ export class NadoAdapter extends BaseAdapter {
     return normalizeNadoBalance(NadoBalanceSchema.parse(balance));
   }
 
+  /**
+   * Fetch open orders
+   *
+   * Retrieves all open (unfilled) orders for the authenticated wallet.
+   * Can be filtered by symbol to get orders for a specific trading pair.
+   *
+   * @param symbol - Optional symbol to filter orders (e.g., "BTC/USDT:USDT")
+   * @returns Array of open orders
+   * @throws {PerpDEXError} If wallet is not initialized
+   *
+   * @example
+   * ```typescript
+   * // Get all open orders
+   * const allOrders = await adapter.fetchOpenOrders();
+   *
+   * // Get open orders for specific symbol
+   * const btcOrders = await adapter.fetchOpenOrders('BTC/USDT:USDT');
+   * ```
+   */
+  async fetchOpenOrders(symbol?: string): Promise<Order[]> {
+    if (!this.wallet) {
+      throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
+    }
+
+    const orders = await this.query<NadoOrder[]>(NADO_QUERY_TYPES.ORDERS, {
+      subaccount: this.wallet.address,
+      status: 'open',
+    });
+
+    if (orders.length === 0) {
+      return [];
+    }
+
+    // Filter by symbol if provided
+    let filteredOrders = orders;
+    if (symbol) {
+      const mapping = this.getProductMapping(symbol);
+      filteredOrders = orders.filter((o) => o.product_id === mapping.productId);
+    }
+
+    // Normalize and return
+    return filteredOrders
+      .map((order) => {
+        const mapping = this.productMappings.get(order.product_id);
+        if (!mapping) return null;
+        return normalizeNadoOrder(order, mapping);
+      })
+      .filter((o): o is Order => o !== null);
+  }
+
   // ===========================================================================
   // WebSocket Streaming
   // ===========================================================================
@@ -877,9 +927,9 @@ export class NadoAdapter extends BaseAdapter {
   // ===========================================================================
 
   async fetchFundingRateHistory(
-    symbol: string,
-    since?: number,
-    limit?: number
+    _symbol: string,
+    _since?: number,
+    _limit?: number
   ): Promise<FundingRate[]> {
     throw new PerpDEXError(
       'fetchFundingRateHistory not supported on Nado',
@@ -889,9 +939,9 @@ export class NadoAdapter extends BaseAdapter {
   }
 
   async fetchOrderHistory(
-    symbol?: string,
-    since?: number,
-    limit?: number
+    _symbol?: string,
+    _since?: number,
+    _limit?: number
   ): Promise<Order[]> {
     if (!this.wallet) {
       throw new PerpDEXError('Wallet not initialized', 'NO_WALLET', this.id);
@@ -911,9 +961,9 @@ export class NadoAdapter extends BaseAdapter {
   }
 
   async fetchMyTrades(
-    symbol?: string,
-    since?: number,
-    limit?: number
+    _symbol?: string,
+    _since?: number,
+    _limit?: number
   ): Promise<Trade[]> {
     throw new PerpDEXError(
       'fetchMyTrades not supported on Nado (use WebSocket fills channel)',
@@ -922,7 +972,7 @@ export class NadoAdapter extends BaseAdapter {
     );
   }
 
-  async setLeverage(symbol: string, leverage: number): Promise<void> {
+  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
     throw new PerpDEXError(
       'setLeverage not supported on Nado (unified cross-margin system)',
       'NOT_SUPPORTED',
