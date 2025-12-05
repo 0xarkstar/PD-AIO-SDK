@@ -32,6 +32,16 @@ const mockNadoResponses = {
   contracts: {
     chain_id: 763373,
     endpoint_address: '0x1234567890123456789012345678901234567890',
+    products: {
+      '1': {
+        address: '0x1111111111111111111111111111111111111111',
+        symbol: 'BTC-PERP',
+      },
+      '2': {
+        address: '0x2222222222222222222222222222222222222222',
+        symbol: 'ETH-PERP',
+      },
+    },
   },
   products: [
     {
@@ -67,13 +77,19 @@ const mockNadoResponses = {
     nonce: 1,
   },
   balance: {
-    free_margin: toX18(10000),
-    used_margin: toX18(5000),
+    subaccount: '0x1234567890123456789012345678901234567890',
+    quote_balance: toX18(10000),
     total_equity: toX18(15000),
+    used_margin: toX18(5000),
+    free_margin: toX18(10000),
+    unrealized_pnl: toX18(500),
+    health: '0.75',
+    timestamp: Date.now(),
   },
   positions: [
     {
       product_id: 1,
+      subaccount: '0x1234567890123456789012345678901234567890',
       size: toX18(0.5),
       entry_price: toX18(50000),
       mark_price: toX18(51000),
@@ -118,6 +134,7 @@ const mockNadoResponses = {
     timestamp: Date.now(),
   },
   ticker: {
+    product_id: 1,
     symbol: 'BTC-PERP',
     last_price: toX18(50000),
     mark_price: toX18(50010),
@@ -181,7 +198,85 @@ describe('NadoAdapter Integration Tests', () => {
       const urlStr = url.toString();
       const method = options?.method || 'GET';
 
-      // Contracts endpoint
+      // Parse request body for /query endpoint
+      let requestBody: any = {};
+      if (options?.body) {
+        try {
+          requestBody = JSON.parse(options.body);
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      // Query endpoint - return different data based on type
+      if (urlStr.includes('/query') && method === 'POST') {
+        const { type } = requestBody;
+
+        if (type === 'contracts') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ status: 'success', data: mockNadoResponses.contracts }),
+          } as Response);
+        }
+
+        if (type === 'nonces') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ status: 'success', data: mockNadoResponses.nonce }),
+          } as Response);
+        }
+
+        if (type === 'all_products') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ status: 'success', data: mockNadoResponses.products }),
+          } as Response);
+        }
+
+        if (type === 'market_liquidity') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ status: 'success', data: mockNadoResponses.orderBook }),
+          } as Response);
+        }
+
+        if (type === 'market_prices') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ status: 'success', data: mockNadoResponses.ticker }),
+          } as Response);
+        }
+
+        if (type === 'subaccount_info') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ status: 'success', data: mockNadoResponses.balance }),
+          } as Response);
+        }
+
+        if (type === 'isolated_positions') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ status: 'success', data: mockNadoResponses.positions }),
+          } as Response);
+        }
+
+        if (type === 'orders') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ status: 'success', data: mockNadoResponses.orders }),
+          } as Response);
+        }
+
+        if (type === 'order') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ status: 'success', data: mockNadoResponses.orders[0] }),
+          } as Response);
+        }
+      }
+
+      // Contracts endpoint (legacy)
       if (urlStr.includes('/contracts')) {
         return Promise.resolve({
           ok: true,
@@ -189,7 +284,7 @@ describe('NadoAdapter Integration Tests', () => {
         } as Response);
       }
 
-      // Nonce endpoint
+      // Nonce endpoint (legacy)
       if (urlStr.includes('/nonce') && method === 'GET') {
         return Promise.resolve({
           ok: true,
@@ -197,8 +292,8 @@ describe('NadoAdapter Integration Tests', () => {
         } as Response);
       }
 
-      // Products endpoint
-      if (urlStr.includes('/products') || urlStr.includes('/query')) {
+      // Products endpoint (legacy)
+      if (urlStr.includes('/products')) {
         return Promise.resolve({
           ok: true,
           json: async () => mockNadoResponses.products,
@@ -247,16 +342,25 @@ describe('NadoAdapter Integration Tests', () => {
 
       // Execute endpoint (create/cancel order)
       if (urlStr.includes('/execute') && method === 'POST') {
-        const body = options?.body ? JSON.parse(options.body) : {};
-        if (body.type === 'cancel_order' || body.type === 'cancel_orders') {
+        const { type } = requestBody;
+
+        if (type === 'cancel_order' || type === 'cancel_orders') {
           return Promise.resolve({
             ok: true,
-            json: async () => mockNadoResponses.cancelResponse,
+            json: async () => ({ status: 'success', data: mockNadoResponses.cancelResponse }),
           } as Response);
         }
+
+        if (type === 'place_order') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ status: 'success', data: mockNadoResponses.orderResponse }),
+          } as Response);
+        }
+
         return Promise.resolve({
           ok: true,
-          json: async () => mockNadoResponses.orderResponse,
+          json: async () => ({ status: 'success', data: mockNadoResponses.orderResponse }),
         } as Response);
       }
 
@@ -476,21 +580,21 @@ describe('NadoAdapter Integration Tests', () => {
 
     test('cancelOrder - cancels order by ID', async () => {
       mockFetch
-        // First call: fetch orders to find digest
+        // First call: fetch order to find digest
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => mockNadoResponses.orders,
+          json: async () => ({ status: 'success', data: mockNadoResponses.orders[0] }),
         })
         // Second call: cancel order
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => mockNadoResponses.cancelResponse,
+          json: async () => ({ status: 'success', data: mockNadoResponses.cancelResponse }),
         });
 
       const canceledOrder = await adapter.cancelOrder('order-123');
 
       expect(canceledOrder).toMatchObject({
-        id: 'order-456',
+        id: 'order-123',
         status: 'canceled',
       });
     });
@@ -499,11 +603,11 @@ describe('NadoAdapter Integration Tests', () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => mockNadoResponses.orders,
+          json: async () => ({ status: 'success', data: mockNadoResponses.orders[0] }),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => mockNadoResponses.cancelResponse,
+          json: async () => ({ status: 'success', data: mockNadoResponses.cancelResponse }),
         });
 
       const canceledOrder = await adapter.cancelOrder('order-123', 'BTC/USDT:USDT');
@@ -515,11 +619,11 @@ describe('NadoAdapter Integration Tests', () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => mockNadoResponses.orders,
+          json: async () => ({ status: 'success', data: mockNadoResponses.orders }),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => mockNadoResponses.cancelResponse,
+          json: async () => ({ status: 'success', data: mockNadoResponses.cancelResponse }),
         });
 
       const canceledOrders = await adapter.cancelAllOrders();
@@ -532,11 +636,11 @@ describe('NadoAdapter Integration Tests', () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => mockNadoResponses.orders,
+          json: async () => ({ status: 'success', data: mockNadoResponses.orders }),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => mockNadoResponses.cancelResponse,
+          json: async () => ({ status: 'success', data: mockNadoResponses.cancelResponse }),
         });
 
       const canceledOrders = await adapter.cancelAllOrders('BTC/USDT:USDT');

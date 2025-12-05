@@ -596,11 +596,11 @@ export class GRVTAdapter extends BaseAdapter {
 
   /**
    * Fetch order history
-   * TODO: Implement when GRVT API documentation becomes accessible
+   * Note: Not currently implemented - GRVT API documentation required
    */
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
     throw new PerpDEXError(
-      'fetchOrderHistory not yet implemented for GRVT',
+      'fetchOrderHistory not yet implemented for GRVT - API documentation required',
       'NOT_IMPLEMENTED',
       'grvt'
     );
@@ -608,7 +608,7 @@ export class GRVTAdapter extends BaseAdapter {
 
   /**
    * Fetch user trade history
-   * TODO: Implement when GRVT API documentation becomes accessible
+   * Note: Not currently implemented - GRVT API documentation required
    */
   async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
     throw new PerpDEXError(
