@@ -1,5 +1,12 @@
 /**
- * Paradex authentication strategy
+ * Paradex Authentication Strategy
+ *
+ * Implements multi-layer authentication for Paradex:
+ * - API Key authentication (optional)
+ * - JWT token management (auto-refresh)
+ * - StarkNet ECDSA signatures (for trading operations)
+ *
+ * @see https://docs.paradex.trade/api/authentication
  */
 
 import { Account, ec, hash, encode } from 'starknet';
@@ -51,8 +58,15 @@ export class ParadexAuth implements IAuthStrategy {
     }
   }
 
+  // ===========================================================================
+  // IAuthStrategy Implementation
+  // ===========================================================================
+
   /**
    * Sign a request with authentication headers
+   *
+   * @param request - Request parameters
+   * @returns Authenticated request with headers
    */
   async sign(request: RequestParams): Promise<AuthenticatedRequest> {
     const headers: Record<string, string> = {
@@ -85,26 +99,9 @@ export class ParadexAuth implements IAuthStrategy {
   }
 
   /**
-   * Get authentication headers
-   */
-  getHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    if (this.apiKey) {
-      headers['X-API-KEY'] = this.apiKey;
-    }
-
-    if (this.jwtToken && this.isTokenValid()) {
-      headers['Authorization'] = `Bearer ${this.jwtToken.accessToken}`;
-    }
-
-    return headers;
-  }
-
-  /**
    * Verify authentication credentials
+   *
+   * @returns true if credentials are valid
    */
   async verify(): Promise<boolean> {
     try {
@@ -124,8 +121,14 @@ export class ParadexAuth implements IAuthStrategy {
     }
   }
 
+  // ===========================================================================
+  // JWT Token Management
+  // ===========================================================================
+
   /**
-   * Get current JWT token
+   * Get current JWT token if valid
+   *
+   * @returns JWT access token or undefined
    */
   getJWTToken(): string | undefined {
     if (this.jwtToken && this.isTokenValid()) {
@@ -136,6 +139,8 @@ export class ParadexAuth implements IAuthStrategy {
 
   /**
    * Set JWT token from authentication response
+   *
+   * @param jwt - JWT response from Paradex API
    */
   setJWTToken(jwt: ParadexJWT): void {
     this.jwtToken = {
@@ -145,14 +150,84 @@ export class ParadexAuth implements IAuthStrategy {
   }
 
   /**
-   * Clear JWT token
+   * Clear stored JWT token
    */
   clearJWTToken(): void {
     this.jwtToken = undefined;
   }
 
+  // ===========================================================================
+  // Header Generation
+  // ===========================================================================
+
+  /**
+   * Get authentication headers (without signature)
+   *
+   * @returns Headers object
+   */
+  getHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.apiKey) {
+      headers['X-API-KEY'] = this.apiKey;
+    }
+
+    if (this.jwtToken && this.isTokenValid()) {
+      headers['Authorization'] = `Bearer ${this.jwtToken.accessToken}`;
+    }
+
+    return headers;
+  }
+
+  /**
+   * Get full authentication headers for a request
+   *
+   * @param method - HTTP method
+   * @param path - API path
+   * @param body - Optional request body
+   * @returns Headers object with signature if required
+   */
+  async getAuthHeaders(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    path: string,
+    body?: any
+  ): Promise<Record<string, string>> {
+    const request = await this.sign({ method, path, body });
+    return request.headers || {};
+  }
+
+  // ===========================================================================
+  // StarkNet Key Management
+  // ===========================================================================
+
+  /**
+   * Get StarkNet private key
+   *
+   * @returns Private key or undefined
+   */
+  getStarkPrivateKey(): string | undefined {
+    return this.starkPrivateKey;
+  }
+
+  /**
+   * Get StarkNet public key derived from private key
+   *
+   * @returns Public key (address) or undefined
+   */
+  deriveStarkPublicKey(): string | undefined {
+    return this.getAddress();
+  }
+
+  // ===========================================================================
+  // Private Helper Methods
+  // ===========================================================================
+
   /**
    * Check if current JWT token is valid
+   *
+   * @returns true if token exists and not expired
    */
   private isTokenValid(): boolean {
     if (!this.jwtToken) {
@@ -164,7 +239,11 @@ export class ParadexAuth implements IAuthStrategy {
   }
 
   /**
-   * Check if request requires signature
+   * Check if request requires StarkNet signature
+   *
+   * @param method - HTTP method
+   * @param path - API path
+   * @returns true if signature required
    */
   private requiresSignature(method: string, path: string): boolean {
     // Trading operations require signatures
@@ -181,7 +260,12 @@ export class ParadexAuth implements IAuthStrategy {
   }
 
   /**
-   * Sign request data with StarkNet key
+   * Sign request data with StarkNet ECDSA
+   *
+   * @param request - Request parameters
+   * @returns Signature in format "0x{r},0x{s}"
+   *
+   * @throws {Error} If StarkNet private key not available
    */
   private async signRequest(request: RequestParams): Promise<string> {
     if (!this.starkPrivateKey) {
@@ -207,7 +291,11 @@ export class ParadexAuth implements IAuthStrategy {
   }
 
   /**
-   * Create message for signing
+   * Create message for StarkNet signing
+   *
+   * @param request - Request parameters
+   * @param timestamp - Request timestamp
+   * @returns Message string to sign
    */
   private createSignatureMessage(request: RequestParams, timestamp: number): string {
     const method = request.method.toUpperCase();

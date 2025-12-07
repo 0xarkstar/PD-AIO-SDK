@@ -56,7 +56,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@grvt/client": "^1.6.11",
     "@noble/ed25519": "^3.0.0",
+    "@paradex/sdk": "^0.7.0",
     "ethers": "^6.13.0",
     "eventemitter3": "^5.0.1",
     "starknet": "^8.9.1",

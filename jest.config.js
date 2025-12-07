@@ -20,7 +20,7 @@ export default {
     ],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(@noble|starknet|@scure)/)',
+    'node_modules/(?!(@noble|starknet|@scure|@paradex)/)',
   ],
   testMatch: [
     '**/tests/unit/**/*.test.ts',
