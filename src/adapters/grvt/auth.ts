@@ -2,7 +2,7 @@
  * GRVT authentication strategy
  */
 
-import { ethers, type Wallet } from 'ethers';
+import type { Wallet } from 'ethers';
 import type { IAuthStrategy, AuthenticatedRequest, RequestParams } from '../../types/adapter.js';
 import { GRVT_EIP712_DOMAIN, GRVT_EIP712_ORDER_TYPE, GRVT_SESSION_DURATION } from './constants.js';
 import type { GRVTOrderSignPayload } from './types.js';
@@ -12,7 +12,6 @@ import type { GRVTOrderSignPayload } from './types.js';
  */
 export interface GRVTAuthConfig {
   apiKey?: string;
-  apiSecret?: string;
   wallet?: Wallet;
   testnet?: boolean;
 }
@@ -32,7 +31,6 @@ interface SessionCookie {
  */
 export class GRVTAuth implements IAuthStrategy {
   private readonly apiKey?: string;
-  private readonly apiSecret?: string;
   private readonly wallet?: Wallet;
   private readonly testnet: boolean;
   private sessionCookie?: SessionCookie;
@@ -40,7 +38,6 @@ export class GRVTAuth implements IAuthStrategy {
 
   constructor(config: GRVTAuthConfig) {
     this.apiKey = config.apiKey;
-    this.apiSecret = config.apiSecret;
     this.wallet = config.wallet;
     this.testnet = config.testnet ?? false;
 
@@ -266,18 +263,58 @@ export class GRVTAuth implements IAuthStrategy {
   }
 
   /**
-   * Generate HMAC signature for API secret
+   * Convert ethers signature to GRVT ISignature format
    */
-  private generateHmacSignature(message: string): string {
-    if (!this.apiSecret) {
-      throw new Error('API secret required for HMAC signature');
+  parseSignature(signature: string): {
+    r: string;
+    s: string;
+    v: number;
+  } {
+    // Remove '0x' prefix if present
+    const sig = signature.startsWith('0x') ? signature.slice(2) : signature;
+
+    // Ethereum signature format: 65 bytes (r: 32, s: 32, v: 1)
+    if (sig.length !== 130) {
+      throw new Error(`Invalid signature length: ${sig.length}, expected 130`);
     }
 
-    // Use ethers to create HMAC-SHA256
-    const hmac = ethers.keccak256(
-      ethers.toUtf8Bytes(`${this.apiSecret}${message}`)
-    );
+    const r = '0x' + sig.slice(0, 64);
+    const s = '0x' + sig.slice(64, 128);
+    const v = parseInt(sig.slice(128, 130), 16);
 
-    return hmac;
+    return { r, s, v };
+  }
+
+  /**
+   * Create ISignature object for API requests
+   */
+  async createSignature(
+    payload: GRVTOrderSignPayload
+  ): Promise<{
+    signer: string;
+    r: string;
+    s: string;
+    v: number;
+    expiration: string;
+    nonce: number;
+  }> {
+    if (!this.wallet) {
+      throw new Error('Wallet required for creating signatures');
+    }
+
+    // Sign order with EIP-712
+    const signature = await this.signOrder(payload);
+
+    // Parse signature
+    const { r, s, v } = this.parseSignature(signature);
+
+    return {
+      signer: this.wallet.address,
+      r,
+      s,
+      v,
+      expiration: payload.expiry.toString(),
+      nonce: payload.nonce,
+    };
   }
 }
