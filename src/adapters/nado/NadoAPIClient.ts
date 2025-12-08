@@ -281,21 +281,43 @@ export class NadoAPIClient {
       return false;
     }
 
-    // Retry on PerpDEXError with retryable code
+    // Retry on PerpDEXError with retryable code or HTTP 5xx
     if (error instanceof PerpDEXError) {
+      // Check for HTTP 5xx status codes
+      if (error.code && typeof error.code === 'string' && error.code.startsWith('HTTP_5')) {
+        return true;
+      }
       return isRetryableError(error.code);
     }
 
-    // Retry on network errors
-    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+    // Check both error and wrapped originalError
+    return this.isRetryableNetworkError(error) ||
+           this.isRetryableNetworkError(error.originalError);
+  }
+
+  /**
+   * Check if error is a retryable network error
+   * @param err - Error to check
+   * @returns true if retryable
+   */
+  private isRetryableNetworkError(err: any): boolean {
+    if (!err) return false;
+
+    // Check for AbortError or TimeoutError
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
       return true;
     }
 
-    if (error.code && isRetryableError(error.code)) {
+    // Check for HTTP 5xx server errors
+    if (err.code && typeof err.code === 'string' && err.code.startsWith('HTTP_5')) {
       return true;
     }
 
-    // Don't retry by default
+    // Check error code against retryable list
+    if (err.code && isRetryableError(err.code)) {
+      return true;
+    }
+
     return false;
   }
 

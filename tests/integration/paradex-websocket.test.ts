@@ -61,7 +61,15 @@ describe('Paradex WebSocket Integration Tests', () => {
     });
 
     it('should pass custom depth parameter', async () => {
-      async function* mockStream() {}
+      async function* mockStream() {
+        yield {
+          symbol: 'BTC/USD:USD',
+          exchange: 'paradex',
+          bids: [[50000, 1.0]],
+          asks: [[50100, 1.0]],
+          timestamp: Date.now(),
+        };
+      }
 
       const mockWs = {
         watchOrderBook: jest.fn().mockReturnValue(mockStream()),
@@ -184,7 +192,21 @@ describe('Paradex WebSocket Integration Tests', () => {
     });
 
     it('should pass symbol filter', async () => {
-      async function* mockStream() {}
+      async function* mockStream() {
+        yield {
+          symbol: 'BTC/USD:USD',
+          side: 'long',
+          contracts: 1.5,
+          entryPrice: 50000,
+          markPrice: 50100,
+          liquidationPrice: 45000,
+          unrealizedPnl: 150,
+          marginType: 'cross',
+          leverage: 10,
+          timestamp: Date.now(),
+          info: {},
+        };
+      }
 
       const mockWs = {
         watchPositions: jest.fn().mockReturnValue(mockStream()),
@@ -235,7 +257,22 @@ describe('Paradex WebSocket Integration Tests', () => {
     });
 
     it('should pass symbol filter', async () => {
-      async function* mockStream() {}
+      async function* mockStream() {
+        yield {
+          id: 'order-456',
+          clientOrderId: 'client-456',
+          symbol: 'ETH/USD:USD',
+          side: 'sell',
+          type: 'limit',
+          price: 3000,
+          amount: 5.0,
+          filled: 0,
+          remaining: 5.0,
+          status: 'open',
+          timestamp: Date.now(),
+          info: {},
+        };
+      }
 
       const mockWs = {
         watchOrders: jest.fn().mockReturnValue(mockStream()),
