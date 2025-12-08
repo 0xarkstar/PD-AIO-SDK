@@ -19,15 +19,18 @@ class MockWebSocket {
   onmessage: ((event: any) => void) | null = null;
   onerror: ((event: any) => void) | null = null;
   onclose: ((event: any) => void) | null = null;
+  private connectionTimer: NodeJS.Timeout | null = null;
 
-  constructor(public url: string) {
-    // Simulate connection
-    setTimeout(() => {
-      this.readyState = this.OPEN;
-      if (this.onopen) {
-        this.onopen({});
-      }
-    }, 10);
+  constructor(public url: string, private autoConnect: boolean = true) {
+    // Simulate connection only if autoConnect is true
+    if (autoConnect) {
+      this.connectionTimer = setTimeout(() => {
+        this.readyState = this.OPEN;
+        if (this.onopen) {
+          this.onopen({});
+        }
+      }, 10);
+    }
   }
 
   send(data: string): void {
@@ -35,6 +38,11 @@ class MockWebSocket {
   }
 
   close(): void {
+    // Clear any pending connection timer
+    if (this.connectionTimer) {
+      clearTimeout(this.connectionTimer);
+      this.connectionTimer = null;
+    }
     this.readyState = this.CLOSED;
     if (this.onclose) {
       this.onclose({});
@@ -56,6 +64,9 @@ describe('ParadexWebSocketWrapper', () => {
   let mockWS: MockWebSocket;
 
   beforeEach(() => {
+    // Ensure we're using real timers
+    jest.useRealTimers();
+
     // Mock WebSocket constructor
     (global as any).WebSocket = jest.fn((url: string) => {
       mockWS = new MockWebSocket(url);
@@ -67,8 +78,13 @@ describe('ParadexWebSocketWrapper', () => {
     });
   });
 
-  afterEach(() => {
-    wrapper.disconnect();
+  afterEach(async () => {
+    // Properly disconnect and clear any pending operations
+    if (wrapper) {
+      wrapper.disconnect();
+      // Give time for cleanup
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
     global.WebSocket = originalWebSocket as any;
     jest.clearAllMocks();
   });
@@ -96,12 +112,9 @@ describe('ParadexWebSocketWrapper', () => {
         timeout: 100,
       });
 
-      // Mock slow connection
+      // Mock slow connection that never completes
       (global as any).WebSocket = jest.fn(() => {
-        const ws = new MockWebSocket('wss://slow.test');
-        // Don't trigger onopen
-        ws.onopen = null;
-        return ws;
+        return new MockWebSocket('wss://slow.test', false); // autoConnect = false
       });
 
       await expect(slowWrapper.connect()).rejects.toThrow(/timeout/i);
@@ -126,9 +139,27 @@ describe('ParadexWebSocketWrapper', () => {
 
       const sendSpy = jest.spyOn(mockWS, 'send');
 
-      // Start watching (will subscribe)
+      // Create generator to trigger subscription
       const generator = wrapper.watchOrderBook('BTC/USD:USD');
-      await generator.next(); // Trigger subscription
+
+      // Simulate data to allow generator to yield
+      setTimeout(() => {
+        mockWS.simulateMessage({
+          channel: 'orderbook.BTC-USD-PERP',
+          data: {
+            market: 'BTC-USD-PERP',
+            bids: [['50000', '1.0']],
+            asks: [['50100', '1.0']],
+            timestamp: Date.now(),
+          },
+        });
+      }, 30);
+
+      // Get first value from generator with timeout
+      const result = await Promise.race([
+        generator.next(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Test timeout')), 3000))
+      ]);
 
       expect(sendSpy).toHaveBeenCalled();
       const calls = sendSpy.mock.calls;
@@ -137,6 +168,9 @@ describe('ParadexWebSocketWrapper', () => {
 
       expect(request.method).toBe('subscribe');
       expect(request.params.channel).toContain('orderbook');
+
+      // Cleanup
+      await generator.return(undefined as any);
     });
 
     it('should handle multiple concurrent subscriptions', async () => {
@@ -145,11 +179,30 @@ describe('ParadexWebSocketWrapper', () => {
       const gen1 = wrapper.watchOrderBook('BTC/USD:USD');
       const gen2 = wrapper.watchTrades('ETH/USD:USD');
 
-      await gen1.next();
-      await gen2.next();
+      // Simulate data for both generators
+      setTimeout(() => {
+        mockWS.simulateMessage({
+          channel: 'orderbook.BTC-USD-PERP',
+          data: { market: 'BTC-USD-PERP', bids: [['50000', '1']], asks: [['50100', '1']], timestamp: Date.now() }
+        });
+        mockWS.simulateMessage({
+          channel: 'trades.ETH-USD-PERP',
+          data: { id: '1', market: 'ETH-USD-PERP', price: '3000', size: '1', side: 'BUY', timestamp: Date.now() }
+        });
+      }, 30);
+
+      // Get first value from both generators with timeout
+      const results = await Promise.race([
+        Promise.all([gen1.next(), gen2.next()]),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Test timeout')), 3000))
+      ]);
 
       // Both should be active
       expect(wrapper.connected).toBe(true);
+
+      // Cleanup
+      await gen1.return(undefined as any);
+      await gen2.return(undefined as any);
     });
   });
 
@@ -233,7 +286,20 @@ describe('ParadexWebSocketWrapper', () => {
       sendSpy.mockClear();
 
       const generator = wrapper.watchOrderBook('BTC/USD:USD');
-      await generator.next(); // Subscribe
+
+      // Simulate data to allow generator to proceed
+      setTimeout(() => {
+        mockWS.simulateMessage({
+          channel: 'orderbook.BTC-USD-PERP',
+          data: { market: 'BTC-USD-PERP', bids: [['50000', '1']], asks: [['50100', '1']], timestamp: Date.now() }
+        });
+      }, 30);
+
+      // Get first value then close
+      await Promise.race([
+        generator.next(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Test timeout')), 3000))
+      ]);
 
       // Close generator
       await generator.return(undefined as any);
@@ -290,13 +356,29 @@ describe('ParadexWebSocketWrapper', () => {
       const sendSpy = jest.spyOn(mockWS, 'send');
 
       const generator = wrapper.watchOrderBook('BTC/USD:USD');
-      await generator.next();
+
+      // Simulate data to allow generator to proceed
+      setTimeout(() => {
+        mockWS.simulateMessage({
+          channel: 'orderbook.BTC-USD-PERP',
+          data: { market: 'BTC-USD-PERP', bids: [['50000', '1']], asks: [['50100', '1']], timestamp: Date.now() }
+        });
+      }, 30);
+
+      // Get first value with timeout
+      await Promise.race([
+        generator.next(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Test timeout')), 3000))
+      ]);
 
       const calls = sendSpy.mock.calls;
       const request = JSON.parse(calls[calls.length - 1][0] as string);
 
       // Should subscribe to BTC-USD-PERP
       expect(request.params.channel).toContain('BTC-USD-PERP');
+
+      // Cleanup
+      await generator.return(undefined as any);
     });
   });
 });

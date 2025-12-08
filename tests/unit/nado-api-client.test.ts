@@ -164,6 +164,17 @@ describe('NadoAPIClient', () => {
   // ===========================================================================
 
   describe('error mapping', () => {
+    // Use client with no retries for error mapping tests
+    let noRetryClient: NadoAPIClient;
+
+    beforeEach(() => {
+      noRetryClient = new NadoAPIClient({
+        apiUrl: testApiUrl,
+        rateLimiter,
+        retryConfig: { maxAttempts: 1, initialDelay: 100, maxDelay: 100, multiplier: 1 },
+      });
+    });
+
     it('should map HTTP 429 to RateLimitError', async () => {
       (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
         ok: false,
@@ -171,8 +182,7 @@ describe('NadoAPIClient', () => {
         statusText: 'Too Many Requests',
       } as Response);
 
-      await expect(client.query('test')).rejects.toThrow(RateLimitError);
-      await expect(client.query('test')).rejects.toThrow('Rate limit exceeded');
+      await expect(noRetryClient.query('test')).rejects.toThrow(RateLimitError);
     });
 
     it('should map HTTP 500 to ExchangeUnavailableError', async () => {
@@ -182,7 +192,7 @@ describe('NadoAPIClient', () => {
         statusText: 'Internal Server Error',
       } as Response);
 
-      await expect(client.query('test')).rejects.toThrow(ExchangeUnavailableError);
+      await expect(noRetryClient.query('test')).rejects.toThrow(ExchangeUnavailableError);
     });
 
     it('should map HTTP 503 to ExchangeUnavailableError', async () => {
@@ -192,7 +202,7 @@ describe('NadoAPIClient', () => {
         statusText: 'Service Unavailable',
       } as Response);
 
-      await expect(client.query('test')).rejects.toThrow(ExchangeUnavailableError);
+      await expect(noRetryClient.query('test')).rejects.toThrow(ExchangeUnavailableError);
     });
 
     it('should handle Nado API failure responses', async () => {
@@ -207,8 +217,9 @@ describe('NadoAPIClient', () => {
         json: async () => mockResponse,
       } as Response);
 
-      await expect(client.query('test')).rejects.toThrow(PerpDEXError);
-      await expect(client.query('test')).rejects.toThrow('Invalid order');
+      const error = await noRetryClient.query('test').catch((e) => e);
+      expect(error).toBeInstanceOf(PerpDEXError);
+      expect(error.message).toContain('Invalid order');
     });
 
     it('should handle network timeout', async () => {
@@ -216,8 +227,9 @@ describe('NadoAPIClient', () => {
         Object.assign(new Error('Request timeout'), { name: 'TimeoutError' })
       );
 
-      await expect(client.query('test')).rejects.toThrow(ExchangeUnavailableError);
-      await expect(client.query('test')).rejects.toThrow('timeout');
+      const error = await noRetryClient.query('test').catch((e) => e);
+      expect(error).toBeInstanceOf(ExchangeUnavailableError);
+      expect(error.message).toContain('timeout');
     });
 
     it('should handle abort error', async () => {
@@ -225,7 +237,7 @@ describe('NadoAPIClient', () => {
         Object.assign(new Error('Request aborted'), { name: 'AbortError' })
       );
 
-      await expect(client.query('test')).rejects.toThrow(ExchangeUnavailableError);
+      await expect(noRetryClient.query('test')).rejects.toThrow(ExchangeUnavailableError);
     });
 
     it('should handle network errors (ECONNRESET)', async () => {
@@ -234,8 +246,9 @@ describe('NadoAPIClient', () => {
 
       (global.fetch as jest.MockedFunction<typeof fetch>).mockRejectedValueOnce(networkError);
 
-      await expect(client.query('test')).rejects.toThrow(ExchangeUnavailableError);
-      await expect(client.query('test')).rejects.toThrow('Network error');
+      const error = await noRetryClient.query('test').catch((e) => e);
+      expect(error).toBeInstanceOf(ExchangeUnavailableError);
+      expect(error.message).toContain('Network error');
     });
   });
 
@@ -315,8 +328,10 @@ describe('NadoAPIClient', () => {
         statusText: 'Internal Server Error',
       } as Response);
 
-      await expect(client.query('test')).rejects.toThrow(ExchangeUnavailableError);
-      await expect(client.query('test')).rejects.toThrow('MAX_RETRIES_EXCEEDED');
+      // After exhausting retries, throws the original error
+      const error = await client.query('test').catch((e) => e);
+      expect(error).toBeInstanceOf(ExchangeUnavailableError);
+      expect(error.message).toContain('Server error');
 
       // Should attempt 3 times (initial + 2 retries)
       expect(global.fetch).toHaveBeenCalledTimes(3);

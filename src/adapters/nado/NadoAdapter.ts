@@ -258,6 +258,14 @@ export class NadoAdapter extends BaseAdapter {
     this.debug('Disconnected from Nado');
   }
 
+  /**
+   * Connect to Nado exchange
+   * Alias for initialize() to maintain consistency with other adapters
+   */
+  async connect(): Promise<void> {
+    return this.initialize();
+  }
+
   // ===========================================================================
   // Private Helper Methods
   // ===========================================================================

@@ -217,14 +217,23 @@ export class GRVTAdapter extends BaseAdapter {
       // SDK returns array, take the first (latest) funding rate
       const funding = response.result[0];
 
+      // Add type guard to ensure funding exists
+      if (!funding) {
+        throw new PerpDEXError('No funding data available', 'NO_FUNDING_DATA', 'grvt');
+      }
+
+      const fundingTimestamp = funding.funding_time ? parseInt(funding.funding_time) : Date.now();
+      const fundingIntervalHours = funding.funding_interval_hours ?? 8;
+      const nextFundingTimestamp = fundingTimestamp + fundingIntervalHours * 60 * 60 * 1000;
+
       return {
         symbol,
-        fundingRate: parseFloat(funding.funding_rate || '0'),
-        fundingTimestamp: funding.funding_time ? parseInt(funding.funding_time) : Date.now(),
-        nextFundingTimestamp: funding.funding_time ? parseInt(funding.funding_time) : undefined,
-        markPrice: parseFloat(funding.mark_price || '0'),
+        fundingRate: parseFloat(funding.funding_rate ?? '0'),
+        fundingTimestamp,
+        nextFundingTimestamp,
+        markPrice: parseFloat(funding.mark_price ?? '0'),
         indexPrice: 0, // Not provided in funding API
-        fundingIntervalHours: funding.funding_interval_hours || 8,
+        fundingIntervalHours,
         info: funding as any,
       };
     } catch (error) {

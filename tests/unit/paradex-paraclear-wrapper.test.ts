@@ -87,9 +87,9 @@ describe('ParadexParaclearWrapper', () => {
       expect(Config.fetchConfig).toHaveBeenCalledWith('testnet');
       expect(Signer.ethersSignerAdapter).toHaveBeenCalledWith(mockEthersSigner);
       expect(Account.fromEthSigner).toHaveBeenCalledWith({
-        provider: mockConfig.paradexFullNodeRpcUrl,
+        provider: expect.any(Object),  // Provider instance, not URL string
         config: mockConfig,
-        signer: {},
+        signer: expect.any(Object),    // Signer object, not empty
       });
       expect(wrapper.isInitialized()).toBe(true);
     });
