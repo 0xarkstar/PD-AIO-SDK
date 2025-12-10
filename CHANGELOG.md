@@ -64,6 +64,7 @@ All **7 exchange adapters** have been standardized to **Pattern A** (Full-Featur
 - **ARCHITECTURE.md** (720 lines) - Hexagonal architecture deep dive, Pattern A vs Pattern C comparison, standardization timeline, design decisions, testing strategy, migration guide
 - **API.md** (936 lines) - Complete API reference for all 7 adapters, Normalizer classes, types, examples, best practices
 - **ADAPTER_GUIDE.md** (762 lines) - Step-by-step guide for adding new exchanges with Pattern A structure, file-by-file implementation, testing requirements, common pitfalls
+- **PROJECT_CONTEXT.md** (renamed from CLAUDE.md) - Development context and guidelines for contributors and AI-assisted development
 - **Updated CONTRIBUTING.md** - Pattern A architecture requirements for new adapters
 - **Updated README.md** - Pattern A architecture explanation and links to new documentation
 

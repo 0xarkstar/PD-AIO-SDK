@@ -1,4 +1,6 @@
-# Perp DEX SDK Project Context
+# Project Context - PD AIO SDK
+
+> Development context and guidelines for contributors and AI-assisted development tools.
 
 ## Project Overview
 Unified TypeScript SDK for decentralized perpetual exchanges. Supports 7+ platforms: Hyperliquid (+ HIP-3 ecosystem), Lighter, GRVT, Paradex, EdgeX, Backpack.
