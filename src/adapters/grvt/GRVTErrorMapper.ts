@@ -262,8 +262,19 @@ export function extractGRVTError(response: any): {
   code: string;
   message: string;
 } {
+  // Handle null/undefined
+  if (!response) {
+    return { code: 'UNKNOWN_ERROR', message: 'Unknown error occurred' };
+  }
+
   // GRVT uses { error: { code, message } } format
   const errorObj = response.error || response;
+
+  // Handle case where error is a string
+  if (typeof errorObj === 'string') {
+    return { code: 'UNKNOWN_ERROR', message: errorObj };
+  }
+
   const code = errorObj.code?.toString() || 'UNKNOWN_ERROR';
   const message = errorObj.message || errorObj.error || 'Unknown error occurred';
 
@@ -369,6 +380,12 @@ export function mapHttpError(
  * @returns Mapped error
  */
 export function mapAxiosError(error: any): PerpDEXError {
+  // HTTP errors with response (check FIRST - takes precedence)
+  if (error.response) {
+    const { status, statusText, data } = error.response;
+    return mapHttpError(status, statusText, data);
+  }
+
   // Network errors
   if (error.code && isNetworkError(error.code)) {
     return new ExchangeUnavailableError(
@@ -377,12 +394,6 @@ export function mapAxiosError(error: any): PerpDEXError {
       'grvt',
       error
     );
-  }
-
-  // HTTP errors with response
-  if (error.response) {
-    const { status, statusText, data } = error.response;
-    return mapHttpError(status, statusText, data);
   }
 
   // Request timeout

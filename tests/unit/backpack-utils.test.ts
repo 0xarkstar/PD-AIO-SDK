@@ -2,16 +2,14 @@
  * Backpack Utilities Unit Tests
  */
 
+import { BackpackNormalizer } from '../../src/adapters/backpack/BackpackNormalizer.js';
 import {
-  normalizeSymbol,
-  toBackpackSymbol,
-  normalizeMarket,
-  normalizeOrder,
-  normalizePosition,
   toBackpackOrderType,
   toBackpackOrderSide,
   toBackpackTimeInForce,
 } from '../../src/adapters/backpack/utils.js';
+
+const normalizer = new BackpackNormalizer();
 import type {
   BackpackMarket,
   BackpackOrder,
@@ -21,23 +19,23 @@ import type {
 describe('Backpack Symbol Normalization', () => {
   describe('normalizeSymbol', () => {
     test('normalizes perpetual symbols', () => {
-      expect(normalizeSymbol('BTCUSDT_PERP')).toBe('BTC/USDT:USDT');
-      expect(normalizeSymbol('ETHUSDT_PERP')).toBe('ETH/USDT:USDT');
+      expect(normalizer.normalizeSymbol('BTCUSDT_PERP')).toBe('BTC/USDT:USDT');
+      expect(normalizer.normalizeSymbol('ETHUSDT_PERP')).toBe('ETH/USDT:USDT');
     });
 
     test('handles non-perpetual symbols', () => {
-      expect(normalizeSymbol('BTCUSDT')).toBe('BTCUSDT');
+      expect(normalizer.normalizeSymbol('BTCUSDT')).toBe('BTCUSDT');
     });
   });
 
   describe('toBackpackSymbol', () => {
     test('converts unified perpetual to Backpack format', () => {
-      expect(toBackpackSymbol('BTC/USDT:USDT')).toBe('BTCUSDT_PERP');
-      expect(toBackpackSymbol('ETH/USDT:USDT')).toBe('ETHUSDT_PERP');
+      expect(normalizer.toBackpackSymbol('BTC/USDT:USDT')).toBe('BTCUSDT_PERP');
+      expect(normalizer.toBackpackSymbol('ETH/USDT:USDT')).toBe('ETHUSDT_PERP');
     });
 
     test('converts unified spot to Backpack format', () => {
-      expect(toBackpackSymbol('BTC/USDT')).toBe('BTC/USDT');
+      expect(normalizer.toBackpackSymbol('BTC/USDT')).toBe('BTC/USDT');
     });
   });
 });
@@ -60,7 +58,7 @@ describe('Backpack Market Normalization', () => {
       is_active: true,
     };
 
-    const normalized = normalizeMarket(backpackMarket);
+    const normalized = normalizer.normalizeMarket(backpackMarket);
 
     expect(normalized).toMatchObject({
       id: 'BTCUSDT_PERP',
@@ -95,7 +93,7 @@ describe('Backpack Order Normalization', () => {
       updated_at: 1234567890100,
     };
 
-    const normalized = normalizeOrder(backpackOrder);
+    const normalized = normalizer.normalizeOrder(backpackOrder);
 
     expect(normalized).toMatchObject({
       id: '12345',
@@ -126,7 +124,7 @@ describe('Backpack Order Normalization', () => {
       updated_at: 1234567890000,
     };
 
-    const normalized = normalizeOrder(backpackOrder);
+    const normalized = normalizer.normalizeOrder(backpackOrder);
 
     expect(normalized.type).toBe('limit');
     expect(normalized.postOnly).toBe(true);
@@ -149,7 +147,7 @@ describe('Backpack Position Normalization', () => {
       timestamp: 1234567890000,
     };
 
-    const normalized = normalizePosition(backpackPosition);
+    const normalized = normalizer.normalizePosition(backpackPosition);
 
     expect(normalized).toMatchObject({
       symbol: 'BTC/USDT:USDT',

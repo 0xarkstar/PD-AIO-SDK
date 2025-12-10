@@ -1,29 +1,28 @@
 /**
- * Unit Tests for ParadexErrorMapper
+ * Unit Tests for GRVTErrorMapper
  *
  * Tests error classification and mapping logic
  */
 
 import { describe, it, expect } from '@jest/globals';
 import {
-  PARADEX_CLIENT_ERRORS,
-  PARADEX_SERVER_ERRORS,
-  PARADEX_RATE_LIMIT_ERROR,
-  PARADEX_NETWORK_ERRORS,
+  GRVT_CLIENT_ERRORS,
+  GRVT_SERVER_ERRORS,
+  GRVT_RATE_LIMIT_ERROR,
+  GRVT_NETWORK_ERRORS,
   isClientError,
   isServerError,
   isNetworkError,
   isRetryableError,
-  mapParadexError,
-  extractParadexError,
+  mapGRVTError,
+  extractGRVTError,
   mapHttpError,
   mapAxiosError,
-} from '../../src/adapters/paradex/ParadexErrorMapper.js';
+} from '../../src/adapters/grvt/GRVTErrorMapper.js';
 import {
   InvalidOrderError,
   InsufficientMarginError,
   OrderNotFoundError,
-  PositionNotFoundError,
   InvalidSignatureError,
   ExpiredAuthError,
   InsufficientPermissionsError,
@@ -32,62 +31,49 @@ import {
   PerpDEXError,
 } from '../../src/types/errors.js';
 
-describe('ParadexErrorMapper', () => {
+describe('GRVTErrorMapper', () => {
   describe('Error Classification', () => {
     describe('isClientError', () => {
-      it('should identify client errors (1xxx range)', () => {
-        expect(isClientError(1001)).toBe(true);
-        expect(isClientError(1002)).toBe(true);
-        expect(isClientError(1999)).toBe(true);
-      });
-
-      it('should identify auth errors (2xxx range)', () => {
-        expect(isClientError(2001)).toBe(true);
-        expect(isClientError(2002)).toBe(true);
-        expect(isClientError(2999)).toBe(true);
-      });
-
-      it('should identify HTTP 4xx as client errors', () => {
-        expect(isClientError(400)).toBe(true);
-        expect(isClientError(401)).toBe(true);
-        expect(isClientError(404)).toBe(true);
-        expect(isClientError(429)).toBe(true);
-        expect(isClientError(499)).toBe(true);
+      it('should identify client errors', () => {
+        expect(isClientError('INVALID_ORDER')).toBe(true);
+        expect(isClientError('INSUFFICIENT_MARGIN')).toBe(true);
+        expect(isClientError('INVALID_SIGNATURE')).toBe(true);
+        expect(isClientError('UNAUTHORIZED')).toBe(true);
       });
 
       it('should NOT identify server errors as client errors', () => {
-        expect(isClientError(5001)).toBe(false);
-        expect(isClientError(500)).toBe(false);
+        expect(isClientError('INTERNAL_ERROR')).toBe(false);
+        expect(isClientError('SERVICE_UNAVAILABLE')).toBe(false);
       });
 
-      it('should handle string error codes', () => {
-        expect(isClientError('1001')).toBe(true);
-        expect(isClientError('2001')).toBe(true);
-        expect(isClientError('400')).toBe(true);
+      it('should NOT identify network errors as client errors', () => {
+        expect(isClientError('ECONNRESET')).toBe(false);
+        expect(isClientError('ETIMEDOUT')).toBe(false);
+      });
+
+      it('should NOT identify unknown errors as client errors', () => {
+        expect(isClientError('UNKNOWN_ERROR')).toBe(false);
+        expect(isClientError('RANDOM_ERROR')).toBe(false);
       });
     });
 
     describe('isServerError', () => {
-      it('should identify server errors (5xxx range)', () => {
-        expect(isServerError(5001)).toBe(true);
-        expect(isServerError(5002)).toBe(true);
-        expect(isServerError(5999)).toBe(true);
-      });
-
-      it('should identify HTTP 5xx as server errors', () => {
-        expect(isServerError(500)).toBe(true);
-        expect(isServerError(503)).toBe(true);
-        expect(isServerError(599)).toBe(true);
+      it('should identify server errors', () => {
+        expect(isServerError('INTERNAL_ERROR')).toBe(true);
+        expect(isServerError('SERVICE_UNAVAILABLE')).toBe(true);
+        expect(isServerError('GATEWAY_TIMEOUT')).toBe(true);
+        expect(isServerError('DATABASE_ERROR')).toBe(true);
+        expect(isServerError('MATCHING_ENGINE_ERROR')).toBe(true);
+        expect(isServerError('SEQUENCER_ERROR')).toBe(true);
       });
 
       it('should NOT identify client errors as server errors', () => {
-        expect(isServerError(1001)).toBe(false);
-        expect(isServerError(400)).toBe(false);
+        expect(isServerError('INVALID_ORDER')).toBe(false);
+        expect(isServerError('UNAUTHORIZED')).toBe(false);
       });
 
-      it('should handle string error codes', () => {
-        expect(isServerError('5001')).toBe(true);
-        expect(isServerError('500')).toBe(true);
+      it('should NOT identify network errors as server errors', () => {
+        expect(isServerError('ECONNRESET')).toBe(false);
       });
     });
 
@@ -97,22 +83,21 @@ describe('ParadexErrorMapper', () => {
         expect(isNetworkError('ETIMEDOUT')).toBe(true);
         expect(isNetworkError('ENOTFOUND')).toBe(true);
         expect(isNetworkError('ECONNREFUSED')).toBe(true);
-        expect(isNetworkError('ECONNABORTED')).toBe(true);
         expect(isNetworkError('NETWORK_ERROR')).toBe(true);
         expect(isNetworkError('WEBSOCKET_CLOSED')).toBe(true);
         expect(isNetworkError('WEBSOCKET_ERROR')).toBe(true);
       });
 
       it('should NOT identify non-network errors', () => {
-        expect(isNetworkError('1001')).toBe(false);
         expect(isNetworkError('INVALID_ORDER')).toBe(false);
+        expect(isNetworkError('INTERNAL_ERROR')).toBe(false);
       });
     });
 
     describe('isRetryableError', () => {
       it('should identify server errors as retryable', () => {
-        expect(isRetryableError(5001)).toBe(true);
-        expect(isRetryableError(500)).toBe(true);
+        expect(isRetryableError('INTERNAL_ERROR')).toBe(true);
+        expect(isRetryableError('SERVICE_UNAVAILABLE')).toBe(true);
       });
 
       it('should identify network errors as retryable', () => {
@@ -121,218 +106,193 @@ describe('ParadexErrorMapper', () => {
       });
 
       it('should identify rate limit as retryable', () => {
-        expect(isRetryableError(4001)).toBe(true);
-        expect(isRetryableError('4001')).toBe(true);
+        expect(isRetryableError('RATE_LIMIT_EXCEEDED')).toBe(true);
       });
 
       it('should NOT identify client errors as retryable', () => {
-        expect(isRetryableError(1001)).toBe(false);
-        expect(isRetryableError(2001)).toBe(false);
-        expect(isRetryableError(400)).toBe(false);
+        expect(isRetryableError('INVALID_ORDER')).toBe(false);
+        expect(isRetryableError('UNAUTHORIZED')).toBe(false);
       });
     });
   });
 
-  describe('mapParadexError', () => {
+  describe('mapGRVTError', () => {
     it('should map INVALID_SIGNATURE to InvalidSignatureError', () => {
-      const error = mapParadexError(
-        PARADEX_CLIENT_ERRORS.INVALID_SIGNATURE,
-        'Invalid signature'
-      );
+      const error = mapGRVTError('INVALID_SIGNATURE', 'Invalid signature');
 
       expect(error).toBeInstanceOf(InvalidSignatureError);
-      expect(error.code).toBe('2001');
-      expect(error.exchange).toBe('paradex');
+      expect(error.code).toBe('INVALID_SIGNATURE');
+      expect(error.exchange).toBe('grvt');
     });
 
     it('should map INVALID_API_KEY to InvalidSignatureError', () => {
-      const error = mapParadexError(
-        PARADEX_CLIENT_ERRORS.INVALID_API_KEY,
-        'Invalid API key'
-      );
+      const error = mapGRVTError('INVALID_API_KEY', 'Invalid API key');
 
       expect(error).toBeInstanceOf(InvalidSignatureError);
     });
 
-    it('should map EXPIRED_AUTH to ExpiredAuthError', () => {
-      const error = mapParadexError(PARADEX_CLIENT_ERRORS.EXPIRED_AUTH, 'JWT token expired');
+    it('should map EXPIRED_SESSION to ExpiredAuthError', () => {
+      const error = mapGRVTError('EXPIRED_SESSION', 'Session expired');
 
       expect(error).toBeInstanceOf(ExpiredAuthError);
-      expect(error.code).toBe('2002');
+      expect(error.code).toBe('EXPIRED_SESSION');
     });
 
     it('should map UNAUTHORIZED to InsufficientPermissionsError', () => {
-      const error = mapParadexError(PARADEX_CLIENT_ERRORS.UNAUTHORIZED, 'Unauthorized');
+      const error = mapGRVTError('UNAUTHORIZED', 'Unauthorized');
 
       expect(error).toBeInstanceOf(InsufficientPermissionsError);
     });
 
     it('should map FORBIDDEN to InsufficientPermissionsError', () => {
-      const error = mapParadexError(PARADEX_CLIENT_ERRORS.FORBIDDEN, 'Forbidden');
+      const error = mapGRVTError('FORBIDDEN', 'Forbidden');
 
       expect(error).toBeInstanceOf(InsufficientPermissionsError);
     });
 
     it('should map INSUFFICIENT_MARGIN to InsufficientMarginError', () => {
-      const error = mapParadexError(
-        PARADEX_CLIENT_ERRORS.INSUFFICIENT_MARGIN,
-        'Insufficient margin'
-      );
+      const error = mapGRVTError('INSUFFICIENT_MARGIN', 'Insufficient margin');
 
       expect(error).toBeInstanceOf(InsufficientMarginError);
-      expect(error.code).toBe('1002');
+      expect(error.code).toBe('INSUFFICIENT_MARGIN');
     });
 
     it('should map INSUFFICIENT_BALANCE to InsufficientMarginError', () => {
-      const error = mapParadexError(
-        PARADEX_CLIENT_ERRORS.INSUFFICIENT_BALANCE,
-        'Insufficient balance'
-      );
+      const error = mapGRVTError('INSUFFICIENT_BALANCE', 'Insufficient balance');
 
       expect(error).toBeInstanceOf(InsufficientMarginError);
     });
 
     it('should map ORDER_NOT_FOUND to OrderNotFoundError', () => {
-      const error = mapParadexError(PARADEX_CLIENT_ERRORS.ORDER_NOT_FOUND, 'Order not found');
+      const error = mapGRVTError('ORDER_NOT_FOUND', 'Order not found');
 
       expect(error).toBeInstanceOf(OrderNotFoundError);
-      expect(error.code).toBe('1003');
-    });
-
-    it('should map POSITION_NOT_FOUND to PositionNotFoundError', () => {
-      const error = mapParadexError(
-        PARADEX_CLIENT_ERRORS.POSITION_NOT_FOUND,
-        'Position not found'
-      );
-
-      expect(error).toBeInstanceOf(PositionNotFoundError);
-      expect(error.code).toBe('1004');
+      expect(error.code).toBe('ORDER_NOT_FOUND');
     });
 
     it('should map INVALID_ORDER to InvalidOrderError', () => {
-      const error = mapParadexError(PARADEX_CLIENT_ERRORS.INVALID_ORDER, 'Invalid order');
+      const error = mapGRVTError('INVALID_ORDER', 'Invalid order');
 
       expect(error).toBeInstanceOf(InvalidOrderError);
-      expect(error.code).toBe('1001');
+      expect(error.code).toBe('INVALID_ORDER');
     });
 
     it('should map order validation errors to InvalidOrderError', () => {
       const errorCodes = [
-        PARADEX_CLIENT_ERRORS.INVALID_SIZE,
-        PARADEX_CLIENT_ERRORS.INVALID_PRICE,
-        PARADEX_CLIENT_ERRORS.MIN_SIZE_NOT_MET,
-        PARADEX_CLIENT_ERRORS.MAX_SIZE_EXCEEDED,
-        PARADEX_CLIENT_ERRORS.PRICE_OUT_OF_RANGE,
-        PARADEX_CLIENT_ERRORS.SELF_TRADE,
-        PARADEX_CLIENT_ERRORS.ORDER_ALREADY_FILLED,
-        PARADEX_CLIENT_ERRORS.ORDER_ALREADY_CANCELLED,
-        PARADEX_CLIENT_ERRORS.REDUCE_ONLY_VIOLATION,
-        PARADEX_CLIENT_ERRORS.POST_ONLY_VIOLATION,
-        PARADEX_CLIENT_ERRORS.INVALID_TIME_IN_FORCE,
+        'ORDER_ALREADY_FILLED',
+        'ORDER_ALREADY_CANCELLED',
+        'INVALID_PRICE',
+        'INVALID_SIZE',
+        'MIN_SIZE_NOT_MET',
+        'MAX_SIZE_EXCEEDED',
+        'PRICE_OUT_OF_RANGE',
+        'SELF_TRADE',
       ];
 
       errorCodes.forEach((code) => {
-        const error = mapParadexError(code, 'Test error');
+        const error = mapGRVTError(code, 'Test error');
         expect(error).toBeInstanceOf(InvalidOrderError);
       });
     });
 
     it('should map market errors to InvalidOrderError', () => {
       const errorCodes = [
-        PARADEX_CLIENT_ERRORS.INVALID_MARKET,
-        PARADEX_CLIENT_ERRORS.MARKET_NOT_ACTIVE,
-        PARADEX_CLIENT_ERRORS.MARKET_CLOSED,
-        PARADEX_CLIENT_ERRORS.TRADING_HALTED,
+        'INVALID_INSTRUMENT',
+        'INSTRUMENT_NOT_ACTIVE',
+        'MARKET_CLOSED',
+        'TRADING_HALTED',
       ];
 
       errorCodes.forEach((code) => {
-        const error = mapParadexError(code, 'Test error');
+        const error = mapGRVTError(code, 'Test error');
+        expect(error).toBeInstanceOf(InvalidOrderError);
+      });
+    });
+
+    it('should map position errors to InvalidOrderError', () => {
+      const errorCodes = ['MAX_POSITION_EXCEEDED', 'REDUCE_ONLY_VIOLATION'];
+
+      errorCodes.forEach((code) => {
+        const error = mapGRVTError(code, 'Test error');
         expect(error).toBeInstanceOf(InvalidOrderError);
       });
     });
 
     it('should map leverage errors to InvalidOrderError', () => {
-      const errorCodes = [
-        PARADEX_CLIENT_ERRORS.INVALID_LEVERAGE,
-        PARADEX_CLIENT_ERRORS.MAX_LEVERAGE_EXCEEDED,
-        PARADEX_CLIENT_ERRORS.MAX_POSITION_EXCEEDED,
-      ];
+      const errorCodes = ['INVALID_LEVERAGE', 'MAX_LEVERAGE_EXCEEDED'];
 
       errorCodes.forEach((code) => {
-        const error = mapParadexError(code, 'Test error');
+        const error = mapGRVTError(code, 'Test error');
         expect(error).toBeInstanceOf(InvalidOrderError);
       });
     });
 
     it('should map RATE_LIMIT_EXCEEDED to RateLimitError', () => {
-      const error = mapParadexError(PARADEX_RATE_LIMIT_ERROR, 'Rate limit exceeded');
+      const error = mapGRVTError('RATE_LIMIT_EXCEEDED', 'Rate limit exceeded');
 
       expect(error).toBeInstanceOf(RateLimitError);
-      expect(error.code).toBe('4001');
+      expect(error.code).toBe('RATE_LIMIT_EXCEEDED');
     });
 
     it('should map server errors to ExchangeUnavailableError', () => {
-      const error = mapParadexError(
-        PARADEX_SERVER_ERRORS.INTERNAL_ERROR,
-        'Internal server error'
-      );
+      const error = mapGRVTError('INTERNAL_ERROR', 'Internal server error');
 
       expect(error).toBeInstanceOf(ExchangeUnavailableError);
-      expect(error.code).toBe('5001');
+      expect(error.code).toBe('INTERNAL_ERROR');
     });
 
     it('should map network errors to ExchangeUnavailableError', () => {
-      const error = mapParadexError('ECONNRESET', 'Connection reset');
+      const error = mapGRVTError('ECONNRESET', 'Connection reset');
 
       expect(error).toBeInstanceOf(ExchangeUnavailableError);
     });
 
-    it('should handle string error codes', () => {
-      const error = mapParadexError('1001', 'Invalid order');
+    it('should handle numeric error codes', () => {
+      const error = mapGRVTError(400, 'Bad request');
 
-      expect(error).toBeInstanceOf(InvalidOrderError);
-      expect(error.code).toBe('1001');
+      expect(error).toBeInstanceOf(PerpDEXError);
+      expect(error.code).toBe('400');
     });
 
     it('should preserve original error', () => {
       const originalError = { custom: 'data' };
-      const error = mapParadexError(1001, 'Test', originalError);
+      const error = mapGRVTError('INVALID_ORDER', 'Test', originalError);
 
       expect(error.originalError).toBe(originalError);
     });
 
     it('should default to PerpDEXError for unknown codes', () => {
-      const error = mapParadexError(9999, 'Unknown error');
+      const error = mapGRVTError('UNKNOWN_ERROR', 'Unknown error');
 
       expect(error).toBeInstanceOf(PerpDEXError);
-      expect(error.code).toBe('9999');
+      expect(error.code).toBe('UNKNOWN_ERROR');
     });
   });
 
-  describe('extractParadexError', () => {
-    it('should extract error from { code, message } format', () => {
-      const response = {
-        code: 1001,
-        message: 'Invalid order',
-      };
-
-      const { code, message } = extractParadexError(response);
-
-      expect(code).toBe('1001');
-      expect(message).toBe('Invalid order');
-    });
-
+  describe('extractGRVTError', () => {
     it('should extract error from { error: { code, message } } format', () => {
       const response = {
         error: {
-          code: 1002,
-          message: 'Insufficient margin',
+          code: 'INVALID_ORDER',
+          message: 'Invalid order',
         },
       };
 
-      const { code, message } = extractParadexError(response);
+      const { code, message } = extractGRVTError(response);
 
-      expect(code).toBe('1002');
+      expect(code).toBe('INVALID_ORDER');
+      expect(message).toBe('Invalid order');
+    });
+
+    it('should extract error from { code, message } format', () => {
+      const response = {
+        code: 'INSUFFICIENT_MARGIN',
+        message: 'Insufficient margin',
+      };
+
+      const { code, message } = extractGRVTError(response);
+
+      expect(code).toBe('INSUFFICIENT_MARGIN');
       expect(message).toBe('Insufficient margin');
     });
 
@@ -341,17 +301,17 @@ describe('ParadexErrorMapper', () => {
         message: 'Some error',
       };
 
-      const { code } = extractParadexError(response);
+      const { code } = extractGRVTError(response);
 
       expect(code).toBe('UNKNOWN_ERROR');
     });
 
     it('should handle missing message', () => {
       const response = {
-        code: 1001,
+        code: 'INVALID_ORDER',
       };
 
-      const { message } = extractParadexError(response);
+      const { message } = extractGRVTError(response);
 
       expect(message).toBe('Unknown error occurred');
     });
@@ -407,16 +367,18 @@ describe('ParadexErrorMapper', () => {
       expect(error.code).toBe('HTTP_500');
     });
 
-    it('should extract Paradex error from response data', () => {
+    it('should extract GRVT error from response data', () => {
       const responseData = {
-        code: 1002,
-        message: 'Insufficient margin',
+        error: {
+          code: 'INSUFFICIENT_MARGIN',
+          message: 'Insufficient margin',
+        },
       };
 
       const error = mapHttpError(400, 'Bad Request', responseData);
 
       expect(error).toBeInstanceOf(InsufficientMarginError);
-      expect(error.code).toBe('1002');
+      expect(error.code).toBe('INSUFFICIENT_MARGIN');
     });
 
     it('should handle retry-after header in 429 response', () => {
@@ -429,7 +391,6 @@ describe('ParadexErrorMapper', () => {
       const error = mapHttpError(429, 'Too Many Requests', responseData);
 
       expect(error).toBeInstanceOf(RateLimitError);
-      // retryAfter is private, can't test directly
     });
   });
 
@@ -452,8 +413,10 @@ describe('ParadexErrorMapper', () => {
           status: 404,
           statusText: 'Not Found',
           data: {
-            code: 1003,
-            message: 'Order not found',
+            error: {
+              code: 'ORDER_NOT_FOUND',
+              message: 'Order not found',
+            },
           },
         },
       };
@@ -461,7 +424,7 @@ describe('ParadexErrorMapper', () => {
       const error = mapAxiosError(axiosError);
 
       expect(error).toBeInstanceOf(OrderNotFoundError);
-      expect(error.code).toBe('1003');
+      expect(error.code).toBe('ORDER_NOT_FOUND');
     });
 
     it('should map timeout errors', () => {
@@ -473,7 +436,7 @@ describe('ParadexErrorMapper', () => {
       const error = mapAxiosError(axiosError);
 
       expect(error).toBeInstanceOf(ExchangeUnavailableError);
-      expect(error.code).toBe('ECONNABORTED'); // Preserves original code
+      expect(error.code).toBe('ETIMEDOUT'); // ECONNABORTED is mapped to ETIMEDOUT
       expect(error.message).toContain('timeout');
     });
 
@@ -503,120 +466,75 @@ describe('ParadexErrorMapper', () => {
 
   describe('Error Constants', () => {
     it('should have correct client error codes', () => {
-      expect(PARADEX_CLIENT_ERRORS.INVALID_ORDER).toBe(1001);
-      expect(PARADEX_CLIENT_ERRORS.INSUFFICIENT_MARGIN).toBe(1002);
-      expect(PARADEX_CLIENT_ERRORS.ORDER_NOT_FOUND).toBe(1003);
-      expect(PARADEX_CLIENT_ERRORS.POSITION_NOT_FOUND).toBe(1004);
-      expect(PARADEX_CLIENT_ERRORS.INVALID_SIGNATURE).toBe(2001);
-      expect(PARADEX_CLIENT_ERRORS.EXPIRED_AUTH).toBe(2002);
-      expect(PARADEX_CLIENT_ERRORS.INVALID_API_KEY).toBe(2003);
+      expect(GRVT_CLIENT_ERRORS.INVALID_SIGNATURE).toBe('INVALID_SIGNATURE');
+      expect(GRVT_CLIENT_ERRORS.EXPIRED_SESSION).toBe('EXPIRED_SESSION');
+      expect(GRVT_CLIENT_ERRORS.INVALID_ORDER).toBe('INVALID_ORDER');
+      expect(GRVT_CLIENT_ERRORS.INSUFFICIENT_MARGIN).toBe('INSUFFICIENT_MARGIN');
+      expect(GRVT_CLIENT_ERRORS.ORDER_NOT_FOUND).toBe('ORDER_NOT_FOUND');
     });
 
     it('should have correct server error codes', () => {
-      expect(PARADEX_SERVER_ERRORS.INTERNAL_ERROR).toBe(5001);
-      expect(PARADEX_SERVER_ERRORS.SERVICE_UNAVAILABLE).toBe(5002);
-      expect(PARADEX_SERVER_ERRORS.GATEWAY_TIMEOUT).toBe(5003);
+      expect(GRVT_SERVER_ERRORS.INTERNAL_ERROR).toBe('INTERNAL_ERROR');
+      expect(GRVT_SERVER_ERRORS.SERVICE_UNAVAILABLE).toBe('SERVICE_UNAVAILABLE');
+      expect(GRVT_SERVER_ERRORS.GATEWAY_TIMEOUT).toBe('GATEWAY_TIMEOUT');
+      expect(GRVT_SERVER_ERRORS.DATABASE_ERROR).toBe('DATABASE_ERROR');
+      expect(GRVT_SERVER_ERRORS.MATCHING_ENGINE_ERROR).toBe('MATCHING_ENGINE_ERROR');
+      expect(GRVT_SERVER_ERRORS.SEQUENCER_ERROR).toBe('SEQUENCER_ERROR');
     });
 
     it('should have correct rate limit code', () => {
-      expect(PARADEX_RATE_LIMIT_ERROR).toBe(4001);
+      expect(GRVT_RATE_LIMIT_ERROR).toBe('RATE_LIMIT_EXCEEDED');
     });
 
     it('should have network error codes', () => {
-      expect(PARADEX_NETWORK_ERRORS.ECONNRESET).toBe('ECONNRESET');
-      expect(PARADEX_NETWORK_ERRORS.ETIMEDOUT).toBe('ETIMEDOUT');
-      expect(PARADEX_NETWORK_ERRORS.ENOTFOUND).toBe('ENOTFOUND');
+      expect(GRVT_NETWORK_ERRORS.ECONNRESET).toBe('ECONNRESET');
+      expect(GRVT_NETWORK_ERRORS.ETIMEDOUT).toBe('ETIMEDOUT');
+      expect(GRVT_NETWORK_ERRORS.ENOTFOUND).toBe('ENOTFOUND');
+      expect(GRVT_NETWORK_ERRORS.WEBSOCKET_CLOSED).toBe('WEBSOCKET_CLOSED');
+      expect(GRVT_NETWORK_ERRORS.WEBSOCKET_ERROR).toBe('WEBSOCKET_ERROR');
     });
   });
 
   describe('Edge Cases', () => {
     describe('All Server Error Codes', () => {
       it('should map all server error codes to ExchangeUnavailableError', () => {
-        const serverErrorCodes = Object.values(PARADEX_SERVER_ERRORS);
+        const serverErrorCodes = Object.values(GRVT_SERVER_ERRORS);
 
         serverErrorCodes.forEach((code) => {
-          const error = mapParadexError(code, 'Server error');
+          const error = mapGRVTError(code, 'Server error');
           expect(error).toBeInstanceOf(ExchangeUnavailableError);
-          expect(error.exchange).toBe('paradex');
+          expect(error.exchange).toBe('grvt');
         });
       });
 
-      it('should map SERVICE_UNAVAILABLE correctly', () => {
-        const error = mapParadexError(
-          PARADEX_SERVER_ERRORS.SERVICE_UNAVAILABLE,
-          'Service unavailable'
-        );
-        expect(error).toBeInstanceOf(ExchangeUnavailableError);
-        expect(error.code).toBe('5002');
-      });
-
-      it('should map GATEWAY_TIMEOUT correctly', () => {
-        const error = mapParadexError(
-          PARADEX_SERVER_ERRORS.GATEWAY_TIMEOUT,
-          'Gateway timeout'
-        );
-        expect(error).toBeInstanceOf(ExchangeUnavailableError);
-        expect(error.code).toBe('5003');
-      });
-
       it('should map DATABASE_ERROR correctly', () => {
-        const error = mapParadexError(
-          PARADEX_SERVER_ERRORS.DATABASE_ERROR,
-          'Database error'
-        );
+        const error = mapGRVTError('DATABASE_ERROR', 'Database error');
         expect(error).toBeInstanceOf(ExchangeUnavailableError);
-        expect(error.code).toBe('5004');
+        expect(error.code).toBe('DATABASE_ERROR');
       });
 
       it('should map MATCHING_ENGINE_ERROR correctly', () => {
-        const error = mapParadexError(
-          PARADEX_SERVER_ERRORS.MATCHING_ENGINE_ERROR,
-          'Matching engine error'
-        );
+        const error = mapGRVTError('MATCHING_ENGINE_ERROR', 'Matching engine error');
         expect(error).toBeInstanceOf(ExchangeUnavailableError);
-        expect(error.code).toBe('5005');
+        expect(error.code).toBe('MATCHING_ENGINE_ERROR');
       });
 
       it('should map SEQUENCER_ERROR correctly', () => {
-        const error = mapParadexError(
-          PARADEX_SERVER_ERRORS.SEQUENCER_ERROR,
-          'Sequencer error'
-        );
+        const error = mapGRVTError('SEQUENCER_ERROR', 'Sequencer error');
         expect(error).toBeInstanceOf(ExchangeUnavailableError);
-        expect(error.code).toBe('5006');
-      });
-
-      it('should map MAINTENANCE_MODE correctly', () => {
-        const error = mapParadexError(
-          PARADEX_SERVER_ERRORS.MAINTENANCE_MODE,
-          'Maintenance mode'
-        );
-        expect(error).toBeInstanceOf(ExchangeUnavailableError);
-        expect(error.code).toBe('5007');
+        expect(error.code).toBe('SEQUENCER_ERROR');
       });
     });
 
     describe('All Network Error Codes', () => {
       it('should map all network error codes to ExchangeUnavailableError', () => {
-        const networkErrorCodes = Object.values(PARADEX_NETWORK_ERRORS);
+        const networkErrorCodes = Object.values(GRVT_NETWORK_ERRORS);
 
         networkErrorCodes.forEach((code) => {
-          const error = mapParadexError(code, 'Network error');
+          const error = mapGRVTError(code, 'Network error');
           expect(error).toBeInstanceOf(ExchangeUnavailableError);
-          expect(error.exchange).toBe('paradex');
+          expect(error.exchange).toBe('grvt');
         });
-      });
-
-      it('should handle WEBSOCKET_CLOSED', () => {
-        const error = mapParadexError('WEBSOCKET_CLOSED', 'WebSocket connection closed');
-        expect(error).toBeInstanceOf(ExchangeUnavailableError);
-        expect(error.code).toBe('WEBSOCKET_CLOSED');
-      });
-
-      it('should handle WEBSOCKET_ERROR', () => {
-        const error = mapParadexError('WEBSOCKET_ERROR', 'WebSocket error occurred');
-        expect(error).toBeInstanceOf(ExchangeUnavailableError);
-        expect(error.code).toBe('WEBSOCKET_ERROR');
       });
     });
 
@@ -628,10 +546,9 @@ describe('ParadexErrorMapper', () => {
           },
         };
 
-        const error = mapParadexError(PARADEX_RATE_LIMIT_ERROR, 'Rate limit', originalError);
+        const error = mapGRVTError('RATE_LIMIT_EXCEEDED', 'Rate limit', originalError);
         expect(error).toBeInstanceOf(RateLimitError);
-        // retryAfter is private, but we can verify the error was created correctly
-        expect(error.code).toBe('4001');
+        expect(error.code).toBe('RATE_LIMIT_EXCEEDED');
       });
 
       it('should extract retryAfter from response.headers', () => {
@@ -643,7 +560,7 @@ describe('ParadexErrorMapper', () => {
           },
         };
 
-        const error = mapParadexError(PARADEX_RATE_LIMIT_ERROR, 'Rate limit', originalError);
+        const error = mapGRVTError('RATE_LIMIT_EXCEEDED', 'Rate limit', originalError);
         expect(error).toBeInstanceOf(RateLimitError);
       });
 
@@ -652,51 +569,31 @@ describe('ParadexErrorMapper', () => {
           retryAfter: 30,
         };
 
-        const error = mapParadexError(PARADEX_RATE_LIMIT_ERROR, 'Rate limit', originalError);
-        expect(error).toBeInstanceOf(RateLimitError);
-      });
-
-      it('should extract retryAfter from data.retry_after', () => {
-        const originalError = {
-          retry_after: 45,
-        };
-
-        const error = mapParadexError(PARADEX_RATE_LIMIT_ERROR, 'Rate limit', originalError);
+        const error = mapGRVTError('RATE_LIMIT_EXCEEDED', 'Rate limit', originalError);
         expect(error).toBeInstanceOf(RateLimitError);
       });
 
       it('should handle missing retryAfter', () => {
-        const error = mapParadexError(PARADEX_RATE_LIMIT_ERROR, 'Rate limit');
-        expect(error).toBeInstanceOf(RateLimitError);
-      });
-
-      it('should handle invalid retryAfter value', () => {
-        const originalError = {
-          headers: {
-            'retry-after': 'invalid',
-          },
-        };
-
-        const error = mapParadexError(PARADEX_RATE_LIMIT_ERROR, 'Rate limit', originalError);
+        const error = mapGRVTError('RATE_LIMIT_EXCEEDED', 'Rate limit');
         expect(error).toBeInstanceOf(RateLimitError);
       });
     });
 
     describe('Malformed Responses', () => {
       it('should handle null response', () => {
-        const { code, message } = extractParadexError(null);
+        const { code, message } = extractGRVTError(null);
         expect(code).toBe('UNKNOWN_ERROR');
         expect(message).toBe('Unknown error occurred');
       });
 
       it('should handle undefined response', () => {
-        const { code, message } = extractParadexError(undefined);
+        const { code, message } = extractGRVTError(undefined);
         expect(code).toBe('UNKNOWN_ERROR');
         expect(message).toBe('Unknown error occurred');
       });
 
       it('should handle empty object response', () => {
-        const { code, message } = extractParadexError({});
+        const { code, message } = extractGRVTError({});
         expect(code).toBe('UNKNOWN_ERROR');
         expect(message).toBe('Unknown error occurred');
       });
@@ -705,17 +602,17 @@ describe('ParadexErrorMapper', () => {
         const response = {
           error: 'Something went wrong',
         };
-        const { code, message } = extractParadexError(response);
+        const { code, message } = extractGRVTError(response);
         expect(code).toBe('UNKNOWN_ERROR');
         expect(message).toBe('Something went wrong');
       });
 
-      it('should handle numeric code as number', () => {
+      it('should handle numeric code', () => {
         const response = {
-          code: 1001, // Not string
+          code: 1001,
           message: 'Invalid order',
         };
-        const { code, message } = extractParadexError(response);
+        const { code, message } = extractGRVTError(response);
         expect(code).toBe('1001');
         expect(message).toBe('Invalid order');
       });
@@ -732,11 +629,6 @@ describe('ParadexErrorMapper', () => {
         const error = mapHttpError(410, 'Gone');
         expect(error).toBeInstanceOf(InvalidOrderError);
         expect(error.code).toBe('HTTP_410');
-      });
-
-      it('should map 418 as client error', () => {
-        const error = mapHttpError(418, "I'm a teapot");
-        expect(error).toBeInstanceOf(InvalidOrderError);
       });
 
       it('should map 502 Bad Gateway as server error', () => {
@@ -759,57 +651,48 @@ describe('ParadexErrorMapper', () => {
     });
 
     describe('Mixed Error Code Formats', () => {
-      it('should handle error code with leading zeros', () => {
-        const error = mapParadexError('01001', 'Invalid order');
-        expect(error).toBeInstanceOf(InvalidOrderError);
+      it('should handle empty error code', () => {
+        const error = mapGRVTError('', 'Empty code');
+        expect(error).toBeInstanceOf(PerpDEXError);
+        expect(error.code).toBe('');
       });
 
-      it('should handle negative error codes', () => {
-        const error = mapParadexError(-1, 'Negative error');
+      it('should handle whitespace-only error code', () => {
+        const error = mapGRVTError('   ', 'Whitespace code');
         expect(error).toBeInstanceOf(PerpDEXError);
       });
 
-      it('should handle very large error codes', () => {
-        const error = mapParadexError(999999, 'Large error code');
+      it('should handle case-sensitive codes', () => {
+        // GRVT codes are uppercase, lowercase should not match
+        const error = mapGRVTError('invalid_order', 'Lower case');
         expect(error).toBeInstanceOf(PerpDEXError);
-      });
-
-      it('should handle NaN error code', () => {
-        const error = mapParadexError(NaN, 'NaN error');
-        expect(error).toBeInstanceOf(PerpDEXError);
-      });
-
-      it('should handle non-numeric string codes', () => {
-        const error = mapParadexError('CUSTOM_ERROR', 'Custom error message');
-        expect(error).toBeInstanceOf(PerpDEXError);
-        expect(error.code).toBe('CUSTOM_ERROR');
       });
     });
 
     describe('Error Message Variations', () => {
       it('should handle empty error message', () => {
-        const error = mapParadexError(1001, '');
+        const error = mapGRVTError('INVALID_ORDER', '');
         expect(error).toBeInstanceOf(InvalidOrderError);
         expect(error.message).toBe('');
       });
 
       it('should handle very long error messages', () => {
         const longMessage = 'x'.repeat(1000);
-        const error = mapParadexError(1001, longMessage);
+        const error = mapGRVTError('INVALID_ORDER', longMessage);
         expect(error).toBeInstanceOf(InvalidOrderError);
         expect(error.message).toBe(longMessage);
       });
 
       it('should handle special characters in message', () => {
         const message = "Error: 'Invalid' <order> & \"test\"";
-        const error = mapParadexError(1001, message);
+        const error = mapGRVTError('INVALID_ORDER', message);
         expect(error).toBeInstanceOf(InvalidOrderError);
         expect(error.message).toBe(message);
       });
 
       it('should handle unicode in message', () => {
         const message = 'エラー: 無効な注文 🚫';
-        const error = mapParadexError(1001, message);
+        const error = mapGRVTError('INVALID_ORDER', message);
         expect(error).toBeInstanceOf(InvalidOrderError);
         expect(error.message).toBe(message);
       });
@@ -824,8 +707,10 @@ describe('ParadexErrorMapper', () => {
             status: 500,
             statusText: 'Internal Server Error',
             data: {
-              code: 5001,
-              message: 'Database connection lost',
+              error: {
+                code: 'INTERNAL_ERROR',
+                message: 'Database connection lost',
+              },
             },
           },
         };
@@ -833,7 +718,7 @@ describe('ParadexErrorMapper', () => {
         const error = mapAxiosError(axiosError);
         expect(error).toBeInstanceOf(ExchangeUnavailableError);
         // Response takes precedence over top-level code
-        expect(error.code).toBe('5001');
+        expect(error.code).toBe('INTERNAL_ERROR');
       });
 
       it('should handle axios error without response but with request', () => {
@@ -865,42 +750,28 @@ describe('ParadexErrorMapper', () => {
 
     describe('All Client Error Codes Coverage', () => {
       it('should map INVALID_REQUEST correctly', () => {
-        const error = mapParadexError(
-          PARADEX_CLIENT_ERRORS.INVALID_REQUEST,
-          'Invalid request'
-        );
+        const error = mapGRVTError('INVALID_REQUEST', 'Invalid request');
         expect(error).toBeInstanceOf(PerpDEXError);
-        expect(error.code).toBe('2006');
+        expect(error.code).toBe('INVALID_REQUEST');
       });
 
       it('should map INVALID_PARAMS correctly', () => {
-        const error = mapParadexError(PARADEX_CLIENT_ERRORS.INVALID_PARAMS, 'Invalid params');
+        const error = mapGRVTError('INVALID_PARAMS', 'Invalid params');
         expect(error).toBeInstanceOf(PerpDEXError);
       });
 
       it('should map MISSING_REQUIRED_FIELD correctly', () => {
-        const error = mapParadexError(
-          PARADEX_CLIENT_ERRORS.MISSING_REQUIRED_FIELD,
-          'Missing field'
-        );
+        const error = mapGRVTError('MISSING_REQUIRED_FIELD', 'Missing field');
         expect(error).toBeInstanceOf(PerpDEXError);
       });
 
-      it('should map INVALID_TIMESTAMP correctly', () => {
-        const error = mapParadexError(
-          PARADEX_CLIENT_ERRORS.INVALID_TIMESTAMP,
-          'Invalid timestamp'
-        );
-        expect(error).toBeInstanceOf(PerpDEXError);
+      it('should map INVALID_TIME_IN_FORCE correctly', () => {
+        const error = mapGRVTError('INVALID_TIME_IN_FORCE', 'Invalid time in force');
+        expect(error).toBeInstanceOf(InvalidOrderError);
       });
 
-      it('should map NONCE_TOO_LOW correctly', () => {
-        const error = mapParadexError(PARADEX_CLIENT_ERRORS.NONCE_TOO_LOW, 'Nonce too low');
-        expect(error).toBeInstanceOf(PerpDEXError);
-      });
-
-      it('should map NONCE_TOO_HIGH correctly', () => {
-        const error = mapParadexError(PARADEX_CLIENT_ERRORS.NONCE_TOO_HIGH, 'Nonce too high');
+      it('should map POSITION_NOT_FOUND correctly', () => {
+        const error = mapGRVTError('POSITION_NOT_FOUND', 'Position not found');
         expect(error).toBeInstanceOf(PerpDEXError);
       });
     });

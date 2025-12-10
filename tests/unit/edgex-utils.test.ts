@@ -2,12 +2,8 @@
  * EdgeX Utilities Unit Tests
  */
 
+import { EdgeXNormalizer } from '../../src/adapters/edgex/EdgeXNormalizer.js';
 import {
-  normalizeSymbol,
-  toEdgeXSymbol,
-  normalizeMarket,
-  normalizeOrder,
-  normalizePosition,
   toEdgeXOrderType,
   toEdgeXOrderSide,
   toEdgeXTimeInForce,
@@ -18,26 +14,28 @@ import type {
   EdgeXPosition,
 } from '../../src/adapters/edgex/types.js';
 
+const normalizer = new EdgeXNormalizer();
+
 describe('EdgeX Symbol Normalization', () => {
   describe('normalizeSymbol', () => {
     test('normalizes perpetual symbols', () => {
-      expect(normalizeSymbol('BTC-USDC-PERP')).toBe('BTC/USDC:USDC');
-      expect(normalizeSymbol('ETH-USDC-PERP')).toBe('ETH/USDC:USDC');
+      expect(normalizer.normalizeSymbol('BTC-USDC-PERP')).toBe('BTC/USDC:USDC');
+      expect(normalizer.normalizeSymbol('ETH-USDC-PERP')).toBe('ETH/USDC:USDC');
     });
 
     test('handles spot symbols', () => {
-      expect(normalizeSymbol('BTC-USDC')).toBe('BTC/USDC');
+      expect(normalizer.normalizeSymbol('BTC-USDC')).toBe('BTC/USDC');
     });
   });
 
   describe('toEdgeXSymbol', () => {
     test('converts unified perpetual to EdgeX format', () => {
-      expect(toEdgeXSymbol('BTC/USDC:USDC')).toBe('BTC-USDC-PERP');
-      expect(toEdgeXSymbol('ETH/USDC:USDC')).toBe('ETH-USDC-PERP');
+      expect(normalizer.toEdgeXSymbol('BTC/USDC:USDC')).toBe('BTC-USDC-PERP');
+      expect(normalizer.toEdgeXSymbol('ETH/USDC:USDC')).toBe('ETH-USDC-PERP');
     });
 
     test('converts unified spot to EdgeX format', () => {
-      expect(toEdgeXSymbol('BTC/USDC')).toBe('BTC-USDC');
+      expect(normalizer.toEdgeXSymbol('BTC/USDC')).toBe('BTC-USDC');
     });
   });
 });
@@ -61,7 +59,7 @@ describe('EdgeX Market Normalization', () => {
       is_active: true,
     };
 
-    const normalized = normalizeMarket(edgexMarket);
+    const normalized = normalizer.normalizeMarket(edgexMarket);
 
     expect(normalized).toMatchObject({
       id: 'btc-usdc-perp',
@@ -96,7 +94,7 @@ describe('EdgeX Order Normalization', () => {
       updated_at: 1234567890100,
     };
 
-    const normalized = normalizeOrder(edgexOrder);
+    const normalized = normalizer.normalizeOrder(edgexOrder);
 
     expect(normalized).toMatchObject({
       id: '12345',
@@ -127,7 +125,7 @@ describe('EdgeX Position Normalization', () => {
       timestamp: 1234567890000,
     };
 
-    const normalized = normalizePosition(edgexPosition);
+    const normalized = normalizer.normalizePosition(edgexPosition);
 
     expect(normalized).toMatchObject({
       symbol: 'BTC/USDC:USDC',

@@ -57,6 +57,7 @@
 - **Type safety** - Runtime validation (Zod) + TypeScript strict mode
 
 ### 📊 Developer Experience
+- **Pattern A Architecture** - All 7 adapters follow standardized structure
 - **409 tests** - 100% pass rate, production-ready
 - **Structured logging** - JSON logs with sensitive data masking
 - **Health checks** - Built-in system monitoring
@@ -125,15 +126,15 @@ await exchange.disconnect();
 
 ## 📚 Supported Exchanges
 
-| Exchange | Status | Testnet | Auth Method | Special Features |
-|----------|--------|---------|-------------|------------------|
-| **Hyperliquid** | ✅ Production | ✅ Public | EIP-712 | 200k orders/sec, HIP-3 ecosystem, faucet available |
-| **GRVT** | ✅ Production | ✅ Public | EIP-712 + Session | Hybrid CEX/DEX, portfolio margin |
-| **Paradex** | ✅ Production | ✅ Public (Sepolia) | StarkNet + JWT | StarkNet L2, ultra-low latency |
-| **EdgeX** | ✅ Production (V1) | ❌ Mainnet only* | StarkEx + Pedersen | Sub-10ms matching, $130B+ volume |
-| **Backpack** | ✅ Production | ❌ Mainnet only | ED25519 | Solana-based, multi-market types |
-| **Lighter** | ⚠️ Beta | ✅ Public (ETH testnet) | API Key | ZK-SNARK proofs, orderbook DEX |
-| **Nado** | ✅ Production | ✅ Public (Ink L2) | EIP-712 | Ink L2 by Kraken, 5-15ms latency |
+| Exchange | Status | Testnet | Auth Method | Architecture | Special Features |
+|----------|--------|---------|-------------|--------------|------------------|
+| **Hyperliquid** | ✅ Production | ✅ Public | EIP-712 | Pattern A | 200k orders/sec, HIP-3 ecosystem, faucet available |
+| **GRVT** | ✅ Production | ✅ Public | EIP-712 + Session | Pattern A | Hybrid CEX/DEX, portfolio margin |
+| **Paradex** | ✅ Production | ✅ Public (Sepolia) | StarkNet + JWT | Pattern A | StarkNet L2, ultra-low latency |
+| **EdgeX** | ✅ Production (V1) | ❌ Mainnet only* | StarkEx + Pedersen | Pattern A | Sub-10ms matching, $130B+ volume |
+| **Backpack** | ✅ Production | ❌ Mainnet only | ED25519 | Pattern A | Solana-based, multi-market types |
+| **Lighter** | ⚠️ Beta | ✅ Public (ETH testnet) | API Key | Pattern A | ZK-SNARK proofs, orderbook DEX |
+| **Nado** | ✅ Production | ✅ Public (Ink L2) | EIP-712 | Pattern A | Ink L2 by Kraken, 5-15ms latency |
 
 > *EdgeX V2 testnet planned for Q3 2025
 
@@ -300,6 +301,41 @@ console.log('Cache hit rate:', health.cache.hitRate);
 
 ## 🏗️ Architecture
 
+### Pattern A: Full-Featured Architecture
+
+All **7 exchange adapters** now follow **Pattern A** (Full-Featured) architecture - a standardized, consistent structure that provides:
+
+- ✅ **Dedicated Normalizer classes** for data transformation
+- ✅ **Separation of concerns** between adapter logic and normalization
+- ✅ **Enhanced testability** with isolated unit tests
+- ✅ **Consistent file structure** across all adapters
+- ✅ **Better maintainability** and easier onboarding
+
+#### Adapter Structure
+
+Each adapter follows this standardized structure:
+
+```
+src/adapters/{exchange}/
+├── {Exchange}Adapter.ts       # Main adapter implementation
+├── {Exchange}Normalizer.ts    # Data transformation (all 7 adapters)
+├── {Exchange}Auth.ts          # Authentication (complex auth only)
+├── utils.ts                   # Helper functions
+├── constants.ts               # Configuration
+├── types.ts                   # TypeScript types
+└── index.ts                   # Public API
+```
+
+**Example**: Using a Normalizer class directly
+
+```typescript
+import { HyperliquidNormalizer } from 'pd-aio-sdk/adapters/hyperliquid';
+
+const normalizer = new HyperliquidNormalizer();
+const unifiedSymbol = normalizer.normalizeSymbol('BTC-PERP');
+// Returns: 'BTC/USDT:USDT'
+```
+
 ### Hexagonal Architecture
 
 ```
@@ -323,6 +359,8 @@ console.log('Cache hit rate:', health.cache.hitRate);
 ┌─────────┐  ┌─────────┐  ┌─────────┐
 │Hyperliquid │GRVT    │Paradex  │  ...
 │Adapter   │Adapter  │Adapter  │
+│  +       │  +      │  +      │
+│Normalizer│Normalizer│Normalizer│
 └─────────┘  └─────────┘  └─────────┘
     │            │            │
     ▼            ▼            ▼
@@ -334,11 +372,14 @@ console.log('Cache hit rate:', health.cache.hitRate);
 
 ### Core Components
 
-- **Adapters** - Exchange-specific implementations
+- **Adapters** - Exchange-specific implementations (Pattern A)
+- **Normalizers** - Data transformation classes (all 7 adapters)
 - **Core** - Rate limiting, retry logic, logging, health checks
 - **WebSocket** - Connection management, auto-reconnection
-- **Utils** - Symbol normalization, validation, helpers
+- **Utils** - Symbol helpers, validation, error mapping
 - **Types** - Unified data structures, error hierarchy
+
+**Learn More**: See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture documentation
 
 ---
 
@@ -417,9 +458,17 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ## 🔗 Links
 
-- **Documentation**: [Full API Documentation](./docs)
-- **Korean Docs**: [한국어 문서](./README.ko.md)
-- **Changelog**: [CHANGELOG.md](./CHANGELOG.md)
+### Documentation
+- **Architecture**: [ARCHITECTURE.md](./ARCHITECTURE.md) - Detailed architecture guide
+- **API Reference**: [API.md](./API.md) - Complete API documentation
+- **Adapter Guide**: [ADAPTER_GUIDE.md](./ADAPTER_GUIDE.md) - Guide for adding new exchanges
+- **Contributing**: [CONTRIBUTING.md](./CONTRIBUTING.md) - Development guidelines
+- **Changelog**: [CHANGELOG.md](./CHANGELOG.md) - Version history
+- **Korean Docs**: [한국어 문서](./README.ko.md) - Korean documentation
+
+### Resources
+- **Exchange Guides**: [docs/guides/](./docs/guides/) - Exchange-specific documentation
+- **Examples**: [examples/](./examples/) - Ready-to-use code examples
 - **API Audit**: [API Implementation Audit](./API_IMPLEMENTATION_AUDIT.md)
 
 ---
