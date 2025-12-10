@@ -51,19 +51,8 @@ import type {
   HyperliquidWsSubscription,
   HyperliquidWsTrade,
 } from './types.js';
-import {
-  convertOrderRequest,
-  mapError,
-  normalizeBalance,
-  normalizeHistoricalOrder,
-  normalizeMarket,
-  normalizeOrder,
-  normalizeOrderBook,
-  normalizePosition,
-  normalizeTicker,
-  normalizeTrade,
-  normalizeUserFill,
-} from './utils.js';
+import { HyperliquidNormalizer } from './HyperliquidNormalizer.js';
+import { convertOrderRequest, mapError } from './utils.js';
 
 export interface HyperliquidConfig extends ExchangeConfig {
   /** Ethereum wallet for signing */
@@ -130,6 +119,7 @@ export class HyperliquidAdapter extends BaseAdapter {
   private wsManager?: WebSocketManager;
   private auth?: HyperliquidAuth;
   protected rateLimiter: RateLimiter;
+  private normalizer: HyperliquidNormalizer;
 
   constructor(config: HyperliquidConfig = {}) {
     super(config);
@@ -137,6 +127,9 @@ export class HyperliquidAdapter extends BaseAdapter {
     // Set API URLs
     this.apiUrl = config.testnet ? HYPERLIQUID_TESTNET_API : HYPERLIQUID_MAINNET_API;
     this.wsUrl = config.testnet ? HYPERLIQUID_TESTNET_WS : HYPERLIQUID_MAINNET_WS;
+
+    // Initialize normalizer
+    this.normalizer = new HyperliquidNormalizer();
 
     // Initialize rate limiter
     this.rateLimiter = new RateLimiter({
@@ -197,7 +190,7 @@ export class HyperliquidAdapter extends BaseAdapter {
         type: 'meta',
       });
 
-      const markets = response.universe.map((asset, index) => normalizeMarket(asset, index));
+      const markets = response.universe.map((asset, index) => this.normalizer.normalizeMarket(asset, index));
 
       // Filter by params if provided
       if (params?.active !== undefined) {
@@ -225,7 +218,7 @@ export class HyperliquidAdapter extends BaseAdapter {
         throw new Error(`No ticker data for ${symbol}`);
       }
 
-      return normalizeTicker(exchangeSymbol, { mid });
+      return this.normalizer.normalizeTicker(exchangeSymbol, { mid });
     } catch (error) {
       throw mapError(error);
     }
@@ -242,7 +235,7 @@ export class HyperliquidAdapter extends BaseAdapter {
         coin: exchangeSymbol,
       });
 
-      return normalizeOrderBook(response);
+      return this.normalizer.normalizeOrderBook(response);
     } catch (error) {
       throw mapError(error);
     }
@@ -578,7 +571,7 @@ export class HyperliquidAdapter extends BaseAdapter {
         }
       );
 
-      let orders = response.map(normalizeHistoricalOrder);
+      let orders = response.map((order) => this.normalizer.normalizeHistoricalOrder(order));
 
       // Filter by symbol if provided
       if (symbol) {
@@ -619,7 +612,7 @@ export class HyperliquidAdapter extends BaseAdapter {
         user: this.auth.getAddress(),
       });
 
-      let trades = response.map(normalizeUserFill);
+      let trades = response.map((fill) => this.normalizer.normalizeUserFill(fill));
 
       // Filter by symbol if provided
       if (symbol) {
@@ -666,7 +659,7 @@ export class HyperliquidAdapter extends BaseAdapter {
 
       const positions = response.assetPositions
         .filter((p) => parseFloat(p.position.szi) !== 0)
-        .map(normalizePosition);
+        .map((p) => this.normalizer.normalizePosition(p));
 
       // Filter by symbols if provided
       if (symbols && symbols.length > 0) {
@@ -694,7 +687,7 @@ export class HyperliquidAdapter extends BaseAdapter {
         user: this.auth.getAddress(),
       });
 
-      return normalizeBalance(response);
+      return this.normalizer.normalizeBalance(response);
     } catch (error) {
       throw mapError(error);
     }
@@ -927,7 +920,7 @@ export class HyperliquidAdapter extends BaseAdapter {
         time: data.time,
       };
 
-      yield normalizeOrderBook(book);
+      yield this.normalizer.normalizeOrderBook(book);
     }
   }
 
@@ -952,7 +945,7 @@ export class HyperliquidAdapter extends BaseAdapter {
       `${HYPERLIQUID_WS_CHANNELS.TRADES}:${exchangeSymbol}`,
       subscription
     )) {
-      yield normalizeTrade(data);
+      yield this.normalizer.normalizeTrade(data);
     }
   }
 
@@ -978,7 +971,7 @@ export class HyperliquidAdapter extends BaseAdapter {
     )) {
       const mid = data.mids[exchangeSymbol];
       if (mid) {
-        yield normalizeTicker(exchangeSymbol, { mid });
+        yield this.normalizer.normalizeTicker(exchangeSymbol, { mid });
       }
     }
   }
@@ -1004,7 +997,7 @@ export class HyperliquidAdapter extends BaseAdapter {
     )) {
       const positions = data.assetPositions
         .filter((p) => parseFloat(p.position.szi) !== 0)
-        .map(normalizePosition);
+        .map((p) => this.normalizer.normalizePosition(p));
 
       yield positions;
     }
@@ -1107,7 +1100,7 @@ export class HyperliquidAdapter extends BaseAdapter {
         }
       );
 
-      const orders = response.map((order) => normalizeOrder(order, order.coin));
+      const orders = response.map((order) => this.normalizer.normalizeOrder(order, order.coin));
 
       // Filter by symbol if provided
       if (symbol) {

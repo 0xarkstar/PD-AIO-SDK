@@ -28,17 +28,8 @@ import {
   BACKPACK_RATE_LIMITS,
   BACKPACK_ENDPOINT_WEIGHTS,
 } from './constants.js';
+import { BackpackNormalizer } from './BackpackNormalizer.js';
 import {
-  normalizeSymbol,
-  toBackpackSymbol,
-  normalizeMarket,
-  normalizeOrder,
-  normalizePosition,
-  normalizeBalance,
-  normalizeOrderBook,
-  normalizeTrade,
-  normalizeTicker,
-  normalizeFundingRate,
   toBackpackOrderType,
   toBackpackOrderSide,
   toBackpackTimeInForce,
@@ -82,12 +73,16 @@ export class BackpackAdapter extends BaseAdapter {
   private readonly wsUrl: string;
   private wsManager: WebSocketManager;
   protected rateLimiter: RateLimiter;
+  private normalizer: BackpackNormalizer;
 
   constructor(config: BackpackConfig = {}) {
     super(config);
 
     this.apiKey = config.apiKey;
     this.apiSecret = config.apiSecret;
+
+    // Initialize normalizer
+    this.normalizer = new BackpackNormalizer();
 
     this.rateLimiter = new RateLimiter({
       maxTokens: BACKPACK_RATE_LIMITS.rest.maxRequests,
@@ -129,24 +124,24 @@ export class BackpackAdapter extends BaseAdapter {
       throw new PerpDEXError('Invalid markets response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    return response.markets.map(normalizeMarket);
+    return response.markets.map((market: any) => this.normalizer.normalizeMarket(market));
   }
 
   /**
    * Fetch ticker for a symbol
    */
   async fetchTicker(symbol: string): Promise<Ticker> {
-    const market = toBackpackSymbol(symbol);
+    const market = this.normalizer.toBackpackSymbol(symbol);
     const response = await this.makeRequest('GET', `/markets/${market}/ticker`, 'fetchTicker');
 
-    return normalizeTicker(response);
+    return this.normalizer.normalizeTicker(response);
   }
 
   /**
    * Fetch order book for a symbol
    */
   async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
-    const market = toBackpackSymbol(symbol);
+    const market = this.normalizer.toBackpackSymbol(symbol);
     const limit = params?.limit;
 
     const queryParams = limit ? `?depth=${limit}` : '';
@@ -156,14 +151,14 @@ export class BackpackAdapter extends BaseAdapter {
       'fetchOrderBook'
     );
 
-    return normalizeOrderBook(response);
+    return this.normalizer.normalizeOrderBook(response);
   }
 
   /**
    * Fetch recent trades for a symbol
    */
   async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
-    const market = toBackpackSymbol(symbol);
+    const market = this.normalizer.toBackpackSymbol(symbol);
     const limit = params?.limit ?? 100;
 
     const response = await this.makeRequest(
@@ -176,21 +171,21 @@ export class BackpackAdapter extends BaseAdapter {
       throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    return response.trades.map(normalizeTrade);
+    return response.trades.map((trade: any) => this.normalizer.normalizeTrade(trade));
   }
 
   /**
    * Fetch current funding rate
    */
   async fetchFundingRate(symbol: string): Promise<FundingRate> {
-    const market = toBackpackSymbol(symbol);
+    const market = this.normalizer.toBackpackSymbol(symbol);
     const response = await this.makeRequest(
       'GET',
       `/markets/${market}/funding`,
       'fetchFundingRate'
     );
 
-    return normalizeFundingRate(response);
+    return this.normalizer.normalizeFundingRate(response);
   }
 
   /**
@@ -214,7 +209,7 @@ export class BackpackAdapter extends BaseAdapter {
       throw new PerpDEXError('Invalid positions response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    let positions = response.positions.map(normalizePosition);
+    let positions = response.positions.map((position: any) => this.normalizer.normalizePosition(position));
 
     if (symbols && symbols.length > 0) {
       positions = positions.filter((p: Position) => symbols.includes(p.symbol));
@@ -233,14 +228,14 @@ export class BackpackAdapter extends BaseAdapter {
       throw new PerpDEXError('Invalid balance response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    return response.balances.map(normalizeBalance);
+    return response.balances.map((balance: any) => this.normalizer.normalizeBalance(balance));
   }
 
   /**
    * Create a new order
    */
   async createOrder(order: OrderRequest): Promise<Order> {
-    const market = toBackpackSymbol(order.symbol);
+    const market = this.normalizer.toBackpackSymbol(order.symbol);
     const orderType = toBackpackOrderType(order.type, order.postOnly);
     const side = toBackpackOrderSide(order.side);
     const timeInForce = toBackpackTimeInForce(order.timeInForce, order.postOnly);
@@ -259,7 +254,7 @@ export class BackpackAdapter extends BaseAdapter {
 
     const response = await this.makeRequest('POST', '/orders', 'createOrder', payload);
 
-    return normalizeOrder(response);
+    return this.normalizer.normalizeOrder(response);
   }
 
   /**
@@ -268,14 +263,14 @@ export class BackpackAdapter extends BaseAdapter {
   async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
     const response = await this.makeRequest('DELETE', `/orders/${orderId}`, 'cancelOrder');
 
-    return normalizeOrder(response);
+    return this.normalizer.normalizeOrder(response);
   }
 
   /**
    * Cancel all orders
    */
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
-    const payload = symbol ? { market: toBackpackSymbol(symbol) } : {};
+    const payload = symbol ? { market: this.normalizer.toBackpackSymbol(symbol) } : {};
 
     const response = await this.makeRequest('DELETE', '/orders', 'cancelAllOrders', payload);
 
@@ -283,21 +278,21 @@ export class BackpackAdapter extends BaseAdapter {
       throw new PerpDEXError('Invalid cancel all orders response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    return response.orders.map(normalizeOrder);
+    return response.orders.map((order: any) => this.normalizer.normalizeOrder(order));
   }
 
   /**
    * Fetch open orders
    */
   async fetchOpenOrders(symbol?: string): Promise<Order[]> {
-    const params = symbol ? `?market=${toBackpackSymbol(symbol)}` : '';
+    const params = symbol ? `?market=${this.normalizer.toBackpackSymbol(symbol)}` : '';
     const response = await this.makeRequest('GET', `/orders${params}`, 'fetchOpenOrders');
 
     if (!Array.isArray(response.orders)) {
       throw new PerpDEXError('Invalid open orders response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    return response.orders.map(normalizeOrder);
+    return response.orders.map((order: any) => this.normalizer.normalizeOrder(order));
   }
 
   /**
@@ -306,14 +301,14 @@ export class BackpackAdapter extends BaseAdapter {
   async fetchOrder(orderId: string, symbol?: string): Promise<Order> {
     const response = await this.makeRequest('GET', `/orders/${orderId}`, 'fetchOrder');
 
-    return normalizeOrder(response);
+    return this.normalizer.normalizeOrder(response);
   }
 
   /**
    * Set leverage for a symbol
    */
   async setLeverage(symbol: string, leverage: number): Promise<void> {
-    const market = toBackpackSymbol(symbol);
+    const market = this.normalizer.toBackpackSymbol(symbol);
 
     await this.makeRequest('POST', '/account/leverage', 'setLeverage', {
       market,
@@ -326,7 +321,7 @@ export class BackpackAdapter extends BaseAdapter {
    */
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
     const params = new URLSearchParams();
-    if (symbol) params.append('symbol', toBackpackSymbol(symbol));
+    if (symbol) params.append('symbol', this.normalizer.toBackpackSymbol(symbol));
     if (since) params.append('startTime', since.toString());
     if (limit) params.append('limit', limit.toString());
 
@@ -341,7 +336,7 @@ export class BackpackAdapter extends BaseAdapter {
       throw new PerpDEXError('Invalid order history response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    return response.map(normalizeOrder);
+    return response.map((order: any) => this.normalizer.normalizeOrder(order));
   }
 
   /**
@@ -349,7 +344,7 @@ export class BackpackAdapter extends BaseAdapter {
    */
   async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
     const params = new URLSearchParams();
-    if (symbol) params.append('symbol', toBackpackSymbol(symbol));
+    if (symbol) params.append('symbol', this.normalizer.toBackpackSymbol(symbol));
     if (since) params.append('startTime', since.toString());
     if (limit) params.append('limit', limit.toString());
 
@@ -364,21 +359,21 @@ export class BackpackAdapter extends BaseAdapter {
       throw new PerpDEXError('Invalid fills response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    return response.map(normalizeTrade);
+    return response.map((trade: any) => this.normalizer.normalizeTrade(trade));
   }
 
   /**
    * Convert unified symbol to exchange format
    */
   symbolToExchange(symbol: string): string {
-    return toBackpackSymbol(symbol);
+    return this.normalizer.toBackpackSymbol(symbol);
   }
 
   /**
    * Convert exchange symbol to unified format
    */
   symbolFromExchange(exchangeSymbol: string): string {
-    return normalizeSymbol(exchangeSymbol);
+    return this.normalizer.normalizeSymbol(exchangeSymbol);
   }
 
   /**

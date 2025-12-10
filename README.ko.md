@@ -13,11 +13,11 @@
 
 ## 🎯 PD AIO SDK란?
 
-**PD AIO SDK** (Perp DEX All-In-One SDK)는 **6개 이상의 탈중앙화 영구선물 거래소**를 단일 인터페이스로 거래할 수 있게 해주는 프로덕션 레벨의 통합 TypeScript SDK입니다. 더 이상 각 거래소마다 다른 API를 배울 필요 없이, 한 번 작성하면 어디서든 거래할 수 있습니다.
+**PD AIO SDK** (Perp DEX All-In-One SDK)는 **7개의 탈중앙화 영구선물 거래소**를 단일 인터페이스로 거래할 수 있게 해주는 프로덕션 레벨의 통합 TypeScript SDK입니다. 더 이상 각 거래소마다 다른 API를 배울 필요 없이, 한 번 작성하면 어디서든 거래할 수 있습니다.
 
 ### 왜 "All-In-One"인가?
 
-- **하나의 인터페이스** → 6개 이상의 거래소 (Hyperliquid, Lighter, GRVT, Paradex, EdgeX, Backpack)
+- **하나의 인터페이스** → 7개 거래소 (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado)
 - **하나의 코드베이스** → 모든 거래 작업 (시장 데이터, 주문, 포지션, WebSocket)
 - **하나의 설치** → 완전한 솔루션 (인증, 속도 제한, 에러 처리)
 
@@ -38,11 +38,13 @@
 - **EdgeX** - 프로덕션만 (V1), 10ms 미만 매칭, $130B+ 거래량
 - **Backpack** - 프로덕션만, 솔라나 기반, 다양한 마켓 지원
 - **Lighter** - 베타 + 테스트넷, ZK-SNARK 증명, 오더북 DEX
+- **Nado** - 프로덕션 + 테스트넷, Kraken의 Ink L2, 5-15ms 지연시간
 
 ### 🔐 프로덕션급 보안
-- **EIP-712 서명** (Hyperliquid, GRVT)
+- **EIP-712 서명** (Hyperliquid, GRVT, Nado)
 - **StarkNet ECDSA** (Paradex, EdgeX)
 - **ED25519** (Backpack)
+- **API Key 인증** (Lighter)
 - **보안 자격증명 관리** 및 검증 기능
 
 ### ⚡ 엔터프라이즈 기능
@@ -54,10 +56,13 @@
 - **타입 안전성** - 런타임 검증(Zod) + TypeScript strict mode
 
 ### 📊 개발자 경험
-- **395개 테스트** - 100% 통과율, 프로덕션 준비 완료
+- **Pattern A 아키텍처** - 7개 어댑터 모두 표준화된 구조 따름
+- **409개 테스트** - 100% 통과율, 프로덕션 준비 완료
 - **구조화된 로깅** - 민감 데이터 마스킹을 포함한 JSON 로그
 - **헬스 체크** - 내장 시스템 모니터링
 - **포괄적인 문서** - 영어 + 한국어 문서 제공
+- **TypeScript strict mode** - 완전한 타입 안전성
+- **예제 포함** - 10개 이상의 즉시 사용 가능한 예제
 
 ---
 
@@ -294,6 +299,41 @@ console.log('캐시 적중률:', health.cache.hitRate);
 
 ## 🏗️ 아키텍처
 
+### Pattern A: Full-Featured 아키텍처
+
+**7개 모든 거래소 어댑터**가 **Pattern A** (Full-Featured) 아키텍처를 따릅니다 - 일관성, 테스트 용이성, 유지보수성을 제공하는 표준화된 구조:
+
+- ✅ **전용 Normalizer 클래스** - 모든 데이터 변환 처리
+- ✅ **관심사 분리** - 어댑터 로직과 정규화 분리
+- ✅ **향상된 테스트 가능성** - 격리된 단위 테스트
+- ✅ **일관된 파일 구조** - 모든 어댑터에서 동일
+- ✅ **더 나은 유지보수성** - 쉬운 온보딩
+
+#### 어댑터 구조
+
+각 어댑터는 이 표준화된 구조를 따릅니다:
+
+```
+src/adapters/{exchange}/
+├── {Exchange}Adapter.ts       # 메인 어댑터 구현
+├── {Exchange}Normalizer.ts    # 데이터 변환 (7개 어댑터 모두)
+├── {Exchange}Auth.ts          # 인증 (복잡한 인증만)
+├── utils.ts                   # 헬퍼 함수
+├── constants.ts               # 설정
+├── types.ts                   # TypeScript 타입
+└── index.ts                   # Public API
+```
+
+**예제**: Normalizer 클래스 직접 사용
+
+```typescript
+import { HyperliquidNormalizer } from 'pd-aio-sdk/adapters/hyperliquid';
+
+const normalizer = new HyperliquidNormalizer();
+const unifiedSymbol = normalizer.normalizeSymbol('BTC-PERP');
+// 반환: 'BTC/USDT:USDT'
+```
+
 ### 헥사고날 아키텍처
 
 ```
@@ -328,11 +368,14 @@ console.log('캐시 적중률:', health.cache.hitRate);
 
 ### 핵심 컴포넌트
 
-- **Adapters** - 거래소별 구현체
+- **Adapters** - 거래소별 구현체 (Pattern A)
+- **Normalizers** - 데이터 변환 클래스 (7개 어댑터 모두)
 - **Core** - 속도 제한, 재시도 로직, 로깅, 헬스 체크
 - **WebSocket** - 연결 관리, 자동 재연결
-- **Utils** - 심볼 정규화, 검증, 헬퍼 함수
+- **Utils** - 심볼 헬퍼, 검증, 에러 매핑
 - **Types** - 통합 데이터 구조, 에러 계층
+
+**자세히 알아보기**: 상세한 아키텍처 문서는 [ARCHITECTURE.md](./ARCHITECTURE.md)를 참조하세요
 
 ---
 
@@ -411,9 +454,17 @@ MIT License - 자세한 내용은 [LICENSE](./LICENSE) 파일을 참조하세요
 
 ## 🔗 링크
 
-- **문서**: [전체 API 문서](./docs)
+### 문서
+- **아키텍처**: [ARCHITECTURE.md](./ARCHITECTURE.md) - 상세한 아키텍처 가이드
+- **API 레퍼런스**: [API.md](./API.md) - 완전한 API 문서
+- **어댑터 가이드**: [ADAPTER_GUIDE.md](./ADAPTER_GUIDE.md) - 새 거래소 추가 가이드
+- **기여하기**: [CONTRIBUTING.md](./CONTRIBUTING.md) - 개발 가이드라인
+- **변경 이력**: [CHANGELOG.md](./CHANGELOG.md) - 버전 히스토리
 - **영문 문서**: [English Documentation](./README.md)
-- **변경 이력**: [CHANGELOG.md](./CHANGELOG.md)
+
+### 리소스
+- **거래소 가이드**: [docs/guides/](./docs/guides/) - 거래소별 문서
+- **예제**: [examples/](./examples/) - 즉시 사용 가능한 코드 예제
 - **API 감사**: [API 구현 감사](./API_IMPLEMENTATION_AUDIT.md)
 
 ---

@@ -139,43 +139,86 @@ npm run test:coverage
 
 ## 🏗️ Adding New Exchange Adapters
 
-If you want to add support for a new exchange:
+If you want to add support for a new exchange, we follow **Pattern A** (Full-Featured) architecture for consistency across all adapters.
+
+For detailed step-by-step instructions, see **[ADAPTER_GUIDE.md](./ADAPTER_GUIDE.md)**.
+
+### Quick Overview
 
 1. **Check feasibility**
    - Does the exchange have a public API?
    - Is there documentation available?
    - Does it support perpetual contracts?
+   - Is testnet available for testing?
 
-2. **Create adapter structure**
+2. **Create adapter structure (Pattern A)**
    ```
    src/adapters/yourexchange/
-   ├── YourExchangeAdapter.ts  # Main adapter class
-   ├── constants.ts            # API URLs, limits, etc.
-   ├── types.ts                # TypeScript types & Zod schemas
-   ├── utils.ts                # Helper functions
-   └── index.ts                # Public exports
+   ├── YourExchangeAdapter.ts     # Main adapter implementation
+   ├── YourExchangeNormalizer.ts  # Data transformation class (REQUIRED)
+   ├── YourExchangeAuth.ts        # Authentication class (if complex auth)
+   ├── utils.ts                   # Helper functions only
+   ├── constants.ts               # API URLs, rate limits, etc.
+   ├── types.ts                   # TypeScript types & Zod schemas
+   └── index.ts                   # Public exports
    ```
 
-3. **Implement IExchangeAdapter interface**
+   **Pattern A Requirements:**
+   - ✅ Dedicated Normalizer class for all data transformations
+   - ✅ Utils file contains ONLY helper functions (no normalization)
+   - ✅ Adapter uses normalizer instance (`this.normalizer.normalizeX()`)
+   - ✅ Separate Auth class for complex authentication flows
+
+3. **Implement required classes**
+
+   **YourExchangeNormalizer.ts** (REQUIRED):
+   - `normalizeSymbol()` - Exchange format → unified format
+   - `toExchangeSymbol()` - Unified format → exchange format
+   - `normalizeMarket()`, `normalizeOrder()`, `normalizePosition()`
+   - `normalizeBalance()`, `normalizeOrderBook()`, `normalizeTrade()`
+   - `normalizeTicker()`, `normalizeFundingRate()`
+
+   **YourExchangeAdapter.ts**:
+   - Implement `IExchangeAdapter` interface
+   - Use normalizer instance for all transformations
    - Market data methods (fetchMarkets, fetchOrderBook, etc.)
    - Trading methods (createOrder, cancelOrder, etc.)
    - Account methods (fetchBalance, fetchPositions)
    - WebSocket methods (optional but recommended)
+
+   **utils.ts** (Helper functions only):
+   - Order request conversions
+   - Error mapping functions
+   - Exchange-specific utilities
+   - NO normalization functions (use Normalizer class)
 
 4. **Add to factory**
    - Update `src/factory.ts`
    - Add to `SupportedExchange` type
    - Add to `ExchangeConfigMap`
 
-5. **Add tests**
-   - Unit tests for utilities
-   - Integration tests for adapter
-   - Minimum 50+ tests
+5. **Add comprehensive tests**
+   - Unit tests for Normalizer class (10+ tests)
+   - Unit tests for utility functions
+   - Integration tests for adapter (30+ tests)
+   - Auth tests if complex authentication
+   - **Minimum 50+ tests total**
 
 6. **Update documentation**
-   - Add to README.md
-   - Add to .env.example
+   - Add to README.md (Supported Exchanges table)
+   - Add to .env.example (credentials template)
+   - Create exchange guide in `docs/guides/yourexchange.md`
    - Update CHANGELOG.md
+   - Update API.md with adapter details
+
+### Pattern A Benefits
+
+- **Consistency**: All 7 existing adapters follow Pattern A
+- **Testability**: Normalizer can be tested independently
+- **Maintainability**: Clear separation of concerns
+- **Reusability**: Normalizer can be used directly by users
+
+See **[ARCHITECTURE.md](./ARCHITECTURE.md)** for detailed architecture documentation.
 
 ## 📚 Documentation
 

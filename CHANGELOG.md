@@ -13,6 +13,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Architecture - Pattern A Standardization (5-Week Project)
+
+All **7 exchange adapters** have been standardized to **Pattern A** (Full-Featured) architecture, providing consistent structure, enhanced testability, and improved maintainability across the entire SDK.
+
+**Pattern A Benefits:**
+- ✅ Dedicated Normalizer classes for all data transformations
+- ✅ Clean separation of concerns (Adapter, Normalizer, Auth, Utils)
+- ✅ Consistent file structure across all 7 adapters
+- ✅ Enhanced testability with isolated unit tests
+- ✅ Normalizers can be used directly by SDK users
+
+**Project Timeline:**
+- **Week 1**: Validated existing Pattern A adapters (Paradex, GRVT, Nado)
+- **Week 2**: Comprehensive testing for Hyperliquid (1332 lines, 77 tests)
+- **Week 3**: Refactored Hyperliquid from Pattern C → Pattern A
+- **Week 4**: Refactored EdgeX and Backpack to Pattern A
+- **Week 5**: Refactored Lighter to Pattern A
+
+**New Normalizer Classes Created:**
+- `HyperliquidNormalizer` (498 lines) - Symbol format: `BTC-PERP` ↔ `BTC/USDT:USDT`
+- `EdgeXNormalizer` (308 lines) - Symbol format: `BTC-USDC-PERP` ↔ `BTC/USDC:USDC`
+- `BackpackNormalizer` (325 lines) - Symbol format: `BTCUSDT_PERP` ↔ `BTC/USDT:USDT`
+- `LighterNormalizer` (235 lines) - Symbol format: `BTC-USDT-PERP` ↔ `BTC/USDT:USDT`
+
+**Utils Files Refactored:**
+- Hyperliquid: 456 → 132 lines (71% reduction)
+- EdgeX: 380 → 79 lines (79% reduction)
+- Backpack: 396 → 93 lines (77% reduction)
+- Lighter: 353 → 115 lines (67% reduction)
+- **Total removed**: ~1,200 lines of normalization logic migrated to Normalizer classes
+
+**Test Coverage:**
+- 158 tests for Hyperliquid (77 unit + 32 auth + 49 integration)
+- 10 tests for EdgeX
+- 11 tests for Backpack
+- Lighter: 0 tests (no test files exist, verified via TypeScript compilation)
+- **Total**: 316+ tests passing, 0 TypeScript errors
+
+**Adapters Now Using Pattern A:**
+1. Hyperliquid ✅ (refactored Week 3)
+2. Paradex ✅ (already Pattern A)
+3. GRVT ✅ (already Pattern A)
+4. Nado ✅ (already Pattern A)
+5. EdgeX ✅ (refactored Week 4)
+6. Backpack ✅ (refactored Week 4)
+7. Lighter ✅ (refactored Week 5)
+
+**New Comprehensive Documentation:**
+- **ARCHITECTURE.md** (720 lines) - Hexagonal architecture deep dive, Pattern A vs Pattern C comparison, standardization timeline, design decisions, testing strategy, migration guide
+- **API.md** (936 lines) - Complete API reference for all 7 adapters, Normalizer classes, types, examples, best practices
+- **ADAPTER_GUIDE.md** (762 lines) - Step-by-step guide for adding new exchanges with Pattern A structure, file-by-file implementation, testing requirements, common pitfalls
+- **Updated CONTRIBUTING.md** - Pattern A architecture requirements for new adapters
+- **Updated README.md** - Pattern A architecture explanation and links to new documentation
+
+**Public API Enhancements:**
+```typescript
+// Normalizers can now be used directly
+import { HyperliquidNormalizer } from 'pd-aio-sdk/adapters/hyperliquid';
+
+const normalizer = new HyperliquidNormalizer();
+const unifiedSymbol = normalizer.normalizeSymbol('BTC-PERP');
+// Returns: 'BTC/USDT:USDT'
+```
+
+**Code Metrics:**
+- Normalizer code created: 1,366 lines across 4 new classes
+- Utils reduction: ~1,200 lines removed
+- Documentation added: 2,418 lines (ARCHITECTURE.md + API.md + ADAPTER_GUIDE.md)
+- TypeScript compilation: 0 errors
+- Architecture: 100% consistent Pattern A implementation across all adapters
+
+### Changed
+
+#### Architecture Refactoring
+- **All adapters** now follow consistent Pattern A structure
+- **Utils files** simplified to contain ONLY helper functions (no normalization)
+- **Normalizer classes** handle all data transformations independently
+- **Adapter classes** use normalizer instances (`this.normalizer.normalizeX()`)
+- **Test structure** reorganized for better coverage of Normalizer classes
+
+### Fixed
+- Hyperliquid: Removed non-existent `feeToken` property from `normalizeFill` method
+- EdgeX: Fixed TypeScript implicit 'any' errors in `.map()` calls with type annotations
+- Backpack: Consistent arrow functions in `.map()` for better type safety
+- Lighter: Fixed AuthError import → InvalidSignatureError (AuthError doesn't exist in errors module)
+- All adapters: Consistent use of `(item: any) => this.normalizer.normalizeItem(item)` pattern
+
+### Breaking Changes
+**None.** Pattern A standardization is an internal architecture change. All public APIs remain unchanged.
+
+**For SDK users:**
+- All existing code continues to work without modification
+- Adapter methods maintain identical signatures and behavior
+- New feature: Normalizers can now be imported and used directly
+
+**For contributors:**
+- New adapters MUST follow Pattern A architecture (see ADAPTER_GUIDE.md)
+- Dedicated Normalizer class is now required for all adapters
+- Utils files should contain ONLY helper functions
+
 #### Exchange Support
 - **Nado Adapter** - 7th supported exchange
   - Built on Ink L2 by Kraken team

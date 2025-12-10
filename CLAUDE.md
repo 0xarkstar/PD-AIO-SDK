@@ -7,14 +7,108 @@ Unified TypeScript SDK for decentralized perpetual exchanges. Supports 7+ platfo
 
 ### Hexagonal Architecture Pattern
 - **Core Domain**: Pure business logic, no external dependencies
-- **Adapters Layer**: Exchange-specific implementations
+- **Adapters Layer**: Exchange-specific implementations using Pattern A
 - **Infrastructure**: WebSocket, rate limiting, authentication
+
+### Pattern A (Full-Featured) Architecture
+All 7 exchange adapters follow **Pattern A** for consistency and maintainability.
+
+**File Structure (9-11 files per adapter):**
+```
+src/adapters/{exchange}/
+├── {Exchange}Adapter.ts       # Main adapter (400-600 lines)
+├── {Exchange}Normalizer.ts    # Data transformation (300-500 lines) - REQUIRED
+├── {Exchange}Auth.ts          # Authentication (200-400 lines, if complex)
+├── utils.ts                   # Helper functions ONLY (80-150 lines)
+├── constants.ts               # API URLs, rate limits
+├── types.ts                   # TypeScript types + Zod schemas
+└── index.ts                   # Public exports
+```
+
+**Key Principles:**
+1. **Normalizer Class (REQUIRED)**: All data transformations in dedicated class
+   - Symbol format conversion
+   - Exchange-specific → unified format mapping
+   - Can be used independently by SDK users
+2. **Utils File**: Contains ONLY helper functions (NO normalization)
+   - Order request conversions
+   - Error mapping
+   - Exchange-specific utilities
+3. **Adapter Class**: Uses normalizer instance for all transformations
+   - `this.normalizer.normalizeX()` pattern
+4. **Separation of Concerns**: Clear boundaries between components
 
 ### Key Design Principles
 1. **Adapter Pattern**: Each exchange implements `IExchangeAdapter` interface
-2. **Feature Detection**: Capability-based runtime checks (CCXT style)
-3. **Error Normalization**: Platform-specific errors mapped to unified hierarchy
-4. **Type Safety**: Zod runtime validation + TypeScript strict mode
+2. **Pattern A Architecture**: Dedicated Normalizer classes for all transformations
+3. **Feature Detection**: Capability-based runtime checks (CCXT style)
+4. **Error Normalization**: Platform-specific errors mapped to unified hierarchy
+5. **Type Safety**: Zod runtime validation + TypeScript strict mode
+
+## Normalizer Conventions
+
+### Required Methods
+Every Normalizer class must implement these methods:
+```typescript
+class ExchangeNormalizer {
+  // Symbol conversion (REQUIRED)
+  normalizeSymbol(exchangeSymbol: string): string;      // Exchange → Unified
+  toExchangeSymbol(symbol: string): string;             // Unified → Exchange
+
+  // Market data normalization (REQUIRED)
+  normalizeMarket(exchangeMarket: any): Market;
+  normalizeOrder(exchangeOrder: any): Order;
+  normalizePosition(exchangePosition: any): Position;
+  normalizeBalance(exchangeBalance: any): Balance;
+  normalizeOrderBook(exchangeOrderBook: any): OrderBook;
+  normalizeTrade(exchangeTrade: any): Trade;
+  normalizeTicker(exchangeTicker: any): Ticker;
+  normalizeFundingRate(exchangeFunding: any): FundingRate;
+}
+```
+
+### Private Helper Methods
+Use private methods for internal transformations:
+```typescript
+private normalizeOrderType(exchangeType: string): OrderType;
+private normalizeOrderSide(exchangeSide: string): OrderSide;
+private normalizeOrderStatus(exchangeStatus: string): OrderStatus;
+private normalizeTimeInForce(exchangeTif: string): TimeInForce;
+private countDecimals(value: string): number;
+```
+
+### Usage in Adapter
+Always use normalizer instance in adapter:
+```typescript
+class ExchangeAdapter implements IExchangeAdapter {
+  private normalizer: ExchangeNormalizer;
+
+  constructor(config: Config) {
+    this.normalizer = new ExchangeNormalizer();
+  }
+
+  async fetchMarkets(): Promise<Market[]> {
+    const response = await this.request('GET', '/markets');
+    // Use normalizer for transformation
+    return response.map((m: any) => this.normalizer.normalizeMarket(m));
+  }
+
+  symbolToExchange(symbol: string): string {
+    return this.normalizer.toExchangeSymbol(symbol);
+  }
+}
+```
+
+### Common Pitfall: Arrow Functions in .map()
+❌ **Wrong** - loses 'this' context:
+```typescript
+response.map(this.normalizer.normalizeOrder)
+```
+
+✅ **Correct** - preserves context:
+```typescript
+response.map((order: any) => this.normalizer.normalizeOrder(order))
+```
 
 ## Code Style Conventions
 

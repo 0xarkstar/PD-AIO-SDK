@@ -547,4 +547,495 @@ describe('GRVT WebSocket Wrapper Tests', () => {
       expect(results[2].id).toBe('trade-3');
     });
   });
+
+  describe('Edge Cases', () => {
+    describe('Connection Errors', () => {
+      it('should handle connection timeout', async () => {
+        mockWS.ready.mockRejectedValue(new Error('Connection timeout'));
+
+        await expect(wrapper.connect()).rejects.toThrow('Connection timeout');
+      });
+
+      it('should handle connection refused', async () => {
+        mockWS.connect.mockImplementation(() => {
+          throw new Error('ECONNREFUSED');
+        });
+
+        await expect(wrapper.connect()).rejects.toThrow('ECONNREFUSED');
+      });
+
+      it('should handle error callback during streaming', () => {
+        const testError = new Error('WebSocket connection lost');
+        errorCallback(testError);
+
+        // Error should be logged but not crash
+        expect(wrapper.connected).toBe(false);
+      });
+    });
+
+    describe('Malformed Data Handling', () => {
+      it('should handle malformed order book data', async () => {
+        const malformedOrderBook = {
+          instrument: 'BTC-PERP',
+          // Missing required fields (bids, asks)
+          event_time: '123',
+        };
+
+        let onDataCallback: (data: any) => void;
+
+        mockWS.subscribe.mockImplementation((request: any) => {
+          onDataCallback = request.onData;
+          setTimeout(() => onDataCallback(malformedOrderBook), 50);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapper.watchOrderBook('BTC/USDT:USDT');
+        const { value } = await generator.next();
+        await generator.return(undefined);
+
+        // Should handle gracefully with empty arrays
+        expect(value?.bids).toHaveLength(0);
+        expect(value?.asks).toHaveLength(0);
+      });
+
+      it('should handle invalid price in trade data', async () => {
+        const invalidTrade: ITrade = {
+          trade_id: 'trade-123',
+          instrument: 'BTC-PERP',
+          price: 'invalid', // Invalid number
+          size: '1.0',
+          is_taker_buyer: true,
+          event_time: '123',
+        };
+
+        let onDataCallback: (data: ITrade) => void;
+
+        mockWS.subscribe.mockImplementation((request: any) => {
+          onDataCallback = request.onData;
+          setTimeout(() => onDataCallback(invalidTrade), 50);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapper.watchTrades('BTC/USDT:USDT');
+
+        // Should throw validation error for invalid data
+        await expect(generator.next()).rejects.toThrow('Invalid number conversion');
+      });
+    });
+
+    describe('Symbol Normalization Edge Cases', () => {
+      it('should handle symbols with special characters', async () => {
+        mockWS.subscribe.mockImplementation((request: any) => {
+          expect(request.params.instrument).toBe('1INCH-PERP');
+          setTimeout(() => {
+            request.onData({
+              instrument: '1INCH-PERP',
+              bids: [],
+              asks: [],
+              event_time: '123',
+            });
+          }, 10);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapper.watchOrderBook('1INCH/USDT:USDT');
+        const nextPromise = generator.next();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await generator.return(undefined);
+
+        expect(mockWS.subscribe).toHaveBeenCalled();
+      });
+
+      it('should normalize symbols with hyphens', async () => {
+        mockWS.subscribe.mockImplementation((request: any) => {
+          // BTC-USD should become BTC-PERP
+          setTimeout(() => {
+            request.onData({
+              instrument: request.params.instrument,
+              bids: [],
+              asks: [],
+              event_time: '123',
+            });
+          }, 10);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapper.watchOrderBook('BTC/USDT:USDT');
+
+        // Start the generator to trigger subscribe
+        const nextPromise = generator.next();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await generator.return(undefined);
+
+        // Verify subscribe was called with correct instrument
+        expect(mockWS.subscribe).toHaveBeenCalled();
+        const callArgs = (mockWS.subscribe as jest.Mock).mock.calls;
+        if (callArgs.length > 0) {
+          expect(callArgs[0][0].params.instrument).toBe('BTC-PERP');
+        }
+      });
+    });
+
+    describe('Position Edge Cases', () => {
+      it('should handle short positions', async () => {
+        const wrapperWithSubAccount = new GRVTWebSocketWrapper({
+          testnet: true,
+          subAccountId: 'sub-123',
+        });
+
+        const mockWS2 = (wrapperWithSubAccount as any).ws as jest.Mocked<WS>;
+
+        const shortPosition: IPositions = {
+          instrument: 'ETH-PERP',
+          size: '-3.5', // Negative = short
+          entry_price: '3000',
+          mark_price: '2900',
+          notional: '-10150',
+          unrealized_pnl: '350', // Profit on short
+          realized_pnl: '100',
+          leverage: '5',
+        };
+
+        let onDataCallback: (data: IPositions) => void;
+
+        mockWS2.subscribe.mockImplementation((request: any) => {
+          onDataCallback = request.onData;
+          setTimeout(() => onDataCallback(shortPosition), 50);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapperWithSubAccount.watchPositions();
+        const { value } = await generator.next();
+        await generator.return(undefined);
+
+        expect(value?.side).toBe('short');
+        expect(value?.size).toBe(3.5); // Absolute value
+        expect(value?.unrealizedPnl).toBe(350);
+      });
+
+      it('should handle zero/closed positions', async () => {
+        const wrapperWithSubAccount = new GRVTWebSocketWrapper({
+          testnet: true,
+          subAccountId: 'sub-123',
+        });
+
+        const mockWS2 = (wrapperWithSubAccount as any).ws as jest.Mocked<WS>;
+
+        const closedPosition: IPositions = {
+          instrument: 'BTC-PERP',
+          size: '0', // Closed position
+          entry_price: '0',
+          mark_price: '50000',
+          notional: '0',
+          unrealized_pnl: '0',
+          realized_pnl: '1500', // Total realized
+          leverage: '0',
+        };
+
+        let onDataCallback: (data: IPositions) => void;
+
+        mockWS2.subscribe.mockImplementation((request: any) => {
+          onDataCallback = request.onData;
+          setTimeout(() => onDataCallback(closedPosition), 50);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapperWithSubAccount.watchPositions();
+        const { value } = await generator.next();
+        await generator.return(undefined);
+
+        expect(value?.size).toBe(0);
+        // When size is 0, side is determined by entry_price (0 defaults to short)
+        expect(['long', 'short']).toContain(value?.side);
+      });
+    });
+
+    describe('Order Status Edge Cases', () => {
+      it('should handle partially filled orders', async () => {
+        const wrapperWithSubAccount = new GRVTWebSocketWrapper({
+          testnet: true,
+          subAccountId: 'sub-123',
+        });
+
+        const mockWS2 = (wrapperWithSubAccount as any).ws as jest.Mocked<WS>;
+
+        const partialOrder: IOrder = {
+          order_id: 'order-456',
+          is_market: false,
+          legs: [
+            {
+              instrument: 'ETH-PERP',
+              size: '10.0',
+              limit_price: '3000',
+              is_buying_asset: false,
+            },
+          ],
+          state: {
+            status: 'PARTIAL',
+            traded_size: ['3.5'], // 3.5/10 filled
+            book_size: ['6.5'], // 6.5 remaining
+          },
+        };
+
+        let onDataCallback: (data: IOrder) => void;
+
+        mockWS2.subscribe.mockImplementation((request: any) => {
+          onDataCallback = request.onData;
+          setTimeout(() => onDataCallback(partialOrder), 50);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapperWithSubAccount.watchOrders();
+        const { value } = await generator.next();
+        await generator.return(undefined);
+
+        expect(value?.status).toBe('open'); // PARTIAL mapped to open
+        expect(value?.side).toBe('sell');
+        expect(value?.amount).toBe(10.0);
+      });
+
+      it('should handle cancelled orders', async () => {
+        const wrapperWithSubAccount = new GRVTWebSocketWrapper({
+          testnet: true,
+          subAccountId: 'sub-123',
+        });
+
+        const mockWS2 = (wrapperWithSubAccount as any).ws as jest.Mocked<WS>;
+
+        const cancelledOrder: IOrder = {
+          order_id: 'order-789',
+          is_market: false,
+          legs: [
+            {
+              instrument: 'BTC-PERP',
+              size: '2.0',
+              limit_price: '49000',
+              is_buying_asset: true,
+            },
+          ],
+          state: {
+            status: 'CANCELLED',
+            traded_size: ['0'],
+            book_size: ['0'],
+          },
+        };
+
+        let onDataCallback: (data: IOrder) => void;
+
+        mockWS2.subscribe.mockImplementation((request: any) => {
+          onDataCallback = request.onData;
+          setTimeout(() => onDataCallback(cancelledOrder), 50);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapperWithSubAccount.watchOrders();
+        const { value } = await generator.next();
+        await generator.return(undefined);
+
+        expect(value?.status).toBe('canceled');
+      });
+
+      it('should handle rejected orders', async () => {
+        const wrapperWithSubAccount = new GRVTWebSocketWrapper({
+          testnet: true,
+          subAccountId: 'sub-123',
+        });
+
+        const mockWS2 = (wrapperWithSubAccount as any).ws as jest.Mocked<WS>;
+
+        const rejectedOrder: IOrder = {
+          order_id: 'order-999',
+          is_market: true,
+          legs: [
+            {
+              instrument: 'SOL-PERP',
+              size: '100.0',
+              is_buying_asset: true,
+            },
+          ],
+          state: {
+            status: 'REJECTED',
+            traded_size: ['0'],
+            book_size: ['0'],
+          },
+        };
+
+        let onDataCallback: (data: IOrder) => void;
+
+        mockWS2.subscribe.mockImplementation((request: any) => {
+          onDataCallback = request.onData;
+          setTimeout(() => onDataCallback(rejectedOrder), 50);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapperWithSubAccount.watchOrders();
+        const { value } = await generator.next();
+        await generator.return(undefined);
+
+        expect(value?.status).toBe('rejected');
+        expect(value?.type).toBe('market');
+      });
+    });
+
+    describe('OrderBook Edge Cases', () => {
+      it('should handle empty order book', async () => {
+        const emptyOrderBook: IOrderbookLevels = {
+          instrument: 'BTC-PERP',
+          bids: [],
+          asks: [],
+          event_time: '123',
+        };
+
+        let onDataCallback: (data: IOrderbookLevels) => void;
+
+        mockWS.subscribe.mockImplementation((request: any) => {
+          onDataCallback = request.onData;
+          setTimeout(() => onDataCallback(emptyOrderBook), 50);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapper.watchOrderBook('BTC/USDT:USDT');
+        const { value } = await generator.next();
+        await generator.return(undefined);
+
+        expect(value?.bids).toHaveLength(0);
+        expect(value?.asks).toHaveLength(0);
+      });
+
+      it('should handle order book with only bids', async () => {
+        const bidsOnlyOrderBook: IOrderbookLevels = {
+          instrument: 'ETH-PERP',
+          bids: [
+            { price: '3000', size: '5.0', num_orders: 2 },
+          ],
+          asks: [],
+          event_time: '123',
+        };
+
+        let onDataCallback: (data: IOrderbookLevels) => void;
+
+        mockWS.subscribe.mockImplementation((request: any) => {
+          onDataCallback = request.onData;
+          setTimeout(() => onDataCallback(bidsOnlyOrderBook), 50);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapper.watchOrderBook('ETH/USDT:USDT');
+        const { value } = await generator.next();
+        await generator.return(undefined);
+
+        expect(value?.bids).toHaveLength(1);
+        expect(value?.asks).toHaveLength(0);
+      });
+    });
+
+    describe('Trade Side Edge Cases', () => {
+      it('should handle sell-side trades', async () => {
+        const sellTrade: ITrade = {
+          trade_id: 'trade-sell',
+          instrument: 'ETH-PERP',
+          price: '3000',
+          size: '2.5',
+          is_taker_buyer: false, // Taker is seller
+          event_time: '123',
+        };
+
+        let onDataCallback: (data: ITrade) => void;
+
+        mockWS.subscribe.mockImplementation((request: any) => {
+          onDataCallback = request.onData;
+          setTimeout(() => onDataCallback(sellTrade), 50);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapper.watchTrades('ETH/USDT:USDT');
+        const { value } = await generator.next();
+        await generator.return(undefined);
+
+        expect(value?.side).toBe('sell');
+      });
+
+      it('should handle zero-size trades', async () => {
+        const zeroTrade: ITrade = {
+          trade_id: 'trade-zero',
+          instrument: 'BTC-PERP',
+          price: '50000',
+          size: '0',
+          is_taker_buyer: true,
+          event_time: '123',
+        };
+
+        let onDataCallback: (data: ITrade) => void;
+
+        mockWS.subscribe.mockImplementation((request: any) => {
+          onDataCallback = request.onData;
+          setTimeout(() => onDataCallback(zeroTrade), 50);
+          return 'sub-key-1';
+        });
+
+        const generator = wrapper.watchTrades('BTC/USDT:USDT');
+        const { value } = await generator.next();
+        await generator.return(undefined);
+
+        expect(value?.amount).toBe(0);
+      });
+    });
+
+    describe('Resource Cleanup', () => {
+      it('should cleanup multiple concurrent streams', async () => {
+        let subscriptionCount = 0;
+
+        mockWS.subscribe.mockImplementation((request: any) => {
+          subscriptionCount++;
+          const subKey = `sub-${subscriptionCount}`;
+          setTimeout(() => {
+            request.onData({
+              instrument: request.params.instrument,
+              bids: [],
+              asks: [],
+              event_time: '123',
+            });
+          }, 10);
+          return subKey;
+        });
+
+        // Start 3 concurrent streams
+        const gen1 = wrapper.watchOrderBook('BTC/USDT:USDT');
+        const gen2 = wrapper.watchOrderBook('ETH/USDT:USDT');
+        const gen3 = wrapper.watchOrderBook('SOL/USDT:USDT');
+
+        // Consume one value from each to start subscriptions
+        const promises = [gen1.next(), gen2.next(), gen3.next()];
+        await Promise.all(promises);
+
+        // Close all streams
+        await gen1.return(undefined);
+        await gen2.return(undefined);
+        await gen3.return(undefined);
+
+        // All subscriptions should be cleaned up
+        expect(mockWS.unsubscribe).toHaveBeenCalledTimes(3);
+        expect(mockWS.unsubscribe).toHaveBeenCalledWith('sub-1');
+        expect(mockWS.unsubscribe).toHaveBeenCalledWith('sub-2');
+        expect(mockWS.unsubscribe).toHaveBeenCalledWith('sub-3');
+      });
+
+      it('should cleanup on error', async () => {
+        let onErrorCallback: (error: Error) => void;
+
+        mockWS.subscribe.mockImplementation((request: any) => {
+          onErrorCallback = request.onError;
+          setTimeout(() => onErrorCallback(new Error('Fatal error')), 50);
+          return 'sub-error';
+        });
+
+        const generator = wrapper.watchOrderBook('BTC/USDT:USDT');
+
+        await expect(generator.next()).rejects.toThrow('Fatal error');
+
+        // Should still unsubscribe on error
+        expect(mockWS.unsubscribe).toHaveBeenCalledWith('sub-error');
+      });
+    });
+  });
 });

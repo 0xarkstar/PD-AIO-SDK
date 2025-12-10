@@ -22,20 +22,8 @@ import type { FeatureMap } from '../../types/adapter.js';
 import { PerpDEXError, InvalidOrderError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { LIGHTER_API_URLS, LIGHTER_RATE_LIMITS, LIGHTER_ENDPOINT_WEIGHTS } from './constants.js';
-import {
-  toLighterSymbol,
-  normalizeSymbol,
-  normalizeMarket,
-  normalizeOrder,
-  normalizePosition,
-  normalizeBalance,
-  normalizeOrderBook,
-  normalizeTrade,
-  normalizeTicker,
-  normalizeFundingRate,
-  convertOrderRequest,
-  mapError,
-} from './utils.js';
+import { LighterNormalizer } from './LighterNormalizer.js';
+import { convertOrderRequest, mapError } from './utils.js';
 import type {
   LighterMarket,
   LighterOrder,
@@ -93,6 +81,7 @@ export class LighterAdapter extends BaseAdapter {
   private readonly apiKey?: string;
   private readonly apiSecret?: string;
   protected readonly rateLimiter: RateLimiter;
+  private normalizer: LighterNormalizer;
 
   constructor(config: LighterConfig = {}) {
     super(config);
@@ -104,6 +93,9 @@ export class LighterAdapter extends BaseAdapter {
     this.wsUrl = urls.websocket;
     this.apiKey = config.apiKey;
     this.apiSecret = config.apiSecret;
+
+    // Initialize normalizer
+    this.normalizer = new LighterNormalizer();
 
     const tier = config.rateLimitTier ?? 'tier1';
     const limits = LIGHTER_RATE_LIMITS[tier];
@@ -136,7 +128,7 @@ export class LighterAdapter extends BaseAdapter {
         throw new PerpDEXError('Invalid markets response', 'INVALID_RESPONSE', 'lighter');
       }
 
-      return response.map(normalizeMarket);
+      return response.map((market: any) => this.normalizer.normalizeMarket(market));
     } catch (error) {
       throw mapError(error);
     }
@@ -146,10 +138,10 @@ export class LighterAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('fetchTicker');
 
     try {
-      const lighterSymbol = toLighterSymbol(symbol);
+      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
       const response = await this.request<LighterTicker>('GET', `/ticker/${lighterSymbol}`);
 
-      return normalizeTicker(response);
+      return this.normalizer.normalizeTicker(response);
     } catch (error) {
       throw mapError(error);
     }
@@ -159,10 +151,10 @@ export class LighterAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('fetchOrderBook');
 
     try {
-      const lighterSymbol = toLighterSymbol(symbol);
+      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
       const response = await this.request<LighterOrderBook>('GET', `/orderbook/${lighterSymbol}`);
 
-      return normalizeOrderBook(response);
+      return this.normalizer.normalizeOrderBook(response);
     } catch (error) {
       throw mapError(error);
     }
@@ -172,7 +164,7 @@ export class LighterAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('fetchTrades');
 
     try {
-      const lighterSymbol = toLighterSymbol(symbol);
+      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
       const limit = params?.limit || 100;
       const response = await this.request<LighterTrade[]>(
         'GET',
@@ -183,7 +175,7 @@ export class LighterAdapter extends BaseAdapter {
         throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'lighter');
       }
 
-      return response.map(normalizeTrade);
+      return response.map((trade: any) => this.normalizer.normalizeTrade(trade));
     } catch (error) {
       throw mapError(error);
     }
@@ -193,10 +185,10 @@ export class LighterAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('fetchFundingRate');
 
     try {
-      const lighterSymbol = toLighterSymbol(symbol);
+      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
       const response = await this.request<LighterFundingRate>('GET', `/funding/${lighterSymbol}`);
 
-      return normalizeFundingRate(response);
+      return this.normalizer.normalizeFundingRate(response);
     } catch (error) {
       throw mapError(error);
     }
@@ -224,12 +216,12 @@ export class LighterAdapter extends BaseAdapter {
     }
 
     try {
-      const lighterSymbol = toLighterSymbol(request.symbol);
+      const lighterSymbol = this.normalizer.toLighterSymbol(request.symbol);
       const orderRequest = convertOrderRequest(request, lighterSymbol);
 
       const response = await this.request<LighterOrder>('POST', '/orders', orderRequest);
 
-      return normalizeOrder(response);
+      return this.normalizer.normalizeOrder(response);
     } catch (error) {
       throw mapError(error);
     }
@@ -249,7 +241,7 @@ export class LighterAdapter extends BaseAdapter {
     try {
       const response = await this.request<LighterOrder>('DELETE', `/orders/${orderId}`);
 
-      return normalizeOrder(response);
+      return this.normalizer.normalizeOrder(response);
     } catch (error) {
       throw mapError(error);
     }
@@ -267,14 +259,14 @@ export class LighterAdapter extends BaseAdapter {
     }
 
     try {
-      const path = symbol ? `/orders?symbol=${toLighterSymbol(symbol)}` : '/orders';
+      const path = symbol ? `/orders?symbol=${this.normalizer.toLighterSymbol(symbol)}` : '/orders';
       const response = await this.request<LighterOrder[]>('DELETE', path);
 
       if (!Array.isArray(response)) {
         return [];
       }
 
-      return response.map(normalizeOrder);
+      return response.map((order: any) => this.normalizer.normalizeOrder(order));
     } catch (error) {
       throw mapError(error);
     }
@@ -298,7 +290,7 @@ export class LighterAdapter extends BaseAdapter {
         throw new PerpDEXError('Invalid positions response', 'INVALID_RESPONSE', 'lighter');
       }
 
-      let positions = response.map(normalizePosition);
+      let positions = response.map((position: any) => this.normalizer.normalizePosition(position));
 
       // Filter by symbols if provided
       if (symbols && symbols.length > 0) {
@@ -329,7 +321,7 @@ export class LighterAdapter extends BaseAdapter {
         throw new PerpDEXError('Invalid balance response', 'INVALID_RESPONSE', 'lighter');
       }
 
-      return response.map(normalizeBalance);
+      return response.map((balance: any) => this.normalizer.normalizeBalance(balance));
     } catch (error) {
       throw mapError(error);
     }
@@ -347,14 +339,14 @@ export class LighterAdapter extends BaseAdapter {
     }
 
     try {
-      const path = symbol ? `/orders?symbol=${toLighterSymbol(symbol)}` : '/orders';
+      const path = symbol ? `/orders?symbol=${this.normalizer.toLighterSymbol(symbol)}` : '/orders';
       const response = await this.request<LighterOrder[]>('GET', path);
 
       if (!Array.isArray(response)) {
         throw new PerpDEXError('Invalid open orders response', 'INVALID_RESPONSE', 'lighter');
       }
 
-      return response.map(normalizeOrder);
+      return response.map((order: any) => this.normalizer.normalizeOrder(order));
     } catch (error) {
       throw mapError(error);
     }
@@ -382,7 +374,7 @@ export class LighterAdapter extends BaseAdapter {
 
     try {
       const params = new URLSearchParams();
-      if (symbol) params.append('symbol', toLighterSymbol(symbol));
+      if (symbol) params.append('symbol', this.normalizer.toLighterSymbol(symbol));
       if (since) params.append('startTime', since.toString());
       if (limit) params.append('limit', limit.toString());
 
@@ -396,7 +388,7 @@ export class LighterAdapter extends BaseAdapter {
         throw new PerpDEXError('Invalid order history response', 'INVALID_RESPONSE', 'lighter');
       }
 
-      return response.map(normalizeOrder);
+      return response.map((order: any) => this.normalizer.normalizeOrder(order));
     } catch (error) {
       throw mapError(error);
     }
@@ -418,7 +410,7 @@ export class LighterAdapter extends BaseAdapter {
 
     try {
       const params = new URLSearchParams();
-      if (symbol) params.append('symbol', toLighterSymbol(symbol));
+      if (symbol) params.append('symbol', this.normalizer.toLighterSymbol(symbol));
       if (since) params.append('startTime', since.toString());
       if (limit) params.append('limit', limit.toString());
 
@@ -432,18 +424,18 @@ export class LighterAdapter extends BaseAdapter {
         throw new PerpDEXError('Invalid trade history response', 'INVALID_RESPONSE', 'lighter');
       }
 
-      return response.map(normalizeTrade);
+      return response.map((trade: any) => this.normalizer.normalizeTrade(trade));
     } catch (error) {
       throw mapError(error);
     }
   }
 
   symbolToExchange(symbol: string): string {
-    return toLighterSymbol(symbol);
+    return this.normalizer.toLighterSymbol(symbol);
   }
 
   symbolFromExchange(exchangeSymbol: string): string {
-    return normalizeSymbol(exchangeSymbol);
+    return this.normalizer.normalizeSymbol(exchangeSymbol);
   }
 
   // ==================== Private Helper Methods ====================
