@@ -1,0 +1,222 @@
+groups:
+  - name: perpdex_circuit_breaker
+    interval: 30s
+    rules:
+      - alert: CircuitBreakerOpen
+        expr: perpdex_circuit_breaker_state == 1
+        for: 1m
+        labels:
+          severity: critical
+          component: circuit_breaker
+        annotations:
+          summary: "Circuit breaker OPEN for {{ $labels.exchange }}"
+          description: "Circuit breaker for {{ $labels.exchange }} has been in OPEN state for more than 1 minute. All requests are being rejected."
+
+      - alert: CircuitBreakerFlapping
+        expr: rate(perpdex_circuit_breaker_transitions_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: circuit_breaker
+        annotations:
+          summary: "Circuit breaker flapping for {{ $labels.exchange }}"
+          description: "Circuit breaker for {{ $labels.exchange }} is changing states frequently ({{ $value }} transitions/sec). This indicates instability."
+
+      - alert: HighCircuitBreakerFailureRate
+        expr: |
+          (
+            rate(perpdex_circuit_breaker_failures_total[5m])
+            /
+            (rate(perpdex_circuit_breaker_successes_total[5m]) + rate(perpdex_circuit_breaker_failures_total[5m]))
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: circuit_breaker
+        annotations:
+          summary: "High failure rate through circuit breaker for {{ $labels.exchange }}"
+          description: "Circuit breaker for {{ $labels.exchange }} has a failure rate of {{ $value | humanizePercentage }}. Success rate is below 50%."
+
+  - name: perpdex_requests
+    interval: 30s
+    rules:
+      - alert: HighRequestErrorRate
+        expr: |
+          (
+            rate(perpdex_requests_total{status="error"}[5m])
+            /
+            rate(perpdex_requests_total[5m])
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: requests
+        annotations:
+          summary: "High error rate for {{ $labels.exchange }} {{ $labels.operation }}"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.exchange }} {{ $labels.operation }}. More than 10% of requests are failing."
+
+      - alert: VeryHighRequestErrorRate
+        expr: |
+          (
+            rate(perpdex_requests_total{status="error"}[5m])
+            /
+            rate(perpdex_requests_total[5m])
+          ) > 0.5
+        for: 2m
+        labels:
+          severity: critical
+          component: requests
+        annotations:
+          summary: "Very high error rate for {{ $labels.exchange }} {{ $labels.operation }}"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.exchange }} {{ $labels.operation }}. More than 50% of requests are failing!"
+
+      - alert: SlowRequests
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(perpdex_request_duration_ms_bucket[5m])) by (le, exchange, operation)
+          ) > 5000
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "Slow requests detected for {{ $labels.exchange }} {{ $labels.operation }}"
+          description: "P95 latency is {{ $value }}ms for {{ $labels.exchange }} {{ $labels.operation }}. Requests are taking longer than 5 seconds."
+
+      - alert: VerySlowRequests
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(perpdex_request_duration_ms_bucket[5m])) by (le, exchange, operation)
+          ) > 10000
+        for: 2m
+        labels:
+          severity: critical
+          component: performance
+        annotations:
+          summary: "Very slow requests for {{ $labels.exchange }} {{ $labels.operation }}"
+          description: "P95 latency is {{ $value }}ms for {{ $labels.exchange }} {{ $labels.operation }}. Requests are taking longer than 10 seconds!"
+
+      - alert: NoRequestsReceived
+        expr: rate(perpdex_requests_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: requests
+        annotations:
+          summary: "No requests received for {{ $labels.exchange }}"
+          description: "No requests have been made to {{ $labels.exchange }} in the last 10 minutes. Service may be down or not being used."
+
+  - name: perpdex_websocket
+    interval: 30s
+    rules:
+      - alert: WebSocketDisconnected
+        expr: perpdex_websocket_connections == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: websocket
+        annotations:
+          summary: "WebSocket disconnected for {{ $labels.exchange }}"
+          description: "No active WebSocket connections for {{ $labels.exchange }}. Real-time data may not be available."
+
+      - alert: HighWebSocketReconnectRate
+        expr: rate(perpdex_websocket_reconnects_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: websocket
+        annotations:
+          summary: "High WebSocket reconnect rate for {{ $labels.exchange }}"
+          description: "WebSocket for {{ $labels.exchange }} is reconnecting {{ $value }} times per second. Connection is unstable."
+
+      - alert: WebSocketErrors
+        expr: rate(perpdex_websocket_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: websocket
+        annotations:
+          summary: "WebSocket errors for {{ $labels.exchange }}"
+          description: "WebSocket for {{ $labels.exchange }} is experiencing {{ $value }} errors per second."
+
+  - name: perpdex_orders
+    interval: 30s
+    rules:
+      - alert: HighOrderRejectionRate
+        expr: |
+          (
+            rate(perpdex_order_rejections_total[5m])
+            /
+            rate(perpdex_orders_total[5m])
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: orders
+        annotations:
+          summary: "High order rejection rate for {{ $labels.exchange }}"
+          description: "Order rejection rate is {{ $value | humanizePercentage }} for {{ $labels.exchange }}. More than 20% of orders are being rejected."
+
+      - alert: SlowOrderPlacement
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(perpdex_order_latency_ms_bucket[5m])) by (le, exchange)
+          ) > 2000
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "Slow order placement for {{ $labels.exchange }}"
+          description: "P95 order latency is {{ $value }}ms for {{ $labels.exchange }}. Orders are taking longer than 2 seconds to place."
+
+  - name: perpdex_retry
+    interval: 30s
+    rules:
+      - alert: HighRetryRate
+        expr: |
+          rate(perpdex_retries_total{success="false"}[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: retry
+        annotations:
+          summary: "High retry failure rate for {{ $labels.exchange }} {{ $labels.operation }}"
+          description: "Failed retries are occurring at {{ $value }}/sec for {{ $labels.exchange }} {{ $labels.operation }}. Operations are failing even after retries."
+
+      - alert: ExcessiveRetryAttempts
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(perpdex_retry_attempts_bucket[5m])) by (le, exchange, operation)
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: retry
+        annotations:
+          summary: "Excessive retry attempts for {{ $labels.exchange }} {{ $labels.operation }}"
+          description: "P95 retry attempts is {{ $value }} for {{ $labels.exchange }} {{ $labels.operation }}. Operations are requiring many retries to succeed."
+
+  - name: perpdex_system
+    interval: 30s
+    rules:
+      - alert: MetricsServerDown
+        expr: up{job="perpdex-sdk"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Metrics server is down"
+          description: "The metrics server for Perp DEX SDK is not responding. Monitoring data is unavailable."
+
+      - alert: HighMemoryUsage
+        expr: |
+          (process_resident_memory_bytes / process_virtual_memory_max_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is at {{ $value | humanizePercentage }}. Application may be running out of memory."

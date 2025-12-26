@@ -4,6 +4,7 @@
  * Defines the contract that all exchange adapters must implement
  */
 
+import type { CircuitBreakerConfig } from '../core/CircuitBreaker.js';
 import type {
   Balance,
   FundingRate,
@@ -579,6 +580,9 @@ export interface ExchangeConfig {
 
   /** Custom rate limit settings */
   rateLimit?: RateLimitConfig;
+
+  /** Circuit breaker configuration */
+  circuitBreaker?: CircuitBreakerConfig;
 }
 
 /**

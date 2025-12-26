@@ -35,6 +35,8 @@ import { determineHealthStatus } from '../../types/health.js';
 import type { APIMetrics, EndpointMetrics, MetricsSnapshot } from '../../types/metrics.js';
 import { createMetricsSnapshot } from '../../types/metrics.js';
 import { Logger, LogLevel } from '../../core/logger.js';
+import { CircuitBreaker } from '../../core/CircuitBreaker.js';
+import { PrometheusMetrics, isMetricsInitialized, getMetrics } from '../../monitoring/prometheus.js';
 
 export abstract class BaseAdapter implements IExchangeAdapter {
   abstract readonly id: string;
@@ -47,6 +49,8 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   protected authStrategy?: IAuthStrategy;
   protected rateLimiter?: any; // Rate limiter instance (if used)
   private _logger?: Logger;
+  protected circuitBreaker: CircuitBreaker;
+  protected prometheusMetrics?: PrometheusMetrics;
 
   // Resource tracking
   protected timers: Set<NodeJS.Timeout> = new Set();
@@ -76,6 +80,53 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       debug: false,
       ...config,
     };
+
+    // Initialize Prometheus metrics if available
+    if (isMetricsInitialized()) {
+      this.prometheusMetrics = getMetrics();
+    }
+
+    // Initialize circuit breaker with config or defaults
+    this.circuitBreaker = new CircuitBreaker(config.circuitBreaker);
+
+    // Listen to circuit breaker events for logging and metrics
+    this.circuitBreaker.on('open', () => {
+      this.warn('Circuit breaker OPENED - rejecting requests');
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.updateCircuitBreakerState(this.id, 'OPEN');
+        this.prometheusMetrics.recordCircuitBreakerTransition(this.id, 'CLOSED', 'OPEN');
+      }
+    });
+
+    this.circuitBreaker.on('halfOpen', () => {
+      this.info('Circuit breaker HALF_OPEN - testing recovery');
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.updateCircuitBreakerState(this.id, 'HALF_OPEN');
+        this.prometheusMetrics.recordCircuitBreakerTransition(this.id, 'OPEN', 'HALF_OPEN');
+      }
+    });
+
+    this.circuitBreaker.on('close', () => {
+      this.info('Circuit breaker CLOSED - normal operation resumed');
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.updateCircuitBreakerState(this.id, 'CLOSED');
+        // Could be from OPEN or HALF_OPEN, but we'll use HALF_OPEN as it's the most common path
+        this.prometheusMetrics.recordCircuitBreakerTransition(this.id, 'HALF_OPEN', 'CLOSED');
+      }
+    });
+
+    // Listen to circuit breaker success/failure for metrics
+    this.circuitBreaker.on('success', () => {
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.recordCircuitBreakerSuccess(this.id);
+      }
+    });
+
+    this.circuitBreaker.on('failure', () => {
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.recordCircuitBreakerFailure(this.id);
+      }
+    });
   }
 
   /**
@@ -145,7 +196,10 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     // 4. Clear caches
     this.clearCache();
 
-    // 5. Update state
+    // 5. Destroy circuit breaker
+    this.circuitBreaker.destroy();
+
+    // 6. Update state
     this._isReady = false;
     this._isDisconnected = true;
 
@@ -707,7 +761,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   protected abstract symbolFromExchange(exchangeSymbol: string): string;
 
   /**
-   * Make HTTP request with timeout and metrics tracking
+   * Make HTTP request with timeout, circuit breaker, and metrics tracking
    */
   protected async request<T>(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
@@ -715,56 +769,71 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     body?: unknown,
     headers?: Record<string, string>
   ): Promise<T> {
-    const startTime = Date.now();
-    const endpoint = this.extractEndpoint(url);
-    const endpointKey = `${method}:${endpoint}`;
+    // Wrap the entire request in circuit breaker
+    return this.circuitBreaker.execute(async () => {
+      const startTime = Date.now();
+      const endpoint = this.extractEndpoint(url);
+      const endpointKey = `${method}:${endpoint}`;
 
-    // Increment total requests
-    this.metrics.totalRequests++;
+      // Increment total requests
+      this.metrics.totalRequests++;
 
-    const controller = new AbortController();
-    this.abortControllers.add(controller);
+      const controller = new AbortController();
+      this.abortControllers.add(controller);
 
-    const timeout = setTimeout(() => controller.abort(), this.config.timeout);
-    this.registerTimer(timeout);
+      const timeout = setTimeout(() => controller.abort(), this.config.timeout);
+      this.registerTimer(timeout);
 
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-        },
-        body: body ? JSON.stringify(body) : undefined,
-        signal: controller.signal,
-      });
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...headers,
+          },
+          body: body ? JSON.stringify(body) : undefined,
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = (await response.json()) as T;
+
+        // Track successful request
+        const latency = Date.now() - startTime;
+        this.metrics.successfulRequests++;
+        this.updateEndpointMetrics(endpointKey, latency, false);
+        this.updateAverageLatency(latency);
+
+        // Track in Prometheus
+        if (this.prometheusMetrics) {
+          this.prometheusMetrics.recordRequest(this.id, endpoint, 'success', latency);
+        }
+
+        return result;
+      } catch (error) {
+        // Track failed request
+        const latency = Date.now() - startTime;
+        this.metrics.failedRequests++;
+        this.updateEndpointMetrics(endpointKey, latency, true);
+        this.updateAverageLatency(latency);
+
+        // Track in Prometheus
+        if (this.prometheusMetrics) {
+          this.prometheusMetrics.recordRequest(this.id, endpoint, 'error', latency);
+          const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
+          this.prometheusMetrics.recordRequestError(this.id, endpoint, errorType);
+        }
+
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+        this.timers.delete(timeout);
+        this.abortControllers.delete(controller);
       }
-
-      const result = (await response.json()) as T;
-
-      // Track successful request
-      const latency = Date.now() - startTime;
-      this.metrics.successfulRequests++;
-      this.updateEndpointMetrics(endpointKey, latency, false);
-      this.updateAverageLatency(latency);
-
-      return result;
-    } catch (error) {
-      // Track failed request
-      const latency = Date.now() - startTime;
-      this.metrics.failedRequests++;
-      this.updateEndpointMetrics(endpointKey, latency, true);
-      this.updateAverageLatency(latency);
-
-      throw error;
-    } finally {
-      clearTimeout(timeout);
-      this.timers.delete(timeout);
-      this.abortControllers.delete(controller);
-    }
+    });
   }
 
   /**
@@ -868,6 +937,31 @@ export abstract class BaseAdapter implements IExchangeAdapter {
    */
   public getMetrics(): MetricsSnapshot {
     return createMetricsSnapshot(this.metrics);
+  }
+
+  /**
+   * Get circuit breaker metrics
+   *
+   * @returns Circuit breaker metrics including state and performance stats
+   *
+   * @example
+   * ```typescript
+   * const cbMetrics = exchange.getCircuitBreakerMetrics();
+   * console.log(`Circuit state: ${cbMetrics.state}`);
+   * console.log(`Error rate: ${(cbMetrics.errorRate * 100).toFixed(2)}%`);
+   * ```
+   */
+  public getCircuitBreakerMetrics() {
+    return this.circuitBreaker.getMetrics();
+  }
+
+  /**
+   * Get circuit breaker state
+   *
+   * @returns Current circuit state: 'CLOSED', 'OPEN', or 'HALF_OPEN'
+   */
+  public getCircuitBreakerState() {
+    return this.circuitBreaker.getState();
   }
 
   /**

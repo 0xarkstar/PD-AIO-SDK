@@ -122,6 +122,38 @@ export {
 } from './core/retry.js';
 export type { RetryConfig } from './core/retry.js';
 
+// Circuit Breaker
+export { CircuitBreaker } from './core/CircuitBreaker.js';
+export type { CircuitBreakerConfig, CircuitBreakerMetrics } from './core/CircuitBreaker.js';
+
+// Resilience Utilities
+export {
+  createResilientExecutor,
+  withResilience,
+  Resilient,
+  Bulkhead,
+  withTimeout,
+  withCache,
+} from './core/resilience.js';
+export type { ResilienceConfig, FailureContext } from './core/resilience.js';
+
+// =============================================================================
+// Monitoring
+// =============================================================================
+
+// Prometheus Metrics
+export {
+  PrometheusMetrics,
+  initializeMetrics,
+  getMetrics,
+  isMetricsInitialized,
+} from './monitoring/prometheus.js';
+export type { PrometheusConfig } from './monitoring/prometheus.js';
+
+// Metrics HTTP Server
+export { MetricsServer, startMetricsServer } from './monitoring/metrics-server.js';
+export type { MetricsServerConfig, HealthCheckResponse } from './monitoring/metrics-server.js';
+
 // PnL Calculations
 export {
   calculateUnrealizedPnl,

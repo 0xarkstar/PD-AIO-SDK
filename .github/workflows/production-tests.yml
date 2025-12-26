@@ -1,0 +1,189 @@
+name: Production E2E Tests
+
+on:
+  # 매일 자정에 자동 실행
+  schedule:
+    - cron: '0 0 * * *'
+
+  # 수동 실행 가능
+  workflow_dispatch:
+    inputs:
+      exchanges:
+        description: 'Comma-separated list of exchanges to test (or "all")'
+        required: false
+        default: 'all'
+      test_type:
+        description: 'Type of test to run'
+        required: false
+        type: choice
+        options:
+          - all
+          - basic
+          - websocket
+          - stress
+        default: 'all'
+
+jobs:
+  production-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install -g tsx dotenv
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run Basic Flow Tests
+        if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'basic' }}
+        env:
+          # Hyperliquid Testnet
+          HYPERLIQUID_PRIVATE_KEY: ${{ secrets.HYPERLIQUID_TESTNET_PRIVATE_KEY }}
+          HYPERLIQUID_TESTNET: 'true'
+
+          # GRVT Testnet
+          GRVT_PRIVATE_KEY: ${{ secrets.GRVT_TESTNET_PRIVATE_KEY }}
+          GRVT_API_KEY: ${{ secrets.GRVT_TESTNET_API_KEY }}
+          GRVT_TESTNET: 'true'
+
+          # Paradex Testnet
+          PARADEX_PRIVATE_KEY: ${{ secrets.PARADEX_TESTNET_PRIVATE_KEY }}
+          PARADEX_L1_RPC_URL: ${{ secrets.PARADEX_L1_RPC_URL }}
+          PARADEX_TESTNET: 'true'
+
+          # Nado Testnet
+          NADO_PRIVATE_KEY: ${{ secrets.NADO_TESTNET_PRIVATE_KEY }}
+          NADO_TESTNET: 'true'
+
+          # Lighter Testnet
+          LIGHTER_API_KEY: ${{ secrets.LIGHTER_TESTNET_API_KEY }}
+          LIGHTER_API_SECRET: ${{ secrets.LIGHTER_TESTNET_API_SECRET }}
+          LIGHTER_ACCOUNT_ID: ${{ secrets.LIGHTER_TESTNET_ACCOUNT_ID }}
+          LIGHTER_TESTNET: 'true'
+
+          # EdgeX Testnet
+          EDGEX_PRIVATE_KEY: ${{ secrets.EDGEX_TESTNET_PRIVATE_KEY }}
+          EDGEX_STARK_PRIVATE_KEY: ${{ secrets.EDGEX_TESTNET_STARK_PRIVATE_KEY }}
+          EDGEX_TESTNET: 'true'
+
+          # Backpack Testnet
+          BACKPACK_API_KEY: ${{ secrets.BACKPACK_TESTNET_API_KEY }}
+          BACKPACK_SECRET_KEY: ${{ secrets.BACKPACK_TESTNET_SECRET_KEY }}
+          BACKPACK_TESTNET: 'true'
+        run: |
+          npm run test:production:basic
+        continue-on-error: true
+
+      - name: Run WebSocket Stability Tests
+        if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'websocket' }}
+        env:
+          # Same environment variables as above
+          HYPERLIQUID_PRIVATE_KEY: ${{ secrets.HYPERLIQUID_TESTNET_PRIVATE_KEY }}
+          HYPERLIQUID_TESTNET: 'true'
+          GRVT_PRIVATE_KEY: ${{ secrets.GRVT_TESTNET_PRIVATE_KEY }}
+          GRVT_API_KEY: ${{ secrets.GRVT_TESTNET_API_KEY }}
+          GRVT_TESTNET: 'true'
+          PARADEX_PRIVATE_KEY: ${{ secrets.PARADEX_TESTNET_PRIVATE_KEY }}
+          PARADEX_L1_RPC_URL: ${{ secrets.PARADEX_L1_RPC_URL }}
+          PARADEX_TESTNET: 'true'
+          NADO_PRIVATE_KEY: ${{ secrets.NADO_TESTNET_PRIVATE_KEY }}
+          NADO_TESTNET: 'true'
+          WS_TEST_DURATION: '5' # 5 minutes for CI
+        run: |
+          npm run test:production:websocket
+        continue-on-error: true
+
+      - name: Run Stress Tests
+        if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'stress' }}
+        env:
+          # Same environment variables as above
+          HYPERLIQUID_PRIVATE_KEY: ${{ secrets.HYPERLIQUID_TESTNET_PRIVATE_KEY }}
+          HYPERLIQUID_TESTNET: 'true'
+          GRVT_PRIVATE_KEY: ${{ secrets.GRVT_TESTNET_PRIVATE_KEY }}
+          GRVT_API_KEY: ${{ secrets.GRVT_TESTNET_API_KEY }}
+          GRVT_TESTNET: 'true'
+          PARADEX_PRIVATE_KEY: ${{ secrets.PARADEX_TESTNET_PRIVATE_KEY }}
+          PARADEX_L1_RPC_URL: ${{ secrets.PARADEX_L1_RPC_URL }}
+          PARADEX_TESTNET: 'true'
+          NADO_PRIVATE_KEY: ${{ secrets.NADO_TESTNET_PRIVATE_KEY }}
+          NADO_TESTNET: 'true'
+        run: |
+          npm run test:production:stress
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-test-results-node-${{ matrix.node-version }}
+          path: results/
+          retention-days: 30
+
+      - name: Create test report
+        if: always()
+        run: |
+          echo "## Production E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Node Version:** ${{ matrix.node-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check if results directory exists
+          if [ -d "results" ]; then
+            echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Find latest test results
+            latest_basic=$(ls -t results/basic-flow-*.json 2>/dev/null | head -1)
+            latest_ws=$(ls -t results/websocket-stability-*.json 2>/dev/null | head -1)
+            latest_stress=$(ls -t results/stress-test-*.json 2>/dev/null | head -1)
+
+            if [ -n "$latest_basic" ]; then
+              echo "#### Basic Flow Tests" >> $GITHUB_STEP_SUMMARY
+              cat "$latest_basic" | jq -r '.summary | "- Total: \(.total)\n- Passed: \(.passed)\n- Failed: \(.failed)\n- Skipped: \(.skipped)"' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            if [ -n "$latest_ws" ]; then
+              echo "#### WebSocket Stability Tests" >> $GITHUB_STEP_SUMMARY
+              cat "$latest_ws" | jq -r '.summary | "- Total: \(.total)\n- Passed: \(.passed)\n- Failed: \(.failed)\n- Skipped: \(.skipped)"' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            if [ -n "$latest_stress" ]; then
+              echo "#### Stress Tests" >> $GITHUB_STEP_SUMMARY
+              cat "$latest_stress" | jq -r '.summary | "- Total: \(.total)\n- Passed: \(.passed)\n- Failed: \(.failed)\n- Skipped: \(.skipped)"' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⚠️ No test results found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Production E2E Tests Failed',
+              body: `Production E2E tests failed on Node ${process.env.NODE_VERSION}.\n\nWorkflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              labels: ['production', 'test-failure', 'automated']
+            })
