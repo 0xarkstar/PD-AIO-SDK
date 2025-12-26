@@ -1,0 +1,66 @@
+# Prometheus Configuration for Perp DEX SDK
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'perpdex-local'
+    environment: 'development'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - 'alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus 자체 모니터링
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Perp DEX SDK Metrics Server
+  # 실제 애플리케이션이 실행 중일 때 메트릭 수집
+  - job_name: 'perpdex-sdk'
+    static_configs:
+      - targets: ['host.docker.internal:9090']
+        labels:
+          app: 'perpdex-sdk'
+          instance: 'local'
+    # 인증이 필요한 경우 활성화
+    # bearer_token: 'your-secret-token'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    # 메트릭 서버가 실행 중이 아닐 때 에러 무시
+    metrics_path: /metrics
+    scheme: http
+
+  # Node Exporter - 시스템 메트릭
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          instance: 'docker-host'
+
+  # cAdvisor - 컨테이너 메트릭
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          instance: 'docker-host'
+
+  # Grafana 모니터링
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+
+  # Alertmanager 모니터링
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']

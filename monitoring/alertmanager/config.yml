@@ -1,0 +1,123 @@
+# Alertmanager Configuration
+
+global:
+  resolve_timeout: 5m
+  # Slack webhook URL (환경변수로 설정 권장)
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+# 알림 템플릿
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# 알림 라우팅
+route:
+  # 기본 수신자
+  receiver: 'default'
+
+  # 알림 그룹화 (같은 레이블을 가진 알림을 묶음)
+  group_by: ['alertname', 'cluster', 'service']
+
+  # 첫 알림 대기 시간 (그룹화를 위해)
+  group_wait: 10s
+
+  # 그룹에 새 알림 추가 대기 시간
+  group_interval: 10s
+
+  # 같은 알림 재전송 주기
+  repeat_interval: 12h
+
+  # 라우팅 규칙
+  routes:
+    # Critical 알림 - 즉시 Slack으로 전송
+    - match:
+        severity: critical
+      receiver: 'slack-critical'
+      group_wait: 5s
+      repeat_interval: 3h
+
+    # Warning 알림 - Slack으로 전송 (덜 긴급)
+    - match:
+        severity: warning
+      receiver: 'slack-warnings'
+      group_wait: 30s
+      repeat_interval: 6h
+
+    # Circuit Breaker 관련 알림
+    - match:
+        component: circuit_breaker
+      receiver: 'slack-circuit-breaker'
+      group_wait: 10s
+      repeat_interval: 4h
+
+# 알림 수신자 정의
+receivers:
+  # 기본 수신자 (로그만)
+  - name: 'default'
+    # webhook_configs:
+    #   - url: 'http://localhost:5001/'
+
+  # Critical 알림 - Slack
+  - name: 'slack-critical'
+    slack_configs:
+      - channel: '#perpdex-alerts-critical'
+        username: 'Perp DEX Alertmanager'
+        icon_emoji: ':fire:'
+        title: '🚨 Critical Alert'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Labels.alertname }}
+          *Severity:* {{ .Labels.severity }}
+          *Exchange:* {{ .Labels.exchange }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Time:* {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}
+          {{ end }}
+        send_resolved: true
+
+  # Warning 알림 - Slack
+  - name: 'slack-warnings'
+    slack_configs:
+      - channel: '#perpdex-alerts-warnings'
+        username: 'Perp DEX Alertmanager'
+        icon_emoji: ':warning:'
+        title: '⚠️ Warning Alert'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Labels.alertname }}
+          *Exchange:* {{ .Labels.exchange }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+
+  # Circuit Breaker 알림 - Slack
+  - name: 'slack-circuit-breaker'
+    slack_configs:
+      - channel: '#perpdex-circuit-breaker'
+        username: 'Perp DEX Alertmanager'
+        icon_emoji: ':electric_plug:'
+        title: '🔌 Circuit Breaker Alert'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Labels.alertname }}
+          *Exchange:* {{ .Labels.exchange }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+
+# 알림 억제 규칙 (중복 알림 방지)
+inhibit_rules:
+  # Critical 알림이 발생하면 같은 대상의 Warning 억제
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'exchange', 'operation']
+
+  # Circuit Breaker OPEN 시 관련 에러 알림 억제
+  - source_match:
+      alertname: 'CircuitBreakerOpen'
+    target_match:
+      component: 'requests'
+    equal: ['exchange']
