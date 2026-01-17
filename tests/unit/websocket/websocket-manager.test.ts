@@ -407,6 +407,20 @@ describe('WebSocketManager', () => {
         { type: 'unsubscribe', channel: 'orderbook' }
       );
 
+      // Trigger the generator to execute subscription
+      const nextPromise = generator.next();
+
+      // Send a message to unblock the generator
+      setTimeout(() => {
+        const onMessage = (mockClient as any)._onMessage;
+        if (onMessage) {
+          onMessage({ channel: 'orderbook', data: { test: true } });
+        }
+      }, 10);
+
+      // Wait for the first message
+      await nextPromise;
+
       expect(manager.getSubscriptionCount()).toBe(1);
 
       await generator.return();
@@ -418,6 +432,10 @@ describe('WebSocketManager', () => {
     test('should queue messages when not immediately consumed', async () => {
       const generator = manager.watch('orderbook', { type: 'subscribe', channel: 'orderbook' });
 
+      // Trigger the generator to complete subscription
+      const firstNext = generator.next();
+      await Promise.resolve(); // Allow subscription to complete
+
       // Send multiple messages before consuming
       const onMessage = (mockClient as any)._onMessage;
       if (onMessage) {
@@ -427,7 +445,7 @@ describe('WebSocketManager', () => {
       }
 
       // Consume messages
-      const message1 = await generator.next();
+      const message1 = await firstNext; // First message already queued
       const message2 = await generator.next();
       const message3 = await generator.next();
 

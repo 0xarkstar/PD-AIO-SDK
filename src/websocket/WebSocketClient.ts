@@ -139,7 +139,7 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
    */
   send(data: unknown): void {
     if (!this.isConnected()) {
-      throw new Error('WebSocket not connected');
+      throw new Error('WebSocket is not connected');
     }
 
     const message = typeof data === 'string' ? data : JSON.stringify(data);
@@ -191,11 +191,13 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
   private handleOpen(): void {
     this.setState('connected');
     this.connectTimestamp = Date.now();
-    this.reconnectAttempts = 0;
 
+    // Emit reconnected event before resetting counter
     if (this.reconnectAttempts > 0) {
       this.emit('reconnected');
     }
+
+    this.reconnectAttempts = 0;
 
     this.emit('open');
     this.startHeartbeat();
@@ -209,11 +211,17 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
       this.messagesReceived++;
 
       const message = data.toString();
-      const parsed = JSON.parse(message);
 
-      this.emit('message', parsed);
+      // Try to parse as JSON, fallback to raw string
+      try {
+        const parsed = JSON.parse(message);
+        this.emit('message', parsed);
+      } catch {
+        // Not JSON, emit raw string
+        this.emit('message', message);
+      }
     } catch (error) {
-      this.emit('error', new Error(`Failed to parse message: ${error}`));
+      this.emit('error', new Error(`Failed to handle message: ${error}`));
     }
   }
 
@@ -272,6 +280,10 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
     this.reconnectTimer = setTimeout(() => {
       this.createConnection().catch((error) => {
         this.emit('error', error instanceof Error ? error : new Error(String(error)));
+        // Retry reconnection on failure
+        if (this.shouldReconnect && this.reconnectConfig.enabled) {
+          this.scheduleReconnect();
+        }
       });
     }, delay);
   }

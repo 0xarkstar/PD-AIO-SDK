@@ -193,19 +193,19 @@ export class WebSocketManager extends EventEmitter<ManagerEvents> {
     let resolveNext: ((value: T) => void) | null = null;
     let subscriptionId: string | null = null;
 
+    // Subscribe with handler that queues messages
+    subscriptionId = await this.subscribe(channel, subscriptionMessage, (data: unknown) => {
+      const typedData = data as T;
+
+      if (resolveNext) {
+        resolveNext(typedData);
+        resolveNext = null;
+      } else {
+        messageQueue.push(typedData);
+      }
+    });
+
     try {
-      // Subscribe with handler that queues messages
-      subscriptionId = await this.subscribe(channel, subscriptionMessage, (data: unknown) => {
-        const typedData = data as T;
-
-        if (resolveNext) {
-          resolveNext(typedData);
-          resolveNext = null;
-        } else {
-          messageQueue.push(typedData);
-        }
-      });
-
       // Yield messages as they arrive
       while (true) {
         if (messageQueue.length > 0) {

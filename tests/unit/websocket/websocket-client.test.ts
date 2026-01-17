@@ -414,25 +414,34 @@ describe('WebSocketClient', () => {
       }
       await connectPromise;
 
-      // Simulate close
+      // Simulate close to trigger reconnection
       const closeHandler = mockWs.on.mock.calls.find(call => call[0] === 'close')?.[1];
       if (closeHandler) {
         (closeHandler as Function)(1006, 'Abnormal closure');
       }
 
-      // Simulate failed reconnection attempts
-      for (let i = 0; i < 2; i++) {
-        jest.advanceTimersByTime(100 * Math.pow(2, i));
+      // Simulate failed reconnection attempts (3 total to exceed maxAttempts of 2)
+      for (let attempt = 0; attempt < 3; attempt++) {
+        // Advance timer to trigger reconnection attempt
+        jest.advanceTimersByTime(100 * Math.pow(2, attempt));
 
-        // Simulate connection error
-        const errorHandler = mockWs.on.mock.calls.filter(call => call[0] === 'error').pop()?.[1];
+        // Allow promises to resolve
+        await Promise.resolve();
+
+        // Get the error handler for this reconnection attempt
+        const errorHandlers = mockWs.on.mock.calls.filter(call => call[0] === 'error');
+        const errorHandler = errorHandlers[errorHandlers.length - 1]?.[1];
+
         if (errorHandler) {
           (errorHandler as Function)(new Error('Connection failed'));
         }
+
+        // Allow error to propagate
+        await Promise.resolve();
       }
 
-      // Fast-forward to trigger max retries check
-      jest.advanceTimersByTime(1000);
+      // Give time for maxRetriesExceeded to be emitted
+      await Promise.resolve();
 
       expect(maxRetriesHandler).toHaveBeenCalled();
     });
