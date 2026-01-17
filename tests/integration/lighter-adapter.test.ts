@@ -16,9 +16,20 @@ import type {
   LighterTicker,
   LighterFundingRate,
 } from '../../src/adapters/lighter/types.js';
+import WebSocket from 'ws';
 
 // Mock fetch globally
 global.fetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+
+// Mock WebSocket
+jest.mock('ws', () => {
+  return jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+    send: jest.fn(),
+    close: jest.fn(),
+    readyState: 1, // OPEN
+  }));
+});
 
 describe('LighterAdapter Integration Tests', () => {
   let adapter: LighterAdapter;
@@ -28,6 +39,22 @@ describe('LighterAdapter Integration Tests', () => {
     // Reset mocks
     jest.clearAllMocks();
     mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+
+    // Setup WebSocket mock to auto-trigger 'open' event
+    (WebSocket as unknown as jest.Mock).mockImplementation(() => {
+      const mockWs = {
+        on: jest.fn((event: string, handler: Function) => {
+          if (event === 'open') {
+            // Trigger open event asynchronously
+            setTimeout(() => handler(), 0);
+          }
+        }),
+        send: jest.fn(),
+        close: jest.fn(),
+        readyState: 1,
+      };
+      return mockWs;
+    });
 
     // Create adapter
     adapter = new LighterAdapter({
@@ -64,7 +91,7 @@ describe('LighterAdapter Integration Tests', () => {
       expect(adapter).toBeDefined();
       expect(adapter.id).toBe('lighter');
       expect(adapter.name).toBe('Lighter');
-      expect(adapter.isReady()).toBe(true);
+      expect(adapter.isReady).toBe(true);
     });
 
     it('should have correct feature flags', () => {
@@ -81,8 +108,9 @@ describe('LighterAdapter Integration Tests', () => {
       expect(adapter.has.cancelAllOrders).toBe(true);
       expect(adapter.has.createBatchOrders).toBe(false);
       expect(adapter.has.setLeverage).toBe(false);
-      expect(adapter.has.watchOrderBook).toBe(false);
-      expect(adapter.has.watchTrades).toBe(false);
+      expect(adapter.has.watchOrderBook).toBe(true);
+      expect(adapter.has.watchTrades).toBe(true);
+      expect(adapter.has.watchPositions).toBe(true);
     });
   });
 
@@ -362,22 +390,23 @@ describe('LighterAdapter Integration Tests', () => {
 
         mockSuccessResponse(mockBalances);
 
-        const balance = await adapter.fetchBalance();
+        const balances = await adapter.fetchBalance();
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
-        expect(balance.USDT).toBeDefined();
-        expect(balance.USDT.total).toBe(10000);
-        expect(balance.USDT.free).toBe(8000);
-        expect(balance.USDT.used).toBe(2000);
-        expect(balance.BTC).toBeDefined();
+        expect(balances).toHaveLength(2);
+        expect(balances[0].currency).toBe('USDT');
+        expect(balances[0].total).toBe(10000);
+        expect(balances[0].free).toBe(8000);
+        expect(balances[0].used).toBe(2000);
+        expect(balances[1].currency).toBe('BTC');
       });
 
       it('should handle empty balance', async () => {
         mockSuccessResponse([]);
 
-        const balance = await adapter.fetchBalance();
+        const balances = await adapter.fetchBalance();
 
-        expect(balance).toEqual({});
+        expect(balances).toEqual([]);
       });
     });
   });
@@ -469,9 +498,9 @@ describe('LighterAdapter Integration Tests', () => {
           postOnly: true,
         });
 
-        // Verify request body includes postOnly
+        // Verify request body converts postOnly to timeInForce='PO'
         const requestBody = JSON.parse((mockFetch.mock.calls[0][1] as RequestInit).body as string);
-        expect(requestBody.postOnly).toBe(true);
+        expect(requestBody.timeInForce).toBe('PO');
       });
 
       it('should create reduce-only order', async () => {
@@ -505,11 +534,24 @@ describe('LighterAdapter Integration Tests', () => {
 
     describe('cancelOrder', () => {
       it('should cancel an order', async () => {
-        mockSuccessResponse({ success: true });
+        const mockOrder: LighterOrder = {
+          orderId: 'order-123',
+          symbol: 'BTC-USDT-PERP',
+          side: 'buy',
+          type: 'limit',
+          price: 50000,
+          size: 0.1,
+          filledSize: 0,
+          status: 'cancelled',
+          timestamp: 1234567890000,
+          reduceOnly: false,
+        };
+        mockSuccessResponse(mockOrder);
 
-        await adapter.cancelOrder('order-123', 'BTC/USDT:USDT');
+        const order = await adapter.cancelOrder('order-123', 'BTC/USDT:USDT');
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(order.status).toBe('canceled');
         const url = (mockFetch.mock.calls[0][0] as string);
         expect(url).toContain('/orders/order-123');
       });
@@ -584,7 +626,10 @@ describe('LighterAdapter Integration Tests', () => {
         rateLimitTier: 'tier1', // 60 requests per minute
       });
 
-      mockSuccessResponse([]);
+      // Mock 60 responses for 60 requests
+      for (let i = 0; i < 60; i++) {
+        mockSuccessResponse([]);
+      }
 
       // Make 60 requests
       const promises = Array.from({ length: 60 }, () => limitedAdapter.fetchMarkets());
@@ -595,7 +640,19 @@ describe('LighterAdapter Integration Tests', () => {
     });
 
     it('should track endpoint weights', async () => {
-      mockSuccessResponse([]);
+      const mockOrder: LighterOrder = {
+        orderId: 'order-weight-test',
+        symbol: 'BTC-USDT-PERP',
+        side: 'buy',
+        type: 'limit',
+        price: 50000,
+        size: 0.1,
+        filledSize: 0,
+        status: 'open',
+        timestamp: 1234567890000,
+        reduceOnly: false,
+      };
+      mockSuccessResponse(mockOrder);
 
       // createOrder has weight 5 (higher than fetchMarkets weight 1)
       await adapter.createOrder({
