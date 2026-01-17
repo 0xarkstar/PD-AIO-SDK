@@ -36,6 +36,7 @@ import type { APIMetrics, EndpointMetrics, MetricsSnapshot } from '../../types/m
 import { createMetricsSnapshot } from '../../types/metrics.js';
 import { Logger, LogLevel } from '../../core/logger.js';
 import { CircuitBreaker } from '../../core/CircuitBreaker.js';
+import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { PrometheusMetrics, isMetricsInitialized, getMetrics } from '../../monitoring/prometheus.js';
 
 export abstract class BaseAdapter implements IExchangeAdapter {
@@ -50,6 +51,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   protected rateLimiter?: any; // Rate limiter instance (if used)
   private _logger?: Logger;
   protected circuitBreaker: CircuitBreaker;
+  protected httpClient?: HTTPClient;
   protected prometheusMetrics?: PrometheusMetrics;
 
   // Resource tracking
@@ -761,7 +763,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   protected abstract symbolFromExchange(exchangeSymbol: string): string;
 
   /**
-   * Make HTTP request with timeout, circuit breaker, and metrics tracking
+   * Make HTTP request with timeout, circuit breaker, retry, and metrics tracking
    */
   protected async request<T>(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
@@ -769,70 +771,129 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     body?: unknown,
     headers?: Record<string, string>
   ): Promise<T> {
+    // Retry configuration
+    const maxAttempts = 3;
+    const initialDelay = 1000;
+    const maxDelay = 10000;
+    const multiplier = 2;
+    const retryableStatuses = [408, 429, 500, 502, 503, 504];
+
     // Wrap the entire request in circuit breaker
     return this.circuitBreaker.execute(async () => {
-      const startTime = Date.now();
-      const endpoint = this.extractEndpoint(url);
-      const endpointKey = `${method}:${endpoint}`;
+      let lastError: Error | undefined;
 
-      // Increment total requests
-      this.metrics.totalRequests++;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const startTime = Date.now();
+        const endpoint = this.extractEndpoint(url);
+        const endpointKey = `${method}:${endpoint}`;
 
-      const controller = new AbortController();
-      this.abortControllers.add(controller);
+        // Increment total requests
+        this.metrics.totalRequests++;
 
-      const timeout = setTimeout(() => controller.abort(), this.config.timeout);
-      this.registerTimer(timeout);
+        const controller = new AbortController();
+        this.abortControllers.add(controller);
 
-      try {
-        const response = await fetch(url, {
-          method,
-          headers: {
-            'Content-Type': 'application/json',
-            ...headers,
-          },
-          body: body ? JSON.stringify(body) : undefined,
-          signal: controller.signal,
-        });
+        const timeout = setTimeout(() => controller.abort(), this.config.timeout);
+        this.registerTimer(timeout);
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        try {
+          const response = await fetch(url, {
+            method,
+            headers: {
+              'Content-Type': 'application/json',
+              ...headers,
+            },
+            body: body ? JSON.stringify(body) : undefined,
+            signal: controller.signal,
+          });
+
+          if (!response.ok) {
+            const shouldRetry = attempt < maxAttempts - 1 && retryableStatuses.includes(response.status);
+            const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+            if (!shouldRetry) {
+              throw error;
+            }
+
+            // Track failed request (will retry)
+            const latency = Date.now() - startTime;
+            this.metrics.failedRequests++;
+            this.updateEndpointMetrics(endpointKey, latency, true);
+            this.updateAverageLatency(latency);
+
+            lastError = error;
+
+            // Calculate delay with exponential backoff
+            const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
+
+            // Clean up before retry
+            clearTimeout(timeout);
+            this.timers.delete(timeout);
+            this.abortControllers.delete(controller);
+
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+
+          const result = (await response.json()) as T;
+
+          // Track successful request
+          const latency = Date.now() - startTime;
+          this.metrics.successfulRequests++;
+          this.updateEndpointMetrics(endpointKey, latency, false);
+          this.updateAverageLatency(latency);
+
+          // Track in Prometheus
+          if (this.prometheusMetrics) {
+            this.prometheusMetrics.recordRequest(this.id, endpoint, 'success', latency);
+          }
+
+          // Clean up
+          clearTimeout(timeout);
+          this.timers.delete(timeout);
+          this.abortControllers.delete(controller);
+
+          return result;
+        } catch (error) {
+          // Track failed request
+          const latency = Date.now() - startTime;
+          this.metrics.failedRequests++;
+          this.updateEndpointMetrics(endpointKey, latency, true);
+          this.updateAverageLatency(latency);
+
+          // Track in Prometheus
+          if (this.prometheusMetrics) {
+            this.prometheusMetrics.recordRequest(this.id, endpoint, 'error', latency);
+            const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
+            this.prometheusMetrics.recordRequestError(this.id, endpoint, errorType);
+          }
+
+          // Clean up
+          clearTimeout(timeout);
+          this.timers.delete(timeout);
+          this.abortControllers.delete(controller);
+
+          // Check if should retry
+          const isNetworkError = error instanceof Error &&
+            (error.name === 'AbortError' || error.message.includes('fetch') || error.message.includes('network'));
+
+          if (attempt < maxAttempts - 1 && isNetworkError) {
+            lastError = error as Error;
+
+            // Calculate delay with exponential backoff
+            const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
+
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+
+          throw error;
         }
-
-        const result = (await response.json()) as T;
-
-        // Track successful request
-        const latency = Date.now() - startTime;
-        this.metrics.successfulRequests++;
-        this.updateEndpointMetrics(endpointKey, latency, false);
-        this.updateAverageLatency(latency);
-
-        // Track in Prometheus
-        if (this.prometheusMetrics) {
-          this.prometheusMetrics.recordRequest(this.id, endpoint, 'success', latency);
-        }
-
-        return result;
-      } catch (error) {
-        // Track failed request
-        const latency = Date.now() - startTime;
-        this.metrics.failedRequests++;
-        this.updateEndpointMetrics(endpointKey, latency, true);
-        this.updateAverageLatency(latency);
-
-        // Track in Prometheus
-        if (this.prometheusMetrics) {
-          this.prometheusMetrics.recordRequest(this.id, endpoint, 'error', latency);
-          const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
-          this.prometheusMetrics.recordRequestError(this.id, endpoint, errorType);
-        }
-
-        throw error;
-      } finally {
-        clearTimeout(timeout);
-        this.timers.delete(timeout);
-        this.abortControllers.delete(controller);
       }
+
+      throw lastError || new Error('Request failed after retries');
     });
   }
 

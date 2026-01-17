@@ -304,7 +304,8 @@ export class BackpackNormalizer {
   /**
    * Count decimal places in a string number
    */
-  private countDecimals(value: string): number {
+  private countDecimals(value: string | undefined): number {
+    if (!value) return 0;
     const parts = value.split('.');
     return parts.length === 2 && parts[1] ? parts[1].length : 0;
   }

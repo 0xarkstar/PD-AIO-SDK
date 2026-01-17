@@ -103,6 +103,7 @@ export class EdgeXAdapter extends BaseAdapter {
     if (!this.apiKey) {
       throw new PerpDEXError('API key is required for EdgeX', 'MISSING_CONFIG', 'edgex');
     }
+    this._isReady = true;
   }
 
   /**
@@ -320,7 +321,7 @@ export class EdgeXAdapter extends BaseAdapter {
    */
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
     throw new PerpDEXError(
-      'fetchOrderHistory not yet implemented for EdgeX - API documentation required',
+      'NOT_IMPLEMENTED: fetchOrderHistory not yet implemented for EdgeX - API documentation required',
       'NOT_IMPLEMENTED',
       'edgex'
     );

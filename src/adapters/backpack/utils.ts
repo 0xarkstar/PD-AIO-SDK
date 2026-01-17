@@ -57,6 +57,7 @@ export function toBackpackTimeInForce(tif?: TimeInForce, postOnly?: boolean): st
 
 /**
  * Map Backpack error to unified error code
+ * @deprecated Use mapBackpackError from error-codes.ts instead
  */
 export function mapBackpackError(error: unknown): { code: string; message: string } {
   if (typeof error === 'object' && error !== null) {

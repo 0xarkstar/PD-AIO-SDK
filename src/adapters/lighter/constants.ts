@@ -36,3 +36,25 @@ export const LIGHTER_ENDPOINT_WEIGHTS = {
 
 export const LIGHTER_MAX_LEVERAGE = 50;
 export const LIGHTER_FUNDING_INTERVAL_HOURS = 8;
+
+/**
+ * WebSocket configuration
+ */
+export const LIGHTER_WS_CONFIG = {
+  reconnectDelay: 1000,
+  maxReconnectDelay: 30000,
+  reconnectAttempts: 5,
+  pingInterval: 30000,
+  pongTimeout: 5000,
+} as const;
+
+/**
+ * WebSocket channels
+ */
+export const LIGHTER_WS_CHANNELS = {
+  ORDERBOOK: 'orderbook',
+  TRADES: 'trades',
+  TICKER: 'ticker',
+  POSITIONS: 'positions',
+  ORDERS: 'orders',
+} as const;

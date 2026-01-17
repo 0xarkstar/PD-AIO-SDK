@@ -22,6 +22,7 @@ import type {
 import type { FeatureMap } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
+import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { WebSocketManager } from '../../websocket/WebSocketManager.js';
 import {
   BACKPACK_API_URLS,
@@ -71,6 +72,7 @@ export class BackpackAdapter extends BaseAdapter {
   private readonly apiSecret?: string;
   private readonly baseUrl: string;
   private readonly wsUrl: string;
+  protected readonly httpClient: HTTPClient;
   private wsManager: WebSocketManager;
   protected rateLimiter: RateLimiter;
   private normalizer: BackpackNormalizer;
@@ -95,6 +97,26 @@ export class BackpackAdapter extends BaseAdapter {
     this.baseUrl = urls.rest;
     this.wsUrl = urls.websocket;
 
+    // Initialize HTTP client
+    this.httpClient = new HTTPClient({
+      baseUrl: this.baseUrl,
+      timeout: config.timeout || 30000,
+      retry: {
+        maxAttempts: 3,
+        initialDelay: 1000,
+        maxDelay: 10000,
+        multiplier: 2,
+        retryableStatuses: [408, 429, 500, 502, 503, 504],
+      },
+      circuitBreaker: {
+        enabled: true,
+        failureThreshold: 5,
+        successThreshold: 2,
+        resetTimeout: 60000,
+      },
+      exchange: this.id,
+    });
+
     this.wsManager = new WebSocketManager({ url: this.wsUrl });
   }
 
@@ -105,6 +127,7 @@ export class BackpackAdapter extends BaseAdapter {
     if (!this.apiKey) {
       throw new PerpDEXError('API key is required for Backpack', 'MISSING_CONFIG', 'backpack');
     }
+    this._isReady = true;
   }
 
   /**
@@ -377,7 +400,7 @@ export class BackpackAdapter extends BaseAdapter {
   }
 
   /**
-   * Make authenticated HTTP request
+   * Make authenticated HTTP request using HTTPClient
    */
   protected async makeRequest(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
@@ -387,10 +410,7 @@ export class BackpackAdapter extends BaseAdapter {
   ): Promise<any> {
     await this.rateLimiter.acquire(endpoint);
 
-    const url = `${this.baseUrl}${path}`;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
 
     if (this.apiKey) {
       headers['X-API-KEY'] = this.apiKey;
@@ -403,19 +423,18 @@ export class BackpackAdapter extends BaseAdapter {
     }
 
     try {
-      const response = await fetch(url, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        const { code, message } = mapBackpackError(error);
-        throw new PerpDEXError(`Backpack API error: ${response.statusText}`, code, 'backpack', error);
+      switch (method) {
+        case 'GET':
+          return await this.httpClient.get(path, { headers });
+        case 'POST':
+          return await this.httpClient.post(path, { headers, body });
+        case 'PUT':
+          return await this.httpClient.put(path, { headers, body });
+        case 'DELETE':
+          return await this.httpClient.delete(path, { headers, body });
+        default:
+          throw new Error(`Unsupported HTTP method: ${method}`);
       }
-
-      return await response.json();
     } catch (error) {
       if (error instanceof PerpDEXError) {
         throw error;
