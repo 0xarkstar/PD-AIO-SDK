@@ -17,6 +17,8 @@ const EXCHANGE_ENV_REQUIREMENTS: Record<SupportedExchange, string[]> = {
   edgex: ['EDGEX_PRIVATE_KEY', 'EDGEX_STARK_PRIVATE_KEY'],
   backpack: ['BACKPACK_API_KEY', 'BACKPACK_SECRET_KEY'],
   nado: ['NADO_PRIVATE_KEY'],
+  variational: ['VARIATIONAL_API_KEY', 'VARIATIONAL_API_SECRET'],
+  extended: ['EXTENDED_API_KEY'],
 };
 
 /**
@@ -128,6 +130,8 @@ export function getConfigErrorMessage(exchange: SupportedExchange, missingVars: 
     edgex: 'Register at edgex.exchange and get both Ethereum and StarkEx keys',
     backpack: 'Register at backpack.exchange and create ED25519 API credentials',
     nado: 'Export your MetaMask private key for Ink L2 trading on Nado',
+    variational: 'Register at variational.io and create HMAC API credentials',
+    extended: 'Register at extended.exchange and generate API key',
   };
 
   return (
