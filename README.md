@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-409%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-1767%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![npm version](https://img.shields.io/badge/npm-v0.1.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
@@ -14,11 +14,11 @@
 
 ## 🎯 What is PD AIO SDK?
 
-**PD AIO SDK** (Perp DEX All-In-One SDK) is a production-ready, unified TypeScript SDK that lets you trade on **7 decentralized perpetual exchanges** through a single, consistent interface. No more learning different APIs for each exchange - write once, trade anywhere.
+**PD AIO SDK** (Perp DEX All-In-One SDK) is a production-ready, unified TypeScript SDK that lets you trade on **9 decentralized perpetual exchanges** through a single, consistent interface. No more learning different APIs for each exchange - write once, trade anywhere.
 
 ### Why "All-In-One"?
 
-- **One Interface** → 7 Exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado)
+- **One Interface** → 9 Exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational)
 - **One Codebase** → All Trading Operations (market data, orders, positions, WebSocket)
 - **One Installation** → Full-Stack Solution (authentication, rate limiting, error handling)
 
@@ -40,12 +40,15 @@
 - **Backpack** - Production only, Solana-based, multi-market support
 - **Lighter** - Beta + Testnet, ZK-SNARK proofs, orderbook DEX
 - **Nado** - Production + Testnet, Ink L2 by Kraken, 5-15ms latency
+- **Extended** - Production + Testnet, StarkNet L2, 50+ markets, 100x leverage
+- **Variational** - Coming Soon, Arbitrum-based RFQ exchange
 
 ### 🔐 Production-Grade Security
 - **EIP-712 signatures** (Hyperliquid, GRVT, Nado)
-- **StarkNet ECDSA** (Paradex, EdgeX)
+- **StarkNet ECDSA** (Paradex, EdgeX, Extended)
 - **ED25519** (Backpack)
-- **API Key authentication** (Lighter)
+- **API Key authentication** (Lighter, Extended)
+- **HMAC-SHA256** (Variational - Coming Soon)
 - **Secure credential management** with validation
 
 ### ⚡ Enterprise Features
@@ -57,8 +60,8 @@
 - **Type safety** - Runtime validation (Zod) + TypeScript strict mode
 
 ### 📊 Developer Experience
-- **Pattern A Architecture** - All 7 adapters follow standardized structure
-- **409 tests** - 100% pass rate, production-ready
+- **Pattern A Architecture** - All 9 adapters follow standardized structure
+- **1767 tests** - 100% pass rate, production-ready
 - **Structured logging** - JSON logs with sensitive data masking
 - **Health checks** - Built-in system monitoring
 - **Comprehensive docs** - English + Korean documentation

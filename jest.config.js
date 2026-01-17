@@ -25,7 +25,8 @@ export default {
   testMatch: [
     '**/tests/unit/**/*.test.ts',
     '**/tests/integration/**/*.test.ts',
-    '**/tests/e2e/**/*.test.ts'
+    '**/tests/e2e/**/*.test.ts',
+    '**/tests/api-contracts/**/*.test.ts'
   ],
   collectCoverageFrom: [
     'src/**/*.ts',
