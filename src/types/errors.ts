@@ -70,6 +70,14 @@ export class PositionNotFoundError extends PerpDEXError {
 // Network Errors
 // =============================================================================
 
+export class NetworkError extends PerpDEXError {
+  constructor(message: string, code: string, exchange: string, originalError?: unknown) {
+    super(message, code, exchange, originalError);
+    this.name = 'NetworkError';
+    Object.setPrototypeOf(this, NetworkError.prototype);
+  }
+}
+
 export class RateLimitError extends PerpDEXError {
   constructor(
     message: string,
