@@ -1,354 +1,264 @@
 /**
- * Extended Error Codes Unit Tests
+ * Extended Error Codes Tests
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { mapError } from '../../src/adapters/extended/utils.js';
-import { PerpDEXError, NetworkError, RateLimitError } from '../../src/types/errors.js';
+import {
+  EXTENDED_CLIENT_ERRORS,
+  EXTENDED_SERVER_ERRORS,
+  EXTENDED_RATE_LIMIT_ERROR,
+  EXTENDED_STARKNET_ERRORS,
+  EXTENDED_HTTP_ERROR_CODES,
+  isClientError,
+  isServerError,
+  isStarkNetError,
+  isRetryableError,
+  extractErrorCode,
+  extractErrorCodeFromStatus,
+  mapExtendedError,
+  mapHTTPError,
+  mapStarkNetError,
+} from '../../src/adapters/extended/error-codes.js';
+import {
+  PerpDEXError,
+  InvalidOrderError,
+  InsufficientMarginError,
+  OrderNotFoundError,
+  InvalidSignatureError,
+  RateLimitError,
+  ExchangeUnavailableError,
+  NetworkError,
+} from '../../src/types/errors.js';
 
 describe('Extended Error Codes', () => {
-  describe('mapError', () => {
-    it('should pass through PerpDEXError instances', () => {
-      const originalError = new PerpDEXError('Test error', 'INVALID_REQUEST', 'extended');
-
-      const result = mapError(originalError);
-
-      expect(result).toBe(originalError);
-      expect(result.message).toBe('Test error');
-      expect(result.code).toBe('INVALID_REQUEST');
-      expect(result.exchange).toBe('extended');
+  describe('Error Code Constants', () => {
+    it('should have client error codes defined', () => {
+      expect(EXTENDED_CLIENT_ERRORS.INSUFFICIENT_MARGIN).toBe('INSUFFICIENT_MARGIN');
+      expect(EXTENDED_CLIENT_ERRORS.INVALID_ORDER).toBe('INVALID_ORDER');
+      expect(EXTENDED_CLIENT_ERRORS.ORDER_NOT_FOUND).toBe('ORDER_NOT_FOUND');
+      expect(EXTENDED_CLIENT_ERRORS.UNAUTHORIZED).toBe('UNAUTHORIZED');
     });
 
-    it('should map rate limit errors', () => {
-      const error = {
-        response: {
-          status: 429,
-          data: { error: 'Rate limit exceeded' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(RateLimitError);
-      expect(result.code).toBe('RATE_LIMIT_EXCEEDED');
+    it('should have server error codes defined', () => {
+      expect(EXTENDED_SERVER_ERRORS.INTERNAL_ERROR).toBe('INTERNAL_ERROR');
+      expect(EXTENDED_SERVER_ERRORS.SERVICE_UNAVAILABLE).toBe('SERVICE_UNAVAILABLE');
+      expect(EXTENDED_SERVER_ERRORS.TIMEOUT).toBe('TIMEOUT');
     });
 
-    it('should map authentication errors - 401', () => {
-      const error = {
-        response: {
-          status: 401,
-          data: { error: 'Invalid API key' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(PerpDEXError);
-      expect(result.code).toBe('INVALID_API_KEY');
-      expect(result.message).toContain('Invalid API key');
+    it('should have rate limit error code defined', () => {
+      expect(EXTENDED_RATE_LIMIT_ERROR).toBe('RATE_LIMIT_EXCEEDED');
     });
 
-    it('should map authentication errors - 403', () => {
-      const error = {
-        response: {
-          status: 403,
-          data: { error: 'Forbidden' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(PerpDEXError);
-      expect(result.code).toBe('FORBIDDEN');
+    it('should have StarkNet error codes defined', () => {
+      expect(EXTENDED_STARKNET_ERRORS.TRANSACTION_FAILED).toBe('STARKNET_TRANSACTION_FAILED');
+      expect(EXTENDED_STARKNET_ERRORS.INVALID_SIGNATURE).toBe('STARKNET_INVALID_SIGNATURE');
+      expect(EXTENDED_STARKNET_ERRORS.CONTRACT_ERROR).toBe('STARKNET_CONTRACT_ERROR');
     });
 
-    it('should map bad request errors - 400', () => {
-      const error = {
-        response: {
-          status: 400,
-          data: { error: 'Invalid parameter' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(PerpDEXError);
-      expect(result.code).toBe('INVALID_ORDER');
-    });
-
-    it('should map not found errors - 404', () => {
-      const error = {
-        response: {
-          status: 404,
-          data: { error: 'Resource not found' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(PerpDEXError);
-      expect(result.code).toBe('ORDER_NOT_FOUND');
-    });
-
-    it('should map insufficient balance errors', () => {
-      const error = {
-        response: {
-          status: 400,
-          data: { error: 'Insufficient balance', code: 'INSUFFICIENT_BALANCE' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(PerpDEXError);
-      expect(result.code).toBe('INSUFFICIENT_BALANCE');
-      expect(result.message).toContain('Insufficient balance');
-    });
-
-    it('should map order not found errors', () => {
-      const error = {
-        response: {
-          status: 404,
-          data: { error: 'Order not found' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result.code).toBe('ORDER_NOT_FOUND');
-      expect(result.message).toContain('Order not found');
-    });
-
-    it('should map invalid order errors', () => {
-      const error = {
-        response: {
-          status: 400,
-          data: { error: 'Invalid order size' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result.code).toBe('INVALID_ORDER');
-      expect(result.message).toContain('Invalid order');
-    });
-
-    it('should map network timeout errors', () => {
-      const error = {
-        code: 'ETIMEDOUT',
-        message: 'Request timeout',
-      };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(NetworkError);
-      expect(result.message).toContain('timeout');
-    });
-
-    it('should map connection errors', () => {
-      const error = {
-        code: 'ECONNREFUSED',
-        message: 'Connection refused',
-      };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(NetworkError);
-      expect(result.message).toContain('Connection');
-    });
-
-    it('should map DNS errors', () => {
-      const error = {
-        code: 'ENOTFOUND',
-        message: 'DNS lookup failed',
-      };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(NetworkError);
-      expect(result.message).toContain('network');
-    });
-
-    it('should map server errors - 500', () => {
-      const error = {
-        response: {
-          status: 500,
-          data: { error: 'Internal server error' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(PerpDEXError);
-      expect(result.code).toBe('INTERNAL_ERROR');
-      expect(result.message).toContain('Internal server error');
-    });
-
-    it('should map service unavailable errors - 503', () => {
-      const error = {
-        response: {
-          status: 503,
-          data: { error: 'Service temporarily unavailable' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(PerpDEXError);
-      expect(result.code).toBe('SERVICE_UNAVAILABLE');
-    });
-
-    it('should include error message from response data', () => {
-      const error = {
-        response: {
-          status: 400,
-          data: { error: 'Custom error message from API' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result.message).toContain('Custom error message from API');
-    });
-
-    it('should handle response data with message field', () => {
-      const error = {
-        response: {
-          status: 400,
-          data: { message: 'Error message in message field' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result.message).toContain('Error message in message field');
-    });
-
-    it('should handle response data as string', () => {
-      const error = {
-        response: {
-          status: 400,
-          data: 'Plain text error',
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result.code).toBe('INVALID_ORDER'); // 400 maps to INVALID_ORDER
-    });
-
-    it('should handle errors without response', () => {
-      const error = new Error('Generic error');
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(PerpDEXError);
-      expect(result.code).toBe('UNKNOWN_ERROR');
-      expect(result.message).toContain('Generic error');
-    });
-
-    it('should handle string errors', () => {
-      const error = 'String error message';
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(PerpDEXError);
-      expect(result.message).toContain('String error message');
-    });
-
-    it('should handle unknown error types', () => {
-      const error = { someUnknownField: 'value' };
-
-      const result = mapError(error);
-
-      expect(result).toBeInstanceOf(PerpDEXError);
-      expect(result.code).toBe('UNKNOWN_ERROR');
-    });
-
-    it('should preserve error stack traces', () => {
-      const originalError = new Error('Test error with stack');
-
-      const result = mapError(originalError);
-
-      expect(result.stack).toBeTruthy();
-    });
-
-    it('should handle null/undefined errors', () => {
-      const result1 = mapError(null);
-      const result2 = mapError(undefined);
-
-      expect(result1).toBeInstanceOf(PerpDEXError);
-      expect(result2).toBeInstanceOf(PerpDEXError);
-      expect(result1.code).toBe('UNKNOWN_ERROR');
-      expect(result2.code).toBe('UNKNOWN_ERROR');
-    });
-
-    it('should map position limit errors', () => {
-      const error = {
-        response: {
-          status: 400,
-          data: { error: 'Position size exceeds limit' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result.code).toBe('INVALID_ORDER'); // 400 maps to INVALID_ORDER by default
-      expect(result.message).toContain('Position size');
-    });
-
-    it('should map leverage errors', () => {
-      const error = {
-        response: {
-          status: 400,
-          data: { error: 'Invalid leverage' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result.code).toBe('INVALID_LEVERAGE'); // Matches error message pattern
-      expect(result.message).toContain('Invalid leverage');
-    });
-
-    it('should map market closed errors', () => {
-      const error = {
-        response: {
-          status: 400,
-          data: { error: 'Market closed' },
-        },
-      };
-
-      const result = mapError(error);
-
-      expect(result.code).toBe('MARKET_CLOSED'); // Matches error message pattern
+    it('should have HTTP error codes mapped', () => {
+      expect(EXTENDED_HTTP_ERROR_CODES[400]).toBe('INVALID_ORDER');
+      expect(EXTENDED_HTTP_ERROR_CODES[401]).toBe('UNAUTHORIZED');
+      expect(EXTENDED_HTTP_ERROR_CODES[429]).toBe('RATE_LIMIT_EXCEEDED');
+      expect(EXTENDED_HTTP_ERROR_CODES[500]).toBe('INTERNAL_ERROR');
     });
   });
 
-  describe('error code constants', () => {
-    it('should have correct error code for authentication', () => {
-      const error = new PerpDEXError('Auth failed', 'AUTHENTICATION_ERROR', 'extended');
-      expect(error.code).toBe('AUTHENTICATION_ERROR');
+  describe('isClientError', () => {
+    it('should return true for client errors', () => {
+      expect(isClientError('INSUFFICIENT_MARGIN')).toBe(true);
+      expect(isClientError('INVALID_ORDER')).toBe(true);
+      expect(isClientError('UNAUTHORIZED')).toBe(true);
     });
 
-    it('should have correct error code for rate limits', () => {
-      const error = new RateLimitError('Rate limit', 'RATE_LIMIT_EXCEEDED', 'extended');
-      expect(error.code).toBe('RATE_LIMIT_EXCEEDED');
+    it('should return false for server errors', () => {
+      expect(isClientError('INTERNAL_ERROR')).toBe(false);
+      expect(isClientError('SERVICE_UNAVAILABLE')).toBe(false);
     });
 
-    it('should have correct error code for network errors', () => {
-      const error = new NetworkError('Network failed', 'NETWORK_ERROR', 'extended');
-      expect(error.code).toBe('NETWORK_ERROR');
+    it('should return false for unknown codes', () => {
+      expect(isClientError('UNKNOWN')).toBe(false);
+    });
+  });
+
+  describe('isServerError', () => {
+    it('should return true for server errors', () => {
+      expect(isServerError('INTERNAL_ERROR')).toBe(true);
+      expect(isServerError('SERVICE_UNAVAILABLE')).toBe(true);
+      expect(isServerError('TIMEOUT')).toBe(true);
     });
 
-    it('should have correct error code for invalid requests', () => {
-      const error = new PerpDEXError('Invalid', 'INVALID_REQUEST', 'extended');
-      expect(error.code).toBe('INVALID_REQUEST');
+    it('should return false for client errors', () => {
+      expect(isServerError('INSUFFICIENT_MARGIN')).toBe(false);
+      expect(isServerError('INVALID_ORDER')).toBe(false);
+    });
+  });
+
+  describe('isStarkNetError', () => {
+    it('should return true for StarkNet errors', () => {
+      expect(isStarkNetError('STARKNET_TRANSACTION_FAILED')).toBe(true);
+      expect(isStarkNetError('STARKNET_INVALID_SIGNATURE')).toBe(true);
+      expect(isStarkNetError('STARKNET_CONTRACT_ERROR')).toBe(true);
     });
 
-    it('should have correct error code for not found', () => {
-      const error = new PerpDEXError('Not found', 'NOT_FOUND', 'extended');
-      expect(error.code).toBe('NOT_FOUND');
+    it('should return false for non-StarkNet errors', () => {
+      expect(isStarkNetError('INTERNAL_ERROR')).toBe(false);
+      expect(isStarkNetError('INVALID_ORDER')).toBe(false);
+    });
+  });
+
+  describe('isRetryableError', () => {
+    it('should return true for server errors', () => {
+      expect(isRetryableError('INTERNAL_ERROR')).toBe(true);
+      expect(isRetryableError('SERVICE_UNAVAILABLE')).toBe(true);
+    });
+
+    it('should return true for rate limit error', () => {
+      expect(isRetryableError('RATE_LIMIT_EXCEEDED')).toBe(true);
+    });
+
+    it('should return true for nonce mismatch', () => {
+      expect(isRetryableError('STARKNET_NONCE_MISMATCH')).toBe(true);
+    });
+
+    it('should return false for client errors', () => {
+      expect(isRetryableError('INSUFFICIENT_MARGIN')).toBe(false);
+      expect(isRetryableError('INVALID_ORDER')).toBe(false);
+    });
+  });
+
+  describe('extractErrorCode', () => {
+    it('should extract insufficient margin error', () => {
+      expect(extractErrorCode('Insufficient margin for order')).toBe('INSUFFICIENT_MARGIN');
+    });
+
+    it('should extract invalid order error', () => {
+      expect(extractErrorCode('Invalid order parameters')).toBe('INVALID_ORDER');
+    });
+
+    it('should extract rate limit error', () => {
+      expect(extractErrorCode('Rate limit exceeded')).toBe('RATE_LIMIT_EXCEEDED');
+      expect(extractErrorCode('Too many requests')).toBe('RATE_LIMIT_EXCEEDED');
+    });
+
+    it('should extract StarkNet errors', () => {
+      expect(extractErrorCode('Transaction failed')).toBe('STARKNET_TRANSACTION_FAILED');
+      expect(extractErrorCode('Contract error occurred')).toBe('STARKNET_CONTRACT_ERROR');
+    });
+
+    it('should return UNKNOWN_ERROR for unrecognized messages', () => {
+      expect(extractErrorCode('Some random error')).toBe('UNKNOWN_ERROR');
+    });
+
+    it('should be case-insensitive', () => {
+      expect(extractErrorCode('INSUFFICIENT MARGIN')).toBe('INSUFFICIENT_MARGIN');
+    });
+  });
+
+  describe('extractErrorCodeFromStatus', () => {
+    it('should extract code from HTTP status', () => {
+      expect(extractErrorCodeFromStatus(400)).toBe('INVALID_ORDER');
+      expect(extractErrorCodeFromStatus(401)).toBe('UNAUTHORIZED');
+      expect(extractErrorCodeFromStatus(429)).toBe('RATE_LIMIT_EXCEEDED');
+      expect(extractErrorCodeFromStatus(500)).toBe('INTERNAL_ERROR');
+    });
+
+    it('should return UNKNOWN_ERROR for unmapped status', () => {
+      expect(extractErrorCodeFromStatus(418)).toBe('UNKNOWN_ERROR');
+    });
+  });
+
+  describe('mapExtendedError', () => {
+    it('should map insufficient margin errors', () => {
+      expect(mapExtendedError('INSUFFICIENT_MARGIN', 'Margin error')).toBeInstanceOf(InsufficientMarginError);
+      expect(mapExtendedError('INSUFFICIENT_BALANCE', 'Balance error')).toBeInstanceOf(InsufficientMarginError);
+      expect(mapExtendedError('LIQUIDATION_RISK', 'Risk error')).toBeInstanceOf(InsufficientMarginError);
+    });
+
+    it('should map auth errors', () => {
+      expect(mapExtendedError('INVALID_API_KEY', 'API key error')).toBeInstanceOf(InvalidSignatureError);
+      expect(mapExtendedError('UNAUTHORIZED', 'Unauthorized')).toBeInstanceOf(InvalidSignatureError);
+      expect(mapExtendedError('STARKNET_INVALID_SIGNATURE', 'Sig error')).toBeInstanceOf(InvalidSignatureError);
+    });
+
+    it('should map invalid order errors', () => {
+      expect(mapExtendedError('INVALID_ORDER', 'Order error')).toBeInstanceOf(InvalidOrderError);
+      expect(mapExtendedError('INVALID_SYMBOL', 'Symbol error')).toBeInstanceOf(InvalidOrderError);
+      expect(mapExtendedError('INVALID_QUANTITY', 'Qty error')).toBeInstanceOf(InvalidOrderError);
+      expect(mapExtendedError('INVALID_PRICE', 'Price error')).toBeInstanceOf(InvalidOrderError);
+      expect(mapExtendedError('MARKET_CLOSED', 'Closed')).toBeInstanceOf(InvalidOrderError);
+    });
+
+    it('should map order not found errors', () => {
+      expect(mapExtendedError('ORDER_NOT_FOUND', 'Not found')).toBeInstanceOf(OrderNotFoundError);
+      expect(mapExtendedError('POSITION_NOT_FOUND', 'Not found')).toBeInstanceOf(OrderNotFoundError);
+    });
+
+    it('should map rate limit error', () => {
+      expect(mapExtendedError('RATE_LIMIT_EXCEEDED', 'Rate limited')).toBeInstanceOf(RateLimitError);
+    });
+
+    it('should map unavailable errors', () => {
+      expect(mapExtendedError('SERVICE_UNAVAILABLE', 'Down')).toBeInstanceOf(ExchangeUnavailableError);
+      expect(mapExtendedError('TIMEOUT', 'Timeout')).toBeInstanceOf(ExchangeUnavailableError);
+    });
+
+    it('should map network/server errors', () => {
+      expect(mapExtendedError('INTERNAL_ERROR', 'Error')).toBeInstanceOf(NetworkError);
+      expect(mapExtendedError('MATCHING_ENGINE_ERROR', 'Error')).toBeInstanceOf(NetworkError);
+      expect(mapExtendedError('STARKNET_TRANSACTION_FAILED', 'Failed')).toBeInstanceOf(NetworkError);
+    });
+
+    it('should map unknown errors to generic PerpDEXError', () => {
+      expect(mapExtendedError('UNKNOWN', 'Unknown')).toBeInstanceOf(PerpDEXError);
+    });
+
+    it('should accept numeric HTTP status codes', () => {
+      expect(mapExtendedError(429, 'Rate limited')).toBeInstanceOf(RateLimitError);
+      expect(mapExtendedError(500, 'Error')).toBeInstanceOf(NetworkError);
+    });
+  });
+
+  describe('mapHTTPError', () => {
+    it('should map from body code', () => {
+      const error = mapHTTPError(400, { code: 'INSUFFICIENT_MARGIN', message: 'Margin error' });
+      expect(error).toBeInstanceOf(InsufficientMarginError);
+    });
+
+    it('should extract code from message when no code in body', () => {
+      const error = mapHTTPError(400, { message: 'Insufficient margin for trade' });
+      expect(error).toBeInstanceOf(InsufficientMarginError);
+    });
+
+    it('should fall back to HTTP status mapping', () => {
+      const error = mapHTTPError(429, { error: 'Slow down' });
+      expect(error).toBeInstanceOf(RateLimitError);
+    });
+
+    it('should handle body with error property', () => {
+      const error = mapHTTPError(500, { error: 'Internal server error' });
+      expect(error).toBeInstanceOf(NetworkError);
+    });
+
+    it('should handle empty body', () => {
+      const error = mapHTTPError(404, null);
+      expect(error).toBeInstanceOf(OrderNotFoundError);
+    });
+  });
+
+  describe('mapStarkNetError', () => {
+    it('should map StarkNet error with message', () => {
+      const error = mapStarkNetError(new Error('Transaction failed'));
+      expect(error).toBeInstanceOf(NetworkError);
+    });
+
+    it('should map StarkNet error from string', () => {
+      const error = mapStarkNetError('Contract error in execution');
+      expect(error).toBeInstanceOf(NetworkError);
+    });
+
+    it('should handle unknown StarkNet errors', () => {
+      const error = mapStarkNetError('Some unknown starknet error');
+      expect(error).toBeInstanceOf(PerpDEXError);
     });
   });
 });
