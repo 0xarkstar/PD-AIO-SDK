@@ -21,7 +21,9 @@ import type {
 import type { FeatureMap } from '../../types/adapter.js';
 import { PerpDEXError, InvalidOrderError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
-import { LIGHTER_API_URLS, LIGHTER_RATE_LIMITS, LIGHTER_ENDPOINT_WEIGHTS } from './constants.js';
+import { HTTPClient } from '../../core/http/HTTPClient.js';
+import { WebSocketManager } from '../../websocket/WebSocketManager.js';
+import { LIGHTER_API_URLS, LIGHTER_RATE_LIMITS, LIGHTER_ENDPOINT_WEIGHTS, LIGHTER_WS_CONFIG, LIGHTER_WS_CHANNELS } from './constants.js';
 import { LighterNormalizer } from './LighterNormalizer.js';
 import { convertOrderRequest, mapError } from './utils.js';
 import type {
@@ -71,9 +73,9 @@ export class LighterAdapter extends BaseAdapter {
     cancelOrder: true,
     cancelAllOrders: true,
     setLeverage: false,
-    watchOrderBook: false,
-    watchTrades: false,
-    watchPositions: false,
+    watchOrderBook: true,
+    watchTrades: true,
+    watchPositions: true,
   };
 
   private readonly apiUrl: string;
@@ -81,7 +83,9 @@ export class LighterAdapter extends BaseAdapter {
   private readonly apiKey?: string;
   private readonly apiSecret?: string;
   protected readonly rateLimiter: RateLimiter;
+  protected readonly httpClient: HTTPClient;
   private normalizer: LighterNormalizer;
+  private wsManager: WebSocketManager | null = null;
 
   constructor(config: LighterConfig = {}) {
     super(config);
@@ -106,13 +110,62 @@ export class LighterAdapter extends BaseAdapter {
       windowMs: limits.windowMs,
       weights: LIGHTER_ENDPOINT_WEIGHTS,
     });
+
+    // Initialize HTTP client
+    this.httpClient = new HTTPClient({
+      baseUrl: this.apiUrl,
+      timeout: config.timeout || 30000,
+      retry: {
+        maxAttempts: 3,
+        initialDelay: 1000,
+        maxDelay: 10000,
+        multiplier: 2,
+        retryableStatuses: [408, 429, 500, 502, 503, 504],
+      },
+      circuitBreaker: {
+        enabled: true,
+        failureThreshold: 5,
+        successThreshold: 2,
+        resetTimeout: 60000,
+      },
+      exchange: this.id,
+    });
   }
 
   async initialize(): Promise<void> {
+    // Initialize WebSocket manager (optional - will be initialized on first watch call if needed)
+    try {
+      this.wsManager = new WebSocketManager({
+        url: this.wsUrl,
+        reconnect: {
+          enabled: true,
+          initialDelay: LIGHTER_WS_CONFIG.reconnectDelay,
+          maxDelay: LIGHTER_WS_CONFIG.maxReconnectDelay,
+          maxAttempts: LIGHTER_WS_CONFIG.reconnectAttempts,
+          multiplier: 2,
+          jitter: 0.1,
+        },
+        heartbeat: {
+          enabled: true,
+          interval: LIGHTER_WS_CONFIG.pingInterval,
+          timeout: LIGHTER_WS_CONFIG.pongTimeout,
+        },
+      });
+
+      await this.wsManager.connect();
+    } catch (error) {
+      // WebSocket initialization is optional - watch methods will throw if needed
+      this.wsManager = null;
+    }
+
     this._isReady = true;
   }
 
   async disconnect(): Promise<void> {
+    if (this.wsManager) {
+      await this.wsManager.disconnect();
+      this.wsManager = null;
+    }
     this._isReady = false;
   }
 
@@ -152,7 +205,11 @@ export class LighterAdapter extends BaseAdapter {
 
     try {
       const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const response = await this.request<LighterOrderBook>('GET', `/orderbook/${lighterSymbol}`);
+      const limit = params?.limit || 50;
+      const response = await this.request<LighterOrderBook>(
+        'GET',
+        `/orderbook/${lighterSymbol}?limit=${limit}`
+      );
 
       return this.normalizer.normalizeOrderBook(response);
     } catch (error) {
@@ -441,17 +498,14 @@ export class LighterAdapter extends BaseAdapter {
   // ==================== Private Helper Methods ====================
 
   /**
-   * Make HTTP request to Lighter API
+   * Make HTTP request to Lighter API using HTTPClient
    */
   protected async request<T>(
     method: 'GET' | 'POST' | 'DELETE',
     path: string,
     body?: Record<string, unknown>
   ): Promise<T> {
-    const url = `${this.apiUrl}${path}`;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
 
     // Add authentication headers if available
     if (this.apiKey && this.apiSecret) {
@@ -463,22 +517,85 @@ export class LighterAdapter extends BaseAdapter {
     }
 
     try {
-      const response = await fetch(url, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      switch (method) {
+        case 'GET':
+          return await this.httpClient.get<T>(path, { headers });
+        case 'POST':
+          return await this.httpClient.post<T>(path, { headers, body });
+        case 'DELETE':
+          return await this.httpClient.delete<T>(path, { headers, body });
+        default:
+          throw new Error(`Unsupported HTTP method: ${method}`);
       }
-
-      return await response.json();
     } catch (error) {
       throw mapError(error);
     }
   }
+
+  // ==================== WebSocket Streaming Methods ====================
+
+  async *watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook> {
+    if (!this.wsManager) {
+      throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
+    }
+
+    const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
+    const subscription = {
+      type: 'subscribe',
+      channel: LIGHTER_WS_CHANNELS.ORDERBOOK,
+      symbol: lighterSymbol,
+      limit: limit || 50,
+    };
+
+    const channelId = `${LIGHTER_WS_CHANNELS.ORDERBOOK}:${lighterSymbol}`;
+
+    for await (const update of this.wsManager.watch<LighterOrderBook>(channelId, subscription)) {
+      yield this.normalizer.normalizeOrderBook(update);
+    }
+  }
+
+  async *watchTrades(symbol: string): AsyncGenerator<Trade> {
+    if (!this.wsManager) {
+      throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
+    }
+
+    const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
+    const subscription = {
+      type: 'subscribe',
+      channel: LIGHTER_WS_CHANNELS.TRADES,
+      symbol: lighterSymbol,
+    };
+
+    const channelId = `${LIGHTER_WS_CHANNELS.TRADES}:${lighterSymbol}`;
+
+    for await (const trade of this.wsManager.watch<LighterTrade>(channelId, subscription)) {
+      yield this.normalizer.normalizeTrade(trade);
+    }
+  }
+
+  async *watchPositions(): AsyncGenerator<Position[]> {
+    if (!this.wsManager) {
+      throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
+    }
+
+    if (!this.apiKey) {
+      throw new PerpDEXError('API key required for position streaming', 'AUTH_REQUIRED', this.id);
+    }
+
+    const subscription = {
+      type: 'subscribe',
+      channel: LIGHTER_WS_CHANNELS.POSITIONS,
+      apiKey: this.apiKey,
+    };
+
+    const channelId = `${LIGHTER_WS_CHANNELS.POSITIONS}:${this.apiKey}`;
+
+    for await (const positions of this.wsManager.watch<LighterPosition[]>(channelId, subscription)) {
+      yield positions.map(position => this.normalizer.normalizePosition(position));
+    }
+  }
+
+  // ==================== Private Helper Methods ====================
 
   /**
    * Generate HMAC signature for authenticated requests

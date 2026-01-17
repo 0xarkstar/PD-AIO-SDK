@@ -10,6 +10,7 @@ export interface BackpackConfig {
   apiSecret?: string;
   ed25519PrivateKey?: string;
   testnet?: boolean;
+  timeout?: number;
 }
 
 /**
