@@ -44,7 +44,9 @@ describe('EdgeXAdapter Integration Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+    // Create mock fetch function
+    mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+    global.fetch = mockFetch;
     mockSign = ec.starkCurve.sign as jest.MockedFunction<typeof ec.starkCurve.sign>;
     mockHash = hash.computeHashOnElements as jest.MockedFunction<typeof hash.computeHashOnElements>;
 

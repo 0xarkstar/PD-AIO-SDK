@@ -35,7 +35,9 @@ describe('BackpackAdapter Integration Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+    // Create mock fetch function
+    mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+    global.fetch = mockFetch;
     mockSignAsync = ed.signAsync as jest.MockedFunction<typeof ed.signAsync>;
 
     // Mock ED25519 signature to return deterministic value
@@ -919,7 +921,7 @@ describe('BackpackAdapter Integration Tests', () => {
         size: '0.1',
         price: '50000',
         filled_size: '0.05',
-        status: 'PARTIAL',
+        status: 'PARTIALLY_FILLED',
         time_in_force: 'GTC',
         post_only: false,
         reduce_only: false,
@@ -1056,7 +1058,7 @@ describe('BackpackAdapter Integration Tests', () => {
         size: '0.1',
         price: '50000',
         filled_size: '0.05',
-        status: 'PARTIAL',
+        status: 'PARTIALLY_FILLED',
         time_in_force: 'GTC',
         post_only: false,
         reduce_only: false,

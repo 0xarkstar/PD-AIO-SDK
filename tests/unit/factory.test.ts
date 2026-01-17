@@ -57,6 +57,8 @@ describe('getSupportedExchanges', () => {
       'edgex',
       'backpack',
       'nado',
+      'variational',
+      'extended',
     ]);
   });
 });

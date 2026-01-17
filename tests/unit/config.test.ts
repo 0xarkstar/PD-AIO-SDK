@@ -9,6 +9,8 @@ import {
   isValidPrivateKey,
   isValidApiKey,
   maskSensitive,
+  getConfigErrorMessage,
+  hasEnvironmentSupport,
   ConfigurationError,
 } from '../../src/utils/config.js';
 
@@ -198,6 +200,183 @@ describe('Configuration Utilities', () => {
       const masked = maskSensitive(long);
       expect(masked).toBe('aaaa...aaaa');
       expect(masked.length).toBe(11); // 4 + 3 + 4
+    });
+  });
+
+  describe('getConfigErrorMessage', () => {
+    test('returns formatted error message with missing vars', () => {
+      const message = getConfigErrorMessage('hyperliquid', ['HYPERLIQUID_PRIVATE_KEY']);
+
+      expect(message).toContain('hyperliquid');
+      expect(message).toContain('HYPERLIQUID_PRIVATE_KEY');
+      expect(message).toContain('Missing environment variables');
+      expect(message).toContain('Setup Instructions');
+    });
+
+    test('includes exchange-specific instructions for each exchange', () => {
+      const exchanges: Array<{ exchange: Parameters<typeof getConfigErrorMessage>[0]; keyword: string }> = [
+        { exchange: 'hyperliquid', keyword: 'MetaMask' },
+        { exchange: 'lighter', keyword: 'lighter.xyz' },
+        { exchange: 'grvt', keyword: 'grvt.io' },
+        { exchange: 'paradex', keyword: 'StarkNet' },
+        { exchange: 'edgex', keyword: 'edgex.exchange' },
+        { exchange: 'backpack', keyword: 'backpack.exchange' },
+        { exchange: 'nado', keyword: 'Ink L2' },
+        { exchange: 'variational', keyword: 'variational.io' },
+        { exchange: 'extended', keyword: 'extended.exchange' },
+      ];
+
+      for (const { exchange, keyword } of exchanges) {
+        const message = getConfigErrorMessage(exchange, ['TEST_VAR']);
+        expect(message).toContain(keyword);
+      }
+    });
+
+    test('lists multiple missing vars', () => {
+      const message = getConfigErrorMessage('lighter', [
+        'LIGHTER_API_KEY',
+        'LIGHTER_API_SECRET',
+        'LIGHTER_ACCOUNT_ID',
+      ]);
+
+      expect(message).toContain('LIGHTER_API_KEY');
+      expect(message).toContain('LIGHTER_API_SECRET');
+      expect(message).toContain('LIGHTER_ACCOUNT_ID');
+    });
+  });
+
+  describe('hasEnvironmentSupport', () => {
+    test('returns true in Node.js environment', () => {
+      expect(hasEnvironmentSupport()).toBe(true);
+    });
+  });
+
+  describe('getRequiredEnvVars - new exchanges', () => {
+    test('returns required vars for variational', () => {
+      const vars = getRequiredEnvVars('variational');
+      expect(vars).toContain('VARIATIONAL_API_KEY');
+      expect(vars).toContain('VARIATIONAL_API_SECRET');
+      expect(vars).toHaveLength(2);
+    });
+
+    test('returns required vars for extended', () => {
+      const vars = getRequiredEnvVars('extended');
+      expect(vars).toContain('EXTENDED_API_KEY');
+      expect(vars).toHaveLength(1);
+    });
+
+    test('returns required vars for backpack', () => {
+      const vars = getRequiredEnvVars('backpack');
+      expect(vars).toContain('BACKPACK_API_KEY');
+      expect(vars).toContain('BACKPACK_SECRET_KEY');
+      expect(vars).toHaveLength(2);
+    });
+
+    test('returns required vars for edgex', () => {
+      const vars = getRequiredEnvVars('edgex');
+      expect(vars).toContain('EDGEX_PRIVATE_KEY');
+      expect(vars).toContain('EDGEX_STARK_PRIVATE_KEY');
+      expect(vars).toHaveLength(2);
+    });
+
+    test('returns required vars for paradex', () => {
+      const vars = getRequiredEnvVars('paradex');
+      expect(vars).toContain('PARADEX_PRIVATE_KEY');
+      expect(vars).toContain('PARADEX_L1_RPC_URL');
+      expect(vars).toHaveLength(2);
+    });
+
+    test('returns required vars for nado', () => {
+      const vars = getRequiredEnvVars('nado');
+      expect(vars).toContain('NADO_PRIVATE_KEY');
+      expect(vars).toHaveLength(1);
+    });
+  });
+
+  describe('validateConfig - new exchanges', () => {
+    test('validates variational config', () => {
+      process.env.VARIATIONAL_API_KEY = 'valid-api-key-1234567890';
+      process.env.VARIATIONAL_API_SECRET = 'valid-secret-1234567890';
+
+      expect(() => validateConfig('variational')).not.toThrow();
+    });
+
+    test('throws for missing variational vars', () => {
+      delete process.env.VARIATIONAL_API_KEY;
+      delete process.env.VARIATIONAL_API_SECRET;
+
+      expect(() => validateConfig('variational')).toThrow(ConfigurationError);
+    });
+
+    test('validates extended config', () => {
+      process.env.EXTENDED_API_KEY = 'valid-api-key-1234567890';
+
+      expect(() => validateConfig('extended')).not.toThrow();
+    });
+
+    test('throws for missing extended vars', () => {
+      delete process.env.EXTENDED_API_KEY;
+
+      expect(() => validateConfig('extended')).toThrow(ConfigurationError);
+    });
+
+    test('throws when var is your_api_key_here placeholder', () => {
+      process.env.EXTENDED_API_KEY = 'your_api_key_here';
+
+      expect(() => validateConfig('extended')).toThrow(ConfigurationError);
+    });
+  });
+
+  describe('isValidPrivateKey - edge cases', () => {
+    test('rejects 0x prefix when allowPrefix is false', () => {
+      const key = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+      expect(isValidPrivateKey(key, false)).toBe(false);
+    });
+
+    test('accepts without prefix when allowPrefix is false', () => {
+      const key = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+      expect(isValidPrivateKey(key, false)).toBe(true);
+    });
+
+    test('trims whitespace before validation', () => {
+      const key = '  1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef  ';
+      expect(isValidPrivateKey(key)).toBe(true);
+    });
+  });
+
+  describe('isValidApiKey - edge cases', () => {
+    test('trims whitespace before validation', () => {
+      const key = '  valid-api-key-123456  ';
+      expect(isValidApiKey(key)).toBe(true);
+    });
+
+    test('rejects null/undefined-like values', () => {
+      expect(isValidApiKey(null as unknown as string)).toBe(false);
+      expect(isValidApiKey(undefined as unknown as string)).toBe(false);
+    });
+  });
+
+  describe('ConfigurationError class', () => {
+    test('has correct name property', () => {
+      const error = new ConfigurationError('test message', 'hyperliquid', ['VAR1']);
+      expect(error.name).toBe('ConfigurationError');
+    });
+
+    test('stores exchange and missingVars', () => {
+      const error = new ConfigurationError('test', 'lighter', ['VAR1', 'VAR2']);
+      expect(error.exchange).toBe('lighter');
+      expect(error.missingVars).toEqual(['VAR1', 'VAR2']);
+    });
+
+    test('is instanceof Error', () => {
+      const error = new ConfigurationError('test', 'grvt', []);
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toBeInstanceOf(ConfigurationError);
+    });
+
+    test('has correct message', () => {
+      const error = new ConfigurationError('Custom error message', 'paradex', ['KEY']);
+      expect(error.message).toBe('Custom error message');
     });
   });
 });
