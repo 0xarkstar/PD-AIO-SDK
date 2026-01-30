@@ -143,11 +143,12 @@ export class BackpackAdapter extends BaseAdapter {
   async fetchMarkets(): Promise<Market[]> {
     const response = await this.makeRequest('GET', '/markets', 'fetchMarkets');
 
-    if (!Array.isArray(response.markets)) {
+    // Backpack returns array directly, not { markets: [...] }
+    if (!Array.isArray(response)) {
       throw new PerpDEXError('Invalid markets response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    return response.markets.map((market: any) => this.normalizer.normalizeMarket(market));
+    return response.map((market: any) => this.normalizer.normalizeMarket(market));
   }
 
   /**
@@ -243,15 +244,37 @@ export class BackpackAdapter extends BaseAdapter {
 
   /**
    * Fetch account balance
+   *
+   * Backpack balance endpoint: GET /api/v1/capital
+   * Response format: { "ASSET": { available: "...", locked: "...", staked: "..." }, ... }
    */
   async fetchBalance(): Promise<Balance[]> {
-    const response = await this.makeRequest('GET', '/account/balance', 'fetchBalance');
+    const response = await this.makeRequest('GET', '/capital', 'fetchBalance');
 
-    if (!Array.isArray(response.balances)) {
+    // Backpack returns balance object directly with asset keys
+    if (!response || typeof response !== 'object') {
       throw new PerpDEXError('Invalid balance response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    return response.balances.map((balance: any) => this.normalizer.normalizeBalance(balance));
+    // Convert response object to array of balances
+    const balances: Balance[] = [];
+    for (const [currency, data] of Object.entries(response)) {
+      if (data && typeof data === 'object') {
+        const balanceData = data as Record<string, string>;
+        const free = parseFloat(balanceData.available || '0');
+        const used = parseFloat(balanceData.locked || '0');
+        const total = free + used;
+
+        balances.push({
+          currency,
+          total,
+          free,
+          used,
+        });
+      }
+    }
+
+    return balances;
   }
 
   /**
@@ -401,6 +424,8 @@ export class BackpackAdapter extends BaseAdapter {
 
   /**
    * Make authenticated HTTP request using HTTPClient
+   *
+   * Backpack API uses /api/v1 prefix for all endpoints.
    */
   protected async makeRequest(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
@@ -409,6 +434,9 @@ export class BackpackAdapter extends BaseAdapter {
     body?: Record<string, unknown>
   ): Promise<any> {
     await this.rateLimiter.acquire(endpoint);
+
+    // Backpack requires /api/v1 prefix for all endpoints
+    const fullPath = `/api/v1${path}`;
 
     const headers: Record<string, string> = {};
 
@@ -419,19 +447,19 @@ export class BackpackAdapter extends BaseAdapter {
     if (this.apiSecret) {
       const timestamp = Date.now().toString();
       headers['X-Timestamp'] = timestamp;
-      headers['X-Signature'] = await this.signRequest(method, path, timestamp, body);
+      headers['X-Signature'] = await this.signRequest(method, fullPath, timestamp, body);
     }
 
     try {
       switch (method) {
         case 'GET':
-          return await this.httpClient.get(path, { headers });
+          return await this.httpClient.get(fullPath, { headers });
         case 'POST':
-          return await this.httpClient.post(path, { headers, body });
+          return await this.httpClient.post(fullPath, { headers, body });
         case 'PUT':
-          return await this.httpClient.put(path, { headers, body });
+          return await this.httpClient.put(fullPath, { headers, body });
         case 'DELETE':
-          return await this.httpClient.delete(path, { headers, body });
+          return await this.httpClient.delete(fullPath, { headers, body });
         default:
           throw new Error(`Unsupported HTTP method: ${method}`);
       }
@@ -462,15 +490,25 @@ export class BackpackAdapter extends BaseAdapter {
       const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ''}`;
       const messageBytes = new TextEncoder().encode(message);
 
-      // Convert private key from hex string to Uint8Array
-      const privateKeyHex = this.apiSecret.startsWith('0x') ? this.apiSecret.slice(2) : this.apiSecret;
-      const privateKey = Uint8Array.from(Buffer.from(privateKeyHex, 'hex'));
+      // Convert private key to Uint8Array
+      // Support both hex (0x... or plain hex) and base64 formats
+      let privateKey: Uint8Array;
+      if (this.apiSecret.startsWith('0x')) {
+        // Hex format with 0x prefix
+        privateKey = Uint8Array.from(Buffer.from(this.apiSecret.slice(2), 'hex'));
+      } else if (/^[0-9a-fA-F]+$/.test(this.apiSecret)) {
+        // Plain hex format
+        privateKey = Uint8Array.from(Buffer.from(this.apiSecret, 'hex'));
+      } else {
+        // Assume base64 format (Backpack's default format)
+        privateKey = Uint8Array.from(Buffer.from(this.apiSecret, 'base64'));
+      }
 
       // Sign the message with ED25519
       const signature = await ed.signAsync(messageBytes, privateKey);
 
-      // Return signature as hex string
-      return Buffer.from(signature).toString('hex');
+      // Return signature as base64 string (Backpack expects base64)
+      return Buffer.from(signature).toString('base64');
     } catch (error) {
       throw new PerpDEXError(
         `Failed to sign request: ${error instanceof Error ? error.message : String(error)}`,

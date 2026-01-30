@@ -12,8 +12,8 @@
  */
 export const NADO_API_URLS = {
   mainnet: {
-    rest: 'https://gateway.nado.xyz/v1',
-    ws: 'wss://gateway.nado.xyz/v1/ws',
+    rest: 'https://gateway.prod.nado.xyz/v1',
+    ws: 'wss://gateway.prod.nado.xyz/v1/ws',
   },
   testnet: {
     rest: 'https://gateway.test.nado.xyz/v1',

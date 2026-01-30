@@ -4,6 +4,12 @@
  * Tests EIP-712 signing, nonce management, and helper methods.
  */
 
+// Enable BigInt serialization for Jest
+// eslint-disable-next-line no-extend-native
+BigInt.prototype.toJSON = function() {
+  return this.toString();
+};
+
 import { Wallet, ethers } from 'ethers';
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { NadoAuth } from '../../src/adapters/nado/NadoAuth.js';
@@ -29,7 +35,7 @@ describe('NadoAuth', () => {
     it('should initialize with wallet and chain ID', () => {
       expect(auth.getAddress()).toBe(wallet.address);
       expect(auth.getChainId()).toBe(testChainId);
-      expect(auth.getCurrentNonce()).toBe(0);
+      expect(auth.getCurrentNonce()).toBe(0n); // BigInt
     });
   });
 
@@ -53,35 +59,35 @@ describe('NadoAuth', () => {
   describe('nonce management', () => {
     describe('getCurrentNonce', () => {
       it('should return current nonce without incrementing', () => {
-        expect(auth.getCurrentNonce()).toBe(0);
-        expect(auth.getCurrentNonce()).toBe(0); // Should not increment
+        expect(auth.getCurrentNonce()).toBe(0n);
+        expect(auth.getCurrentNonce()).toBe(0n); // Should not increment
       });
     });
 
     describe('getNextNonce', () => {
       it('should return current nonce and increment', () => {
-        expect(auth.getNextNonce()).toBe(0);
-        expect(auth.getNextNonce()).toBe(1);
-        expect(auth.getNextNonce()).toBe(2);
+        expect(auth.getNextNonce()).toBe(0n);
+        expect(auth.getNextNonce()).toBe(1n);
+        expect(auth.getNextNonce()).toBe(2n);
       });
 
       it('should properly increment over multiple calls', () => {
         const nonces = [0, 1, 2, 3, 4].map(() => auth.getNextNonce());
-        expect(nonces).toEqual([0, 1, 2, 3, 4]);
-        expect(auth.getCurrentNonce()).toBe(5);
+        expect(nonces).toEqual([0n, 1n, 2n, 3n, 4n]);
+        expect(auth.getCurrentNonce()).toBe(5n);
       });
     });
 
     describe('setNonce', () => {
       it('should set nonce to specified value', () => {
         auth.setNonce(100);
-        expect(auth.getCurrentNonce()).toBe(100);
+        expect(auth.getCurrentNonce()).toBe(100n);
       });
 
       it('should allow setting nonce to 0', () => {
         auth.getNextNonce(); // Increment to 1
         auth.setNonce(0);
-        expect(auth.getCurrentNonce()).toBe(0);
+        expect(auth.getCurrentNonce()).toBe(0n);
       });
 
       it('should throw on negative nonce', () => {
@@ -99,22 +105,23 @@ describe('NadoAuth', () => {
       it('should increment nonce by 1 by default', () => {
         auth.setNonce(10);
         auth.incrementNonce();
-        expect(auth.getCurrentNonce()).toBe(11);
+        expect(auth.getCurrentNonce()).toBe(11n);
       });
 
       it('should increment nonce by specified amount', () => {
         auth.setNonce(10);
         auth.incrementNonce(5);
-        expect(auth.getCurrentNonce()).toBe(15);
+        expect(auth.getCurrentNonce()).toBe(15n);
       });
 
       it('should throw on negative increment', () => {
-        expect(() => auth.incrementNonce(-1)).toThrow(PerpDEXError);
-        expect(() => auth.incrementNonce(-1)).toThrow('Increment amount must be a non-negative integer');
+        expect(() => auth.incrementNonce(-1n)).toThrow(PerpDEXError);
+        expect(() => auth.incrementNonce(-1n)).toThrow('Increment amount must be non-negative');
       });
 
       it('should throw on non-integer increment', () => {
-        expect(() => auth.incrementNonce(1.5)).toThrow(PerpDEXError);
+        // BigInt doesn't accept floating point numbers, so this throws a RangeError
+        expect(() => auth.incrementNonce(1.5)).toThrow();
       });
     });
   });
@@ -152,7 +159,7 @@ describe('NadoAuth', () => {
         priceX18: '1000000000000000000',
         amount: '100000000000000000',
         expiration: Math.floor(Date.now() / 1000) + 3600,
-        nonce: 0,
+        nonce: 0n,
         appendix: {
           productId: 5,
           side: 1,
@@ -172,7 +179,7 @@ describe('NadoAuth', () => {
         priceX18: '1000000000000000000',
         amount: '100000000000000000',
         expiration: Math.floor(Date.now() / 1000) + 3600,
-        nonce: 0,
+        nonce: 0n,
         appendix: {
           productId: -1,
           side: 0,
@@ -191,7 +198,7 @@ describe('NadoAuth', () => {
         priceX18: '1000000000000000000',
         amount: '100000000000000000',
         expiration: Math.floor(Date.now() / 1000) + 3600,
-        nonce: 0,
+        nonce: 0n,
         appendix: {
           productId: 1.5,
           side: 0,
@@ -283,7 +290,7 @@ describe('NadoAuth', () => {
         priceX18: '1000000000000000000',
         amount: '100000000000000000',
         expiration: Math.floor(Date.now() / 1000) + 3600,
-        nonce: 0,
+        nonce: 0n,
         appendix: {
           productId: 0,
           side: 0,
@@ -302,7 +309,7 @@ describe('NadoAuth', () => {
         priceX18: '1000000000000000000',
         amount: '100000000000000000',
         expiration: Math.floor(Date.now() / 1000) + 3600,
-        nonce: 0,
+        nonce: 0n,
         appendix: {
           productId: 2,
           side: 0,
@@ -322,7 +329,7 @@ describe('NadoAuth', () => {
         priceX18: '1000000000000000000',
         amount: '100000000000000000',
         expiration: Math.floor(Date.now() / 1000) + 3600,
-        nonce: 0,
+        nonce: 0n,
         appendix: {
           productId: largeProductId,
           side: 0,
@@ -368,8 +375,8 @@ describe('NadoAuth', () => {
       const uniqueSignatures = new Set(signatures);
       expect(uniqueSignatures.size).toBe(5);
 
-      // Nonces should be 0, 1, 2, 3, 4
-      expect(orders.map(o => o.nonce)).toEqual([0, 1, 2, 3, 4]);
+      // Nonces should be 0n, 1n, 2n, 3n, 4n (bigint)
+      expect(orders.map(o => o.nonce)).toEqual([0n, 1n, 2n, 3n, 4n]);
     });
   });
 
@@ -385,8 +392,8 @@ describe('NadoAuth', () => {
       auth.setNonce(onChainNonce);
 
       // Next nonce should be 10
-      expect(auth.getNextNonce()).toBe(10);
-      expect(auth.getNextNonce()).toBe(11);
+      expect(auth.getNextNonce()).toBe(10n);
+      expect(auth.getNextNonce()).toBe(11n);
     });
   });
 });

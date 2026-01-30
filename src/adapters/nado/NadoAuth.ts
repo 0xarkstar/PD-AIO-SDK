@@ -87,7 +87,7 @@ const EIP712_STREAM_AUTH_TYPES = {
 export class NadoAuth {
   private wallet: Wallet;
   private chainId: number;
-  private currentNonce: number = 0;
+  private currentNonce: bigint = 0n;
 
   /**
    * Creates a new NadoAuth instance
@@ -168,7 +168,7 @@ export class NadoAuth {
    *
    * const signature = await auth.signCancellation(
    *   cancellation,
-   *   contractsInfo.endpoint_address
+   *   contractsInfo.endpoint_addr
    * );
    * ```
    */
@@ -208,7 +208,7 @@ export class NadoAuth {
    *
    * const signature = await auth.signStreamAuth(
    *   streamAuth,
-   *   contractsInfo.endpoint_address
+   *   contractsInfo.endpoint_addr
    * );
    * ```
    */
@@ -237,25 +237,25 @@ export class NadoAuth {
   /**
    * Get the current nonce without incrementing
    *
-   * @returns Current nonce value
+   * @returns Current nonce value as bigint
    */
-  getCurrentNonce(): number {
+  getCurrentNonce(): bigint {
     return this.currentNonce;
   }
 
   /**
    * Get the next nonce and increment the counter
    *
-   * @returns Next nonce value (before increment)
+   * @returns Next nonce value (before increment) as bigint
    *
    * @example
    * ```typescript
-   * const nonce1 = auth.getNextNonce(); // 0
-   * const nonce2 = auth.getNextNonce(); // 1
-   * const nonce3 = auth.getNextNonce(); // 2
+   * const nonce1 = auth.getNextNonce(); // 0n
+   * const nonce2 = auth.getNextNonce(); // 1n
+   * const nonce3 = auth.getNextNonce(); // 2n
    * ```
    */
-  getNextNonce(): number {
+  getNextNonce(): bigint {
     return this.currentNonce++;
   }
 
@@ -263,35 +263,57 @@ export class NadoAuth {
    * Set the nonce to a specific value
    *
    * Useful for synchronizing with on-chain nonce or recovering from errors.
+   * Accepts bigint, number, or string representation of the nonce.
    *
-   * @param nonce - New nonce value
+   * @param nonce - New nonce value (bigint, number, or string)
    *
    * @example
    * ```typescript
-   * // Sync with on-chain nonce
+   * // Sync with on-chain nonce (from API as string)
    * const onChainNonce = await fetchNonceFromAPI();
-   * auth.setNonce(onChainNonce);
+   * auth.setNonce(onChainNonce); // "1854600042563764224"
    * ```
    */
-  setNonce(nonce: number): void {
-    if (nonce < 0 || !Number.isInteger(nonce)) {
-      throw new PerpDEXError('Nonce must be a non-negative integer', 'INVALID_NONCE', 'nado');
+  setNonce(nonce: bigint | number | string): void {
+    let nonceValue: bigint;
+
+    if (typeof nonce === 'bigint') {
+      nonceValue = nonce;
+    } else if (typeof nonce === 'number') {
+      if (nonce < 0 || !Number.isInteger(nonce)) {
+        throw new PerpDEXError('Nonce must be a non-negative integer', 'INVALID_NONCE', 'nado');
+      }
+      nonceValue = BigInt(nonce);
+    } else if (typeof nonce === 'string') {
+      try {
+        nonceValue = BigInt(nonce);
+      } catch {
+        throw new PerpDEXError('Nonce must be a valid integer string', 'INVALID_NONCE', 'nado');
+      }
+    } else {
+      throw new PerpDEXError('Nonce must be a bigint, number, or string', 'INVALID_NONCE', 'nado');
     }
 
-    this.currentNonce = nonce;
+    if (nonceValue < 0n) {
+      throw new PerpDEXError('Nonce must be non-negative', 'INVALID_NONCE', 'nado');
+    }
+
+    this.currentNonce = nonceValue;
   }
 
   /**
    * Increment nonce by a specific amount
    *
-   * @param amount - Amount to increment (default: 1)
+   * @param amount - Amount to increment (default: 1n)
    */
-  incrementNonce(amount: number = 1): void {
-    if (amount < 0 || !Number.isInteger(amount)) {
-      throw new PerpDEXError('Increment amount must be a non-negative integer', 'INVALID_NONCE', 'nado');
+  incrementNonce(amount: bigint | number = 1n): void {
+    const amountBigInt = typeof amount === 'bigint' ? amount : BigInt(amount);
+
+    if (amountBigInt < 0n) {
+      throw new PerpDEXError('Increment amount must be non-negative', 'INVALID_NONCE', 'nado');
     }
 
-    this.currentNonce += amount;
+    this.currentNonce += amountBigInt;
   }
 
   // ===========================================================================

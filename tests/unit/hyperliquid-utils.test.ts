@@ -41,10 +41,10 @@ describe('Symbol Conversion', () => {
       postOnly: true,
     };
 
-    const converted = convertOrderRequest(request, 'BTC-PERP');
+    const converted = convertOrderRequest(request, 'BTC');
 
     expect(converted).toEqual({
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       is_buy: true,
       sz: 0.1,
       limit_px: 50000,
@@ -62,7 +62,7 @@ describe('Symbol Conversion', () => {
       amount: 0.1,
     };
 
-    const converted = convertOrderRequest(request, 'BTC-PERP');
+    const converted = convertOrderRequest(request, 'BTC');
 
     expect(converted.order_type).toEqual({ market: {} });
     expect(converted.is_buy).toBe(false);
@@ -78,7 +78,7 @@ describe('Symbol Conversion', () => {
       timeInForce: 'IOC',
     };
 
-    const converted = convertOrderRequest(request, 'BTC-PERP');
+    const converted = convertOrderRequest(request, 'BTC');
 
     expect(converted.order_type).toEqual({ limit: { tif: 'Ioc' } });
   });
@@ -87,7 +87,7 @@ describe('Symbol Conversion', () => {
 describe('Order Normalization', () => {
   test('normalizes open order', () => {
     const hlOrder: HyperliquidOpenOrder = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       limitPx: '50000.0',
       sz: '0.08',
@@ -97,7 +97,7 @@ describe('Order Normalization', () => {
       cloid: 'test-123',
     };
 
-    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC-PERP');
+    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC');
 
     expect(normalized).toMatchObject({
       id: '12345',
@@ -116,7 +116,7 @@ describe('Order Normalization', () => {
 
   test('normalizes sell order', () => {
     const hlOrder: HyperliquidOpenOrder = {
-      coin: 'ETH-PERP',
+      coin: 'ETH',
       side: 'A',
       limitPx: '3000.0',
       sz: '1.0',
@@ -125,7 +125,7 @@ describe('Order Normalization', () => {
       origSz: '1.0',
     };
 
-    const normalized = normalizer.normalizeOrder(hlOrder, 'ETH-PERP');
+    const normalized = normalizer.normalizeOrder(hlOrder, 'ETH');
 
     expect(normalized.side).toBe('sell');
     expect(normalized.symbol).toBe('ETH/USDT:USDT');
@@ -136,7 +136,7 @@ describe('Position Normalization', () => {
   test('normalizes long position', () => {
     const hlPosition: HyperliquidPosition = {
       position: {
-        coin: 'BTC-PERP',
+        coin: 'BTC',
         entryPx: '50000',
         leverage: {
           type: 'cross',
@@ -170,7 +170,7 @@ describe('Position Normalization', () => {
   test('normalizes short position', () => {
     const hlPosition: HyperliquidPosition = {
       position: {
-        coin: 'ETH-PERP',
+        coin: 'ETH',
         entryPx: '3000',
         leverage: {
           type: 'isolated',
@@ -197,7 +197,7 @@ describe('Position Normalization', () => {
 describe('Market Normalization', () => {
   test('normalizes market asset', () => {
     const hlAsset: HyperliquidAsset = {
-      name: 'BTC-PERP',
+      name: 'BTC',
       szDecimals: 3,
       maxLeverage: 50,
       onlyIsolated: false,
@@ -222,15 +222,15 @@ describe('Market Normalization', () => {
 describe('OrderBook Normalization', () => {
   test('normalizes order book', () => {
     const hlBook: HyperliquidL2Book = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       levels: [
         [
-          ['49999.5', '1.5'],
-          ['49999.0', '2.0'],
+          { px: '49999.5', sz: '1.5', n: 1 },
+          { px: '49999.0', sz: '2.0', n: 2 },
         ],
         [
-          ['50000.5', '1.2'],
-          ['50001.0', '1.8'],
+          { px: '50000.5', sz: '1.2', n: 1 },
+          { px: '50001.0', sz: '1.8', n: 3 },
         ],
       ],
       time: 1234567890000,
@@ -254,7 +254,7 @@ describe('OrderBook Normalization', () => {
 describe('Trade Normalization', () => {
   test('normalizes trade', () => {
     const hlTrade: HyperliquidWsTrade = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       px: '50000.0',
       sz: '0.5',
@@ -330,7 +330,7 @@ describe('Symbol Conversion - Edge Cases', () => {
       reduceOnly: true,
     };
 
-    const converted = convertOrderRequest(request, 'BTC-PERP');
+    const converted = convertOrderRequest(request, 'BTC');
     expect(converted.reduce_only).toBe(true);
   });
 
@@ -344,7 +344,7 @@ describe('Symbol Conversion - Edge Cases', () => {
       clientOrderId: 'my-order-123',
     };
 
-    const converted = convertOrderRequest(request, 'BTC-PERP');
+    const converted = convertOrderRequest(request, 'BTC');
     expect(converted.cloid).toBe('my-order-123');
   });
 
@@ -358,7 +358,7 @@ describe('Symbol Conversion - Edge Cases', () => {
       timeInForce: 'GTC',
     };
 
-    const converted = convertOrderRequest(request, 'BTC-PERP');
+    const converted = convertOrderRequest(request, 'BTC');
     expect(converted.order_type).toEqual({ limit: { tif: 'Gtc' } });
   });
 
@@ -371,7 +371,7 @@ describe('Symbol Conversion - Edge Cases', () => {
       price: 50000,
     };
 
-    const converted = convertOrderRequest(request, 'BTC-PERP');
+    const converted = convertOrderRequest(request, 'BTC');
     expect(converted.sz).toBe(0.001);
   });
 
@@ -384,7 +384,7 @@ describe('Symbol Conversion - Edge Cases', () => {
       price: 1000000,
     };
 
-    const converted = convertOrderRequest(request, 'BTC-PERP');
+    const converted = convertOrderRequest(request, 'BTC');
     expect(converted.limit_px).toBe(1000000);
   });
 
@@ -396,7 +396,7 @@ describe('Symbol Conversion - Edge Cases', () => {
       amount: 0.1,
     };
 
-    const converted = convertOrderRequest(request, 'BTC-PERP');
+    const converted = convertOrderRequest(request, 'BTC');
     expect(converted.order_type).toEqual({ market: {} });
     // limit_px is set to 0 for market orders per the type definition
     expect(converted.limit_px).toBe(0);
@@ -406,7 +406,7 @@ describe('Symbol Conversion - Edge Cases', () => {
 describe('Order Normalization - Edge Cases', () => {
   test('handles order without client order ID', () => {
     const hlOrder: HyperliquidOpenOrder = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       limitPx: '50000.0',
       sz: '0.1',
@@ -415,13 +415,13 @@ describe('Order Normalization - Edge Cases', () => {
       origSz: '0.1',
     };
 
-    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC-PERP');
+    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC');
     expect(normalized.clientOrderId).toBeUndefined();
   });
 
   test('handles fully filled order', () => {
     const hlOrder: HyperliquidOpenOrder = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       limitPx: '50000.0',
       sz: '0.0',
@@ -430,14 +430,14 @@ describe('Order Normalization - Edge Cases', () => {
       origSz: '0.1',
     };
 
-    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC-PERP');
+    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC');
     expect(normalized.remaining).toBe(0);
     expect(normalized.filled).toBeCloseTo(0.1, 10);
   });
 
   test('handles partially filled order', () => {
     const hlOrder: HyperliquidOpenOrder = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       limitPx: '50000.0',
       sz: '0.05',
@@ -446,14 +446,14 @@ describe('Order Normalization - Edge Cases', () => {
       origSz: '0.1',
     };
 
-    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC-PERP');
+    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC');
     expect(normalized.remaining).toBe(0.05);
     expect(normalized.filled).toBeCloseTo(0.05, 10);
   });
 
   test('handles very small remaining amounts', () => {
     const hlOrder: HyperliquidOpenOrder = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       limitPx: '50000.0',
       sz: '0.001',
@@ -462,14 +462,14 @@ describe('Order Normalization - Edge Cases', () => {
       origSz: '0.1',
     };
 
-    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC-PERP');
+    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC');
     expect(normalized.remaining).toBe(0.001);
     expect(normalized.filled).toBeCloseTo(0.099, 10);
   });
 
   test('handles order with string numeric ID', () => {
     const hlOrder: HyperliquidOpenOrder = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       limitPx: '50000.0',
       sz: '0.1',
@@ -478,13 +478,13 @@ describe('Order Normalization - Edge Cases', () => {
       origSz: '0.1',
     };
 
-    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC-PERP');
+    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC');
     expect(normalized.id).toBe('999999999');
   });
 
   test('handles order with decimal prices', () => {
     const hlOrder: HyperliquidOpenOrder = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       limitPx: '50000.12345',
       sz: '0.1',
@@ -493,13 +493,13 @@ describe('Order Normalization - Edge Cases', () => {
       origSz: '0.1',
     };
 
-    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC-PERP');
+    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC');
     expect(normalized.price).toBeCloseTo(50000.12345, 5);
   });
 
   test('handles order with zero timestamp', () => {
     const hlOrder: HyperliquidOpenOrder = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       limitPx: '50000.0',
       sz: '0.1',
@@ -508,7 +508,7 @@ describe('Order Normalization - Edge Cases', () => {
       origSz: '0.1',
     };
 
-    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC-PERP');
+    const normalized = normalizer.normalizeOrder(hlOrder, 'BTC');
     expect(normalized.timestamp).toBe(0);
   });
 });
@@ -517,7 +517,7 @@ describe('Position Normalization - Edge Cases', () => {
   test('handles position with zero size', () => {
     const hlPosition: HyperliquidPosition = {
       position: {
-        coin: 'BTC-PERP',
+        coin: 'BTC',
         entryPx: '50000',
         leverage: {
           type: 'cross',
@@ -541,7 +541,7 @@ describe('Position Normalization - Edge Cases', () => {
   test('handles position without liquidation price', () => {
     const hlPosition: HyperliquidPosition = {
       position: {
-        coin: 'BTC-PERP',
+        coin: 'BTC',
         entryPx: '50000',
         leverage: {
           type: 'cross',
@@ -565,7 +565,7 @@ describe('Position Normalization - Edge Cases', () => {
   test('handles position with negative PnL', () => {
     const hlPosition: HyperliquidPosition = {
       position: {
-        coin: 'BTC-PERP',
+        coin: 'BTC',
         entryPx: '50000',
         leverage: {
           type: 'cross',
@@ -588,7 +588,7 @@ describe('Position Normalization - Edge Cases', () => {
   test('handles position with very high leverage', () => {
     const hlPosition: HyperliquidPosition = {
       position: {
-        coin: 'BTC-PERP',
+        coin: 'BTC',
         entryPx: '50000',
         leverage: {
           type: 'cross',
@@ -611,7 +611,7 @@ describe('Position Normalization - Edge Cases', () => {
   test('handles position with decimal size', () => {
     const hlPosition: HyperliquidPosition = {
       position: {
-        coin: 'ETH-PERP',
+        coin: 'ETH',
         entryPx: '3000',
         leverage: {
           type: 'isolated',
@@ -635,7 +635,7 @@ describe('Position Normalization - Edge Cases', () => {
   test('handles short position with decimal size', () => {
     const hlPosition: HyperliquidPosition = {
       position: {
-        coin: 'ETH-PERP',
+        coin: 'ETH',
         entryPx: '3000',
         leverage: {
           type: 'isolated',
@@ -660,7 +660,7 @@ describe('Position Normalization - Edge Cases', () => {
 describe('Market Normalization - Edge Cases', () => {
   test('handles market with only isolated margin', () => {
     const hlAsset: HyperliquidAsset = {
-      name: 'BTC-PERP',
+      name: 'BTC',
       szDecimals: 3,
       maxLeverage: 50,
       onlyIsolated: true,
@@ -672,7 +672,7 @@ describe('Market Normalization - Edge Cases', () => {
 
   test('handles market with high precision', () => {
     const hlAsset: HyperliquidAsset = {
-      name: 'BTC-PERP',
+      name: 'BTC',
       szDecimals: 8,
       maxLeverage: 50,
       onlyIsolated: false,
@@ -684,7 +684,7 @@ describe('Market Normalization - Edge Cases', () => {
 
   test('handles market with low leverage', () => {
     const hlAsset: HyperliquidAsset = {
-      name: 'BTC-PERP',
+      name: 'BTC',
       szDecimals: 3,
       maxLeverage: 5,
       onlyIsolated: false,
@@ -696,7 +696,7 @@ describe('Market Normalization - Edge Cases', () => {
 
   test('handles different market index', () => {
     const hlAsset: HyperliquidAsset = {
-      name: 'ETH-PERP',
+      name: 'ETH',
       szDecimals: 4,
       maxLeverage: 30,
       onlyIsolated: false,
@@ -709,7 +709,7 @@ describe('Market Normalization - Edge Cases', () => {
 
   test('handles exotic asset name', () => {
     const hlAsset: HyperliquidAsset = {
-      name: 'DOGE-PERP',
+      name: 'DOGE',
       szDecimals: 0,
       maxLeverage: 20,
       onlyIsolated: false,
@@ -724,12 +724,12 @@ describe('Market Normalization - Edge Cases', () => {
 describe('OrderBook Normalization - Edge Cases', () => {
   test('handles order book with empty bids', () => {
     const hlBook: HyperliquidL2Book = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       levels: [
         [],
         [
-          ['50000.5', '1.2'],
-          ['50001.0', '1.8'],
+          { px: '50000.5', sz: '1.2', n: 1 },
+          { px: '50001.0', sz: '1.8', n: 1 },
         ],
       ],
       time: 1234567890000,
@@ -742,11 +742,11 @@ describe('OrderBook Normalization - Edge Cases', () => {
 
   test('handles order book with empty asks', () => {
     const hlBook: HyperliquidL2Book = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       levels: [
         [
-          ['49999.5', '1.5'],
-          ['49999.0', '2.0'],
+          { px: '49999.5', sz: '1.5', n: 1 },
+          { px: '49999.0', sz: '2.0', n: 1 },
         ],
         [],
       ],
@@ -760,7 +760,7 @@ describe('OrderBook Normalization - Edge Cases', () => {
 
   test('handles completely empty order book', () => {
     const hlBook: HyperliquidL2Book = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       levels: [[], []],
       time: 1234567890000,
     };
@@ -772,10 +772,10 @@ describe('OrderBook Normalization - Edge Cases', () => {
 
   test('handles order book with decimal prices and amounts', () => {
     const hlBook: HyperliquidL2Book = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       levels: [
-        [['49999.12345', '1.5678']],
-        [['50000.98765', '2.3456']],
+        [{ px: '49999.12345', sz: '1.5678', n: 1 }],
+        [{ px: '50000.98765', sz: '2.3456', n: 1 }],
       ],
       time: 1234567890000,
     };
@@ -788,17 +788,19 @@ describe('OrderBook Normalization - Edge Cases', () => {
   });
 
   test('handles order book with many levels', () => {
-    const bidLevels = Array.from({ length: 20 }, (_, i) => [
-      `${50000 - i}`,
-      `${1 + i * 0.1}`,
-    ]);
-    const askLevels = Array.from({ length: 20 }, (_, i) => [
-      `${50001 + i}`,
-      `${1 + i * 0.1}`,
-    ]);
+    const bidLevels = Array.from({ length: 20 }, (_, i) => ({
+      px: `${50000 - i}`,
+      sz: `${1 + i * 0.1}`,
+      n: 1,
+    }));
+    const askLevels = Array.from({ length: 20 }, (_, i) => ({
+      px: `${50001 + i}`,
+      sz: `${1 + i * 0.1}`,
+      n: 1,
+    }));
 
     const hlBook: HyperliquidL2Book = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       levels: [bidLevels, askLevels],
       time: 1234567890000,
     };
@@ -812,7 +814,7 @@ describe('OrderBook Normalization - Edge Cases', () => {
 describe('Trade Normalization - Edge Cases', () => {
   test('handles sell side trade', () => {
     const hlTrade: HyperliquidWsTrade = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'A',
       px: '50000.0',
       sz: '0.5',
@@ -826,7 +828,7 @@ describe('Trade Normalization - Edge Cases', () => {
 
   test('handles trade with very small amount', () => {
     const hlTrade: HyperliquidWsTrade = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       px: '50000.0',
       sz: '0.001',
@@ -841,7 +843,7 @@ describe('Trade Normalization - Edge Cases', () => {
 
   test('handles trade with decimal price', () => {
     const hlTrade: HyperliquidWsTrade = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       px: '50000.12345',
       sz: '1.0',
@@ -855,7 +857,7 @@ describe('Trade Normalization - Edge Cases', () => {
 
   test('handles trade with long hash', () => {
     const hlTrade: HyperliquidWsTrade = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       px: '50000.0',
       sz: '0.5',
@@ -871,7 +873,7 @@ describe('Trade Normalization - Edge Cases', () => {
 
   test('handles trade with zero timestamp', () => {
     const hlTrade: HyperliquidWsTrade = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       side: 'B',
       px: '50000.0',
       sz: '0.5',
@@ -887,7 +889,7 @@ describe('Trade Normalization - Edge Cases', () => {
 describe('normalizeFill', () => {
   test('normalizes basic fill', () => {
     const hlFill: HyperliquidFill = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       px: '50000.0',
       sz: '0.5',
       side: 'B',
@@ -917,7 +919,7 @@ describe('normalizeFill', () => {
 
   test('handles sell fill', () => {
     const hlFill: HyperliquidFill = {
-      coin: 'ETH-PERP',
+      coin: 'ETH',
       px: '3000.0',
       sz: '1.0',
       side: 'A',
@@ -939,7 +941,7 @@ describe('normalizeFill', () => {
 
   test('handles fill with decimal amounts', () => {
     const hlFill: HyperliquidFill = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       px: '50000.12',
       sz: '0.123',
       side: 'B',
@@ -964,7 +966,7 @@ describe('normalizeFill', () => {
 describe('normalizeUserFill', () => {
   test('normalizes basic user fill', () => {
     const hlUserFill: HyperliquidUserFill = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       px: '50000.0',
       sz: '0.5',
       side: 'B',
@@ -994,7 +996,7 @@ describe('normalizeUserFill', () => {
 
   test('handles user fill without client order ID', () => {
     const hlUserFill: HyperliquidUserFill = {
-      coin: 'ETH-PERP',
+      coin: 'ETH',
       px: '3000.0',
       sz: '1.0',
       side: 'A',
@@ -1019,7 +1021,7 @@ describe('normalizeHistoricalOrder', () => {
   test('normalizes basic historical order', () => {
     const hlHistoricalOrder: HyperliquidHistoricalOrder = {
       order: {
-        coin: 'BTC-PERP',
+        coin: 'BTC',
         side: 'B',
         limitPx: '50000.0',
         sz: '0.5',
@@ -1050,7 +1052,7 @@ describe('normalizeHistoricalOrder', () => {
   test('handles cancelled historical order', () => {
     const hlHistoricalOrder: HyperliquidHistoricalOrder = {
       order: {
-        coin: 'ETH-PERP',
+        coin: 'ETH',
         side: 'A',
         limitPx: '3000.0',
         sz: '1.0',
@@ -1069,7 +1071,7 @@ describe('normalizeHistoricalOrder', () => {
   test('handles rejected historical order', () => {
     const hlHistoricalOrder: HyperliquidHistoricalOrder = {
       order: {
-        coin: 'BTC-PERP',
+        coin: 'BTC',
         side: 'B',
         limitPx: '50000.0',
         sz: '0.1',
@@ -1089,7 +1091,7 @@ describe('normalizeHistoricalOrder', () => {
 describe('normalizeFundingRate', () => {
   test('normalizes basic funding rate', () => {
     const hlFundingData: HyperliquidFundingRate = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       fundingRate: '0.0001',
       premium: '0.00005',
       time: 1234567890000,
@@ -1106,7 +1108,7 @@ describe('normalizeFundingRate', () => {
 
   test('handles negative funding rate', () => {
     const hlFundingData: HyperliquidFundingRate = {
-      coin: 'ETH-PERP',
+      coin: 'ETH',
       fundingRate: '-0.0002',
       premium: '-0.00015',
       time: 1234567890000,
@@ -1118,7 +1120,7 @@ describe('normalizeFundingRate', () => {
 
   test('handles zero funding rate', () => {
     const hlFundingData: HyperliquidFundingRate = {
-      coin: 'BTC-PERP',
+      coin: 'BTC',
       fundingRate: '0',
       premium: '0',
       time: 1234567890000,
@@ -1135,7 +1137,7 @@ describe('normalizeBalance', () => {
       assetPositions: [
         {
           position: {
-            coin: 'BTC-PERP',
+            coin: 'BTC',
             entryPx: '50000',
             leverage: { type: 'cross', value: 10 },
             liquidationPx: '45000',
@@ -1222,7 +1224,7 @@ describe('normalizeBalance', () => {
 
 describe('normalizeTicker', () => {
   test('normalizes basic ticker', () => {
-    const normalized = normalizer.normalizeTicker('BTC-PERP', { mid: '50000.0' });
+    const normalized = normalizer.normalizeTicker('BTC', { mid: '50000.0' });
     expect(normalized).toMatchObject({
       symbol: 'BTC/USDT:USDT',
       last: 50000,
@@ -1230,12 +1232,12 @@ describe('normalizeTicker', () => {
   });
 
   test('handles ticker with decimal price', () => {
-    const normalized = normalizer.normalizeTicker('ETH-PERP', { mid: '3000.12345' });
+    const normalized = normalizer.normalizeTicker('ETH', { mid: '3000.12345' });
     expect(normalized.last).toBeCloseTo(3000.12345, 5);
   });
 
   test('handles ticker with extra fields', () => {
-    const normalized = normalizer.normalizeTicker('BTC-PERP', {
+    const normalized = normalizer.normalizeTicker('BTC', {
       mid: '50000.0',
       extraField: 'ignored',
       anotherField: 123,

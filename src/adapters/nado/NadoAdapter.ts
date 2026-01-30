@@ -4,7 +4,65 @@
  * Implements IExchangeAdapter for Nado DEX on Ink L2
  * Built by Kraken team with 5-15ms latency
  *
- * @see https://docs.nado.xyz
+ * ## ⚠️ IMPORTANT: Initialization Required
+ *
+ * The Nado adapter **MUST** be initialized before using trading methods.
+ * The `initialize()` method performs critical setup:
+ *
+ * 1. **Fetches contract addresses** - Required for order signing
+ * 2. **Fetches current nonce** - Required for EIP-712 signature sequencing
+ * 3. **Preloads markets** - Builds product ID → symbol mappings
+ * 4. **Initializes WebSocket** - Sets up real-time streaming
+ *
+ * ### Required Initialization Flow
+ *
+ * ```typescript
+ * import { createExchange } from 'pd-aio-sdk';
+ * import { Wallet } from 'ethers';
+ *
+ * const wallet = new Wallet(process.env.NADO_PRIVATE_KEY);
+ * const adapter = createExchange('nado', {
+ *   wallet,       // or privateKey: '0x...'
+ *   testnet: true // Use Ink testnet
+ * });
+ *
+ * // CRITICAL: Must call initialize() before trading!
+ * await adapter.initialize();
+ *
+ * // Now trading methods work:
+ * const order = await adapter.createOrder({
+ *   symbol: 'BTC/USDT:USDT',
+ *   type: 'limit',
+ *   side: 'buy',
+ *   amount: 0.01,
+ *   price: 50000
+ * });
+ *
+ * // Cleanup when done
+ * await adapter.disconnect();
+ * ```
+ *
+ * ### What Happens Without Initialization?
+ *
+ * If you call trading methods without initializing:
+ * - `createOrder()` → Throws "Contracts info not loaded" (NO_CONTRACTS)
+ * - `cancelOrder()` → Throws "Contracts info not loaded" (NO_CONTRACTS)
+ * - `cancelAllOrders()` → Throws "Contracts info not loaded" (NO_CONTRACTS)
+ *
+ * Market data methods (fetchMarkets, fetchTicker, etc.) may work without
+ * initialization, but it's recommended to always initialize first.
+ *
+ * ### Configuration Options
+ *
+ * ```typescript
+ * interface NadoConfig {
+ *   wallet?: Wallet;           // ethers.js Wallet instance
+ *   privateKey?: string;       // Alternative: hex private key (0x...)
+ *   testnet?: boolean;         // true = Ink testnet, false = mainnet
+ * }
+ * ```
+ *
+ * @see https://docs.nado.xyz - Nado official documentation
  */
 
 import { Wallet, ethers } from 'ethers';
@@ -198,7 +256,7 @@ export class NadoAdapter extends BaseAdapter {
       this.contractsInfo = await this.fetchContracts();
       this.debug('Contracts info fetched', {
         chainId: this.contractsInfo.chain_id,
-        endpoint: this.contractsInfo.endpoint_address,
+        endpoint: this.contractsInfo.endpoint_addr,
       });
 
       // 2. Fetch current nonce
@@ -281,13 +339,21 @@ export class NadoAdapter extends BaseAdapter {
 
   /**
    * Fetch current nonce for the wallet
+   *
+   * Nado returns two nonce types as strings (64-bit integers):
+   * - tx_nonce: For non-order executions (withdraw, liquidate, etc.)
+   * - order_nonce: For place_order executions
    */
   private async fetchCurrentNonce(): Promise<void> {
-    const data = await this.apiClient.query<{ nonce: number }>(NADO_QUERY_TYPES.NONCES, {
-      subaccount: this.auth.getAddress(),
-    });
+    const data = await this.apiClient.query<{ tx_nonce: string; order_nonce: string }>(
+      NADO_QUERY_TYPES.NONCES,
+      {
+        address: this.auth.getAddress(),
+      }
+    );
 
-    this.auth.setNonce(data.nonce);
+    // Use order_nonce for order operations (parse string to handle 64-bit values)
+    this.auth.setNonce(data.order_nonce);
   }
 
 
@@ -343,25 +409,30 @@ export class NadoAdapter extends BaseAdapter {
 
   /**
    * Internal method to fetch markets from API (bypasses cache)
+   *
+   * Uses the /query?type=symbols endpoint which returns market metadata
    */
   protected async fetchMarketsFromAPI(params?: MarketParams): Promise<Market[]> {
     this.debug('Fetching markets from API...');
 
-    const products = await this.apiClient.query<NadoProduct[]>(NADO_QUERY_TYPES.ALL_PRODUCTS);
+    // Nado returns { symbols: { "BTC-PERP": {...}, "ETH-PERP": {...}, ... } }
+    const response = await this.apiClient.query<{
+      symbols: Record<string, any>;
+    }>(NADO_QUERY_TYPES.SYMBOLS);
 
     // Build product mappings
     this.productMappings.clear();
 
     const markets: Market[] = [];
 
-    for (const product of products) {
-      const market = this.normalizer.normalizeProduct(product);
+    for (const [symbolKey, symbolData] of Object.entries(response.symbols || {})) {
+      const market = this.normalizer.normalizeSymbol(symbolData);
       markets.push(market);
 
       // Store mappings (key: ccxtSymbol for direct lookup)
       const mapping: ProductMapping = {
-        productId: product.product_id,
-        symbol: product.symbol,
+        productId: symbolData.product_id,
+        symbol: symbolData.symbol,
         ccxtSymbol: market.symbol,
       };
 
@@ -491,7 +562,7 @@ export class NadoAdapter extends BaseAdapter {
 
     const signature = await this.auth.signCancellation(
       cancellationData,
-      this.contractsInfo.endpoint_address
+      this.contractsInfo.endpoint_addr
     );
 
     await this.apiClient.execute(
@@ -536,7 +607,7 @@ export class NadoAdapter extends BaseAdapter {
 
     const signature = await this.auth.signCancellation(
       cancellationData,
-      this.contractsInfo.endpoint_address
+      this.contractsInfo.endpoint_addr
     );
 
     await this.apiClient.execute(

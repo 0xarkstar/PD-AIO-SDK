@@ -4,11 +4,14 @@
 
 /**
  * EdgeX adapter configuration
+ *
+ * EdgeX uses StarkEx L2 for order signing with Pedersen hash + ECDSA.
+ * The starkPrivateKey is required for all authenticated operations.
  */
 export interface EdgeXConfig {
-  apiKey?: string;
-  apiSecret?: string;
+  /** StarkEx L2 private key for Pedersen hash signing (required for trading) */
   starkPrivateKey?: string;
+  /** Use testnet environment */
   testnet?: boolean;
 }
 

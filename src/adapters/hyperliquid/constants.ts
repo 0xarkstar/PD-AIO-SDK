@@ -77,29 +77,29 @@ export const HYPERLIQUID_TIME_IN_FORCE = {
 // Symbol Mappings
 // =============================================================================
 
-export const HYPERLIQUID_SYMBOL_SUFFIX = '-PERP';
-
 /**
  * Convert unified symbol to Hyperliquid format
- * @example "BTC/USDT:USDT" -> "BTC-PERP"
+ * Hyperliquid uses just the base asset name (e.g., "BTC", "ETH")
+ * @example "BTC/USDT:USDT" -> "BTC"
  */
 export function unifiedToHyperliquid(symbol: string): string {
   const parts = symbol.split('/');
-  if (parts.length === 0) {
+  const base = parts[0];
+  if (!base) {
     throw new Error(`Invalid symbol format: ${symbol}`);
   }
 
-  const base = parts[0];
-  return `${base}${HYPERLIQUID_SYMBOL_SUFFIX}`;
+  // Hyperliquid API uses just the base symbol
+  return base;
 }
 
 /**
  * Convert Hyperliquid symbol to unified format
- * @example "BTC-PERP" -> "BTC/USDT:USDT"
+ * @example "BTC" -> "BTC/USDT:USDT"
  */
 export function hyperliquidToUnified(exchangeSymbol: string): string {
-  const base = exchangeSymbol.replace(HYPERLIQUID_SYMBOL_SUFFIX, '');
-  return `${base}/USDT:USDT`;
+  // Hyperliquid perpetuals are all quoted in USDT
+  return `${exchangeSymbol}/USDT:USDT`;
 }
 
 // =============================================================================

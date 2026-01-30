@@ -62,7 +62,6 @@ describe('Configuration Utilities', () => {
     test('ConfigurationError contains exchange and missing vars', () => {
       delete process.env.LIGHTER_API_KEY;
       delete process.env.LIGHTER_API_SECRET;
-      process.env.LIGHTER_ACCOUNT_ID = 'test123';
 
       try {
         validateConfig('lighter');
@@ -73,7 +72,6 @@ describe('Configuration Utilities', () => {
         expect(configError.exchange).toBe('lighter');
         expect(configError.missingVars).toContain('LIGHTER_API_KEY');
         expect(configError.missingVars).toContain('LIGHTER_API_SECRET');
-        expect(configError.missingVars).not.toContain('LIGHTER_ACCOUNT_ID');
       }
     });
   });
@@ -104,8 +102,7 @@ describe('Configuration Utilities', () => {
       const vars = getRequiredEnvVars('lighter');
       expect(vars).toContain('LIGHTER_API_KEY');
       expect(vars).toContain('LIGHTER_API_SECRET');
-      expect(vars).toContain('LIGHTER_ACCOUNT_ID');
-      expect(vars).toHaveLength(3);
+      expect(vars).toHaveLength(2);
     });
 
     test('returns required vars for grvt', () => {
@@ -236,12 +233,10 @@ describe('Configuration Utilities', () => {
       const message = getConfigErrorMessage('lighter', [
         'LIGHTER_API_KEY',
         'LIGHTER_API_SECRET',
-        'LIGHTER_ACCOUNT_ID',
       ]);
 
       expect(message).toContain('LIGHTER_API_KEY');
       expect(message).toContain('LIGHTER_API_SECRET');
-      expect(message).toContain('LIGHTER_ACCOUNT_ID');
     });
   });
 
@@ -274,16 +269,14 @@ describe('Configuration Utilities', () => {
 
     test('returns required vars for edgex', () => {
       const vars = getRequiredEnvVars('edgex');
-      expect(vars).toContain('EDGEX_PRIVATE_KEY');
       expect(vars).toContain('EDGEX_STARK_PRIVATE_KEY');
-      expect(vars).toHaveLength(2);
+      expect(vars).toHaveLength(1);
     });
 
     test('returns required vars for paradex', () => {
       const vars = getRequiredEnvVars('paradex');
-      expect(vars).toContain('PARADEX_PRIVATE_KEY');
-      expect(vars).toContain('PARADEX_L1_RPC_URL');
-      expect(vars).toHaveLength(2);
+      expect(vars).toContain('PARADEX_STARK_PRIVATE_KEY');
+      expect(vars).toHaveLength(1);
     });
 
     test('returns required vars for nado', () => {

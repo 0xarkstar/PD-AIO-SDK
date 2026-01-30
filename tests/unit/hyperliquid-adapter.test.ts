@@ -59,22 +59,24 @@ describe('HyperliquidAdapter', () => {
     });
 
     it('symbolToExchange should convert CCXT symbol to Hyperliquid format', () => {
+      // Hyperliquid uses just the base symbol (e.g., "BTC" not "BTC-PERP")
       const result = (adapter as any).symbolToExchange('BTC/USDC:USDC');
-      expect(result).toBe('BTC-PERP');
+      expect(result).toBe('BTC');
     });
 
     it('symbolFromExchange should convert Hyperliquid symbol to unified format', () => {
-      const result = (adapter as any).symbolFromExchange('BTC-PERP');
+      // Hyperliquid uses just the base symbol
+      const result = (adapter as any).symbolFromExchange('BTC');
       expect(result).toBe('BTC/USDT:USDT');
     });
 
     it('symbolToExchange should handle ETH', () => {
       const result = (adapter as any).symbolToExchange('ETH/USDC:USDC');
-      expect(result).toBe('ETH-PERP');
+      expect(result).toBe('ETH');
     });
 
     it('symbolFromExchange should handle ETH', () => {
-      const result = (adapter as any).symbolFromExchange('ETH-PERP');
+      const result = (adapter as any).symbolFromExchange('ETH');
       expect(result).toBe('ETH/USDT:USDT');
     });
   });
