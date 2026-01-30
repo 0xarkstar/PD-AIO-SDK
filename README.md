@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-1767%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-2249%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![npm version](https://img.shields.io/badge/npm-v0.1.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
@@ -33,15 +33,15 @@
 - **Python aliases** available (snake_case for Python developers)
 
 ### 🌐 Multi-Exchange Support
-- **Hyperliquid** - Production + Testnet, 200k orders/sec, HIP-3 ecosystem
-- **GRVT** - Production + Testnet, Hybrid CEX/DEX, portfolio margin
-- **Paradex** - Production + Testnet (Sepolia), StarkNet L2
-- **EdgeX** - Production only (V1), Sub-10ms matching, $130B+ volume
-- **Backpack** - Production only, Solana-based, multi-market support
-- **Lighter** - Beta + Testnet, ZK-SNARK proofs, orderbook DEX
-- **Nado** - Production + Testnet, Ink L2 by Kraken, 5-15ms latency
-- **Extended** - Production + Testnet, StarkNet L2, 50+ markets, 100x leverage
-- **Variational** - Coming Soon, Arbitrum-based RFQ exchange
+- **Hyperliquid** ✅ - Production Ready, 200k orders/sec, HIP-3 ecosystem
+- **Lighter** ✅ - Public API Ready, ZK-SNARK proofs, USDC settlement
+- **Extended** ⚠️ - Mainnet only (testnet not operational), StarkNet L2, 100x leverage
+- **GRVT** ⚠️ - Needs URL update, Hybrid CEX/DEX, portfolio margin
+- **Paradex** ⚠️ - Auth required for all endpoints, StarkNet L2
+- **Nado** ⚠️ - Auth required for all endpoints, Ink L2 by Kraken
+- **EdgeX** 🔴 - REST API undocumented, WebSocket only
+- **Backpack** 🔴 - Network connectivity issues, Solana-based
+- **Variational** 🔴 - RFQ-based (not standard orderbook), API in development
 
 ### 🔐 Production-Grade Security
 - **EIP-712 signatures** (Hyperliquid, GRVT, Nado)
@@ -129,17 +129,22 @@ await exchange.disconnect();
 
 ## 📚 Supported Exchanges
 
-| Exchange | Status | Testnet | Auth Method | Architecture | Special Features |
-|----------|--------|---------|-------------|--------------|------------------|
-| **Hyperliquid** | ✅ Production | ✅ Public | EIP-712 | Pattern A | 200k orders/sec, HIP-3 ecosystem, faucet available |
-| **GRVT** | ✅ Production | ✅ Public | EIP-712 + Session | Pattern A | Hybrid CEX/DEX, portfolio margin |
-| **Paradex** | ✅ Production | ✅ Public (Sepolia) | StarkNet + JWT | Pattern A | StarkNet L2, ultra-low latency |
-| **EdgeX** | ✅ Production (V1) | ❌ Mainnet only* | StarkEx + Pedersen | Pattern A | Sub-10ms matching, $130B+ volume |
-| **Backpack** | ✅ Production | ❌ Mainnet only | ED25519 | Pattern A | Solana-based, multi-market types |
-| **Lighter** | ⚠️ Beta | ✅ Public (ETH testnet) | API Key | Pattern A | ZK-SNARK proofs, orderbook DEX |
-| **Nado** | ✅ Production | ✅ Public (Ink L2) | EIP-712 | Pattern A | Ink L2 by Kraken, 5-15ms latency |
+| Exchange | Status | Public API | Private API | Auth Method | Special Features |
+|----------|--------|------------|-------------|-------------|------------------|
+| **Hyperliquid** | ✅ Production Ready | ✅ | ✅ | EIP-712 | 200k orders/sec, HIP-3 ecosystem |
+| **Lighter** | ✅ Public API Ready | ✅ | ⚠️ Testing | API Key + HMAC | ZK-SNARK proofs, USDC settlement |
+| **Extended** | ⚠️ Mainnet Only | ✅ | ⚠️ Testing | API Key | StarkNet L2, 100x leverage |
+| **GRVT** | ⚠️ URL Update Needed | ❌ | ❌ | EIP-712 + Session | Hybrid CEX/DEX |
+| **Paradex** | ⚠️ Auth Required | ❌ | ⚠️ | StarkNet + JWT | StarkNet L2 |
+| **Nado** | ⚠️ Auth Required | ❌ | ⚠️ | EIP-712 | Ink L2 by Kraken |
+| **EdgeX** | 🔴 API Not Public | ❌ | ❌ | StarkEx | REST API undocumented |
+| **Backpack** | 🔴 Network Issues | ❌ | ❌ | ED25519 | Solana-based |
+| **Variational** | 🔴 Alpha (RFQ) | ❌ | ❌ | HMAC | RFQ-based, not orderbook |
 
-> *EdgeX V2 testnet planned for Q3 2025
+### Status Legend
+- ✅ **Production Ready** - Fully tested and working
+- ⚠️ **Partial/Testing** - Some features work, others need investigation
+- 🔴 **Not Working** - Needs fixes or API documentation
 
 ### 🎁 Bonus: HIP-3 Ecosystem (via Hyperliquid)
 
@@ -166,32 +171,55 @@ cp .env.example .env
 ### 2. Add Your Credentials
 
 ```bash
-# Hyperliquid (EIP-712)
-HYPERLIQUID_PRIVATE_KEY=0x1234...
+# ============================================
+# Hyperliquid (EIP-712) - ✅ Production Ready
+# ============================================
+HYPERLIQUID_PRIVATE_KEY=0x...  # 64 hex characters
 HYPERLIQUID_TESTNET=true
 
-# GRVT (EIP-712 + Session)
-GRVT_PRIVATE_KEY=0x1234...
+# ============================================
+# Lighter (HMAC-SHA256) - ✅ Public API Ready
+# ============================================
+LIGHTER_API_KEY=your_api_key
+LIGHTER_API_SECRET=your_api_secret
+LIGHTER_TESTNET=true
+
+# ============================================
+# EdgeX (StarkEx) - 🔴 API Not Public
+# ============================================
+EDGEX_STARK_PRIVATE_KEY=0x...  # StarkEx L2 private key
+EDGEX_TESTNET=true
+
+# ============================================
+# Nado (EIP-712 on Ink L2) - ⚠️ Auth Required
+# ============================================
+NADO_PRIVATE_KEY=0x...  # EVM private key
+NADO_TESTNET=true
+
+# ============================================
+# Extended (API Key) - ⚠️ Mainnet Only
+# ============================================
+EXTENDED_API_KEY=your_api_key
+# Note: testnet (Sepolia) is not operational
+
+# ============================================
+# Paradex (StarkNet) - ⚠️ Auth Required
+# ============================================
+PARADEX_STARK_PRIVATE_KEY=0x...  # StarkNet private key
+PARADEX_TESTNET=true
+
+# ============================================
+# GRVT (EIP-712 + API Key) - ⚠️ URL Update Needed
+# ============================================
+GRVT_PRIVATE_KEY=0x...
 GRVT_API_KEY=your_api_key
 GRVT_TESTNET=true
 
-# Paradex (StarkNet)
-PARADEX_PRIVATE_KEY=0x1234...
-PARADEX_ACCOUNT_ADDRESS=0x5678...
-PARADEX_TESTNET=true
-
-# Backpack (ED25519)
-BACKPACK_PRIVATE_KEY=base58_encoded_key
-BACKPACK_TESTNET=true
-
-# Lighter (API Key)
-LIGHTER_API_KEY=your_api_key
-LIGHTER_API_SECRET=your_api_secret
-LIGHTER_ACCOUNT_ID=your_account_id
-
-# EdgeX (StarkEx)
-EDGEX_API_KEY=your_api_key
-EDGEX_TESTNET=true
+# ============================================
+# Backpack (ED25519) - 🔴 Network Issues
+# ============================================
+BACKPACK_API_KEY=your_api_key
+BACKPACK_SECRET_KEY=your_ed25519_secret_key
 ```
 
 ### 3. Validate Configuration (Optional)
@@ -407,11 +435,19 @@ npm test -- hyperliquid
 ### Test Results
 
 ```
-✅ 395 tests passing (100% pass rate)
-✅ 22 test suites
-✅ Integration tests: 17/17
-✅ Unit tests: 378/378
+✅ 2249 tests passing (100% pass rate)
+✅ 79 test suites
+✅ Integration tests: All passing
+✅ Unit tests: All passing
 ```
+
+### API Verification Results (2026-01-31)
+
+| Exchange | Markets | Ticker | OrderBook | Status |
+|----------|---------|--------|-----------|--------|
+| Hyperliquid | ✅ 206 | ✅ | ✅ | **Production Ready** |
+| Lighter | ✅ 3 | ✅ | ✅ | **Public API Ready** |
+| Extended | ✅ 0 | - | - | Mainnet Only |
 
 ---
 
