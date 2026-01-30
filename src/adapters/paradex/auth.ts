@@ -52,9 +52,25 @@ export class ParadexAuth implements IAuthStrategy {
     this.privateKey = config.privateKey;
     this.starkPrivateKey = config.starkPrivateKey;
     this.testnet = config.testnet ?? false;
+    // Note: Credentials are optional for public API access
+  }
 
-    if (!this.apiKey && !this.starkPrivateKey) {
-      throw new Error('Either apiKey or starkPrivateKey must be provided for Paradex authentication');
+  /**
+   * Check if any credentials are configured
+   */
+  hasCredentials(): boolean {
+    return !!(this.apiKey || this.starkPrivateKey);
+  }
+
+  /**
+   * Require authentication for private operations
+   * @throws Error if no credentials are configured
+   */
+  requireAuth(): void {
+    if (!this.hasCredentials()) {
+      throw new Error(
+        'Authentication required. Provide apiKey or starkPrivateKey in config.'
+      );
     }
   }
 
@@ -101,24 +117,18 @@ export class ParadexAuth implements IAuthStrategy {
   /**
    * Verify authentication credentials
    *
-   * @returns true if credentials are valid
+   * @returns true if credentials are valid (or no credentials for public API)
    */
   async verify(): Promise<boolean> {
-    try {
-      // If using API key, verify it's not empty
-      if (this.apiKey && this.apiKey.length > 0) {
-        return true;
-      }
-
-      // If using StarkNet key, verify it's not empty
-      if (this.starkPrivateKey && this.starkPrivateKey.length > 0) {
-        return true;
-      }
-
-      return false;
-    } catch {
+    // Public API access is always valid (no credentials required)
+    // If credentials are provided, verify they're not empty
+    if (this.apiKey && this.apiKey.length === 0) {
       return false;
     }
+    if (this.starkPrivateKey && this.starkPrivateKey.length === 0) {
+      return false;
+    }
+    return true;
   }
 
   // ===========================================================================

@@ -20,9 +20,16 @@ describe('ParadexAuth', () => {
       expect(auth).toBeDefined();
     });
 
-    it('should throw if neither apiKey nor starkPrivateKey provided', () => {
-      expect(() => new ParadexAuth({})).toThrow(
-        'Either apiKey or starkPrivateKey must be provided'
+    it('should allow creation without credentials for public API access', () => {
+      const auth = new ParadexAuth({});
+      expect(auth).toBeDefined();
+      expect(auth.hasCredentials()).toBe(false);
+    });
+
+    it('should throw on requireAuth when no credentials provided', () => {
+      const auth = new ParadexAuth({});
+      expect(() => auth.requireAuth()).toThrow(
+        'Authentication required. Provide apiKey or starkPrivateKey in config.'
       );
     });
 
@@ -51,9 +58,15 @@ describe('ParadexAuth', () => {
     });
 
     it('should return true with valid stark private key', async () => {
-      const auth = new ParadexAuth({ 
+      const auth = new ParadexAuth({
         starkPrivateKey: '0x' + '1'.repeat(64)
       });
+      const result = await auth.verify();
+      expect(result).toBe(true);
+    });
+
+    it('should return true without credentials (for public API access)', async () => {
+      const auth = new ParadexAuth({});
       const result = await auth.verify();
       expect(result).toBe(true);
     });

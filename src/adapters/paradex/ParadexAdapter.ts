@@ -121,20 +121,24 @@ export class ParadexAdapter extends BaseAdapter {
 
   /**
    * Initialize the adapter
+   * Note: starkPrivateKey is only required for private API operations (trading)
    */
   async initialize(): Promise<void> {
-    const isValid = await this.auth.verify();
-    if (!isValid) {
+    // Public API can be accessed without credentials
+    this._isReady = true;
+  }
+
+  /**
+   * Require authentication for private API operations
+   */
+  private requireAuth(): void {
+    if (!this.auth.hasCredentials()) {
       throw new PerpDEXError(
-        'Failed to verify authentication credentials',
-        'AUTH_VERIFICATION_FAILED',
+        'Authentication required. Provide apiKey or starkPrivateKey in config.',
+        'MISSING_CREDENTIALS',
         'paradex'
       );
     }
-
-    // Note: Paraclear account initialization requires Ethereum signer
-    // This is typically done separately when needed for withdrawal operations
-    this._isReady = true;
   }
 
   /**
@@ -162,11 +166,13 @@ export class ParadexAdapter extends BaseAdapter {
     try {
       const response = await this.client.get('/markets');
 
-      if (!Array.isArray(response.markets)) {
+      // Paradex API returns { results: [...] }
+      const markets = response.results || response.markets;
+      if (!Array.isArray(markets)) {
         throw new PerpDEXError('Invalid markets response', 'INVALID_RESPONSE', 'paradex');
       }
 
-      return this.normalizer.normalizeMarkets(response.markets);
+      return this.normalizer.normalizeMarkets(markets);
     } catch (error) {
       throw mapAxiosError(error);
     }
@@ -285,6 +291,7 @@ export class ParadexAdapter extends BaseAdapter {
    * Fetch all open positions
    */
   async fetchPositions(symbols?: string[]): Promise<Position[]> {
+    this.requireAuth();
     await this.rateLimiter.acquire('fetchPositions');
 
     try {
@@ -310,6 +317,7 @@ export class ParadexAdapter extends BaseAdapter {
    * Fetch account balance
    */
   async fetchBalance(): Promise<Balance[]> {
+    this.requireAuth();
     await this.rateLimiter.acquire('fetchBalance');
 
     try {
@@ -333,6 +341,7 @@ export class ParadexAdapter extends BaseAdapter {
    * Create a new order
    */
   async createOrder(order: OrderRequest): Promise<Order> {
+    this.requireAuth();
     await this.rateLimiter.acquire('createOrder');
 
     try {
@@ -365,6 +374,7 @@ export class ParadexAdapter extends BaseAdapter {
    * Cancel an existing order
    */
   async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+    this.requireAuth();
     await this.rateLimiter.acquire('cancelOrder');
 
     try {
@@ -380,6 +390,7 @@ export class ParadexAdapter extends BaseAdapter {
    * Cancel all orders
    */
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
+    this.requireAuth();
     await this.rateLimiter.acquire('cancelAllOrders');
 
     try {
@@ -401,6 +412,7 @@ export class ParadexAdapter extends BaseAdapter {
    * Fetch open orders
    */
   async fetchOpenOrders(symbol?: string): Promise<Order[]> {
+    this.requireAuth();
     await this.rateLimiter.acquire('fetchOpenOrders');
 
     try {
@@ -421,6 +433,7 @@ export class ParadexAdapter extends BaseAdapter {
    * Fetch a specific order
    */
   async fetchOrder(orderId: string, symbol?: string): Promise<Order> {
+    this.requireAuth();
     await this.rateLimiter.acquire('fetchOrder');
 
     try {
@@ -436,6 +449,7 @@ export class ParadexAdapter extends BaseAdapter {
    * Set leverage for a symbol
    */
   async setLeverage(symbol: string, leverage: number): Promise<void> {
+    this.requireAuth();
     await this.rateLimiter.acquire('setLeverage');
 
     try {
@@ -454,6 +468,7 @@ export class ParadexAdapter extends BaseAdapter {
    * Fetch order history
    */
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+    this.requireAuth();
     await this.rateLimiter.acquire('fetchOrderHistory');
 
     try {
@@ -479,6 +494,7 @@ export class ParadexAdapter extends BaseAdapter {
    * Fetch user trade history
    */
   async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+    this.requireAuth();
     await this.rateLimiter.acquire('fetchMyTrades');
 
     try {
@@ -531,6 +547,7 @@ export class ParadexAdapter extends BaseAdapter {
     amount: number,
     bridgeCall: any
   ): Promise<{ txHash: string; amount: number }> {
+    this.requireAuth();
     await this.rateLimiter.acquire('withdraw');
 
     try {
@@ -555,6 +572,7 @@ export class ParadexAdapter extends BaseAdapter {
    * @returns Balance array
    */
   async fetchParaclearBalance(token?: string): Promise<Balance[]> {
+    this.requireAuth();
     await this.rateLimiter.acquire('fetchBalance');
 
     try {
@@ -633,6 +651,7 @@ export class ParadexAdapter extends BaseAdapter {
    * @returns AsyncGenerator yielding Position updates
    */
   async *watchPositions(symbol?: string): AsyncGenerator<Position[]> {
+    this.requireAuth();
     const ws = await this.ensureWebSocket();
 
     // Paradex sends individual position updates, wrap in array
@@ -648,6 +667,7 @@ export class ParadexAdapter extends BaseAdapter {
    * @returns AsyncGenerator yielding Order updates
    */
   async *watchOrders(symbol?: string): AsyncGenerator<Order[]> {
+    this.requireAuth();
     const ws = await this.ensureWebSocket();
 
     // Paradex sends individual order updates, wrap in array
@@ -662,6 +682,7 @@ export class ParadexAdapter extends BaseAdapter {
    * @returns AsyncGenerator yielding Balance array
    */
   async *watchBalance(): AsyncGenerator<Balance[]> {
+    this.requireAuth();
     const ws = await this.ensureWebSocket();
     yield* ws.watchBalance();
   }

@@ -26,9 +26,10 @@ describe('Paradex WebSocket Integration Tests', () => {
       testnet: true,
     });
 
-    // Mock auth
+    // Mock auth methods
     const mockAuth = (adapter as any).auth;
     mockAuth.verify = jest.fn().mockResolvedValue(true);
+    mockAuth.hasCredentials = jest.fn().mockReturnValue(true);
   });
 
   describe('watchOrderBook()', () => {
