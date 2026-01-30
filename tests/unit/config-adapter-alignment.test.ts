@@ -93,9 +93,10 @@ describe('Config-Adapter Alignment', () => {
       expect(adapter).toBeDefined();
 
       // But trading should require credentials
+      // Lighter uses USDC as quote currency
       await expect(
         adapter.createOrder({
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           type: 'limit',
           side: 'buy',
           amount: 0.001,

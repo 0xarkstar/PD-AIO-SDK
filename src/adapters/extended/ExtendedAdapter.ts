@@ -176,8 +176,14 @@ export class ExtendedAdapter extends BaseAdapter {
   constructor(config: ExtendedConfig = {}) {
     super(config);
 
+    // Note: Extended testnet (Sepolia) is not currently operational
+    // Always use mainnet URLs - testnet flag is ignored with a warning
     const testnet = config.testnet ?? false;
-    const urls = testnet ? EXTENDED_API_URLS.testnet : EXTENDED_API_URLS.mainnet;
+    if (testnet) {
+      console.warn('[ExtendedAdapter] Warning: Extended testnet (Sepolia) is not operational. Using mainnet instead.');
+    }
+    // Always use mainnet URLs since testnet returns 404
+    const urls = EXTENDED_API_URLS.mainnet;
 
     this.apiUrl = urls.rest;
     this.wsUrl = urls.websocket;
@@ -186,9 +192,10 @@ export class ExtendedAdapter extends BaseAdapter {
     this.normalizer = new ExtendedNormalizer();
 
     // Initialize StarkNet client if credentials provided
+    // Always use mainnet network since testnet is not operational
     if (config.starknetPrivateKey && config.starknetAccountAddress) {
       this.starkNetClient = new ExtendedStarkNetClient({
-        network: testnet ? 'testnet' : 'mainnet',
+        network: 'mainnet',
         privateKey: config.starknetPrivateKey,
         accountAddress: config.starknetAccountAddress,
         rpcUrl: config.starknetRpcUrl || urls.starknet,

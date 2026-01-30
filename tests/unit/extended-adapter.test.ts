@@ -18,9 +18,11 @@ describe('ExtendedAdapter', () => {
       expect(adapter.id).toBe('extended');
     });
 
-    it('should use testnet URLs when testnet is true', () => {
+    it('should use mainnet URLs even when testnet is true (testnet not operational)', () => {
+      // Extended testnet (Sepolia) is not operational, so mainnet is always used
       const adapter = new ExtendedAdapter({ testnet: true });
-      expect((adapter as any).apiUrl).toContain('testnet');
+      expect((adapter as any).apiUrl).toContain('api.starknet.extended.exchange');
+      expect((adapter as any).apiUrl).not.toContain('sepolia');
     });
 
     it('should use mainnet URLs when testnet is false', () => {

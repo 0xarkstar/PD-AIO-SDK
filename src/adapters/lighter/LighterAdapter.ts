@@ -175,13 +175,21 @@ export class LighterAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('fetchMarkets');
 
     try {
-      const response = await this.request<LighterMarket[]>('GET', '/markets');
+      const response = await this.request<{ code: number; order_book_details: any[] }>(
+        'GET',
+        '/api/v1/orderBookDetails'
+      );
 
-      if (!Array.isArray(response)) {
+      if (!response.order_book_details || !Array.isArray(response.order_book_details)) {
         throw new PerpDEXError('Invalid markets response', 'INVALID_RESPONSE', 'lighter');
       }
 
-      return response.map((market: any) => this.normalizer.normalizeMarket(market));
+      // Filter for perp markets only
+      const perpMarkets = response.order_book_details.filter(
+        (m: any) => m.market_type === 'perp'
+      );
+
+      return perpMarkets.map((market: any) => this.normalizer.normalizeMarket(market));
     } catch (error) {
       throw mapError(error);
     }
@@ -192,9 +200,25 @@ export class LighterAdapter extends BaseAdapter {
 
     try {
       const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const response = await this.request<LighterTicker>('GET', `/ticker/${lighterSymbol}`);
+      const response = await this.request<{ code: number; order_book_details: any[] }>(
+        'GET',
+        '/api/v1/orderBookDetails'
+      );
 
-      return this.normalizer.normalizeTicker(response);
+      if (!response.order_book_details) {
+        throw new PerpDEXError('Invalid ticker response', 'INVALID_RESPONSE', 'lighter');
+      }
+
+      // Find the market matching the symbol
+      const market = response.order_book_details.find(
+        (m: any) => m.symbol === lighterSymbol && m.market_type === 'perp'
+      );
+
+      if (!market) {
+        throw new PerpDEXError(`Market not found: ${symbol}`, 'INVALID_SYMBOL', 'lighter');
+      }
+
+      return this.normalizer.normalizeTicker(market);
     } catch (error) {
       throw mapError(error);
     }
@@ -206,12 +230,21 @@ export class LighterAdapter extends BaseAdapter {
     try {
       const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
       const limit = params?.limit || 50;
-      const response = await this.request<LighterOrderBook>(
+      // Lighter API uses /api/v1/orderBookOrders endpoint
+      const response = await this.request<{ code: number; asks: any[]; bids: any[]; symbol?: string }>(
         'GET',
-        `/orderbook/${lighterSymbol}?limit=${limit}`
+        `/api/v1/orderBookOrders?symbol=${lighterSymbol}&limit=${limit}`
       );
 
-      return this.normalizer.normalizeOrderBook(response);
+      // Convert to LighterOrderBook format
+      const orderBook: LighterOrderBook = {
+        symbol: lighterSymbol,
+        bids: response.bids?.map((b: any) => [parseFloat(b.price || b[0]), parseFloat(b.size || b[1])]) || [],
+        asks: response.asks?.map((a: any) => [parseFloat(a.price || a[0]), parseFloat(a.size || a[1])]) || [],
+        timestamp: Date.now(),
+      };
+
+      return this.normalizer.normalizeOrderBook(orderBook);
     } catch (error) {
       throw mapError(error);
     }
@@ -223,16 +256,29 @@ export class LighterAdapter extends BaseAdapter {
     try {
       const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
       const limit = params?.limit || 100;
-      const response = await this.request<LighterTrade[]>(
+      // Lighter API uses /api/v1/trades endpoint
+      const response = await this.request<{ code: number; trades: any[] }>(
         'GET',
-        `/trades/${lighterSymbol}?limit=${limit}`
+        `/api/v1/trades?symbol=${lighterSymbol}&limit=${limit}`
       );
 
-      if (!Array.isArray(response)) {
+      const trades = response.trades || [];
+      if (!Array.isArray(trades)) {
         throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'lighter');
       }
 
-      return response.map((trade: any) => this.normalizer.normalizeTrade(trade));
+      // Map trades to expected format
+      return trades.map((trade: any) => {
+        const normalizedTrade: LighterTrade = {
+          id: trade.id || trade.trade_id || String(Date.now()),
+          symbol: lighterSymbol,
+          side: (trade.side || 'buy').toLowerCase() as 'buy' | 'sell',
+          price: parseFloat(trade.price || '0'),
+          amount: parseFloat(trade.size || trade.amount || '0'),
+          timestamp: trade.timestamp || trade.created_at || Date.now(),
+        };
+        return this.normalizer.normalizeTrade(normalizedTrade);
+      });
     } catch (error) {
       throw mapError(error);
     }
