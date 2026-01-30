@@ -36,19 +36,31 @@ import type {
  * Normalize GRVT symbol to unified format
  *
  * @example
- * normalizeSymbol('BTC-PERP') // 'BTC/USDT:USDT'
- * normalizeSymbol('ETH-PERP') // 'ETH/USDT:USDT'
+ * normalizeSymbol('BTC_USDT_Perp') // 'BTC/USDT:USDT'
+ * normalizeSymbol('ETH_USDT_Perp') // 'ETH/USDT:USDT'
  */
 export function normalizeSymbol(grvtSymbol: string): string {
-  // GRVT format: BTC-PERP, ETH-PERP
-  const parts = grvtSymbol.split('-');
-
-  if (parts.length === 2 && parts[1] === 'PERP') {
+  // GRVT API format: BTC_USDT_Perp, ETH_USDT_Perp
+  if (grvtSymbol.endsWith('_Perp')) {
+    const parts = grvtSymbol.replace('_Perp', '').split('_');
     const base = parts[0];
+    const quote = parts[1] || 'USDT';
+    return `${base}/${quote}:${quote}`;
+  }
+
+  // Handle legacy format: BTC-PERP, ETH-PERP
+  if (grvtSymbol.endsWith('-PERP')) {
+    const base = grvtSymbol.replace('-PERP', '');
     return `${base}/USDT:USDT`;
   }
 
-  // Fallback for spot markets
+  // Handle spot: BTC_USDT
+  if (grvtSymbol.includes('_')) {
+    const [base, quote] = grvtSymbol.split('_');
+    return `${base}/${quote || 'USDT'}`;
+  }
+
+  // Fallback
   return grvtSymbol.replace('-', '/');
 }
 
@@ -56,21 +68,26 @@ export function normalizeSymbol(grvtSymbol: string): string {
  * Convert unified symbol to GRVT format
  *
  * @example
- * toGRVTSymbol('BTC/USDT:USDT') // 'BTC-PERP'
- * toGRVTSymbol('ETH/USDT:USDT') // 'ETH-PERP'
+ * toGRVTSymbol('BTC/USDT:USDT') // 'BTC_USDT_Perp'
+ * toGRVTSymbol('ETH/USDT:USDT') // 'ETH_USDT_Perp'
  */
 export function toGRVTSymbol(symbol: string): string {
-  const parts = symbol.split(':');
-
-  if (parts.length === 2) {
-    // Perpetual format
-    const [pair = ""] = parts;
-    const [base = ""] = pair.split('/');
-    return `${base}-PERP`;
+  // Handle perpetual: BTC/USDT:USDT → BTC_USDT_Perp
+  if (symbol.includes(':')) {
+    const parts = symbol.split(':');
+    const pair = parts[0] || '';
+    const settle = parts[1] || 'USDT';
+    const pairParts = pair.split('/');
+    const base = pairParts[0] || '';
+    const quote = pairParts[1] || settle;
+    return `${base}_${quote}_Perp`;
   }
 
-  // Spot format
-  return symbol.replace('/', '-');
+  // Handle spot: BTC/USDT → BTC_USDT
+  const parts = symbol.split('/');
+  const base = parts[0] || '';
+  const quote = parts[1] || 'USDT';
+  return `${base}_${quote}`;
 }
 
 /**

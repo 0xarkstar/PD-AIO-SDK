@@ -170,7 +170,9 @@ export class GRVTAdapter extends BaseAdapter {
 
     try {
       const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-      const depth = params?.limit || 50;
+      // GRVT only supports specific depth values: 10, 50, 100
+      const requestedLimit = params?.limit || 50;
+      const depth = requestedLimit <= 10 ? 10 : requestedLimit <= 50 ? 50 : 100;
       const response = await this.sdk.getOrderBook(grvtSymbol, depth);
 
       if (!response.result) {
@@ -244,6 +246,7 @@ export class GRVTAdapter extends BaseAdapter {
   // ==================== Trading Methods ====================
 
   async createOrder(request: OrderRequest): Promise<Order> {
+    this.auth.requireAuth();
     await this.rateLimiter.acquire('createOrder');
 
     try {
@@ -300,6 +303,7 @@ export class GRVTAdapter extends BaseAdapter {
   }
 
   async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+    this.auth.requireAuth();
     await this.rateLimiter.acquire('cancelOrder');
 
     try {
@@ -316,6 +320,7 @@ export class GRVTAdapter extends BaseAdapter {
   }
 
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
+    this.auth.requireAuth();
     await this.rateLimiter.acquire('cancelAllOrders');
 
     try {
@@ -335,6 +340,7 @@ export class GRVTAdapter extends BaseAdapter {
   }
 
   async fetchOpenOrders(symbol?: string): Promise<Order[]> {
+    this.auth.requireAuth();
     await this.rateLimiter.acquire('fetchOpenOrders');
 
     try {
@@ -359,6 +365,7 @@ export class GRVTAdapter extends BaseAdapter {
    * Fetch order history - NOW IMPLEMENTED via SDK!
    */
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+    this.auth.requireAuth();
     await this.rateLimiter.acquire('fetchClosedOrders');
 
     try {
@@ -383,6 +390,7 @@ export class GRVTAdapter extends BaseAdapter {
    * Fetch user trade history - NOW IMPLEMENTED via SDK!
    */
   async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+    this.auth.requireAuth();
     await this.rateLimiter.acquire('fetchMyTrades');
 
     try {
@@ -406,6 +414,7 @@ export class GRVTAdapter extends BaseAdapter {
   // ==================== Account Methods ====================
 
   async fetchPositions(symbols?: string[]): Promise<Position[]> {
+    this.auth.requireAuth();
     await this.rateLimiter.acquire('fetchPositions');
 
     try {
@@ -428,6 +437,7 @@ export class GRVTAdapter extends BaseAdapter {
   }
 
   async fetchBalance(): Promise<Balance[]> {
+    this.auth.requireAuth();
     await this.rateLimiter.acquire('fetchBalance');
 
     try {

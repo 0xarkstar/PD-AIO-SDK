@@ -68,19 +68,30 @@ export class GRVTNormalizer {
    * ```
    */
   symbolToCCXT(grvtSymbol: string): string {
-    // Handle perpetual format: BTC-PERP, ETH-PERP
+    // GRVT API uses format: BTC_USDT_Perp, ETH_USDT_Perp
+    // Extract base and quote from underscore-separated format
+
+    // Handle perpetual format: BTC_USDT_Perp → BTC/USDT:USDT
+    if (grvtSymbol.endsWith('_Perp')) {
+      const parts = grvtSymbol.replace('_Perp', '').split('_');
+      const base = parts[0];
+      const quote = parts[1] || 'USDT';
+      return `${base}/${quote}:${quote}`;
+    }
+
+    // Handle old format: BTC-PERP, ETH-PERP (for backwards compatibility)
     if (grvtSymbol.endsWith('-PERP')) {
       const base = grvtSymbol.replace('-PERP', '');
       return `${base}/USDT:USDT`;
     }
 
-    // Handle spot format: BTC-SPOT
-    if (grvtSymbol.includes('-')) {
-      const [base] = grvtSymbol.split('-');
-      return `${base}/USDT`;
+    // Handle spot format: BTC_USDT
+    if (grvtSymbol.includes('_')) {
+      const [base, quote] = grvtSymbol.split('_');
+      return `${base}/${quote || 'USDT'}`;
     }
 
-    // Fallback: assume perpetual
+    // Fallback: assume perpetual with USDT
     return `${grvtSymbol}/USDT:USDT`;
   }
 
@@ -88,25 +99,32 @@ export class GRVTNormalizer {
    * Convert CCXT symbol to GRVT format
    *
    * @param ccxtSymbol - CCXT formatted symbol (e.g., "BTC/USDT:USDT")
-   * @returns GRVT symbol (e.g., "BTC-PERP")
+   * @returns GRVT symbol (e.g., "BTC_USDT_Perp")
    *
    * @example
    * ```typescript
-   * normalizer.symbolFromCCXT('BTC/USDT:USDT'); // "BTC-PERP"
-   * normalizer.symbolFromCCXT('ETH/USDT:USDT'); // "ETH-PERP"
-   * normalizer.symbolFromCCXT('BTC/USDT');      // "BTC-SPOT"
+   * normalizer.symbolFromCCXT('BTC/USDT:USDT'); // "BTC_USDT_Perp"
+   * normalizer.symbolFromCCXT('ETH/USDT:USDT'); // "ETH_USDT_Perp"
+   * normalizer.symbolFromCCXT('BTC/USDT');      // "BTC_USDT"
    * ```
    */
   symbolFromCCXT(ccxtSymbol: string): string {
-    // Handle perpetual: BTC/USDT:USDT → BTC-PERP
+    // Handle perpetual: BTC/USDT:USDT → BTC_USDT_Perp
     if (ccxtSymbol.includes(':')) {
-      const base = ccxtSymbol.split('/')[0];
-      return `${base}-PERP`;
+      const parts = ccxtSymbol.split(':');
+      const pair = parts[0] || '';
+      const settle = parts[1] || 'USDT';
+      const pairParts = pair.split('/');
+      const base = pairParts[0] || '';
+      const quote = pairParts[1] || settle;
+      return `${base}_${quote}_Perp`;
     }
 
-    // Handle spot: BTC/USDT → BTC-SPOT
-    const [base] = ccxtSymbol.split('/');
-    return `${base}-SPOT`;
+    // Handle spot: BTC/USDT → BTC_USDT
+    const parts = ccxtSymbol.split('/');
+    const base = parts[0] || '';
+    const quote = parts[1] || 'USDT';
+    return `${base}_${quote}`;
   }
 
   // ===========================================================================

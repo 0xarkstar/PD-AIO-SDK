@@ -89,7 +89,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
   describe('watchOrderBook', () => {
     it('should subscribe to order book stream', async () => {
       const mockOrderBook: IOrderbookLevels = {
-        instrument: 'BTC-PERP',
+        instrument: 'BTC_USDT_Perp',
         bids: [
           { price: '50000', size: '1.5', num_orders: 3 },
           { price: '49990', size: '2.0', num_orders: 5 },
@@ -118,7 +118,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
         expect.objectContaining({
           stream: EStream.RPI_BOOK_SNAP,
           params: {
-            instrument: 'BTC-PERP',
+            instrument: 'BTC_USDT_Perp',
             depth: 50,
           },
         })
@@ -139,7 +139,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
         setTimeout(() => {
           if (request.onData) {
             request.onData({
-              instrument: 'ETH-PERP',
+              instrument: 'ETH_USDT_Perp',
               bids: [],
               asks: [],
               event_time: '123',
@@ -162,7 +162,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
       expect(subscribeCallParams).toBeDefined();
       expect(subscribeCallParams.stream).toBe(EStream.RPI_BOOK_SNAP);
       expect(subscribeCallParams.params).toEqual({
-        instrument: 'ETH-PERP',
+        instrument: 'ETH_USDT_Perp',
         depth: 100,
       });
     });
@@ -173,7 +173,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
         setTimeout(() => {
           if (request.onData) {
             request.onData({
-              instrument: 'BTC-PERP',
+              instrument: 'BTC_USDT_Perp',
               bids: [],
               asks: [],
               event_time: '123',
@@ -215,7 +215,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
     it('should subscribe to trades stream', async () => {
       const mockTrade: ITrade = {
         trade_id: 'trade-123',
-        instrument: 'BTC-PERP',
+        instrument: 'BTC_USDT_Perp',
         price: '50000',
         size: '0.5',
         is_taker_buyer: true,
@@ -238,7 +238,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
         expect.objectContaining({
           stream: EStream.TRADE,
           params: {
-            instrument: 'BTC-PERP',
+            instrument: 'BTC_USDT_Perp',
           },
         })
       );
@@ -267,7 +267,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
       const mockWS2 = (wrapperWithSubAccount as any).ws as jest.Mocked<WS>;
 
       const mockPosition: IPositions = {
-        instrument: 'BTC-PERP',
+        instrument: 'BTC_USDT_Perp',
         size: '2.5',
         entry_price: '48000',
         mark_price: '50000',
@@ -319,7 +319,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
         setTimeout(() => {
           if (request.onData) {
             request.onData({
-              instrument: 'BTC-PERP',
+              instrument: 'BTC_USDT_Perp',
               size: '1',
               entry_price: '50000',
               mark_price: '51000',
@@ -347,7 +347,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
       expect(subscribeCallParams.stream).toBe(EStream.POSITION);
       expect(subscribeCallParams.params).toEqual({
         sub_account_id: 'sub-123',
-        instrument: 'BTC-PERP',
+        instrument: 'BTC_USDT_Perp',
       });
     });
   });
@@ -374,7 +374,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
         is_market: false,
         legs: [
           {
-            instrument: 'BTC-PERP',
+            instrument: 'BTC_USDT_Perp',
             size: '1.5',
             limit_price: '50000',
             is_buying_asset: true,
@@ -432,7 +432,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
             request.onData({
               order_id: 'test',
               is_market: false,
-              legs: [{ instrument: 'ETH-PERP', size: '1', is_buying_asset: true }],
+              legs: [{ instrument: 'ETH_USDT_Perp', size: '1', is_buying_asset: true }],
               state: { status: 'OPEN', traded_size: ['0'], book_size: ['1'] },
             });
           }
@@ -454,7 +454,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
       expect(subscribeCallParams.stream).toBe(EStream.ORDER);
       expect(subscribeCallParams.params).toEqual({
         sub_account_id: 'sub-123',
-        instrument: 'ETH-PERP',
+        instrument: 'ETH_USDT_Perp',
       });
     });
   });
@@ -496,7 +496,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
       const mockTrades: ITrade[] = [
         {
           trade_id: 'trade-1',
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           price: '50000',
           size: '0.5',
           is_taker_buyer: true,
@@ -504,7 +504,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
         },
         {
           trade_id: 'trade-2',
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           price: '50010',
           size: '1.0',
           is_taker_buyer: false,
@@ -512,7 +512,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
         },
         {
           trade_id: 'trade-3',
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           price: '50005',
           size: '0.3',
           is_taker_buyer: true,
@@ -576,7 +576,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
     describe('Malformed Data Handling', () => {
       it('should handle malformed order book data', async () => {
         const malformedOrderBook = {
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           // Missing required fields (bids, asks)
           event_time: '123',
         };
@@ -601,7 +601,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
       it('should handle invalid price in trade data', async () => {
         const invalidTrade: ITrade = {
           trade_id: 'trade-123',
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           price: 'invalid', // Invalid number
           size: '1.0',
           is_taker_buyer: true,
@@ -626,10 +626,10 @@ describe('GRVT WebSocket Wrapper Tests', () => {
     describe('Symbol Normalization Edge Cases', () => {
       it('should handle symbols with special characters', async () => {
         mockWS.subscribe.mockImplementation((request: any) => {
-          expect(request.params.instrument).toBe('1INCH-PERP');
+          expect(request.params.instrument).toBe('1INCH_USDT_Perp');
           setTimeout(() => {
             request.onData({
-              instrument: '1INCH-PERP',
+              instrument: '1INCH_USDT_Perp',
               bids: [],
               asks: [],
               event_time: '123',
@@ -671,7 +671,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
         expect(mockWS.subscribe).toHaveBeenCalled();
         const callArgs = (mockWS.subscribe as jest.Mock).mock.calls;
         if (callArgs.length > 0) {
-          expect(callArgs[0][0].params.instrument).toBe('BTC-PERP');
+          expect(callArgs[0][0].params.instrument).toBe('BTC_USDT_Perp');
         }
       });
     });
@@ -686,7 +686,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
         const mockWS2 = (wrapperWithSubAccount as any).ws as jest.Mocked<WS>;
 
         const shortPosition: IPositions = {
-          instrument: 'ETH-PERP',
+          instrument: 'ETH_USDT_Perp',
           size: '-3.5', // Negative = short
           entry_price: '3000',
           mark_price: '2900',
@@ -722,7 +722,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
         const mockWS2 = (wrapperWithSubAccount as any).ws as jest.Mocked<WS>;
 
         const closedPosition: IPositions = {
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           size: '0', // Closed position
           entry_price: '0',
           mark_price: '50000',
@@ -764,7 +764,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
           is_market: false,
           legs: [
             {
-              instrument: 'ETH-PERP',
+              instrument: 'ETH_USDT_Perp',
               size: '10.0',
               limit_price: '3000',
               is_buying_asset: false,
@@ -807,7 +807,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
           is_market: false,
           legs: [
             {
-              instrument: 'BTC-PERP',
+              instrument: 'BTC_USDT_Perp',
               size: '2.0',
               limit_price: '49000',
               is_buying_asset: true,
@@ -848,7 +848,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
           is_market: true,
           legs: [
             {
-              instrument: 'SOL-PERP',
+              instrument: 'SOL_USDT_Perp',
               size: '100.0',
               is_buying_asset: true,
             },
@@ -880,7 +880,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
     describe('OrderBook Edge Cases', () => {
       it('should handle empty order book', async () => {
         const emptyOrderBook: IOrderbookLevels = {
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           bids: [],
           asks: [],
           event_time: '123',
@@ -904,7 +904,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
 
       it('should handle order book with only bids', async () => {
         const bidsOnlyOrderBook: IOrderbookLevels = {
-          instrument: 'ETH-PERP',
+          instrument: 'ETH_USDT_Perp',
           bids: [
             { price: '3000', size: '5.0', num_orders: 2 },
           ],
@@ -933,7 +933,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
       it('should handle sell-side trades', async () => {
         const sellTrade: ITrade = {
           trade_id: 'trade-sell',
-          instrument: 'ETH-PERP',
+          instrument: 'ETH_USDT_Perp',
           price: '3000',
           size: '2.5',
           is_taker_buyer: false, // Taker is seller
@@ -958,7 +958,7 @@ describe('GRVT WebSocket Wrapper Tests', () => {
       it('should handle zero-size trades', async () => {
         const zeroTrade: ITrade = {
           trade_id: 'trade-zero',
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           price: '50000',
           size: '0',
           is_taker_buyer: true,
