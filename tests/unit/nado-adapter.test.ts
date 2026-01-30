@@ -13,15 +13,20 @@ describe('NadoAdapter', () => {
   const testPrivateKey = '0x' + '1'.repeat(64);
 
   describe('constructor', () => {
-    it('should throw error without wallet or privateKey', () => {
-      expect(() => new NadoAdapter({} as any)).toThrow(PerpDEXError);
-      expect(() => new NadoAdapter({} as any)).toThrow('requires either wallet or privateKey');
+    it('should initialize without wallet or privateKey (for public API access)', () => {
+      const adapter = new NadoAdapter({ testnet: true });
+      expect(adapter.id).toBe('nado');
+      expect(adapter.name).toBe('Nado');
+      // Auth should be undefined when no credentials provided
+      expect((adapter as any).auth).toBeUndefined();
     });
 
     it('should initialize with privateKey', () => {
       const adapter = new NadoAdapter({ privateKey: testPrivateKey });
       expect(adapter.id).toBe('nado');
       expect(adapter.name).toBe('Nado');
+      // Auth should be defined when credentials provided
+      expect((adapter as any).auth).toBeDefined();
     });
 
     it('should initialize with wallet', () => {

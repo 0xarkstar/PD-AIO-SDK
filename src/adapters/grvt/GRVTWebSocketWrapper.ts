@@ -11,13 +11,13 @@
  * - Type-safe subscriptions
  */
 
-import { WS, EStream } from '@grvt/client/ws';
+import { WS, EStream } from '@grvt/client/ws/index.js';
 import type {
   IWSBookRequest,
   IWSTradeRequest,
   IWSTdgPositionRequest,
   IWSTdgOrderRequest,
-} from '@grvt/client/ws/interfaces';
+} from '@grvt/client/ws/interfaces.js';
 import type {
   IOrderbookLevels,
   ITrade,

@@ -100,25 +100,21 @@ export const NadoProductSchema = z.object({
 
 /**
  * Nado Order Book Level
- * Format: [price, size, num_orders]
+ * Format: [price_x18, size_x18]
  */
-export type NadoOrderBookLevel = [string, string, number];
+export type NadoOrderBookLevel = [string, string];
 
 /**
- * Nado Order Book
+ * Nado Order Book (from market_liquidity endpoint)
  */
 export interface NadoOrderBook {
-  product_id: number;
   bids: NadoOrderBookLevel[];
   asks: NadoOrderBookLevel[];
-  timestamp: number;
 }
 
 export const NadoOrderBookSchema = z.object({
-  product_id: z.number(),
-  bids: z.array(z.tuple([z.string(), z.string(), z.number()])),
-  asks: z.array(z.tuple([z.string(), z.string(), z.number()])),
-  timestamp: z.number(),
+  bids: z.array(z.tuple([z.string(), z.string()])),
+  asks: z.array(z.tuple([z.string(), z.string()])),
 });
 
 /**
@@ -244,36 +240,19 @@ export const NadoTradeSchema = z.object({
 });
 
 /**
- * Nado Ticker
+ * Nado Ticker (from market_prices endpoint)
+ * Note: The API returns minimal price data (bid/ask only)
  */
 export interface NadoTicker {
   product_id: number;
-  symbol: string;
-  last_price: string;
-  mark_price: string;
-  index_price: string;
-  high_24h: string;
-  low_24h: string;
-  volume_24h: string;
-  funding_rate?: string;
-  next_funding_time?: number;
-  open_interest?: string;
-  timestamp: number;
+  bid_x18: string;
+  ask_x18: string;
 }
 
 export const NadoTickerSchema = z.object({
   product_id: z.number(),
-  symbol: z.string(),
-  last_price: z.string(),
-  mark_price: z.string(),
-  index_price: z.string(),
-  high_24h: z.string(),
-  low_24h: z.string(),
-  volume_24h: z.string(),
-  funding_rate: z.string().optional(),
-  next_funding_time: z.number().optional(),
-  open_interest: z.string().optional(),
-  timestamp: z.number(),
+  bid_x18: z.string(),
+  ask_x18: z.string(),
 });
 
 /**
