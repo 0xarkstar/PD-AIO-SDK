@@ -1,10 +1,12 @@
 /**
  * EdgeX Exchange Adapter
  *
- * StarkEx-based perpetual DEX with Pedersen hash signatures
+ * High-performance perpetual DEX with ECDSA + SHA3 signatures
+ * API Docs: https://edgex-1.gitbook.io/edgeX-documentation/api
  */
 
-import { ec, hash } from 'starknet';
+import { createHash } from 'crypto';
+import { ec } from 'starknet';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type {
   Market,
@@ -48,7 +50,7 @@ export class EdgeXAdapter extends BaseAdapter {
     fetchMarkets: true,
     fetchTicker: true,
     fetchOrderBook: true,
-    fetchTrades: true,
+    fetchTrades: false, // Not available via REST, use watchTrades for WebSocket
     fetchFundingRate: true,
     fetchFundingRateHistory: false,
     fetchPositions: true,
@@ -96,12 +98,24 @@ export class EdgeXAdapter extends BaseAdapter {
 
   /**
    * Initialize the adapter
+   * Note: starkPrivateKey is only required for private API operations (trading)
    */
   async initialize(): Promise<void> {
-    if (!this.starkPrivateKey) {
-      throw new PerpDEXError('StarkEx private key (starkPrivateKey) is required for EdgeX', 'MISSING_CREDENTIALS', 'edgex');
-    }
+    // Public API can be accessed without credentials
     this._isReady = true;
+  }
+
+  /**
+   * Require authentication for private API operations
+   */
+  private requireAuth(): void {
+    if (!this.starkPrivateKey) {
+      throw new PerpDEXError(
+        'Authentication required. Provide starkPrivateKey in config.',
+        'MISSING_CREDENTIALS',
+        'edgex'
+      );
+    }
   }
 
   /**
@@ -115,74 +129,90 @@ export class EdgeXAdapter extends BaseAdapter {
    * Fetch all available markets
    */
   async fetchMarkets(): Promise<Market[]> {
-    const response = await this.makeRequest('GET', '/markets', 'fetchMarkets');
+    const response = await this.makeRequest('GET', '/api/v1/public/meta/getMetaData', 'fetchMarkets');
 
-    if (!Array.isArray(response.markets)) {
-      throw new PerpDEXError('Invalid markets response', 'INVALID_RESPONSE', 'edgex');
+    // Handle new API format: { code: 'SUCCESS', data: { contractList: [...] } }
+    if (response.code === 'SUCCESS' && response.data?.contractList) {
+      return response.data.contractList.map((market: any) => this.normalizer.normalizeMarket(market));
     }
 
-    return response.markets.map((market: any) => this.normalizer.normalizeMarket(market));
+    // Handle legacy test format: { markets: [...] }
+    if (Array.isArray(response.markets)) {
+      return response.markets.map((market: any) => this.normalizer.normalizeMarket(market));
+    }
+
+    throw new PerpDEXError('Invalid markets response', 'INVALID_RESPONSE', 'edgex');
   }
 
   /**
    * Fetch ticker for a symbol
    */
   async fetchTicker(symbol: string): Promise<Ticker> {
-    const market = this.normalizer.toEdgeXSymbol(symbol);
-    const response = await this.makeRequest('GET', `/markets/${market}/ticker`, 'fetchTicker');
+    const contractId = this.normalizer.toEdgeXContractId(symbol);
+    const response = await this.makeRequest(
+      'GET',
+      `/api/v1/public/quote/getTicker?contractId=${contractId}`,
+      'fetchTicker'
+    );
 
-    return this.normalizer.normalizeTicker(response);
+    if (response.code !== 'SUCCESS' || !Array.isArray(response.data) || response.data.length === 0) {
+      throw new PerpDEXError('Invalid ticker response', 'INVALID_RESPONSE', 'edgex');
+    }
+
+    return this.normalizer.normalizeTicker(response.data[0]);
   }
 
   /**
    * Fetch order book for a symbol
+   * Note: EdgeX only supports level=15 or level=200 for order book depth
    */
   async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
-    const market = this.normalizer.toEdgeXSymbol(symbol);
-    const limit = params?.limit;
+    const contractId = this.normalizer.toEdgeXContractId(symbol);
+    // EdgeX only accepts level=15 or level=200
+    const level = params?.limit && params.limit > 15 ? 200 : 15;
 
-    const queryParams = limit ? `?depth=${limit}` : '';
     const response = await this.makeRequest(
       'GET',
-      `/markets/${market}/orderbook${queryParams}`,
+      `/api/v1/public/quote/getDepth?contractId=${contractId}&level=${level}`,
       'fetchOrderBook'
     );
 
-    return this.normalizer.normalizeOrderBook(response);
+    if (response.code !== 'SUCCESS' || !Array.isArray(response.data) || response.data.length === 0) {
+      throw new PerpDEXError('Invalid order book response', 'INVALID_RESPONSE', 'edgex');
+    }
+
+    return this.normalizer.normalizeOrderBook(response.data[0], symbol);
   }
 
   /**
    * Fetch recent trades for a symbol
+   * Note: EdgeX does not expose public trades via REST API.
+   * Use WebSocket (watchTrades) for real-time trade data.
    */
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
-    const market = this.normalizer.toEdgeXSymbol(symbol);
-    const limit = params?.limit ?? 100;
-
-    const response = await this.makeRequest(
-      'GET',
-      `/markets/${market}/trades?limit=${limit}`,
-      'fetchTrades'
+  async fetchTrades(symbol: string, _params?: TradeParams): Promise<Trade[]> {
+    throw new PerpDEXError(
+      'EdgeX does not support fetchTrades via REST API. Use watchTrades() for WebSocket streaming.',
+      'NOT_IMPLEMENTED',
+      'edgex'
     );
-
-    if (!Array.isArray(response.trades)) {
-      throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'edgex');
-    }
-
-    return response.trades.map((trade: any) => this.normalizer.normalizeTrade(trade));
   }
 
   /**
    * Fetch current funding rate
    */
   async fetchFundingRate(symbol: string): Promise<FundingRate> {
-    const market = this.normalizer.toEdgeXSymbol(symbol);
+    const contractId = this.normalizer.toEdgeXContractId(symbol);
     const response = await this.makeRequest(
       'GET',
-      `/markets/${market}/funding`,
+      `/api/v1/public/funding/getLatestFundingRate?contractId=${contractId}`,
       'fetchFundingRate'
     );
 
-    return this.normalizer.normalizeFundingRate(response);
+    if (response.code !== 'SUCCESS' || !Array.isArray(response.data) || response.data.length === 0) {
+      throw new PerpDEXError('Invalid funding rate response', 'INVALID_RESPONSE', 'edgex');
+    }
+
+    return this.normalizer.normalizeFundingRate(response.data[0], symbol);
   }
 
   /**
@@ -200,7 +230,8 @@ export class EdgeXAdapter extends BaseAdapter {
    * Fetch all open positions
    */
   async fetchPositions(symbols?: string[]): Promise<Position[]> {
-    const response = await this.makeRequest('GET', '/positions', 'fetchPositions');
+    this.requireAuth();
+    const response = await this.makeRequest('GET', '/api/v1/private/account/getPositionList', 'fetchPositions');
 
     if (!Array.isArray(response.positions)) {
       throw new PerpDEXError('Invalid positions response', 'INVALID_RESPONSE', 'edgex');
@@ -219,7 +250,8 @@ export class EdgeXAdapter extends BaseAdapter {
    * Fetch account balance
    */
   async fetchBalance(): Promise<Balance[]> {
-    const response = await this.makeRequest('GET', '/account/balance', 'fetchBalance');
+    this.requireAuth();
+    const response = await this.makeRequest('GET', '/api/v1/private/account/getCollateralBalance', 'fetchBalance');
 
     if (!Array.isArray(response.balances)) {
       throw new PerpDEXError('Invalid balance response', 'INVALID_RESPONSE', 'edgex');
@@ -232,6 +264,7 @@ export class EdgeXAdapter extends BaseAdapter {
    * Create a new order
    */
   async createOrder(order: OrderRequest): Promise<Order> {
+    this.requireAuth();
     const market = this.normalizer.toEdgeXSymbol(order.symbol);
     const orderType = toEdgeXOrderType(order.type);
     const side = toEdgeXOrderSide(order.side);
@@ -249,7 +282,7 @@ export class EdgeXAdapter extends BaseAdapter {
       client_order_id: order.clientOrderId,
     };
 
-    const response = await this.makeRequest('POST', '/orders', 'createOrder', payload);
+    const response = await this.makeRequest('POST', '/api/v1/private/order/createOrder', 'createOrder', payload);
 
     return this.normalizer.normalizeOrder(response);
   }
@@ -257,8 +290,9 @@ export class EdgeXAdapter extends BaseAdapter {
   /**
    * Cancel an existing order
    */
-  async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
-    const response = await this.makeRequest('DELETE', `/orders/${orderId}`, 'cancelOrder');
+  async cancelOrder(orderId: string, _symbol?: string): Promise<Order> {
+    this.requireAuth();
+    const response = await this.makeRequest('POST', '/api/v1/private/order/cancelOrder', 'cancelOrder', { orderId });
 
     return this.normalizer.normalizeOrder(response);
   }
@@ -267,9 +301,11 @@ export class EdgeXAdapter extends BaseAdapter {
    * Cancel all orders
    */
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
-    const payload = symbol ? { market: this.normalizer.toEdgeXSymbol(symbol) } : {};
+    this.requireAuth();
+    const contractId = symbol ? this.normalizer.toEdgeXContractId(symbol) : undefined;
+    const params = contractId ? `?contractId=${contractId}` : '';
 
-    const response = await this.makeRequest('DELETE', '/orders', 'cancelAllOrders', payload);
+    const response = await this.makeRequest('DELETE', `/api/v1/private/order/cancelAllOrder${params}`, 'cancelAllOrders');
 
     if (!Array.isArray(response.orders)) {
       throw new PerpDEXError('Invalid cancel all orders response', 'INVALID_RESPONSE', 'edgex');
@@ -282,8 +318,10 @@ export class EdgeXAdapter extends BaseAdapter {
    * Fetch open orders
    */
   async fetchOpenOrders(symbol?: string): Promise<Order[]> {
-    const params = symbol ? `?market=${this.normalizer.toEdgeXSymbol(symbol)}` : '';
-    const response = await this.makeRequest('GET', `/orders${params}`, 'fetchOpenOrders');
+    this.requireAuth();
+    const contractId = symbol ? this.normalizer.toEdgeXContractId(symbol) : undefined;
+    const params = contractId ? `?contractId=${contractId}` : '';
+    const response = await this.makeRequest('GET', `/api/v1/private/order/getOpenOrderList${params}`, 'fetchOpenOrders');
 
     if (!Array.isArray(response.orders)) {
       throw new PerpDEXError('Invalid open orders response', 'INVALID_RESPONSE', 'edgex');
@@ -295,8 +333,9 @@ export class EdgeXAdapter extends BaseAdapter {
   /**
    * Fetch a specific order
    */
-  async fetchOrder(orderId: string, symbol?: string): Promise<Order> {
-    const response = await this.makeRequest('GET', `/orders/${orderId}`, 'fetchOrder');
+  async fetchOrder(orderId: string, _symbol?: string): Promise<Order> {
+    this.requireAuth();
+    const response = await this.makeRequest('GET', `/api/v1/private/order/getOrder?orderId=${orderId}`, 'fetchOrder');
 
     return this.normalizer.normalizeOrder(response);
   }
@@ -352,7 +391,8 @@ export class EdgeXAdapter extends BaseAdapter {
   }
 
   /**
-   * Make authenticated HTTP request
+   * Make HTTP request
+   * Authentication headers are added for private endpoints
    */
   protected async makeRequest(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
@@ -367,11 +407,12 @@ export class EdgeXAdapter extends BaseAdapter {
       'Content-Type': 'application/json',
     };
 
-    // EdgeX uses StarkEx L2 signing for authentication
-    if (this.starkPrivateKey) {
+    // Add authentication headers for private endpoints
+    const isPrivateEndpoint = path.includes('/private/');
+    if (isPrivateEndpoint && this.starkPrivateKey) {
       const timestamp = Date.now().toString();
-      headers['X-Timestamp'] = timestamp;
-      headers['X-Signature'] = await this.signRequest(method, path, timestamp, body);
+      headers['X-edgeX-Api-Timestamp'] = timestamp;
+      headers['X-edgeX-Api-Signature'] = await this.signRequest(method, path, timestamp, body);
     }
 
     try {
@@ -383,7 +424,7 @@ export class EdgeXAdapter extends BaseAdapter {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        const { code, message } = mapEdgeXError(error);
+        const { code } = mapEdgeXError(error);
         throw new PerpDEXError(`EdgeX API error: ${response.statusText}`, code, 'edgex', error);
       }
 
@@ -392,18 +433,20 @@ export class EdgeXAdapter extends BaseAdapter {
       if (error instanceof PerpDEXError) {
         throw error;
       }
-      const { code, message } = mapEdgeXError(error);
+      const { code } = mapEdgeXError(error);
       throw new PerpDEXError('Request failed', code, 'edgex', error);
     }
   }
 
   /**
-   * Sign request with StarkEx ECDSA signature using Pedersen hash
+   * Sign request with ECDSA signature using SHA3 hash
    *
-   * EdgeX uses StarkEx L2 for order signing:
-   * 1. Create message from request parameters
-   * 2. Hash with Pedersen hash (StarkEx standard)
-   * 3. Sign with StarkEx ECDSA using L2 private key
+   * EdgeX authentication process:
+   * 1. Create message: {timestamp}{METHOD}{path}{sorted_params}
+   * 2. Hash with SHA3-256
+   * 3. Sign with ECDSA using private key
+   *
+   * @see https://edgex-1.gitbook.io/edgeX-documentation/api/authentication
    */
   private async signRequest(
     method: string,
@@ -416,20 +459,34 @@ export class EdgeXAdapter extends BaseAdapter {
     }
 
     try {
-      // Create message to sign
-      const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ''}`;
+      // Parse path and query parameters
+      const [basePath, queryString] = path.split('?');
 
-      // Hash the message using Pedersen hash (StarkEx standard)
-      const messageHash = hash.computeHashOnElements([message]);
+      // Build sorted query parameters
+      let sortedParams = '';
+      if (queryString) {
+        const params = new URLSearchParams(queryString);
+        const sortedKeys = Array.from(params.keys()).sort();
+        sortedParams = sortedKeys.map(k => `${k}=${params.get(k)}`).join('&');
+      } else if (body) {
+        const sortedKeys = Object.keys(body).sort();
+        sortedParams = sortedKeys.map(k => `${k}=${body[k]}`).join('&');
+      }
 
-      // Sign with StarkEx ECDSA using L2 private key
+      // Create message: timestamp + METHOD + path + sorted_params
+      const message = `${timestamp}${method.toUpperCase()}${basePath}${sortedParams}`;
+
+      // Hash with SHA3-256
+      const messageHash = createHash('sha3-256').update(message).digest();
+
+      // Sign with ECDSA using private key
       const signature = ec.starkCurve.sign(messageHash, this.starkPrivateKey);
 
-      // Return signature in hex format: r,s
-      return `0x${signature.r.toString(16)},0x${signature.s.toString(16)}`;
+      // Return signature in hex format
+      return `0x${signature.r.toString(16).padStart(64, '0')}${signature.s.toString(16).padStart(64, '0')}`;
     } catch (error) {
       throw new PerpDEXError(
-        `Failed to sign StarkEx request: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to sign request: ${error instanceof Error ? error.message : String(error)}`,
         'SIGNATURE_ERROR',
         'edgex'
       );

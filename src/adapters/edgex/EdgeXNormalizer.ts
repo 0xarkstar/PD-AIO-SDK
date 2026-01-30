@@ -30,69 +30,162 @@ import type {
 } from './types.js';
 
 export class EdgeXNormalizer {
+  // Cache for symbol -> contractId mapping
+  private symbolToContractId: Map<string, string> = new Map();
+  private contractIdToSymbol: Map<string, string> = new Map();
+
+  /**
+   * Initialize mapping from market data
+   */
+  initializeMappings(contracts: any[]): void {
+    for (const contract of contracts) {
+      // contractName is like "BTCUSD", "ETHUSD"
+      // Convert to CCXT format: "BTC/USD:USD"
+      const name = contract.contractName as string;
+      // Extract base (first 3-4 chars) and quote (last 3 chars typically USD)
+      const base = name.replace(/USD$/, '');
+      const quote = 'USD';
+      const ccxtSymbol = `${base}/${quote}:${quote}`;
+
+      this.symbolToContractId.set(ccxtSymbol, contract.contractId);
+      this.contractIdToSymbol.set(contract.contractId, ccxtSymbol);
+    }
+  }
+
   /**
    * Normalize EdgeX symbol to unified format
    *
-   * @example
-   * normalizeSymbol('BTC-USDC-PERP') // 'BTC/USDC:USDC'
-   * normalizeSymbol('ETH-USDC-PERP') // 'ETH/USDC:USDC'
+   * Handles multiple formats:
+   * - New API format: 'BTCUSD', 'ETHUSD' → 'BTC/USD:USD'
+   * - Legacy format: 'BTC-USDC-PERP' → 'BTC/USDC:USDC'
    */
   normalizeSymbol(edgexSymbol: string): string {
-    // EdgeX format: BTC-USDC-PERP, ETH-USDC-PERP
-    const parts = edgexSymbol.split('-');
-
-    if (parts.length === 3 && parts[2] === 'PERP') {
-      const base = parts[0];
-      const quote = parts[1];
-      return `${base}/${quote}:${quote}`;
+    // Handle legacy format: BTC-USDC-PERP
+    if (edgexSymbol.includes('-')) {
+      const parts = edgexSymbol.split('-');
+      if (parts.length === 3 && parts[2] === 'PERP') {
+        const base = parts[0];
+        const quote = parts[1];
+        return `${base}/${quote}:${quote}`;
+      }
+      // Spot format: BTC-USDC
+      return edgexSymbol.replace('-', '/');
     }
 
-    // Fallback for spot markets
-    return edgexSymbol.replace('-', '/');
+    // New API format: BTCUSD, ETHUSD (perpetuals use USD quote)
+    // Extract base by removing USD suffix
+    const base = edgexSymbol.replace(/USD$/, '');
+    return `${base}/USD:USD`;
   }
 
   /**
    * Convert unified symbol to EdgeX format
    *
-   * @example
-   * toEdgeXSymbol('BTC/USDC:USDC') // 'BTC-USDC-PERP'
-   * toEdgeXSymbol('ETH/USDC:USDC') // 'ETH-USDC-PERP'
+   * Supports both formats:
+   * - New API: 'BTC/USD:USD' → 'BTCUSD'
+   * - Legacy: 'BTC/USDC:USDC' → 'BTC-USDC-PERP'
    */
   toEdgeXSymbol(symbol: string): string {
     const parts = symbol.split(':');
+    const [pair = ''] = parts;
+    const [base = '', quote = ''] = pair.split('/');
 
-    if (parts.length === 2) {
-      // Perpetual format
-      const [pair = ''] = parts;
-      const [base = '', quote = ''] = pair.split('/');
-      return `${base}-${quote}-PERP`;
+    // If quote is USDC (legacy format), use dash-separated format
+    if (quote === 'USDC') {
+      return parts.length === 2 ? `${base}-${quote}-PERP` : `${base}-${quote}`;
     }
 
-    // Spot format
-    return symbol.replace('/', '-');
+    // New API format: BTCUSD
+    return `${base}${quote || 'USD'}`;
+  }
+
+  /**
+   * Convert unified symbol to EdgeX contractId
+   *
+   * @example
+   * toEdgeXContractId('BTC/USD:USD') // '10000001'
+   */
+  toEdgeXContractId(symbol: string): string {
+    // Check cache first
+    const cachedId = this.symbolToContractId.get(symbol);
+    if (cachedId) {
+      return cachedId;
+    }
+
+    // Fallback: Map common symbols to known contract IDs
+    const symbolToId: Record<string, string> = {
+      'BTC/USD:USD': '10000001',
+      'ETH/USD:USD': '10000002',
+      'SOL/USD:USD': '10000003',
+      'ARB/USD:USD': '10000004',
+      'DOGE/USD:USD': '10000005',
+      'XRP/USD:USD': '10000006',
+      'BNB/USD:USD': '10000007',
+      'AVAX/USD:USD': '10000008',
+      'LINK/USD:USD': '10000009',
+      'LTC/USD:USD': '10000010',
+    };
+
+    return symbolToId[symbol] || '10000001'; // Default to BTC
   }
 
   /**
    * Normalize EdgeX market to unified format
+   * Handles both old test format and new API format
    */
-  normalizeMarket(edgexMarket: EdgeXMarket): Market {
-    const symbol = this.normalizeSymbol(edgexMarket.symbol);
+  normalizeMarket(contract: any): Market {
+    // New API format: has contractName (e.g., "BTCUSD")
+    if (contract.contractName) {
+      const contractName = contract.contractName as string;
+      const base = contractName.replace(/USD$/, '');
+      const symbol = `${base}/USD:USD`;
+
+      // Store mapping
+      this.symbolToContractId.set(symbol, contract.contractId);
+      this.contractIdToSymbol.set(contract.contractId, symbol);
+
+      // Get max leverage from first tier
+      const maxLeverage = contract.riskTierList?.[0]?.maxLeverage
+        ? parseFloat(contract.riskTierList[0].maxLeverage)
+        : 100;
+
+      return {
+        id: contract.contractId,
+        symbol,
+        base,
+        quote: 'USD',
+        settle: 'USD',
+        active: contract.enableTrade ?? true,
+        minAmount: parseFloat(contract.minOrderSize || '0.001'),
+        pricePrecision: this.countDecimals(contract.tickSize || '0.1'),
+        amountPrecision: this.countDecimals(contract.stepSize || '0.001'),
+        priceTickSize: parseFloat(contract.tickSize || '0.1'),
+        amountStepSize: parseFloat(contract.stepSize || '0.001'),
+        makerFee: parseFloat(contract.defaultMakerFeeRate || '0.0002'),
+        takerFee: parseFloat(contract.defaultTakerFeeRate || '0.0005'),
+        maxLeverage,
+        fundingIntervalHours: 4, // EdgeX uses 4h funding
+      };
+    }
+
+    // Legacy test format: has symbol (e.g., "BTC-USDC-PERP")
+    const symbol = this.normalizeSymbol(contract.symbol);
 
     return {
-      id: edgexMarket.market_id,
+      id: contract.market_id,
       symbol,
-      base: edgexMarket.base_asset,
-      quote: edgexMarket.quote_asset,
-      settle: edgexMarket.settlement_asset,
-      active: edgexMarket.is_active,
-      minAmount: parseFloat(edgexMarket.min_order_size),
-      pricePrecision: this.countDecimals(edgexMarket.tick_size),
-      amountPrecision: this.countDecimals(edgexMarket.step_size),
-      priceTickSize: parseFloat(edgexMarket.tick_size),
-      amountStepSize: parseFloat(edgexMarket.step_size),
-      makerFee: parseFloat(edgexMarket.maker_fee),
-      takerFee: parseFloat(edgexMarket.taker_fee),
-      maxLeverage: parseFloat(edgexMarket.max_leverage),
+      base: contract.base_asset,
+      quote: contract.quote_asset,
+      settle: contract.settlement_asset,
+      active: contract.is_active,
+      minAmount: parseFloat(contract.min_order_size),
+      pricePrecision: this.countDecimals(contract.tick_size),
+      amountPrecision: this.countDecimals(contract.step_size),
+      priceTickSize: parseFloat(contract.tick_size),
+      amountStepSize: parseFloat(contract.step_size),
+      makerFee: parseFloat(contract.maker_fee),
+      takerFee: parseFloat(contract.taker_fee),
+      maxLeverage: parseFloat(contract.max_leverage),
       fundingIntervalHours: 8,
     };
   }
@@ -170,20 +263,22 @@ export class EdgeXNormalizer {
 
   /**
    * Normalize EdgeX order book to unified format
+   * Handles new API format from /api/v1/public/quote/getDepth
    */
-  normalizeOrderBook(edgexOrderBook: EdgeXOrderBook): OrderBook {
+  normalizeOrderBook(depthData: any, symbol: string): OrderBook {
+    // New format: { asks: [{price, size}], bids: [{price, size}] }
     return {
-      symbol: this.normalizeSymbol(edgexOrderBook.market),
+      symbol,
       exchange: 'edgex',
-      bids: edgexOrderBook.bids.map(([price, size]) => [
-        parseFloat(price),
-        parseFloat(size),
+      bids: (depthData.bids || []).map((level: any) => [
+        parseFloat(level.price),
+        parseFloat(level.size),
       ]),
-      asks: edgexOrderBook.asks.map(([price, size]) => [
-        parseFloat(price),
-        parseFloat(size),
+      asks: (depthData.asks || []).map((level: any) => [
+        parseFloat(level.price),
+        parseFloat(level.size),
       ]),
-      timestamp: edgexOrderBook.timestamp,
+      timestamp: Date.now(),
     };
   }
 
@@ -208,43 +303,47 @@ export class EdgeXNormalizer {
 
   /**
    * Normalize EdgeX ticker to unified format
+   * Handles new API format from /api/v1/public/quote/getTicker
    */
-  normalizeTicker(edgexTicker: EdgeXTicker): Ticker {
-    const last = parseFloat(edgexTicker.last_price);
-    const change = parseFloat(edgexTicker.price_change_24h);
-    const percentage = parseFloat(edgexTicker.price_change_percent_24h);
+  normalizeTicker(tickerData: any): Ticker {
+    const last = parseFloat(tickerData.lastPrice || tickerData.close || '0');
+    const open = parseFloat(tickerData.open || '0');
+    const change = parseFloat(tickerData.priceChange || '0');
+    const percentage = parseFloat(tickerData.priceChangePercent || '0');
+    const symbol = this.normalizeSymbol(tickerData.contractName || '');
 
     return {
-      symbol: this.normalizeSymbol(edgexTicker.market),
+      symbol,
       last,
-      open: last - change,
+      open,
       close: last,
-      bid: parseFloat(edgexTicker.bid),
-      ask: parseFloat(edgexTicker.ask),
-      high: parseFloat(edgexTicker.high_24h),
-      low: parseFloat(edgexTicker.low_24h),
+      bid: last, // No separate bid in ticker response
+      ask: last, // No separate ask in ticker response
+      high: parseFloat(tickerData.high || '0'),
+      low: parseFloat(tickerData.low || '0'),
       change,
       percentage,
-      baseVolume: parseFloat(edgexTicker.volume_24h),
-      quoteVolume: 0,
-      timestamp: edgexTicker.timestamp,
-      info: edgexTicker as unknown as Record<string, unknown>,
+      baseVolume: parseFloat(tickerData.size || tickerData.volume || '0'),
+      quoteVolume: parseFloat(tickerData.value || '0'),
+      timestamp: parseInt(tickerData.endTime || Date.now().toString(), 10),
+      info: tickerData as Record<string, unknown>,
     };
   }
 
   /**
    * Normalize EdgeX funding rate to unified format
+   * Handles new API format from /api/v1/public/funding/getLatestFundingRate
    */
-  normalizeFundingRate(edgexFunding: EdgeXFundingRate): FundingRate {
+  normalizeFundingRate(fundingData: any, symbol: string): FundingRate {
     return {
-      symbol: this.normalizeSymbol(edgexFunding.market),
-      fundingRate: parseFloat(edgexFunding.rate),
-      fundingTimestamp: edgexFunding.timestamp,
-      markPrice: parseFloat(edgexFunding.mark_price),
-      indexPrice: parseFloat(edgexFunding.index_price),
-      nextFundingTimestamp: edgexFunding.next_funding_time,
-      fundingIntervalHours: 8,
-      info: edgexFunding as unknown as Record<string, unknown>,
+      symbol,
+      fundingRate: parseFloat(fundingData.fundingRate || '0'),
+      fundingTimestamp: parseInt(fundingData.fundingTime || fundingData.fundingTimestamp || '0', 10),
+      markPrice: parseFloat(fundingData.markPrice || '0'),
+      indexPrice: parseFloat(fundingData.indexPrice || '0'),
+      nextFundingTimestamp: parseInt(fundingData.nextFundingTime || '0', 10),
+      fundingIntervalHours: 4, // EdgeX uses 4h funding intervals
+      info: fundingData as Record<string, unknown>,
     };
   }
 
