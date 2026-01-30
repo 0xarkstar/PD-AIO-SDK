@@ -14,9 +14,9 @@ export const EXTENDED_API_URLS = {
     starknet: 'https://starknet-mainnet.public.blastapi.io',
   },
   testnet: {
-    rest: 'https://api-testnet.starknet.extended.exchange',
-    websocket: 'wss://ws-testnet.starknet.extended.exchange',
-    starknet: 'https://starknet-testnet.public.blastapi.io',
+    rest: 'https://api.starknet.sepolia.extended.exchange',
+    websocket: 'wss://ws.starknet.sepolia.extended.exchange',
+    starknet: 'https://starknet-sepolia.public.blastapi.io',
   },
 } as const;
 

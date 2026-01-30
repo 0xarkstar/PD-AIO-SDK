@@ -7,12 +7,13 @@
  */
 export const EDGEX_API_URLS = {
   mainnet: {
-    rest: 'https://api.edgex.exchange/v1',
-    websocket: 'wss://ws.edgex.exchange/v1',
+    rest: 'https://pro.edgex.exchange',
+    websocket: 'wss://quote.edgex.exchange',
   },
+  // Note: EdgeX does not provide a public testnet - uses mainnet URLs
   testnet: {
-    rest: 'https://api-testnet.edgex.exchange/v1',
-    websocket: 'wss://ws-testnet.edgex.exchange/v1',
+    rest: 'https://pro.edgex.exchange',
+    websocket: 'wss://quote.edgex.exchange',
   },
 } as const;
 

@@ -4,12 +4,12 @@
 
 export const LIGHTER_API_URLS = {
   mainnet: {
-    rest: 'https://api.lighter.xyz/v1',
-    websocket: 'wss://ws.lighter.xyz/v1',
+    rest: 'https://mainnet.zklighter.elliot.ai',
+    websocket: 'wss://mainnet.zklighter.elliot.ai/stream',
   },
   testnet: {
-    rest: 'https://api-testnet.lighter.xyz/v1',
-    websocket: 'wss://ws-testnet.lighter.xyz/v1',
+    rest: 'https://testnet.zklighter.elliot.ai',
+    websocket: 'wss://testnet.zklighter.elliot.ai/stream',
   },
 } as const;
 
