@@ -170,11 +170,46 @@ export class ParadexNormalizer {
   /**
    * Normalize Paradex market to unified format
    *
+   * Handles both old SDK type format and actual API response format:
+   * - API uses: order_size_increment, price_tick_size, min_notional, fee_config, delta1_cross_margin_params
+   * - SDK type uses: step_size, tick_size, min_order_size, maker_fee_rate, taker_fee_rate, max_leverage
+   *
    * @param paradexMarket - Paradex market data from API
    * @returns Unified market
    */
-  normalizeMarket(paradexMarket: ParadexMarket): Market {
+  normalizeMarket(paradexMarket: any): Market {
     const symbol = this.symbolToCCXT(paradexMarket.symbol);
+
+    // Handle both actual API format and legacy type format
+    const tickSize = paradexMarket.price_tick_size || paradexMarket.tick_size || '0.01';
+    const stepSize = paradexMarket.order_size_increment || paradexMarket.step_size || '0.001';
+    const minOrderSize = paradexMarket.min_notional || paradexMarket.min_order_size || '100';
+
+    // Extract maker/taker fees from fee_config or legacy fields
+    let makerFee = 0.00003; // Default
+    let takerFee = 0.0002;  // Default
+    if (paradexMarket.fee_config?.api_fee) {
+      makerFee = parseFloat(paradexMarket.fee_config.api_fee.maker_fee?.fee || '0.00003');
+      takerFee = parseFloat(paradexMarket.fee_config.api_fee.taker_fee?.fee || '0.0002');
+    } else if (paradexMarket.maker_fee_rate) {
+      makerFee = parseFloat(paradexMarket.maker_fee_rate);
+      takerFee = parseFloat(paradexMarket.taker_fee_rate);
+    }
+
+    // Extract max leverage from delta1_cross_margin_params or legacy field
+    let maxLeverage = 50; // Default
+    if (paradexMarket.delta1_cross_margin_params?.imf_base) {
+      const imfBase = parseFloat(paradexMarket.delta1_cross_margin_params.imf_base);
+      if (imfBase > 0) {
+        maxLeverage = Math.round(1 / imfBase);
+      }
+    } else if (paradexMarket.max_leverage) {
+      maxLeverage = parseFloat(paradexMarket.max_leverage);
+    }
+
+    // Determine if market is active
+    const isActive = paradexMarket.is_active ??
+      (paradexMarket.open_at ? paradexMarket.open_at <= Date.now() : true);
 
     return {
       id: paradexMarket.symbol,
@@ -182,17 +217,17 @@ export class ParadexNormalizer {
       base: paradexMarket.base_currency,
       quote: paradexMarket.quote_currency,
       settle: paradexMarket.settlement_currency,
-      active: paradexMarket.is_active,
-      minAmount: parseFloat(paradexMarket.min_order_size),
-      pricePrecision: this.countDecimals(paradexMarket.tick_size),
-      amountPrecision: this.countDecimals(paradexMarket.step_size),
-      priceTickSize: parseFloat(paradexMarket.tick_size),
-      amountStepSize: parseFloat(paradexMarket.step_size),
-      makerFee: parseFloat(paradexMarket.maker_fee_rate),
-      takerFee: parseFloat(paradexMarket.taker_fee_rate),
-      maxLeverage: parseFloat(paradexMarket.max_leverage),
-      fundingIntervalHours: 8, // Paradex uses 8-hour funding
-      info: paradexMarket as any,
+      active: isActive,
+      minAmount: parseFloat(minOrderSize),
+      pricePrecision: this.countDecimals(tickSize),
+      amountPrecision: this.countDecimals(stepSize),
+      priceTickSize: parseFloat(tickSize),
+      amountStepSize: parseFloat(stepSize),
+      makerFee,
+      takerFee,
+      maxLeverage,
+      fundingIntervalHours: paradexMarket.funding_period_hours || 8,
+      info: paradexMarket,
     };
   }
 

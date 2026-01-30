@@ -38,9 +38,10 @@ describe('ParadexAdapter - Integration Tests', () => {
     mockHttpClient = (adapter as any).client;
     mockParaclear = (adapter as any).paraclear;
 
-    // Mock auth.verify() to return true
+    // Mock auth methods
     const mockAuth = (adapter as any).auth;
     mockAuth.verify = jest.fn().mockResolvedValue(true);
+    mockAuth.hasCredentials = jest.fn().mockReturnValue(true);
     mockAuth.clearJWTToken = jest.fn();
   });
 
@@ -49,20 +50,32 @@ describe('ParadexAdapter - Integration Tests', () => {
   // ===========================================================================
 
   describe('Lifecycle Management', () => {
-    it('should initialize successfully with valid credentials', async () => {
-      const mockAuth = (adapter as any).auth;
-      mockAuth.verify.mockResolvedValue(true);
-
+    it('should initialize successfully (public API access without auth)', async () => {
       await expect(adapter.initialize()).resolves.toBeUndefined();
-      expect(mockAuth.verify).toHaveBeenCalled();
+      expect(adapter.isReady).toBe(true);
     });
 
-    it('should throw error when authentication verification fails', async () => {
-      const mockAuth = (adapter as any).auth;
-      mockAuth.verify.mockResolvedValue(false);
+    it('should initialize successfully even without credentials (for public API)', async () => {
+      // Create adapter without credentials
+      const publicAdapter = new ParadexAdapter({ testnet: true });
+      // Mock auth.hasCredentials to return false
+      const mockAuth = (publicAdapter as any).auth;
+      mockAuth.hasCredentials = jest.fn().mockReturnValue(false);
 
-      await expect(adapter.initialize()).rejects.toThrow(PerpDEXError);
-      await expect(adapter.initialize()).rejects.toThrow('Failed to verify authentication credentials');
+      await expect(publicAdapter.initialize()).resolves.toBeUndefined();
+      expect(publicAdapter.isReady).toBe(true);
+    });
+
+    it('should throw on private methods when no credentials', async () => {
+      // Create adapter without credentials
+      const publicAdapter = new ParadexAdapter({ testnet: true });
+      const mockAuth = (publicAdapter as any).auth;
+      mockAuth.hasCredentials = jest.fn().mockReturnValue(false);
+      await publicAdapter.initialize();
+
+      // Private methods should throw
+      await expect(publicAdapter.fetchBalance()).rejects.toThrow('Authentication required');
+      await expect(publicAdapter.fetchPositions()).rejects.toThrow('Authentication required');
     });
 
     it('should cleanup resources on disconnect', async () => {
