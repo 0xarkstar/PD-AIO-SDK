@@ -117,50 +117,54 @@ describe('LighterAdapter Integration Tests', () => {
   describe('Market Data Methods', () => {
     describe('fetchMarkets', () => {
       it('should fetch and normalize markets', async () => {
-        const mockMarkets: LighterMarket[] = [
-          {
-            symbol: 'BTC-USDT-PERP',
-            baseCurrency: 'BTC',
-            quoteCurrency: 'USDT',
-            active: true,
-            minOrderSize: 0.001,
-            maxOrderSize: 100,
-            tickSize: 0.5,
-            stepSize: 0.001,
-            makerFee: 0.0002,
-            takerFee: 0.0005,
-            maxLeverage: 50,
-          },
-          {
-            symbol: 'ETH-USDT-PERP',
-            baseCurrency: 'ETH',
-            quoteCurrency: 'USDT',
-            active: true,
-            minOrderSize: 0.01,
-            maxOrderSize: 1000,
-            tickSize: 0.1,
-            stepSize: 0.01,
-            makerFee: 0.0002,
-            takerFee: 0.0005,
-            maxLeverage: 50,
-          },
-        ];
+        // Real Lighter API response format
+        const mockResponse = {
+          code: 200,
+          order_book_details: [
+            {
+              symbol: 'BTC',
+              market_id: 1,
+              market_type: 'perp',
+              status: 'active',
+              min_base_amount: '0.001',
+              min_quote_amount: '10.000000',
+              supported_size_decimals: 5,
+              supported_price_decimals: 1,
+              maker_fee: '0.0002',
+              taker_fee: '0.0005',
+              default_initial_margin_fraction: 200,
+            },
+            {
+              symbol: 'ETH',
+              market_id: 0,
+              market_type: 'perp',
+              status: 'active',
+              min_base_amount: '0.01',
+              min_quote_amount: '10.000000',
+              supported_size_decimals: 4,
+              supported_price_decimals: 2,
+              maker_fee: '0.0002',
+              taker_fee: '0.0005',
+              default_initial_margin_fraction: 200,
+            },
+          ],
+        };
 
-        mockSuccessResponse(mockMarkets);
+        mockSuccessResponse(mockResponse);
 
         const markets = await adapter.fetchMarkets();
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
         expect(markets).toHaveLength(2);
-        expect(markets[0].symbol).toBe('BTC/USDT:USDT');
+        expect(markets[0].symbol).toBe('BTC/USDC:USDC');
         expect(markets[0].base).toBe('BTC');
-        expect(markets[0].quote).toBe('USDT');
+        expect(markets[0].quote).toBe('USDC');
         expect(markets[0].active).toBe(true);
-        expect(markets[1].symbol).toBe('ETH/USDT:USDT');
+        expect(markets[1].symbol).toBe('ETH/USDC:USDC');
       });
 
       it('should handle empty markets list', async () => {
-        mockSuccessResponse([]);
+        mockSuccessResponse({ code: 200, order_book_details: [] });
 
         const markets = await adapter.fetchMarkets();
 
@@ -176,8 +180,9 @@ describe('LighterAdapter Integration Tests', () => {
 
     describe('fetchOrderBook', () => {
       it('should fetch and normalize order book', async () => {
+        // Lighter uses simple symbols (BTC) with USDC as quote currency
         const mockOrderBook: LighterOrderBook = {
-          symbol: 'BTC-USDT-PERP',
+          symbol: 'BTC',
           bids: [
             [50000, 1.5],
             [49990, 2.0],
@@ -191,10 +196,10 @@ describe('LighterAdapter Integration Tests', () => {
 
         mockSuccessResponse(mockOrderBook);
 
-        const orderBook = await adapter.fetchOrderBook('BTC/USDT:USDT');
+        const orderBook = await adapter.fetchOrderBook('BTC/USDC:USDC');
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
-        expect(orderBook.symbol).toBe('BTC/USDT:USDT');
+        expect(orderBook.symbol).toBe('BTC/USDC:USDC');
         expect(orderBook.bids).toHaveLength(2);
         expect(orderBook.asks).toHaveLength(2);
         expect(orderBook.bids[0]).toEqual([50000, 1.5]);
@@ -203,7 +208,7 @@ describe('LighterAdapter Integration Tests', () => {
 
       it('should handle custom depth limit', async () => {
         const mockOrderBook: LighterOrderBook = {
-          symbol: 'ETH-USDT-PERP',
+          symbol: 'ETH',
           bids: [[3000, 10]],
           asks: [[3010, 5]],
           timestamp: 1234567890000,
@@ -211,7 +216,7 @@ describe('LighterAdapter Integration Tests', () => {
 
         mockSuccessResponse(mockOrderBook);
 
-        const orderBook = await adapter.fetchOrderBook('ETH/USDT:USDT', { limit: 100 });
+        const orderBook = await adapter.fetchOrderBook('ETH/USDC:USDC', { limit: 100 });
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
         const url = (mockFetch.mock.calls[0][0] as string);
@@ -221,41 +226,46 @@ describe('LighterAdapter Integration Tests', () => {
 
     describe('fetchTrades', () => {
       it('should fetch and normalize public trades', async () => {
-        const mockTrades: LighterTrade[] = [
-          {
-            id: 'trade-1',
-            symbol: 'BTC-USDT-PERP',
-            side: 'buy',
-            price: 50000,
-            amount: 0.5,
-            timestamp: 1234567890000,
-          },
-          {
-            id: 'trade-2',
-            symbol: 'BTC-USDT-PERP',
-            side: 'sell',
-            price: 50010,
-            amount: 0.3,
-            timestamp: 1234567891000,
-          },
-        ];
+        // Lighter uses simple symbols (BTC) with USDC as quote currency
+        // Response format: { code, trades: [] }
+        const mockResponse = {
+          code: 200,
+          trades: [
+            {
+              id: 'trade-1',
+              symbol: 'BTC',
+              side: 'buy',
+              price: '50000',
+              size: '0.5',
+              timestamp: 1234567890000,
+            },
+            {
+              id: 'trade-2',
+              symbol: 'BTC',
+              side: 'sell',
+              price: '50010',
+              size: '0.3',
+              timestamp: 1234567891000,
+            },
+          ],
+        };
 
-        mockSuccessResponse(mockTrades);
+        mockSuccessResponse(mockResponse);
 
-        const trades = await adapter.fetchTrades('BTC/USDT:USDT');
+        const trades = await adapter.fetchTrades('BTC/USDC:USDC');
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
         expect(trades).toHaveLength(2);
-        expect(trades[0].symbol).toBe('BTC/USDT:USDT');
+        expect(trades[0].symbol).toBe('BTC/USDC:USDC');
         expect(trades[0].side).toBe('buy');
         expect(trades[0].price).toBe(50000);
         expect(trades[1].side).toBe('sell');
       });
 
       it('should handle limit parameter', async () => {
-        mockSuccessResponse([]);
+        mockSuccessResponse({ code: 200, trades: [] });
 
-        await adapter.fetchTrades('BTC/USDT:USDT', { limit: 50 });
+        await adapter.fetchTrades('BTC/USDC:USDC', { limit: 50 });
 
         const url = (mockFetch.mock.calls[0][0] as string);
         expect(url).toContain('limit=50');
@@ -264,34 +274,43 @@ describe('LighterAdapter Integration Tests', () => {
 
     describe('fetchTicker', () => {
       it('should fetch and normalize ticker', async () => {
-        const mockTicker: LighterTicker = {
-          symbol: 'BTC-USDT-PERP',
-          last: 50000,
-          bid: 49995,
-          ask: 50005,
-          high: 51000,
-          low: 49000,
-          volume: 1000,
-          timestamp: 1234567890000,
+        // Lighter uses orderBookDetails endpoint for ticker data
+        // Response format: { code, order_book_details: [...] }
+        const mockResponse = {
+          code: 200,
+          order_book_details: [
+            {
+              symbol: 'BTC',
+              market_type: 'perp',
+              status: 'active',
+              last_trade_price: '50000',
+              daily_price_high: '51000',
+              daily_price_low: '49000',
+              daily_base_token_volume: '1000',
+              daily_quote_token_volume: '50000000',
+              daily_price_change: '2.5',
+            },
+          ],
         };
 
-        mockSuccessResponse(mockTicker);
+        mockSuccessResponse(mockResponse);
 
-        const ticker = await adapter.fetchTicker('BTC/USDT:USDT');
+        const ticker = await adapter.fetchTicker('BTC/USDC:USDC');
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
-        expect(ticker.symbol).toBe('BTC/USDT:USDT');
+        expect(ticker.symbol).toBe('BTC/USDC:USDC');
         expect(ticker.last).toBe(50000);
-        expect(ticker.bid).toBe(49995);
-        expect(ticker.ask).toBe(50005);
+        expect(ticker.high).toBe(51000);
+        expect(ticker.low).toBe(49000);
         expect(ticker.baseVolume).toBe(1000);
       });
     });
 
     describe('fetchFundingRate', () => {
       it('should fetch and normalize funding rate', async () => {
+        // Lighter uses simple symbols (BTC) with USDC as quote currency
         const mockFundingRate: LighterFundingRate = {
-          symbol: 'BTC-USDT-PERP',
+          symbol: 'BTC',
           fundingRate: 0.0001,
           markPrice: 50000,
           nextFundingTime: 1234567890000,
@@ -299,10 +318,10 @@ describe('LighterAdapter Integration Tests', () => {
 
         mockSuccessResponse(mockFundingRate);
 
-        const fundingRate = await adapter.fetchFundingRate('BTC/USDT:USDT');
+        const fundingRate = await adapter.fetchFundingRate('BTC/USDC:USDC');
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
-        expect(fundingRate.symbol).toBe('BTC/USDT:USDT');
+        expect(fundingRate.symbol).toBe('BTC/USDC:USDC');
         expect(fundingRate.fundingRate).toBe(0.0001);
         expect(fundingRate.markPrice).toBe(50000);
         expect(fundingRate.fundingIntervalHours).toBe(8);
@@ -313,9 +332,10 @@ describe('LighterAdapter Integration Tests', () => {
   describe('Account Methods', () => {
     describe('fetchPositions', () => {
       it('should fetch and normalize positions', async () => {
+        // Lighter uses simple symbols (BTC) with USDC as quote currency
         const mockPositions: LighterPosition[] = [
           {
-            symbol: 'BTC-USDT-PERP',
+            symbol: 'BTC',
             side: 'long',
             size: 1.5,
             entryPrice: 49000,
@@ -333,7 +353,7 @@ describe('LighterAdapter Integration Tests', () => {
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
         expect(positions).toHaveLength(1);
-        expect(positions[0].symbol).toBe('BTC/USDT:USDT');
+        expect(positions[0].symbol).toBe('BTC/USDC:USDC');
         expect(positions[0].side).toBe('long');
         expect(positions[0].size).toBe(1.5);
         expect(positions[0].unrealizedPnl).toBe(1500);
@@ -350,7 +370,7 @@ describe('LighterAdapter Integration Tests', () => {
       it('should filter positions by symbol', async () => {
         const mockPositions: LighterPosition[] = [
           {
-            symbol: 'BTC-USDT-PERP',
+            symbol: 'BTC',
             side: 'long',
             size: 1.5,
             entryPrice: 49000,
@@ -364,10 +384,10 @@ describe('LighterAdapter Integration Tests', () => {
 
         mockSuccessResponse(mockPositions);
 
-        const positions = await adapter.fetchPositions('BTC/USDT:USDT');
+        const positions = await adapter.fetchPositions(['BTC/USDC:USDC']);
 
         expect(positions).toHaveLength(1);
-        expect(positions[0].symbol).toBe('BTC/USDT:USDT');
+        expect(positions[0].symbol).toBe('BTC/USDC:USDC');
       });
     });
 
@@ -414,10 +434,11 @@ describe('LighterAdapter Integration Tests', () => {
   describe('Trading Methods', () => {
     describe('createOrder', () => {
       it('should create limit buy order', async () => {
+        // Lighter uses simple symbols (BTC) with USDC as quote currency
         const mockOrder: LighterOrder = {
           orderId: 'order-123',
           clientOrderId: 'client-123',
-          symbol: 'BTC-USDT-PERP',
+          symbol: 'BTC',
           side: 'buy',
           type: 'limit',
           price: 50000,
@@ -431,7 +452,7 @@ describe('LighterAdapter Integration Tests', () => {
         mockSuccessResponse(mockOrder);
 
         const order = await adapter.createOrder({
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           type: 'limit',
           side: 'buy',
           amount: 0.1,
@@ -440,7 +461,7 @@ describe('LighterAdapter Integration Tests', () => {
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
         expect(order.id).toBe('order-123');
-        expect(order.symbol).toBe('BTC/USDT:USDT');
+        expect(order.symbol).toBe('BTC/USDC:USDC');
         expect(order.type).toBe('limit');
         expect(order.side).toBe('buy');
         expect(order.amount).toBe(0.1);
@@ -450,7 +471,7 @@ describe('LighterAdapter Integration Tests', () => {
       it('should create market sell order', async () => {
         const mockOrder: LighterOrder = {
           orderId: 'order-456',
-          symbol: 'ETH-USDT-PERP',
+          symbol: 'ETH',
           side: 'sell',
           type: 'market',
           size: 1.0,
@@ -463,7 +484,7 @@ describe('LighterAdapter Integration Tests', () => {
         mockSuccessResponse(mockOrder);
 
         const order = await adapter.createOrder({
-          symbol: 'ETH/USDT:USDT',
+          symbol: 'ETH/USDC:USDC',
           type: 'market',
           side: 'sell',
           amount: 1.0,
@@ -476,7 +497,7 @@ describe('LighterAdapter Integration Tests', () => {
       it('should create post-only order', async () => {
         const mockOrder: LighterOrder = {
           orderId: 'order-789',
-          symbol: 'BTC-USDT-PERP',
+          symbol: 'BTC',
           side: 'buy',
           type: 'limit',
           price: 50000,
@@ -490,7 +511,7 @@ describe('LighterAdapter Integration Tests', () => {
         mockSuccessResponse(mockOrder);
 
         const order = await adapter.createOrder({
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           type: 'limit',
           side: 'buy',
           amount: 0.1,
@@ -506,7 +527,7 @@ describe('LighterAdapter Integration Tests', () => {
       it('should create reduce-only order', async () => {
         const mockOrder: LighterOrder = {
           orderId: 'order-reduce',
-          symbol: 'BTC-USDT-PERP',
+          symbol: 'BTC',
           side: 'sell',
           type: 'limit',
           price: 51000,
@@ -520,7 +541,7 @@ describe('LighterAdapter Integration Tests', () => {
         mockSuccessResponse(mockOrder);
 
         const order = await adapter.createOrder({
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           type: 'limit',
           side: 'sell',
           amount: 0.5,
@@ -536,7 +557,7 @@ describe('LighterAdapter Integration Tests', () => {
       it('should cancel an order', async () => {
         const mockOrder: LighterOrder = {
           orderId: 'order-123',
-          symbol: 'BTC-USDT-PERP',
+          symbol: 'BTC',
           side: 'buy',
           type: 'limit',
           price: 50000,
@@ -548,7 +569,7 @@ describe('LighterAdapter Integration Tests', () => {
         };
         mockSuccessResponse(mockOrder);
 
-        const order = await adapter.cancelOrder('order-123', 'BTC/USDT:USDT');
+        const order = await adapter.cancelOrder('order-123', 'BTC/USDC:USDC');
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
         expect(order.status).toBe('canceled');
@@ -561,7 +582,7 @@ describe('LighterAdapter Integration Tests', () => {
       it('should cancel all orders for a symbol', async () => {
         mockSuccessResponse({ success: true, canceledCount: 5 });
 
-        await adapter.cancelAllOrders('BTC/USDT:USDT');
+        await adapter.cancelAllOrders('BTC/USDC:USDC');
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
       });
@@ -602,11 +623,12 @@ describe('LighterAdapter Integration Tests', () => {
     });
 
     it('should handle invalid order parameters', async () => {
-      mockSuccessResponse({ error: 'Invalid order size' });
+      // Mock an error response from the API (non-2xx status)
+      mockFailedResponse(400, 'Invalid order size');
 
       await expect(
         adapter.createOrder({
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           type: 'limit',
           side: 'buy',
           amount: -1, // Invalid negative amount
@@ -626,9 +648,9 @@ describe('LighterAdapter Integration Tests', () => {
         rateLimitTier: 'tier1', // 60 requests per minute
       });
 
-      // Mock 60 responses for 60 requests
+      // Mock 60 responses with valid format for fetchMarkets
       for (let i = 0; i < 60; i++) {
-        mockSuccessResponse([]);
+        mockSuccessResponse({ code: 200, order_book_details: [] });
       }
 
       // Make 60 requests
@@ -642,7 +664,7 @@ describe('LighterAdapter Integration Tests', () => {
     it('should track endpoint weights', async () => {
       const mockOrder: LighterOrder = {
         orderId: 'order-weight-test',
-        symbol: 'BTC-USDT-PERP',
+        symbol: 'BTC',
         side: 'buy',
         type: 'limit',
         price: 50000,
@@ -656,7 +678,7 @@ describe('LighterAdapter Integration Tests', () => {
 
       // createOrder has weight 5 (higher than fetchMarkets weight 1)
       await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'limit',
         side: 'buy',
         amount: 0.1,
@@ -669,16 +691,17 @@ describe('LighterAdapter Integration Tests', () => {
 
   describe('Symbol Normalization', () => {
     it('should correctly convert unified to Lighter format', () => {
-      // BTC/USDT:USDT -> BTC-USDT-PERP
+      // Lighter uses simple symbols: BTC/USDC:USDC -> BTC
       const normalizer = (adapter as any).normalizer;
-      expect(normalizer.toLighterSymbol('BTC/USDT:USDT')).toBe('BTC-USDT-PERP');
-      expect(normalizer.toLighterSymbol('ETH/USDT:USDT')).toBe('ETH-USDT-PERP');
+      expect(normalizer.toLighterSymbol('BTC/USDC:USDC')).toBe('BTC');
+      expect(normalizer.toLighterSymbol('ETH/USDC:USDC')).toBe('ETH');
     });
 
     it('should correctly convert Lighter to unified format', () => {
+      // Lighter uses simple symbols: BTC -> BTC/USDC:USDC
       const normalizer = (adapter as any).normalizer;
-      expect(normalizer.normalizeSymbol('BTC-USDT-PERP')).toBe('BTC/USDT:USDT');
-      expect(normalizer.normalizeSymbol('ETH-USDT-PERP')).toBe('ETH/USDT:USDT');
+      expect(normalizer.normalizeSymbol('BTC')).toBe('BTC/USDC:USDC');
+      expect(normalizer.normalizeSymbol('ETH')).toBe('ETH/USDC:USDC');
     });
   });
 });
