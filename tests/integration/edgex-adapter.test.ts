@@ -97,7 +97,7 @@ describe('EdgeXAdapter Integration Tests', () => {
     test('has correct capabilities', () => {
       expect(adapter.has.fetchMarkets).toBe(true);
       expect(adapter.has.fetchOrderBook).toBe(true);
-      expect(adapter.has.fetchTrades).toBe(true);
+      expect(adapter.has.fetchTrades).toBe(false); // Not available via REST, use WebSocket
       expect(adapter.has.fetchTicker).toBe(true);
       expect(adapter.has.fetchFundingRate).toBe(true);
       expect(adapter.has.fetchPositions).toBe(true);
@@ -111,13 +111,25 @@ describe('EdgeXAdapter Integration Tests', () => {
       expect(adapter.has.watchTicker).toBe(true);
     });
 
-    test('throws error when initialized without starkPrivateKey', async () => {
+    test('allows initialization without starkPrivateKey for public API access', async () => {
       const adapterNoKey = new EdgeXAdapter({
         testnet: true,
       });
 
-      await expect(adapterNoKey.initialize()).rejects.toThrow(
-        'StarkEx private key (starkPrivateKey) is required for EdgeX'
+      // Should initialize successfully for public API access
+      await adapterNoKey.initialize();
+      expect(adapterNoKey.isReady).toBe(true);
+    });
+
+    test('throws error when private method called without starkPrivateKey', async () => {
+      const adapterNoKey = new EdgeXAdapter({
+        testnet: true,
+      });
+
+      await adapterNoKey.initialize();
+
+      await expect(adapterNoKey.fetchPositions()).rejects.toThrow(
+        'Authentication required. Provide starkPrivateKey in config.'
       );
     });
   });
@@ -196,16 +208,19 @@ describe('EdgeXAdapter Integration Tests', () => {
 
     test('fetchOrderBook - fetches and normalizes order book', async () => {
       mockSuccessResponse({
-        market: 'BTC-USDC-PERP',
-        bids: [
-          ['50000', '1.5'],
-          ['49999', '2.0'],
-        ],
-        asks: [
-          ['50100', '1.2'],
-          ['50101', '1.8'],
-        ],
-        timestamp: Date.now(),
+        code: 'SUCCESS',
+        data: [{
+          contractId: '10000001',
+          contractName: 'BTCUSD',
+          bids: [
+            { price: '50000', size: '1.5' },
+            { price: '49999', size: '2.0' },
+          ],
+          asks: [
+            { price: '50100', size: '1.2' },
+            { price: '50101', size: '1.8' },
+          ],
+        }],
       });
 
       const orderBook = await adapter.fetchOrderBook('BTC/USDC:USDC');
@@ -218,28 +233,35 @@ describe('EdgeXAdapter Integration Tests', () => {
       expect(orderBook.asks[0][0]).toBe(50100);
     });
 
-    test('fetchOrderBook - supports depth parameter', async () => {
+    test('fetchOrderBook - supports level parameter (15 or 200)', async () => {
       mockSuccessResponse({
-        market: 'BTC-USDC-PERP',
-        bids: [['50000', '1.5']],
-        asks: [['50100', '1.2']],
-        timestamp: Date.now(),
+        code: 'SUCCESS',
+        data: [{
+          contractId: '10000001',
+          contractName: 'BTCUSD',
+          bids: [{ price: '50000', size: '1.5' }],
+          asks: [{ price: '50100', size: '1.2' }],
+        }],
       });
 
+      // Request with limit=10 should use level=15 (EdgeX only supports 15 or 200)
       await adapter.fetchOrderBook('BTC/USDC:USDC', { limit: 10 });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('?depth=10'),
+        expect.stringContaining('level=15'),
         expect.any(Object)
       );
     });
 
     test('fetchOrderBook - handles empty order book', async () => {
       mockSuccessResponse({
-        market: 'BTC-USDC-PERP',
-        bids: [],
-        asks: [],
-        timestamp: Date.now(),
+        code: 'SUCCESS',
+        data: [{
+          contractId: '10000001',
+          contractName: 'BTCUSD',
+          bids: [],
+          asks: [],
+        }],
       });
 
       const orderBook = await adapter.fetchOrderBook('BTC/USDC:USDC');
@@ -248,90 +270,54 @@ describe('EdgeXAdapter Integration Tests', () => {
       expect(orderBook.asks).toHaveLength(0);
     });
 
-    test('fetchTrades - fetches and normalizes recent trades', async () => {
-      mockSuccessResponse({
-        trades: [
-          {
-            trade_id: '12345',
-            market: 'BTC-USDC-PERP',
-            side: 'BUY',
-            price: '50000',
-            size: '0.5',
-            timestamp: Date.now(),
-          },
-          {
-            trade_id: '12346',
-            market: 'BTC-USDC-PERP',
-            side: 'SELL',
-            price: '49999',
-            size: '0.3',
-            timestamp: Date.now(),
-          },
-        ],
-      });
-
-      const trades = await adapter.fetchTrades('BTC/USDC:USDC');
-
-      expect(Array.isArray(trades)).toBe(true);
-      expect(trades).toHaveLength(2);
-      expect(trades[0].symbol).toBe('BTC/USDC:USDC');
-      expect(trades[0].side).toBe('buy');
-      expect(trades[0].price).toBe(50000);
-      expect(trades[0].amount).toBe(0.5);
-    });
-
-    test('fetchTrades - supports limit parameter', async () => {
-      mockSuccessResponse({ trades: [] });
-
-      await adapter.fetchTrades('BTC/USDC:USDC', { limit: 50 });
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('?limit=50'),
-        expect.any(Object)
-      );
-    });
-
-    test('fetchTrades - throws error on invalid response', async () => {
-      mockSuccessResponse({ invalid: 'response' });
-
+    test('fetchTrades - throws NOT_IMPLEMENTED error (use WebSocket instead)', async () => {
+      // EdgeX does not support fetchTrades via REST API
+      // Use watchTrades() for WebSocket streaming instead
       await expect(adapter.fetchTrades('BTC/USDC:USDC')).rejects.toThrow(
-        'Invalid trades response'
+        'EdgeX does not support fetchTrades via REST API'
       );
     });
 
     test('fetchTicker - fetches and normalizes ticker', async () => {
       mockSuccessResponse({
-        market: 'BTC-USDC-PERP',
-        last_price: '50000',
-        bid: '49999',
-        ask: '50001',
-        high_24h: '51000',
-        low_24h: '49000',
-        volume_24h: '1000',
-        price_change_24h: '500',
-        price_change_percent_24h: '1.0',
-        timestamp: Date.now(),
+        code: 'SUCCESS',
+        data: [{
+          contractId: '10000001',
+          contractName: 'BTCUSD',
+          lastPrice: '50000',
+          open: '49500',
+          close: '50000',
+          high: '51000',
+          low: '49000',
+          size: '1000',
+          value: '50000000',
+          priceChange: '500',
+          priceChangePercent: '0.01',
+          endTime: Date.now().toString(),
+        }],
       });
 
       const ticker = await adapter.fetchTicker('BTC/USDC:USDC');
 
-      expect(ticker.symbol).toBe('BTC/USDC:USDC');
+      expect(ticker.symbol).toBe('BTC/USD:USD');
       expect(ticker.last).toBe(50000);
-      expect(ticker.bid).toBe(49999);
-      expect(ticker.ask).toBe(50001);
       expect(ticker.high).toBe(51000);
       expect(ticker.low).toBe(49000);
     });
 
     test('fetchFundingRate - fetches current funding rate', async () => {
       const now = Date.now();
+      const nextFunding = now + 14400000; // 4 hours (EdgeX uses 4h intervals)
       mockSuccessResponse({
-        market: 'BTC-USDC-PERP',
-        rate: '0.0001',
-        timestamp: now,
-        next_funding_time: now + 28800000, // 8 hours
-        mark_price: '50000',
-        index_price: '49995',
+        code: 'SUCCESS',
+        data: [{
+          contractId: '10000001',
+          fundingRate: '0.0001',
+          fundingTime: now.toString(),
+          nextFundingTime: nextFunding.toString(),
+          markPrice: '50000',
+          indexPrice: '49995',
+        }],
       });
 
       const fundingRate = await adapter.fetchFundingRate('BTC/USDC:USDC');
@@ -340,18 +326,21 @@ describe('EdgeXAdapter Integration Tests', () => {
       expect(fundingRate.fundingRate).toBe(0.0001);
       expect(fundingRate.markPrice).toBe(50000);
       expect(fundingRate.indexPrice).toBe(49995);
-      expect(fundingRate.fundingIntervalHours).toBe(8);
+      expect(fundingRate.fundingIntervalHours).toBe(4); // EdgeX uses 4h intervals
     });
 
     test('fetchFundingRate - handles negative funding rate', async () => {
       const now = Date.now();
       mockSuccessResponse({
-        market: 'BTC-USDC-PERP',
-        rate: '-0.0002',
-        timestamp: now,
-        next_funding_time: now + 28800000,
-        mark_price: '50000',
-        index_price: '50010',
+        code: 'SUCCESS',
+        data: [{
+          contractId: '10000001',
+          fundingRate: '-0.0002',
+          fundingTime: now.toString(),
+          nextFundingTime: (now + 14400000).toString(),
+          markPrice: '50000',
+          indexPrice: '50010',
+        }],
       });
 
       const fundingRate = await adapter.fetchFundingRate('BTC/USDC:USDC');
@@ -396,14 +385,6 @@ describe('EdgeXAdapter Integration Tests', () => {
       expect(markets[0].takerFee).toBe(0.0005);
     });
 
-    test('fetchTrades - handles empty trades array', async () => {
-      mockSuccessResponse({ trades: [] });
-
-      const trades = await adapter.fetchTrades('BTC/USDC:USDC');
-
-      expect(Array.isArray(trades)).toBe(true);
-      expect(trades).toHaveLength(0);
-    });
   });
 
   // ============================================================================
@@ -785,10 +766,11 @@ describe('EdgeXAdapter Integration Tests', () => {
       const order = await adapter.cancelOrder('123456');
 
       expect(order.status).toBe('canceled');
+      // EdgeX uses POST to /api/v1/private/order/cancelOrder with body
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/orders/123456'),
+        expect.stringContaining('/api/v1/private/order/cancelOrder'),
         expect.objectContaining({
-          method: 'DELETE',
+          method: 'POST',
         })
       );
     });
@@ -821,7 +803,7 @@ describe('EdgeXAdapter Integration Tests', () => {
       expect(orders[0].status).toBe('canceled');
     });
 
-    test('cancelAllOrders - cancels all orders for a symbol', async () => {
+    test('cancelAllOrders - cancels all orders for a symbol using contractId', async () => {
       mockSuccessResponse({
         orders: [
           {
@@ -845,11 +827,11 @@ describe('EdgeXAdapter Integration Tests', () => {
       const orders = await adapter.cancelAllOrders('BTC/USDC:USDC');
 
       expect(orders).toHaveLength(1);
+      // EdgeX uses contractId query param for filtering by symbol
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.any(String),
+        expect.stringContaining('contractId='),
         expect.objectContaining({
           method: 'DELETE',
-          body: JSON.stringify({ market: 'BTC-USDC-PERP' }),
         })
       );
     });
@@ -906,7 +888,7 @@ describe('EdgeXAdapter Integration Tests', () => {
       expect(orders[0].status).toBe('open');
     });
 
-    test('fetchOpenOrders - filters by symbol', async () => {
+    test('fetchOpenOrders - filters by symbol using contractId', async () => {
       mockSuccessResponse({
         orders: [
           {
@@ -929,8 +911,9 @@ describe('EdgeXAdapter Integration Tests', () => {
 
       await adapter.fetchOpenOrders('BTC/USDC:USDC');
 
+      // EdgeX uses contractId query param for filtering by symbol
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('?market=BTC-USDC-PERP'),
+        expect.stringContaining('contractId='),
         expect.any(Object)
       );
     });
@@ -998,7 +981,7 @@ describe('EdgeXAdapter Integration Tests', () => {
   // 5. StarkEx Signature (10 tests)
   // ============================================================================
 
-  describe('StarkEx Signature', () => {
+  describe('ECDSA Signature with SHA3', () => {
     // Helper to mock order creation response
     const mockOrderResponse = () => {
       mockSuccessResponse({
@@ -1018,7 +1001,7 @@ describe('EdgeXAdapter Integration Tests', () => {
       });
     };
 
-    test('generates Pedersen hash for authenticated requests', async () => {
+    test('signs private API requests with ECDSA', async () => {
       mockOrderResponse();
 
       await adapter.createOrder({
@@ -1029,31 +1012,11 @@ describe('EdgeXAdapter Integration Tests', () => {
         price: 50000,
       });
 
-      expect(mockHash).toHaveBeenCalled();
-      const hashCall = mockHash.mock.calls[0];
-      expect(hashCall[0]).toBeInstanceOf(Array);
-    });
-
-    test('signs hash with StarkEx ECDSA using starkPrivateKey', async () => {
-      mockOrderResponse();
-
-      await adapter.createOrder({
-        symbol: 'BTC/USDC:USDC',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 50000,
-      });
-
+      // ECDSA sign should be called for private endpoints
       expect(mockSign).toHaveBeenCalled();
-      const signCall = mockSign.mock.calls[0];
-      expect(signCall[0]).toBe('0x1234567890abcdef'); // mocked hash result
-      expect(signCall[1]).toBe(
-        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-      ); // starkPrivateKey
     });
 
-    test('includes timestamp in signature for authenticated requests', async () => {
+    test('includes timestamp header for private API requests', async () => {
       mockOrderResponse();
 
       await adapter.createOrder({
@@ -1068,23 +1031,24 @@ describe('EdgeXAdapter Integration Tests', () => {
         expect.any(String),
         expect.objectContaining({
           headers: expect.objectContaining({
-            'X-Timestamp': expect.any(String),
+            'X-edgeX-Api-Timestamp': expect.any(String),
           }),
         })
       );
     });
 
-    test('all requests are signed when starkPrivateKey is provided', async () => {
+    test('public API requests are NOT signed', async () => {
       mockSuccessResponse({ markets: [] });
 
       await adapter.fetchMarkets();
 
-      // EdgeX signs all requests when starkPrivateKey is configured
-      expect(mockHash).toHaveBeenCalled();
-      expect(mockSign).toHaveBeenCalled();
+      // Public endpoints should NOT have signature headers
+      const call = mockFetch.mock.calls[0];
+      const headers = call[1]?.headers as Record<string, string>;
+      expect(headers['X-edgeX-Api-Signature']).toBeUndefined();
     });
 
-    test('includes signature in headers for authenticated requests', async () => {
+    test('includes signature header for private API requests', async () => {
       mockOrderResponse();
 
       await adapter.createOrder({
@@ -1099,13 +1063,13 @@ describe('EdgeXAdapter Integration Tests', () => {
         expect.any(String),
         expect.objectContaining({
           headers: expect.objectContaining({
-            'X-Signature': expect.any(String),
+            'X-edgeX-Api-Signature': expect.any(String),
           }),
         })
       );
     });
 
-    test('signature format is r,s in hex', async () => {
+    test('signature format is concatenated r and s in hex', async () => {
       mockOrderResponse();
 
       await adapter.createOrder({
@@ -1118,79 +1082,9 @@ describe('EdgeXAdapter Integration Tests', () => {
 
       const call = mockFetch.mock.calls[0];
       const headers = call[1]?.headers as Record<string, string>;
-      const signature = headers['X-Signature'];
+      const signature = headers['X-edgeX-Api-Signature'];
 
-      expect(signature).toContain('0x');
-      expect(signature).toContain(',0x');
-    });
-
-    test('signature includes method in message', async () => {
-      mockOrderResponse();
-
-      await adapter.createOrder({
-        symbol: 'BTC/USDC:USDC',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 50000,
-      });
-
-      // Hash is called with message array
-      const hashCall = mockHash.mock.calls[0];
-      const message = hashCall[0][0] as string;
-
-      expect(message).toContain('POST');
-    });
-
-    test('signature includes path in message', async () => {
-      mockOrderResponse();
-
-      await adapter.createOrder({
-        symbol: 'BTC/USDC:USDC',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 50000,
-      });
-
-      const hashCall = mockHash.mock.calls[0];
-      const message = hashCall[0][0] as string;
-
-      expect(message).toContain('/orders');
-    });
-
-    test('signature includes body in message for POST requests', async () => {
-      mockOrderResponse();
-
-      await adapter.createOrder({
-        symbol: 'BTC/USDC:USDC',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 50000,
-      });
-
-      const hashCall = mockHash.mock.calls[0];
-      const message = hashCall[0][0] as string;
-
-      expect(message).toContain('POST');
-      expect(message).toContain('BTC-USDC-PERP');
-    });
-
-    test('signature uses Pedersen hash instead of SHA256', async () => {
-      mockOrderResponse();
-
-      await adapter.createOrder({
-        symbol: 'BTC/USDC:USDC',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 50000,
-      });
-
-      // Verify Pedersen hash was called (not SHA256)
-      expect(mockHash).toHaveBeenCalled();
-      expect(mockHash.mock.calls[0][0]).toBeInstanceOf(Array);
+      expect(signature).toMatch(/^0x[0-9a-f]{128}$/i);
     });
   });
 

@@ -79,11 +79,16 @@ describe('Config-Adapter Alignment', () => {
   });
 
   describe('Adapter Initialization Validation', () => {
-    test('EdgeX should require starkPrivateKey on initialize', async () => {
+    test('EdgeX should allow public API access without starkPrivateKey', async () => {
       const adapter = createExchange('edgex', {});
 
-      await expect(adapter.initialize()).rejects.toThrow(PerpDEXError);
-      await expect(adapter.initialize()).rejects.toThrow(/starkPrivateKey/i);
+      // Should be able to initialize for public API access
+      await adapter.initialize();
+      expect(adapter.isReady).toBe(true);
+
+      // But private operations should require credentials
+      await expect(adapter.fetchPositions()).rejects.toThrow(PerpDEXError);
+      await expect(adapter.fetchPositions()).rejects.toThrow(/starkPrivateKey/i);
     });
 
     test('Lighter should require apiKey and apiSecret for trading', async () => {
