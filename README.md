@@ -4,8 +4,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-2249%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
-[![npm version](https://img.shields.io/badge/npm-v0.1.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
+[![Tests](https://img.shields.io/badge/tests-2246%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![npm version](https://img.shields.io/badge/npm-v0.2.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
 **[한국어 문서](./README.ko.md)** | English
@@ -33,22 +33,25 @@
 - **Python aliases** available (snake_case for Python developers)
 
 ### 🌐 Multi-Exchange Support
-- **Hyperliquid** ✅ - Production Ready, 200k orders/sec, HIP-3 ecosystem
-- **Lighter** ✅ - Public API Ready, ZK-SNARK proofs, USDC settlement
-- **Extended** ⚠️ - Mainnet only (testnet not operational), StarkNet L2, 100x leverage
-- **GRVT** ⚠️ - Needs URL update, Hybrid CEX/DEX, portfolio margin
-- **Paradex** ⚠️ - Auth required for all endpoints, StarkNet L2
-- **Nado** ⚠️ - Auth required for all endpoints, Ink L2 by Kraken
-- **EdgeX** 🔴 - REST API undocumented, WebSocket only
-- **Backpack** 🔴 - Network connectivity issues, Solana-based
-- **Variational** 🔴 - RFQ-based (not standard orderbook), API in development
+
+| Exchange | Status | Markets | Public API | Private API |
+|----------|--------|---------|------------|-------------|
+| **Hyperliquid** | ✅ Production Ready | 206 | ✅ Full | ✅ Full |
+| **EdgeX** | ✅ Production Ready | 292 | ✅ Full | ✅ Full |
+| **Nado** | ✅ Production Ready | 26 | ✅ Full | ✅ Full |
+| **Lighter** | 🟡 Public API Only | 3 | ✅ Full | ⚠️ Requires Official SDK |
+| **Paradex** | 🟡 Limited | 7 | ✅ Markets Only | ⚠️ JWT Required |
+| **Extended** | 🟡 Mainnet Only | 0 | ✅ Works | - |
+| **GRVT** | ⚠️ Testing | - | ⚠️ | ⚠️ |
+| **Backpack** | 🔴 Network Issues | - | ❌ | ❌ |
+| **Variational** | 🔴 Alpha (RFQ) | - | ❌ | ❌ |
 
 ### 🔐 Production-Grade Security
 - **EIP-712 signatures** (Hyperliquid, GRVT, Nado)
-- **StarkNet ECDSA** (Paradex, EdgeX, Extended)
+- **StarkNet ECDSA + SHA3** (EdgeX)
+- **StarkNet signatures** (Paradex)
 - **ED25519** (Backpack)
 - **API Key authentication** (Lighter, Extended)
-- **HMAC-SHA256** (Variational - Coming Soon)
 - **Secure credential management** with validation
 
 ### ⚡ Enterprise Features
@@ -61,7 +64,7 @@
 
 ### 📊 Developer Experience
 - **Pattern A Architecture** - All 9 adapters follow standardized structure
-- **1767 tests** - 100% pass rate, production-ready
+- **2246 tests** - 100% pass rate, production-ready
 - **Structured logging** - JSON logs with sensitive data masking
 - **Health checks** - Built-in system monitoring
 - **Comprehensive docs** - English + Korean documentation
@@ -85,41 +88,49 @@ pnpm add pd-aio-sdk
 ### Basic Usage
 
 ```typescript
-import { createExchange, createSymbol } from 'pd-aio-sdk';
-import { Wallet } from 'ethers';
+import { createExchange } from 'pd-aio-sdk';
 
-// Initialize adapter
-const wallet = new Wallet(process.env.PRIVATE_KEY);
+// Initialize adapter (no auth needed for public API)
+const exchange = createExchange('hyperliquid', { testnet: true });
+await exchange.initialize();
+
+// Fetch market data (Public API - no credentials needed)
+const markets = await exchange.fetchMarkets();
+const orderBook = await exchange.fetchOrderBook('BTC/USDT:USDT');
+const ticker = await exchange.fetchTicker('BTC/USDT:USDT');
+
+console.log(`Found ${markets.length} markets`);
+console.log(`BTC price: ${ticker.last}`);
+```
+
+### With Authentication (for Trading)
+
+```typescript
+import { createExchange } from 'pd-aio-sdk';
+
+// Initialize with credentials for private API
 const exchange = createExchange('hyperliquid', {
-  wallet,
+  privateKey: process.env.HYPERLIQUID_PRIVATE_KEY,
   testnet: true
 });
 
 await exchange.initialize();
 
-// Create a symbol (exchange-aware)
-const symbol = createSymbol('hyperliquid', 'BTC'); // Returns "BTC/USDT:USDT"
-
-// Fetch market data
-const markets = await exchange.fetchMarkets();
-const orderBook = await exchange.fetchOrderBook(symbol);
-const ticker = await exchange.fetchTicker(symbol);
-
-// Place an order
+// Place an order (requires authentication)
 const order = await exchange.createOrder({
-  symbol,
+  symbol: 'BTC/USDT:USDT',
   type: 'limit',
   side: 'buy',
   amount: 0.1,
   price: 50000
 });
 
-// Check positions
+// Check positions and balance
 const positions = await exchange.fetchPositions();
 const balances = await exchange.fetchBalance();
 
 // Cancel order
-await exchange.cancelOrder(order.id, symbol);
+await exchange.cancelOrder(order.id, 'BTC/USDT:USDT');
 
 // Cleanup
 await exchange.disconnect();
@@ -129,46 +140,81 @@ await exchange.disconnect();
 
 ## 📚 Supported Exchanges
 
-| Exchange | Status | Public API | Private API | Auth Method | Special Features |
-|----------|--------|------------|-------------|-------------|------------------|
-| **Hyperliquid** | ✅ Production Ready | ✅ | ✅ | EIP-712 | 200k orders/sec, HIP-3 ecosystem |
-| **Lighter** | ✅ Public API Ready | ✅ | ⚠️ Testing | API Key + HMAC | ZK-SNARK proofs, USDC settlement |
-| **Extended** | ⚠️ Mainnet Only | ✅ | ⚠️ Testing | API Key | StarkNet L2, 100x leverage |
-| **GRVT** | ⚠️ URL Update Needed | ❌ | ❌ | EIP-712 + Session | Hybrid CEX/DEX |
-| **Paradex** | ⚠️ Auth Required | ❌ | ⚠️ | StarkNet + JWT | StarkNet L2 |
-| **Nado** | ⚠️ Auth Required | ❌ | ⚠️ | EIP-712 | Ink L2 by Kraken |
-| **EdgeX** | 🔴 API Not Public | ❌ | ❌ | StarkEx | REST API undocumented |
-| **Backpack** | 🔴 Network Issues | ❌ | ❌ | ED25519 | Solana-based |
-| **Variational** | 🔴 Alpha (RFQ) | ❌ | ❌ | HMAC | RFQ-based, not orderbook |
+### ✅ Production Ready
 
-### Status Legend
-- ✅ **Production Ready** - Fully tested and working
-- ⚠️ **Partial/Testing** - Some features work, others need investigation
-- 🔴 **Not Working** - Needs fixes or API documentation
+#### Hyperliquid
+```typescript
+const exchange = createExchange('hyperliquid', {
+  privateKey: process.env.HYPERLIQUID_PRIVATE_KEY, // Optional for public API
+  testnet: true
+});
+```
+- **Markets**: 206 perpetual contracts
+- **Auth**: EIP-712 signatures
+- **Features**: 200k orders/sec, HIP-3 ecosystem, full WebSocket support
 
-### 🎁 Bonus: HIP-3 Ecosystem (via Hyperliquid)
+#### EdgeX
+```typescript
+const exchange = createExchange('edgex', {
+  starkPrivateKey: process.env.EDGEX_STARK_PRIVATE_KEY, // Optional for public API
+});
+```
+- **Markets**: 292 perpetual contracts
+- **Auth**: SHA3-256 + ECDSA signatures
+- **Note**: fetchTrades only via WebSocket (no REST endpoint)
 
-All HIP-3 DEXs share Hyperliquid's infrastructure - **one adapter, 7+ platforms**:
+#### Nado
+```typescript
+const exchange = createExchange('nado', {
+  privateKey: process.env.NADO_PRIVATE_KEY, // Optional for public API
+  testnet: true
+});
+```
+- **Markets**: 26 perpetual contracts
+- **Auth**: EIP-712 signatures on Ink L2 (by Kraken)
 
-- **trade.xyz** - US stock perpetuals (NVDA, TSLA, AAPL)
-- **Ventuals** - Pre-IPO perps (SpaceX, OpenAI, Anthropic)
-- **Based** - Trading super app
-- **Volmex** - Volatility indices
-- **Nunchi** - Yield/APY perpetuals
-- **Aura** - US Treasury perps
+### 🟡 Partial Support
+
+#### Lighter
+```typescript
+const exchange = createExchange('lighter', { testnet: true });
+```
+- **Markets**: 3 perpetual contracts (BTC, ETH, SOL)
+- **Public API**: ✅ fetchMarkets, fetchTicker, fetchOrderBook
+- **Private API**: ❌ Requires official `lighter-sdk` (SignerClient-based auth)
+- **Reference**: https://github.com/elliottech/lighter-python
+
+#### Paradex
+```typescript
+const exchange = createExchange('paradex', { testnet: true });
+```
+- **Markets**: 7 perpetual contracts
+- **Public API**: ✅ fetchMarkets only
+- **Ticker/OrderBook**: Requires JWT authentication (Paradex-specific limitation)
+- **Private API**: Requires StarkNet signatures + JWT
+
+#### Extended
+```typescript
+const exchange = createExchange('extended', {
+  apiKey: process.env.EXTENDED_API_KEY
+});
+```
+- **Status**: Testnet not operational, mainnet only
+- **Markets**: Currently returning 0 (service status unclear)
+
+### 🔴 Not Production Ready
+
+| Exchange | Issue | Notes |
+|----------|-------|-------|
+| **GRVT** | URL update needed | Hybrid CEX/DEX architecture |
+| **Backpack** | Network connectivity | Solana-based |
+| **Variational** | RFQ-based, API in development | Not standard orderbook |
 
 ---
 
 ## 🔧 Configuration
 
-### 1. Environment Setup
-
-```bash
-# Copy example file
-cp .env.example .env
-```
-
-### 2. Add Your Credentials
+### Environment Variables
 
 ```bash
 # ============================================
@@ -178,61 +224,33 @@ HYPERLIQUID_PRIVATE_KEY=0x...  # 64 hex characters
 HYPERLIQUID_TESTNET=true
 
 # ============================================
-# Lighter (HMAC-SHA256) - ✅ Public API Ready
+# EdgeX (SHA3 + ECDSA) - ✅ Production Ready
 # ============================================
-LIGHTER_API_KEY=your_api_key
-LIGHTER_API_SECRET=your_api_secret
-LIGHTER_TESTNET=true
+EDGEX_STARK_PRIVATE_KEY=0x...  # StarkNet private key
 
 # ============================================
-# EdgeX (StarkEx) - 🔴 API Not Public
-# ============================================
-EDGEX_STARK_PRIVATE_KEY=0x...  # StarkEx L2 private key
-EDGEX_TESTNET=true
-
-# ============================================
-# Nado (EIP-712 on Ink L2) - ⚠️ Auth Required
+# Nado (EIP-712 on Ink L2) - ✅ Production Ready
 # ============================================
 NADO_PRIVATE_KEY=0x...  # EVM private key
 NADO_TESTNET=true
 
 # ============================================
-# Extended (API Key) - ⚠️ Mainnet Only
+# Lighter - 🟡 Public API Only
 # ============================================
-EXTENDED_API_KEY=your_api_key
-# Note: testnet (Sepolia) is not operational
+# Note: Private API requires official lighter-sdk
+LIGHTER_TESTNET=true
 
 # ============================================
-# Paradex (StarkNet) - ⚠️ Auth Required
+# Paradex (StarkNet) - 🟡 Limited
 # ============================================
 PARADEX_STARK_PRIVATE_KEY=0x...  # StarkNet private key
 PARADEX_TESTNET=true
 
 # ============================================
-# GRVT (EIP-712 + API Key) - ⚠️ URL Update Needed
+# Extended (API Key) - 🟡 Mainnet Only
 # ============================================
-GRVT_PRIVATE_KEY=0x...
-GRVT_API_KEY=your_api_key
-GRVT_TESTNET=true
-
-# ============================================
-# Backpack (ED25519) - 🔴 Network Issues
-# ============================================
-BACKPACK_API_KEY=your_api_key
-BACKPACK_SECRET_KEY=your_ed25519_secret_key
-```
-
-### 3. Validate Configuration (Optional)
-
-```typescript
-import { validateConfig } from 'pd-aio-sdk';
-
-try {
-  validateConfig('hyperliquid');
-  console.log('✅ Configuration valid');
-} catch (error) {
-  console.error('❌ Configuration error:', error.message);
-}
+EXTENDED_API_KEY=your_api_key
+# Note: testnet (Sepolia) is not operational
 ```
 
 ---
@@ -245,7 +263,7 @@ try {
 import { createExchange } from 'pd-aio-sdk';
 
 const exchange = createExchange('hyperliquid', {
-  wallet: new Wallet(process.env.PRIVATE_KEY),
+  privateKey: process.env.PRIVATE_KEY,
   testnet: true
 });
 
@@ -257,7 +275,7 @@ for await (const orderBook of exchange.watchOrderBook('BTC/USDT:USDT')) {
   console.log('Best ask:', orderBook.asks[0]);
 }
 
-// Stream position updates
+// Stream position updates (requires auth)
 for await (const positions of exchange.watchPositions()) {
   console.log('Positions updated:', positions);
 }
@@ -268,149 +286,53 @@ for await (const trade of exchange.watchTrades('BTC/USDT:USDT')) {
 }
 ```
 
-### Error Handling with Retry
-
-```typescript
-import { createExchange, withRetry } from 'pd-aio-sdk';
-
-const exchange = createExchange('hyperliquid', { testnet: true });
-
-// Automatic retry on transient failures
-const markets = await withRetry(
-  () => exchange.fetchMarkets(),
-  {
-    maxAttempts: 3,
-    initialDelay: 1000,
-    backoffMultiplier: 2,
-    maxDelay: 10000
-  }
-);
-```
-
-### Symbol Helper
-
-```typescript
-import { createSymbol } from 'pd-aio-sdk';
-
-// Exchange-aware symbol creation
-const btcHyper = createSymbol('hyperliquid', 'BTC');  // "BTC/USDT:USDT"
-const ethGrvt = createSymbol('grvt', 'ETH');          // "ETH/USDT:USDT"
-const solBack = createSymbol('backpack', 'SOL');      // "SOL/USDT:USDT"
-
-// Custom quote currency
-const btcUsdc = createSymbol('paradex', 'BTC', 'USDC'); // "BTC/USDC:USDC"
-```
-
-### Python-Style Aliases
-
-```typescript
-// TypeScript style
-await exchange.fetchOrderBook('BTC/USDT:USDT');
-await exchange.createOrder({ ... });
-
-// Python style (snake_case)
-await exchange.fetch_order_book('BTC/USDT:USDT');
-await exchange.create_order({ ... });
-```
-
-### Health Monitoring
+### Multi-Exchange Example
 
 ```typescript
 import { createExchange } from 'pd-aio-sdk';
 
+// Initialize multiple exchanges (public API - no auth needed)
+const hyperliquid = createExchange('hyperliquid', { testnet: true });
+const edgex = createExchange('edgex', {});
+const nado = createExchange('nado', { testnet: true });
+
+await Promise.all([
+  hyperliquid.initialize(),
+  edgex.initialize(),
+  nado.initialize()
+]);
+
+// Fetch markets from all exchanges
+const [hlMarkets, edgexMarkets, nadoMarkets] = await Promise.all([
+  hyperliquid.fetchMarkets(),
+  edgex.fetchMarkets(),
+  nado.fetchMarkets()
+]);
+
+console.log(`Hyperliquid: ${hlMarkets.length} markets`);
+console.log(`EdgeX: ${edgexMarkets.length} markets`);
+console.log(`Nado: ${nadoMarkets.length} markets`);
+```
+
+### Error Handling
+
+```typescript
+import { createExchange, PerpDEXError } from 'pd-aio-sdk';
+
 const exchange = createExchange('hyperliquid', { testnet: true });
 await exchange.initialize();
 
-// Check health
-const health = await exchange.getHealth();
-console.log('Status:', health.status);        // 'healthy' | 'degraded' | 'unhealthy'
-console.log('Uptime:', health.uptimeSeconds);
-console.log('Cache hit rate:', health.cache.hitRate);
+try {
+  // This will throw if no credentials provided
+  await exchange.fetchBalance();
+} catch (error) {
+  if (error instanceof PerpDEXError) {
+    console.log('Error code:', error.code);      // 'MISSING_CREDENTIALS'
+    console.log('Exchange:', error.exchange);     // 'hyperliquid'
+    console.log('Message:', error.message);
+  }
+}
 ```
-
----
-
-## 🏗️ Architecture
-
-### Pattern A: Full-Featured Architecture
-
-All **7 exchange adapters** now follow **Pattern A** (Full-Featured) architecture - a standardized, consistent structure that provides:
-
-- ✅ **Dedicated Normalizer classes** for data transformation
-- ✅ **Separation of concerns** between adapter logic and normalization
-- ✅ **Enhanced testability** with isolated unit tests
-- ✅ **Consistent file structure** across all adapters
-- ✅ **Better maintainability** and easier onboarding
-
-#### Adapter Structure
-
-Each adapter follows this standardized structure:
-
-```
-src/adapters/{exchange}/
-├── {Exchange}Adapter.ts       # Main adapter implementation
-├── {Exchange}Normalizer.ts    # Data transformation (all 7 adapters)
-├── {Exchange}Auth.ts          # Authentication (complex auth only)
-├── utils.ts                   # Helper functions
-├── constants.ts               # Configuration
-├── types.ts                   # TypeScript types
-└── index.ts                   # Public API
-```
-
-**Example**: Using a Normalizer class directly
-
-```typescript
-import { HyperliquidNormalizer } from 'pd-aio-sdk/adapters/hyperliquid';
-
-const normalizer = new HyperliquidNormalizer();
-const unifiedSymbol = normalizer.normalizeSymbol('BTC-PERP');
-// Returns: 'BTC/USDT:USDT'
-```
-
-### Hexagonal Architecture
-
-```
-┌─────────────────────────────────────────────┐
-│         Application Layer                   │
-│  (Your Trading Bot / Application)           │
-└────────────────┬────────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────┐
-│         PD AIO SDK - Unified Interface      │
-│  ┌──────────────────────────────────────┐   │
-│  │  Common Types & Interfaces           │   │
-│  │  - IExchangeAdapter                  │   │
-│  │  - Unified Order/Position/Balance    │   │
-│  └──────────────────────────────────────┘   │
-└────────────────┬────────────────────────────┘
-                 │
-    ┌────────────┼────────────┐
-    ▼            ▼            ▼
-┌─────────┐  ┌─────────┐  ┌─────────┐
-│Hyperliquid │GRVT    │Paradex  │  ...
-│Adapter   │Adapter  │Adapter  │
-│  +       │  +      │  +      │
-│Normalizer│Normalizer│Normalizer│
-└─────────┘  └─────────┘  └─────────┘
-    │            │            │
-    ▼            ▼            ▼
-┌─────────────────────────────────────────────┐
-│         Exchange APIs                       │
-│  (Hyperliquid, GRVT, Paradex, etc.)        │
-└─────────────────────────────────────────────┘
-```
-
-### Core Components
-
-- **Adapters** - Exchange-specific implementations (Pattern A)
-- **Normalizers** - Data transformation classes (all 7 adapters)
-- **Core** - Rate limiting, retry logic, logging, health checks
-- **WebSocket** - Connection management, auto-reconnection
-- **Utils** - Symbol helpers, validation, error mapping
-- **Types** - Unified data structures, error hierarchy
-
-**Learn More**: See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture documentation
 
 ---
 
@@ -435,7 +357,7 @@ npm test -- hyperliquid
 ### Test Results
 
 ```
-✅ 2249 tests passing (100% pass rate)
+✅ 2246 tests passing (100% pass rate)
 ✅ 79 test suites
 ✅ Integration tests: All passing
 ✅ Unit tests: All passing
@@ -443,11 +365,43 @@ npm test -- hyperliquid
 
 ### API Verification Results (2026-01-31)
 
-| Exchange | Markets | Ticker | OrderBook | Status |
-|----------|---------|--------|-----------|--------|
-| Hyperliquid | ✅ 206 | ✅ | ✅ | **Production Ready** |
-| Lighter | ✅ 3 | ✅ | ✅ | **Public API Ready** |
-| Extended | ✅ 0 | - | - | Mainnet Only |
+| Exchange | Markets | Ticker | OrderBook | FundingRate | Status |
+|----------|---------|--------|-----------|-------------|--------|
+| **Hyperliquid** | ✅ 206 | ✅ | ✅ | ✅ | Production Ready |
+| **EdgeX** | ✅ 292 | ✅ | ✅ | ✅ | Production Ready |
+| **Nado** | ✅ 26 | ✅ | ✅ | ✅ | Production Ready |
+| **Lighter** | ✅ 3 | ✅ | ✅ | - | Public API Ready |
+| **Paradex** | ✅ 7 | ❌ JWT | ❌ JWT | - | Limited |
+| **Extended** | ✅ 0 | - | - | - | Mainnet Only |
+
+---
+
+## 🏗️ Architecture
+
+### Pattern A: Full-Featured Architecture
+
+All **9 exchange adapters** follow **Pattern A** (Full-Featured) architecture:
+
+```
+src/adapters/{exchange}/
+├── {Exchange}Adapter.ts       # Main adapter implementation
+├── {Exchange}Normalizer.ts    # Data transformation
+├── auth.ts                    # Authentication (if complex)
+├── utils.ts                   # Helper functions
+├── constants.ts               # Configuration
+├── types.ts                   # TypeScript types
+└── index.ts                   # Public API
+```
+
+### Core Components
+
+- **Adapters** - Exchange-specific implementations
+- **Normalizers** - Data transformation (CCXT format ↔ Exchange format)
+- **Core** - Rate limiting, retry logic, logging
+- **WebSocket** - Connection management, auto-reconnection
+- **Types** - Unified data structures, error hierarchy
+
+**Learn More**: See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed documentation
 
 ---
 
@@ -466,9 +420,6 @@ npm run dev
 # Lint
 npm run lint
 
-# Format
-npm run format
-
 # Type check
 npm run typecheck
 ```
@@ -478,14 +429,6 @@ npm run typecheck
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
-
-### Development Workflow
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ---
 
@@ -498,17 +441,15 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 ## 🔗 Links
 
 ### Documentation
-- **Architecture**: [ARCHITECTURE.md](./ARCHITECTURE.md) - Detailed architecture guide
-- **API Reference**: [API.md](./API.md) - Complete API documentation
-- **Adapter Guide**: [ADAPTER_GUIDE.md](./ADAPTER_GUIDE.md) - Guide for adding new exchanges
-- **Contributing**: [CONTRIBUTING.md](./CONTRIBUTING.md) - Development guidelines
-- **Changelog**: [CHANGELOG.md](./CHANGELOG.md) - Version history
-- **Korean Docs**: [한국어 문서](./README.ko.md) - Korean documentation
+- **Architecture**: [ARCHITECTURE.md](./ARCHITECTURE.md)
+- **API Reference**: [API.md](./API.md)
+- **Adapter Guide**: [ADAPTER_GUIDE.md](./ADAPTER_GUIDE.md)
+- **Contributing**: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- **Korean Docs**: [한국어 문서](./README.ko.md)
 
 ### Resources
-- **Exchange Guides**: [docs/guides/](./docs/guides/) - Exchange-specific documentation
-- **Examples**: [examples/](./examples/) - Ready-to-use code examples
-- **API Audit**: [API Implementation Audit](./API_IMPLEMENTATION_AUDIT.md)
+- **Exchange Guides**: [docs/guides/](./docs/guides/)
+- **Examples**: [examples/](./examples/)
 
 ---
 
@@ -516,14 +457,6 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 - Inspired by [CCXT](https://github.com/ccxt/ccxt) unified API design
 - Built with [ethers.js](https://github.com/ethers-io/ethers.js), [starknet.js](https://github.com/starknet-io/starknet.js)
-- Thanks to all exchange teams for comprehensive API documentation
-
----
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/0xarkstar/PD-AIO-SDK/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/0xarkstar/PD-AIO-SDK/discussions)
 
 ---
 
