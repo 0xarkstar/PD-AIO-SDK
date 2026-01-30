@@ -180,25 +180,33 @@ describe('LighterAdapter Integration Tests', () => {
 
     describe('fetchOrderBook', () => {
       it('should fetch and normalize order book', async () => {
-        // Lighter uses simple symbols (BTC) with USDC as quote currency
-        const mockOrderBook: LighterOrderBook = {
-          symbol: 'BTC',
+        // First mock fetchMarkets to populate the market_id cache
+        const mockMarketsResponse = {
+          code: 200,
+          order_book_details: [
+            { symbol: 'BTC', market_id: 1, market_type: 'perp', status: 'active' },
+          ],
+        };
+        mockSuccessResponse(mockMarketsResponse);
+
+        // Then mock the orderbook response
+        // Lighter orderbook response format uses remaining_base_amount for size
+        const mockOrderBookResponse = {
+          code: 200,
           bids: [
-            [50000, 1.5],
-            [49990, 2.0],
+            { price: '50000', remaining_base_amount: '1.5' },
+            { price: '49990', remaining_base_amount: '2.0' },
           ],
           asks: [
-            [50010, 1.0],
-            [50020, 1.5],
+            { price: '50010', remaining_base_amount: '1.0' },
+            { price: '50020', remaining_base_amount: '1.5' },
           ],
-          timestamp: 1234567890000,
         };
-
-        mockSuccessResponse(mockOrderBook);
+        mockSuccessResponse(mockOrderBookResponse);
 
         const orderBook = await adapter.fetchOrderBook('BTC/USDC:USDC');
 
-        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(mockFetch).toHaveBeenCalledTimes(2); // fetchMarkets + fetchOrderBook
         expect(orderBook.symbol).toBe('BTC/USDC:USDC');
         expect(orderBook.bids).toHaveLength(2);
         expect(orderBook.asks).toHaveLength(2);
@@ -207,19 +215,28 @@ describe('LighterAdapter Integration Tests', () => {
       });
 
       it('should handle custom depth limit', async () => {
-        const mockOrderBook: LighterOrderBook = {
-          symbol: 'ETH',
-          bids: [[3000, 10]],
-          asks: [[3010, 5]],
-          timestamp: 1234567890000,
+        // First mock fetchMarkets to populate the market_id cache
+        const mockMarketsResponse = {
+          code: 200,
+          order_book_details: [
+            { symbol: 'ETH', market_id: 0, market_type: 'perp', status: 'active' },
+          ],
         };
+        mockSuccessResponse(mockMarketsResponse);
 
-        mockSuccessResponse(mockOrderBook);
+        // Then mock the orderbook response
+        const mockOrderBookResponse = {
+          code: 200,
+          bids: [{ price: '3000', remaining_base_amount: '10' }],
+          asks: [{ price: '3010', remaining_base_amount: '5' }],
+        };
+        mockSuccessResponse(mockOrderBookResponse);
 
         const orderBook = await adapter.fetchOrderBook('ETH/USDC:USDC', { limit: 100 });
 
-        expect(mockFetch).toHaveBeenCalledTimes(1);
-        const url = (mockFetch.mock.calls[0][0] as string);
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        // Check the second call (orderbook) contains limit parameter
+        const url = (mockFetch.mock.calls[1][0] as string);
         expect(url).toContain('limit=100');
       });
     });

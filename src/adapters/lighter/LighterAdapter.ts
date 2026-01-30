@@ -86,6 +86,8 @@ export class LighterAdapter extends BaseAdapter {
   protected readonly httpClient: HTTPClient;
   private normalizer: LighterNormalizer;
   private wsManager: WebSocketManager | null = null;
+  // Cache for symbol -> market_id mapping (Lighter API requires market_id for orderbook)
+  private marketIdCache: Map<string, number> = new Map();
 
   constructor(config: LighterConfig = {}) {
     super(config);
@@ -189,6 +191,13 @@ export class LighterAdapter extends BaseAdapter {
         (m: any) => m.market_type === 'perp'
       );
 
+      // Cache market_id for each symbol (needed for orderbook API)
+      for (const market of perpMarkets) {
+        if (market.symbol && market.market_id !== undefined) {
+          this.marketIdCache.set(market.symbol, market.market_id);
+        }
+      }
+
       return perpMarkets.map((market: any) => this.normalizer.normalizeMarket(market));
     } catch (error) {
       throw mapError(error);
@@ -230,17 +239,35 @@ export class LighterAdapter extends BaseAdapter {
     try {
       const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
       const limit = params?.limit || 50;
-      // Lighter API uses /api/v1/orderBookOrders endpoint
-      const response = await this.request<{ code: number; asks: any[]; bids: any[]; symbol?: string }>(
+
+      // Get market_id from cache, or fetch markets first if cache is empty
+      let marketId = this.marketIdCache.get(lighterSymbol);
+      if (marketId === undefined) {
+        await this.fetchMarkets();
+        marketId = this.marketIdCache.get(lighterSymbol);
+        if (marketId === undefined) {
+          throw new PerpDEXError(`Market not found: ${symbol}`, 'INVALID_SYMBOL', 'lighter');
+        }
+      }
+
+      // Lighter API requires market_id parameter for orderBookOrders endpoint
+      const response = await this.request<{ code: number; asks: any[]; bids: any[] }>(
         'GET',
-        `/api/v1/orderBookOrders?symbol=${lighterSymbol}&limit=${limit}`
+        `/api/v1/orderBookOrders?market_id=${marketId}&limit=${limit}`
       );
 
       // Convert to LighterOrderBook format
+      // Response format: { asks: [{price, remaining_base_amount, ...}], bids: [...] }
       const orderBook: LighterOrderBook = {
         symbol: lighterSymbol,
-        bids: response.bids?.map((b: any) => [parseFloat(b.price || b[0]), parseFloat(b.size || b[1])]) || [],
-        asks: response.asks?.map((a: any) => [parseFloat(a.price || a[0]), parseFloat(a.size || a[1])]) || [],
+        bids: response.bids?.map((b: any) => [
+          parseFloat(b.price || '0'),
+          parseFloat(b.remaining_base_amount || b.size || '0')
+        ]) || [],
+        asks: response.asks?.map((a: any) => [
+          parseFloat(a.price || '0'),
+          parseFloat(a.remaining_base_amount || a.size || '0')
+        ]) || [],
         timestamp: Date.now(),
       };
 
