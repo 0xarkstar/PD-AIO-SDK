@@ -445,44 +445,35 @@ export class NadoNormalizer {
   /**
    * Normalize Nado ticker to unified Ticker format
    *
-   * @param ticker - Nado ticker data
+   * @param ticker - Nado ticker data (bid/ask from market_prices endpoint)
+   * @param symbol - CCXT symbol (required since API doesn't return symbol)
    * @returns Normalized ticker
    */
-  normalizeTicker(ticker: NadoTicker): Ticker {
+  normalizeTicker(ticker: NadoTicker, symbol: string): Ticker {
     // Validate with Zod
     const validated = NadoTickerSchema.parse(ticker);
 
-    const last = this.fromX18Safe(validated.last_price);
-    const high = this.fromX18Safe(validated.high_24h);
-    const low = this.fromX18Safe(validated.low_24h);
-    const volume = this.fromX18Safe(validated.volume_24h);
-    const markPrice = this.fromX18Safe(validated.mark_price);
-    const indexPrice = this.fromX18Safe(validated.index_price);
+    const bid = this.fromX18Safe(validated.bid_x18);
+    const ask = this.fromX18Safe(validated.ask_x18);
+    const last = (bid + ask) / 2; // Midpoint as last price
 
     return {
-      symbol: this.symbolToCCXT(validated.symbol),
-      timestamp: validated.timestamp,
-      high,
-      low,
-      bid: 0,
+      symbol,
+      timestamp: Date.now(),
+      high: 0,
+      low: 0,
+      bid,
       bidVolume: 0,
-      ask: 0,
+      ask,
       askVolume: 0,
       open: 0,
       close: last,
       last,
       change: 0,
       percentage: 0,
-      baseVolume: volume,
+      baseVolume: 0,
       quoteVolume: 0,
-      info: {
-        ...validated,
-        markPrice,
-        indexPrice,
-        fundingRate: validated.funding_rate,
-        nextFundingTime: validated.next_funding_time,
-        openInterest: validated.open_interest,
-      } as unknown as Record<string, unknown>,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -507,7 +498,7 @@ export class NadoNormalizer {
         this.fromX18Safe(price),
         this.fromX18Safe(size),
       ]),
-      timestamp: validated.timestamp,
+      timestamp: Date.now(),
       exchange: 'nado',
     };
   }

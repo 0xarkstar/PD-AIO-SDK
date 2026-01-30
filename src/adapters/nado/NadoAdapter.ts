@@ -186,7 +186,7 @@ export class NadoAdapter extends BaseAdapter {
   protected rateLimiter: RateLimiter;
 
   // New component instances
-  private auth!: NadoAuth;
+  private auth?: NadoAuth;
   private apiClient!: NadoAPIClient;
   private normalizer: NadoNormalizer;
 
@@ -197,18 +197,6 @@ export class NadoAdapter extends BaseAdapter {
 
   constructor(config: NadoConfig = {}) {
     super(config);
-
-    // Validate wallet configuration
-    if (!config.wallet && !config.privateKey) {
-      throw new PerpDEXError(
-        'Nado adapter requires either wallet or privateKey in config',
-        'MISSING_CREDENTIALS',
-        'nado'
-      );
-    }
-
-    // Initialize wallet
-    const wallet = config.wallet || new Wallet(config.privateKey!);
 
     // Set API URLs
     const urls = config.testnet ? NADO_API_URLS.testnet : NADO_API_URLS.mainnet;
@@ -229,8 +217,13 @@ export class NadoAdapter extends BaseAdapter {
       exchange: 'nado',
     });
 
-    // Initialize new components
-    this.auth = new NadoAuth(wallet, this.chainId);
+    // Initialize wallet and auth if credentials provided
+    // (optional for public API access)
+    if (config.wallet || config.privateKey) {
+      const wallet = config.wallet || new Wallet(config.privateKey!);
+      this.auth = new NadoAuth(wallet, this.chainId);
+    }
+
     this.apiClient = new NadoAPIClient({
       apiUrl: this.apiUrl,
       rateLimiter: this.rateLimiter,
@@ -259,9 +252,13 @@ export class NadoAdapter extends BaseAdapter {
         endpoint: this.contractsInfo.endpoint_addr,
       });
 
-      // 2. Fetch current nonce
-      await this.fetchCurrentNonce();
-      this.debug('Current nonce fetched', { nonce: this.auth.getCurrentNonce() });
+      // 2. Fetch current nonce (only if auth is available)
+      if (this.auth) {
+        await this.fetchCurrentNonce();
+        this.debug('Current nonce fetched', { nonce: this.auth.getCurrentNonce() });
+      } else {
+        this.debug('Skipping nonce fetch (no auth credentials)');
+      }
 
       // 3. Preload markets and build product mappings
       await this.preloadMarkets();
@@ -345,6 +342,9 @@ export class NadoAdapter extends BaseAdapter {
    * - order_nonce: For place_order executions
    */
   private async fetchCurrentNonce(): Promise<void> {
+    // This method is only called from initialize() when this.auth exists
+    if (!this.auth) return;
+
     const data = await this.apiClient.query<{ tx_nonce: string; order_nonce: string }>(
       NADO_QUERY_TYPES.NONCES,
       {
@@ -390,6 +390,21 @@ export class NadoAdapter extends BaseAdapter {
     // Update average latency
     const totalLatency = this.metrics.averageLatency * (this.metrics.totalRequests - 1) + latency;
     this.metrics.averageLatency = totalLatency / this.metrics.totalRequests;
+  }
+
+  /**
+   * Require authentication for private methods
+   * @throws {PerpDEXError} if auth is not configured
+   */
+  private requireAuth(): NadoAuth {
+    if (!this.auth) {
+      throw new PerpDEXError(
+        'Authentication required. Provide wallet or privateKey in config.',
+        'MISSING_CREDENTIALS',
+        this.id
+      );
+    }
+    return this.auth;
   }
 
   // ===========================================================================
@@ -446,18 +461,30 @@ export class NadoAdapter extends BaseAdapter {
   async fetchTicker(symbol: string): Promise<Ticker> {
     const mapping = this.getProductMapping(symbol);
 
-    const ticker = await this.apiClient.query<NadoTicker>(NADO_QUERY_TYPES.MARKET_PRICES, {
-      product_id: mapping.productId,
-    });
+    // Nado API expects product_ids as an array
+    const response = await this.apiClient.query<{ market_prices: NadoTicker[] }>(
+      NADO_QUERY_TYPES.MARKET_PRICES,
+      {
+        product_ids: [mapping.productId],
+      }
+    );
 
-    return this.normalizer.normalizeTicker(NadoTickerSchema.parse(ticker));
+    const ticker = response.market_prices?.[0];
+    if (!ticker) {
+      throw new PerpDEXError(`No ticker data for ${symbol}`, 'NO_DATA', this.id);
+    }
+
+    return this.normalizer.normalizeTicker(NadoTickerSchema.parse(ticker), symbol);
   }
 
   async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     const mapping = this.getProductMapping(symbol);
+    const depth = params?.limit || 20;
 
+    // Nado API requires depth parameter
     const orderBook = await this.apiClient.query<NadoOrderBook>(NADO_QUERY_TYPES.MARKET_LIQUIDITY, {
       product_id: mapping.productId,
+      depth,
     });
 
     return this.normalizer.normalizeOrderBook(NadoOrderBookSchema.parse(orderBook), symbol);
@@ -498,6 +525,7 @@ export class NadoAdapter extends BaseAdapter {
   // ===========================================================================
 
   async createOrder(request: OrderRequest): Promise<Order> {
+    const auth = this.requireAuth();
     if (!this.contractsInfo) {
       throw new PerpDEXError('Contracts info not loaded', 'NO_CONTRACTS', this.id);
     }
@@ -508,10 +536,10 @@ export class NadoAdapter extends BaseAdapter {
     const priceX18 = ethers.parseUnits((request.price || 0).toString(), 18).toString();
     const amount = ethers.parseUnits(request.amount.toString(), 18).toString();
     const expiration = Math.floor(Date.now() / 1000) + 86400; // 24 hours from now
-    const nonce = this.auth.getNextNonce();
+    const nonce = auth.getNextNonce();
 
     const orderData: NadoEIP712Order = {
-      sender: this.auth.getAddress(),
+      sender: auth.getAddress(),
       priceX18,
       amount,
       expiration,
@@ -525,7 +553,7 @@ export class NadoAdapter extends BaseAdapter {
     };
 
     // Sign and execute the order
-    const signature = await this.auth.signOrder(orderData, mapping.productId);
+    const signature = await auth.signOrder(orderData, mapping.productId);
     const response = await this.apiClient.execute<NadoOrder>(
       NADO_EXECUTE_TYPES.PLACE_ORDER,
       orderData,
@@ -536,6 +564,7 @@ export class NadoAdapter extends BaseAdapter {
   }
 
   async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+    const auth = this.requireAuth();
     if (!this.contractsInfo) {
       throw new PerpDEXError('Contracts info not loaded', 'NO_CONTRACTS', this.id);
     }
@@ -554,13 +583,13 @@ export class NadoAdapter extends BaseAdapter {
     }
 
     const cancellationData: NadoEIP712Cancellation = {
-      sender: this.auth.getAddress(),
+      sender: auth.getAddress(),
       productIds: [order.product_id],
       digests: [order.digest],
-      nonce: this.auth.getNextNonce(),
+      nonce: auth.getNextNonce(),
     };
 
-    const signature = await this.auth.signCancellation(
+    const signature = await auth.signCancellation(
       cancellationData,
       this.contractsInfo.endpoint_addr
     );
@@ -576,13 +605,14 @@ export class NadoAdapter extends BaseAdapter {
   }
 
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
+    const auth = this.requireAuth();
     if (!this.contractsInfo) {
       throw new PerpDEXError('Contracts info not loaded', 'NO_CONTRACTS', this.id);
     }
 
     // Fetch all open orders
     const orders = await this.apiClient.query<NadoOrder[]>(NADO_QUERY_TYPES.ORDERS, {
-      subaccount: this.auth.getAddress(),
+      subaccount: auth.getAddress(),
       status: 'open',
     });
 
@@ -599,13 +629,13 @@ export class NadoAdapter extends BaseAdapter {
 
     // Build cancellation data
     const cancellationData: NadoEIP712Cancellation = {
-      sender: this.auth.getAddress(),
+      sender: auth.getAddress(),
       productIds: ordersToCancel.map((o) => o.product_id),
       digests: ordersToCancel.map((o) => o.digest),
-      nonce: this.auth.getNextNonce(),
+      nonce: auth.getNextNonce(),
     };
 
-    const signature = await this.auth.signCancellation(
+    const signature = await auth.signCancellation(
       cancellationData,
       this.contractsInfo.endpoint_addr
     );
@@ -625,10 +655,11 @@ export class NadoAdapter extends BaseAdapter {
   }
 
   async fetchPositions(symbols?: string[]): Promise<Position[]> {
+    const auth = this.requireAuth();
     const positions = await this.apiClient.query<NadoPosition[]>(
       NADO_QUERY_TYPES.ISOLATED_POSITIONS,
       {
-        subaccount: this.auth.getAddress(),
+        subaccount: auth.getAddress(),
       }
     );
 
@@ -655,8 +686,9 @@ export class NadoAdapter extends BaseAdapter {
   }
 
   async fetchBalance(): Promise<Balance[]> {
+    const auth = this.requireAuth();
     const balance = await this.apiClient.query<NadoBalance>(NADO_QUERY_TYPES.SUBACCOUNT_INFO, {
-      subaccount: this.auth.getAddress(),
+      subaccount: auth.getAddress(),
     });
 
     return this.normalizer.normalizeBalance(NadoBalanceSchema.parse(balance));
@@ -682,8 +714,9 @@ export class NadoAdapter extends BaseAdapter {
    * ```
    */
   async fetchOpenOrders(symbol?: string): Promise<Order[]> {
+    const auth = this.requireAuth();
     const orders = await this.apiClient.query<NadoOrder[]>(NADO_QUERY_TYPES.ORDERS, {
-      subaccount: this.auth.getAddress(),
+      subaccount: auth.getAddress(),
       status: 'open',
     });
 
@@ -728,11 +761,12 @@ export class NadoAdapter extends BaseAdapter {
   }
 
   async *watchPositions(): AsyncGenerator<Position[]> {
+    const auth = this.requireAuth();
     if (!this.wsManager) {
       throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
     }
 
-    const walletAddress = this.auth.getAddress();
+    const walletAddress = auth.getAddress();
     const subscription = NadoSubscriptionBuilder.positions(walletAddress);
     const channelId = NadoSubscriptionBuilder.channelId(NADO_WS_CHANNELS.POSITIONS, walletAddress);
 
@@ -752,11 +786,12 @@ export class NadoAdapter extends BaseAdapter {
   }
 
   async *watchOrders(): AsyncGenerator<Order[]> {
+    const auth = this.requireAuth();
     if (!this.wsManager) {
       throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
     }
 
-    const walletAddress = this.auth.getAddress();
+    const walletAddress = auth.getAddress();
     const subscription = NadoSubscriptionBuilder.orders(walletAddress);
     const channelId = NadoSubscriptionBuilder.channelId(NADO_WS_CHANNELS.ORDERS, walletAddress);
 
@@ -806,11 +841,12 @@ export class NadoAdapter extends BaseAdapter {
    * ```
    */
   async *watchBalance(): AsyncGenerator<Balance[]> {
+    const auth = this.requireAuth();
     if (!this.wsManager) {
       throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
     }
 
-    const walletAddress = this.auth.getAddress();
+    const walletAddress = auth.getAddress();
     const subscription = NadoSubscriptionBuilder.balance(walletAddress);
     const channelId = NadoSubscriptionBuilder.channelId(NADO_WS_CHANNELS.SUBACCOUNT, walletAddress);
 
@@ -852,8 +888,9 @@ export class NadoAdapter extends BaseAdapter {
     _since?: number,
     _limit?: number
   ): Promise<Order[]> {
+    const auth = this.requireAuth();
     const orders = await this.apiClient.query<NadoOrder[]>(NADO_QUERY_TYPES.ORDERS, {
-      subaccount: this.auth.getAddress(),
+      subaccount: auth.getAddress(),
     });
 
     const mappingsArray = Array.from(this.productMappings.values());
