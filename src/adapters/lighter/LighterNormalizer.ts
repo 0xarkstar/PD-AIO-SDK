@@ -28,56 +28,64 @@ import type {
 export class LighterNormalizer {
   /**
    * Convert unified symbol to Lighter format
-   * BTC/USDT:USDT -> BTC-USDT-PERP
+   * BTC/USDC:USDC -> BTC (Lighter uses simple symbol names for perps)
    */
   toLighterSymbol(symbol: string): string {
     const [baseQuote] = symbol.split(':');
-    const [base, quote] = (baseQuote || '').split('/');
-    return `${base}-${quote}-PERP`;
+    const [base] = (baseQuote || '').split('/');
+    return base || symbol;
   }
 
   /**
    * Convert Lighter symbol to unified format
-   * BTC-USDT-PERP -> BTC/USDT:USDT
+   * BTC -> BTC/USDC:USDC (Lighter perps use USDC as quote/settle)
    */
   normalizeSymbol(lighterSymbol: string): string {
-    const parts = lighterSymbol.split('-');
-    if (parts.length >= 2) {
-      const base = parts[0];
-      const quote = parts[1];
-      return `${base}/${quote}:${quote}`;
-    }
-    return lighterSymbol;
+    // Lighter perp markets use simple symbols like "BTC", "ETH"
+    // Quote currency is USDC
+    return `${lighterSymbol}/USDC:USDC`;
   }
 
   /**
    * Normalize Lighter market to unified format
+   * Handles real Lighter API response format from /api/v1/orderBookDetails
    */
-  normalizeMarket(lighterMarket: LighterMarket): Market {
-    const symbol = this.normalizeSymbol(lighterMarket.symbol);
-    const [baseQuote, settle] = symbol.split(':');
-    const [base, quote] = (baseQuote || '').split('/');
+  normalizeMarket(lighterMarket: any): Market {
+    // Real API returns: { symbol: "BTC", market_type: "perp", ... }
+    const base = lighterMarket.symbol;
+    const quote = 'USDC'; // Lighter uses USDC as quote currency
+    const symbol = `${base}/${quote}:${quote}`;
 
-    // Calculate precision from tick/step sizes
-    const pricePrecision = Math.abs(Math.log10(lighterMarket.tickSize));
-    const amountPrecision = Math.abs(Math.log10(lighterMarket.stepSize));
+    // Extract precision from API response
+    const pricePrecision = lighterMarket.supported_price_decimals || lighterMarket.price_decimals || 2;
+    const amountPrecision = lighterMarket.supported_size_decimals || lighterMarket.size_decimals || 4;
+
+    // Parse min amounts from string values
+    const minAmount = parseFloat(lighterMarket.min_base_amount || '0');
+    const minQuote = parseFloat(lighterMarket.min_quote_amount || '0');
+
+    // Parse fees
+    const makerFee = parseFloat(lighterMarket.maker_fee || '0');
+    const takerFee = parseFloat(lighterMarket.taker_fee || '0');
 
     return {
       id: lighterMarket.symbol,
       symbol,
-      base: base || '',
-      quote: quote || '',
-      settle: settle || '',
-      active: lighterMarket.active,
-      minAmount: lighterMarket.minOrderSize,
-      maxAmount: lighterMarket.maxOrderSize,
+      base,
+      quote,
+      settle: quote,
+      active: lighterMarket.status === 'active',
+      minAmount,
+      maxAmount: undefined,
       pricePrecision,
       amountPrecision,
-      priceTickSize: lighterMarket.tickSize,
-      amountStepSize: lighterMarket.stepSize,
-      makerFee: lighterMarket.makerFee,
-      takerFee: lighterMarket.takerFee,
-      maxLeverage: lighterMarket.maxLeverage,
+      priceTickSize: Math.pow(10, -pricePrecision),
+      amountStepSize: Math.pow(10, -amountPrecision),
+      makerFee,
+      takerFee,
+      maxLeverage: lighterMarket.default_initial_margin_fraction
+        ? Math.floor(10000 / lighterMarket.default_initial_margin_fraction)
+        : 20,
       fundingIntervalHours: 8,
       info: lighterMarket as unknown as Record<string, unknown>,
     };
@@ -172,22 +180,31 @@ export class LighterNormalizer {
 
   /**
    * Normalize Lighter ticker to unified format
+   * Handles real API response from /api/v1/orderBookDetails
    */
-  normalizeTicker(lighterTicker: LighterTicker): Ticker {
+  normalizeTicker(lighterTicker: any): Ticker {
+    // Real API format: { symbol, last_trade_price, daily_price_high, daily_price_low, ... }
+    const last = parseFloat(lighterTicker.last_trade_price || '0');
+    const high = parseFloat(lighterTicker.daily_price_high || '0');
+    const low = parseFloat(lighterTicker.daily_price_low || '0');
+    const baseVolume = parseFloat(lighterTicker.daily_base_token_volume || '0');
+    const quoteVolume = parseFloat(lighterTicker.daily_quote_token_volume || '0');
+    const change = parseFloat(lighterTicker.daily_price_change || '0');
+
     return {
       symbol: this.normalizeSymbol(lighterTicker.symbol),
-      last: lighterTicker.last,
-      bid: lighterTicker.bid,
-      ask: lighterTicker.ask,
-      high: lighterTicker.high,
-      low: lighterTicker.low,
-      open: lighterTicker.low, // Not provided by Lighter, use low as fallback
-      close: lighterTicker.last,
-      change: 0, // Not provided by Lighter
-      percentage: 0, // Not provided by Lighter
-      baseVolume: lighterTicker.volume,
-      quoteVolume: lighterTicker.volume * lighterTicker.last, // Estimate from base volume
-      timestamp: lighterTicker.timestamp,
+      last,
+      bid: last, // Not directly provided, use last as approximation
+      ask: last, // Not directly provided, use last as approximation
+      high,
+      low,
+      open: high > 0 ? last / (1 + change / 100) : 0, // Calculate from change percentage
+      close: last,
+      change: change,
+      percentage: change,
+      baseVolume,
+      quoteVolume,
+      timestamp: Date.now(),
       info: lighterTicker as unknown as Record<string, unknown>,
     };
   }
