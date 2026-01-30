@@ -60,8 +60,7 @@ describe('EdgeXAdapter Integration Tests', () => {
     } as any);
 
     adapter = new EdgeXAdapter({
-      apiKey: 'test-api-key',
-      apiSecret: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      starkPrivateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
       testnet: true,
     });
   });
@@ -112,13 +111,13 @@ describe('EdgeXAdapter Integration Tests', () => {
       expect(adapter.has.watchTicker).toBe(true);
     });
 
-    test('throws error when initialized without API key', async () => {
+    test('throws error when initialized without starkPrivateKey', async () => {
       const adapterNoKey = new EdgeXAdapter({
         testnet: true,
       });
 
       await expect(adapterNoKey.initialize()).rejects.toThrow(
-        'API key is required for EdgeX'
+        'StarkEx private key (starkPrivateKey) is required for EdgeX'
       );
     });
   });
@@ -1000,111 +999,8 @@ describe('EdgeXAdapter Integration Tests', () => {
   // ============================================================================
 
   describe('StarkEx Signature', () => {
-    test('generates Pedersen hash for message', async () => {
-      mockSuccessResponse({ markets: [] });
-
-      await adapter.fetchMarkets();
-
-      expect(mockHash).toHaveBeenCalled();
-      const hashCall = mockHash.mock.calls[0];
-      expect(hashCall[0]).toBeInstanceOf(Array);
-    });
-
-    test('signs hash with StarkEx ECDSA', async () => {
-      mockSuccessResponse({ markets: [] });
-
-      await adapter.fetchMarkets();
-
-      expect(mockSign).toHaveBeenCalled();
-      const signCall = mockSign.mock.calls[0];
-      expect(signCall[0]).toBe('0x1234567890abcdef'); // mocked hash result
-      expect(signCall[1]).toBe(
-        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-      ); // apiSecret
-    });
-
-    test('includes timestamp in signature', async () => {
-      mockSuccessResponse({ markets: [] });
-
-      await adapter.fetchMarkets();
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'X-Timestamp': expect.any(String),
-          }),
-        })
-      );
-    });
-
-    test('includes API key in headers', async () => {
-      mockSuccessResponse({ markets: [] });
-
-      await adapter.fetchMarkets();
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'X-API-KEY': 'test-api-key',
-          }),
-        })
-      );
-    });
-
-    test('includes signature in headers', async () => {
-      mockSuccessResponse({ markets: [] });
-
-      await adapter.fetchMarkets();
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'X-Signature': expect.any(String),
-          }),
-        })
-      );
-    });
-
-    test('signature format is r,s in hex', async () => {
-      mockSuccessResponse({ markets: [] });
-
-      await adapter.fetchMarkets();
-
-      const call = mockFetch.mock.calls[0];
-      const headers = call[1]?.headers as Record<string, string>;
-      const signature = headers['X-Signature'];
-
-      expect(signature).toContain('0x');
-      expect(signature).toContain(',0x');
-    });
-
-    test('signature includes method in message', async () => {
-      mockSuccessResponse({ markets: [] });
-
-      await adapter.fetchMarkets();
-
-      // Hash is called with message array
-      const hashCall = mockHash.mock.calls[0];
-      const message = hashCall[0][0] as string;
-
-      expect(message).toContain('GET');
-    });
-
-    test('signature includes path in message', async () => {
-      mockSuccessResponse({ markets: [] });
-
-      await adapter.fetchMarkets();
-
-      const hashCall = mockHash.mock.calls[0];
-      const message = hashCall[0][0] as string;
-
-      expect(message).toContain('/markets');
-    });
-
-    test('signature includes body in message for POST requests', async () => {
+    // Helper to mock order creation response
+    const mockOrderResponse = () => {
       mockSuccessResponse({
         order_id: '123456',
         market: 'BTC-USDC-PERP',
@@ -1120,6 +1016,151 @@ describe('EdgeXAdapter Integration Tests', () => {
         created_at: Date.now(),
         updated_at: Date.now(),
       });
+    };
+
+    test('generates Pedersen hash for authenticated requests', async () => {
+      mockOrderResponse();
+
+      await adapter.createOrder({
+        symbol: 'BTC/USDC:USDC',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 50000,
+      });
+
+      expect(mockHash).toHaveBeenCalled();
+      const hashCall = mockHash.mock.calls[0];
+      expect(hashCall[0]).toBeInstanceOf(Array);
+    });
+
+    test('signs hash with StarkEx ECDSA using starkPrivateKey', async () => {
+      mockOrderResponse();
+
+      await adapter.createOrder({
+        symbol: 'BTC/USDC:USDC',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 50000,
+      });
+
+      expect(mockSign).toHaveBeenCalled();
+      const signCall = mockSign.mock.calls[0];
+      expect(signCall[0]).toBe('0x1234567890abcdef'); // mocked hash result
+      expect(signCall[1]).toBe(
+        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+      ); // starkPrivateKey
+    });
+
+    test('includes timestamp in signature for authenticated requests', async () => {
+      mockOrderResponse();
+
+      await adapter.createOrder({
+        symbol: 'BTC/USDC:USDC',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 50000,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'X-Timestamp': expect.any(String),
+          }),
+        })
+      );
+    });
+
+    test('all requests are signed when starkPrivateKey is provided', async () => {
+      mockSuccessResponse({ markets: [] });
+
+      await adapter.fetchMarkets();
+
+      // EdgeX signs all requests when starkPrivateKey is configured
+      expect(mockHash).toHaveBeenCalled();
+      expect(mockSign).toHaveBeenCalled();
+    });
+
+    test('includes signature in headers for authenticated requests', async () => {
+      mockOrderResponse();
+
+      await adapter.createOrder({
+        symbol: 'BTC/USDC:USDC',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 50000,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'X-Signature': expect.any(String),
+          }),
+        })
+      );
+    });
+
+    test('signature format is r,s in hex', async () => {
+      mockOrderResponse();
+
+      await adapter.createOrder({
+        symbol: 'BTC/USDC:USDC',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 50000,
+      });
+
+      const call = mockFetch.mock.calls[0];
+      const headers = call[1]?.headers as Record<string, string>;
+      const signature = headers['X-Signature'];
+
+      expect(signature).toContain('0x');
+      expect(signature).toContain(',0x');
+    });
+
+    test('signature includes method in message', async () => {
+      mockOrderResponse();
+
+      await adapter.createOrder({
+        symbol: 'BTC/USDC:USDC',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 50000,
+      });
+
+      // Hash is called with message array
+      const hashCall = mockHash.mock.calls[0];
+      const message = hashCall[0][0] as string;
+
+      expect(message).toContain('POST');
+    });
+
+    test('signature includes path in message', async () => {
+      mockOrderResponse();
+
+      await adapter.createOrder({
+        symbol: 'BTC/USDC:USDC',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 50000,
+      });
+
+      const hashCall = mockHash.mock.calls[0];
+      const message = hashCall[0][0] as string;
+
+      expect(message).toContain('/orders');
+    });
+
+    test('signature includes body in message for POST requests', async () => {
+      mockOrderResponse();
 
       await adapter.createOrder({
         symbol: 'BTC/USDC:USDC',
@@ -1137,9 +1178,15 @@ describe('EdgeXAdapter Integration Tests', () => {
     });
 
     test('signature uses Pedersen hash instead of SHA256', async () => {
-      mockSuccessResponse({ markets: [] });
+      mockOrderResponse();
 
-      await adapter.fetchMarkets();
+      await adapter.createOrder({
+        symbol: 'BTC/USDC:USDC',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 50000,
+      });
 
       // Verify Pedersen hash was called (not SHA256)
       expect(mockHash).toHaveBeenCalled();

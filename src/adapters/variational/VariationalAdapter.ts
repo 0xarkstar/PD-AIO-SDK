@@ -2,6 +2,42 @@
  * Variational Exchange Adapter
  *
  * Arbitrum-based RFQ perpetual DEX adapter
+ *
+ * ## Implementation Status: COMING SOON 🚧
+ *
+ * Variational is an RFQ (Request For Quote) based perpetual DEX on Arbitrum.
+ * This adapter is currently in early development with limited functionality.
+ *
+ * ### Currently Implemented (Public API Only)
+ * - ✅ `fetchMarkets()` - Get available trading pairs
+ * - ✅ `fetchTicker(symbol)` - Get price information for a symbol
+ *
+ * ### Not Yet Implemented (18+ methods)
+ * All other methods are stub implementations that throw `NOT_IMPLEMENTED` errors:
+ * - ❌ Public API: fetchOrderBook, fetchTrades, fetchFundingRate
+ * - ❌ Trading: createOrder, cancelOrder, cancelAllOrders
+ * - ❌ Account: fetchPositions, fetchBalance, fetchOrderHistory
+ * - ❌ WebSocket: All streaming methods (watchOrderBook, watchTrades, etc.)
+ * - ❌ RFQ-specific: requestQuote, acceptQuote
+ *
+ * ### Why "Coming Soon"?
+ * Variational's API documentation and endpoints are still being finalized.
+ * Once the API stabilizes, full implementation will be completed.
+ *
+ * ### Usage
+ * ```typescript
+ * const adapter = createExchange('variational', { testnet: true });
+ * await adapter.initialize();
+ *
+ * // These work:
+ * const markets = await adapter.fetchMarkets();
+ * const ticker = await adapter.fetchTicker('BTC/USDC:USDC');
+ *
+ * // These will throw NOT_IMPLEMENTED:
+ * await adapter.createOrder({ ... }); // ❌ Throws error
+ * ```
+ *
+ * @see https://variational.io/ - Variational official website
  */
 
 import { createHmac } from 'crypto';

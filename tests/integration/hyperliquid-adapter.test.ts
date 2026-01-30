@@ -128,10 +128,10 @@ describe('HyperliquidAdapter Integration Tests', () => {
         json: async () => mockHyperliquidResponses.fundingHistory,
       });
 
-      // Second call: allMids (for mark price)
+      // Second call: allMids (for mark price) - REST API returns flat object
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ mids: mockHyperliquidResponses.allMids }),
+        json: async () => mockHyperliquidResponses.allMids,
       });
 
       const fundingRate = await adapter.fetchFundingRate('BTC/USDT:USDT');
@@ -301,9 +301,9 @@ describe('HyperliquidAdapter Integration Tests', () => {
       const orderBook = await adapter.fetchOrderBook('BTC/USDT:USDT');
       expect(orderBook.symbol).toBe('BTC/USDT:USDT');
 
-      // Verify exchange symbol conversion (Hyperliquid uses -PERP suffix)
-      expect(adapter.symbolToExchange('BTC/USDT:USDT')).toBe('BTC-PERP');
-      expect(adapter.symbolFromExchange('BTC-PERP')).toBe('BTC/USDT:USDT');
+      // Verify exchange symbol conversion (Hyperliquid uses just base symbol)
+      expect(adapter.symbolToExchange('BTC/USDT:USDT')).toBe('BTC');
+      expect(adapter.symbolFromExchange('BTC')).toBe('BTC/USDT:USDT');
     });
   });
 
@@ -418,9 +418,10 @@ describe('HyperliquidAdapter Integration Tests', () => {
         json: async () => mockHyperliquidResponses.fundingHistory,
       });
 
+      // REST API returns flat object, not wrapped
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ mids: {} }),
+        json: async () => ({}),
       });
 
       const fundingRate = await adapter.fetchFundingRate('BTC/USDT:USDT');
@@ -447,8 +448,8 @@ describe('HyperliquidAdapter Integration Tests', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          coin: 'BTC-PERP',
-          levels: [[], [['50100', '1.0']]],
+          coin: 'BTC',
+          levels: [[], [{ px: '50100', sz: '1.0', n: 1 }]],
           time: Date.now(),
         }),
       });
@@ -463,8 +464,8 @@ describe('HyperliquidAdapter Integration Tests', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          coin: 'BTC-PERP',
-          levels: [[['50000', '1.0']], []],
+          coin: 'BTC',
+          levels: [[{ px: '50000', sz: '1.0', n: 1 }], []],
           time: Date.now(),
         }),
       });
@@ -479,7 +480,7 @@ describe('HyperliquidAdapter Integration Tests', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          coin: 'BTC-PERP',
+          coin: 'BTC',
           levels: [[], []],
           time: Date.now(),
         }),
@@ -492,9 +493,10 @@ describe('HyperliquidAdapter Integration Tests', () => {
     });
 
     test('fetchTicker - handles missing market data', async () => {
+      // REST API returns flat object, not wrapped
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ mids: {} }),
+        json: async () => ({}),
       });
 
       await expect(adapter.fetchTicker('INVALID/USDT:USDT')).rejects.toThrow();
@@ -514,9 +516,10 @@ describe('HyperliquidAdapter Integration Tests', () => {
         ],
       });
 
+      // REST API returns flat object
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ mids: { 'ETH-PERP': '3000' } }),
+        json: async () => ({ 'ETH': '3000' }),
       });
 
       const fundingRate = await adapter.fetchFundingRate('ETH/USDT:USDT');
@@ -583,7 +586,7 @@ describe('HyperliquidAdapter Integration Tests', () => {
           assetPositions: [
             {
               position: {
-                coin: 'ETH-PERP',
+                coin: 'ETH',
                 entryPx: '3000',
                 leverage: { type: 'cross', value: 5 },
                 liquidationPx: '3500',
@@ -623,7 +626,7 @@ describe('HyperliquidAdapter Integration Tests', () => {
           assetPositions: [
             {
               position: {
-                coin: 'BTC-PERP',
+                coin: 'BTC',
                 entryPx: '48000',
                 leverage: { type: 'cross', value: 10 },
                 liquidationPx: '42000',
@@ -637,7 +640,7 @@ describe('HyperliquidAdapter Integration Tests', () => {
             },
             {
               position: {
-                coin: 'ETH-PERP',
+                coin: 'ETH',
                 entryPx: '3000',
                 leverage: { type: 'isolated', value: 5 },
                 liquidationPx: '2500',
@@ -871,15 +874,15 @@ describe('HyperliquidAdapter Integration Tests', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          coin: 'ETH-PERP',
+          coin: 'ETH',
           levels: [
             [
-              ['2999.5', '10.0'],
-              ['2999.0', '20.0'],
+              { px: '2999.5', sz: '10.0', n: 1 },
+              { px: '2999.0', sz: '20.0', n: 2 },
             ],
             [
-              ['3000.5', '12.0'],
-              ['3001.0', '18.0'],
+              { px: '3000.5', sz: '12.0', n: 1 },
+              { px: '3001.0', sz: '18.0', n: 2 },
             ],
           ],
           time: Date.now(),
@@ -917,7 +920,7 @@ describe('HyperliquidAdapter Integration Tests', () => {
         ok: true,
         json: async () => [
           {
-            coin: 'ETH-PERP',
+            coin: 'ETH',
             side: 'B',
             limitPx: '3000',
             sz: '1.0',
@@ -957,9 +960,10 @@ describe('HyperliquidAdapter Integration Tests', () => {
         ],
       });
 
+      // REST API returns flat object
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ mids: { 'BTC-PERP': '50000' } }),
+        json: async () => ({ 'BTC': '50000' }),
       });
 
       const btcFunding = await adapter.fetchFundingRate('BTC/USDT:USDT');
@@ -977,9 +981,10 @@ describe('HyperliquidAdapter Integration Tests', () => {
         ],
       });
 
+      // REST API returns flat object
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ mids: { 'ETH-PERP': '3000' } }),
+        json: async () => ({ 'ETH': '3000' }),
       });
 
       const ethFunding = await adapter.fetchFundingRate('ETH/USDT:USDT');
@@ -992,20 +997,23 @@ describe('HyperliquidAdapter Integration Tests', () => {
 
   describe('Symbol Conversion Edge Cases', () => {
     test('symbolToExchange - handles various formats', () => {
-      expect(adapter.symbolToExchange('BTC/USDT:USDT')).toBe('BTC-PERP');
-      expect(adapter.symbolToExchange('ETH/USDT:USDT')).toBe('ETH-PERP');
-      expect(adapter.symbolToExchange('SOL/USDT:USDT')).toBe('SOL-PERP');
+      // Hyperliquid uses just the base symbol without suffix
+      expect(adapter.symbolToExchange('BTC/USDT:USDT')).toBe('BTC');
+      expect(adapter.symbolToExchange('ETH/USDT:USDT')).toBe('ETH');
+      expect(adapter.symbolToExchange('SOL/USDT:USDT')).toBe('SOL');
     });
 
     test('symbolFromExchange - handles various formats', () => {
-      expect(adapter.symbolFromExchange('BTC-PERP')).toBe('BTC/USDT:USDT');
-      expect(adapter.symbolFromExchange('ETH-PERP')).toBe('ETH/USDT:USDT');
-      expect(adapter.symbolFromExchange('SOL-PERP')).toBe('SOL/USDT:USDT');
+      // Converts exchange symbol to unified format
+      expect(adapter.symbolFromExchange('BTC')).toBe('BTC/USDT:USDT');
+      expect(adapter.symbolFromExchange('ETH')).toBe('ETH/USDT:USDT');
+      expect(adapter.symbolFromExchange('SOL')).toBe('SOL/USDT:USDT');
     });
 
     test('symbolToExchange - handles exotic coins', () => {
-      expect(adapter.symbolToExchange('DOGE/USDT:USDT')).toBe('DOGE-PERP');
-      expect(adapter.symbolToExchange('PEPE/USDT:USDT')).toBe('PEPE-PERP');
+      // All coins use just base symbol format
+      expect(adapter.symbolToExchange('DOGE/USDT:USDT')).toBe('DOGE');
+      expect(adapter.symbolToExchange('PEPE/USDT:USDT')).toBe('PEPE');
     });
   });
 });

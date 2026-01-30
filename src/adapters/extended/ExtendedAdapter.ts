@@ -2,6 +2,45 @@
  * Extended Exchange Adapter
  *
  * StarkNet-based hybrid CLOB perpetual DEX adapter
+ *
+ * ## Implementation Status
+ *
+ * ### Fully Implemented ✅
+ * - **Market Data**: fetchMarkets, fetchTicker, fetchOrderBook, fetchTrades, fetchFundingRate
+ * - **Trading**: createOrder, cancelOrder, cancelAllOrders, createBatchOrders, cancelBatchOrders
+ * - **Account**: fetchPositions, fetchBalance, fetchOrderHistory, fetchMyTrades, fetchUserFees
+ * - **Leverage**: setLeverage (up to 100x), setMarginMode (cross/isolated)
+ *
+ * ### Not Implemented ❌ - WebSocket Streaming
+ * WebSocket streaming is **NOT YET IMPLEMENTED** for Extended exchange.
+ * All watch* methods will throw `NOT_IMPLEMENTED` errors:
+ * - `watchOrderBook()` - ❌ Not implemented
+ * - `watchTrades()` - ❌ Not implemented
+ * - `watchTicker()` - ❌ Not implemented
+ * - `watchPositions()` - ❌ Not implemented
+ * - `watchOrders()` - ❌ Not implemented
+ * - `watchBalance()` - ❌ Not implemented
+ * - `watchFundingRate()` - ❌ Not implemented
+ *
+ * For real-time data, use polling with REST API methods instead.
+ *
+ * ### Example Usage
+ * ```typescript
+ * const adapter = createExchange('extended', {
+ *   apiKey: 'your-api-key',
+ *   starknetPrivateKey: '0x...',
+ *   starknetAccountAddress: '0x...',
+ *   testnet: true
+ * });
+ * await adapter.initialize();
+ *
+ * // REST API (works)
+ * const markets = await adapter.fetchMarkets();
+ * const order = await adapter.createOrder({ ... });
+ *
+ * // WebSocket (throws NOT_IMPLEMENTED)
+ * for await (const ob of adapter.watchOrderBook('BTC/USDT:USDT')) { } // ❌
+ * ```
  */
 
 import { BaseAdapter } from '../base/BaseAdapter.js';
@@ -59,13 +98,27 @@ import type {
 
 /**
  * Extended adapter configuration
+ *
+ * Extended is a hybrid CLOB DEX on StarkNet supporting up to 100x leverage.
+ *
+ * Authentication:
+ * - apiKey: Required for trading and account data (createOrder, fetchBalance, etc.)
+ * - starknetPrivateKey + starknetAccountAddress: Optional, for on-chain StarkNet transactions
+ *
+ * Note: Market data methods (fetchMarkets, fetchTicker, etc.) work without authentication.
  */
 export interface ExtendedConfig {
+  /** API key for trading and account access (required for authenticated endpoints) */
   apiKey?: string;
+  /** Use testnet environment (default: false) */
   testnet?: boolean;
+  /** Request timeout in milliseconds */
   timeout?: number;
+  /** StarkNet private key for on-chain transactions (optional) */
   starknetPrivateKey?: string;
+  /** StarkNet account address (required if starknetPrivateKey is provided) */
   starknetAccountAddress?: string;
+  /** Custom StarkNet RPC URL */
   starknetRpcUrl?: string;
 }
 
@@ -724,33 +777,43 @@ export class ExtendedAdapter extends BaseAdapter {
   }
 
   // ==================== WebSocket Methods ====================
+  // NOTE: WebSocket streaming is NOT YET IMPLEMENTED for Extended exchange.
+  // The exchange does provide WebSocket endpoints, but this adapter has not
+  // yet implemented the WebSocket client integration.
+  //
+  // For real-time data, consider:
+  // 1. Polling with REST API methods (fetchOrderBook, fetchTrades, etc.)
+  // 2. Using a third-party WebSocket library directly with Extended's WS API
+  //
+  // All watch* methods below will throw NOT_IMPLEMENTED errors.
+  // ========================================================================
 
   async *watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook> {
-    throw new PerpDEXError('watchOrderBook not implemented', 'NOT_IMPLEMENTED', this.id);
+    throw new PerpDEXError('watchOrderBook not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
   }
 
   async *watchTrades(symbol: string): AsyncGenerator<Trade> {
-    throw new PerpDEXError('watchTrades not implemented', 'NOT_IMPLEMENTED', this.id);
+    throw new PerpDEXError('watchTrades not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
   }
 
   async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
-    throw new PerpDEXError('watchTicker not implemented', 'NOT_IMPLEMENTED', this.id);
+    throw new PerpDEXError('watchTicker not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
   }
 
   async *watchPositions(): AsyncGenerator<Position[]> {
-    throw new PerpDEXError('watchPositions not implemented', 'NOT_IMPLEMENTED', this.id);
+    throw new PerpDEXError('watchPositions not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
   }
 
   async *watchOrders(): AsyncGenerator<Order[]> {
-    throw new PerpDEXError('watchOrders not implemented', 'NOT_IMPLEMENTED', this.id);
+    throw new PerpDEXError('watchOrders not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
   }
 
   async *watchBalance(): AsyncGenerator<Balance[]> {
-    throw new PerpDEXError('watchBalance not implemented', 'NOT_IMPLEMENTED', this.id);
+    throw new PerpDEXError('watchBalance not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
   }
 
   async *watchFundingRate(symbol: string): AsyncGenerator<FundingRate> {
-    throw new PerpDEXError('watchFundingRate not implemented', 'NOT_IMPLEMENTED', this.id);
+    throw new PerpDEXError('watchFundingRate not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
   }
 
   // ==================== Private Helper Methods ====================

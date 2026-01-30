@@ -76,13 +76,37 @@ export interface HyperliquidPosition {
   type: 'oneWay';
 }
 
+/**
+ * Hyperliquid L2 orderbook level entry
+ * Each level has price (px), size (sz), and number of orders (n)
+ */
+export interface HyperliquidL2Level {
+  px: string;
+  sz: string;
+  n: number;
+}
+
+/**
+ * Hyperliquid L2 orderbook response
+ * levels[0] = bids, levels[1] = asks
+ */
 export interface HyperliquidL2Book {
   coin: string;
-  levels: Array<[string, string]>[];
+  levels: [HyperliquidL2Level[], HyperliquidL2Level[]];
   time: number;
 }
 
-export interface HyperliquidAllMids {
+/**
+ * Hyperliquid allMids REST API response
+ * REST API returns: { "BTC": "82789.5", "ETH": "2720.8", ... }
+ */
+export type HyperliquidAllMids = Record<string, string>;
+
+/**
+ * Hyperliquid allMids WebSocket message
+ * WebSocket returns: { mids: { "BTC": "82789.5", ... } }
+ */
+export interface HyperliquidAllMidsWsMessage {
   mids: Record<string, string>;
 }
 
@@ -113,7 +137,7 @@ export interface HyperliquidWsMessage {
 
 export interface HyperliquidWsL2BookUpdate {
   coin: string;
-  levels: Array<[{ px: string; sz: string; n: number }]>;
+  levels: [HyperliquidL2Level[], HyperliquidL2Level[]];
   time: number;
 }
 

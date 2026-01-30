@@ -1,13 +1,13 @@
 {
   "universe": [
     {
-      "name": "BTC-PERP",
+      "name": "BTC",
       "szDecimals": 3,
       "maxLeverage": 50,
       "onlyIsolated": false
     },
     {
-      "name": "ETH-PERP",
+      "name": "ETH",
       "szDecimals": 2,
       "maxLeverage": 50,
       "onlyIsolated": false

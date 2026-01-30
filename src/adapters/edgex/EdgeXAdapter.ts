@@ -65,8 +65,7 @@ export class EdgeXAdapter extends BaseAdapter {
     watchBalance: true,
   };
 
-  private readonly apiKey?: string;
-  private readonly apiSecret?: string;
+  private readonly starkPrivateKey?: string;
   private readonly baseUrl: string;
   private readonly wsUrl: string;
   private wsManager: WebSocketManager;
@@ -76,8 +75,7 @@ export class EdgeXAdapter extends BaseAdapter {
   constructor(config: EdgeXConfig = {}) {
     super(config);
 
-    this.apiKey = config.apiKey;
-    this.apiSecret = config.apiSecret;
+    this.starkPrivateKey = config.starkPrivateKey;
 
     // Initialize normalizer
     this.normalizer = new EdgeXNormalizer();
@@ -100,8 +98,8 @@ export class EdgeXAdapter extends BaseAdapter {
    * Initialize the adapter
    */
   async initialize(): Promise<void> {
-    if (!this.apiKey) {
-      throw new PerpDEXError('API key is required for EdgeX', 'MISSING_CONFIG', 'edgex');
+    if (!this.starkPrivateKey) {
+      throw new PerpDEXError('StarkEx private key (starkPrivateKey) is required for EdgeX', 'MISSING_CREDENTIALS', 'edgex');
     }
     this._isReady = true;
   }
@@ -369,11 +367,8 @@ export class EdgeXAdapter extends BaseAdapter {
       'Content-Type': 'application/json',
     };
 
-    if (this.apiKey) {
-      headers['X-API-KEY'] = this.apiKey;
-    }
-
-    if (this.apiSecret) {
+    // EdgeX uses StarkEx L2 signing for authentication
+    if (this.starkPrivateKey) {
       const timestamp = Date.now().toString();
       headers['X-Timestamp'] = timestamp;
       headers['X-Signature'] = await this.signRequest(method, path, timestamp, body);
@@ -403,7 +398,12 @@ export class EdgeXAdapter extends BaseAdapter {
   }
 
   /**
-   * Sign request with StarkEx ECDSA signature
+   * Sign request with StarkEx ECDSA signature using Pedersen hash
+   *
+   * EdgeX uses StarkEx L2 for order signing:
+   * 1. Create message from request parameters
+   * 2. Hash with Pedersen hash (StarkEx standard)
+   * 3. Sign with StarkEx ECDSA using L2 private key
    */
   private async signRequest(
     method: string,
@@ -411,7 +411,7 @@ export class EdgeXAdapter extends BaseAdapter {
     timestamp: string,
     body?: Record<string, unknown>
   ): Promise<string> {
-    if (!this.apiSecret) {
+    if (!this.starkPrivateKey) {
       return '';
     }
 
@@ -422,8 +422,8 @@ export class EdgeXAdapter extends BaseAdapter {
       // Hash the message using Pedersen hash (StarkEx standard)
       const messageHash = hash.computeHashOnElements([message]);
 
-      // Sign with StarkEx ECDSA
-      const signature = ec.starkCurve.sign(messageHash, this.apiSecret);
+      // Sign with StarkEx ECDSA using L2 private key
+      const signature = ec.starkCurve.sign(messageHash, this.starkPrivateKey);
 
       // Return signature in hex format: r,s
       return `0x${signature.r.toString(16)},0x${signature.s.toString(16)}`;

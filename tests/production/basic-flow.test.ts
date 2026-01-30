@@ -43,39 +43,69 @@ interface TestResult {
   };
 }
 
+/**
+ * Testnet configurations for each exchange
+ *
+ * Environment variable mapping:
+ * - PRIVATE_KEY: EVM/Ethereum private key (EIP-712 signing)
+ * - STARK_PRIVATE_KEY: StarkNet/StarkEx private key (Pedersen hash)
+ * - API_KEY: API authentication key
+ * - API_SECRET: API signing secret (HMAC)
+ */
 const TESTNET_CONFIGS = {
+  // EIP-712 signature based
   hyperliquid: {
     privateKey: process.env.HYPERLIQUID_PRIVATE_KEY,
-    testnet: true,
-  },
-  grvt: {
-    privateKey: process.env.GRVT_PRIVATE_KEY,
-    apiKey: process.env.GRVT_API_KEY,
-    testnet: true,
-  },
-  paradex: {
-    privateKey: process.env.PARADEX_PRIVATE_KEY,
-    l1RpcUrl: process.env.PARADEX_L1_RPC_URL,
     testnet: true,
   },
   nado: {
     privateKey: process.env.NADO_PRIVATE_KEY,
     testnet: true,
   },
+
+  // API Key + HMAC signature based
   lighter: {
     apiKey: process.env.LIGHTER_API_KEY,
     apiSecret: process.env.LIGHTER_API_SECRET,
-    accountId: process.env.LIGHTER_ACCOUNT_ID,
     testnet: true,
   },
+
+  // StarkEx L2 signature based
   edgex: {
-    privateKey: process.env.EDGEX_PRIVATE_KEY,
     starkPrivateKey: process.env.EDGEX_STARK_PRIVATE_KEY,
     testnet: true,
   },
+
+  // EIP-712 + API Key
+  grvt: {
+    privateKey: process.env.GRVT_PRIVATE_KEY,
+    apiKey: process.env.GRVT_API_KEY,
+    testnet: true,
+  },
+
+  // StarkNet signature based
+  paradex: {
+    starkPrivateKey: process.env.PARADEX_STARK_PRIVATE_KEY,
+    testnet: true,
+  },
+
+  // ED25519 API credentials
   backpack: {
     apiKey: process.env.BACKPACK_API_KEY,
     secretKey: process.env.BACKPACK_SECRET_KEY,
+    testnet: true,
+  },
+
+  // API Key + optional StarkNet
+  extended: {
+    apiKey: process.env.EXTENDED_API_KEY,
+    testnet: true,
+  },
+
+  // HMAC signature (API in development)
+  variational: {
+    apiKey: process.env.VARIATIONAL_API_KEY,
+    apiSecret: process.env.VARIATIONAL_API_SECRET,
     testnet: true,
   },
 };
@@ -84,24 +114,43 @@ const TESTNET_CONFIGS = {
  * 거래소별 테스트 가능 여부 확인
  */
 function canTestExchange(exchange: SupportedExchange): boolean {
-  const config = TESTNET_CONFIGS[exchange];
+  const config = TESTNET_CONFIGS[exchange as keyof typeof TESTNET_CONFIGS];
   if (!config) return false;
 
   switch (exchange) {
+    // EIP-712 signature based
     case 'hyperliquid':
-      return !!config.privateKey;
-    case 'grvt':
-      return !!(config.privateKey && config.apiKey);
-    case 'paradex':
-      return !!(config.privateKey && config.l1RpcUrl);
     case 'nado':
-      return !!config.privateKey;
+      return !!(config as any).privateKey;
+
+    // API Key + HMAC signature based
     case 'lighter':
-      return !!(config.apiKey && config.apiSecret && config.accountId);
+      return !!((config as any).apiKey && (config as any).apiSecret);
+
+    // StarkEx L2 signature based
     case 'edgex':
-      return !!(config.privateKey && config.starkPrivateKey);
+      return !!(config as any).starkPrivateKey;
+
+    // EIP-712 + API Key
+    case 'grvt':
+      return !!((config as any).privateKey && (config as any).apiKey);
+
+    // StarkNet signature based
+    case 'paradex':
+      return !!(config as any).starkPrivateKey;
+
+    // ED25519 API credentials
     case 'backpack':
-      return !!(config.apiKey && config.secretKey);
+      return !!((config as any).apiKey && (config as any).secretKey);
+
+    // API Key based
+    case 'extended':
+      return !!(config as any).apiKey;
+
+    // HMAC signature based
+    case 'variational':
+      return !!((config as any).apiKey && (config as any).apiSecret);
+
     default:
       return false;
   }

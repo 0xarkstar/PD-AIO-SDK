@@ -29,7 +29,41 @@ export const NadoResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
   });
 
 /**
- * Nado Product (Market) Information
+ * Nado Symbol (Market) Information from /query?type=symbols
+ *
+ * This is the structure returned by the symbols endpoint.
+ * Note: All numeric values are in x18 format (18 decimal places).
+ */
+export interface NadoSymbol {
+  type: 'perp' | 'spot';
+  product_id: number;
+  symbol: string;
+  price_increment_x18: string;
+  size_increment: string;
+  min_size: string;
+  maker_fee_rate_x18: string;
+  taker_fee_rate_x18: string;
+  long_weight_initial_x18: string;
+  long_weight_maintenance_x18: string;
+  max_open_interest_x18?: string | null;
+}
+
+export const NadoSymbolSchema = z.object({
+  type: z.enum(['perp', 'spot']),
+  product_id: z.number(),
+  symbol: z.string(),
+  price_increment_x18: z.string(),
+  size_increment: z.string(),
+  min_size: z.string(),
+  maker_fee_rate_x18: z.string(),
+  taker_fee_rate_x18: z.string(),
+  long_weight_initial_x18: z.string(),
+  long_weight_maintenance_x18: z.string(),
+  max_open_interest_x18: z.string().nullable().optional(),
+});
+
+/**
+ * @deprecated Use NadoSymbol instead - this was based on incorrect API assumptions
  */
 export interface NadoProduct {
   product_id: number;
@@ -46,6 +80,9 @@ export interface NadoProduct {
   product_type: 'perpetual' | 'spot' | 'future';
 }
 
+/**
+ * @deprecated Use NadoSymbolSchema instead
+ */
 export const NadoProductSchema = z.object({
   product_id: z.number(),
   symbol: z.string(),
@@ -241,13 +278,16 @@ export const NadoTickerSchema = z.object({
 
 /**
  * EIP712 Order Structure for Signing
+ *
+ * Note: nonce is bigint because Nado uses 64-bit nonces that exceed
+ * JavaScript's safe integer limit (2^53 - 1).
  */
 export interface NadoEIP712Order {
   sender: string;
   priceX18: string;
   amount: string;
   expiration: number;
-  nonce: number;
+  nonce: bigint;
   appendix: {
     productId: number;
     side: 0 | 1;
@@ -258,12 +298,14 @@ export interface NadoEIP712Order {
 
 /**
  * EIP712 Cancellation Structure
+ *
+ * Note: nonce is bigint because Nado uses 64-bit nonces.
  */
 export interface NadoEIP712Cancellation {
   sender: string;
   productIds: number[];
   digests: string[];
-  nonce: number;
+  nonce: bigint;
 }
 
 /**
@@ -278,9 +320,9 @@ export interface NadoEIP712StreamAuth {
  * Nado Contracts Info (from /contracts query)
  */
 export interface NadoContracts {
-  chain_id: number;
-  endpoint_address: string;
-  products: {
+  chain_id: string;
+  endpoint_addr: string;
+  products?: {
     [productId: string]: {
       address: string;
       symbol: string;
@@ -289,15 +331,15 @@ export interface NadoContracts {
 }
 
 export const NadoContractsSchema = z.object({
-  chain_id: z.number(),
-  endpoint_address: z.string(),
+  chain_id: z.string(),
+  endpoint_addr: z.string(),
   products: z.record(
     z.string(),
     z.object({
       address: z.string(),
       symbol: z.string(),
     })
-  ),
+  ).optional(),
 });
 
 /**

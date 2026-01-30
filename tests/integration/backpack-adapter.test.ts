@@ -115,40 +115,39 @@ describe('BackpackAdapter Integration Tests', () => {
 
   describe('Market Data Methods', () => {
     test('fetchMarkets - fetches and normalizes all markets', async () => {
-      mockSuccessResponse({
-        markets: [
-          {
-            symbol: 'BTCUSDT_PERP',
-            base_currency: 'BTC',
-            quote_currency: 'USDT',
-            settlement_currency: 'USDT',
-            status: 'ACTIVE',
-            min_order_size: '0.001',
-            max_order_size: '100',
-            tick_size: '0.5',
-            step_size: '0.001',
-            maker_fee: '0.0002',
-            taker_fee: '0.0005',
-            max_leverage: '10',
-            is_active: true,
-          },
-          {
-            symbol: 'ETHUSDT_PERP',
-            base_currency: 'ETH',
-            quote_currency: 'USDT',
-            settlement_currency: 'USDT',
-            status: 'ACTIVE',
-            min_order_size: '0.01',
-            max_order_size: '1000',
-            tick_size: '0.1',
-            step_size: '0.01',
-            maker_fee: '0.0002',
-            taker_fee: '0.0005',
-            max_leverage: '10',
-            is_active: true,
-          },
-        ],
-      });
+      // Backpack returns array directly
+      mockSuccessResponse([
+        {
+          symbol: 'BTCUSDT_PERP',
+          base_currency: 'BTC',
+          quote_currency: 'USDT',
+          settlement_currency: 'USDT',
+          status: 'ACTIVE',
+          min_order_size: '0.001',
+          max_order_size: '100',
+          tick_size: '0.5',
+          step_size: '0.001',
+          maker_fee: '0.0002',
+          taker_fee: '0.0005',
+          max_leverage: '10',
+          is_active: true,
+        },
+        {
+          symbol: 'ETHUSDT_PERP',
+          base_currency: 'ETH',
+          quote_currency: 'USDT',
+          settlement_currency: 'USDT',
+          status: 'ACTIVE',
+          min_order_size: '0.01',
+          max_order_size: '1000',
+          tick_size: '0.1',
+          step_size: '0.01',
+          maker_fee: '0.0002',
+          taker_fee: '0.0005',
+          max_leverage: '10',
+          is_active: true,
+        },
+      ]);
 
       const markets = await adapter.fetchMarkets();
 
@@ -165,7 +164,8 @@ describe('BackpackAdapter Integration Tests', () => {
     });
 
     test('fetchMarkets - handles empty markets array', async () => {
-      mockSuccessResponse({ markets: [] });
+      // Backpack returns array directly, not { markets: [...] }
+      mockSuccessResponse([]);
 
       const markets = await adapter.fetchMarkets();
 
@@ -339,25 +339,24 @@ describe('BackpackAdapter Integration Tests', () => {
     });
 
     test('fetchMarkets - validates market data structure', async () => {
-      mockSuccessResponse({
-        markets: [
-          {
-            symbol: 'BTCUSDT_PERP',
-            base_currency: 'BTC',
-            quote_currency: 'USDT',
-            settlement_currency: 'USDT',
-            status: 'ACTIVE',
-            min_order_size: '0.001',
-            max_order_size: '100',
-            tick_size: '0.5',
-            step_size: '0.001',
-            maker_fee: '0.0002',
-            taker_fee: '0.0005',
-            max_leverage: '10',
-            is_active: true,
-          },
-        ],
-      });
+      // Backpack returns array directly
+      mockSuccessResponse([
+        {
+          symbol: 'BTCUSDT_PERP',
+          base_currency: 'BTC',
+          quote_currency: 'USDT',
+          settlement_currency: 'USDT',
+          status: 'ACTIVE',
+          min_order_size: '0.001',
+          max_order_size: '100',
+          tick_size: '0.5',
+          step_size: '0.001',
+          maker_fee: '0.0002',
+          taker_fee: '0.0005',
+          max_leverage: '10',
+          is_active: true,
+        },
+      ]);
 
       const markets = await adapter.fetchMarkets();
 
@@ -476,28 +475,25 @@ describe('BackpackAdapter Integration Tests', () => {
     });
 
     test('fetchBalance - fetches and normalizes account balance', async () => {
+      // Backpack returns { ASSET: { available, locked, staked } } object format
       mockSuccessResponse({
-        balances: [
-          {
-            asset: 'USDT',
-            total: '100000',
-            available: '95000',
-            locked: '5000',
-          },
-          {
-            asset: 'BTC',
-            total: '1.5',
-            available: '1.0',
-            locked: '0.5',
-          },
-        ],
+        USDT: {
+          available: '95000',
+          locked: '5000',
+        },
+        BTC: {
+          available: '1.0',
+          locked: '0.5',
+        },
       });
 
       const balances = await adapter.fetchBalance();
 
       expect(Array.isArray(balances)).toBe(true);
       expect(balances).toHaveLength(2);
-      expect(balances[0]).toMatchObject({
+      // Find USDT balance
+      const usdtBalance = balances.find(b => b.currency === 'USDT');
+      expect(usdtBalance).toMatchObject({
         currency: 'USDT',
         total: 100000,
         free: 95000,
@@ -505,10 +501,13 @@ describe('BackpackAdapter Integration Tests', () => {
       });
     });
 
-    test('fetchBalance - throws error on invalid response', async () => {
-      mockSuccessResponse({ invalid: 'response' });
+    test('fetchBalance - handles empty response', async () => {
+      // Empty object is valid (no balances)
+      mockSuccessResponse({});
 
-      await expect(adapter.fetchBalance()).rejects.toThrow('Invalid balance response');
+      const balances = await adapter.fetchBalance();
+      expect(Array.isArray(balances)).toBe(true);
+      expect(balances).toHaveLength(0);
     });
 
     test('setLeverage - sets leverage for a symbol', async () => {
@@ -1114,7 +1113,7 @@ describe('BackpackAdapter Integration Tests', () => {
 
   describe('ED25519 Signature', () => {
     test('generates valid ED25519 signature', async () => {
-      mockSuccessResponse({ markets: [] });
+      mockSuccessResponse([]);
 
       await adapter.fetchMarkets();
 
@@ -1125,7 +1124,7 @@ describe('BackpackAdapter Integration Tests', () => {
     });
 
     test('includes timestamp in signature', async () => {
-      mockSuccessResponse({ markets: [] });
+      mockSuccessResponse([]);
 
       await adapter.fetchMarkets();
 
@@ -1140,7 +1139,7 @@ describe('BackpackAdapter Integration Tests', () => {
     });
 
     test('includes API key in headers', async () => {
-      mockSuccessResponse({ markets: [] });
+      mockSuccessResponse([]);
 
       await adapter.fetchMarkets();
 
@@ -1155,7 +1154,7 @@ describe('BackpackAdapter Integration Tests', () => {
     });
 
     test('includes signature in headers', async () => {
-      mockSuccessResponse({ markets: [] });
+      mockSuccessResponse([]);
 
       await adapter.fetchMarkets();
 
@@ -1169,8 +1168,8 @@ describe('BackpackAdapter Integration Tests', () => {
       );
     });
 
-    test('signature format is hex string', async () => {
-      mockSuccessResponse({ markets: [] });
+    test('signature format is base64 string', async () => {
+      mockSuccessResponse([]);
 
       await adapter.fetchMarkets();
 
@@ -1178,12 +1177,13 @@ describe('BackpackAdapter Integration Tests', () => {
       const headers = call[1]?.headers as Record<string, string>;
       const signature = headers['X-Signature'];
 
-      expect(signature).toMatch(/^[0-9a-f]+$/);
-      expect(signature).toHaveLength(128); // 64 bytes = 128 hex chars
+      // Backpack expects base64 encoded signature
+      expect(signature).toMatch(/^[A-Za-z0-9+/=]+$/);
+      expect(signature).toHaveLength(88); // 64 bytes base64 = ~88 chars
     });
 
     test('signature includes method in message', async () => {
-      mockSuccessResponse({ markets: [] });
+      mockSuccessResponse([]);
 
       await adapter.fetchMarkets();
 
@@ -1194,7 +1194,7 @@ describe('BackpackAdapter Integration Tests', () => {
     });
 
     test('signature includes path in message', async () => {
-      mockSuccessResponse({ markets: [] });
+      mockSuccessResponse([]);
 
       await adapter.fetchMarkets();
 
@@ -1316,14 +1316,13 @@ describe('BackpackAdapter Integration Tests', () => {
     });
 
     test('handles missing required fields in response', async () => {
-      mockSuccessResponse({
-        markets: [
-          {
-            // Missing required fields
-            symbol: 'BTCUSDT_PERP',
-          },
-        ],
-      });
+      // Backpack returns array directly
+      mockSuccessResponse([
+        {
+          // Missing required fields
+          symbol: 'BTCUSDT_PERP',
+        },
+      ]);
 
       const markets = await adapter.fetchMarkets();
 
@@ -1357,8 +1356,8 @@ describe('BackpackAdapter Integration Tests', () => {
   describe('Rate Limiting', () => {
     test('respects endpoint weights', async () => {
       // fetchMarkets has weight of 1
-      mockSuccessResponse({ markets: [] });
-      mockSuccessResponse({ markets: [] });
+      mockSuccessResponse([]);
+      mockSuccessResponse([]);
 
       await adapter.fetchMarkets();
       await adapter.fetchMarkets();
@@ -1376,9 +1375,9 @@ describe('BackpackAdapter Integration Tests', () => {
     });
 
     test('allows concurrent requests within limits', async () => {
-      mockSuccessResponse({ markets: [] });
-      mockSuccessResponse({ markets: [] });
-      mockSuccessResponse({ markets: [] });
+      mockSuccessResponse([]);
+      mockSuccessResponse([]);
+      mockSuccessResponse([]);
 
       await Promise.all([
         adapter.fetchMarkets(),

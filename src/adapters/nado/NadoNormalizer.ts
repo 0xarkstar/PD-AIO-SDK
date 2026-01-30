@@ -10,6 +10,7 @@
 import { ethers } from 'ethers';
 import type {
   NadoProduct,
+  NadoSymbol,
   NadoOrder,
   NadoPosition,
   NadoBalance,
@@ -29,6 +30,7 @@ import type {
 } from '../../types/common.js';
 import {
   NadoProductSchema,
+  NadoSymbolSchema,
   NadoOrderSchema,
   NadoPositionSchema,
   NadoBalanceSchema,
@@ -198,8 +200,79 @@ export class NadoNormalizer {
   // ===========================================================================
 
   /**
+   * Normalize Nado symbol (from /query?type=symbols) to unified Market format
+   *
+   * @param symbolData - Nado symbol data from symbols endpoint
+   * @returns Normalized market
+   */
+  normalizeSymbol(symbolData: NadoSymbol): Market {
+    // Validate with Zod
+    const validated = NadoSymbolSchema.parse(symbolData);
+
+    // Parse symbol to extract base/quote (e.g., "BTC-PERP" -> BTC, USDC)
+    // Nado uses "-PERP" suffix for perpetuals, spot symbols are just the token name
+    const isPerp = validated.type === 'perp';
+    let base: string;
+    let quote: string;
+
+    if (isPerp && validated.symbol.endsWith('-PERP')) {
+      base = validated.symbol.replace('-PERP', '');
+      quote = 'USDC'; // Nado uses USDC as quote currency
+    } else {
+      // Spot tokens (e.g., "WETH", "KBTC", "USDC")
+      base = validated.symbol;
+      quote = 'USDC';
+    }
+
+    // Convert x18 values to normal decimals
+    const priceIncrement = this.fromX18Safe(validated.price_increment_x18);
+    const sizeIncrement = this.fromX18Safe(validated.size_increment);
+    const minSize = this.fromX18Safe(validated.min_size);
+    const makerFee = this.fromX18Safe(validated.maker_fee_rate_x18);
+    const takerFee = this.fromX18Safe(validated.taker_fee_rate_x18);
+
+    // Calculate precision from increment
+    const pricePrecision = this.getPrecisionFromIncrement(priceIncrement);
+    const amountPrecision = this.getPrecisionFromIncrement(sizeIncrement);
+
+    // Build CCXT-style symbol
+    const symbol = isPerp
+      ? `${base}/${quote}:${quote}`
+      : `${base}/${quote}`;
+
+    return {
+      id: validated.product_id.toString(),
+      symbol,
+      base,
+      quote,
+      settle: quote,
+      active: true, // Nado doesn't have an is_active field in symbols
+      minAmount: minSize,
+      pricePrecision,
+      amountPrecision,
+      priceTickSize: priceIncrement,
+      amountStepSize: sizeIncrement,
+      makerFee,
+      takerFee,
+      maxLeverage: 50, // Nado typical max leverage
+      fundingIntervalHours: 8,
+    };
+  }
+
+  /**
+   * Calculate decimal precision from increment value
+   */
+  private getPrecisionFromIncrement(increment: number): number {
+    if (increment >= 1) return 0;
+    const str = increment.toString();
+    const decimalPart = str.split('.')[1];
+    return decimalPart ? decimalPart.replace(/0+$/, '').length : 0;
+  }
+
+  /**
    * Normalize Nado product to unified Market format
    *
+   * @deprecated Use normalizeSymbol instead
    * @param product - Nado product data
    * @returns Normalized market
    */

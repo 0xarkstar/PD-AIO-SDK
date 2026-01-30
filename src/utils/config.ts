@@ -8,17 +8,34 @@ import type { SupportedExchange } from '../factory.js';
 
 /**
  * Environment variable requirements per exchange
+ *
+ * Naming convention: {EXCHANGE}_{CREDENTIAL_TYPE}
+ * - PRIVATE_KEY: EVM/Ethereum private key (EIP-712 signing)
+ * - STARK_PRIVATE_KEY: StarkNet/StarkEx private key (Pedersen hash)
+ * - API_KEY: API authentication key
+ * - API_SECRET: API signing secret (HMAC)
  */
 const EXCHANGE_ENV_REQUIREMENTS: Record<SupportedExchange, string[]> = {
+  // EIP-712 signature based
   hyperliquid: ['HYPERLIQUID_PRIVATE_KEY'],
-  lighter: ['LIGHTER_API_KEY', 'LIGHTER_API_SECRET', 'LIGHTER_ACCOUNT_ID'],
-  grvt: ['GRVT_PRIVATE_KEY', 'GRVT_API_KEY'],
-  paradex: ['PARADEX_PRIVATE_KEY', 'PARADEX_L1_RPC_URL'],
-  edgex: ['EDGEX_PRIVATE_KEY', 'EDGEX_STARK_PRIVATE_KEY'],
-  backpack: ['BACKPACK_API_KEY', 'BACKPACK_SECRET_KEY'],
   nado: ['NADO_PRIVATE_KEY'],
-  variational: ['VARIATIONAL_API_KEY', 'VARIATIONAL_API_SECRET'],
+
+  // API Key + HMAC signature based
+  lighter: ['LIGHTER_API_KEY', 'LIGHTER_API_SECRET'],
+
+  // StarkEx/L2 signature based (Pedersen hash + ECDSA)
+  edgex: ['EDGEX_STARK_PRIVATE_KEY'],
+
+  // API Key + optional StarkNet signing
   extended: ['EXTENDED_API_KEY'],
+
+  // HMAC signature based (API in development)
+  variational: ['VARIATIONAL_API_KEY', 'VARIATIONAL_API_SECRET'],
+
+  // Existing exchanges
+  grvt: ['GRVT_PRIVATE_KEY', 'GRVT_API_KEY'],
+  paradex: ['PARADEX_STARK_PRIVATE_KEY'],
+  backpack: ['BACKPACK_API_KEY', 'BACKPACK_SECRET_KEY'],
 };
 
 /**
@@ -124,10 +141,10 @@ export function getConfigErrorMessage(exchange: SupportedExchange, missingVars: 
 
   const instructions: Record<SupportedExchange, string> = {
     hyperliquid: 'Export your MetaMask private key or generate a new wallet',
-    lighter: 'Register at lighter.xyz and create API credentials',
+    lighter: 'Register at lighter.xyz and create API key + secret credentials',
     grvt: 'Register at grvt.io, generate API key, and use your ETH wallet',
-    paradex: 'Generate a StarkNet wallet key (different from Ethereum!)',
-    edgex: 'Register at edgex.exchange and get both Ethereum and StarkEx keys',
+    paradex: 'Generate a StarkNet wallet key (PARADEX_STARK_PRIVATE_KEY)',
+    edgex: 'Register at edgex.exchange and get your StarkEx L2 private key',
     backpack: 'Register at backpack.exchange and create ED25519 API credentials',
     nado: 'Export your MetaMask private key for Ink L2 trading on Nado',
     variational: 'Register at variational.io and create HMAC API credentials',

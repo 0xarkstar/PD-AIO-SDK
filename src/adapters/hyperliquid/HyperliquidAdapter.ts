@@ -40,6 +40,7 @@ import { HyperliquidAuth } from './HyperliquidAuth.js';
 import type {
   HyperliquidAction,
   HyperliquidAllMids,
+  HyperliquidAllMidsWsMessage,
   HyperliquidHistoricalOrder,
   HyperliquidL2Book,
   HyperliquidMeta,
@@ -207,12 +208,12 @@ export class HyperliquidAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('fetchTicker');
 
     try {
-      const response = await this.request<HyperliquidAllMids>('POST', `${this.apiUrl}/info`, {
+      const allMids = await this.request<HyperliquidAllMids>('POST', `${this.apiUrl}/info`, {
         type: 'allMids',
       });
 
       const exchangeSymbol = this.symbolToExchange(symbol);
-      const mid = response.mids[exchangeSymbol];
+      const mid = allMids[exchangeSymbol];
 
       if (!mid) {
         throw new Error(`No ticker data for ${symbol}`);
@@ -297,7 +298,7 @@ export class HyperliquidAdapter extends BaseAdapter {
         type: 'allMids',
       });
 
-      const markPrice = parseFloat(allMids.mids[exchangeSymbol] ?? '0');
+      const markPrice = parseFloat(allMids[exchangeSymbol] ?? '0');
 
       return {
         symbol,
@@ -345,7 +346,7 @@ export class HyperliquidAdapter extends BaseAdapter {
         type: 'allMids',
       });
 
-      const markPrice = parseFloat(allMids.mids[exchangeSymbol] ?? '0');
+      const markPrice = parseFloat(allMids[exchangeSymbol] ?? '0');
 
       // Convert to unified format
       let fundingRates = response.map((rate) => ({
@@ -913,14 +914,8 @@ export class HyperliquidAdapter extends BaseAdapter {
       subscription,
       unsubscribe
     )) {
-      // Convert WebSocket update format to L2Book format
-      const book: HyperliquidL2Book = {
-        coin: data.coin,
-        levels: data.levels.map((level) => level.map((l) => [l.px, l.sz])),
-        time: data.time,
-      };
-
-      yield this.normalizer.normalizeOrderBook(book);
+      // WebSocket L2Book update has the same format as REST API
+      yield this.normalizer.normalizeOrderBook(data);
     }
   }
 
@@ -965,11 +960,11 @@ export class HyperliquidAdapter extends BaseAdapter {
 
     const exchangeSymbol = this.symbolToExchange(symbol);
 
-    for await (const data of this.wsManager.watch<HyperliquidAllMids>(
+    for await (const data of this.wsManager.watch<HyperliquidAllMidsWsMessage>(
       HYPERLIQUID_WS_CHANNELS.ALL_MIDS,
       subscription
     )) {
-      const mid = data.mids[exchangeSymbol];
+      const mid = data.mids?.[exchangeSymbol];
       if (mid) {
         yield this.normalizer.normalizeTicker(exchangeSymbol, { mid });
       }

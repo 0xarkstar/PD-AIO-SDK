@@ -297,14 +297,16 @@ export class HyperliquidNormalizer {
   normalizeOrderBook(book: HyperliquidL2Book): OrderBook {
     const unifiedSymbol = hyperliquidToUnified(book.coin);
 
-    const bids = book.levels[0]?.map(([price, size]) => [
-      parseFloat(price),
-      parseFloat(size),
+    // book.levels[0] = bids, book.levels[1] = asks
+    // Each level is { px: string, sz: string, n: number }
+    const bids = book.levels[0]?.map((level) => [
+      parseFloat(level.px),
+      parseFloat(level.sz),
     ]) as [number, number][] || [];
 
-    const asks = book.levels[1]?.map(([price, size]) => [
-      parseFloat(price),
-      parseFloat(size),
+    const asks = book.levels[1]?.map((level) => [
+      parseFloat(level.px),
+      parseFloat(level.sz),
     ]) as [number, number][] || [];
 
     return {

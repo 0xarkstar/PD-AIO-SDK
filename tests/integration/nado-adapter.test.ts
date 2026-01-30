@@ -36,8 +36,8 @@ describe('NadoAdapter Integration', () => {
           json: async () => ({
             status: 'success',
             data: {
-              endpoint_address: '0x' + '1'.repeat(40),
-              chain_id: 763373,
+              endpoint_addr: '0x' + '1'.repeat(40),
+              chain_id: '763373',
               products: {
                 '2': {
                   address: '0x' + '2'.repeat(40),
@@ -49,28 +49,29 @@ describe('NadoAdapter Integration', () => {
         } as Response)
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ status: 'success', data: { nonce: 0 } }),
+          json: async () => ({ status: 'success', data: { tx_nonce: '0', order_nonce: '0' } }),
         } as Response)
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
             status: 'success',
-            data: [
-              {
-                product_id: 2,
-                symbol: 'BTC-PERP',
-                base_currency: 'BTC',
-                quote_currency: 'USDT',
-                contract_size: '1',
-                tick_size: '1',
-                min_size: '0.001',
-                max_position_size: '1000',
-                maker_fee: '0.0002',
-                taker_fee: '0.0005',
-                is_active: true,
-                product_type: 'perpetual',
+            data: {
+              symbols: {
+                'BTC-PERP': {
+                  type: 'perp',
+                  product_id: 2,
+                  symbol: 'BTC-PERP',
+                  price_increment_x18: '1000000000000000000',
+                  size_increment: '50000000000000',
+                  min_size: '100000000000000000000',
+                  maker_fee_rate_x18: '-300000000000000',
+                  taker_fee_rate_x18: '0',
+                  long_weight_initial_x18: '975000000000000000',
+                  long_weight_maintenance_x18: '987500000000000000',
+                  max_open_interest_x18: '100000000000000000000000000',
+                },
               },
-            ],
+            },
           }),
         } as Response);
 
@@ -107,7 +108,7 @@ describe('NadoAdapter Integration', () => {
       } as Response);
 
       const orderRequest: OrderRequest = {
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         side: 'buy',
         type: 'limit',
         amount: 0.01,
@@ -118,7 +119,7 @@ describe('NadoAdapter Integration', () => {
       const order = await adapter.createOrder(orderRequest);
 
       expect(order.id).toBe('test-order-123');
-      expect(order.symbol).toBe('BTC/USDT:USDT');
+      expect(order.symbol).toBe('BTC/USDC:USDC');
       expect(order.side).toBe('buy');
 
       // Mock fetch order for cancel
@@ -147,7 +148,7 @@ describe('NadoAdapter Integration', () => {
       } as Response);
 
       const orderRequest: OrderRequest = {
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         side: 'buy',
         type: 'limit',
         amount: 100,
@@ -166,8 +167,8 @@ describe('NadoAdapter Integration', () => {
           json: async () => ({
             status: 'success',
             data: {
-              endpoint_address: '0x1',
-              chain_id: 763373,
+              endpoint_addr: '0x1',
+              chain_id: '763373',
               products: {
                 '2': {
                   address: '0x' + '2'.repeat(40),
@@ -179,28 +180,29 @@ describe('NadoAdapter Integration', () => {
         } as Response)
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ status: 'success', data: { nonce: 0 } }),
+          json: async () => ({ status: 'success', data: { tx_nonce: '0', order_nonce: '0' } }),
         } as Response)
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
             status: 'success',
-            data: [
-              {
-                product_id: 2,
-                symbol: 'BTC-PERP',
-                base_currency: 'BTC',
-                quote_currency: 'USDT',
-                contract_size: '1',
-                tick_size: '1',
-                min_size: '0.001',
-                max_position_size: '1000',
-                maker_fee: '0.0002',
-                taker_fee: '0.0005',
-                is_active: true,
-                product_type: 'perpetual',
+            data: {
+              symbols: {
+                'BTC-PERP': {
+                  type: 'perp',
+                  product_id: 2,
+                  symbol: 'BTC-PERP',
+                  price_increment_x18: '1000000000000000000',
+                  size_increment: '50000000000000',
+                  min_size: '100000000000000000000',
+                  maker_fee_rate_x18: '-300000000000000',
+                  taker_fee_rate_x18: '0',
+                  long_weight_initial_x18: '975000000000000000',
+                  long_weight_maintenance_x18: '987500000000000000',
+                  max_open_interest_x18: '100000000000000000000000000',
+                },
               },
-            ],
+            },
           }),
         } as Response);
 
@@ -211,7 +213,7 @@ describe('NadoAdapter Integration', () => {
     it('should fetch markets', async () => {
       const markets = await adapter.fetchMarkets();
       expect(markets).toHaveLength(1);
-      expect(markets[0].symbol).toBe('BTC/USDT:USDT');
+      expect(markets[0].symbol).toBe('BTC/USDC:USDC');
     });
   });
 
@@ -223,8 +225,8 @@ describe('NadoAdapter Integration', () => {
           json: async () => ({
             status: 'success',
             data: {
-              endpoint_address: '0x' + '1'.repeat(40),
-              chain_id: 763373,
+              endpoint_addr: '0x' + '1'.repeat(40),
+              chain_id: '763373',
               products: {
                 '2': {
                   address: '0x' + '2'.repeat(40),
@@ -240,42 +242,42 @@ describe('NadoAdapter Integration', () => {
         } as Response)
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ status: 'success', data: { nonce: 0 } }),
+          json: async () => ({ status: 'success', data: { tx_nonce: '0', order_nonce: '0' } }),
         } as Response)
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
             status: 'success',
-            data: [
-              {
-                product_id: 2,
-                symbol: 'BTC-PERP',
-                base_currency: 'BTC',
-                quote_currency: 'USDT',
-                contract_size: '1',
-                tick_size: '1',
-                min_size: '0.001',
-                max_position_size: '1000',
-                maker_fee: '0.0002',
-                taker_fee: '0.0005',
-                is_active: true,
-                product_type: 'perpetual',
+            data: {
+              symbols: {
+                'BTC-PERP': {
+                  type: 'perp',
+                  product_id: 2,
+                  symbol: 'BTC-PERP',
+                  price_increment_x18: '1000000000000000000',
+                  size_increment: '50000000000000',
+                  min_size: '100000000000000000000',
+                  maker_fee_rate_x18: '-300000000000000',
+                  taker_fee_rate_x18: '0',
+                  long_weight_initial_x18: '975000000000000000',
+                  long_weight_maintenance_x18: '987500000000000000',
+                  max_open_interest_x18: '100000000000000000000000000',
+                },
+                'ETH-PERP': {
+                  type: 'perp',
+                  product_id: 3,
+                  symbol: 'ETH-PERP',
+                  price_increment_x18: '100000000000000000',
+                  size_increment: '1000000000000000',
+                  min_size: '100000000000000000000',
+                  maker_fee_rate_x18: '-300000000000000',
+                  taker_fee_rate_x18: '0',
+                  long_weight_initial_x18: '975000000000000000',
+                  long_weight_maintenance_x18: '987500000000000000',
+                  max_open_interest_x18: '100000000000000000000000000',
+                },
               },
-              {
-                product_id: 3,
-                symbol: 'ETH-PERP',
-                base_currency: 'ETH',
-                quote_currency: 'USDT',
-                contract_size: '1',
-                tick_size: '0.1',
-                min_size: '0.01',
-                max_position_size: '10000',
-                maker_fee: '0.0002',
-                taker_fee: '0.0005',
-                is_active: true,
-                product_type: 'perpetual',
-              },
-            ],
+            },
           }),
         } as Response);
 
@@ -312,7 +314,7 @@ describe('NadoAdapter Integration', () => {
         } as Response);
 
         const orderRequest: OrderRequest = {
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'buy',
           type: 'market',
           amount: 0.1,
@@ -352,7 +354,7 @@ describe('NadoAdapter Integration', () => {
         } as Response);
 
         const orderRequest: OrderRequest = {
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'sell',
           type: 'limit',
           amount: 0.05,
@@ -394,7 +396,7 @@ describe('NadoAdapter Integration', () => {
         } as Response);
 
         const orderRequest: OrderRequest = {
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'sell',
           type: 'limit',
           amount: 0.02,
@@ -411,7 +413,7 @@ describe('NadoAdapter Integration', () => {
     describe('invalid parameters', () => {
       it('should handle invalid symbol', async () => {
         const orderRequest: OrderRequest = {
-          symbol: 'INVALID/USDT:USDT',
+          symbol: 'INVALID/USDC:USDC',
           side: 'buy',
           type: 'limit',
           amount: 0.01,
@@ -423,7 +425,7 @@ describe('NadoAdapter Integration', () => {
 
       it('should handle zero amount', async () => {
         const orderRequest: OrderRequest = {
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'buy',
           type: 'limit',
           amount: 0,
@@ -435,7 +437,7 @@ describe('NadoAdapter Integration', () => {
 
       it('should handle negative price', async () => {
         const orderRequest: OrderRequest = {
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'buy',
           type: 'limit',
           amount: 0.01,
@@ -447,7 +449,7 @@ describe('NadoAdapter Integration', () => {
 
       it('should handle missing price for limit order', async () => {
         const orderRequest: OrderRequest = {
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'buy',
           type: 'limit',
           amount: 0.01,
@@ -487,7 +489,7 @@ describe('NadoAdapter Integration', () => {
         } as Response);
 
         const orderRequest: OrderRequest = {
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'buy',
           type: 'limit',
           amount: 1.0,
@@ -529,7 +531,7 @@ describe('NadoAdapter Integration', () => {
         } as Response);
 
         const orderRequest: OrderRequest = {
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'buy',
           type: 'limit',
           amount: 0.01,
@@ -550,7 +552,7 @@ describe('NadoAdapter Integration', () => {
         );
 
         const orderRequest: OrderRequest = {
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'buy',
           type: 'limit',
           amount: 0.01,
@@ -566,7 +568,7 @@ describe('NadoAdapter Integration', () => {
         );
 
         const orderRequest: OrderRequest = {
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'buy',
           type: 'limit',
           amount: 0.01,
@@ -588,7 +590,7 @@ describe('NadoAdapter Integration', () => {
         } as Response);
 
         const orderRequest: OrderRequest = {
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'buy',
           type: 'limit',
           amount: 0.01,
@@ -650,7 +652,7 @@ describe('NadoAdapter Integration', () => {
         } as Response);
 
         const btcOrder = await adapter.createOrder({
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           side: 'buy',
           type: 'limit',
           amount: 0.01,
@@ -658,7 +660,7 @@ describe('NadoAdapter Integration', () => {
           postOnly: true,
         });
 
-        expect(btcOrder.symbol).toBe('BTC/USDT:USDT');
+        expect(btcOrder.symbol).toBe('BTC/USDC:USDC');
 
         // Create ETH order
         (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValueOnce({
@@ -667,7 +669,7 @@ describe('NadoAdapter Integration', () => {
         } as Response);
 
         const ethOrder = await adapter.createOrder({
-          symbol: 'ETH/USDT:USDT',
+          symbol: 'ETH/USDC:USDC',
           side: 'buy',
           type: 'limit',
           amount: 0.5,
@@ -675,7 +677,7 @@ describe('NadoAdapter Integration', () => {
           postOnly: true,
         });
 
-        expect(ethOrder.symbol).toBe('ETH/USDT:USDT');
+        expect(ethOrder.symbol).toBe('ETH/USDC:USDC');
       });
     });
 

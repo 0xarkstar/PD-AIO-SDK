@@ -7,12 +7,12 @@
  */
 export const BACKPACK_API_URLS = {
   mainnet: {
-    rest: 'https://api.backpack.exchange/v1',
-    websocket: 'wss://ws.backpack.exchange/v1',
+    rest: 'https://api.backpack.exchange',
+    websocket: 'wss://ws.backpack.exchange',
   },
   testnet: {
-    rest: 'https://api-testnet.backpack.exchange/v1',
-    websocket: 'wss://ws-testnet.backpack.exchange/v1',
+    rest: 'https://api-testnet.backpack.exchange',
+    websocket: 'wss://ws-testnet.backpack.exchange',
   },
 } as const;
 
