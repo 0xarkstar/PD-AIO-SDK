@@ -567,10 +567,24 @@ export class YourExchangeAuth {
 ```
 
 **Common auth patterns:**
-- **API Key + Secret**: HMAC-SHA256 signatures (Lighter, EdgeX)
+- **API Key + Secret**: HMAC-SHA256 signatures (Lighter, Variational)
 - **EIP-712**: Ethereum wallet signatures (Hyperliquid, GRVT, Nado)
-- **StarkNet**: ECDSA signatures (Paradex, EdgeX)
+- **StarkNet/StarkEx**: Pedersen hash + ECDSA signatures (Paradex, EdgeX)
 - **ED25519**: Solana signatures (Backpack)
+
+### Exchange Credential Reference
+
+| Exchange | Auth Type | Required Environment Variables | Config Fields |
+|----------|-----------|-------------------------------|---------------|
+| **Hyperliquid** | EIP-712 | `HYPERLIQUID_PRIVATE_KEY` | `privateKey` |
+| **Lighter** | HMAC-SHA256 | `LIGHTER_API_KEY`, `LIGHTER_API_SECRET` | `apiKey`, `apiSecret` |
+| **EdgeX** | StarkEx Pedersen | `EDGEX_STARK_PRIVATE_KEY` | `starkPrivateKey` |
+| **Nado** | EIP-712 (Ink L2) | `NADO_PRIVATE_KEY` | `privateKey` |
+| **Extended** | API Key | `EXTENDED_API_KEY` | `apiKey` (+ optional `starknetPrivateKey`) |
+| **Variational** | HMAC-SHA256 | `VARIATIONAL_API_KEY`, `VARIATIONAL_API_SECRET` | `apiKey`, `apiSecret` |
+| **GRVT** | EIP-712 + API | `GRVT_PRIVATE_KEY`, `GRVT_API_KEY` | `privateKey`, `apiKey` |
+| **Paradex** | StarkNet | `PARADEX_STARK_PRIVATE_KEY` | `starkPrivateKey` |
+| **Backpack** | ED25519 | `BACKPACK_API_KEY`, `BACKPACK_SECRET_KEY` | `apiKey`, `secretKey` |
 
 ---
 
