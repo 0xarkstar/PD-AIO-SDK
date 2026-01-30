@@ -125,16 +125,22 @@ await exchange.disconnect();
 
 ## 📚 지원 거래소
 
-| 거래소 | 상태 | 테스트넷 | 인증 방식 | 특별 기능 |
-|----------|--------|---------|-------------|------------------|
-| **Hyperliquid** | ✅ 프로덕션 | ✅ 공개 | EIP-712 | 초당 20만 주문, HIP-3 생태계, 파우셋 제공 |
-| **GRVT** | ✅ 프로덕션 | ✅ 공개 | EIP-712 + Session | CEX/DEX 하이브리드, 포트폴리오 마진 |
-| **Paradex** | ✅ 프로덕션 | ✅ 공개 (Sepolia) | StarkNet + JWT | StarkNet L2, 초저지연 |
-| **EdgeX** | ✅ 프로덕션 (V1) | ❌ 메인넷만* | StarkEx + Pedersen | 10ms 미만 매칭, $130B+ 거래량 |
-| **Backpack** | ✅ 프로덕션 | ❌ 메인넷만 | ED25519 | 솔라나 기반, 다양한 마켓 타입 |
-| **Lighter** | ⚠️ 베타 | ✅ 공개 (ETH 테스트넷) | API Key | ZK-SNARK 증명, 오더북 DEX |
+| 거래소 | 상태 | Public API | Private API | 인증 방식 | 특별 기능 |
+|----------|--------|------------|-------------|-------------|------------------|
+| **Hyperliquid** | ✅ 프로덕션 준비 | ✅ | ✅ | EIP-712 | 초당 20만 주문, HIP-3 생태계 |
+| **Lighter** | ✅ Public API 준비 | ✅ | ⚠️ 테스트중 | API Key + HMAC | ZK-SNARK 증명, USDC 정산 |
+| **Extended** | ⚠️ 메인넷만 | ✅ | ⚠️ 테스트중 | API Key | StarkNet L2, 100x 레버리지 |
+| **GRVT** | ⚠️ URL 업데이트 필요 | ❌ | ❌ | EIP-712 + Session | CEX/DEX 하이브리드 |
+| **Paradex** | ⚠️ 인증 필요 | ❌ | ⚠️ | StarkNet + JWT | StarkNet L2 |
+| **Nado** | ⚠️ 인증 필요 | ❌ | ⚠️ | EIP-712 | Kraken의 Ink L2 |
+| **EdgeX** | 🔴 API 미공개 | ❌ | ❌ | StarkEx | REST API 문서 없음 |
+| **Backpack** | 🔴 네트워크 오류 | ❌ | ❌ | ED25519 | 솔라나 기반 |
+| **Variational** | 🔴 Alpha (RFQ) | ❌ | ❌ | HMAC | RFQ 기반, 오더북 아님 |
 
-> *EdgeX V2 테스트넷은 2025년 Q3에 출시 예정
+### 상태 범례
+- ✅ **프로덕션 준비** - 완전히 테스트되고 작동
+- ⚠️ **부분/테스트중** - 일부 기능 작동, 조사 필요
+- 🔴 **작동 안함** - 수정 또는 API 문서 필요
 
 ### 🎁 보너스: HIP-3 생태계 (Hyperliquid 경유)
 
