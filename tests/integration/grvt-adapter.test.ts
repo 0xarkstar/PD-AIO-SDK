@@ -46,6 +46,8 @@ describe('GRVTAdapter Integration Tests', () => {
       }),
       setSessionCookie: jest.fn(),
       clearSessionCookie: jest.fn(),
+      hasCredentials: jest.fn().mockReturnValue(true),
+      requireAuth: jest.fn(),
     } as any));
 
     // Create adapter
@@ -96,7 +98,7 @@ describe('GRVTAdapter Integration Tests', () => {
       it('should fetch and normalize markets', async () => {
         const mockMarkets: IInstrumentDisplay[] = [
           {
-            instrument: 'BTC-PERP',
+            instrument: 'BTC_USDT_Perp',
             base: 'BTC',
             quote: 'USDT',
             tick_size: '0.5',
@@ -105,7 +107,7 @@ describe('GRVTAdapter Integration Tests', () => {
             funding_interval_hours: 8,
           } as any,
           {
-            instrument: 'ETH-PERP',
+            instrument: 'ETH_USDT_Perp',
             base: 'ETH',
             quote: 'USDT',
             tick_size: '0.1',
@@ -143,7 +145,7 @@ describe('GRVTAdapter Integration Tests', () => {
     describe('fetchOrderBook', () => {
       it('should fetch and normalize order book', async () => {
         const mockOrderBook: IOrderbookLevels = {
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           bids: [
             { price: '50000', size: '1.5', num_orders: 3 },
             { price: '49990', size: '2.0', num_orders: 5 },
@@ -161,7 +163,7 @@ describe('GRVTAdapter Integration Tests', () => {
 
         const orderBook = await adapter.fetchOrderBook('BTC/USDT:USDT');
 
-        expect(mockSDK.getOrderBook).toHaveBeenCalledWith('BTC-PERP', 50);
+        expect(mockSDK.getOrderBook).toHaveBeenCalledWith('BTC_USDT_Perp', 50);
         expect(orderBook.symbol).toBe('BTC/USDT:USDT');
         expect(orderBook.bids).toHaveLength(2);
         expect(orderBook.asks).toHaveLength(2);
@@ -171,7 +173,7 @@ describe('GRVTAdapter Integration Tests', () => {
 
       it('should handle custom depth limit', async () => {
         const mockOrderBook: IOrderbookLevels = {
-          instrument: 'ETH-PERP',
+          instrument: 'ETH_USDT_Perp',
           bids: [{ price: '3000', size: '10', num_orders: 1 }],
           asks: [{ price: '3010', size: '5', num_orders: 1 }],
           event_time: '1234567890000',
@@ -183,7 +185,7 @@ describe('GRVTAdapter Integration Tests', () => {
 
         await adapter.fetchOrderBook('ETH/USDT:USDT', { limit: 100 });
 
-        expect(mockSDK.getOrderBook).toHaveBeenCalledWith('ETH-PERP', 100);
+        expect(mockSDK.getOrderBook).toHaveBeenCalledWith('ETH_USDT_Perp', 100);
       });
     });
 
@@ -192,7 +194,7 @@ describe('GRVTAdapter Integration Tests', () => {
         const mockTrades: ITrade[] = [
           {
             trade_id: 'trade-1',
-            instrument: 'BTC-PERP',
+            instrument: 'BTC_USDT_Perp',
             price: '50000',
             size: '0.5',
             is_taker_buyer: true,
@@ -200,7 +202,7 @@ describe('GRVTAdapter Integration Tests', () => {
           },
           {
             trade_id: 'trade-2',
-            instrument: 'BTC-PERP',
+            instrument: 'BTC_USDT_Perp',
             price: '49995',
             size: '1.0',
             is_taker_buyer: false,
@@ -215,7 +217,7 @@ describe('GRVTAdapter Integration Tests', () => {
         const trades = await adapter.fetchTrades('BTC/USDT:USDT');
 
         expect(mockSDK.getTradeHistory).toHaveBeenCalledWith({
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           limit: 100,
         });
         expect(trades).toHaveLength(2);
@@ -231,7 +233,7 @@ describe('GRVTAdapter Integration Tests', () => {
         await adapter.fetchTrades('ETH/USDT:USDT', { limit: 50 });
 
         expect(mockSDK.getTradeHistory).toHaveBeenCalledWith({
-          instrument: 'ETH-PERP',
+          instrument: 'ETH_USDT_Perp',
           limit: 50,
         });
       });
@@ -240,7 +242,7 @@ describe('GRVTAdapter Integration Tests', () => {
     describe('fetchTicker', () => {
       it('should fetch and normalize ticker', async () => {
         const mockTicker: ITicker = {
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           last_price: '50000',
           best_bid_price: '49990',
           best_bid_size: '1.5',
@@ -260,7 +262,7 @@ describe('GRVTAdapter Integration Tests', () => {
 
         const ticker = await adapter.fetchTicker('BTC/USDT:USDT');
 
-        expect(mockSDK.getTicker).toHaveBeenCalledWith('BTC-PERP');
+        expect(mockSDK.getTicker).toHaveBeenCalledWith('BTC_USDT_Perp');
         expect(ticker.symbol).toBe('BTC/USDT:USDT');
         expect(ticker.last).toBe(50000);
         expect(ticker.bid).toBe(49990);
@@ -282,7 +284,7 @@ describe('GRVTAdapter Integration Tests', () => {
           reduce_only: false,
           legs: [
             {
-              instrument: 'BTC-PERP',
+              instrument: 'BTC_USDT_Perp',
               size: '1.5',
               limit_price: '50000',
               is_buying_asset: true,
@@ -327,7 +329,7 @@ describe('GRVTAdapter Integration Tests', () => {
           is_market: true,
           legs: [
             {
-              instrument: 'ETH-PERP',
+              instrument: 'ETH_USDT_Perp',
               size: '10',
               is_buying_asset: false,
             },
@@ -362,7 +364,7 @@ describe('GRVTAdapter Integration Tests', () => {
           post_only: true,
           legs: [
             {
-              instrument: 'BTC-PERP',
+              instrument: 'BTC_USDT_Perp',
               size: '2',
               limit_price: '49000',
               is_buying_asset: true,
@@ -398,7 +400,7 @@ describe('GRVTAdapter Integration Tests', () => {
           order_id: 'order-123',
           legs: [
             {
-              instrument: 'BTC-PERP',
+              instrument: 'BTC_USDT_Perp',
               size: '1.5',
               is_buying_asset: true,
             },
@@ -431,7 +433,7 @@ describe('GRVTAdapter Integration Tests', () => {
             is_market: false,
             legs: [
               {
-                instrument: 'BTC-PERP',
+                instrument: 'BTC_USDT_Perp',
                 size: '1',
                 limit_price: '50000',
                 is_buying_asset: true,
@@ -448,7 +450,7 @@ describe('GRVTAdapter Integration Tests', () => {
             is_market: false,
             legs: [
               {
-                instrument: 'ETH-PERP',
+                instrument: 'ETH_USDT_Perp',
                 size: '5',
                 limit_price: '3000',
                 is_buying_asset: false,
@@ -482,7 +484,7 @@ describe('GRVTAdapter Integration Tests', () => {
         await adapter.fetchOpenOrders('BTC/USDT:USDT');
 
         expect(mockSDK.getOpenOrders).toHaveBeenCalledWith({
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
         });
       });
     });
@@ -495,7 +497,7 @@ describe('GRVTAdapter Integration Tests', () => {
             is_market: true,
             legs: [
               {
-                instrument: 'BTC-PERP',
+                instrument: 'BTC_USDT_Perp',
                 size: '0.5',
                 is_buying_asset: true,
               },
@@ -528,7 +530,7 @@ describe('GRVTAdapter Integration Tests', () => {
       it('should fetch all positions', async () => {
         const mockPositions: IPositions[] = [
           {
-            instrument: 'BTC-PERP',
+            instrument: 'BTC_USDT_Perp',
             size: '2.5',
             entry_price: '48000',
             mark_price: '50000',
@@ -538,7 +540,7 @@ describe('GRVTAdapter Integration Tests', () => {
             leverage: '10',
           },
           {
-            instrument: 'ETH-PERP',
+            instrument: 'ETH_USDT_Perp',
             size: '-10',
             entry_price: '3000',
             mark_price: '2900',
@@ -568,7 +570,7 @@ describe('GRVTAdapter Integration Tests', () => {
       it('should filter positions by symbol', async () => {
         const mockPositions: IPositions[] = [
           {
-            instrument: 'BTC-PERP',
+            instrument: 'BTC_USDT_Perp',
             size: '1',
             entry_price: '50000',
             mark_price: '51000',
@@ -578,7 +580,7 @@ describe('GRVTAdapter Integration Tests', () => {
             leverage: '10',
           },
           {
-            instrument: 'ETH-PERP',
+            instrument: 'ETH_USDT_Perp',
             size: '5',
             entry_price: '3000',
             mark_price: '3100',

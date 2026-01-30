@@ -43,9 +43,16 @@ describe('GRVTAuth', () => {
       expect(auth).toBeInstanceOf(GRVTAuth);
     });
 
-    it('should throw error if neither API key nor wallet provided', () => {
-      expect(() => new GRVTAuth({})).toThrow(
-        'Either apiKey or wallet must be provided for GRVT authentication'
+    it('should create instance without credentials (for public API access)', () => {
+      const authNoCredentials = new GRVTAuth({});
+      expect(authNoCredentials).toBeInstanceOf(GRVTAuth);
+      expect(authNoCredentials.hasCredentials()).toBe(false);
+    });
+
+    it('should throw requireAuth when no credentials and private method called', () => {
+      const authNoCredentials = new GRVTAuth({});
+      expect(() => authNoCredentials.requireAuth()).toThrow(
+        'Authentication required. Provide apiKey or wallet in config.'
       );
     });
 
@@ -118,7 +125,7 @@ describe('GRVTAuth', () => {
       const request: RequestParams = {
         method: 'POST',
         path: '/orders',
-        body: { instrument: 'BTC-PERP' },
+        body: { instrument: 'BTC_USDT_Perp' },
       };
 
       const signed = await auth.sign(request);
@@ -247,7 +254,7 @@ describe('GRVTAuth', () => {
     describe('signOrder', () => {
       it('should sign order payload with EIP-712', async () => {
         const payload: GRVTOrderSignPayload = {
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           order_type: 'LIMIT',
           side: 'BUY',
           size: '0.1',
@@ -269,7 +276,7 @@ describe('GRVTAuth', () => {
         const authNoWallet = new GRVTAuth({ apiKey: 'test' });
 
         const payload: GRVTOrderSignPayload = {
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           order_type: 'LIMIT',
           side: 'BUY',
           size: '0.1',
@@ -288,7 +295,7 @@ describe('GRVTAuth', () => {
 
       it('should use testnet chain ID', async () => {
         const payload: GRVTOrderSignPayload = {
-          instrument: 'ETH-PERP',
+          instrument: 'ETH_USDT_Perp',
           order_type: 'MARKET',
           side: 'SELL',
           size: '1.0',
@@ -308,7 +315,7 @@ describe('GRVTAuth', () => {
         const authMainnet = new GRVTAuth({ wallet, testnet: false });
 
         const payload: GRVTOrderSignPayload = {
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           order_type: 'LIMIT',
           side: 'BUY',
           size: '0.5',
@@ -373,7 +380,7 @@ describe('GRVTAuth', () => {
     describe('createSignature', () => {
       it('should create full ISignature object', async () => {
         const payload: GRVTOrderSignPayload = {
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           order_type: 'LIMIT',
           side: 'BUY',
           size: '0.1',
@@ -402,7 +409,7 @@ describe('GRVTAuth', () => {
         const authNoWallet = new GRVTAuth({ apiKey: 'test' });
 
         const payload: GRVTOrderSignPayload = {
-          instrument: 'BTC-PERP',
+          instrument: 'BTC_USDT_Perp',
           order_type: 'LIMIT',
           side: 'BUY',
           size: '0.1',

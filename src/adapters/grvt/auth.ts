@@ -40,9 +40,23 @@ export class GRVTAuth implements IAuthStrategy {
     this.apiKey = config.apiKey;
     this.wallet = config.wallet;
     this.testnet = config.testnet ?? false;
+    // Credentials are optional - public API methods work without auth
+  }
 
-    if (!this.apiKey && !this.wallet) {
-      throw new Error('Either apiKey or wallet must be provided for GRVT authentication');
+  /**
+   * Check if authentication credentials are available
+   */
+  hasCredentials(): boolean {
+    return !!(this.apiKey || this.wallet);
+  }
+
+  /**
+   * Require authentication for private methods
+   * @throws {Error} if no credentials are configured
+   */
+  requireAuth(): void {
+    if (!this.hasCredentials()) {
+      throw new Error('Authentication required. Provide apiKey or wallet in config.');
     }
   }
 

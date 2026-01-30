@@ -4,15 +4,24 @@
 
 /**
  * GRVT API endpoints
+ *
+ * GRVT uses different hosts for different services:
+ * - Market Data: market-data.{env}.grvt.io (public)
+ * - Trading: edge.{env}.grvt.io (authenticated)
+ * - WebSocket: market-data.{env}.grvt.io/ws
+ *
+ * @see https://api-docs.grvt.io/api_setup/
  */
 export const GRVT_API_URLS = {
   mainnet: {
-    rest: 'https://api.grvt.io/v1',
-    websocket: 'wss://ws.grvt.io/v1',
+    rest: 'https://market-data.grvt.io',
+    trading: 'https://edge.grvt.io',
+    websocket: 'wss://market-data.grvt.io/ws',
   },
   testnet: {
-    rest: 'https://api-testnet.grvt.io/v1',
-    websocket: 'wss://ws-testnet.grvt.io/v1',
+    rest: 'https://market-data.testnet.grvt.io',
+    trading: 'https://edge.testnet.grvt.io',
+    websocket: 'wss://market-data.testnet.grvt.io/ws',
   },
 } as const;
 

@@ -29,8 +29,8 @@ import type {
 describe('GRVT Symbol Normalization', () => {
   describe('normalizeSymbol', () => {
     test('normalizes perpetual symbols', () => {
-      expect(normalizeSymbol('BTC-PERP')).toBe('BTC/USDT:USDT');
-      expect(normalizeSymbol('ETH-PERP')).toBe('ETH/USDT:USDT');
+      expect(normalizeSymbol('BTC_USDT_Perp')).toBe('BTC/USDT:USDT');
+      expect(normalizeSymbol('ETH_USDT_Perp')).toBe('ETH/USDT:USDT');
     });
 
     test('handles spot symbols', () => {
@@ -40,12 +40,13 @@ describe('GRVT Symbol Normalization', () => {
 
   describe('toGRVTSymbol', () => {
     test('converts unified perpetual to GRVT format', () => {
-      expect(toGRVTSymbol('BTC/USDT:USDT')).toBe('BTC-PERP');
-      expect(toGRVTSymbol('ETH/USDT:USDT')).toBe('ETH-PERP');
+      expect(toGRVTSymbol('BTC/USDT:USDT')).toBe('BTC_USDT_Perp');
+      expect(toGRVTSymbol('ETH/USDT:USDT')).toBe('ETH_USDT_Perp');
     });
 
     test('converts unified spot to GRVT format', () => {
-      expect(toGRVTSymbol('BTC/USD')).toBe('BTC-USD');
+      expect(toGRVTSymbol('BTC/USD')).toBe('BTC_USD');
+      expect(toGRVTSymbol('BTC/USDT')).toBe('BTC_USDT');
     });
   });
 });
@@ -54,7 +55,7 @@ describe('GRVT Market Normalization', () => {
   test('normalizes market data', () => {
     const grvtMarket: GRVTMarket = {
       instrument_id: 'btc-usdt-perp',
-      instrument: 'BTC-PERP',
+      instrument: 'BTC_USDT_Perp',
       base_currency: 'BTC',
       quote_currency: 'USDT',
       settlement_currency: 'USDT',
@@ -88,7 +89,7 @@ describe('GRVT Order Normalization', () => {
     const grvtOrder: GRVTOrder = {
       order_id: '12345',
       client_order_id: 'test-123',
-      instrument: 'BTC-PERP',
+      instrument: 'BTC_USDT_Perp',
       side: 'BUY',
       order_type: 'LIMIT',
       size: '0.1',
@@ -120,7 +121,7 @@ describe('GRVT Order Normalization', () => {
   test('normalizes market order', () => {
     const grvtOrder: GRVTOrder = {
       order_id: '67890',
-      instrument: 'ETH-PERP',
+      instrument: 'ETH_USDT_Perp',
       side: 'SELL',
       order_type: 'MARKET',
       size: '1.5',
@@ -145,7 +146,7 @@ describe('GRVT Order Normalization', () => {
 describe('GRVT Position Normalization', () => {
   test('normalizes long position', () => {
     const grvtPosition: GRVTPosition = {
-      instrument: 'BTC-PERP',
+      instrument: 'BTC_USDT_Perp',
       side: 'LONG',
       size: '0.5',
       entry_price: '48000',
@@ -195,7 +196,7 @@ describe('GRVT Balance Normalization', () => {
 describe('GRVT OrderBook Normalization', () => {
   test('normalizes order book', () => {
     const grvtOrderBook: GRVTOrderBook = {
-      instrument: 'BTC-PERP',
+      instrument: 'BTC_USDT_Perp',
       bids: [
         ['50000', '0.5'],
         ['49900', '1.0'],
@@ -220,7 +221,7 @@ describe('GRVT Trade Normalization', () => {
   test('normalizes trade', () => {
     const grvtTrade: GRVTTrade = {
       trade_id: 'trade-123',
-      instrument: 'ETH-PERP',
+      instrument: 'ETH_USDT_Perp',
       side: 'BUY',
       price: '3000',
       size: '2.5',
@@ -243,7 +244,7 @@ describe('GRVT Trade Normalization', () => {
 describe('GRVT Ticker Normalization', () => {
   test('normalizes ticker', () => {
     const grvtTicker: GRVTTicker = {
-      instrument: 'BTC-PERP',
+      instrument: 'BTC_USDT_Perp',
       last_price: '50000',
       best_bid: '49995',
       best_ask: '50005',

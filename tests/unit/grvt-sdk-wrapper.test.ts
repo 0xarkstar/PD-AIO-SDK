@@ -101,13 +101,13 @@ describe('GRVTSDKWrapper', () => {
   describe('Market Data Methods', () => {
     describe('getInstrument', () => {
       it('should call MDG.instrument with correct params', async () => {
-        const mockResponse = { result: { instrument_id: 'BTC-PERP' } };
+        const mockResponse = { result: { instrument_id: 'BTC_USDT_Perp' } };
         (mockMDGInstance.instrument as jest.Mock).mockResolvedValue(mockResponse);
 
-        const result = await wrapper.getInstrument('BTC-PERP');
+        const result = await wrapper.getInstrument('BTC_USDT_Perp');
 
         expect(mockMDGInstance.instrument).toHaveBeenCalledWith(
-          { instrument: 'BTC-PERP' },
+          { instrument: 'BTC_USDT_Perp' },
           undefined
         );
         expect(result).toEqual(mockResponse);
@@ -117,10 +117,10 @@ describe('GRVTSDKWrapper', () => {
         const config = { timeout: 5000 };
         (mockMDGInstance.instrument as jest.Mock).mockResolvedValue({});
 
-        await wrapper.getInstrument('ETH-PERP', config);
+        await wrapper.getInstrument('ETH_USDT_Perp', config);
 
         expect(mockMDGInstance.instrument).toHaveBeenCalledWith(
-          { instrument: 'ETH-PERP' },
+          { instrument: 'ETH_USDT_Perp' },
           config
         );
       });
@@ -164,10 +164,10 @@ describe('GRVTSDKWrapper', () => {
         const mockResponse = { result: {} };
         mockMDGInstance.miniTicker.mockResolvedValue(mockResponse);
 
-        const result = await wrapper.getMiniTicker('BTC-PERP');
+        const result = await wrapper.getMiniTicker('BTC_USDT_Perp');
 
         expect(mockMDGInstance.miniTicker).toHaveBeenCalledWith(
-          { instrument: 'BTC-PERP' },
+          { instrument: 'BTC_USDT_Perp' },
           undefined
         );
         expect(result).toEqual(mockResponse);
@@ -179,10 +179,10 @@ describe('GRVTSDKWrapper', () => {
         const mockResponse = { result: {} };
         mockMDGInstance.ticker.mockResolvedValue(mockResponse);
 
-        const result = await wrapper.getTicker('BTC-PERP');
+        const result = await wrapper.getTicker('BTC_USDT_Perp');
 
         expect(mockMDGInstance.ticker).toHaveBeenCalledWith(
-          { instrument: 'BTC-PERP' },
+          { instrument: 'BTC_USDT_Perp' },
           undefined
         );
         expect(result).toEqual(mockResponse);
@@ -194,10 +194,10 @@ describe('GRVTSDKWrapper', () => {
         const mockResponse = { result: { bids: [], asks: [] } };
         mockMDGInstance.orderBook.mockResolvedValue(mockResponse);
 
-        const result = await wrapper.getOrderBook('BTC-PERP', 50);
+        const result = await wrapper.getOrderBook('BTC_USDT_Perp', 50);
 
         expect(mockMDGInstance.orderBook).toHaveBeenCalledWith(
-          { instrument: 'BTC-PERP', depth: 50 },
+          { instrument: 'BTC_USDT_Perp', depth: 50 },
           undefined
         );
         expect(result).toEqual(mockResponse);
@@ -209,10 +209,10 @@ describe('GRVTSDKWrapper', () => {
         const mockResponse = { result: {} };
         mockMDGInstance.trade.mockResolvedValue(mockResponse);
 
-        const result = await wrapper.getTrade('BTC-PERP');
+        const result = await wrapper.getTrade('BTC_USDT_Perp');
 
         expect(mockMDGInstance.trade).toHaveBeenCalledWith(
-          { instrument: 'BTC-PERP' },
+          { instrument: 'BTC_USDT_Perp' },
           undefined
         );
         expect(result).toEqual(mockResponse);
@@ -224,10 +224,10 @@ describe('GRVTSDKWrapper', () => {
         const mockResponse = { result: [] };
         mockMDGInstance.tradesHistory.mockResolvedValue(mockResponse);
 
-        const result = await wrapper.getTradeHistory({ instrument: 'BTC-PERP' });
+        const result = await wrapper.getTradeHistory({ instrument: 'BTC_USDT_Perp' });
 
         expect(mockMDGInstance.tradesHistory).toHaveBeenCalledWith(
-          { instrument: 'BTC-PERP' },
+          { instrument: 'BTC_USDT_Perp' },
           undefined
         );
         expect(result).toEqual(mockResponse);
@@ -254,10 +254,10 @@ describe('GRVTSDKWrapper', () => {
         const mockResponse = { result: {} };
         mockMDGInstance.funding.mockResolvedValue(mockResponse);
 
-        const result = await wrapper.getFunding('BTC-PERP');
+        const result = await wrapper.getFunding('BTC_USDT_Perp');
 
         expect(mockMDGInstance.funding).toHaveBeenCalledWith(
-          { instrument: 'BTC-PERP' },
+          { instrument: 'BTC_USDT_Perp' },
           undefined
         );
         expect(result).toEqual(mockResponse);
@@ -269,7 +269,7 @@ describe('GRVTSDKWrapper', () => {
         const mockResponse = { result: [] };
         mockMDGInstance.candlestick.mockResolvedValue(mockResponse);
 
-        const params = { instrument: 'BTC-PERP', interval: '1m' };
+        const params = { instrument: 'BTC_USDT_Perp', interval: '1m' };
         const result = await wrapper.getCandlestick(params);
 
         expect(mockMDGInstance.candlestick).toHaveBeenCalledWith(params, undefined);
@@ -301,7 +301,7 @@ describe('GRVTSDKWrapper', () => {
         };
         mockTDGInstance.createOrder.mockResolvedValue(mockResponse);
 
-        const order = { instrument: 'BTC-PERP', side: 'BUY', size: '0.1' };
+        const order = { instrument: 'BTC_USDT_Perp', side: 'BUY', size: '0.1' };
         const result = await wrapper.createOrder(order);
 
         expect(mockTDGInstance.createOrder).toHaveBeenCalledWith(order, undefined);
@@ -330,10 +330,10 @@ describe('GRVTSDKWrapper', () => {
         const mockResponse = { data: {} };
         mockTDGInstance.cancelAllOrders.mockResolvedValue(mockResponse);
 
-        const result = await wrapper.cancelAllOrders({ instrument: 'BTC-PERP' });
+        const result = await wrapper.cancelAllOrders({ instrument: 'BTC_USDT_Perp' });
 
         expect(mockTDGInstance.cancelAllOrders).toHaveBeenCalledWith(
-          { instrument: 'BTC-PERP' },
+          { instrument: 'BTC_USDT_Perp' },
           undefined
         );
         expect(result).toEqual(mockResponse);
@@ -369,10 +369,10 @@ describe('GRVTSDKWrapper', () => {
         const mockResponse = { result: [] };
         mockTDGInstance.orderHistory.mockResolvedValue(mockResponse);
 
-        const result = await wrapper.getOrderHistory({ instrument: 'BTC-PERP' });
+        const result = await wrapper.getOrderHistory({ instrument: 'BTC_USDT_Perp' });
 
         expect(mockTDGInstance.orderHistory).toHaveBeenCalledWith(
-          { instrument: 'BTC-PERP' },
+          { instrument: 'BTC_USDT_Perp' },
           undefined
         );
         expect(result).toEqual(mockResponse);
@@ -425,10 +425,10 @@ describe('GRVTSDKWrapper', () => {
         const mockResponse = { result: [] };
         mockTDGInstance.fillHistory.mockResolvedValue(mockResponse);
 
-        const result = await wrapper.getFillHistory({ instrument: 'BTC-PERP' });
+        const result = await wrapper.getFillHistory({ instrument: 'BTC_USDT_Perp' });
 
         expect(mockTDGInstance.fillHistory).toHaveBeenCalledWith(
-          { instrument: 'BTC-PERP' },
+          { instrument: 'BTC_USDT_Perp' },
           undefined
         );
         expect(result).toEqual(mockResponse);
@@ -578,7 +578,7 @@ describe('GRVTSDKWrapper', () => {
         };
         mockTDGInstance.setInitialLeverage.mockResolvedValue(mockResponse);
 
-        const params = { instrument: 'BTC-PERP', leverage: '10' };
+        const params = { instrument: 'BTC_USDT_Perp', leverage: '10' };
         const result = await wrapper.setInitialLeverage(params);
 
         expect(mockTDGInstance.setInitialLeverage).toHaveBeenCalledWith(params, undefined);
