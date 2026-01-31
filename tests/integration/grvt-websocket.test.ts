@@ -201,7 +201,10 @@ describe('GRVT WebSocket Wrapper Tests', () => {
 
       mockWS.subscribe.mockImplementation((request: any) => {
         onErrorCallback = request.onError;
-        setTimeout(() => onErrorCallback(new Error('Stream error')), 50);
+        // Trigger error after short delay
+        setTimeout(() => {
+          onErrorCallback(new Error('Stream error'));
+        }, 50);
         return 'sub-key-1';
       });
 
@@ -1025,7 +1028,9 @@ describe('GRVT WebSocket Wrapper Tests', () => {
 
         mockWS.subscribe.mockImplementation((request: any) => {
           onErrorCallback = request.onError;
-          setTimeout(() => onErrorCallback(new Error('Fatal error')), 50);
+          setTimeout(() => {
+            onErrorCallback(new Error('Fatal error'));
+          }, 50);
           return 'sub-error';
         });
 

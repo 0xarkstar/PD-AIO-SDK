@@ -137,7 +137,7 @@ export class NadoAdapter extends BaseAdapter {
     fetchMarkets: true,
     fetchTicker: true,
     fetchOrderBook: true,
-    fetchTrades: true,
+    fetchTrades: false, // REST API not available, use watchTrades for WebSocket
     fetchFundingRate: true,
     fetchFundingRateHistory: false,
 
@@ -491,10 +491,13 @@ export class NadoAdapter extends BaseAdapter {
   }
 
   async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
-    // Nado doesn't have a public trades endpoint in the standard query API
-    // This would require WebSocket subscription to recent_trades channel
-    this.warn('fetchTrades not fully supported on Nado (requires WebSocket)');
-    return [];
+    // Nado provides trades via WebSocket only, not REST API
+    // Use watchTrades() for real-time trade streaming
+    throw new PerpDEXError(
+      'fetchTrades not supported via REST API on Nado. Use watchTrades() for WebSocket streaming.',
+      'NOT_SUPPORTED',
+      this.id
+    );
   }
 
   async fetchFundingRate(symbol: string): Promise<FundingRate> {

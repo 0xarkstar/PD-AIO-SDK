@@ -36,10 +36,10 @@ export default {
   ],
   coverageThreshold: {
     global: {
-      branches: 15,
-      functions: 14,
-      lines: 26,
-      statements: 26
+      branches: 40,
+      functions: 50,
+      lines: 50,
+      statements: 50
     },
     // Higher threshold for utility functions and pure logic
     './src/utils/**/*.ts': {

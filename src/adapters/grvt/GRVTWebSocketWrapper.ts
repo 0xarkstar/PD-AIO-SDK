@@ -24,7 +24,7 @@ import type {
   IPositions,
   IOrder,
 } from '@grvt/client/interfaces';
-import type { OrderBook, Trade, Position, Order } from '../../types/common.js';
+import type { OrderBook, Trade, Position, Order, Balance } from '../../types/common.js';
 import { GRVTNormalizer } from './GRVTNormalizer.js';
 import { GRVT_API_URLS } from './constants.js';
 
@@ -113,6 +113,8 @@ export class GRVTWebSocketWrapper {
     const queue: IOrderbookLevels[] = [];
     let error: Error | null = null;
     let subscriptionKey: string | null = null;
+    let resolver: ((value: IOrderbookLevels) => void) | null = null;
+    let rejecter: ((err: Error) => void) | null = null;
 
     // Subscribe to order book stream
     const request: IWSBookRequest = {
@@ -122,10 +124,22 @@ export class GRVTWebSocketWrapper {
         depth,
       },
       onData: (data) => {
-        queue.push(data);
+        if (resolver) {
+          resolver(data);
+          resolver = null;
+          rejecter = null;
+        } else {
+          queue.push(data);
+        }
       },
       onError: (err) => {
         error = err;
+        // Wake up any waiting resolver with error
+        if (rejecter) {
+          rejecter(err);
+          resolver = null;
+          rejecter = null;
+        }
       },
     };
 
@@ -139,14 +153,23 @@ export class GRVTWebSocketWrapper {
           throw error;
         }
 
-        // Wait for data
-        if (queue.length === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          continue;
+        let orderBookData: IOrderbookLevels;
+
+        // Event-driven: wait for data without busy polling
+        if (queue.length > 0) {
+          orderBookData = queue.shift()!;
+        } else {
+          orderBookData = await new Promise<IOrderbookLevels>((resolve, reject) => {
+            resolver = resolve;
+            rejecter = reject;
+          });
         }
 
-        // Process queued updates
-        const orderBookData = queue.shift()!;
+        // Check for errors after awaiting
+        if (error) {
+          throw error;
+        }
+
         const normalized = this.normalizer.normalizeOrderBook(orderBookData);
         yield normalized;
       }
@@ -177,6 +200,8 @@ export class GRVTWebSocketWrapper {
     const queue: ITrade[] = [];
     let error: Error | null = null;
     let subscriptionKey: string | null = null;
+    let resolver: ((value: ITrade) => void) | null = null;
+    let rejecter: ((err: Error) => void) | null = null;
 
     const request: IWSTradeRequest = {
       stream: EStream.TRADE,
@@ -184,10 +209,21 @@ export class GRVTWebSocketWrapper {
         instrument,
       },
       onData: (data) => {
-        queue.push(data);
+        if (resolver) {
+          resolver(data);
+          resolver = null;
+          rejecter = null;
+        } else {
+          queue.push(data);
+        }
       },
       onError: (err) => {
         error = err;
+        if (rejecter) {
+          rejecter(err);
+          resolver = null;
+          rejecter = null;
+        }
       },
     };
 
@@ -197,12 +233,19 @@ export class GRVTWebSocketWrapper {
       while (true) {
         if (error) throw error;
 
-        if (queue.length === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          continue;
+        let tradeData: ITrade;
+
+        if (queue.length > 0) {
+          tradeData = queue.shift()!;
+        } else {
+          tradeData = await new Promise<ITrade>((resolve, reject) => {
+            resolver = resolve;
+            rejecter = reject;
+          });
         }
 
-        const tradeData = queue.shift()!;
+        if (error) throw error;
+
         const normalized = this.normalizer.normalizeTrade(tradeData);
         yield normalized;
       }
@@ -236,6 +279,8 @@ export class GRVTWebSocketWrapper {
     const queue: IPositions[] = [];
     let error: Error | null = null;
     let subscriptionKey: string | null = null;
+    let resolver: ((value: IPositions) => void) | null = null;
+    let rejecter: ((err: Error) => void) | null = null;
 
     const request: IWSTdgPositionRequest = {
       stream: EStream.POSITION,
@@ -244,10 +289,21 @@ export class GRVTWebSocketWrapper {
         ...(instrument && { instrument }),
       },
       onData: (data) => {
-        queue.push(data);
+        if (resolver) {
+          resolver(data);
+          resolver = null;
+          rejecter = null;
+        } else {
+          queue.push(data);
+        }
       },
       onError: (err) => {
         error = err;
+        if (rejecter) {
+          rejecter(err);
+          resolver = null;
+          rejecter = null;
+        }
       },
     };
 
@@ -257,12 +313,19 @@ export class GRVTWebSocketWrapper {
       while (true) {
         if (error) throw error;
 
-        if (queue.length === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          continue;
+        let positionData: IPositions;
+
+        if (queue.length > 0) {
+          positionData = queue.shift()!;
+        } else {
+          positionData = await new Promise<IPositions>((resolve, reject) => {
+            resolver = resolve;
+            rejecter = reject;
+          });
         }
 
-        const positionData = queue.shift()!;
+        if (error) throw error;
+
         const normalized = this.normalizer.normalizePosition(positionData);
         yield normalized;
       }
@@ -296,6 +359,8 @@ export class GRVTWebSocketWrapper {
     const queue: IOrder[] = [];
     let error: Error | null = null;
     let subscriptionKey: string | null = null;
+    let resolver: ((value: IOrder) => void) | null = null;
+    let rejecter: ((err: Error) => void) | null = null;
 
     const request: IWSTdgOrderRequest = {
       stream: EStream.ORDER,
@@ -304,10 +369,21 @@ export class GRVTWebSocketWrapper {
         ...(instrument && { instrument }),
       },
       onData: (data) => {
-        queue.push(data);
+        if (resolver) {
+          resolver(data);
+          resolver = null;
+          rejecter = null;
+        } else {
+          queue.push(data);
+        }
       },
       onError: (err) => {
         error = err;
+        if (rejecter) {
+          rejecter(err);
+          resolver = null;
+          rejecter = null;
+        }
       },
     };
 
@@ -317,12 +393,19 @@ export class GRVTWebSocketWrapper {
       while (true) {
         if (error) throw error;
 
-        if (queue.length === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          continue;
+        let orderData: IOrder;
+
+        if (queue.length > 0) {
+          orderData = queue.shift()!;
+        } else {
+          orderData = await new Promise<IOrder>((resolve, reject) => {
+            resolver = resolve;
+            rejecter = reject;
+          });
         }
 
-        const orderData = queue.shift()!;
+        if (error) throw error;
+
         const normalized = this.normalizer.normalizeOrder(orderData);
         yield normalized;
       }
@@ -330,6 +413,39 @@ export class GRVTWebSocketWrapper {
       if (subscriptionKey) {
         this.ws.unsubscribe(subscriptionKey);
       }
+    }
+  }
+
+  /**
+   * Watch balance updates for user account
+   *
+   * @returns AsyncGenerator yielding Balance array
+   *
+   * @example
+   * ```typescript
+   * for await (const balances of wrapper.watchBalance()) {
+   *   console.log('Balances:', balances);
+   * }
+   * ```
+   */
+  async *watchBalance(): AsyncGenerator<Balance[]> {
+    if (!this.subAccountId) {
+      throw new Error('Sub-account ID required for watching balance');
+    }
+
+    // GRVT WebSocket doesn't have a direct balance stream
+    // Balance updates come through position updates
+    // We'll wrap position stream and extract balance info
+    for await (const position of this.watchPositions()) {
+      // Return balance from position info
+      const balance: Balance = {
+        currency: 'USDT',
+        free: position.margin || 0,
+        used: 0,
+        total: position.margin || 0,
+        info: position.info,
+      };
+      yield [balance];
     }
   }
 
