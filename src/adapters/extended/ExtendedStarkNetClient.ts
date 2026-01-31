@@ -5,7 +5,7 @@
  * Handles on-chain position tracking and transaction submission
  */
 
-import { Account, ec, hash, RpcProvider, Contract, type CallData } from 'starknet';
+import { Account, RpcProvider, Contract, CallData, type AccountOptions, type GetTransactionReceiptResponse, type RawArgs } from 'starknet';
 import type { Position } from '../../types/common.js';
 import type { ExtendedStarkNetState, ExtendedStarkNetTransaction } from './types.js';
 import { EXTENDED_STARKNET_CONFIG } from './constants.js';
@@ -59,8 +59,14 @@ export class ExtendedStarkNetClient {
         throw new Error(`Invalid StarkNet address: ${address}`);
       }
 
-      // TODO: Update to match actual StarkNet library Account constructor signature
-      this.account = (new (Account as any)(this.provider, formattedAddress, privateKey)) as any;
+      // StarkNet.js uses AccountOptions object pattern
+      const accountOptions: AccountOptions = {
+        provider: this.provider,
+        address: formattedAddress,
+        signer: privateKey,
+        cairoVersion: '1',
+      };
+      this.account = new Account(accountOptions);
       this.logger.info('StarkNet account initialized', { address: formattedAddress });
     } catch (error) {
       this.logger.error('Failed to initialize StarkNet account', error instanceof Error ? error : undefined);
@@ -95,6 +101,9 @@ export class ExtendedStarkNetClient {
     }
   }
 
+  // StarkNet ETH contract address (same on mainnet and testnet)
+  private static readonly ETH_CONTRACT_ADDRESS = '0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7';
+
   /**
    * Get account state from StarkNet
    */
@@ -107,16 +116,31 @@ export class ExtendedStarkNetClient {
 
       const formattedAddress = formatStarkNetAddress(targetAddress);
 
-      // TODO: Implement actual balance fetching using StarkNet library
-      // const balance = await this.provider.getBalance(formattedAddress);
-      const balance = '0'; // Stub
+      // Fetch ETH balance using ERC20 balanceOf call
+      let balance = '0';
+      try {
+        const result = await this.provider.callContract({
+          contractAddress: ExtendedStarkNetClient.ETH_CONTRACT_ADDRESS,
+          entrypoint: 'balanceOf',
+          calldata: CallData.compile({ account: formattedAddress }),
+        });
+        // balanceOf returns a u256 as two felts (low, high), we use low for typical balances
+        if (result && result.length > 0) {
+          const lowValue = result[0];
+          if (lowValue !== undefined) {
+            balance = BigInt(lowValue).toString();
+          }
+        }
+      } catch (balanceError) {
+        this.logger.warn('Failed to fetch balance, using 0', { error: balanceError instanceof Error ? balanceError.message : String(balanceError) });
+      }
 
       // Get account nonce
       const nonce = await this.provider.getNonceForAddress(formattedAddress);
 
       return {
         address: formattedAddress,
-        balance: balance.toString(),
+        balance: balance,
         nonce: parseInt(nonce, 16),
       };
     } catch (error) {
@@ -132,14 +156,17 @@ export class ExtendedStarkNetClient {
     try {
       const receipt = await this.provider.getTransactionReceipt(txHash);
 
-      // TODO: Update to match actual StarkNet receipt structure
-      const receiptAny = receipt as any;
+      // StarkNet.js v8+ returns GetTransactionReceiptResponse with helper methods
+      // Use isSuccess()/isReverted() to determine status and access typed properties
+      const executionStatus = receipt.isSuccess() ? 'SUCCEEDED' : receipt.isReverted() ? 'REVERTED' : undefined;
+      const txType = receipt.isError() ? 'INVOKE' : receipt.type;
+      const blockNumber = receipt.isError() ? undefined : receipt.block_number;
 
       return {
         txHash,
-        status: this.mapTransactionStatus(receiptAny.execution_status),
-        type: receiptAny.type || 'INVOKE',
-        blockNumber: receiptAny.block_number,
+        status: this.mapTransactionStatus(executionStatus),
+        type: txType,
+        blockNumber,
         timestamp: Date.now(), // StarkNet doesn't provide timestamp in receipt
       };
     } catch (error) {
@@ -199,16 +226,20 @@ export class ExtendedStarkNetClient {
   async callContract(
     contractAddress: string,
     entrypoint: string,
-    calldata: any = []
-  ): Promise<any> {
+    calldata: RawArgs = []
+  ): Promise<string[]> {
     try {
       const formattedAddress = formatStarkNetAddress(contractAddress);
 
-      // TODO: Properly type calldata according to StarkNet library
+      // Use CallData.compile() for proper calldata formatting
+      const compiledCalldata = Array.isArray(calldata)
+        ? calldata.map(String)
+        : CallData.compile(calldata);
+
       const result = await this.provider.callContract({
         contractAddress: formattedAddress,
         entrypoint,
-        calldata: calldata as any,
+        calldata: compiledCalldata,
       });
 
       return result;
@@ -228,7 +259,7 @@ export class ExtendedStarkNetClient {
   async executeContract(
     contractAddress: string,
     entrypoint: string,
-    calldata: any = []
+    calldata: RawArgs = []
   ): Promise<string> {
     if (!this.account) {
       throw new Error('Account not initialized. Cannot execute contract calls.');
@@ -237,12 +268,16 @@ export class ExtendedStarkNetClient {
     try {
       const formattedAddress = formatStarkNetAddress(contractAddress);
 
-      // TODO: Properly type calldata according to StarkNet library
+      // Use CallData.compile() for proper calldata formatting
+      const compiledCalldata = Array.isArray(calldata)
+        ? calldata.map(String)
+        : CallData.compile(calldata);
+
       const { transaction_hash } = await this.account.execute({
         contractAddress: formattedAddress,
         entrypoint,
-        calldata: calldata as any,
-      } as any);
+        calldata: compiledCalldata,
+      });
 
       this.logger.info('Contract execution initiated', {
         contractAddress: formattedAddress,
@@ -267,7 +302,7 @@ export class ExtendedStarkNetClient {
   async getPositionsFromContract(
     contractAddress: string,
     accountAddress?: string
-  ): Promise<any[]> {
+  ): Promise<string[]> {
     try {
       const targetAddress = accountAddress || this.account?.address;
       if (!targetAddress) {
@@ -345,7 +380,7 @@ export class ExtendedStarkNetClient {
   async estimateFee(
     contractAddress: string,
     entrypoint: string,
-    calldata: any = []
+    calldata: RawArgs = []
   ): Promise<bigint> {
     if (!this.account) {
       throw new Error('Account not initialized. Cannot estimate fees.');
@@ -354,14 +389,19 @@ export class ExtendedStarkNetClient {
     try {
       const formattedAddress = formatStarkNetAddress(contractAddress);
 
-      // TODO: Properly type and use StarkNet library estimateFee method
-      const fee = await (this.account as any).estimateFee({
+      // Use CallData.compile() for proper calldata formatting
+      const compiledCalldata = Array.isArray(calldata)
+        ? calldata.map(String)
+        : CallData.compile(calldata);
+
+      // Use estimateInvokeFee for proper fee estimation
+      const feeEstimate = await this.account.estimateInvokeFee({
         contractAddress: formattedAddress,
         entrypoint,
-        calldata: calldata as any,
+        calldata: compiledCalldata,
       });
 
-      return BigInt(fee.overall_fee.toString());
+      return BigInt(feeEstimate.overall_fee.toString());
     } catch (error) {
       this.logger.error('Failed to estimate fee', error instanceof Error ? error : undefined, { contractAddress, entrypoint });
       throw mapStarkNetError(error);
