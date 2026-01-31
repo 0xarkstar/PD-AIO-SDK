@@ -15,21 +15,32 @@ export interface BackpackConfig {
 
 /**
  * Backpack market response
+ * API uses camelCase
  */
 export interface BackpackMarket {
   symbol: string;
-  base_currency: string;
-  quote_currency: string;
-  settlement_currency: string;
-  status: string;
-  min_order_size: string;
-  max_order_size: string;
-  tick_size: string;
-  step_size: string;
-  maker_fee: string;
-  taker_fee: string;
-  max_leverage: string;
-  is_active: boolean;
+  baseSymbol: string;
+  quoteSymbol: string;
+  marketType: 'SPOT' | 'PERP';
+  orderBookState: string;
+  visible: boolean;
+  filters: {
+    price: {
+      tickSize: string;
+      minPrice?: string;
+      maxPrice?: string | null;
+    };
+    quantity: {
+      stepSize: string;
+      minQuantity: string;
+      maxQuantity?: string | null;
+    };
+  };
+  fundingInterval?: number | null;
+  imfFunction?: unknown;
+  mmfFunction?: unknown;
+  positionLimitWeight?: unknown;
+  openInterestLimit?: string;
 }
 
 /**
@@ -81,54 +92,52 @@ export interface BackpackBalance {
 }
 
 /**
- * Backpack order book response
+ * Backpack order book response (depth endpoint)
  */
 export interface BackpackOrderBook {
-  market: string;
   bids: [string, string][];
   asks: [string, string][];
-  timestamp: number;
-  last_update_id: number;
+  lastUpdateId?: string;
 }
 
 /**
  * Backpack trade response
+ * API uses camelCase
  */
 export interface BackpackTrade {
-  id: string;
-  market: string;
-  side: 'BUY' | 'SELL';
+  id: number;
   price: string;
-  size: string;
+  quantity: string;
+  quoteQuantity: string;
   timestamp: number;
+  isBuyerMaker: boolean;
 }
 
 /**
  * Backpack ticker response
+ * API returns camelCase fields
  */
 export interface BackpackTicker {
-  market: string;
-  last_price: string;
-  bid: string;
-  ask: string;
-  high_24h: string;
-  low_24h: string;
-  volume_24h: string;
-  price_change_24h: string;
-  price_change_percent_24h: string;
-  timestamp: number;
+  symbol: string;
+  firstPrice: string;
+  lastPrice: string;
+  high: string;
+  low: string;
+  volume: string;
+  quoteVolume: string;
+  priceChange: string;
+  priceChangePercent: string;
+  trades: string;
 }
 
 /**
  * Backpack funding rate response
+ * API returns: { fundingRate, intervalEndTimestamp, symbol }
  */
 export interface BackpackFundingRate {
-  market: string;
-  rate: string;
-  timestamp: number;
-  next_funding_time: number;
-  mark_price: string;
-  index_price: string;
+  symbol: string;
+  fundingRate: string;
+  intervalEndTimestamp: string;
 }
 
 /**

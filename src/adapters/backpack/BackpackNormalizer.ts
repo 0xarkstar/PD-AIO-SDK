@@ -33,21 +33,58 @@ export class BackpackNormalizer {
   /**
    * Normalize Backpack symbol to unified format
    *
+   * Backpack uses underscore-separated format:
+   * - New format: SOL_USDC_PERP, BTC_USDC_PERP (base_quote_perp)
+   * - Legacy format: BTCUSDT_PERP, SOLUSDT_PERP (basequote_perp - for test compatibility)
+   * - Spot: SOL_USDC, BTC_USDC
+   *
    * @example
-   * normalizeSymbol('BTCUSDT_PERP') // 'BTC/USDT:USDT'
-   * normalizeSymbol('ETHUSDT_PERP') // 'ETH/USDT:USDT'
+   * normalizeSymbol('SOL_USDC_PERP') // 'SOL/USDC:USDC'
+   * normalizeSymbol('BTCUSDT_PERP') // 'BTC/USDT:USDT' (legacy)
+   * normalizeSymbol('SOL_USDC') // 'SOL/USDC'
    */
   normalizeSymbol(backpackSymbol: string): string {
-    // Backpack format: BTCUSDT_PERP, ETHUSDT_PERP
+    // Perpetual format: BASE_QUOTE_PERP or BASEQUOTE_PERP
     if (backpackSymbol.endsWith('_PERP')) {
-      const pair = backpackSymbol.replace('_PERP', '');
-      // Extract base and quote - usually quote is USDT
-      const quote = 'USDT';
-      const base = pair.replace(quote, '');
-      return `${base}/${quote}:${quote}`;
+      const withoutPerp = backpackSymbol.replace('_PERP', '');
+      const parts = withoutPerp.split('_');
+
+      if (parts.length >= 2) {
+        // New format: SOL_USDC_PERP -> SOL/USDC:USDC
+        const base = parts[0];
+        const quote = parts[1];
+        return `${base}/${quote}:${quote}`;
+      } else {
+        // Legacy format: BTCUSDT_PERP -> BTC/USDT:USDT
+        // Try to extract quote (USDT, USDC, USD)
+        const pair = parts[0] || '';
+        const quoteMatch = pair.match(/(USDT|USDC|USD)$/);
+        if (quoteMatch && quoteMatch[1]) {
+          const quote = quoteMatch[1];
+          const base = pair.replace(quote, '');
+          return `${base}/${quote}:${quote}`;
+        }
+      }
     }
 
-    // Fallback for spot markets
+    // Spot format: BASE_QUOTE or BASEQUOTE
+    const parts = backpackSymbol.split('_');
+    if (parts.length >= 2) {
+      // New format: SOL_USDC -> SOL/USDC
+      const base = parts[0];
+      const quote = parts[1];
+      return `${base}/${quote}`;
+    } else {
+      // Legacy format: BTCUSDT -> BTC/USDT
+      const quoteMatch = backpackSymbol.match(/(USDT|USDC|USD)$/);
+      if (quoteMatch && quoteMatch[1]) {
+        const quote = quoteMatch[1];
+        const base = backpackSymbol.replace(quote, '');
+        return `${base}/${quote}`;
+      }
+    }
+
+    // Fallback
     return backpackSymbol;
   }
 
@@ -55,20 +92,26 @@ export class BackpackNormalizer {
    * Convert unified symbol to Backpack format
    *
    * @example
-   * toBackpackSymbol('BTC/USDT:USDT') // 'BTCUSDT_PERP'
-   * toBackpackSymbol('ETH/USDT:USDT') // 'ETHUSDT_PERP'
+   * toBackpackSymbol('SOL/USDC:USDC') // 'SOL_USDC_PERP'
+   * toBackpackSymbol('BTC/USDC:USDC') // 'BTC_USDC_PERP'
+   * toBackpackSymbol('SOL/USDC') // 'SOL_USDC'
    */
   toBackpackSymbol(symbol: string): string {
     const parts = symbol.split(':');
 
     if (parts.length === 2) {
-      // Perpetual format
+      // Perpetual format: BASE/QUOTE:SETTLE -> BASE_QUOTE_PERP
       const [pair = ''] = parts;
       const [base = '', quote = ''] = pair.split('/');
-      return `${base}${quote}_PERP`;
+      return `${base}_${quote}_PERP`;
     }
 
-    // Spot format
+    // Spot format: BASE/QUOTE -> BASE_QUOTE
+    const [base = '', quote = ''] = symbol.split('/');
+    if (base && quote) {
+      return `${base}_${quote}`;
+    }
+
     return symbol;
   }
 
@@ -77,23 +120,28 @@ export class BackpackNormalizer {
    */
   normalizeMarket(backpackMarket: BackpackMarket): Market {
     const symbol = this.normalizeSymbol(backpackMarket.symbol);
+    const isPerpetual = backpackMarket.marketType === 'PERP' || backpackMarket.symbol.endsWith('_PERP');
+
+    // Handle potentially missing filter fields
+    const priceFilters = backpackMarket.filters?.price ?? { tickSize: '0.01' };
+    const quantityFilters = backpackMarket.filters?.quantity ?? { stepSize: '0.001', minQuantity: '0.001' };
 
     return {
       id: backpackMarket.symbol,
       symbol,
-      base: backpackMarket.base_currency,
-      quote: backpackMarket.quote_currency,
-      settle: backpackMarket.settlement_currency,
-      active: backpackMarket.is_active,
-      minAmount: parseFloat(backpackMarket.min_order_size),
-      pricePrecision: this.countDecimals(backpackMarket.tick_size),
-      amountPrecision: this.countDecimals(backpackMarket.step_size),
-      priceTickSize: parseFloat(backpackMarket.tick_size),
-      amountStepSize: parseFloat(backpackMarket.step_size),
-      makerFee: parseFloat(backpackMarket.maker_fee),
-      takerFee: parseFloat(backpackMarket.taker_fee),
-      maxLeverage: parseFloat(backpackMarket.max_leverage),
-      fundingIntervalHours: 8,
+      base: backpackMarket.baseSymbol || symbol.split('/')[0] || '',
+      quote: backpackMarket.quoteSymbol || symbol.split('/')[1]?.split(':')[0] || '',
+      settle: backpackMarket.quoteSymbol || symbol.split('/')[1]?.split(':')[0] || '',
+      active: backpackMarket.visible !== false && backpackMarket.orderBookState !== 'Closed',
+      minAmount: parseFloat(quantityFilters.minQuantity || '0'),
+      pricePrecision: this.countDecimals(priceFilters.tickSize || '0.01'),
+      amountPrecision: this.countDecimals(quantityFilters.stepSize || '0.001'),
+      priceTickSize: parseFloat(priceFilters.tickSize || '0.01'),
+      amountStepSize: parseFloat(quantityFilters.stepSize || '0.001'),
+      makerFee: 0, // Not provided in market endpoint
+      takerFee: 0, // Not provided in market endpoint
+      maxLeverage: isPerpetual ? 20 : 1, // Perpetuals support leverage
+      fundingIntervalHours: backpackMarket.fundingInterval ? backpackMarket.fundingInterval / 3600000 : 1,
     };
   }
 
@@ -171,36 +219,31 @@ export class BackpackNormalizer {
   /**
    * Normalize Backpack order book to unified format
    */
-  normalizeOrderBook(backpackOrderBook: BackpackOrderBook): OrderBook {
+  normalizeOrderBook(backpackOrderBook: BackpackOrderBook, symbol?: string): OrderBook {
     return {
-      symbol: this.normalizeSymbol(backpackOrderBook.market),
+      symbol: symbol || '',
       exchange: 'backpack',
-      bids: backpackOrderBook.bids.map(([price, size]) => [
-        parseFloat(price),
-        parseFloat(size),
-      ]),
-      asks: backpackOrderBook.asks.map(([price, size]) => [
-        parseFloat(price),
-        parseFloat(size),
-      ]),
-      timestamp: backpackOrderBook.timestamp,
+      bids: backpackOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+      asks: backpackOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+      timestamp: Date.now(),
     };
   }
 
   /**
    * Normalize Backpack trade to unified format
    */
-  normalizeTrade(backpackTrade: BackpackTrade): Trade {
+  normalizeTrade(backpackTrade: BackpackTrade, symbol?: string): Trade {
     const price = parseFloat(backpackTrade.price);
-    const amount = parseFloat(backpackTrade.size);
+    const amount = parseFloat(backpackTrade.quantity);
 
     return {
-      id: backpackTrade.id,
-      symbol: this.normalizeSymbol(backpackTrade.market),
-      side: this.normalizeOrderSide(backpackTrade.side),
+      id: backpackTrade.id.toString(),
+      symbol: symbol || '',
+      // isBuyerMaker = true means the maker was a buyer, so the taker (aggressor) was selling
+      side: backpackTrade.isBuyerMaker ? 'sell' : 'buy',
       price,
       amount,
-      cost: price * amount,
+      cost: parseFloat(backpackTrade.quoteQuantity),
       timestamp: backpackTrade.timestamp,
       info: backpackTrade as unknown as Record<string, unknown>,
     };
@@ -210,24 +253,25 @@ export class BackpackNormalizer {
    * Normalize Backpack ticker to unified format
    */
   normalizeTicker(backpackTicker: BackpackTicker): Ticker {
-    const last = parseFloat(backpackTicker.last_price);
-    const change = parseFloat(backpackTicker.price_change_24h);
-    const percentage = parseFloat(backpackTicker.price_change_percent_24h);
+    const last = parseFloat(backpackTicker.lastPrice);
+    const first = parseFloat(backpackTicker.firstPrice);
+    const change = parseFloat(backpackTicker.priceChange);
+    const percentage = parseFloat(backpackTicker.priceChangePercent) * 100; // Convert to percentage
 
     return {
-      symbol: this.normalizeSymbol(backpackTicker.market),
+      symbol: this.normalizeSymbol(backpackTicker.symbol),
       last,
-      open: last - change,
+      open: first,
       close: last,
-      bid: parseFloat(backpackTicker.bid),
-      ask: parseFloat(backpackTicker.ask),
-      high: parseFloat(backpackTicker.high_24h),
-      low: parseFloat(backpackTicker.low_24h),
+      bid: 0, // Not provided in ticker endpoint
+      ask: 0, // Not provided in ticker endpoint
+      high: parseFloat(backpackTicker.high),
+      low: parseFloat(backpackTicker.low),
       change,
       percentage,
-      baseVolume: parseFloat(backpackTicker.volume_24h),
-      quoteVolume: 0,
-      timestamp: backpackTicker.timestamp,
+      baseVolume: parseFloat(backpackTicker.volume),
+      quoteVolume: parseFloat(backpackTicker.quoteVolume),
+      timestamp: Date.now(),
       info: backpackTicker as unknown as Record<string, unknown>,
     };
   }
@@ -236,14 +280,19 @@ export class BackpackNormalizer {
    * Normalize Backpack funding rate to unified format
    */
   normalizeFundingRate(backpackFunding: BackpackFundingRate): FundingRate {
+    // Parse the ISO timestamp to milliseconds
+    const fundingTimestamp = new Date(backpackFunding.intervalEndTimestamp).getTime();
+
     return {
-      symbol: this.normalizeSymbol(backpackFunding.market),
-      fundingRate: parseFloat(backpackFunding.rate),
-      fundingTimestamp: backpackFunding.timestamp,
-      markPrice: parseFloat(backpackFunding.mark_price),
-      indexPrice: parseFloat(backpackFunding.index_price),
-      nextFundingTimestamp: backpackFunding.next_funding_time,
-      fundingIntervalHours: 8,
+      symbol: this.normalizeSymbol(backpackFunding.symbol),
+      fundingRate: parseFloat(backpackFunding.fundingRate),
+      fundingTimestamp,
+      nextFundingTimestamp: fundingTimestamp + 3600000, // Hourly funding
+      // Backpack funding rate endpoint doesn't include mark/index price
+      markPrice: 0,
+      indexPrice: 0,
+      // Hourly funding
+      fundingIntervalHours: 1,
       info: backpackFunding as unknown as Record<string, unknown>,
     };
   }

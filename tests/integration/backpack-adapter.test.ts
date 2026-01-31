@@ -98,14 +98,14 @@ describe('BackpackAdapter Integration Tests', () => {
       expect(adapter.has.watchTicker).toBe(true);
     });
 
-    test('throws error when initialized without API key', async () => {
+    test('initializes without API key for public API access', async () => {
       const adapterNoKey = new BackpackAdapter({
         testnet: true,
       });
 
-      await expect(adapterNoKey.initialize()).rejects.toThrow(
-        'API key is required for Backpack'
-      );
+      // Should not throw - public API access is allowed without auth
+      await expect(adapterNoKey.initialize()).resolves.not.toThrow();
+      expect(adapterNoKey.isReady).toBe(true);
     });
   });
 
@@ -115,37 +115,35 @@ describe('BackpackAdapter Integration Tests', () => {
 
   describe('Market Data Methods', () => {
     test('fetchMarkets - fetches and normalizes all markets', async () => {
-      // Backpack returns array directly
+      // Backpack returns array directly with new format
       mockSuccessResponse([
         {
-          symbol: 'BTCUSDT_PERP',
-          base_currency: 'BTC',
-          quote_currency: 'USDT',
-          settlement_currency: 'USDT',
-          status: 'ACTIVE',
-          min_order_size: '0.001',
-          max_order_size: '100',
-          tick_size: '0.5',
-          step_size: '0.001',
-          maker_fee: '0.0002',
-          taker_fee: '0.0005',
-          max_leverage: '10',
-          is_active: true,
+          symbol: 'BTC_USDC_PERP',
+          baseSymbol: 'BTC',
+          quoteSymbol: 'USDC',
+          marketType: 'PERP',
+          orderBookState: 'Open',
+          visible: true,
+          filters: {
+            price: { tickSize: '0.5', minPrice: '0.01', maxPrice: null },
+            quantity: { stepSize: '0.001', minQuantity: '0.001', maxQuantity: null },
+          },
+          fundingInterval: 3600000,
+          openInterestLimit: '0',
         },
         {
-          symbol: 'ETHUSDT_PERP',
-          base_currency: 'ETH',
-          quote_currency: 'USDT',
-          settlement_currency: 'USDT',
-          status: 'ACTIVE',
-          min_order_size: '0.01',
-          max_order_size: '1000',
-          tick_size: '0.1',
-          step_size: '0.01',
-          maker_fee: '0.0002',
-          taker_fee: '0.0005',
-          max_leverage: '10',
-          is_active: true,
+          symbol: 'ETH_USDC_PERP',
+          baseSymbol: 'ETH',
+          quoteSymbol: 'USDC',
+          marketType: 'PERP',
+          orderBookState: 'Open',
+          visible: true,
+          filters: {
+            price: { tickSize: '0.1', minPrice: '0.01', maxPrice: null },
+            quantity: { stepSize: '0.01', minQuantity: '0.01', maxQuantity: null },
+          },
+          fundingInterval: 3600000,
+          openInterestLimit: '0',
         },
       ]);
 
@@ -153,14 +151,14 @@ describe('BackpackAdapter Integration Tests', () => {
 
       expect(markets).toHaveLength(2);
       expect(markets[0]).toMatchObject({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         base: 'BTC',
-        quote: 'USDT',
-        settle: 'USDT',
+        quote: 'USDC',
+        settle: 'USDC',
         active: true,
-        maxLeverage: 10,
+        maxLeverage: 20, // Perpetuals use 20x max leverage
       });
-      expect(markets[1].symbol).toBe('ETH/USDT:USDT');
+      expect(markets[1].symbol).toBe('ETH/USDC:USDC');
     });
 
     test('fetchMarkets - handles empty markets array', async () => {
@@ -181,7 +179,7 @@ describe('BackpackAdapter Integration Tests', () => {
 
     test('fetchOrderBook - fetches and normalizes order book', async () => {
       mockSuccessResponse({
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         bids: [
           ['50000', '1.5'],
           ['49999', '2.0'],
@@ -194,9 +192,9 @@ describe('BackpackAdapter Integration Tests', () => {
         last_update_id: 123456,
       });
 
-      const orderBook = await adapter.fetchOrderBook('BTC/USDT:USDT');
+      const orderBook = await adapter.fetchOrderBook('BTC/USDC:USDC');
 
-      expect(orderBook.symbol).toBe('BTC/USDT:USDT');
+      expect(orderBook.symbol).toBe('BTC/USDC:USDC');
       expect(orderBook.exchange).toBe('backpack');
       expect(orderBook.bids.length).toBeGreaterThan(0);
       expect(orderBook.asks.length).toBeGreaterThan(0);
@@ -206,60 +204,59 @@ describe('BackpackAdapter Integration Tests', () => {
 
     test('fetchOrderBook - supports depth parameter', async () => {
       mockSuccessResponse({
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         bids: [['50000', '1.5']],
         asks: [['50100', '1.2']],
         timestamp: Date.now(),
         last_update_id: 123456,
       });
 
-      await adapter.fetchOrderBook('BTC/USDT:USDT', { limit: 10 });
+      await adapter.fetchOrderBook('BTC/USDC:USDC', { limit: 10 });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('?depth=10'),
+        expect.stringContaining('depth=10'),
         expect.any(Object)
       );
     });
 
     test('fetchTrades - fetches and normalizes recent trades', async () => {
-      mockSuccessResponse({
-        trades: [
-          {
-            id: '12345',
-            market: 'BTCUSDT_PERP',
-            side: 'BUY',
-            price: '50000',
-            size: '0.5',
-            timestamp: Date.now(),
-          },
-          {
-            id: '12346',
-            market: 'BTCUSDT_PERP',
-            side: 'SELL',
-            price: '49999',
-            size: '0.3',
-            timestamp: Date.now(),
-          },
-        ],
-      });
+      // Backpack returns trades as an array with new format
+      mockSuccessResponse([
+        {
+          id: 12345,
+          price: '50000',
+          quantity: '0.5',
+          quoteQuantity: '25000',
+          timestamp: Date.now(),
+          isBuyerMaker: false,
+        },
+        {
+          id: 12346,
+          price: '49999',
+          quantity: '0.3',
+          quoteQuantity: '14999.7',
+          timestamp: Date.now(),
+          isBuyerMaker: true,
+        },
+      ]);
 
-      const trades = await adapter.fetchTrades('BTC/USDT:USDT');
+      const trades = await adapter.fetchTrades('BTC/USDC:USDC');
 
       expect(Array.isArray(trades)).toBe(true);
       expect(trades).toHaveLength(2);
-      expect(trades[0].symbol).toBe('BTC/USDT:USDT');
+      expect(trades[0].symbol).toBe('BTC/USDC:USDC');
       expect(trades[0].side).toBe('buy');
       expect(trades[0].price).toBe(50000);
       expect(trades[0].amount).toBe(0.5);
     });
 
     test('fetchTrades - supports limit parameter', async () => {
-      mockSuccessResponse({ trades: [] });
+      mockSuccessResponse([]);
 
-      await adapter.fetchTrades('BTC/USDT:USDT', { limit: 50 });
+      await adapter.fetchTrades('BTC/USDC:USDC', { limit: 50 });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('?limit=50'),
+        expect.stringContaining('limit=50'),
         expect.any(Object)
       );
     });
@@ -267,116 +264,120 @@ describe('BackpackAdapter Integration Tests', () => {
     test('fetchTrades - throws error on invalid response', async () => {
       mockSuccessResponse({ invalid: 'response' });
 
-      await expect(adapter.fetchTrades('BTC/USDT:USDT')).rejects.toThrow(
+      await expect(adapter.fetchTrades('BTC/USDC:USDC')).rejects.toThrow(
         'Invalid trades response'
       );
     });
 
     test('fetchTicker - fetches and normalizes ticker', async () => {
+      // New Backpack ticker format
       mockSuccessResponse({
-        market: 'BTCUSDT_PERP',
-        last_price: '50000',
-        bid: '49999',
-        ask: '50001',
-        high_24h: '51000',
-        low_24h: '49000',
-        volume_24h: '1000',
-        price_change_24h: '500',
-        price_change_percent_24h: '1.0',
-        timestamp: Date.now(),
+        symbol: 'BTC_USDC_PERP',
+        firstPrice: '49500',
+        lastPrice: '50000',
+        high: '51000',
+        low: '49000',
+        volume: '1000',
+        quoteVolume: '50000000',
+        priceChange: '500',
+        priceChangePercent: '0.01',
+        trades: '5000',
       });
 
-      const ticker = await adapter.fetchTicker('BTC/USDT:USDT');
+      const ticker = await adapter.fetchTicker('BTC/USDC:USDC');
 
-      expect(ticker.symbol).toBe('BTC/USDT:USDT');
+      expect(ticker.symbol).toBe('BTC/USDC:USDC');
       expect(ticker.last).toBe(50000);
-      expect(ticker.bid).toBe(49999);
-      expect(ticker.ask).toBe(50001);
       expect(ticker.high).toBe(51000);
       expect(ticker.low).toBe(49000);
     });
 
     test('fetchFundingRate - fetches current funding rate', async () => {
-      const now = Date.now();
-      mockSuccessResponse({
-        market: 'BTCUSDT_PERP',
-        rate: '0.0001',
-        timestamp: now,
-        next_funding_time: now + 28800000, // 8 hours
-        mark_price: '50000',
-        index_price: '49995',
-      });
+      // New format: array of funding rates
+      mockSuccessResponse([
+        {
+          symbol: 'BTC_USDC_PERP',
+          fundingRate: '0.0001',
+          intervalEndTimestamp: new Date().toISOString(),
+        },
+      ]);
 
-      const fundingRate = await adapter.fetchFundingRate('BTC/USDT:USDT');
+      const fundingRate = await adapter.fetchFundingRate('BTC/USDC:USDC');
 
-      expect(fundingRate.symbol).toBe('BTC/USDT:USDT');
+      expect(fundingRate.symbol).toBe('BTC/USDC:USDC');
       expect(fundingRate.fundingRate).toBe(0.0001);
-      expect(fundingRate.markPrice).toBe(50000);
-      expect(fundingRate.indexPrice).toBe(49995);
-      expect(fundingRate.fundingIntervalHours).toBe(8);
+      expect(fundingRate.fundingIntervalHours).toBe(1);
     });
 
     test('fetchFundingRate - handles negative funding rate', async () => {
-      const now = Date.now();
-      mockSuccessResponse({
-        market: 'BTCUSDT_PERP',
-        rate: '-0.0002',
-        timestamp: now,
-        next_funding_time: now + 28800000,
-        mark_price: '50000',
-        index_price: '50010',
-      });
+      mockSuccessResponse([
+        {
+          symbol: 'BTC_USDC_PERP',
+          fundingRate: '-0.0002',
+          intervalEndTimestamp: new Date().toISOString(),
+        },
+      ]);
 
-      const fundingRate = await adapter.fetchFundingRate('BTC/USDT:USDT');
+      const fundingRate = await adapter.fetchFundingRate('BTC/USDC:USDC');
 
       expect(fundingRate.fundingRate).toBe(-0.0002);
     });
 
-    test('fetchFundingRateHistory - throws not supported error', async () => {
-      await expect(
-        adapter.fetchFundingRateHistory('BTC/USDT:USDT')
-      ).rejects.toThrow('Backpack does not support funding rate history');
+    test('fetchFundingRateHistory - fetches funding rate history', async () => {
+      mockSuccessResponse([
+        {
+          symbol: 'BTC_USDC_PERP',
+          fundingRate: '0.0001',
+          intervalEndTimestamp: '2026-01-31T20:00:00',
+        },
+        {
+          symbol: 'BTC_USDC_PERP',
+          fundingRate: '-0.00005',
+          intervalEndTimestamp: '2026-01-31T19:00:00',
+        },
+      ]);
+
+      const history = await adapter.fetchFundingRateHistory('BTC/USDC:USDC');
+
+      expect(history).toHaveLength(2);
+      expect(history[0].fundingRate).toBe(0.0001);
+      expect(history[1].fundingRate).toBe(-0.00005);
     });
 
     test('fetchMarkets - validates market data structure', async () => {
-      // Backpack returns array directly
+      // New Backpack market format
       mockSuccessResponse([
         {
-          symbol: 'BTCUSDT_PERP',
-          base_currency: 'BTC',
-          quote_currency: 'USDT',
-          settlement_currency: 'USDT',
-          status: 'ACTIVE',
-          min_order_size: '0.001',
-          max_order_size: '100',
-          tick_size: '0.5',
-          step_size: '0.001',
-          maker_fee: '0.0002',
-          taker_fee: '0.0005',
-          max_leverage: '10',
-          is_active: true,
+          symbol: 'BTC_USDC_PERP',
+          baseSymbol: 'BTC',
+          quoteSymbol: 'USDC',
+          marketType: 'PERP',
+          orderBookState: 'Open',
+          visible: true,
+          filters: {
+            price: { tickSize: '0.5', minPrice: '0.01', maxPrice: null },
+            quantity: { stepSize: '0.001', minQuantity: '0.001', maxQuantity: null },
+          },
+          fundingInterval: 3600000,
+          openInterestLimit: '0',
         },
       ]);
 
       const markets = await adapter.fetchMarkets();
 
-      expect(markets[0].pricePrecision).toBe(1); // tick_size: '0.5'
-      expect(markets[0].amountPrecision).toBe(3); // step_size: '0.001'
+      expect(markets[0].pricePrecision).toBe(1); // tickSize: '0.5'
+      expect(markets[0].amountPrecision).toBe(3); // stepSize: '0.001'
       expect(markets[0].minAmount).toBe(0.001);
-      expect(markets[0].makerFee).toBe(0.0002);
-      expect(markets[0].takerFee).toBe(0.0005);
     });
 
     test('fetchOrderBook - handles empty order book', async () => {
+      // New format: just bids and asks
       mockSuccessResponse({
-        market: 'BTCUSDT_PERP',
         bids: [],
         asks: [],
-        timestamp: Date.now(),
-        last_update_id: 123456,
       });
 
-      const orderBook = await adapter.fetchOrderBook('BTC/USDT:USDT');
+      const orderBook = await adapter.fetchOrderBook('BTC/USDC:USDC');
 
       expect(orderBook.bids).toHaveLength(0);
       expect(orderBook.asks).toHaveLength(0);
@@ -392,7 +393,7 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         positions: [
           {
-            market: 'BTCUSDT_PERP',
+            market: 'BTC_USDC_PERP',
             side: 'LONG',
             size: '0.5',
             entry_price: '48000',
@@ -412,7 +413,7 @@ describe('BackpackAdapter Integration Tests', () => {
       expect(Array.isArray(positions)).toBe(true);
       expect(positions).toHaveLength(1);
       expect(positions[0]).toMatchObject({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         side: 'long',
         size: 0.5,
         entryPrice: 48000,
@@ -425,7 +426,7 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         positions: [
           {
-            market: 'BTCUSDT_PERP',
+            market: 'BTC_USDC_PERP',
             side: 'LONG',
             size: '0.5',
             entry_price: '48000',
@@ -437,7 +438,7 @@ describe('BackpackAdapter Integration Tests', () => {
             timestamp: Date.now(),
           },
           {
-            market: 'ETHUSDT_PERP',
+            market: 'ETH_USDC_PERP',
             side: 'SHORT',
             size: '5.0',
             entry_price: '3000',
@@ -451,10 +452,10 @@ describe('BackpackAdapter Integration Tests', () => {
         ],
       });
 
-      const positions = await adapter.fetchPositions(['BTC/USDT:USDT']);
+      const positions = await adapter.fetchPositions(['BTC/USDC:USDC']);
 
       expect(positions).toHaveLength(1);
-      expect(positions[0].symbol).toBe('BTC/USDT:USDT');
+      expect(positions[0].symbol).toBe('BTC/USDC:USDC');
     });
 
     test('fetchPositions - handles empty positions', async () => {
@@ -513,14 +514,14 @@ describe('BackpackAdapter Integration Tests', () => {
     test('setLeverage - sets leverage for a symbol', async () => {
       mockSuccessResponse({ success: true });
 
-      await adapter.setLeverage('BTC/USDT:USDT', 5);
+      await adapter.setLeverage('BTC/USDC:USDC', 5);
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/account/leverage'),
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({
-            market: 'BTCUSDT_PERP',
+            market: 'BTC_USDC_PERP',
             leverage: '5',
           }),
         })
@@ -531,7 +532,7 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         positions: [
           {
-            market: 'ETHUSDT_PERP',
+            market: 'ETH_USDC_PERP',
             side: 'SHORT',
             size: '5.0',
             entry_price: '3000',
@@ -555,7 +556,7 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         positions: [
           {
-            market: 'BTCUSDT_PERP',
+            market: 'BTC_USDC_PERP',
             side: 'LONG',
             size: '0.5',
             entry_price: '48000',
@@ -602,7 +603,7 @@ describe('BackpackAdapter Integration Tests', () => {
     test('createOrder - creates limit buy order', async () => {
       mockSuccessResponse({
         order_id: '123456',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'BUY',
         type: 'LIMIT',
         size: '0.1',
@@ -617,7 +618,7 @@ describe('BackpackAdapter Integration Tests', () => {
       });
 
       const order = await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'limit',
         side: 'buy',
         amount: 0.1,
@@ -625,7 +626,7 @@ describe('BackpackAdapter Integration Tests', () => {
       });
 
       expect(order).toMatchObject({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'limit',
         side: 'buy',
         amount: 0.1,
@@ -637,7 +638,7 @@ describe('BackpackAdapter Integration Tests', () => {
     test('createOrder - creates market sell order', async () => {
       mockSuccessResponse({
         order_id: '123457',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'SELL',
         type: 'MARKET',
         size: '0.05',
@@ -652,14 +653,14 @@ describe('BackpackAdapter Integration Tests', () => {
       });
 
       const order = await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'market',
         side: 'sell',
         amount: 0.05,
       });
 
       expect(order).toMatchObject({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'market',
         side: 'sell',
         amount: 0.05,
@@ -670,7 +671,7 @@ describe('BackpackAdapter Integration Tests', () => {
     test('createOrder - creates post-only order', async () => {
       mockSuccessResponse({
         order_id: '123458',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'BUY',
         type: 'POST_ONLY',
         size: '0.1',
@@ -685,7 +686,7 @@ describe('BackpackAdapter Integration Tests', () => {
       });
 
       const order = await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'limit',
         side: 'buy',
         amount: 0.1,
@@ -699,7 +700,7 @@ describe('BackpackAdapter Integration Tests', () => {
     test('createOrder - creates reduce-only order', async () => {
       mockSuccessResponse({
         order_id: '123459',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'SELL',
         type: 'LIMIT',
         size: '0.5',
@@ -714,7 +715,7 @@ describe('BackpackAdapter Integration Tests', () => {
       });
 
       const order = await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'limit',
         side: 'sell',
         amount: 0.5,
@@ -729,7 +730,7 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         order_id: '123460',
         client_order_id: 'my-order-123',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'BUY',
         type: 'LIMIT',
         size: '0.1',
@@ -744,7 +745,7 @@ describe('BackpackAdapter Integration Tests', () => {
       });
 
       const order = await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'limit',
         side: 'buy',
         amount: 0.1,
@@ -758,7 +759,7 @@ describe('BackpackAdapter Integration Tests', () => {
     test('createOrder - creates IOC order', async () => {
       mockSuccessResponse({
         order_id: '123461',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'BUY',
         type: 'LIMIT',
         size: '0.1',
@@ -773,7 +774,7 @@ describe('BackpackAdapter Integration Tests', () => {
       });
 
       const order = await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'limit',
         side: 'buy',
         amount: 0.1,
@@ -788,7 +789,7 @@ describe('BackpackAdapter Integration Tests', () => {
     test('createOrder - creates FOK order', async () => {
       mockSuccessResponse({
         order_id: '123462',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'BUY',
         type: 'LIMIT',
         size: '0.1',
@@ -803,7 +804,7 @@ describe('BackpackAdapter Integration Tests', () => {
       });
 
       const order = await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'limit',
         side: 'buy',
         amount: 0.1,
@@ -817,7 +818,7 @@ describe('BackpackAdapter Integration Tests', () => {
     test('cancelOrder - cancels an existing order', async () => {
       mockSuccessResponse({
         order_id: '123456',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'BUY',
         type: 'LIMIT',
         size: '0.1',
@@ -847,7 +848,7 @@ describe('BackpackAdapter Integration Tests', () => {
         orders: [
           {
             order_id: '123456',
-            market: 'BTCUSDT_PERP',
+            market: 'BTC_USDC_PERP',
             side: 'BUY',
             type: 'LIMIT',
             size: '0.1',
@@ -875,7 +876,7 @@ describe('BackpackAdapter Integration Tests', () => {
         orders: [
           {
             order_id: '123456',
-            market: 'BTCUSDT_PERP',
+            market: 'BTC_USDC_PERP',
             side: 'BUY',
             type: 'LIMIT',
             size: '0.1',
@@ -891,14 +892,14 @@ describe('BackpackAdapter Integration Tests', () => {
         ],
       });
 
-      const orders = await adapter.cancelAllOrders('BTC/USDT:USDT');
+      const orders = await adapter.cancelAllOrders('BTC/USDC:USDC');
 
       expect(orders).toHaveLength(1);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           method: 'DELETE',
-          body: JSON.stringify({ market: 'BTCUSDT_PERP' }),
+          body: JSON.stringify({ market: 'BTC_USDC_PERP' }),
         })
       );
     });
@@ -914,7 +915,7 @@ describe('BackpackAdapter Integration Tests', () => {
     test('fetchOrder - fetches a specific order', async () => {
       mockSuccessResponse({
         order_id: '123456',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'BUY',
         type: 'LIMIT',
         size: '0.1',
@@ -940,7 +941,7 @@ describe('BackpackAdapter Integration Tests', () => {
         orders: [
           {
             order_id: '123456',
-            market: 'BTCUSDT_PERP',
+            market: 'BTC_USDC_PERP',
             side: 'BUY',
             type: 'LIMIT',
             size: '0.1',
@@ -968,7 +969,7 @@ describe('BackpackAdapter Integration Tests', () => {
         orders: [
           {
             order_id: '123456',
-            market: 'BTCUSDT_PERP',
+            market: 'BTC_USDC_PERP',
             side: 'BUY',
             type: 'LIMIT',
             size: '0.1',
@@ -984,10 +985,10 @@ describe('BackpackAdapter Integration Tests', () => {
         ],
       });
 
-      await adapter.fetchOpenOrders('BTC/USDT:USDT');
+      await adapter.fetchOpenOrders('BTC/USDC:USDC');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('?market=BTCUSDT_PERP'),
+        expect.stringContaining('?market=BTC_USDC_PERP'),
         expect.any(Object)
       );
     });
@@ -996,7 +997,7 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse([
         {
           order_id: '123456',
-          market: 'BTCUSDT_PERP',
+          market: 'BTC_USDC_PERP',
           side: 'BUY',
           type: 'LIMIT',
           size: '0.1',
@@ -1011,7 +1012,7 @@ describe('BackpackAdapter Integration Tests', () => {
         },
       ]);
 
-      const orders = await adapter.fetchOrderHistory('BTC/USDT:USDT');
+      const orders = await adapter.fetchOrderHistory('BTC/USDC:USDC');
 
       expect(Array.isArray(orders)).toBe(true);
       expect(orders).toHaveLength(1);
@@ -1021,37 +1022,38 @@ describe('BackpackAdapter Integration Tests', () => {
     test('fetchOrderHistory - supports pagination parameters', async () => {
       mockSuccessResponse([]);
 
-      await adapter.fetchOrderHistory('BTC/USDT:USDT', Date.now() - 86400000, 50);
+      await adapter.fetchOrderHistory('BTC/USDC:USDC', Date.now() - 86400000, 50);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('symbol=BTCUSDT_PERP'),
+        expect.stringContaining('symbol=BTC_USDC_PERP'),
         expect.any(Object)
       );
     });
 
     test('fetchMyTrades - fetches user trade history', async () => {
+      // Note: fetchMyTrades uses the same format as fetchTrades
       mockSuccessResponse([
         {
-          id: '12345',
-          market: 'BTCUSDT_PERP',
-          side: 'BUY',
+          id: 12345,
           price: '50000',
-          size: '0.1',
+          quantity: '0.1',
+          quoteQuantity: '5000',
           timestamp: Date.now(),
+          isBuyerMaker: false,
         },
       ]);
 
-      const trades = await adapter.fetchMyTrades('BTC/USDT:USDT');
+      const trades = await adapter.fetchMyTrades('BTC/USDC:USDC');
 
       expect(Array.isArray(trades)).toBe(true);
       expect(trades).toHaveLength(1);
-      expect(trades[0].symbol).toBe('BTC/USDT:USDT');
+      expect(trades[0].symbol).toBe('BTC/USDC:USDC');
     });
 
     test('createOrder - handles partially filled order', async () => {
       mockSuccessResponse({
         order_id: '123463',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'BUY',
         type: 'LIMIT',
         size: '0.1',
@@ -1066,7 +1068,7 @@ describe('BackpackAdapter Integration Tests', () => {
       });
 
       const order = await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'limit',
         side: 'buy',
         amount: 0.1,
@@ -1081,7 +1083,7 @@ describe('BackpackAdapter Integration Tests', () => {
     test('createOrder - handles rejected order', async () => {
       mockSuccessResponse({
         order_id: '123464',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'BUY',
         type: 'LIMIT',
         size: '0.1',
@@ -1096,7 +1098,7 @@ describe('BackpackAdapter Integration Tests', () => {
       });
 
       const order = await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'limit',
         side: 'buy',
         amount: 0.1,
@@ -1207,7 +1209,7 @@ describe('BackpackAdapter Integration Tests', () => {
     test('signature includes body in message for POST requests', async () => {
       mockSuccessResponse({
         order_id: '123456',
-        market: 'BTCUSDT_PERP',
+        market: 'BTC_USDC_PERP',
         side: 'BUY',
         type: 'LIMIT',
         size: '0.1',
@@ -1222,7 +1224,7 @@ describe('BackpackAdapter Integration Tests', () => {
       });
 
       await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
+        symbol: 'BTC/USDC:USDC',
         type: 'limit',
         side: 'buy',
         amount: 0.1,
@@ -1233,7 +1235,7 @@ describe('BackpackAdapter Integration Tests', () => {
       const message = new TextDecoder().decode(messageBytes);
 
       expect(message).toContain('POST');
-      expect(message).toContain('BTCUSDT_PERP');
+      expect(message).toContain('BTC_USDC_PERP');
     });
   });
 
@@ -1271,7 +1273,7 @@ describe('BackpackAdapter Integration Tests', () => {
 
       await expect(
         adapter.createOrder({
-          symbol: 'BTC/USDT:USDT',
+          symbol: 'BTC/USDC:USDC',
           type: 'limit',
           side: 'buy',
           amount: 100,
@@ -1320,7 +1322,7 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse([
         {
           // Missing required fields
-          symbol: 'BTCUSDT_PERP',
+          symbol: 'BTC_USDC_PERP',
         },
       ]);
 
@@ -1337,15 +1339,15 @@ describe('BackpackAdapter Integration Tests', () => {
 
   describe('Symbol Normalization', () => {
     test('converts unified symbol to Backpack format', () => {
-      expect(adapter.symbolToExchange('BTC/USDT:USDT')).toBe('BTCUSDT_PERP');
-      expect(adapter.symbolToExchange('ETH/USDT:USDT')).toBe('ETHUSDT_PERP');
-      expect(adapter.symbolToExchange('SOL/USDT:USDT')).toBe('SOLUSDT_PERP');
+      expect(adapter.symbolToExchange('BTC/USDC:USDC')).toBe('BTC_USDC_PERP');
+      expect(adapter.symbolToExchange('ETH/USDC:USDC')).toBe('ETH_USDC_PERP');
+      expect(adapter.symbolToExchange('SOL/USDC:USDC')).toBe('SOL_USDC_PERP');
     });
 
     test('converts Backpack symbol to unified format', () => {
-      expect(adapter.symbolFromExchange('BTCUSDT_PERP')).toBe('BTC/USDT:USDT');
-      expect(adapter.symbolFromExchange('ETHUSDT_PERP')).toBe('ETH/USDT:USDT');
-      expect(adapter.symbolFromExchange('SOLUSDT_PERP')).toBe('SOL/USDT:USDT');
+      expect(adapter.symbolFromExchange('BTC_USDC_PERP')).toBe('BTC/USDC:USDC');
+      expect(adapter.symbolFromExchange('ETH_USDC_PERP')).toBe('ETH/USDC:USDC');
+      expect(adapter.symbolFromExchange('SOL_USDC_PERP')).toBe('SOL/USDC:USDC');
     });
   });
 
