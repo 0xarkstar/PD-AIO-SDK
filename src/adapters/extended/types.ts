@@ -355,3 +355,123 @@ export const ExtendedBalanceSchema = z.object({
   equity: z.string().optional(),
   timestamp: z.number().optional(),
 });
+
+// ============================================================================
+// WebSocket Types
+// ============================================================================
+
+/**
+ * WebSocket order book update
+ */
+export interface ExtendedWsOrderBookUpdate {
+  channel: 'orderbook';
+  symbol: string;
+  bids: [string, string][];
+  asks: [string, string][];
+  timestamp: number;
+  sequence: number;
+  checksum?: string;
+}
+
+/**
+ * WebSocket trade update
+ */
+export interface ExtendedWsTradeUpdate {
+  channel: 'trades';
+  id: string;
+  symbol: string;
+  price: string;
+  quantity: string;
+  side: 'buy' | 'sell';
+  timestamp: number;
+}
+
+/**
+ * WebSocket ticker update
+ */
+export interface ExtendedWsTickerUpdate {
+  channel: 'ticker';
+  symbol: string;
+  lastPrice: string;
+  bidPrice: string;
+  askPrice: string;
+  high24h: string;
+  low24h: string;
+  volume24h: string;
+  quoteVolume24h: string;
+  priceChange24h: string;
+  priceChangePercent24h: string;
+  timestamp: number;
+}
+
+/**
+ * WebSocket position update
+ */
+export interface ExtendedWsPositionUpdate {
+  channel: 'positions';
+  positions: ExtendedPosition[];
+  timestamp: number;
+}
+
+/**
+ * WebSocket order update
+ */
+export interface ExtendedWsOrderUpdate {
+  channel: 'orders';
+  orders: ExtendedOrder[];
+  timestamp: number;
+}
+
+/**
+ * WebSocket balance update
+ */
+export interface ExtendedWsBalanceUpdate {
+  channel: 'balance';
+  balances: ExtendedBalance[];
+  timestamp: number;
+}
+
+/**
+ * WebSocket funding rate update
+ */
+export interface ExtendedWsFundingRateUpdate {
+  channel: 'funding';
+  symbol: string;
+  fundingRate: string;
+  fundingTime: number;
+  nextFundingTime?: number;
+  markPrice: string;
+  indexPrice: string;
+  timestamp: number;
+}
+
+/**
+ * WebSocket message union type
+ */
+export type ExtendedWsMessage =
+  | ExtendedWsOrderBookUpdate
+  | ExtendedWsTradeUpdate
+  | ExtendedWsTickerUpdate
+  | ExtendedWsPositionUpdate
+  | ExtendedWsOrderUpdate
+  | ExtendedWsBalanceUpdate
+  | ExtendedWsFundingRateUpdate;
+
+/**
+ * WebSocket subscription request
+ */
+export interface ExtendedWsSubscription {
+  action: 'subscribe' | 'unsubscribe';
+  channel: string;
+  symbol?: string;
+}
+
+/**
+ * WebSocket authentication message
+ */
+export interface ExtendedWsAuth {
+  action: 'auth';
+  apiKey: string;
+  timestamp: number;
+  signature?: string;
+}

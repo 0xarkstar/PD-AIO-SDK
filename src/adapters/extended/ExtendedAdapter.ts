@@ -10,19 +10,7 @@
  * - **Trading**: createOrder, cancelOrder, cancelAllOrders, createBatchOrders, cancelBatchOrders
  * - **Account**: fetchPositions, fetchBalance, fetchOrderHistory, fetchMyTrades, fetchUserFees
  * - **Leverage**: setLeverage (up to 100x), setMarginMode (cross/isolated)
- *
- * ### Not Implemented ❌ - WebSocket Streaming
- * WebSocket streaming is **NOT YET IMPLEMENTED** for Extended exchange.
- * All watch* methods will throw `NOT_IMPLEMENTED` errors:
- * - `watchOrderBook()` - ❌ Not implemented
- * - `watchTrades()` - ❌ Not implemented
- * - `watchTicker()` - ❌ Not implemented
- * - `watchPositions()` - ❌ Not implemented
- * - `watchOrders()` - ❌ Not implemented
- * - `watchBalance()` - ❌ Not implemented
- * - `watchFundingRate()` - ❌ Not implemented
- *
- * For real-time data, use polling with REST API methods instead.
+ * - **WebSocket**: watchOrderBook, watchTrades, watchTicker, watchPositions, watchOrders, watchBalance, watchFundingRate
  *
  * ### Example Usage
  * ```typescript
@@ -34,12 +22,19 @@
  * });
  * await adapter.initialize();
  *
- * // REST API (works)
+ * // REST API
  * const markets = await adapter.fetchMarkets();
  * const order = await adapter.createOrder({ ... });
  *
- * // WebSocket (throws NOT_IMPLEMENTED)
- * for await (const ob of adapter.watchOrderBook('BTC/USDT:USDT')) { } // ❌
+ * // WebSocket streaming
+ * for await (const orderbook of adapter.watchOrderBook('BTC/USD:USD')) {
+ *   console.log('Order book update:', orderbook);
+ * }
+ *
+ * // Private WebSocket (requires API key)
+ * for await (const positions of adapter.watchPositions()) {
+ *   console.log('Position update:', positions);
+ * }
  * ```
  */
 
@@ -85,6 +80,7 @@ import {
   validateLeverage,
   generateClientOrderId,
 } from './utils.js';
+import { ExtendedWebSocketWrapper } from './ExtendedWebSocketWrapper.js';
 import type {
   ExtendedMarket,
   ExtendedOrder,
@@ -155,13 +151,13 @@ export class ExtendedAdapter extends BaseAdapter {
     setMarginMode: true,
     fetchDeposits: false,
     fetchWithdrawals: false,
-    watchOrderBook: false,
-    watchTrades: false,
-    watchTicker: false,
-    watchPositions: false,
-    watchOrders: false,
-    watchBalance: false,
-    watchFundingRate: false,
+    watchOrderBook: true,
+    watchTrades: true,
+    watchTicker: true,
+    watchPositions: true,
+    watchOrders: true,
+    watchBalance: true,
+    watchFundingRate: true,
   };
 
   private readonly apiUrl: string;
@@ -172,6 +168,7 @@ export class ExtendedAdapter extends BaseAdapter {
   private readonly normalizer: ExtendedNormalizer;
   private readonly starkNetClient?: ExtendedStarkNetClient;
   private wsManager: WebSocketManager | null = null;
+  private wsWrapper?: ExtendedWebSocketWrapper;
 
   constructor(config: ExtendedConfig = {}) {
     super(config);
@@ -239,6 +236,10 @@ export class ExtendedAdapter extends BaseAdapter {
   }
 
   async disconnect(): Promise<void> {
+    if (this.wsWrapper) {
+      this.wsWrapper.disconnect();
+      this.wsWrapper = undefined;
+    }
     if (this.wsManager) {
       await this.wsManager.disconnect();
       this.wsManager = null;
@@ -523,6 +524,51 @@ export class ExtendedAdapter extends BaseAdapter {
     }
   }
 
+  async editOrder(
+    orderId: string,
+    symbol: string,
+    type: 'market' | 'limit',
+    side: 'buy' | 'sell',
+    amount?: number,
+    price?: number
+  ): Promise<Order> {
+    await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.EDIT_ORDER);
+
+    if (!this.apiKey) {
+      throw new PerpDEXError('API key required for trading', 'AUTHENTICATION_ERROR', this.id);
+    }
+
+    try {
+      const endpoint = EXTENDED_ENDPOINTS.EDIT_ORDER.replace('{orderId}', orderId);
+      const market = this.symbolToExchange(symbol);
+
+      const body: Record<string, unknown> = {
+        symbol: market,
+        type,
+        side,
+      };
+
+      if (amount !== undefined) {
+        body.quantity = amount.toString();
+      }
+      if (price !== undefined) {
+        body.price = price.toString();
+      }
+
+      const order = await this.httpClient.put<ExtendedOrder>(endpoint, {
+        headers: {
+          'X-Api-Key': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body,
+      });
+
+      return this.normalizer.normalizeOrder(order);
+    } catch (error) {
+      throw mapError(error);
+    }
+  }
+
   // ==================== Account Methods ====================
 
   async fetchPositions(symbols?: string[]): Promise<Position[]> {
@@ -784,43 +830,91 @@ export class ExtendedAdapter extends BaseAdapter {
   }
 
   // ==================== WebSocket Methods ====================
-  // NOTE: WebSocket streaming is NOT YET IMPLEMENTED for Extended exchange.
-  // The exchange does provide WebSocket endpoints, but this adapter has not
-  // yet implemented the WebSocket client integration.
-  //
-  // For real-time data, consider:
-  // 1. Polling with REST API methods (fetchOrderBook, fetchTrades, etc.)
-  // 2. Using a third-party WebSocket library directly with Extended's WS API
-  //
-  // All watch* methods below will throw NOT_IMPLEMENTED errors.
-  // ========================================================================
 
+  /**
+   * Ensure WebSocket is connected and return the wrapper
+   */
+  private async ensureWebSocketConnected(): Promise<ExtendedWebSocketWrapper> {
+    if (!this.wsWrapper) {
+      this.wsWrapper = new ExtendedWebSocketWrapper({
+        wsUrl: this.wsUrl,
+        apiKey: this.apiKey,
+        reconnect: true,
+        pingInterval: EXTENDED_WS_CONFIG.pingInterval,
+        maxReconnectAttempts: EXTENDED_WS_CONFIG.reconnectAttempts,
+      });
+    }
+
+    if (!this.wsWrapper.connected) {
+      await this.wsWrapper.connect();
+    }
+
+    return this.wsWrapper;
+  }
+
+  /**
+   * Watch real-time order book updates
+   */
   async *watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook> {
-    throw new PerpDEXError('watchOrderBook not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
+    const ws = await this.ensureWebSocketConnected();
+    yield* ws.watchOrderBook(symbol, limit);
   }
 
+  /**
+   * Watch real-time trade updates
+   */
   async *watchTrades(symbol: string): AsyncGenerator<Trade> {
-    throw new PerpDEXError('watchTrades not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
+    const ws = await this.ensureWebSocketConnected();
+    yield* ws.watchTrades(symbol);
   }
 
+  /**
+   * Watch real-time ticker updates
+   */
   async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
-    throw new PerpDEXError('watchTicker not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
+    const ws = await this.ensureWebSocketConnected();
+    yield* ws.watchTicker(symbol);
   }
 
+  /**
+   * Watch real-time position updates (requires API key)
+   */
   async *watchPositions(): AsyncGenerator<Position[]> {
-    throw new PerpDEXError('watchPositions not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
+    if (!this.apiKey) {
+      throw new PerpDEXError('API key required for watching positions', 'AUTHENTICATION_ERROR', this.id);
+    }
+    const ws = await this.ensureWebSocketConnected();
+    yield* ws.watchPositions();
   }
 
+  /**
+   * Watch real-time order updates (requires API key)
+   */
   async *watchOrders(): AsyncGenerator<Order[]> {
-    throw new PerpDEXError('watchOrders not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
+    if (!this.apiKey) {
+      throw new PerpDEXError('API key required for watching orders', 'AUTHENTICATION_ERROR', this.id);
+    }
+    const ws = await this.ensureWebSocketConnected();
+    yield* ws.watchOrders();
   }
 
+  /**
+   * Watch real-time balance updates (requires API key)
+   */
   async *watchBalance(): AsyncGenerator<Balance[]> {
-    throw new PerpDEXError('watchBalance not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
+    if (!this.apiKey) {
+      throw new PerpDEXError('API key required for watching balance', 'AUTHENTICATION_ERROR', this.id);
+    }
+    const ws = await this.ensureWebSocketConnected();
+    yield* ws.watchBalance();
   }
 
+  /**
+   * Watch real-time funding rate updates
+   */
   async *watchFundingRate(symbol: string): AsyncGenerator<FundingRate> {
-    throw new PerpDEXError('watchFundingRate not implemented - WebSocket not supported for Extended adapter', 'NOT_IMPLEMENTED', this.id);
+    const ws = await this.ensureWebSocketConnected();
+    yield* ws.watchFundingRate(symbol);
   }
 
   // ==================== Private Helper Methods ====================

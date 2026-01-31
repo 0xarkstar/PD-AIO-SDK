@@ -67,14 +67,14 @@ describe('ExtendedAdapter', () => {
       expect(adapter.has.setMarginMode).toBe(true);
     });
 
-    it('should have WebSocket features marked false', () => {
-      expect(adapter.has.watchOrderBook).toBe(false);
-      expect(adapter.has.watchTrades).toBe(false);
-      expect(adapter.has.watchTicker).toBe(false);
-      expect(adapter.has.watchPositions).toBe(false);
-      expect(adapter.has.watchOrders).toBe(false);
-      expect(adapter.has.watchBalance).toBe(false);
-      expect(adapter.has.watchFundingRate).toBe(false);
+    it('should have WebSocket features marked true', () => {
+      expect(adapter.has.watchOrderBook).toBe(true);
+      expect(adapter.has.watchTrades).toBe(true);
+      expect(adapter.has.watchTicker).toBe(true);
+      expect(adapter.has.watchPositions).toBe(true);
+      expect(adapter.has.watchOrders).toBe(true);
+      expect(adapter.has.watchBalance).toBe(true);
+      expect(adapter.has.watchFundingRate).toBe(true);
     });
 
     it('should have unsupported features marked false', () => {
@@ -195,6 +195,12 @@ describe('ExtendedAdapter', () => {
     it('fetchBalance should throw without API key', async () => {
       await expect(adapter.fetchBalance()).rejects.toThrow('API key required');
     });
+
+    it('editOrder should throw without API key', async () => {
+      await expect(
+        adapter.editOrder('order123', 'BTC/USD:USD', 'limit', 'buy', 1.0, 50000)
+      ).rejects.toThrow('API key required');
+    });
   });
 
   describe('unsupported methods', () => {
@@ -218,45 +224,71 @@ describe('ExtendedAdapter', () => {
   });
 
   describe('WebSocket methods', () => {
-    let adapter: ExtendedAdapter;
+    describe('without API key', () => {
+      let adapter: ExtendedAdapter;
 
-    beforeEach(() => {
-      adapter = new ExtendedAdapter();
+      beforeEach(() => {
+        adapter = new ExtendedAdapter();
+      });
+
+      it('watchOrderBook should create generator', () => {
+        const generator = adapter.watchOrderBook('BTC/USD:USD');
+        expect(generator).toBeDefined();
+        expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+      });
+
+      it('watchTrades should create generator', () => {
+        const generator = adapter.watchTrades('BTC/USD:USD');
+        expect(generator).toBeDefined();
+      });
+
+      it('watchTicker should create generator', () => {
+        const generator = adapter.watchTicker('BTC/USD:USD');
+        expect(generator).toBeDefined();
+      });
+
+      it('watchPositions should throw authentication error without API key', async () => {
+        const generator = adapter.watchPositions();
+        await expect(generator.next()).rejects.toThrow('API key required');
+      });
+
+      it('watchOrders should throw authentication error without API key', async () => {
+        const generator = adapter.watchOrders();
+        await expect(generator.next()).rejects.toThrow('API key required');
+      });
+
+      it('watchBalance should throw authentication error without API key', async () => {
+        const generator = adapter.watchBalance();
+        await expect(generator.next()).rejects.toThrow('API key required');
+      });
+
+      it('watchFundingRate should create generator', () => {
+        const generator = adapter.watchFundingRate('BTC/USD:USD');
+        expect(generator).toBeDefined();
+      });
     });
 
-    it('watchOrderBook should throw not implemented', async () => {
-      const generator = adapter.watchOrderBook('BTC/USDT:USDT');
-      await expect(generator.next()).rejects.toThrow('not implemented');
-    });
+    describe('with API key', () => {
+      let adapter: ExtendedAdapter;
 
-    it('watchTrades should throw not implemented', async () => {
-      const generator = adapter.watchTrades('BTC/USDT:USDT');
-      await expect(generator.next()).rejects.toThrow('not implemented');
-    });
+      beforeEach(() => {
+        adapter = new ExtendedAdapter({ apiKey: 'test-key' });
+      });
 
-    it('watchTicker should throw not implemented', async () => {
-      const generator = adapter.watchTicker('BTC/USDT:USDT');
-      await expect(generator.next()).rejects.toThrow('not implemented');
-    });
+      it('watchPositions should create generator', () => {
+        const generator = adapter.watchPositions();
+        expect(generator).toBeDefined();
+      });
 
-    it('watchPositions should throw not implemented', async () => {
-      const generator = adapter.watchPositions();
-      await expect(generator.next()).rejects.toThrow('not implemented');
-    });
+      it('watchOrders should create generator', () => {
+        const generator = adapter.watchOrders();
+        expect(generator).toBeDefined();
+      });
 
-    it('watchOrders should throw not implemented', async () => {
-      const generator = adapter.watchOrders();
-      await expect(generator.next()).rejects.toThrow('not implemented');
-    });
-
-    it('watchBalance should throw not implemented', async () => {
-      const generator = adapter.watchBalance();
-      await expect(generator.next()).rejects.toThrow('not implemented');
-    });
-
-    it('watchFundingRate should throw not implemented', async () => {
-      const generator = adapter.watchFundingRate('BTC/USDT:USDT');
-      await expect(generator.next()).rejects.toThrow('not implemented');
+      it('watchBalance should create generator', () => {
+        const generator = adapter.watchBalance();
+        expect(generator).toBeDefined();
+      });
     });
   });
 });

@@ -559,6 +559,45 @@ describe('ExtendedAdapter Integration Tests', () => {
       expect(result[1].id).toBe('order2');
     });
 
+    test('editOrder - modifies existing order', async () => {
+      mockSuccessResponse({
+        orderId: 'order123',
+        clientOrderId: 'client123',
+        symbol: 'BTC-USD-PERP',
+        type: 'limit',
+        side: 'buy',
+        quantity: '2.0',
+        price: '49000',
+        filledQuantity: '0',
+        remainingQuantity: '2.0',
+        status: 'open',
+        timestamp: 1234567890,
+        updateTime: 1234567891,
+      });
+
+      const order = await adapter.editOrder(
+        'order123',
+        'BTC/USD:USD',
+        'limit',
+        'buy',
+        2.0,
+        49000
+      );
+
+      expect(order.id).toBe('order123');
+      expect(order.amount).toBe(2.0);
+      expect(order.price).toBe(49000);
+      expect(order.status).toBe('open');
+    });
+
+    test('editOrder - requires API key', async () => {
+      const noAuthAdapter = new ExtendedAdapter();
+
+      await expect(
+        noAuthAdapter.editOrder('order123', 'BTC/USD:USD', 'limit', 'buy', 1.0, 50000)
+      ).rejects.toThrow('API key required');
+    });
+
     test('fetchOrderHistory - fetches order history', async () => {
       mockSuccessResponse({
         orders: [
@@ -790,6 +829,64 @@ describe('ExtendedAdapter Integration Tests', () => {
       });
 
       await expect(adapter.setLeverage('BTC/USD:USD', 100)).resolves.not.toThrow();
+    });
+  });
+
+  // ============================================================================
+  // 7. WebSocket Features (7 tests)
+  // ============================================================================
+
+  describe('WebSocket Features', () => {
+    test('has WebSocket capabilities enabled', () => {
+      expect(adapter.has.watchOrderBook).toBe(true);
+      expect(adapter.has.watchTrades).toBe(true);
+      expect(adapter.has.watchTicker).toBe(true);
+      expect(adapter.has.watchPositions).toBe(true);
+      expect(adapter.has.watchOrders).toBe(true);
+      expect(adapter.has.watchBalance).toBe(true);
+      expect(adapter.has.watchFundingRate).toBe(true);
+    });
+
+    test('watchOrderBook returns async generator', () => {
+      const generator = adapter.watchOrderBook('BTC/USD:USD');
+      expect(generator).toBeDefined();
+      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+    });
+
+    test('watchTrades returns async generator', () => {
+      const generator = adapter.watchTrades('BTC/USD:USD');
+      expect(generator).toBeDefined();
+      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+    });
+
+    test('watchTicker returns async generator', () => {
+      const generator = adapter.watchTicker('BTC/USD:USD');
+      expect(generator).toBeDefined();
+      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+    });
+
+    test('watchPositions returns async generator', () => {
+      const generator = adapter.watchPositions();
+      expect(generator).toBeDefined();
+      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+    });
+
+    test('watchOrders returns async generator', () => {
+      const generator = adapter.watchOrders();
+      expect(generator).toBeDefined();
+      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+    });
+
+    test('watchBalance returns async generator', () => {
+      const generator = adapter.watchBalance();
+      expect(generator).toBeDefined();
+      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+    });
+
+    test('watchFundingRate returns async generator', () => {
+      const generator = adapter.watchFundingRate('BTC/USD:USD');
+      expect(generator).toBeDefined();
+      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
     });
   });
 });
