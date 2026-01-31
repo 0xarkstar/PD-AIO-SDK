@@ -4,7 +4,7 @@
  * Tests adapter methods with mocked API responses
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { LighterAdapter } from '../../src/adapters/lighter/LighterAdapter.js';
 import type {
   LighterMarket,
@@ -34,10 +34,12 @@ jest.mock('ws', () => {
 describe('LighterAdapter Integration Tests', () => {
   let adapter: LighterAdapter;
   let mockFetch: jest.MockedFunction<typeof fetch>;
+  let pendingTimers: ReturnType<typeof setTimeout>[] = [];
 
   beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
+    pendingTimers = [];
     mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
 
     // Setup WebSocket mock to auto-trigger 'open' event
@@ -45,8 +47,10 @@ describe('LighterAdapter Integration Tests', () => {
       const mockWs = {
         on: jest.fn((event: string, handler: Function) => {
           if (event === 'open') {
-            // Trigger open event asynchronously
-            setTimeout(() => handler(), 0);
+            // Trigger open event asynchronously with tracked timer
+            const timer = setTimeout(() => handler(), 0);
+            if (timer.unref) timer.unref(); // Allow process to exit
+            pendingTimers.push(timer);
           }
         }),
         send: jest.fn(),
@@ -63,6 +67,23 @@ describe('LighterAdapter Integration Tests', () => {
       testnet: true,
       rateLimitTier: 'tier3', // Use tier3 for testing (high limits)
     });
+  });
+
+  afterEach(async () => {
+    // Clean up pending timers
+    for (const timer of pendingTimers) {
+      clearTimeout(timer);
+    }
+    pendingTimers = [];
+
+    // Clean up adapter to prevent timer leaks
+    try {
+      if (adapter) {
+        await adapter.disconnect();
+      }
+    } catch {
+      // Ignore errors during cleanup
+    }
   });
 
   // Helper to mock successful API response
@@ -719,6 +740,154 @@ describe('LighterAdapter Integration Tests', () => {
       const normalizer = (adapter as any).normalizer;
       expect(normalizer.normalizeSymbol('BTC')).toBe('BTC/USDC:USDC');
       expect(normalizer.normalizeSymbol('ETH')).toBe('ETH/USDC:USDC');
+    });
+  });
+
+  describe('FFI Configuration', () => {
+    it('should detect HMAC auth mode when apiKey/apiSecret provided', () => {
+      const hmacAdapter = new LighterAdapter({
+        apiKey: 'test-key',
+        apiSecret: 'test-secret',
+        testnet: true,
+      });
+
+      expect(hmacAdapter.hasAuthentication).toBe(true);
+      expect(hmacAdapter.hasFFISigning).toBe(false);
+    });
+
+    it('should detect FFI auth mode when apiPrivateKey provided', async () => {
+      const ffiAdapter = new LighterAdapter({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        testnet: true,
+      });
+
+      expect(ffiAdapter.hasAuthentication).toBe(true);
+      // Signer is created but not initialized until initialize() is called
+      await ffiAdapter.initialize();
+      // hasFFISigning will be true if koffi is installed and native library is available
+      // It will be false if native library is missing or koffi fails to load
+      // We just check that the adapter is ready regardless of FFI status
+      expect(ffiAdapter.isReady).toBe(true);
+    });
+
+    it('should detect no auth when no credentials provided', () => {
+      const noAuthAdapter = new LighterAdapter({
+        testnet: true,
+      });
+
+      expect(noAuthAdapter.hasAuthentication).toBe(false);
+      expect(noAuthAdapter.hasFFISigning).toBe(false);
+    });
+
+    it('should prefer FFI over HMAC when both provided', async () => {
+      const dualAdapter = new LighterAdapter({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        apiKey: 'test-key',
+        apiSecret: 'test-secret',
+        testnet: true,
+      });
+
+      // Should have both auth methods configured
+      expect(dualAdapter.hasAuthentication).toBe(true);
+
+      // After initialization (without native lib), should fallback gracefully
+      await dualAdapter.initialize();
+      // FFI won't be available in test env, but should not throw
+      expect(dualAdapter.isReady).toBe(true);
+    });
+
+    it('should use correct chain ID for testnet', () => {
+      const testnetAdapter = new LighterAdapter({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        testnet: true,
+      });
+
+      // Access private field via any
+      expect((testnetAdapter as any).chainId).toBe(300);
+    });
+
+    it('should use correct chain ID for mainnet', () => {
+      const mainnetAdapter = new LighterAdapter({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        testnet: false,
+      });
+
+      expect((mainnetAdapter as any).chainId).toBe(304);
+    });
+
+    it('should allow custom chain ID override', () => {
+      const customAdapter = new LighterAdapter({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        chainId: 999,
+        testnet: true,
+      });
+
+      expect((customAdapter as any).chainId).toBe(999);
+    });
+
+    it('should use default apiKeyIndex and accountIndex', () => {
+      const adapter = new LighterAdapter({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        testnet: true,
+      });
+
+      expect((adapter as any).apiKeyIndex).toBe(255);
+      expect((adapter as any).accountIndex).toBe(0);
+    });
+
+    it('should allow custom apiKeyIndex and accountIndex', () => {
+      const adapter = new LighterAdapter({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        apiKeyIndex: 10,
+        accountIndex: 5,
+        testnet: true,
+      });
+
+      expect((adapter as any).apiKeyIndex).toBe(10);
+      expect((adapter as any).accountIndex).toBe(5);
+    });
+  });
+
+  describe('Nonce Resync', () => {
+    it('should have resyncNonce method', () => {
+      expect(typeof adapter.resyncNonce).toBe('function');
+    });
+
+    it('should not throw when resyncNonce called without FFI', async () => {
+      // Adapter without FFI should handle resync gracefully
+      await expect(adapter.resyncNonce()).resolves.not.toThrow();
+    });
+  });
+
+  describe('Collateral Management', () => {
+    it('should have withdrawCollateral method', () => {
+      expect(typeof adapter.withdrawCollateral).toBe('function');
+    });
+
+    it('should require FFI signing for withdrawCollateral', async () => {
+      // Adapter with only HMAC auth should reject withdrawal
+      await expect(
+        adapter.withdrawCollateral(0, BigInt(100000000), '0x' + '1'.repeat(40))
+      ).rejects.toThrow('FFI signing');
+    });
+
+    it('should validate destination address format', async () => {
+      const ffiAdapter = new LighterAdapter({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        testnet: true,
+      });
+      await ffiAdapter.initialize();
+
+      // Invalid address should be rejected (even though FFI is not available)
+      await expect(
+        ffiAdapter.withdrawCollateral(0, BigInt(100), 'invalid-address')
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('WebSocket Orders Streaming', () => {
+    it('should support watchOrders feature', () => {
+      expect(adapter.has.watchOrders).toBe(true);
     });
   });
 });

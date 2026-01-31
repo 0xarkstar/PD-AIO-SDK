@@ -166,4 +166,55 @@ describe('LighterAdapter', () => {
       expect((adapter as any).wsManager).toBeNull();
     });
   });
+
+  describe('health check methods', () => {
+    let adapter: LighterAdapter;
+
+    beforeEach(() => {
+      adapter = new LighterAdapter({ testnet: true });
+    });
+
+    afterEach(async () => {
+      await adapter.disconnect();
+    });
+
+    describe('getStatus', () => {
+      it('should return status object with expected properties', async () => {
+        const status = await adapter.getStatus();
+
+        expect(status).toHaveProperty('ready');
+        expect(status).toHaveProperty('authenticated');
+        expect(status).toHaveProperty('authMode');
+        expect(status).toHaveProperty('wsConnected');
+        expect(status).toHaveProperty('network');
+        expect(status).toHaveProperty('rateLimiter');
+
+        expect(status.network).toBe('testnet');
+        expect(status.authMode).toBe('none');
+        expect(status.authenticated).toBe(false);
+      });
+
+      it('should show hmac auth mode when credentials provided', async () => {
+        const authAdapter = new LighterAdapter({
+          apiKey: 'test-key',
+          apiSecret: 'test-secret',
+          testnet: true,
+        });
+
+        const status = await authAdapter.getStatus();
+        expect(status.authMode).toBe('hmac');
+        expect(status.authenticated).toBe(true);
+
+        await authAdapter.disconnect();
+      });
+    });
+
+    describe('isHealthy', () => {
+      it('should return false when not ready', async () => {
+        // New adapter is not ready until initialize() is called
+        const healthy = await adapter.isHealthy();
+        expect(healthy).toBe(false);
+      });
+    });
+  });
 });

@@ -2,6 +2,48 @@
  * Lighter-specific type definitions
  */
 
+/**
+ * Lighter API configuration
+ *
+ * Supports two authentication modes:
+ * 1. HMAC mode (legacy): Uses apiKey + apiSecret for HMAC-SHA256 signing
+ * 2. FFI mode (native): Uses apiPrivateKey for native library signing
+ *
+ * FFI mode is required for full trading functionality as it supports
+ * the transaction signing required by the Lighter protocol.
+ */
+export interface LighterConfig {
+  // ============ HMAC Auth (Legacy/Read-only) ============
+  /** API key for HMAC authentication (legacy mode) */
+  apiKey?: string;
+  /** API secret for HMAC authentication (legacy mode) */
+  apiSecret?: string;
+
+  // ============ FFI Auth (Full Trading) ============
+  /** API private key (hex string) for FFI signing */
+  apiPrivateKey?: string;
+  /** API public key (hex string, optional - derived from private if not provided) */
+  apiPublicKey?: string;
+  /** Account index for trading (default: 0) */
+  accountIndex?: number;
+  /** API key index (default: 255 for main key) */
+  apiKeyIndex?: number;
+
+  // ============ Network Settings ============
+  /** Use testnet (default: false) */
+  testnet?: boolean;
+  /** Chain ID override (300 = testnet, 304 = mainnet) */
+  chainId?: number;
+  /** Request timeout in milliseconds */
+  timeout?: number;
+  /** Rate limit tier */
+  rateLimitTier?: 'tier1' | 'tier2' | 'tier3';
+
+  // ============ Advanced ============
+  /** Path to native library (optional, auto-detected) */
+  nativeLibraryPath?: string;
+}
+
 export interface LighterMarket {
   symbol: string;
   baseCurrency: string;
