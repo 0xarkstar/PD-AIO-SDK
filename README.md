@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-2246%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-2383%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![npm version](https://img.shields.io/badge/npm-v0.2.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
@@ -34,17 +34,17 @@
 
 ### 🌐 Multi-Exchange Support
 
-| Exchange | Status | Markets | Public API | Private API |
-|----------|--------|---------|------------|-------------|
-| **Hyperliquid** | ✅ Production Ready | 206 | ✅ Full | ✅ Full |
-| **EdgeX** | ✅ Production Ready | 292 | ✅ Full | ✅ Full |
-| **Nado** | ✅ Production Ready | 26 | ✅ Full | ✅ Full |
-| **Lighter** | 🟡 Public API Only | 3 | ✅ Full | ⚠️ Requires Official SDK |
-| **Paradex** | 🟡 Limited | 7 | ✅ Markets Only | ⚠️ JWT Required |
-| **Extended** | 🟡 Mainnet Only | 0 | ✅ Works | - |
-| **GRVT** | ⚠️ Testing | - | ⚠️ | ⚠️ |
-| **Backpack** | 🔴 Network Issues | - | ❌ | ❌ |
-| **Variational** | 🔴 Alpha (RFQ) | - | ❌ | ❌ |
+| Exchange | Status | Perp | Spot | Public API | Private API |
+|----------|--------|------|------|------------|-------------|
+| **EdgeX** | ✅ Production Ready | 292 | - | ✅ Full | ✅ Full |
+| **Hyperliquid** | ✅ Production Ready | 228 | - | ✅ Full | ✅ Full |
+| **Lighter** | ✅ Production Ready | 132 | - | ✅ Full | ✅ Full (Native FFI) |
+| **Paradex** | 🟡 Limited | 108 | - | ✅ Markets Only | ⚠️ JWT Required |
+| **GRVT** | ✅ Production Ready | 80 | - | ✅ Full | ✅ Full |
+| **Backpack** | ✅ Production Ready | 75 | 79 | ✅ Full | ✅ Full |
+| **Nado** | ✅ Production Ready | 23 | 3 | ✅ Full | ✅ Full |
+| **Extended** | 🟡 Mainnet Only | 0 | - | ✅ Works | ✅ Full |
+| **Variational** | 🔴 Alpha (RFQ) | - | - | ❌ | ❌ |
 
 ### 🔐 Production-Grade Security
 - **EIP-712 signatures** (Hyperliquid, GRVT, Nado)
@@ -149,7 +149,7 @@ const exchange = createExchange('hyperliquid', {
   testnet: true
 });
 ```
-- **Markets**: 206 perpetual contracts
+- **Markets**: 228 perp
 - **Auth**: EIP-712 signatures
 - **Features**: 200k orders/sec, HIP-3 ecosystem, full WebSocket support
 
@@ -159,7 +159,7 @@ const exchange = createExchange('edgex', {
   starkPrivateKey: process.env.EDGEX_STARK_PRIVATE_KEY, // Optional for public API
 });
 ```
-- **Markets**: 292 perpetual contracts
+- **Markets**: 292 perp
 - **Auth**: SHA3-256 + ECDSA signatures
 - **Note**: fetchTrades only via WebSocket (no REST endpoint)
 
@@ -170,25 +170,54 @@ const exchange = createExchange('nado', {
   testnet: true
 });
 ```
-- **Markets**: 26 perpetual contracts
+- **Markets**: 23 perp + 3 spot
 - **Auth**: EIP-712 signatures on Ink L2 (by Kraken)
 
-### 🟡 Partial Support
+#### GRVT
+```typescript
+const exchange = createExchange('grvt', {
+  apiKey: process.env.GRVT_API_KEY, // Optional for public API
+  testnet: false
+});
+```
+- **Markets**: 80 perp
+- **Auth**: API Key + EIP-712 signatures
+- **Features**: Sub-millisecond latency, hybrid CEX/DEX architecture
+- **Leverage**: Up to 100x
+- **WebSocket**: Real-time orderbook, trades, positions, orders
+
+#### Backpack
+```typescript
+const exchange = createExchange('backpack', {
+  apiKey: process.env.BACKPACK_API_KEY, // Optional for public API
+  apiSecret: process.env.BACKPACK_API_SECRET,
+  testnet: false
+});
+```
+- **Markets**: 75 perp + 79 spot
+- **Auth**: ED25519 signatures
+- **Features**: Solana-based, full REST API + WebSocket
+- **Leverage**: Up to 20x for perpetuals
 
 #### Lighter
 ```typescript
-const exchange = createExchange('lighter', { testnet: true });
+const exchange = createExchange('lighter', {
+  apiPrivateKey: process.env.LIGHTER_PRIVATE_KEY, // Optional for public API
+  testnet: true
+});
 ```
-- **Markets**: 3 perpetual contracts (BTC, ETH, SOL)
-- **Public API**: ✅ fetchMarkets, fetchTicker, fetchOrderBook
-- **Private API**: ❌ Requires official `lighter-sdk` (SignerClient-based auth)
-- **Reference**: https://github.com/elliottech/lighter-python
+- **Markets**: 132 perp
+- **Auth**: Native FFI signing (koffi + C library)
+- **Features**: Full trading support, WebSocket streaming
+- **Setup**: Requires native library from `lighter-sdk` Python package (see [Setup Guide](#lighter-native-library-setup))
+
+### 🟡 Partial Support
 
 #### Paradex
 ```typescript
 const exchange = createExchange('paradex', { testnet: true });
 ```
-- **Markets**: 7 perpetual contracts
+- **Markets**: 108 perp
 - **Public API**: ✅ fetchMarkets only
 - **Ticker/OrderBook**: Requires JWT authentication (Paradex-specific limitation)
 - **Private API**: Requires StarkNet signatures + JWT
@@ -196,18 +225,22 @@ const exchange = createExchange('paradex', { testnet: true });
 #### Extended
 ```typescript
 const exchange = createExchange('extended', {
-  apiKey: process.env.EXTENDED_API_KEY
+  apiKey: process.env.EXTENDED_API_KEY,
+  // Optional: StarkNet integration
+  starknetPrivateKey: process.env.STARKNET_PRIVATE_KEY,
+  starknetAccountAddress: process.env.STARKNET_ACCOUNT_ADDRESS,
 });
 ```
 - **Status**: Testnet not operational, mainnet only
-- **Markets**: Currently returning 0 (service status unclear)
+- **Features**: Full REST API + WebSocket streaming
+- **WebSocket**: Real-time orderbook, trades, ticker, positions, orders, balance, funding rates
+- **Leverage**: Up to 100x
+- **StarkNet**: Optional on-chain integration for advanced operations
 
 ### 🔴 Not Production Ready
 
 | Exchange | Issue | Notes |
 |----------|-------|-------|
-| **GRVT** | URL update needed | Hybrid CEX/DEX architecture |
-| **Backpack** | Network connectivity | Solana-based |
 | **Variational** | RFQ-based, API in development | Not standard orderbook |
 
 ---
@@ -235,10 +268,25 @@ NADO_PRIVATE_KEY=0x...  # EVM private key
 NADO_TESTNET=true
 
 # ============================================
-# Lighter - 🟡 Public API Only
+# GRVT (API Key + EIP-712) - ✅ Production Ready
 # ============================================
-# Note: Private API requires official lighter-sdk
+GRVT_API_KEY=your_api_key
+GRVT_PRIVATE_KEY=0x...  # Optional: for EIP-712 order signing
+GRVT_TESTNET=false
+
+# ============================================
+# Backpack (ED25519) - ✅ Production Ready
+# ============================================
+BACKPACK_API_KEY=your_api_key
+BACKPACK_API_SECRET=base64_ed25519_private_key
+BACKPACK_TESTNET=false
+
+# ============================================
+# Lighter (Native FFI) - ✅ Production Ready
+# ============================================
+LIGHTER_PRIVATE_KEY=0x...  # 64 hex characters
 LIGHTER_TESTNET=true
+# Note: Requires native library setup (see below)
 
 # ============================================
 # Paradex (StarkNet) - 🟡 Limited
@@ -336,6 +384,55 @@ try {
 
 ---
 
+## 🔧 Lighter Native Library Setup
+
+Lighter requires a native C library for transaction signing. Follow these steps to enable full trading functionality:
+
+### Step 1: Install Python SDK
+
+```bash
+pip3 install lighter-sdk
+```
+
+### Step 2: Locate and Copy Native Library
+
+```bash
+# Find the library location
+python3 -c "import lighter; print(lighter.__file__)"
+# Output: /path/to/site-packages/lighter/__init__.py
+
+# Copy libraries to your project
+cp /path/to/site-packages/lighter/signers/* native/lighter/
+```
+
+### Step 3: Remove macOS Quarantine (if needed)
+
+```bash
+xattr -d com.apple.quarantine native/lighter/*.dylib
+```
+
+### Step 4: Install koffi (FFI library)
+
+```bash
+npm install koffi
+```
+
+### Verify Installation
+
+```typescript
+import { createExchange } from 'pd-aio-sdk';
+
+const lighter = createExchange('lighter', {
+  apiPrivateKey: '0x...',
+  testnet: true,
+});
+
+await lighter.initialize();
+console.log('FFI Signing:', lighter.hasFFISigning); // Should be true
+```
+
+---
+
 ## 🧪 Testing
 
 ### Run Tests
@@ -357,8 +454,8 @@ npm test -- hyperliquid
 ### Test Results
 
 ```
-✅ 2246 tests passing (100% pass rate)
-✅ 79 test suites
+✅ 2383 tests passing (100% pass rate)
+✅ 84 test suites
 ✅ Integration tests: All passing
 ✅ Unit tests: All passing
 ```
@@ -367,11 +464,13 @@ npm test -- hyperliquid
 
 | Exchange | Markets | Ticker | OrderBook | FundingRate | Status |
 |----------|---------|--------|-----------|-------------|--------|
-| **Hyperliquid** | ✅ 206 | ✅ | ✅ | ✅ | Production Ready |
+| **Hyperliquid** | ✅ 228 | ✅ | ✅ | ✅ | Production Ready |
 | **EdgeX** | ✅ 292 | ✅ | ✅ | ✅ | Production Ready |
 | **Nado** | ✅ 26 | ✅ | ✅ | ✅ | Production Ready |
-| **Lighter** | ✅ 3 | ✅ | ✅ | - | Public API Ready |
-| **Paradex** | ✅ 7 | ❌ JWT | ❌ JWT | - | Limited |
+| **GRVT** | ✅ 80 | ✅ | ✅ | ✅ | Production Ready |
+| **Backpack** | ✅ 154 | ✅ | ✅ | ✅ | Production Ready |
+| **Lighter** | ✅ 132 | ✅ | ✅ | - | Production Ready |
+| **Paradex** | ✅ 108 | ❌ JWT | ❌ JWT | - | Limited |
 | **Extended** | ✅ 0 | - | - | - | Mainnet Only |
 
 ---

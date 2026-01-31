@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-2246%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-2383%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![npm version](https://img.shields.io/badge/npm-v0.2.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
@@ -34,17 +34,17 @@
 
 ### 🌐 다중 거래소 지원
 
-| 거래소 | 상태 | 마켓 수 | Public API | Private API |
-|--------|------|---------|------------|-------------|
-| **Hyperliquid** | ✅ 프로덕션 준비 | 206 | ✅ 전체 | ✅ 전체 |
-| **EdgeX** | ✅ 프로덕션 준비 | 292 | ✅ 전체 | ✅ 전체 |
-| **Nado** | ✅ 프로덕션 준비 | 26 | ✅ 전체 | ✅ 전체 |
-| **Lighter** | 🟡 Public API만 | 3 | ✅ 전체 | ⚠️ 공식 SDK 필요 |
-| **Paradex** | 🟡 제한적 | 7 | ✅ Markets만 | ⚠️ JWT 필요 |
-| **Extended** | 🟡 메인넷만 | 0 | ✅ 작동 | - |
-| **GRVT** | ⚠️ 테스트중 | - | ⚠️ | ⚠️ |
-| **Backpack** | 🔴 네트워크 오류 | - | ❌ | ❌ |
-| **Variational** | 🔴 Alpha (RFQ) | - | ❌ | ❌ |
+| 거래소 | 상태 | Perp | Spot | Public API | Private API |
+|--------|------|------|------|------------|-------------|
+| **EdgeX** | ✅ 프로덕션 준비 | 292 | - | ✅ 전체 | ✅ 전체 |
+| **Hyperliquid** | ✅ 프로덕션 준비 | 228 | - | ✅ 전체 | ✅ 전체 |
+| **Lighter** | ✅ 프로덕션 준비 | 132 | - | ✅ 전체 | ✅ 전체 (Native FFI) |
+| **Paradex** | 🟡 제한적 | 108 | - | ✅ Markets만 | ⚠️ JWT 필요 |
+| **GRVT** | ✅ 프로덕션 준비 | 80 | - | ✅ 전체 | ✅ 전체 |
+| **Backpack** | ✅ 프로덕션 준비 | 75 | 79 | ✅ 전체 | ✅ 전체 |
+| **Nado** | ✅ 프로덕션 준비 | 23 | 3 | ✅ 전체 | ✅ 전체 |
+| **Extended** | 🟡 메인넷만 | 0 | - | ✅ 작동 | ✅ 전체 |
+| **Variational** | 🔴 Alpha (RFQ) | - | - | ❌ | ❌ |
 
 ### 🔐 프로덕션급 보안
 - **EIP-712 서명** (Hyperliquid, GRVT, Nado)
@@ -149,7 +149,7 @@ const exchange = createExchange('hyperliquid', {
   testnet: true
 });
 ```
-- **마켓**: 206개 영구선물 계약
+- **마켓**: 228 perp
 - **인증**: EIP-712 서명
 - **특징**: 초당 20만 주문, HIP-3 생태계, 완전한 WebSocket 지원
 
@@ -159,7 +159,7 @@ const exchange = createExchange('edgex', {
   starkPrivateKey: process.env.EDGEX_STARK_PRIVATE_KEY, // Public API는 선택사항
 });
 ```
-- **마켓**: 292개 영구선물 계약
+- **마켓**: 292 perp
 - **인증**: SHA3-256 + ECDSA 서명
 - **참고**: fetchTrades는 WebSocket만 지원 (REST 엔드포인트 없음)
 
@@ -170,25 +170,54 @@ const exchange = createExchange('nado', {
   testnet: true
 });
 ```
-- **마켓**: 26개 영구선물 계약
+- **마켓**: 23 perp + 3 spot
 - **인증**: Ink L2 (Kraken)에서 EIP-712 서명
 
-### 🟡 부분 지원
+#### GRVT
+```typescript
+const exchange = createExchange('grvt', {
+  apiKey: process.env.GRVT_API_KEY, // Public API는 선택사항
+  testnet: false
+});
+```
+- **마켓**: 80 perp
+- **인증**: API Key + EIP-712 서명
+- **특징**: 서브밀리초 지연시간, CEX/DEX 하이브리드 아키텍처
+- **레버리지**: 최대 100x
+- **WebSocket**: 실시간 오더북, 거래, 포지션, 주문
+
+#### Backpack
+```typescript
+const exchange = createExchange('backpack', {
+  apiKey: process.env.BACKPACK_API_KEY, // Public API는 선택사항
+  apiSecret: process.env.BACKPACK_API_SECRET,
+  testnet: false
+});
+```
+- **마켓**: 75 perp + 79 spot
+- **인증**: ED25519 서명
+- **특징**: 솔라나 기반, 완전한 REST API + WebSocket
+- **레버리지**: 선물 최대 20x
 
 #### Lighter
 ```typescript
-const exchange = createExchange('lighter', { testnet: true });
+const exchange = createExchange('lighter', {
+  apiPrivateKey: process.env.LIGHTER_PRIVATE_KEY, // Public API는 선택사항
+  testnet: true
+});
 ```
-- **마켓**: 3개 영구선물 계약 (BTC, ETH, SOL)
-- **Public API**: ✅ fetchMarkets, fetchTicker, fetchOrderBook
-- **Private API**: ❌ 공식 `lighter-sdk` 필요 (SignerClient 기반 인증)
-- **참고**: https://github.com/elliottech/lighter-python
+- **마켓**: 132 perp
+- **인증**: Native FFI 서명 (koffi + C 라이브러리)
+- **특징**: 완전한 거래 지원, WebSocket 스트리밍
+- **설정**: `lighter-sdk` Python 패키지에서 네이티브 라이브러리 필요
+
+### 🟡 부분 지원
 
 #### Paradex
 ```typescript
 const exchange = createExchange('paradex', { testnet: true });
 ```
-- **마켓**: 7개 영구선물 계약
+- **마켓**: 108 perp
 - **Public API**: ✅ fetchMarkets만 지원
 - **Ticker/OrderBook**: JWT 인증 필요 (Paradex 특수 제한)
 - **Private API**: StarkNet 서명 + JWT 필요
@@ -206,8 +235,6 @@ const exchange = createExchange('extended', {
 
 | 거래소 | 문제 | 비고 |
 |--------|------|------|
-| **GRVT** | URL 업데이트 필요 | CEX/DEX 하이브리드 아키텍처 |
-| **Backpack** | 네트워크 연결 문제 | 솔라나 기반 |
 | **Variational** | RFQ 기반, API 개발중 | 표준 오더북 아님 |
 
 ---
@@ -363,16 +390,18 @@ npm test -- hyperliquid
 ✅ 단위 테스트: 모두 통과
 ```
 
-### API 검증 결과 (2026-01-31 기준)
+### API 검증 결과 (2026-02-01 기준)
 
-| 거래소 | 마켓 | Ticker | OrderBook | FundingRate | 상태 |
-|--------|------|--------|-----------|-------------|------|
-| **Hyperliquid** | ✅ 206 | ✅ | ✅ | ✅ | 프로덕션 준비 |
-| **EdgeX** | ✅ 292 | ✅ | ✅ | ✅ | 프로덕션 준비 |
-| **Nado** | ✅ 26 | ✅ | ✅ | ✅ | 프로덕션 준비 |
-| **Lighter** | ✅ 3 | ✅ | ✅ | - | Public API 준비 |
-| **Paradex** | ✅ 7 | ❌ JWT | ❌ JWT | - | 제한적 |
-| **Extended** | ✅ 0 | - | - | - | 메인넷만 |
+| 거래소 | Perp | Spot | Ticker | OrderBook | FundingRate | 상태 |
+|--------|------|------|--------|-----------|-------------|------|
+| **EdgeX** | ✅ 292 | - | ✅ | ✅ | ✅ | 프로덕션 준비 |
+| **Hyperliquid** | ✅ 228 | - | ✅ | ✅ | ✅ | 프로덕션 준비 |
+| **Lighter** | ✅ 132 | - | ✅ | ✅ | - | 프로덕션 준비 |
+| **Paradex** | ✅ 108 | - | ❌ JWT | ❌ JWT | - | 제한적 |
+| **GRVT** | ✅ 80 | - | ✅ | ✅ | ✅ | 프로덕션 준비 |
+| **Backpack** | ✅ 75 | ✅ 79 | ✅ | ✅ | ✅ | 프로덕션 준비 |
+| **Nado** | ✅ 23 | ✅ 3 | ✅ | ✅ | ✅ | 프로덕션 준비 |
+| **Extended** | ✅ 0 | - | - | - | - | 메인넷만 |
 
 ---
 
