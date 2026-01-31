@@ -48,6 +48,13 @@ export const LIGHTER_CLIENT_ERRORS = {
   // Validation Errors
   INVALID_PARAMS: 'invalid_params',
   MISSING_REQUIRED_FIELD: 'missing_required_field',
+
+  // Transaction/Nonce Errors
+  INVALID_NONCE: 'invalid_nonce',
+  NONCE_TOO_LOW: 'nonce_too_low',
+  NONCE_TOO_HIGH: 'nonce_too_high',
+  TRANSACTION_FAILED: 'transaction_failed',
+  SIGNING_FAILED: 'signing_failed',
 } as const;
 
 /**
@@ -190,6 +197,25 @@ export function extractErrorCode(errorMessage: string): string {
     return LIGHTER_SERVER_ERRORS.SERVICE_UNAVAILABLE;
   }
 
+  // Nonce errors
+  if (messageLower.includes('nonce')) {
+    if (messageLower.includes('too low') || messageLower.includes('already used')) {
+      return LIGHTER_CLIENT_ERRORS.NONCE_TOO_LOW;
+    }
+    if (messageLower.includes('too high') || messageLower.includes('future')) {
+      return LIGHTER_CLIENT_ERRORS.NONCE_TOO_HIGH;
+    }
+    return LIGHTER_CLIENT_ERRORS.INVALID_NONCE;
+  }
+
+  // Transaction/Signing errors
+  if (messageLower.includes('signing') || messageLower.includes('sign failed')) {
+    return LIGHTER_CLIENT_ERRORS.SIGNING_FAILED;
+  }
+  if (messageLower.includes('transaction') && messageLower.includes('failed')) {
+    return LIGHTER_CLIENT_ERRORS.TRANSACTION_FAILED;
+  }
+
   return 'UNKNOWN_ERROR';
 }
 
@@ -255,6 +281,17 @@ export function mapLighterError(
     errorCode === LIGHTER_CLIENT_ERRORS.INVALID_API_KEY
   ) {
     return new InvalidSignatureError(message, errorCode, 'lighter', originalError);
+  }
+
+  // Nonce/Transaction Errors (treat as invalid order since they prevent order execution)
+  if (
+    errorCode === LIGHTER_CLIENT_ERRORS.INVALID_NONCE ||
+    errorCode === LIGHTER_CLIENT_ERRORS.NONCE_TOO_LOW ||
+    errorCode === LIGHTER_CLIENT_ERRORS.NONCE_TOO_HIGH ||
+    errorCode === LIGHTER_CLIENT_ERRORS.TRANSACTION_FAILED ||
+    errorCode === LIGHTER_CLIENT_ERRORS.SIGNING_FAILED
+  ) {
+    return new InvalidOrderError(message, errorCode, 'lighter', originalError);
   }
 
   // Server/Network Errors
