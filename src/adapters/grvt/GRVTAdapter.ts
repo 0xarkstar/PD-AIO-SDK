@@ -111,14 +111,17 @@ export class GRVTAdapter extends BaseAdapter {
   }
 
   async initialize(): Promise<void> {
-    const isValid = await this.auth.verify();
-
-    if (!isValid) {
-      throw new InvalidSignatureError(
-        'Failed to verify GRVT credentials',
-        'INVALID_CREDENTIALS',
-        'grvt'
-      );
+    // Verify credentials only if provided
+    // Public API methods work without authentication
+    if (this.auth.hasCredentials()) {
+      const isValid = await this.auth.verify();
+      if (!isValid) {
+        throw new InvalidSignatureError(
+          'Failed to verify GRVT credentials',
+          'INVALID_CREDENTIALS',
+          'grvt'
+        );
+      }
     }
 
     this._isReady = true;
