@@ -40,6 +40,9 @@ export interface LogEntry {
   /** Log message */
   message: string;
 
+  /** Correlation ID for request tracing */
+  correlationId?: string;
+
   /** Additional metadata */
   meta?: Record<string, unknown>;
 
@@ -49,6 +52,48 @@ export interface LogEntry {
     message: string;
     stack?: string;
     code?: string;
+  };
+}
+
+/**
+ * Request context for correlation tracking
+ */
+export interface RequestContext {
+  /** Unique correlation ID for request tracing */
+  correlationId: string;
+  /** Adapter/exchange name */
+  adapter: string;
+  /** Method being called */
+  method: string;
+  /** Request start timestamp */
+  timestamp: number;
+  /** Additional request metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Generate a unique correlation ID
+ */
+export function generateCorrelationId(): string {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 10);
+  return `${timestamp}-${random}`;
+}
+
+/**
+ * Create a new request context
+ */
+export function createRequestContext(
+  adapter: string,
+  method: string,
+  metadata?: Record<string, unknown>
+): RequestContext {
+  return {
+    correlationId: generateCorrelationId(),
+    adapter,
+    method,
+    timestamp: Date.now(),
+    metadata,
   };
 }
 
@@ -67,6 +112,9 @@ export interface LoggerConfig {
 
   /** Whether to mask sensitive data */
   maskSensitiveData?: boolean;
+
+  /** Default correlation ID (can be overridden per-call) */
+  correlationId?: string;
 }
 
 /**
@@ -87,6 +135,7 @@ export class Logger {
   private enabled: boolean;
   private output: (entry: LogEntry) => void;
   private maskSensitiveData: boolean;
+  private correlationId?: string;
 
   constructor(context: string, config: LoggerConfig = {}) {
     this.context = context;
@@ -94,6 +143,7 @@ export class Logger {
     this.enabled = config.enabled ?? true;
     this.output = config.output ?? this.defaultOutput;
     this.maskSensitiveData = config.maskSensitiveData ?? true;
+    this.correlationId = config.correlationId;
   }
 
   /**
@@ -144,6 +194,33 @@ export class Logger {
   }
 
   /**
+   * Set correlation ID for request tracing
+   */
+  setCorrelationId(correlationId: string | undefined): void {
+    this.correlationId = correlationId;
+  }
+
+  /**
+   * Get current correlation ID
+   */
+  getCorrelationId(): string | undefined {
+    return this.correlationId;
+  }
+
+  /**
+   * Create a child logger with a specific correlation ID
+   */
+  withCorrelationId(correlationId: string): Logger {
+    return new Logger(this.context, {
+      level: this.level,
+      enabled: this.enabled,
+      output: this.output,
+      maskSensitiveData: this.maskSensitiveData,
+      correlationId,
+    });
+  }
+
+  /**
    * Internal log method
    */
   private log(level: LogLevel, message: string, meta?: Record<string, unknown>): void {
@@ -160,6 +237,11 @@ export class Logger {
       context: this.context,
       message,
     };
+
+    // Add correlation ID if present
+    if (this.correlationId) {
+      entry.correlationId = this.correlationId;
+    }
 
     if (meta && Object.keys(meta).length > 0) {
       entry.meta = this.maskSensitiveData ? this.maskSensitive(meta) : meta;
@@ -251,6 +333,7 @@ export function createChildLogger(parent: Logger, childContext: string): Logger 
     enabled: (parent as any).enabled,
     output: (parent as any).output,
     maskSensitiveData: (parent as any).maskSensitiveData,
+    correlationId: (parent as any).correlationId,
   });
 }
 
@@ -279,8 +362,14 @@ export function formatLogEntry(entry: LogEntry): string {
     `[${entry.timestamp}]`,
     entry.level.toUpperCase(),
     `[${entry.context}]`,
-    entry.message,
   ];
+
+  // Add correlation ID if present
+  if (entry.correlationId) {
+    parts.push(`[${entry.correlationId}]`);
+  }
+
+  parts.push(entry.message);
 
   if (entry.meta) {
     parts.push(JSON.stringify(entry.meta));

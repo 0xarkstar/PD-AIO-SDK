@@ -15,6 +15,9 @@
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type {
   Market,
+  OHLCV,
+  OHLCVParams,
+  OHLCVTimeframe,
   Order,
   Position,
   Balance,
@@ -65,6 +68,7 @@ export class GRVTAdapter extends BaseAdapter {
     fetchTicker: true,
     fetchOrderBook: true,
     fetchTrades: true,
+    fetchOHLCV: true,
     fetchFundingRate: true,
     fetchFundingRateHistory: false, // GRVT doesn't provide historical funding rates
     fetchPositions: true,
@@ -81,6 +85,7 @@ export class GRVTAdapter extends BaseAdapter {
     watchPositions: true,
     watchOrders: true,
     watchBalance: true,
+    watchMyTrades: true,
   };
 
   private readonly sdk: GRVTSDKWrapper;
@@ -209,6 +214,102 @@ export class GRVTAdapter extends BaseAdapter {
     } catch (error) {
       throw mapAxiosError(error);
     }
+  }
+
+  /**
+   * Fetch OHLCV (candlestick) data
+   *
+   * @param symbol - Symbol in unified format (e.g., "BTC/USDT:USDT")
+   * @param timeframe - Candlestick timeframe
+   * @param params - Optional parameters (since, until, limit)
+   * @returns Array of OHLCV tuples [timestamp, open, high, low, close, volume]
+   */
+  async fetchOHLCV(
+    symbol: string,
+    timeframe: OHLCVTimeframe = '1h',
+    params?: OHLCVParams
+  ): Promise<OHLCV[]> {
+    await this.rateLimiter.acquire('fetchOHLCV');
+
+    try {
+      const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
+
+      // Map unified timeframe to GRVT interval
+      // GRVT uses seconds-based intervals
+      const intervalMap: Record<OHLCVTimeframe, number> = {
+        '1m': 60,
+        '3m': 180,
+        '5m': 300,
+        '15m': 900,
+        '30m': 1800,
+        '1h': 3600,
+        '2h': 7200,
+        '4h': 14400,
+        '6h': 21600,
+        '8h': 28800,
+        '12h': 43200,
+        '1d': 86400,
+        '3d': 259200,
+        '1w': 604800,
+        '1M': 2592000,
+      };
+
+      const interval = intervalMap[timeframe] || 3600;
+
+      // Calculate time range
+      const now = Date.now();
+      const defaultDuration = this.getDefaultDuration(timeframe);
+      const startTime = params?.since ?? now - defaultDuration;
+      const endTime = params?.until ?? now;
+
+      const response = await this.sdk.getCandlestick({
+        instrument: grvtSymbol,
+        interval,
+        start_time: startTime,
+        end_time: endTime,
+        limit: params?.limit,
+      });
+
+      if (!response.result || !Array.isArray(response.result)) {
+        return [];
+      }
+
+      // Convert GRVT candle format to OHLCV tuple
+      return response.result.map((candle: any): OHLCV => [
+        candle.time || candle.t,
+        parseFloat(candle.open || candle.o || '0'),
+        parseFloat(candle.high || candle.h || '0'),
+        parseFloat(candle.low || candle.l || '0'),
+        parseFloat(candle.close || candle.c || '0'),
+        parseFloat(candle.volume || candle.v || '0'),
+      ]);
+    } catch (error) {
+      throw mapAxiosError(error);
+    }
+  }
+
+  /**
+   * Get default duration based on timeframe for initial data fetch
+   */
+  private getDefaultDuration(timeframe: OHLCVTimeframe): number {
+    const durationMap: Record<OHLCVTimeframe, number> = {
+      '1m': 24 * 60 * 60 * 1000,         // 24 hours
+      '3m': 3 * 24 * 60 * 60 * 1000,     // 3 days
+      '5m': 5 * 24 * 60 * 60 * 1000,     // 5 days
+      '15m': 7 * 24 * 60 * 60 * 1000,    // 7 days
+      '30m': 14 * 24 * 60 * 60 * 1000,   // 14 days
+      '1h': 30 * 24 * 60 * 60 * 1000,    // 30 days
+      '2h': 60 * 24 * 60 * 60 * 1000,    // 60 days
+      '4h': 90 * 24 * 60 * 60 * 1000,    // 90 days
+      '6h': 120 * 24 * 60 * 60 * 1000,   // 120 days
+      '8h': 180 * 24 * 60 * 60 * 1000,   // 180 days
+      '12h': 365 * 24 * 60 * 60 * 1000,  // 1 year
+      '1d': 365 * 24 * 60 * 60 * 1000,   // 1 year
+      '3d': 2 * 365 * 24 * 60 * 60 * 1000,  // 2 years
+      '1w': 3 * 365 * 24 * 60 * 60 * 1000,  // 3 years
+      '1M': 5 * 365 * 24 * 60 * 60 * 1000,  // 5 years
+    };
+    return durationMap[timeframe] || 30 * 24 * 60 * 60 * 1000;
   }
 
   async fetchFundingRate(symbol: string): Promise<FundingRate> {
@@ -647,6 +748,24 @@ export class GRVTAdapter extends BaseAdapter {
   async *watchBalance(): AsyncGenerator<Balance[]> {
     const ws = await this.ensureWebSocket();
     yield* ws.watchBalance();
+  }
+
+  /**
+   * Watch user trades (fills) in real-time
+   *
+   * @param symbol - Optional symbol filter
+   * @returns AsyncGenerator yielding Trade updates
+   *
+   * @example
+   * ```typescript
+   * for await (const trade of adapter.watchMyTrades()) {
+   *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
+   * }
+   * ```
+   */
+  async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
+    const ws = await this.ensureWebSocket();
+    yield* ws.watchMyTrades(symbol);
   }
 
   /**

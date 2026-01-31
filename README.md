@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-2383%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-1982%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![npm version](https://img.shields.io/badge/npm-v0.2.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
@@ -58,28 +58,29 @@
 |--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
 | fetchMarkets | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | fetchTicker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| fetchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| fetchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | fetchTrades | ✅ | ❌¹ | ✅ | ✅ | ⚠️² | ✅ | ⚠️³ | ✅ | ❌ |
-| fetchFundingRate | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| fetchOHLCV | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| fetchFundingRate | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | fetchFundingRateHistory | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
 
 #### Trading Methods
 | Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational |
 |--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
-| createOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| cancelOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| cancelAllOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| createBatchOrders | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| cancelBatchOrders | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
+| createOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| cancelOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| cancelAllOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| createBatchOrders | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ⚠️⁴ |
+| cancelBatchOrders | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ⚠️⁴ |
 | editOrder | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 #### Account Methods
 | Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational |
 |--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
-| fetchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| fetchBalance | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| fetchOrderHistory | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| fetchMyTrades | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
+| fetchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchBalance | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchOrderHistory | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchMyTrades | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
 | fetchUserFees | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
 | fetchPortfolio | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | setLeverage | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
@@ -90,30 +91,32 @@
 |--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
 | watchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | watchTrades | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| watchTicker | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ❌ |
+| watchTicker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
 | watchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | watchOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| watchBalance | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| watchBalance | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| watchMyTrades | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
 | watchFundingRate | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 #### Completion Summary by Adapter
 
 | Adapter | Public | Trading | Account | WebSocket | **Total** |
 |---------|:------:|:-------:|:-------:|:---------:|:---------:|
-| **Extended** | 6/6 (100%) | 6/6 (100%) | 8/8 (100%) | 7/7 (100%) | **100%** |
-| **Hyperliquid** | 5/6 (83%) | 5/6 (83%) | 7/8 (88%) | 5/7 (71%) | **81%** |
-| **Paradex** | 6/6 (100%) | 3/6 (50%) | 6/8 (75%) | 6/7 (86%) | **78%** |
-| **Backpack** | 6/6 (100%) | 3/6 (50%) | 5/8 (63%) | 6/7 (86%) | **74%** |
-| **Lighter** | 5/6 (83%) | 3/6 (50%) | 5/8 (63%) | 6/7 (86%) | **70%** |
-| **Nado** | 4/6 (67%) | 4/6 (67%) | 5/8 (63%) | 5/7 (71%) | **67%** |
-| **GRVT** | 5/6 (83%) | 4/6 (67%) | 5/8 (63%) | 4/7 (57%) | **67%** |
-| **EdgeX** | 4/6 (67%) | 3/6 (50%) | 4/8 (50%) | 6/7 (86%) | **63%** |
-| **Variational** | 2/6 (33%) | 0/6 (0%) | 0/8 (0%) | 0/7 (0%) | **7%** |
+| **Extended** | 6/7 (86%) | 6/6 (100%) | 8/8 (100%) | 7/8 (88%) | **93%** |
+| **Hyperliquid** | 6/7 (86%) | 5/6 (83%) | 7/8 (88%) | 6/8 (75%) | **83%** |
+| **GRVT** | 6/7 (86%) | 4/6 (67%) | 5/8 (63%) | 6/8 (75%) | **72%** |
+| **Paradex** | 5/7 (71%) | 3/6 (50%) | 6/8 (75%) | 7/8 (88%) | **71%** |
+| **Backpack** | 5/7 (71%) | 3/6 (50%) | 5/8 (63%) | 6/8 (75%) | **65%** |
+| **Lighter** | 5/7 (71%) | 3/6 (50%) | 5/8 (63%) | 6/8 (75%) | **65%** |
+| **Nado** | 4/7 (57%) | 4/6 (67%) | 5/8 (63%) | 5/8 (63%) | **62%** |
+| **EdgeX** | 4/7 (57%) | 3/6 (50%) | 4/8 (50%) | 6/8 (75%) | **58%** |
+| **Variational** | 4/7 (57%) | 5/6 (83%) | 6/8 (75%) | 0/8 (0%) | **52%** |
 
 #### Notes
 ¹ EdgeX: Use WebSocket (`watchTrades`) instead - no REST endpoint available
 ² Hyperliquid: Returns empty array from REST API, use WebSocket for real-time trades
 ³ Nado: Requires WebSocket for real-time trades
+⁴ Variational: Emulated batch operations (sequential execution)
 
 ### 🔐 Production-Grade Security
 - **EIP-712 signatures** (Hyperliquid, GRVT, Nado)
@@ -124,20 +127,24 @@
 - **Secure credential management** with validation
 
 ### ⚡ Enterprise Features
-- **WebSocket streaming** - Real-time order books, positions, trades
+- **WebSocket streaming** - Real-time order books, positions, trades with backpressure handling
 - **Auto-reconnection** - Exponential backoff with subscription recovery
 - **Rate limiting** - Exchange-specific limits respected automatically
 - **Smart caching** - Market data caching with configurable TTL
 - **Retry logic** - Automatic retry with exponential backoff
+- **Circuit breaker** - Fault tolerance with automatic recovery
+- **Request tracing** - Correlation IDs for distributed debugging
 - **Type safety** - Runtime validation (Zod) + TypeScript strict mode
+- **OHLCV support** - Candlestick data (1m to 1M timeframes)
 
 ### 📊 Developer Experience
 - **Pattern A Architecture** - All 9 adapters follow standardized structure
-- **2246 tests** - 100% pass rate, production-ready
-- **Structured logging** - JSON logs with sensitive data masking
-- **Health checks** - Built-in system monitoring
+- **1982+ tests** - 100% pass rate, production-ready
+- **Structured logging** - JSON logs with sensitive data masking + correlation IDs
+- **Health checks** - Built-in system monitoring with Prometheus metrics
 - **Comprehensive docs** - English + Korean documentation
 - **TypeScript strict mode** - Full type safety
+- **Validation middleware** - Zod schemas for all request/response types
 - **Examples included** - 10+ ready-to-use examples
 
 ---
@@ -306,11 +313,22 @@ const exchange = createExchange('extended', {
 - **Leverage**: Up to 100x
 - **StarkNet**: Optional on-chain integration for advanced operations
 
-### 🔴 Not Production Ready
+### 🟡 In Development
 
-| Exchange | Issue | Notes |
-|----------|-------|-------|
-| **Variational** | RFQ-based, API in development | Not standard orderbook |
+#### Variational
+```typescript
+const exchange = createExchange('variational', {
+  apiKey: process.env.VARIATIONAL_API_KEY,
+  apiSecret: process.env.VARIATIONAL_API_SECRET,
+  testnet: true,
+});
+```
+- **Type**: RFQ-based perpetual DEX (Request For Quote)
+- **Trading**: ✅ createOrder, cancelOrder, cancelAllOrders
+- **Account**: ✅ fetchPositions, fetchBalance, fetchOrderHistory, fetchMyTrades
+- **Public**: ✅ fetchMarkets, fetchTicker, fetchOrderBook, fetchFundingRate
+- **WebSocket**: ❌ Not available (API under development)
+- **Note**: RFQ model - quotes provided at multiple notional sizes ($1k, $100k, $1M)
 
 ---
 
@@ -374,6 +392,27 @@ EXTENDED_API_KEY=your_api_key
 
 ## 📖 Advanced Examples
 
+### OHLCV (Candlestick) Data
+
+```typescript
+import { createExchange } from 'pd-aio-sdk';
+
+const exchange = createExchange('hyperliquid', { testnet: true });
+await exchange.initialize();
+
+// Fetch 1-hour candles for the last 24 hours
+const candles = await exchange.fetchOHLCV('BTC/USDT:USDT', '1h', {
+  limit: 24
+});
+
+for (const [timestamp, open, high, low, close, volume] of candles) {
+  console.log(`${new Date(timestamp).toISOString()}: O=${open} H=${high} L=${low} C=${close} V=${volume}`);
+}
+
+// Supported timeframes: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
+// Currently available on: Hyperliquid, GRVT
+```
+
 ### WebSocket Streaming
 
 ```typescript
@@ -397,9 +436,9 @@ for await (const positions of exchange.watchPositions()) {
   console.log('Positions updated:', positions);
 }
 
-// Stream trades
-for await (const trade of exchange.watchTrades('BTC/USDT:USDT')) {
-  console.log('New trade:', trade);
+// Stream your own trades (requires auth)
+for await (const trade of exchange.watchMyTrades('BTC/USDT:USDT')) {
+  console.log('My trade:', trade.side, trade.amount, '@', trade.price);
 }
 ```
 
@@ -447,8 +486,33 @@ try {
     console.log('Error code:', error.code);      // 'MISSING_CREDENTIALS'
     console.log('Exchange:', error.exchange);     // 'hyperliquid'
     console.log('Message:', error.message);
+    console.log('Correlation ID:', error.correlationId); // For tracing
   }
 }
+```
+
+### Metrics & Monitoring
+
+```typescript
+import { createExchange } from 'pd-aio-sdk';
+
+const exchange = createExchange('hyperliquid', { testnet: true });
+await exchange.initialize();
+
+// Get API metrics
+const metrics = exchange.getMetrics();
+console.log(`Total requests: ${metrics.totalRequests}`);
+console.log(`Success rate: ${(metrics.successRate * 100).toFixed(2)}%`);
+console.log(`Avg latency: ${metrics.averageLatency.toFixed(2)}ms`);
+
+// Get circuit breaker status
+const cbState = exchange.getCircuitBreakerState();
+console.log(`Circuit breaker: ${cbState}`); // 'CLOSED', 'OPEN', or 'HALF_OPEN'
+
+// Health check
+const health = await exchange.healthCheck();
+console.log(`Status: ${health.status}`); // 'healthy', 'degraded', or 'unhealthy'
+console.log(`API latency: ${health.api.latency}ms`);
 ```
 
 ---
@@ -523,24 +587,26 @@ npm test -- hyperliquid
 ### Test Results
 
 ```
-✅ 2383 tests passing (100% pass rate)
-✅ 84 test suites
+✅ 1982+ tests passing (100% pass rate)
+✅ 70 test suites
 ✅ Integration tests: All passing
 ✅ Unit tests: All passing
+✅ Coverage thresholds enforced
 ```
 
-### API Verification Results (2026-01-31)
+### API Verification Results (2026-02-01)
 
-| Exchange | Markets | Ticker | OrderBook | FundingRate | Status |
-|----------|---------|--------|-----------|-------------|--------|
-| **Hyperliquid** | ✅ 228 | ✅ | ✅ | ✅ | Production Ready |
-| **EdgeX** | ✅ 292 | ✅ | ✅ | ✅ | Production Ready |
-| **Nado** | ✅ 26 | ✅ | ✅ | ✅ | Production Ready |
-| **GRVT** | ✅ 80 | ✅ | ✅ | ✅ | Production Ready |
-| **Backpack** | ✅ 154 | ✅ | ✅ | ✅ | Production Ready |
-| **Lighter** | ✅ 132 | ✅ | ✅ | - | Production Ready |
-| **Paradex** | ✅ 108 | ❌ JWT | ❌ JWT | - | Limited |
-| **Extended** | ✅ 0 | - | - | - | Mainnet Only |
+| Exchange | Markets | Ticker | OrderBook | OHLCV | FundingRate | Status |
+|----------|---------|--------|-----------|-------|-------------|--------|
+| **Hyperliquid** | ✅ 228 | ✅ | ✅ | ✅ | ✅ | Production Ready |
+| **GRVT** | ✅ 80 | ✅ | ✅ | ✅ | ✅ | Production Ready |
+| **EdgeX** | ✅ 292 | ✅ | ✅ | ❌ | ✅ | Production Ready |
+| **Nado** | ✅ 26 | ✅ | ✅ | ❌ | ✅ | Production Ready |
+| **Backpack** | ✅ 154 | ✅ | ✅ | ❌ | ✅ | Production Ready |
+| **Lighter** | ✅ 132 | ✅ | ✅ | ❌ | - | Production Ready |
+| **Paradex** | ✅ 108 | ❌ JWT | ❌ JWT | ❌ | - | Limited |
+| **Extended** | ✅ 0 | - | - | ❌ | - | Mainnet Only |
+| **Variational** | ✅ | ✅ | ✅ | ❌ | ✅ | In Development |
 
 ---
 
@@ -565,9 +631,11 @@ src/adapters/{exchange}/
 
 - **Adapters** - Exchange-specific implementations
 - **Normalizers** - Data transformation (CCXT format ↔ Exchange format)
-- **Core** - Rate limiting, retry logic, logging
-- **WebSocket** - Connection management, auto-reconnection
+- **Core** - Rate limiting, retry logic, circuit breaker, logging with correlation IDs
+- **WebSocket** - Connection management, auto-reconnection, backpressure handling
+- **Validation** - Zod schemas for runtime type checking
 - **Types** - Unified data structures, error hierarchy
+- **Monitoring** - Prometheus metrics, health checks
 
 **Learn More**: See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed documentation
 

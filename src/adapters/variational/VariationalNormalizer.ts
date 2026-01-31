@@ -402,4 +402,82 @@ export class VariationalNormalizer {
   normalizeTickersFromListings(listings: VariationalListing[]): Ticker[] {
     return listings.map((listing) => this.normalizeTickerFromListing(listing));
   }
+
+  /**
+   * Normalize funding rate from listing (from /metadata/stats)
+   */
+  normalizeFundingRateFromListing(listing: VariationalListing): FundingRate {
+    const unifiedSymbol = `${listing.ticker}/USDC:USDC`;
+    const markPrice = safeParseFloat(listing.mark_price);
+    const fundingIntervalSeconds = listing.funding_interval_s;
+    const fundingIntervalHours = fundingIntervalSeconds / 3600;
+
+    // Calculate next funding time based on interval
+    const now = Date.now();
+    const intervalMs = fundingIntervalSeconds * 1000;
+    const nextFundingTimestamp = Math.ceil(now / intervalMs) * intervalMs;
+
+    return {
+      symbol: unifiedSymbol,
+      fundingRate: safeParseFloat(listing.funding_rate),
+      fundingTimestamp: now,
+      nextFundingTimestamp,
+      markPrice,
+      indexPrice: markPrice, // Variational uses mark price as index
+      fundingIntervalHours,
+      info: listing as any,
+    };
+  }
+
+  /**
+   * Normalize order book from listing quotes (from /metadata/stats)
+   *
+   * Since Variational is an RFQ-based DEX, we construct an order book
+   * from the quotes at different notional sizes.
+   */
+  normalizeOrderBookFromListing(listing: VariationalListing): OrderBook {
+    const unifiedSymbol = `${listing.ticker}/USDC:USDC`;
+    const quotes = listing.quotes;
+    const markPrice = safeParseFloat(listing.mark_price);
+
+    // Build order book from quotes at different sizes
+    // Size represents notional value in USD
+    const bids: [number, number][] = [];
+    const asks: [number, number][] = [];
+
+    // $1k notional size
+    const bid1k = safeParseFloat(quotes.size_1k.bid);
+    const ask1k = safeParseFloat(quotes.size_1k.ask);
+    const size1k = 1000 / markPrice; // Convert notional to base amount
+    if (bid1k > 0) bids.push([bid1k, size1k]);
+    if (ask1k > 0) asks.push([ask1k, size1k]);
+
+    // $100k notional size
+    const bid100k = safeParseFloat(quotes.size_100k.bid);
+    const ask100k = safeParseFloat(quotes.size_100k.ask);
+    const size100k = 100000 / markPrice;
+    if (bid100k > 0) bids.push([bid100k, size100k]);
+    if (ask100k > 0) asks.push([ask100k, size100k]);
+
+    // $1m notional size (only available for major assets)
+    if (quotes.size_1m) {
+      const bid1m = safeParseFloat(quotes.size_1m.bid);
+      const ask1m = safeParseFloat(quotes.size_1m.ask);
+      const size1m = 1000000 / markPrice;
+      if (bid1m > 0) bids.push([bid1m, size1m]);
+      if (ask1m > 0) asks.push([ask1m, size1m]);
+    }
+
+    // Sort bids descending by price, asks ascending by price
+    bids.sort((a, b) => b[0] - a[0]);
+    asks.sort((a, b) => a[0] - b[0]);
+
+    return {
+      exchange: 'variational',
+      symbol: unifiedSymbol,
+      bids,
+      asks,
+      timestamp: new Date(quotes.updated_at).getTime() || Date.now(),
+    };
+  }
 }

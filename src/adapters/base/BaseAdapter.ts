@@ -13,6 +13,9 @@ import type {
   IExchangeAdapter,
   Market,
   MarketParams,
+  OHLCV,
+  OHLCVParams,
+  OHLCVTimeframe,
   Order,
   OrderBook,
   OrderBookParams,
@@ -34,7 +37,7 @@ import type {
 import { determineHealthStatus } from '../../types/health.js';
 import type { APIMetrics, EndpointMetrics, MetricsSnapshot } from '../../types/metrics.js';
 import { createMetricsSnapshot } from '../../types/metrics.js';
-import { Logger, LogLevel } from '../../core/logger.js';
+import { Logger, LogLevel, generateCorrelationId } from '../../core/logger.js';
 import { CircuitBreaker } from '../../core/CircuitBreaker.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { PrometheusMetrics, isMetricsInitialized, getMetrics } from '../../monitoring/prometheus.js';
@@ -449,6 +452,21 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     limit?: number
   ): Promise<FundingRate[]>;
 
+  /**
+   * Fetch OHLCV (candlestick) data
+   * Default implementation throws if not supported by exchange
+   */
+  async fetchOHLCV(
+    symbol: string,
+    timeframe: OHLCVTimeframe,
+    params?: OHLCVParams
+  ): Promise<OHLCV[]> {
+    if (!this.has.fetchOHLCV) {
+      throw new Error(`${this.name} does not support OHLCV data`);
+    }
+    throw new Error('fetchOHLCV must be implemented by subclass');
+  }
+
   // ===========================================================================
   // Trading (Private) - must be implemented by subclasses
   // ===========================================================================
@@ -693,6 +711,14 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     yield {} as FundingRate; // Type system requirement
   }
 
+  async *watchOHLCV(symbol: string, timeframe: OHLCVTimeframe): AsyncGenerator<OHLCV> {
+    if (!this.has.watchOHLCV) {
+      throw new Error(`${this.name} does not support OHLCV streaming`);
+    }
+    throw new Error('watchOHLCV must be implemented by subclass');
+    yield [0, 0, 0, 0, 0, 0] as OHLCV; // Type system requirement
+  }
+
   // ===========================================================================
   // Additional Info Methods
   // ===========================================================================
@@ -778,6 +804,9 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     const multiplier = 2;
     const retryableStatuses = [408, 429, 500, 502, 503, 504];
 
+    // Generate correlation ID for request tracing
+    const correlationId = generateCorrelationId();
+
     // Wrap the entire request in circuit breaker
     return this.circuitBreaker.execute(async () => {
       let lastError: Error | undefined;
@@ -786,6 +815,14 @@ export abstract class BaseAdapter implements IExchangeAdapter {
         const startTime = Date.now();
         const endpoint = this.extractEndpoint(url);
         const endpointKey = `${method}:${endpoint}`;
+
+        // Log request with correlation ID
+        this.debug(`Request ${correlationId}`, {
+          method,
+          endpoint,
+          attempt: attempt + 1,
+          correlationId,
+        });
 
         // Increment total requests
         this.metrics.totalRequests++;
@@ -801,6 +838,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
             method,
             headers: {
               'Content-Type': 'application/json',
+              'X-Correlation-ID': correlationId,
               ...headers,
             },
             body: body ? JSON.stringify(body) : undefined,
@@ -844,6 +882,13 @@ export abstract class BaseAdapter implements IExchangeAdapter {
           this.updateEndpointMetrics(endpointKey, latency, false);
           this.updateAverageLatency(latency);
 
+          // Log success with correlation ID
+          this.debug(`Request ${correlationId} completed`, {
+            correlationId,
+            latency,
+            status: response.status,
+          });
+
           // Track in Prometheus
           if (this.prometheusMetrics) {
             this.prometheusMetrics.recordRequest(this.id, endpoint, 'success', latency);
@@ -861,6 +906,14 @@ export abstract class BaseAdapter implements IExchangeAdapter {
           this.metrics.failedRequests++;
           this.updateEndpointMetrics(endpointKey, latency, true);
           this.updateAverageLatency(latency);
+
+          // Log error with correlation ID
+          this.debug(`Request ${correlationId} failed`, {
+            correlationId,
+            latency,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            attempt: attempt + 1,
+          });
 
           // Track in Prometheus
           if (this.prometheusMetrics) {
@@ -1124,6 +1177,12 @@ export abstract class BaseAdapter implements IExchangeAdapter {
    * @see fetchFundingRateHistory
    */
   fetch_funding_rate_history = this.fetchFundingRateHistory.bind(this);
+
+  /**
+   * Alias for fetchOHLCV() - Python-style naming
+   * @see fetchOHLCV
+   */
+  fetch_ohlcv = this.fetchOHLCV.bind(this);
 
   /**
    * Alias for createOrder() - Python-style naming

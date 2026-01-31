@@ -127,7 +127,8 @@ describe('LighterAdapter Integration Tests', () => {
       expect(adapter.has.createOrder).toBe(true);
       expect(adapter.has.cancelOrder).toBe(true);
       expect(adapter.has.cancelAllOrders).toBe(true);
-      expect(adapter.has.createBatchOrders).toBe(false);
+      expect(adapter.has.createBatchOrders).toBe('emulated');
+      expect(adapter.has.cancelBatchOrders).toBe('emulated');
       expect(adapter.has.setLeverage).toBe(false);
       expect(adapter.has.watchOrderBook).toBe(true);
       expect(adapter.has.watchTrades).toBe(true);

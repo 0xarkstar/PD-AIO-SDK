@@ -71,8 +71,12 @@ describe('LighterAdapter', () => {
 
     it('should have correct unsupported features', () => {
       expect(adapter.has.fetchFundingRateHistory).toBe(false);
-      expect(adapter.has.createBatchOrders).toBe(false);
       expect(adapter.has.setLeverage).toBe(false);
+    });
+
+    it('should have emulated batch order support', () => {
+      expect(adapter.has.createBatchOrders).toBe('emulated');
+      expect(adapter.has.cancelBatchOrders).toBe('emulated');
     });
   });
 

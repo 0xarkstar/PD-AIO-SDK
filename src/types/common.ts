@@ -497,6 +497,65 @@ export interface Transaction {
 }
 
 // =============================================================================
+// OHLCV (Candlestick) Types
+// =============================================================================
+
+/**
+ * Timeframe for OHLCV data
+ */
+export const OHLCV_TIMEFRAMES = [
+  '1m', '3m', '5m', '15m', '30m',
+  '1h', '2h', '4h', '6h', '8h', '12h',
+  '1d', '3d', '1w', '1M'
+] as const;
+export type OHLCVTimeframe = (typeof OHLCV_TIMEFRAMES)[number];
+
+/**
+ * OHLCV candlestick data
+ * Represented as a tuple: [timestamp, open, high, low, close, volume]
+ */
+export type OHLCV = [
+  timestamp: number,   // Opening time in milliseconds
+  open: number,        // Open price
+  high: number,        // High price
+  low: number,         // Low price
+  close: number,       // Close price
+  volume: number       // Volume in base currency
+];
+
+/**
+ * Detailed OHLCV structure with named fields
+ */
+export interface OHLCVData {
+  /** Opening timestamp (ms) */
+  timestamp: number;
+
+  /** Opening price */
+  open: number;
+
+  /** Highest price */
+  high: number;
+
+  /** Lowest price */
+  low: number;
+
+  /** Closing price */
+  close: number;
+
+  /** Volume in base currency */
+  volume: number;
+
+  /** Volume in quote currency */
+  quoteVolume?: number;
+
+  /** Number of trades in this candle */
+  trades?: number;
+
+  /** Exchange-specific metadata */
+  info?: Record<string, unknown>;
+}
+
+// =============================================================================
 // Parameter Types
 // =============================================================================
 
@@ -528,6 +587,20 @@ export interface TradeParams {
 
   /** Start timestamp (ms) */
   since?: number;
+}
+
+/**
+ * Parameters for OHLCV fetching
+ */
+export interface OHLCVParams {
+  /** Limit number of candles */
+  limit?: number;
+
+  /** Start timestamp (ms) */
+  since?: number;
+
+  /** End timestamp (ms) */
+  until?: number;
 }
 
 // =============================================================================

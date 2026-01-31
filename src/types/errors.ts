@@ -8,6 +8,9 @@
  * Base error class for all SDK errors
  */
 export class PerpDEXError extends Error {
+  /** Correlation ID for request tracing */
+  public correlationId?: string;
+
   constructor(
     message: string,
     public readonly code: string,
@@ -19,12 +22,21 @@ export class PerpDEXError extends Error {
     Object.setPrototypeOf(this, PerpDEXError.prototype);
   }
 
+  /**
+   * Set correlation ID for this error
+   */
+  withCorrelationId(correlationId: string): this {
+    this.correlationId = correlationId;
+    return this;
+  }
+
   toJSON(): Record<string, unknown> {
     return {
       name: this.name,
       message: this.message,
       code: this.code,
       exchange: this.exchange,
+      correlationId: this.correlationId,
       originalError: this.originalError,
     };
   }

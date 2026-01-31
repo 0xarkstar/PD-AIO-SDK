@@ -79,6 +79,9 @@ interface SubscriptionRequest {
  * ```
  */
 export class ParadexWebSocketWrapper {
+  /** Maximum queue size for backpressure */
+  private static readonly MAX_QUEUE_SIZE = 1000;
+
   private ws?: WebSocket;
   private readonly wsUrl: string;
   private readonly timeout: number;
@@ -90,6 +93,19 @@ export class ParadexWebSocketWrapper {
   private subscriptionId = 0;
   private readonly subscriptions = new Map<string, Set<(data: any) => void>>();
   private readonly messageQueue = new Map<string, any[]>();
+
+  /**
+   * Push to queue with bounded size (backpressure)
+   */
+  private boundedPush<T>(queue: T[], item: T, channel?: string): void {
+    if (queue.length >= ParadexWebSocketWrapper.MAX_QUEUE_SIZE) {
+      queue.shift(); // Drop oldest message
+      if (channel) {
+        console.warn(`[Paradex WS] Queue overflow on ${channel}, dropping oldest message`);
+      }
+    }
+    queue.push(item);
+  }
 
   constructor(config: ParadexWebSocketConfig) {
     this.wsUrl = config.wsUrl;
@@ -186,7 +202,7 @@ export class ParadexWebSocketWrapper {
         resolver(data);
         resolver = null;
       } else {
-        queue.push(data);
+        this.boundedPush(queue, data, 'orderbook');
       }
     };
 
@@ -247,7 +263,7 @@ export class ParadexWebSocketWrapper {
           resolver(trade);
           resolver = null;
         } else {
-          queue.push(trade);
+          this.boundedPush(queue, trade, 'trades');
         }
       }
     };
@@ -305,7 +321,7 @@ export class ParadexWebSocketWrapper {
         resolver(data);
         resolver = null;
       } else {
-        queue.push(data);
+        this.boundedPush(queue, data, 'ticker');
       }
     };
 
@@ -368,7 +384,7 @@ export class ParadexWebSocketWrapper {
           resolver(pos);
           resolver = null;
         } else {
-          queue.push(pos);
+          this.boundedPush(queue, pos, 'positions');
         }
       }
     };
@@ -432,7 +448,7 @@ export class ParadexWebSocketWrapper {
           resolver(order);
           resolver = null;
         } else {
-          queue.push(order);
+          this.boundedPush(queue, order, 'orders');
         }
       }
     };
@@ -497,7 +513,7 @@ export class ParadexWebSocketWrapper {
         resolver(data);
         resolver = null;
       } else {
-        queue.push(data);
+        this.boundedPush(queue, data, 'balance');
       }
     };
 
@@ -531,6 +547,66 @@ export class ParadexWebSocketWrapper {
         );
 
         yield normalized;
+      }
+    } finally {
+      this.unsubscribe(channel, callback);
+    }
+  }
+
+  /**
+   * Watch user trades (fills) in real-time
+   *
+   * @param symbol - Optional symbol filter
+   * @returns AsyncGenerator yielding Trade updates
+   */
+  async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
+    const channel = symbol ? `fills.${this.normalizer.symbolFromCCXT(symbol)}` : 'fills';
+
+    const queue: any[] = [];
+    let error: Error | null = null;
+    let resolver: ((value: any) => void) | null = null;
+
+    const callback = (data: any) => {
+      const fills = Array.isArray(data) ? data : [data];
+      for (const fill of fills) {
+        if (resolver) {
+          resolver(fill);
+          resolver = null;
+        } else {
+          this.boundedPush(queue, fill, 'fills');
+        }
+      }
+    };
+
+    try {
+      await this.subscribe(channel, symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {}, callback);
+
+      while (true) {
+        if (error) throw error;
+
+        let data: any;
+
+        if (queue.length > 0) {
+          data = queue.shift()!;
+        } else {
+          data = await new Promise<any>((resolve) => {
+            resolver = resolve;
+          });
+        }
+
+        if (error) throw error;
+
+        // Normalize fill to trade
+        const trade = this.normalizer.normalizeTrade({
+          id: data.id || data.fill_id || String(Date.now()),
+          market: data.market,
+          side: data.side,
+          price: data.price,
+          size: data.size || data.amount,
+          timestamp: data.timestamp || data.created_at || Date.now(),
+        });
+
+        yield trade;
       }
     } finally {
       this.unsubscribe(channel, callback);

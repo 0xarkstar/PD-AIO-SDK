@@ -69,6 +69,7 @@ export class ParadexAdapter extends BaseAdapter {
     watchPositions: true,
     watchOrders: true,
     watchBalance: true,
+    watchMyTrades: true,
   };
 
   // Component architecture
@@ -685,6 +686,18 @@ export class ParadexAdapter extends BaseAdapter {
     this.requireAuth();
     const ws = await this.ensureWebSocket();
     yield* ws.watchBalance();
+  }
+
+  /**
+   * Watch user trades (fills) in real-time
+   *
+   * @param symbol - Optional symbol filter
+   * @returns AsyncGenerator yielding Trade updates
+   */
+  async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
+    this.requireAuth();
+    const ws = await this.ensureWebSocket();
+    yield* ws.watchMyTrades(symbol);
   }
 
   // ===========================================================================

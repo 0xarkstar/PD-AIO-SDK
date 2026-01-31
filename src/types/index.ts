@@ -29,6 +29,10 @@ export type {
   MarketParams,
   OrderBookParams,
   TradeParams,
+  OHLCV,
+  OHLCVData,
+  OHLCVTimeframe,
+  OHLCVParams,
 } from './common.js';
 
 export {
@@ -40,6 +44,7 @@ export {
   MARGIN_MODES,
   TRANSACTION_TYPES,
   TRANSACTION_STATUSES,
+  OHLCV_TIMEFRAMES,
 } from './common.js';
 
 // Adapter interface
