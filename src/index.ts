@@ -137,6 +137,21 @@ export {
 } from './core/resilience.js';
 export type { ResilienceConfig, FailureContext } from './core/resilience.js';
 
+// Logging
+export {
+  Logger,
+  LogLevel,
+  generateCorrelationId,
+  createRequestContext,
+  createChildLogger,
+  formatLogEntry,
+} from './core/logger.js';
+export type {
+  LogEntry,
+  RequestContext,
+  LoggerConfig,
+} from './core/logger.js';
+
 // =============================================================================
 // Monitoring
 // =============================================================================
@@ -206,6 +221,7 @@ export {
 // =============================================================================
 
 export {
+  // Schemas
   OrderRequestSchema,
   OrderSchema,
   PositionSchema,
@@ -215,9 +231,26 @@ export {
   FundingRateSchema,
   BalanceSchema,
   TickerSchema,
+  // Simple validation helpers
   validateData,
+  validateArray as validateArraySimple,
+  // Middleware validation functions
+  validate,
+  validateSafe,
+  validateOrderRequest,
+  validateOrderBookParams,
+  validateTradeParams,
+  validateMarketParams,
   validateArray,
-} from './core/validation/schemas.js';
+  createValidator,
+  validateResponse,
+} from './core/validation/index.js';
+
+export type {
+  ValidationResult,
+  ValidationError,
+  ValidationOptions,
+} from './core/validation/index.js';
 
 // =============================================================================
 // Exchange Adapters

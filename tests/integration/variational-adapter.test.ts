@@ -36,14 +36,25 @@ describe('Variational Adapter Integration Tests', () => {
     });
 
     it('should have correct features', () => {
-      // Only fetchMarkets and fetchTicker are implemented
+      // Public API methods implemented
       expect(adapter.has.fetchMarkets).toBe(true);
       expect(adapter.has.fetchTicker).toBe(true);
+      expect(adapter.has.fetchOrderBook).toBe(true); // RFQ-based order book
+      expect(adapter.has.fetchFundingRate).toBe(true);
 
-      // Everything else should be false (under development)
-      expect(adapter.has.fetchOrderBook).toBe(false);
-      expect(adapter.has.createOrder).toBe(false);
-      expect(adapter.has.fetchPositions).toBe(false);
+      // Trading API implemented
+      expect(adapter.has.createOrder).toBe(true);
+      expect(adapter.has.cancelOrder).toBe(true);
+      expect(adapter.has.cancelAllOrders).toBe(true);
+
+      // Account API implemented
+      expect(adapter.has.fetchPositions).toBe(true);
+      expect(adapter.has.fetchBalance).toBe(true);
+      expect(adapter.has.fetchOrderHistory).toBe(true);
+      expect(adapter.has.fetchMyTrades).toBe(true);
+
+      // WebSocket/other methods still under development
+      expect(adapter.has.fetchTrades).toBe(false);
       expect(adapter.has.watchOrderBook).toBe(false);
     });
 
@@ -53,32 +64,8 @@ describe('Variational Adapter Integration Tests', () => {
   });
 
   describe('Error Handling for Unimplemented Methods', () => {
-    it('should throw error for fetchOrderBook', async () => {
-      await expect(adapter.fetchOrderBook('BTC/USDC:USDC')).rejects.toThrow(PerpDEXError);
-    });
-
-    it('should throw error for fetchTrades', async () => {
+    it('should throw error for fetchTrades (no trades endpoint for RFQ DEX)', async () => {
       await expect(adapter.fetchTrades('BTC/USDC:USDC')).rejects.toThrow(PerpDEXError);
-    });
-
-    it('should throw error for fetchFundingRate', async () => {
-      await expect(adapter.fetchFundingRate('BTC/USDC:USDC')).rejects.toThrow(PerpDEXError);
-    });
-
-    it('should throw error for createOrder', async () => {
-      await expect(
-        adapter.createOrder({
-          symbol: 'BTC/USDC:USDC',
-          type: 'limit',
-          side: 'buy',
-          amount: 0.01,
-          price: 50000,
-        })
-      ).rejects.toThrow(PerpDEXError);
-    });
-
-    it('should throw error for cancelOrder', async () => {
-      await expect(adapter.cancelOrder('order123')).rejects.toThrow(PerpDEXError);
     });
 
     it('should throw error for fetchPositions', async () => {
@@ -92,6 +79,27 @@ describe('Variational Adapter Integration Tests', () => {
     it('should throw error for watchOrderBook', async () => {
       const generator = adapter.watchOrderBook('BTC/USDC:USDC');
       await expect(generator.next()).rejects.toThrow(PerpDEXError);
+    });
+  });
+
+  describe('Trading Methods Error Handling', () => {
+    // These tests verify error handling - actual API calls will fail with network errors
+    // since the credentials are test values
+
+    it('createOrder should throw PerpDEXError with test credentials', async () => {
+      await expect(
+        adapter.createOrder({
+          symbol: 'BTC/USDC:USDC',
+          type: 'limit',
+          side: 'buy',
+          amount: 0.01,
+          price: 50000,
+        })
+      ).rejects.toThrow(PerpDEXError);
+    });
+
+    it('cancelOrder should throw PerpDEXError with test credentials', async () => {
+      await expect(adapter.cancelOrder('order123')).rejects.toThrow(PerpDEXError);
     });
   });
 

@@ -478,6 +478,9 @@ export class ExtendedWebSocketWrapper {
   /**
    * Create an async iterator for messages on a channel
    */
+  /** Maximum queue size for backpressure */
+  private static readonly MAX_QUEUE_SIZE = 1000;
+
   private async *createMessageIterator<T extends ExtendedWsMessage>(
     channelKey: string
   ): AsyncGenerator<T> {
@@ -490,6 +493,11 @@ export class ExtendedWebSocketWrapper {
         resolver(message as T);
         resolver = null;
       } else {
+        // Apply backpressure: drop oldest message if queue is full
+        if (messageQueue.length >= ExtendedWebSocketWrapper.MAX_QUEUE_SIZE) {
+          messageQueue.shift();
+          this.logger.warn(`Queue overflow on channel ${channelKey}, dropping oldest message`);
+        }
         messageQueue.push(message as T);
       }
     };

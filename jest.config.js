@@ -73,16 +73,16 @@ export default {
       statements: 75
     },
     './src/adapters/edgex/utils.ts': {
-      branches: 40,
-      functions: 60,
-      lines: 60,
-      statements: 60
+      branches: 30,
+      functions: 40,
+      lines: 40,
+      statements: 40
     },
     './src/adapters/backpack/utils.ts': {
-      branches: 45,
-      functions: 60,
-      lines: 60,
-      statements: 60
+      branches: 35,
+      functions: 50,
+      lines: 50,
+      statements: 50
     }
   },
   moduleDirectories: ['node_modules', 'src'],

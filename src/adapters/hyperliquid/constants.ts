@@ -47,6 +47,7 @@ export const HYPERLIQUID_RATE_LIMIT = {
     fetchTrades: 1,
     fetchTicker: 1,
     fetchFundingRate: 1,
+    fetchOHLCV: 2,
 
     // Private endpoints
     fetchPositions: 2,

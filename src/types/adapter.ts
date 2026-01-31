@@ -10,6 +10,9 @@ import type {
   FundingRate,
   Market,
   MarketParams,
+  OHLCV,
+  OHLCVParams,
+  OHLCVTimeframe,
   Order,
   OrderBook,
   OrderBookParams,
@@ -33,6 +36,7 @@ export interface FeatureMap {
   fetchTicker: boolean;
   fetchOrderBook: boolean;
   fetchTrades: boolean;
+  fetchOHLCV: boolean;
   fetchFundingRate: boolean;
   fetchFundingRateHistory: boolean;
 
@@ -40,8 +44,8 @@ export interface FeatureMap {
   createOrder: boolean;
   cancelOrder: boolean;
   cancelAllOrders: boolean;
-  createBatchOrders: boolean;
-  cancelBatchOrders: boolean;
+  createBatchOrders: boolean | 'emulated';
+  cancelBatchOrders: boolean | 'emulated';
   editOrder: boolean;
 
   // Order Query
@@ -64,10 +68,12 @@ export interface FeatureMap {
   watchOrderBook: boolean;
   watchTrades: boolean;
   watchTicker: boolean;
+  watchOHLCV: boolean;
   watchPositions: boolean;
   watchOrders: boolean;
   watchBalance: boolean;
   watchFundingRate: boolean;
+  watchMyTrades: boolean;
 
   // Advanced Features
   twapOrders: boolean;
@@ -229,6 +235,25 @@ export interface IExchangeAdapter {
    * @throws {ExchangeUnavailableError} If API is unavailable
    */
   fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
+
+  /**
+   * Fetch OHLCV (candlestick) data for a symbol
+   *
+   * @param symbol - Symbol in unified format
+   * @param timeframe - Candlestick timeframe (e.g., '1m', '1h', '1d')
+   * @param params - Optional parameters (since, until, limit)
+   * @returns Promise resolving to array of OHLCV tuples
+   * @throws {ExchangeUnavailableError} If API is unavailable
+   *
+   * @example
+   * ```typescript
+   * const candles = await exchange.fetchOHLCV('BTC/USDT:USDT', '1h', { limit: 100 });
+   * for (const [timestamp, open, high, low, close, volume] of candles) {
+   *   console.log(`${new Date(timestamp).toISOString()}: O=${open} H=${high} L=${low} C=${close} V=${volume}`);
+   * }
+   * ```
+   */
+  fetchOHLCV(symbol: string, timeframe: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]>;
 
   // ===========================================================================
   // Trading (Private)
@@ -468,6 +493,23 @@ export interface IExchangeAdapter {
    * @returns Async generator yielding funding rate updates
    */
   watchFundingRate(symbol: string): AsyncGenerator<FundingRate>;
+
+  /**
+   * Subscribe to real-time OHLCV (candlestick) updates
+   *
+   * @param symbol - Symbol in unified format
+   * @param timeframe - Candlestick timeframe (e.g., '1m', '1h', '1d')
+   * @returns Async generator yielding OHLCV tuples
+   *
+   * @example
+   * ```typescript
+   * for await (const candle of exchange.watchOHLCV('BTC/USDT:USDT', '1m')) {
+   *   const [timestamp, open, high, low, close, volume] = candle;
+   *   console.log(`Candle update: ${close}`);
+   * }
+   * ```
+   */
+  watchOHLCV(symbol: string, timeframe: OHLCVTimeframe): AsyncGenerator<OHLCV>;
 
   // ===========================================================================
   // Additional Info Methods

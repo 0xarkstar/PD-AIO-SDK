@@ -12,6 +12,9 @@ import type {
   FundingRate,
   Market,
   MarketParams,
+  OHLCV,
+  OHLCVParams,
+  OHLCVTimeframe,
   Order,
   OrderBook,
   OrderBookParams,
@@ -73,6 +76,7 @@ export class HyperliquidAdapter extends BaseAdapter {
     fetchTicker: true,
     fetchOrderBook: true,
     fetchTrades: true,
+    fetchOHLCV: true,
     fetchFundingRate: true,
     fetchFundingRateHistory: true,
 
@@ -104,6 +108,7 @@ export class HyperliquidAdapter extends BaseAdapter {
     watchOrders: true,
     watchBalance: false,
     watchFundingRate: false,
+    watchMyTrades: true,
 
     // Advanced
     twapOrders: false,
@@ -268,6 +273,114 @@ export class HyperliquidAdapter extends BaseAdapter {
     } catch (error) {
       throw mapError(error);
     }
+  }
+
+  /**
+   * Fetch OHLCV (candlestick) data
+   *
+   * @param symbol - Symbol in unified format (e.g., "BTC/USDT:USDT")
+   * @param timeframe - Candlestick timeframe
+   * @param params - Optional parameters (since, until, limit)
+   * @returns Array of OHLCV tuples [timestamp, open, high, low, close, volume]
+   */
+  async fetchOHLCV(
+    symbol: string,
+    timeframe: OHLCVTimeframe = '1h',
+    params?: OHLCVParams
+  ): Promise<OHLCV[]> {
+    await this.rateLimiter.acquire('fetchOHLCV');
+
+    try {
+      const exchangeSymbol = this.symbolToExchange(symbol);
+
+      // Map unified timeframe to Hyperliquid interval
+      const intervalMap: Record<OHLCVTimeframe, string> = {
+        '1m': '1m',
+        '3m': '3m',
+        '5m': '5m',
+        '15m': '15m',
+        '30m': '30m',
+        '1h': '1h',
+        '2h': '2h',
+        '4h': '4h',
+        '6h': '6h',
+        '8h': '8h',
+        '12h': '12h',
+        '1d': '1d',
+        '3d': '3d',
+        '1w': '1w',
+        '1M': '1M',
+      };
+
+      const interval = intervalMap[timeframe] || '1h';
+
+      // Calculate time range
+      const now = Date.now();
+      const defaultDuration = this.getDefaultDuration(timeframe);
+      const startTime = params?.since ?? now - defaultDuration;
+      const endTime = params?.until ?? now;
+
+      const response = await this.request<Array<{
+        t: number;    // timestamp
+        o: string;    // open
+        h: string;    // high
+        l: string;    // low
+        c: string;    // close
+        v: string;    // volume
+        n?: number;   // number of trades (optional)
+      }>>('POST', `${this.apiUrl}/info`, {
+        type: 'candleSnapshot',
+        req: {
+          coin: exchangeSymbol,
+          interval,
+          startTime,
+          endTime,
+        },
+      });
+
+      if (!response || !Array.isArray(response)) {
+        return [];
+      }
+
+      // Apply limit if specified
+      const candles = params?.limit ? response.slice(-params.limit) : response;
+
+      // Convert to OHLCV format
+      return candles.map((candle): OHLCV => [
+        candle.t,
+        parseFloat(candle.o),
+        parseFloat(candle.h),
+        parseFloat(candle.l),
+        parseFloat(candle.c),
+        parseFloat(candle.v),
+      ]);
+    } catch (error) {
+      throw mapError(error);
+    }
+  }
+
+  /**
+   * Get default duration based on timeframe for initial data fetch
+   */
+  private getDefaultDuration(timeframe: OHLCVTimeframe): number {
+    const durationMap: Record<OHLCVTimeframe, number> = {
+      '1m': 24 * 60 * 60 * 1000,         // 24 hours of 1m candles
+      '3m': 3 * 24 * 60 * 60 * 1000,     // 3 days
+      '5m': 5 * 24 * 60 * 60 * 1000,     // 5 days
+      '15m': 7 * 24 * 60 * 60 * 1000,    // 7 days
+      '30m': 14 * 24 * 60 * 60 * 1000,   // 14 days
+      '1h': 30 * 24 * 60 * 60 * 1000,    // 30 days
+      '2h': 60 * 24 * 60 * 60 * 1000,    // 60 days
+      '4h': 90 * 24 * 60 * 60 * 1000,    // 90 days
+      '6h': 120 * 24 * 60 * 60 * 1000,   // 120 days
+      '8h': 180 * 24 * 60 * 60 * 1000,   // 180 days
+      '12h': 365 * 24 * 60 * 60 * 1000,  // 1 year
+      '1d': 365 * 24 * 60 * 60 * 1000,   // 1 year
+      '3d': 2 * 365 * 24 * 60 * 60 * 1000,  // 2 years
+      '1w': 3 * 365 * 24 * 60 * 60 * 1000,  // 3 years
+      '1M': 5 * 365 * 24 * 60 * 60 * 1000,  // 5 years
+    };
+    return durationMap[timeframe] || 30 * 24 * 60 * 60 * 1000;
   }
 
   async fetchFundingRate(symbol: string): Promise<FundingRate> {
@@ -1046,6 +1159,53 @@ export class HyperliquidAdapter extends BaseAdapter {
       // When a fill occurs, fetch updated open orders
       const orders = await this.fetchOpenOrders();
       yield orders;
+    }
+  }
+
+  /**
+   * Watch user trades (fills) in real-time
+   *
+   * Subscribes to the USER_FILLS WebSocket channel and yields each trade
+   * as it occurs. Provides real-time fill notifications for the authenticated user.
+   *
+   * @param symbol - Optional symbol to filter trades (e.g., "BTC/USDT:USDT")
+   * @returns AsyncGenerator that yields individual trades
+   * @throws {Error} If WebSocket manager or authentication is not initialized
+   *
+   * @example
+   * ```typescript
+   * for await (const trade of adapter.watchMyTrades()) {
+   *   console.log(`Filled: ${trade.side} ${trade.amount} ${trade.symbol} @ ${trade.price}`);
+   * }
+   * ```
+   */
+  async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
+    this.ensureInitialized();
+
+    if (!this.wsManager || !this.auth) {
+      throw new Error('WebSocket manager or auth not initialized');
+    }
+
+    const subscription: HyperliquidWsSubscription = {
+      method: 'subscribe',
+      subscription: {
+        type: HYPERLIQUID_WS_CHANNELS.USER_FILLS,
+        user: this.auth.getAddress(),
+      },
+    };
+
+    const exchangeSymbol = symbol ? this.symbolToExchange(symbol) : undefined;
+
+    for await (const fill of this.wsManager.watch<HyperliquidUserFill>(
+      `${HYPERLIQUID_WS_CHANNELS.USER_FILLS}:${this.auth.getAddress()}`,
+      subscription
+    )) {
+      // Filter by symbol if provided
+      if (exchangeSymbol && fill.coin !== exchangeSymbol) {
+        continue;
+      }
+
+      yield this.normalizer.normalizeUserFill(fill);
     }
   }
 

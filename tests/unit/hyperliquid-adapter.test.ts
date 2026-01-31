@@ -43,11 +43,40 @@ describe('HyperliquidAdapter', () => {
       expect(adapter.has.fetchTicker).toBe(true);
       expect(adapter.has.fetchOrderBook).toBe(true);
       expect(adapter.has.fetchTrades).toBe(true);
+      expect(adapter.has.fetchOHLCV).toBe(true);
       expect(adapter.has.fetchFundingRate).toBe(true);
       expect(adapter.has.createOrder).toBe(true);
       expect(adapter.has.cancelOrder).toBe(true);
       expect(adapter.has.fetchPositions).toBe(true);
       expect(adapter.has.fetchBalance).toBe(true);
+    });
+  });
+
+  describe('fetchOHLCV helper', () => {
+    let adapter: HyperliquidAdapter;
+
+    beforeEach(() => {
+      adapter = new HyperliquidAdapter();
+    });
+
+    it('should have getDefaultDuration for all timeframes', () => {
+      const getDefaultDuration = (adapter as any).getDefaultDuration.bind(adapter);
+
+      // Test all timeframes return valid durations
+      expect(getDefaultDuration('1m')).toBeGreaterThan(0);
+      expect(getDefaultDuration('5m')).toBeGreaterThan(0);
+      expect(getDefaultDuration('15m')).toBeGreaterThan(0);
+      expect(getDefaultDuration('1h')).toBeGreaterThan(0);
+      expect(getDefaultDuration('4h')).toBeGreaterThan(0);
+      expect(getDefaultDuration('1d')).toBeGreaterThan(0);
+      expect(getDefaultDuration('1w')).toBeGreaterThan(0);
+    });
+
+    it('should have longer durations for larger timeframes', () => {
+      const getDefaultDuration = (adapter as any).getDefaultDuration.bind(adapter);
+
+      expect(getDefaultDuration('1d')).toBeGreaterThan(getDefaultDuration('1h'));
+      expect(getDefaultDuration('1h')).toBeGreaterThan(getDefaultDuration('1m'));
     });
   });
 

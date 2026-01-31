@@ -38,10 +38,26 @@ export interface GRVTWebSocketConfig {
  * WebSocket wrapper for GRVT real-time data streams
  */
 export class GRVTWebSocketWrapper {
+  /** Maximum queue size for backpressure */
+  private static readonly MAX_QUEUE_SIZE = 1000;
+
   private readonly ws: WS;
   private readonly normalizer: GRVTNormalizer;
   private readonly subAccountId?: string;
   private isConnected = false;
+
+  /**
+   * Push to queue with bounded size (backpressure)
+   */
+  private boundedPush<T>(queue: T[], item: T, channel?: string): void {
+    if (queue.length >= GRVTWebSocketWrapper.MAX_QUEUE_SIZE) {
+      queue.shift(); // Drop oldest message
+      if (channel) {
+        console.warn(`[GRVT WebSocket] Queue overflow on ${channel}, dropping oldest message`);
+      }
+    }
+    queue.push(item);
+  }
 
   constructor(config: GRVTWebSocketConfig = {}) {
     const urls = config.testnet ? GRVT_API_URLS.testnet : GRVT_API_URLS.mainnet;
@@ -129,7 +145,7 @@ export class GRVTWebSocketWrapper {
           resolver = null;
           rejecter = null;
         } else {
-          queue.push(data);
+          this.boundedPush(queue, data, 'orderbook');
         }
       },
       onError: (err) => {
@@ -214,7 +230,7 @@ export class GRVTWebSocketWrapper {
           resolver = null;
           rejecter = null;
         } else {
-          queue.push(data);
+          this.boundedPush(queue, data, 'trades');
         }
       },
       onError: (err) => {
@@ -294,7 +310,7 @@ export class GRVTWebSocketWrapper {
           resolver = null;
           rejecter = null;
         } else {
-          queue.push(data);
+          this.boundedPush(queue, data, 'positions');
         }
       },
       onError: (err) => {
@@ -374,7 +390,7 @@ export class GRVTWebSocketWrapper {
           resolver = null;
           rejecter = null;
         } else {
-          queue.push(data);
+          this.boundedPush(queue, data, 'orders');
         }
       },
       onError: (err) => {
@@ -446,6 +462,98 @@ export class GRVTWebSocketWrapper {
         info: position.info,
       };
       yield [balance];
+    }
+  }
+
+  /**
+   * Watch user trades (fills) in real-time
+   *
+   * @param symbol - Optional symbol filter
+   * @returns AsyncGenerator yielding Trade updates
+   *
+   * @example
+   * ```typescript
+   * for await (const trade of wrapper.watchMyTrades()) {
+   *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
+   * }
+   * ```
+   */
+  async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
+    if (!this.subAccountId) {
+      throw new Error('Sub-account ID required for watching fills');
+    }
+
+    const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : undefined;
+
+    const queue: any[] = [];
+    let error: Error | null = null;
+    let subscriptionKey: string | null = null;
+    let resolver: ((value: any) => void) | null = null;
+    let rejecter: ((err: Error) => void) | null = null;
+
+    const request = {
+      stream: EStream.FILL,
+      params: {
+        sub_account_id: this.subAccountId,
+        ...(instrument && { instrument }),
+      },
+      onData: (data: any) => {
+        if (resolver) {
+          resolver(data);
+          resolver = null;
+          rejecter = null;
+        } else {
+          this.boundedPush(queue, data, 'fills');
+        }
+      },
+      onError: (err: Error) => {
+        error = err;
+        if (rejecter) {
+          rejecter(err);
+          resolver = null;
+          rejecter = null;
+        }
+      },
+    };
+
+    try {
+      subscriptionKey = this.ws.subscribe(request as any);
+
+      while (true) {
+        if (error) throw error;
+
+        let data: any;
+
+        if (queue.length > 0) {
+          data = queue.shift()!;
+        } else {
+          data = await new Promise<any>((resolve, reject) => {
+            resolver = resolve;
+            rejecter = reject;
+          });
+        }
+
+        if (error) throw error;
+
+        // Normalize fill to Trade
+        const trade: Trade = {
+          id: data.fill_id || data.id || String(Date.now()),
+          symbol: this.normalizer.symbolToCCXT(data.instrument || data.symbol),
+          orderId: data.order_id,
+          side: data.is_buyer ? 'buy' : 'sell',
+          price: parseFloat(data.price || '0'),
+          amount: parseFloat(data.filled || data.quantity || '0'),
+          cost: parseFloat(data.price || '0') * parseFloat(data.filled || data.quantity || '0'),
+          timestamp: data.event_time || Date.now(),
+          info: data,
+        };
+
+        yield trade;
+      }
+    } finally {
+      if (subscriptionKey) {
+        this.ws.unsubscribe(subscriptionKey);
+      }
     }
   }
 

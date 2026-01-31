@@ -234,6 +234,36 @@ export const TickerSchema = z.object({
 });
 
 // =============================================================================
+// OHLCV Schemas
+// =============================================================================
+
+export const OHLCVTimeframeSchema = z.enum([
+  '1m', '3m', '5m', '15m', '30m',
+  '1h', '2h', '4h', '6h', '8h', '12h',
+  '1d', '3d', '1w', '1M',
+]);
+
+/**
+ * OHLCV tuple: [timestamp, open, high, low, close, volume]
+ */
+export const OHLCVSchema = z.tuple([
+  TimestampSchema,           // timestamp
+  PositiveNumberSchema,      // open
+  PositiveNumberSchema,      // high
+  PositiveNumberSchema,      // low
+  PositiveNumberSchema,      // close
+  NonNegativeNumberSchema,   // volume
+]);
+
+export const OHLCVParamsSchema = z
+  .object({
+    limit: z.number().int().positive().optional(),
+    since: TimestampSchema.optional(),
+    until: TimestampSchema.optional(),
+  })
+  .optional();
+
+// =============================================================================
 // Parameter Schemas
 // =============================================================================
 
@@ -273,6 +303,9 @@ export type Ticker = z.infer<typeof TickerSchema>;
 export type MarketParams = z.infer<typeof MarketParamsSchema>;
 export type OrderBookParams = z.infer<typeof OrderBookParamsSchema>;
 export type TradeParams = z.infer<typeof TradeParamsSchema>;
+export type OHLCV = z.infer<typeof OHLCVSchema>;
+export type OHLCVTimeframe = z.infer<typeof OHLCVTimeframeSchema>;
+export type OHLCVParams = z.infer<typeof OHLCVParamsSchema>;
 
 // =============================================================================
 // Validation Helpers
