@@ -41,6 +41,8 @@ export class RateLimiter {
     reject: (error: Error) => void;
   }> = [];
   private processingQueue = false;
+  private destroyed = false;
+  private pendingTimers: Set<ReturnType<typeof setTimeout>> = new Set();
 
   constructor(config: RateLimiterConfig) {
     this.maxTokens = config.maxTokens;
@@ -129,13 +131,13 @@ export class RateLimiter {
    * Process queued requests
    */
   private async processQueue(): Promise<void> {
-    if (this.processingQueue) {
+    if (this.processingQueue || this.destroyed) {
       return;
     }
 
     this.processingQueue = true;
 
-    while (this.queue.length > 0) {
+    while (this.queue.length > 0 && !this.destroyed) {
       this.refillBucket();
 
       const request = this.queue[0];
@@ -181,10 +183,42 @@ export class RateLimiter {
   }
 
   /**
-   * Sleep helper
+   * Sleep helper with timer tracking for cleanup
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.pendingTimers.delete(timer);
+        resolve();
+      }, ms);
+      // Allow process to exit even if timer is pending
+      if (timer.unref) {
+        timer.unref();
+      }
+      this.pendingTimers.add(timer);
+    });
+  }
+
+  /**
+   * Destroy rate limiter and cancel pending operations
+   */
+  destroy(): void {
+    this.destroyed = true;
+
+    // Clear all pending timers
+    for (const timer of this.pendingTimers) {
+      clearTimeout(timer);
+    }
+    this.pendingTimers.clear();
+
+    // Reject all queued requests
+    const queuedRequests = [...this.queue];
+    this.queue.length = 0;
+    for (const request of queuedRequests) {
+      request.reject(new Error('RateLimiter destroyed'));
+    }
+
+    this.processingQueue = false;
   }
 
   /**
