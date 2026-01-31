@@ -7,6 +7,14 @@
 // Main adapter
 export { ExtendedAdapter } from './ExtendedAdapter.js';
 
+// WebSocket wrapper
+export { ExtendedWebSocketWrapper } from './ExtendedWebSocketWrapper.js';
+export type { ExtendedWebSocketConfig } from './ExtendedWebSocketWrapper.js';
+
+// StarkNet client
+export { ExtendedStarkNetClient } from './ExtendedStarkNetClient.js';
+export type { ExtendedStarkNetConfig } from './ExtendedStarkNetClient.js';
+
 // Configuration type
 export type { ExtendedConfig } from './ExtendedAdapter.js';
 
@@ -26,6 +34,17 @@ export type {
   ExtendedLeverageSettings,
   ExtendedStarkNetState,
   ExtendedStarkNetTransaction,
+  // WebSocket types
+  ExtendedWsOrderBookUpdate,
+  ExtendedWsTradeUpdate,
+  ExtendedWsTickerUpdate,
+  ExtendedWsPositionUpdate,
+  ExtendedWsOrderUpdate,
+  ExtendedWsBalanceUpdate,
+  ExtendedWsFundingRateUpdate,
+  ExtendedWsMessage,
+  ExtendedWsSubscription,
+  ExtendedWsAuth,
 } from './types.js';
 
 // Constants
@@ -38,6 +57,8 @@ export {
   EXTENDED_ORDER_STATUS,
   EXTENDED_LEVERAGE_TIERS,
   EXTENDED_MARGIN_MODES,
+  EXTENDED_WS_CONFIG,
+  EXTENDED_WS_CHANNELS,
 } from './constants.js';
 
 // Error codes
