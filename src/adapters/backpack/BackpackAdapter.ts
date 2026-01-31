@@ -51,7 +51,7 @@ export class BackpackAdapter extends BaseAdapter {
     fetchOrderBook: true,
     fetchTrades: true,
     fetchFundingRate: true,
-    fetchFundingRateHistory: false,
+    fetchFundingRateHistory: true,
     fetchPositions: true,
     fetchBalance: true,
     fetchOrderHistory: true,
@@ -122,12 +122,32 @@ export class BackpackAdapter extends BaseAdapter {
 
   /**
    * Initialize the adapter
+   * Public API methods work without authentication
    */
   async initialize(): Promise<void> {
-    if (!this.apiKey) {
-      throw new PerpDEXError('API key is required for Backpack', 'MISSING_CONFIG', 'backpack');
-    }
+    // Note: API key is only required for private methods (trading, positions, balance)
+    // Public methods (markets, ticker, orderbook, trades) work without auth
     this._isReady = true;
+  }
+
+  /**
+   * Check if credentials are available for private API methods
+   */
+  private hasCredentials(): boolean {
+    return !!(this.apiKey && this.apiSecret);
+  }
+
+  /**
+   * Require credentials for private methods
+   */
+  private requireAuth(): void {
+    if (!this.hasCredentials()) {
+      throw new PerpDEXError(
+        'API key and secret are required for this operation',
+        'MISSING_CREDENTIALS',
+        'backpack'
+      );
+    }
   }
 
   /**
@@ -156,7 +176,7 @@ export class BackpackAdapter extends BaseAdapter {
    */
   async fetchTicker(symbol: string): Promise<Ticker> {
     const market = this.normalizer.toBackpackSymbol(symbol);
-    const response = await this.makeRequest('GET', `/markets/${market}/ticker`, 'fetchTicker');
+    const response = await this.makeRequest('GET', `/ticker?symbol=${market}`, 'fetchTicker');
 
     return this.normalizer.normalizeTicker(response);
   }
@@ -166,16 +186,15 @@ export class BackpackAdapter extends BaseAdapter {
    */
   async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     const market = this.normalizer.toBackpackSymbol(symbol);
-    const limit = params?.limit;
 
-    const queryParams = limit ? `?depth=${limit}` : '';
-    const response = await this.makeRequest(
-      'GET',
-      `/markets/${market}/orderbook${queryParams}`,
-      'fetchOrderBook'
-    );
+    const queryParts = [`symbol=${market}`];
+    if (params?.limit) {
+      queryParts.push(`depth=${params.limit}`);
+    }
 
-    return this.normalizer.normalizeOrderBook(response);
+    const response = await this.makeRequest('GET', `/depth?${queryParts.join('&')}`, 'fetchOrderBook');
+
+    return this.normalizer.normalizeOrderBook(response, symbol);
   }
 
   /**
@@ -187,46 +206,63 @@ export class BackpackAdapter extends BaseAdapter {
 
     const response = await this.makeRequest(
       'GET',
-      `/markets/${market}/trades?limit=${limit}`,
+      `/trades?symbol=${market}&limit=${limit}`,
       'fetchTrades'
     );
 
-    if (!Array.isArray(response.trades)) {
+    // Backpack returns trades as an array directly
+    if (!Array.isArray(response)) {
       throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    return response.trades.map((trade: any) => this.normalizer.normalizeTrade(trade));
+    return response.map((trade: any) => this.normalizer.normalizeTrade(trade, symbol));
   }
 
   /**
    * Fetch current funding rate
+   * Returns the most recent funding rate from history
    */
   async fetchFundingRate(symbol: string): Promise<FundingRate> {
     const market = this.normalizer.toBackpackSymbol(symbol);
-    const response = await this.makeRequest(
-      'GET',
-      `/markets/${market}/funding`,
-      'fetchFundingRate'
-    );
+    const response = await this.makeRequest('GET', `/fundingRates?symbol=${market}`, 'fetchFundingRate');
 
-    return this.normalizer.normalizeFundingRate(response);
+    // Backpack returns an array of funding rates, get the most recent one
+    if (!Array.isArray(response) || response.length === 0) {
+      throw new PerpDEXError('No funding rate data available', 'INVALID_RESPONSE', 'backpack');
+    }
+
+    return this.normalizer.normalizeFundingRate(response[0]);
   }
 
   /**
    * Fetch funding rate history
    */
-  async fetchFundingRateHistory(
-    symbol: string,
-    since?: number,
-    limit?: number
-  ): Promise<FundingRate[]> {
-    throw new PerpDEXError('Backpack does not support funding rate history', 'NOT_SUPPORTED', 'backpack');
+  async fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]> {
+    const market = this.normalizer.toBackpackSymbol(symbol);
+    const response = await this.makeRequest('GET', `/fundingRates?symbol=${market}`, 'fetchFundingRate');
+
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError('Invalid funding rate response', 'INVALID_RESPONSE', 'backpack');
+    }
+
+    let rates = response.map((r: any) => this.normalizer.normalizeFundingRate(r));
+
+    if (since) {
+      rates = rates.filter((r: FundingRate) => r.fundingTimestamp >= since);
+    }
+
+    if (limit) {
+      rates = rates.slice(0, limit);
+    }
+
+    return rates;
   }
 
   /**
    * Fetch all open positions
    */
   async fetchPositions(symbols?: string[]): Promise<Position[]> {
+    this.requireAuth();
     const response = await this.makeRequest('GET', '/positions', 'fetchPositions');
 
     if (!Array.isArray(response.positions)) {
@@ -249,6 +285,7 @@ export class BackpackAdapter extends BaseAdapter {
    * Response format: { "ASSET": { available: "...", locked: "...", staked: "..." }, ... }
    */
   async fetchBalance(): Promise<Balance[]> {
+    this.requireAuth();
     const response = await this.makeRequest('GET', '/capital', 'fetchBalance');
 
     // Backpack returns balance object directly with asset keys
@@ -281,6 +318,7 @@ export class BackpackAdapter extends BaseAdapter {
    * Create a new order
    */
   async createOrder(order: OrderRequest): Promise<Order> {
+    this.requireAuth();
     const market = this.normalizer.toBackpackSymbol(order.symbol);
     const orderType = toBackpackOrderType(order.type, order.postOnly);
     const side = toBackpackOrderSide(order.side);
@@ -307,6 +345,7 @@ export class BackpackAdapter extends BaseAdapter {
    * Cancel an existing order
    */
   async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+    this.requireAuth();
     const response = await this.makeRequest('DELETE', `/orders/${orderId}`, 'cancelOrder');
 
     return this.normalizer.normalizeOrder(response);
@@ -316,6 +355,7 @@ export class BackpackAdapter extends BaseAdapter {
    * Cancel all orders
    */
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
+    this.requireAuth();
     const payload = symbol ? { market: this.normalizer.toBackpackSymbol(symbol) } : {};
 
     const response = await this.makeRequest('DELETE', '/orders', 'cancelAllOrders', payload);
@@ -331,6 +371,7 @@ export class BackpackAdapter extends BaseAdapter {
    * Fetch open orders
    */
   async fetchOpenOrders(symbol?: string): Promise<Order[]> {
+    this.requireAuth();
     const params = symbol ? `?market=${this.normalizer.toBackpackSymbol(symbol)}` : '';
     const response = await this.makeRequest('GET', `/orders${params}`, 'fetchOpenOrders');
 
@@ -345,6 +386,7 @@ export class BackpackAdapter extends BaseAdapter {
    * Fetch a specific order
    */
   async fetchOrder(orderId: string, symbol?: string): Promise<Order> {
+    this.requireAuth();
     const response = await this.makeRequest('GET', `/orders/${orderId}`, 'fetchOrder');
 
     return this.normalizer.normalizeOrder(response);
@@ -354,6 +396,7 @@ export class BackpackAdapter extends BaseAdapter {
    * Set leverage for a symbol
    */
   async setLeverage(symbol: string, leverage: number): Promise<void> {
+    this.requireAuth();
     const market = this.normalizer.toBackpackSymbol(symbol);
 
     await this.makeRequest('POST', '/account/leverage', 'setLeverage', {
@@ -366,6 +409,7 @@ export class BackpackAdapter extends BaseAdapter {
    * Fetch order history
    */
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+    this.requireAuth();
     const params = new URLSearchParams();
     if (symbol) params.append('symbol', this.normalizer.toBackpackSymbol(symbol));
     if (since) params.append('startTime', since.toString());
@@ -389,6 +433,7 @@ export class BackpackAdapter extends BaseAdapter {
    * Fetch user trade history
    */
   async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+    this.requireAuth();
     const params = new URLSearchParams();
     if (symbol) params.append('symbol', this.normalizer.toBackpackSymbol(symbol));
     if (since) params.append('startTime', since.toString());
@@ -405,7 +450,7 @@ export class BackpackAdapter extends BaseAdapter {
       throw new PerpDEXError('Invalid fills response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    return response.map((trade: any) => this.normalizer.normalizeTrade(trade));
+    return response.map((trade: any) => this.normalizer.normalizeTrade(trade, symbol));
   }
 
   /**

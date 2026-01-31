@@ -18,24 +18,37 @@ import type {
 
 describe('Backpack Symbol Normalization', () => {
   describe('normalizeSymbol', () => {
-    test('normalizes perpetual symbols', () => {
+    test('normalizes new format perpetual symbols', () => {
+      expect(normalizer.normalizeSymbol('BTC_USDC_PERP')).toBe('BTC/USDC:USDC');
+      expect(normalizer.normalizeSymbol('ETH_USDC_PERP')).toBe('ETH/USDC:USDC');
+      expect(normalizer.normalizeSymbol('SOL_USDC_PERP')).toBe('SOL/USDC:USDC');
+    });
+
+    test('normalizes legacy format perpetual symbols', () => {
       expect(normalizer.normalizeSymbol('BTCUSDT_PERP')).toBe('BTC/USDT:USDT');
       expect(normalizer.normalizeSymbol('ETHUSDT_PERP')).toBe('ETH/USDT:USDT');
     });
 
-    test('handles non-perpetual symbols', () => {
-      expect(normalizer.normalizeSymbol('BTCUSDT')).toBe('BTCUSDT');
+    test('normalizes spot symbols', () => {
+      expect(normalizer.normalizeSymbol('BTC_USDC')).toBe('BTC/USDC');
+      expect(normalizer.normalizeSymbol('SOL_USDC')).toBe('SOL/USDC');
+    });
+
+    test('handles non-standard symbols', () => {
+      expect(normalizer.normalizeSymbol('UNKNOWN')).toBe('UNKNOWN');
     });
   });
 
   describe('toBackpackSymbol', () => {
     test('converts unified perpetual to Backpack format', () => {
-      expect(normalizer.toBackpackSymbol('BTC/USDT:USDT')).toBe('BTCUSDT_PERP');
-      expect(normalizer.toBackpackSymbol('ETH/USDT:USDT')).toBe('ETHUSDT_PERP');
+      expect(normalizer.toBackpackSymbol('BTC/USDC:USDC')).toBe('BTC_USDC_PERP');
+      expect(normalizer.toBackpackSymbol('ETH/USDC:USDC')).toBe('ETH_USDC_PERP');
+      expect(normalizer.toBackpackSymbol('SOL/USDC:USDC')).toBe('SOL_USDC_PERP');
     });
 
     test('converts unified spot to Backpack format', () => {
-      expect(normalizer.toBackpackSymbol('BTC/USDT')).toBe('BTC/USDT');
+      expect(normalizer.toBackpackSymbol('BTC/USDC')).toBe('BTC_USDC');
+      expect(normalizer.toBackpackSymbol('SOL/USDC')).toBe('SOL_USDC');
     });
   });
 });
@@ -43,32 +56,38 @@ describe('Backpack Symbol Normalization', () => {
 describe('Backpack Market Normalization', () => {
   test('normalizes market data', () => {
     const backpackMarket: BackpackMarket = {
-      symbol: 'BTCUSDT_PERP',
-      base_currency: 'BTC',
-      quote_currency: 'USDT',
-      settlement_currency: 'USDT',
-      status: 'ACTIVE',
-      min_order_size: '0.001',
-      max_order_size: '100',
-      tick_size: '0.1',
-      step_size: '0.001',
-      maker_fee: '0.0002',
-      taker_fee: '0.0005',
-      max_leverage: '10',
-      is_active: true,
+      symbol: 'BTC_USDC_PERP',
+      baseSymbol: 'BTC',
+      quoteSymbol: 'USDC',
+      marketType: 'PERP',
+      orderBookState: 'Open',
+      visible: true,
+      filters: {
+        price: {
+          tickSize: '0.1',
+          minPrice: '0.01',
+          maxPrice: null,
+        },
+        quantity: {
+          stepSize: '0.001',
+          minQuantity: '0.001',
+          maxQuantity: null,
+        },
+      },
+      fundingInterval: 3600000,
+      openInterestLimit: '1000000',
     };
 
     const normalized = normalizer.normalizeMarket(backpackMarket);
 
     expect(normalized).toMatchObject({
-      id: 'BTCUSDT_PERP',
-      symbol: 'BTC/USDT:USDT',
+      id: 'BTC_USDC_PERP',
+      symbol: 'BTC/USDC:USDC',
       base: 'BTC',
-      quote: 'USDT',
-      settle: 'USDT',
+      quote: 'USDC',
+      settle: 'USDC',
       active: true,
       minAmount: 0.001,
-      maxLeverage: 10,
     });
   });
 });
