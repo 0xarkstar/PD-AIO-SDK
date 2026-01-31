@@ -46,6 +46,75 @@
 | **Extended** | 🟡 Mainnet Only | 0 | - | ✅ Works | ✅ Full |
 | **Variational** | 🔴 Alpha (RFQ) | - | - | ❌ | ❌ |
 
+### 📊 API Completion Matrix
+
+#### Legend
+- ✅ Fully implemented
+- ⚠️ Partial (has limitations)
+- ❌ Not implemented
+
+#### Public API Methods
+| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
+| fetchMarkets | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchTicker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| fetchTrades | ✅ | ❌¹ | ✅ | ✅ | ⚠️² | ✅ | ⚠️³ | ✅ | ❌ |
+| fetchFundingRate | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| fetchFundingRateHistory | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
+
+#### Trading Methods
+| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
+| createOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| cancelOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| cancelAllOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| createBatchOrders | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| cancelBatchOrders | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
+| editOrder | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+#### Account Methods
+| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
+| fetchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| fetchBalance | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| fetchOrderHistory | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| fetchMyTrades | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
+| fetchUserFees | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
+| fetchPortfolio | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| setLeverage | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| setMarginMode | ❌ | ❌ | ✅ | ❌ | ⚠️ | ❌ | ❌ | ❌ | ❌ |
+
+#### WebSocket Methods
+| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
+| watchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| watchTrades | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| watchTicker | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ❌ |
+| watchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| watchOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| watchBalance | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| watchFundingRate | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+#### Completion Summary by Adapter
+
+| Adapter | Public | Trading | Account | WebSocket | **Total** |
+|---------|:------:|:-------:|:-------:|:---------:|:---------:|
+| **Extended** | 6/6 (100%) | 6/6 (100%) | 8/8 (100%) | 7/7 (100%) | **100%** |
+| **Hyperliquid** | 5/6 (83%) | 5/6 (83%) | 7/8 (88%) | 5/7 (71%) | **81%** |
+| **Paradex** | 6/6 (100%) | 3/6 (50%) | 6/8 (75%) | 6/7 (86%) | **78%** |
+| **Backpack** | 6/6 (100%) | 3/6 (50%) | 5/8 (63%) | 6/7 (86%) | **74%** |
+| **Lighter** | 5/6 (83%) | 3/6 (50%) | 5/8 (63%) | 6/7 (86%) | **70%** |
+| **Nado** | 4/6 (67%) | 4/6 (67%) | 5/8 (63%) | 5/7 (71%) | **67%** |
+| **GRVT** | 5/6 (83%) | 4/6 (67%) | 5/8 (63%) | 4/7 (57%) | **67%** |
+| **EdgeX** | 4/6 (67%) | 3/6 (50%) | 4/8 (50%) | 6/7 (86%) | **63%** |
+| **Variational** | 2/6 (33%) | 0/6 (0%) | 0/8 (0%) | 0/7 (0%) | **7%** |
+
+#### Notes
+¹ EdgeX: Use WebSocket (`watchTrades`) instead - no REST endpoint available
+² Hyperliquid: Returns empty array from REST API, use WebSocket for real-time trades
+³ Nado: Requires WebSocket for real-time trades
+
 ### 🔐 Production-Grade Security
 - **EIP-712 signatures** (Hyperliquid, GRVT, Nado)
 - **StarkNet ECDSA + SHA3** (EdgeX)
