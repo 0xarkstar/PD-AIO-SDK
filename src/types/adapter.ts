@@ -44,6 +44,10 @@ export interface FeatureMap {
   cancelBatchOrders: boolean;
   editOrder: boolean;
 
+  // Order Query
+  fetchOpenOrders: boolean;
+  fetchOrder: boolean;
+
   // Account History
   fetchOrderHistory: boolean;
   fetchMyTrades: boolean;

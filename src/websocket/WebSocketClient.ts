@@ -24,7 +24,7 @@ const DEFAULT_RECONNECT_CONFIG: ReconnectConfig = {
 };
 
 const DEFAULT_HEARTBEAT_CONFIG: HeartbeatConfig = {
-  enabled: false,
+  enabled: true,
   interval: 30000,
   timeout: 5000,
   pingMessage: JSON.stringify({ type: 'ping' }),

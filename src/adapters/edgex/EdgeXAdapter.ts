@@ -55,6 +55,10 @@ export class EdgeXAdapter extends BaseAdapter {
     fetchFundingRateHistory: false,
     fetchPositions: true,
     fetchBalance: true,
+    fetchOpenOrders: true,
+    fetchOrder: true,
+    fetchOrderHistory: true,
+    fetchMyTrades: true,
     createOrder: true,
     cancelOrder: true,
     cancelAllOrders: true,
@@ -354,26 +358,88 @@ export class EdgeXAdapter extends BaseAdapter {
 
   /**
    * Fetch order history
-   * Note: Not currently implemented - EdgeX API documentation required
+   *
+   * Retrieves closed/filled orders from EdgeX.
+   * Uses /api/v1/private/order/getOrderFillTransactionPage endpoint.
+   *
+   * @param symbol - Optional symbol filter
+   * @param since - Optional start timestamp
+   * @param limit - Optional limit (default 100, max 500)
+   * @returns Array of historical orders
    */
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
-    throw new PerpDEXError(
-      'NOT_IMPLEMENTED: fetchOrderHistory not yet implemented for EdgeX - API documentation required',
-      'NOT_IMPLEMENTED',
-      'edgex'
-    );
+    this.requireAuth();
+
+    const params: Record<string, string> = {};
+    if (symbol) {
+      params.contractId = this.normalizer.toEdgeXContractId(symbol);
+    }
+    if (since) {
+      params.startTime = since.toString();
+    }
+    if (limit) {
+      params.size = Math.min(limit, 500).toString();
+    }
+
+    const queryString = Object.entries(params)
+      .map(([k, v]) => `${k}=${v}`)
+      .join('&');
+    const path = `/api/v1/private/order/getOrderFillTransactionPage${queryString ? `?${queryString}` : ''}`;
+
+    const response = await this.makeRequest('GET', path, 'fetchOrderHistory');
+
+    if (response.code !== 'SUCCESS' || !Array.isArray(response.data?.dataList)) {
+      // If endpoint doesn't exist yet, return empty array
+      if (response.code === 'NOT_FOUND' || !response.data) {
+        return [];
+      }
+      throw new PerpDEXError('Invalid order history response', 'INVALID_RESPONSE', 'edgex');
+    }
+
+    return response.data.dataList.map((order: any) => this.normalizer.normalizeOrder(order));
   }
 
   /**
    * Fetch user trade history
-   * Note: Not currently implemented - EdgeX API documentation required
+   *
+   * Retrieves user's executed trades from EdgeX.
+   * Uses /api/v1/private/order/getOrderFillTransactionPage endpoint.
+   *
+   * @param symbol - Optional symbol filter
+   * @param since - Optional start timestamp
+   * @param limit - Optional limit (default 100, max 500)
+   * @returns Array of trades
    */
   async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
-    throw new PerpDEXError(
-      'fetchMyTrades not yet implemented for EdgeX',
-      'NOT_IMPLEMENTED',
-      'edgex'
-    );
+    this.requireAuth();
+
+    const params: Record<string, string> = {};
+    if (symbol) {
+      params.contractId = this.normalizer.toEdgeXContractId(symbol);
+    }
+    if (since) {
+      params.startTime = since.toString();
+    }
+    if (limit) {
+      params.size = Math.min(limit, 500).toString();
+    }
+
+    const queryString = Object.entries(params)
+      .map(([k, v]) => `${k}=${v}`)
+      .join('&');
+    const path = `/api/v1/private/order/getOrderFillTransactionPage${queryString ? `?${queryString}` : ''}`;
+
+    const response = await this.makeRequest('GET', path, 'fetchMyTrades');
+
+    if (response.code !== 'SUCCESS' || !Array.isArray(response.data?.dataList)) {
+      // If endpoint doesn't exist yet, return empty array
+      if (response.code === 'NOT_FOUND' || !response.data) {
+        return [];
+      }
+      throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'edgex');
+    }
+
+    return response.data.dataList.map((trade: any) => this.normalizer.normalizeTrade(trade));
   }
 
   /**

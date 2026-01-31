@@ -77,7 +77,10 @@ export class GRVTAdapter extends BaseAdapter {
     cancelAllOrders: true,
     watchOrderBook: true,
     watchTrades: true,
+    watchTicker: true,
     watchPositions: true,
+    watchOrders: true,
+    watchBalance: true,
   };
 
   private readonly sdk: GRVTSDKWrapper;
@@ -627,6 +630,23 @@ export class GRVTAdapter extends BaseAdapter {
     for await (const order of ws.watchOrders()) {
       yield [order];
     }
+  }
+
+  /**
+   * Watch balance updates in real-time
+   *
+   * @returns AsyncGenerator yielding Balance array
+   *
+   * @example
+   * ```typescript
+   * for await (const balances of adapter.watchBalance()) {
+   *   console.log('Balance update:', balances);
+   * }
+   * ```
+   */
+  async *watchBalance(): AsyncGenerator<Balance[]> {
+    const ws = await this.ensureWebSocket();
+    yield* ws.watchBalance();
   }
 
   /**

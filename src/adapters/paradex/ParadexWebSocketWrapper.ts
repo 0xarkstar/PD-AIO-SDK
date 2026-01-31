@@ -179,9 +179,15 @@ export class ParadexWebSocketWrapper {
 
     const queue: any[] = [];
     let error: Error | null = null;
+    let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
-      queue.push(data);
+      if (resolver) {
+        resolver(data);
+        resolver = null;
+      } else {
+        queue.push(data);
+      }
     };
 
     try {
@@ -192,12 +198,18 @@ export class ParadexWebSocketWrapper {
       while (true) {
         if (error) throw error;
 
-        if (queue.length === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          continue;
+        let data: any;
+
+        if (queue.length > 0) {
+          data = queue.shift()!;
+        } else {
+          data = await new Promise<any>((resolve) => {
+            resolver = resolve;
+          });
         }
 
-        const data = queue.shift()!;
+        if (error) throw error;
+
         const normalized = this.normalizer.normalizeOrderBook({
           market: data.market || market,
           bids: data.bids || [],
@@ -225,11 +237,19 @@ export class ParadexWebSocketWrapper {
 
     const queue: any[] = [];
     let error: Error | null = null;
+    let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
       // Handle both single trade and array of trades
       const trades = Array.isArray(data) ? data : [data];
-      trades.forEach((trade) => queue.push(trade));
+      for (const trade of trades) {
+        if (resolver) {
+          resolver(trade);
+          resolver = null;
+        } else {
+          queue.push(trade);
+        }
+      }
     };
 
     try {
@@ -238,12 +258,18 @@ export class ParadexWebSocketWrapper {
       while (true) {
         if (error) throw error;
 
-        if (queue.length === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          continue;
+        let data: any;
+
+        if (queue.length > 0) {
+          data = queue.shift()!;
+        } else {
+          data = await new Promise<any>((resolve) => {
+            resolver = resolve;
+          });
         }
 
-        const data = queue.shift()!;
+        if (error) throw error;
+
         const normalized = this.normalizer.normalizeTrade({
           id: data.id || data.trade_id || String(Date.now()),
           market: data.market || market,
@@ -272,9 +298,15 @@ export class ParadexWebSocketWrapper {
 
     const queue: any[] = [];
     let error: Error | null = null;
+    let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
-      queue.push(data);
+      if (resolver) {
+        resolver(data);
+        resolver = null;
+      } else {
+        queue.push(data);
+      }
     };
 
     try {
@@ -283,12 +315,18 @@ export class ParadexWebSocketWrapper {
       while (true) {
         if (error) throw error;
 
-        if (queue.length === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          continue;
+        let data: any;
+
+        if (queue.length > 0) {
+          data = queue.shift()!;
+        } else {
+          data = await new Promise<any>((resolve) => {
+            resolver = resolve;
+          });
         }
 
-        const data = queue.shift()!;
+        if (error) throw error;
+
         const normalized = this.normalizer.normalizeTicker({
           market: data.market || market,
           last_price: data.last_price || data.last,
@@ -320,11 +358,19 @@ export class ParadexWebSocketWrapper {
 
     const queue: any[] = [];
     let error: Error | null = null;
+    let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
       // Handle both single position and array
       const positions = Array.isArray(data) ? data : [data];
-      positions.forEach((pos) => queue.push(pos));
+      for (const pos of positions) {
+        if (resolver) {
+          resolver(pos);
+          resolver = null;
+        } else {
+          queue.push(pos);
+        }
+      }
     };
 
     try {
@@ -333,12 +379,18 @@ export class ParadexWebSocketWrapper {
       while (true) {
         if (error) throw error;
 
-        if (queue.length === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          continue;
+        let data: any;
+
+        if (queue.length > 0) {
+          data = queue.shift()!;
+        } else {
+          data = await new Promise<any>((resolve) => {
+            resolver = resolve;
+          });
         }
 
-        const data = queue.shift()!;
+        if (error) throw error;
+
         const normalized = this.normalizer.normalizePosition({
           market: data.market,
           side: data.side,
@@ -371,10 +423,18 @@ export class ParadexWebSocketWrapper {
 
     const queue: any[] = [];
     let error: Error | null = null;
+    let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
       const orders = Array.isArray(data) ? data : [data];
-      orders.forEach((order) => queue.push(order));
+      for (const order of orders) {
+        if (resolver) {
+          resolver(order);
+          resolver = null;
+        } else {
+          queue.push(order);
+        }
+      }
     };
 
     try {
@@ -383,12 +443,18 @@ export class ParadexWebSocketWrapper {
       while (true) {
         if (error) throw error;
 
-        if (queue.length === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          continue;
+        let data: any;
+
+        if (queue.length > 0) {
+          data = queue.shift()!;
+        } else {
+          data = await new Promise<any>((resolve) => {
+            resolver = resolve;
+          });
         }
 
-        const data = queue.shift()!;
+        if (error) throw error;
+
         const normalized = this.normalizer.normalizeOrder({
           id: data.id || data.order_id,
           client_id: data.client_id || data.clientOrderId,
@@ -424,9 +490,15 @@ export class ParadexWebSocketWrapper {
 
     const queue: any[] = [];
     let error: Error | null = null;
+    let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
-      queue.push(data);
+      if (resolver) {
+        resolver(data);
+        resolver = null;
+      } else {
+        queue.push(data);
+      }
     };
 
     try {
@@ -435,12 +507,18 @@ export class ParadexWebSocketWrapper {
       while (true) {
         if (error) throw error;
 
-        if (queue.length === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          continue;
+        let data: any;
+
+        if (queue.length > 0) {
+          data = queue.shift()!;
+        } else {
+          data = await new Promise<any>((resolve) => {
+            resolver = resolve;
+          });
         }
 
-        const data = queue.shift()!;
+        if (error) throw error;
+
         const balances = Array.isArray(data) ? data : [data];
 
         const normalized = balances.map((bal) =>

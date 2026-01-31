@@ -1089,46 +1089,83 @@ describe('EdgeXAdapter Integration Tests', () => {
   });
 
   // ============================================================================
-  // 6. NOT_IMPLEMENTED Methods (5 tests)
+  // 6. History Methods (now implemented)
   // ============================================================================
 
-  describe('NOT_IMPLEMENTED Methods', () => {
-    test('fetchOrderHistory - throws NOT_IMPLEMENTED error', async () => {
-      await expect(adapter.fetchOrderHistory('BTC/USDC:USDC')).rejects.toThrow(
-        'fetchOrderHistory not yet implemented for EdgeX - API documentation required'
-      );
+  describe('History Methods', () => {
+    test('fetchOrderHistory - returns order history on success', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 'SUCCESS',
+          data: { dataList: [] },
+        }),
+      });
+
+      const orders = await adapter.fetchOrderHistory('BTC/USD:USD');
+      expect(orders).toEqual([]);
     });
 
-    test('fetchOrderHistory - error has NOT_IMPLEMENTED code', async () => {
-      try {
-        await adapter.fetchOrderHistory('BTC/USDC:USDC');
-        fail('Should have thrown error');
-      } catch (error: any) {
-        expect(error.code).toBe('NOT_IMPLEMENTED');
-        expect(error.exchange).toBe('edgex');
-      }
+    test('fetchOrderHistory - handles API error gracefully', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 'NOT_FOUND',
+          data: null,
+        }),
+      });
+
+      const orders = await adapter.fetchOrderHistory('BTC/USD:USD');
+      expect(orders).toEqual([]);
     });
 
-    test('fetchMyTrades - throws NOT_IMPLEMENTED error', async () => {
-      await expect(adapter.fetchMyTrades('BTC/USDC:USDC')).rejects.toThrow(
-        'fetchMyTrades not yet implemented for EdgeX'
-      );
+    test('fetchMyTrades - returns trades on success', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 'SUCCESS',
+          data: { dataList: [] },
+        }),
+      });
+
+      const trades = await adapter.fetchMyTrades('BTC/USD:USD');
+      expect(trades).toEqual([]);
     });
 
-    test('fetchMyTrades - error has NOT_IMPLEMENTED code', async () => {
-      try {
-        await adapter.fetchMyTrades('BTC/USDC:USDC');
-        fail('Should have thrown error');
-      } catch (error: any) {
-        expect(error.code).toBe('NOT_IMPLEMENTED');
-        expect(error.exchange).toBe('edgex');
-      }
+    test('fetchMyTrades - handles API error gracefully', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 'NOT_FOUND',
+          data: null,
+        }),
+      });
+
+      const trades = await adapter.fetchMyTrades('BTC/USD:USD');
+      expect(trades).toEqual([]);
     });
 
-    test('fetchOrderHistory with parameters - still throws error', async () => {
-      await expect(
-        adapter.fetchOrderHistory('BTC/USDC:USDC', Date.now() - 86400000, 50)
-      ).rejects.toThrow('NOT_IMPLEMENTED');
+    test('fetchOrderHistory - builds query string correctly', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: 'SUCCESS',
+          data: { dataList: [] },
+        }),
+      });
+
+      const since = Date.now() - 86400000;
+      await adapter.fetchOrderHistory('BTC/USD:USD', since, 50);
+
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).toContain('contractId=');
+      expect(url).toContain('startTime=');
+      expect(url).toContain('size=50');
     });
   });
 

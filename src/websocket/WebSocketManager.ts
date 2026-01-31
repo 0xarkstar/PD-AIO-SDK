@@ -2,6 +2,7 @@
  * WebSocket Manager
  *
  * Manages multiple WebSocket connections and subscriptions
+ * with bounded queue and backpressure support
  */
 
 import EventEmitter from 'eventemitter3';
@@ -9,12 +10,16 @@ import { WebSocketDisconnectedError } from '../types/errors.js';
 import type { Subscription, WebSocketConfig, WebSocketMessage } from './types.js';
 import { WebSocketClient } from './WebSocketClient.js';
 
+/** Maximum queue size for message backpressure */
+const MAX_QUEUE_SIZE = 1000;
+
 interface ManagerEvents {
   message: (channel: string, data: unknown) => void;
   error: (error: Error) => void;
   subscribed: (subscription: Subscription) => void;
   unsubscribed: (subscriptionId: string) => void;
   reconnected: () => void;
+  queueOverflow: (channel: string, droppedCount: number) => void;
 }
 
 export class WebSocketManager extends EventEmitter<ManagerEvents> {
@@ -22,9 +27,24 @@ export class WebSocketManager extends EventEmitter<ManagerEvents> {
   private subscriptions = new Map<string, Subscription>();
   private messageQueue: Array<{ channel: string; data: unknown }> = [];
   private isResubscribing = false;
+  private droppedMessageCount = 0;
 
   constructor(private readonly config: WebSocketConfig) {
     super();
+  }
+
+  /**
+   * Get the number of messages dropped due to queue overflow
+   */
+  getDroppedMessageCount(): number {
+    return this.droppedMessageCount;
+  }
+
+  /**
+   * Reset the dropped message counter
+   */
+  resetDroppedMessageCount(): void {
+    this.droppedMessageCount = 0;
   }
 
   /**
@@ -192,15 +212,24 @@ export class WebSocketManager extends EventEmitter<ManagerEvents> {
     const messageQueue: T[] = [];
     let resolveNext: ((value: T) => void) | null = null;
     let subscriptionId: string | null = null;
+    let localDroppedCount = 0;
 
-    // Subscribe with handler that queues messages
+    // Subscribe with handler that queues messages with bounded queue
     subscriptionId = await this.subscribe(channel, subscriptionMessage, (data: unknown) => {
       const typedData = data as T;
 
       if (resolveNext) {
+        // Immediately resolve if waiting
         resolveNext(typedData);
         resolveNext = null;
       } else {
+        // Apply backpressure: drop oldest message if queue is full
+        if (messageQueue.length >= MAX_QUEUE_SIZE) {
+          messageQueue.shift();
+          localDroppedCount++;
+          this.droppedMessageCount++;
+          this.emit('queueOverflow', channel, localDroppedCount);
+        }
         messageQueue.push(typedData);
       }
     });
@@ -211,7 +240,7 @@ export class WebSocketManager extends EventEmitter<ManagerEvents> {
         if (messageQueue.length > 0) {
           yield messageQueue.shift()!;
         } else {
-          // Wait for next message
+          // Wait for next message - event-driven, no polling
           yield await new Promise<T>((resolve) => {
             resolveNext = resolve;
           });
