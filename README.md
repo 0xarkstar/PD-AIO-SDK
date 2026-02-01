@@ -34,19 +34,19 @@
 
 ### 🌐 Multi-Exchange Support
 
-| Exchange | Status | Perp | Spot | Public API | Private API |
-|----------|--------|------|------|------------|-------------|
-| **Hyperliquid** | ✅ Production Ready | 228 | - | ✅ Full | ✅ Full |
-| **EdgeX** | ✅ Production Ready | 292 | - | ⚠️ No REST Trades¹ | ✅ Full |
-| **Paradex** | ✅ Production Ready | 108 | - | ✅ Full | ✅ Full (StarkNet) |
-| **GRVT** | ✅ Production Ready | 80 | - | ✅ Full | ✅ Full |
-| **Backpack** | ✅ Production Ready | 75 | 79 | ✅ Full | ✅ Full |
-| **Lighter** | ✅ Production Ready | 132 | - | ✅ Full | ✅ Full (Native FFI) |
-| **Nado** | ✅ Production Ready | 23 | 3 | ⚠️ No REST Trades¹ | ⚠️ No fetchMyTrades |
-| **Extended** | 🟡 Mainnet Only | - | - | ✅ Full | ✅ Full |
-| **Variational** | 🟡 In Development | RFQ | - | ✅ Full | ✅ Full (No WS) |
+| Exchange | Status | Markets | Auth | Notes |
+|----------|--------|---------|------|-------|
+| **Hyperliquid** | ✅ Production | 228 perp | EIP-712 | Full API + WebSocket |
+| **EdgeX** | ✅ Production | 292 perp | StarkNet ECDSA | No REST trades¹ |
+| **Paradex** | ✅ Production | 108 perp | StarkNet + JWT | Full API + WebSocket |
+| **GRVT** | ✅ Production | 80 perp | API Key + EIP-712 | Sub-ms latency |
+| **Backpack** | ✅ Production | 75 perp, 79 spot | ED25519 | Solana-based |
+| **Lighter** | ✅ Production | 132 perp | Native FFI | Requires C library |
+| **Nado** | ✅ Production | 23 perp, 3 spot | EIP-712 (Ink L2) | No REST trades¹ |
+| **Extended** | 🟡 Mainnet Only | varies | API Key | Testnet offline |
+| **Variational** | 🟡 Dev | RFQ-based | API Key | No WebSocket |
 
-> ¹ Use WebSocket (`watchTrades`) for real-time trade data
+> ¹ Use `watchTrades()` for real-time trade data
 
 ### 📊 API Completion Matrix
 
@@ -112,42 +112,24 @@
 | **Lighter** | 5/7 (71%) | 3/6 (50%) | 5/8 (63%) | 6/8 (75%) | **65%** |
 | **Nado** | 4/7 (57%) | 4/6 (67%) | 5/8 (63%) | 5/8 (63%) | **62%** |
 | **EdgeX** | 4/7 (57%) | 3/6 (50%) | 4/8 (50%) | 6/8 (75%) | **58%** |
-| **Variational** | 4/7 (57%) | 5/6 (83%) | 6/8 (75%) | 0/8 (0%) | **52%** |
+| **Variational** | 4/7 (57%) | 5/6 (83%) | 4/8 (50%) | 0/8 (0%) | **45%** |
 
-#### Notes
-¹ EdgeX: Use WebSocket (`watchTrades`) instead - no REST endpoint available
-² Hyperliquid: Returns empty array from REST API, use WebSocket for real-time trades
-³ Nado: Requires WebSocket for real-time trades
-⁴ Variational: Emulated batch operations (sequential execution)
-
-### 🔐 Production-Grade Security
-- **EIP-712 signatures** (Hyperliquid, GRVT, Nado)
-- **StarkNet ECDSA + SHA3** (EdgeX)
-- **StarkNet signatures** (Paradex)
-- **ED25519** (Backpack)
-- **API Key authentication** (Lighter, Extended)
-- **Secure credential management** with validation
+> **Notes:**
+> - ¹ EdgeX: No REST endpoint for trades
+> - ² Hyperliquid: REST returns empty, use WebSocket
+> - ³ Nado: REST available but limited, prefer WebSocket
+> - ⁴ Variational: Batch operations are emulated (sequential)
 
 ### ⚡ Enterprise Features
-- **WebSocket streaming** - Real-time order books, positions, trades with backpressure handling
+- **WebSocket streaming** - Real-time data with backpressure handling
 - **Auto-reconnection** - Exponential backoff with subscription recovery
 - **Rate limiting** - Exchange-specific limits respected automatically
-- **Smart caching** - Market data caching with configurable TTL
 - **Retry logic** - Automatic retry with exponential backoff
 - **Circuit breaker** - Fault tolerance with automatic recovery
 - **Request tracing** - Correlation IDs for distributed debugging
 - **Type safety** - Runtime validation (Zod) + TypeScript strict mode
-- **OHLCV support** - Candlestick data (1m to 1M timeframes)
-
-### 📊 Developer Experience
-- **Pattern A Architecture** - All 9 adapters follow standardized structure
-- **1982+ tests** - 100% pass rate, production-ready
-- **Structured logging** - JSON logs with sensitive data masking + correlation IDs
-- **Health checks** - Built-in system monitoring with Prometheus metrics
-- **Comprehensive docs** - English + Korean documentation
-- **TypeScript strict mode** - Full type safety
-- **Validation middleware** - Zod schemas for all request/response types
-- **Examples included** - 10+ ready-to-use examples
+- **Health checks** - Prometheus metrics, structured JSON logging
+- **1982+ tests** - 100% pass rate, coverage thresholds enforced
 
 ---
 
@@ -216,124 +198,73 @@ await exchange.disconnect();
 
 ---
 
-## 📚 Supported Exchanges
+## 📚 Exchange Setup
 
-### ✅ Production Ready
+### Quick Reference
 
-#### Hyperliquid
 ```typescript
-const exchange = createExchange('hyperliquid', {
-  privateKey: process.env.HYPERLIQUID_PRIVATE_KEY, // Optional for public API
+// Hyperliquid (EIP-712)
+const hl = createExchange('hyperliquid', {
+  privateKey: process.env.HYPERLIQUID_PRIVATE_KEY,
   testnet: true
 });
-```
-- **Markets**: 228 perp
-- **Auth**: EIP-712 signatures
-- **Features**: 200k orders/sec, HIP-3 ecosystem, full WebSocket support
 
-#### EdgeX
-```typescript
-const exchange = createExchange('edgex', {
-  starkPrivateKey: process.env.EDGEX_STARK_PRIVATE_KEY, // Optional for public API
+// EdgeX (StarkNet ECDSA)
+const edgex = createExchange('edgex', {
+  starkPrivateKey: process.env.EDGEX_STARK_PRIVATE_KEY
 });
-```
-- **Markets**: 292 perp
-- **Auth**: SHA3-256 + ECDSA signatures
-- **Note**: fetchTrades only via WebSocket (no REST endpoint)
 
-#### Nado
-```typescript
-const exchange = createExchange('nado', {
-  privateKey: process.env.NADO_PRIVATE_KEY, // Optional for public API
+// Paradex (StarkNet + JWT)
+const paradex = createExchange('paradex', {
+  starkPrivateKey: process.env.PARADEX_STARK_PRIVATE_KEY,
   testnet: true
 });
-```
-- **Markets**: 23 perp + 3 spot
-- **Auth**: EIP-712 signatures on Ink L2 (by Kraken)
 
-#### GRVT
-```typescript
-const exchange = createExchange('grvt', {
-  apiKey: process.env.GRVT_API_KEY, // Optional for public API
+// GRVT (API Key + EIP-712)
+const grvt = createExchange('grvt', {
+  apiKey: process.env.GRVT_API_KEY,
   testnet: false
 });
-```
-- **Markets**: 80 perp
-- **Auth**: API Key + EIP-712 signatures
-- **Features**: Sub-millisecond latency, hybrid CEX/DEX architecture
-- **Leverage**: Up to 100x
-- **WebSocket**: Real-time orderbook, trades, positions, orders
 
-#### Backpack
-```typescript
-const exchange = createExchange('backpack', {
-  apiKey: process.env.BACKPACK_API_KEY, // Optional for public API
-  apiSecret: process.env.BACKPACK_API_SECRET,
-  testnet: false
+// Backpack (ED25519)
+const backpack = createExchange('backpack', {
+  apiKey: process.env.BACKPACK_API_KEY,
+  apiSecret: process.env.BACKPACK_API_SECRET
 });
-```
-- **Markets**: 75 perp + 79 spot
-- **Auth**: ED25519 signatures
-- **Features**: Solana-based, full REST API + WebSocket
-- **Leverage**: Up to 20x for perpetuals
 
-#### Lighter
-```typescript
-const exchange = createExchange('lighter', {
-  apiPrivateKey: process.env.LIGHTER_PRIVATE_KEY, // Optional for public API
+// Lighter (Native FFI) - requires setup, see below
+const lighter = createExchange('lighter', {
+  apiPrivateKey: process.env.LIGHTER_PRIVATE_KEY,
   testnet: true
 });
-```
-- **Markets**: 132 perp
-- **Auth**: Native FFI signing (koffi + C library)
-- **Features**: Full trading support, WebSocket streaming
-- **Setup**: Requires native library from `lighter-sdk` Python package (see [Setup Guide](#lighter-native-library-setup))
 
-#### Paradex
-```typescript
-const exchange = createExchange('paradex', {
-  starkPrivateKey: process.env.PARADEX_STARK_PRIVATE_KEY, // Optional for public API
+// Nado (EIP-712 on Ink L2)
+const nado = createExchange('nado', {
+  privateKey: process.env.NADO_PRIVATE_KEY,
   testnet: true
 });
-```
-- **Markets**: 108 perp
-- **Auth**: StarkNet ECDSA signatures + JWT
-- **Features**: Full REST API + WebSocket streaming
-- **WebSocket**: Real-time orderbook, trades, ticker, positions, orders, balance, user trades
 
-### 🟡 Partial Support
-
-#### Extended
-```typescript
-const exchange = createExchange('extended', {
-  apiKey: process.env.EXTENDED_API_KEY,
-  // Optional: StarkNet integration
-  starknetPrivateKey: process.env.STARKNET_PRIVATE_KEY,
-  starknetAccountAddress: process.env.STARKNET_ACCOUNT_ADDRESS,
+// Extended (API Key) - mainnet only
+const extended = createExchange('extended', {
+  apiKey: process.env.EXTENDED_API_KEY
 });
-```
-- **Status**: Testnet not operational, mainnet only
-- **Features**: Full REST API + WebSocket streaming
-- **WebSocket**: Real-time orderbook, trades, ticker, positions, orders, balance, funding rates
-- **Leverage**: Up to 100x
-- **StarkNet**: Optional on-chain integration for advanced operations
 
-### 🟡 In Development
-
-#### Variational
-```typescript
-const exchange = createExchange('variational', {
+// Variational (API Key) - no WebSocket
+const variational = createExchange('variational', {
   apiKey: process.env.VARIATIONAL_API_KEY,
   apiSecret: process.env.VARIATIONAL_API_SECRET,
-  testnet: true,
+  testnet: true
 });
 ```
-- **Type**: RFQ-based perpetual DEX (Request For Quote)
-- **Trading**: ✅ createOrder, cancelOrder, cancelAllOrders
-- **Account**: ✅ fetchPositions, fetchBalance, fetchOrderHistory, fetchMyTrades
-- **Public**: ✅ fetchMarkets, fetchTicker, fetchOrderBook, fetchFundingRate
-- **WebSocket**: ❌ Not available (API under development)
-- **Note**: RFQ model - quotes provided at multiple notional sizes ($1k, $100k, $1M)
+
+### Exchange-Specific Notes
+
+| Exchange | Special Requirements |
+|----------|---------------------|
+| **Lighter** | Requires native C library setup ([see guide](#lighter-native-library-setup)) |
+| **Extended** | Testnet offline, mainnet only |
+| **Variational** | RFQ-based, no WebSocket support |
+| **EdgeX/Nado** | Use `watchTrades()` instead of `fetchTrades()` |
 
 ---
 
@@ -342,55 +273,34 @@ const exchange = createExchange('variational', {
 ### Environment Variables
 
 ```bash
-# ============================================
-# Hyperliquid (EIP-712) - ✅ Production Ready
-# ============================================
-HYPERLIQUID_PRIVATE_KEY=0x...  # 64 hex characters
-HYPERLIQUID_TESTNET=true
+# Hyperliquid
+HYPERLIQUID_PRIVATE_KEY=0x...     # 64 hex chars (EVM private key)
 
-# ============================================
-# EdgeX (SHA3 + ECDSA) - ✅ Production Ready
-# ============================================
-EDGEX_STARK_PRIVATE_KEY=0x...  # StarkNet private key
+# EdgeX
+EDGEX_STARK_PRIVATE_KEY=0x...     # StarkNet private key
 
-# ============================================
-# Nado (EIP-712 on Ink L2) - ✅ Production Ready
-# ============================================
-NADO_PRIVATE_KEY=0x...  # EVM private key
-NADO_TESTNET=true
+# Paradex
+PARADEX_STARK_PRIVATE_KEY=0x...   # StarkNet private key
 
-# ============================================
-# GRVT (API Key + EIP-712) - ✅ Production Ready
-# ============================================
+# GRVT
 GRVT_API_KEY=your_api_key
-GRVT_PRIVATE_KEY=0x...  # Optional: for EIP-712 order signing
-GRVT_TESTNET=false
 
-# ============================================
-# Backpack (ED25519) - ✅ Production Ready
-# ============================================
+# Backpack
 BACKPACK_API_KEY=your_api_key
-BACKPACK_API_SECRET=base64_ed25519_private_key
-BACKPACK_TESTNET=false
+BACKPACK_API_SECRET=base64_key    # ED25519 private key (base64)
 
-# ============================================
-# Lighter (Native FFI) - ✅ Production Ready
-# ============================================
-LIGHTER_PRIVATE_KEY=0x...  # 64 hex characters
-LIGHTER_TESTNET=true
-# Note: Requires native library setup (see below)
+# Lighter
+LIGHTER_PRIVATE_KEY=0x...         # 64 hex chars
 
-# ============================================
-# Paradex (StarkNet) - 🟡 Limited
-# ============================================
-PARADEX_STARK_PRIVATE_KEY=0x...  # StarkNet private key
-PARADEX_TESTNET=true
+# Nado
+NADO_PRIVATE_KEY=0x...            # EVM private key
 
-# ============================================
-# Extended (API Key) - 🟡 Mainnet Only
-# ============================================
+# Extended (mainnet only)
 EXTENDED_API_KEY=your_api_key
-# Note: testnet (Sepolia) is not operational
+
+# Variational
+VARIATIONAL_API_KEY=your_api_key
+VARIATIONAL_API_SECRET=your_secret
 ```
 
 ---
@@ -594,24 +504,8 @@ npm test -- hyperliquid
 ```
 ✅ 1982+ tests passing (100% pass rate)
 ✅ 70 test suites
-✅ Integration tests: All passing
-✅ Unit tests: All passing
 ✅ Coverage thresholds enforced
 ```
-
-### API Verification Results (2026-02-01)
-
-| Exchange | Markets | Ticker | OrderBook | OHLCV | FundingRate | Status |
-|----------|---------|--------|-----------|-------|-------------|--------|
-| **Hyperliquid** | ✅ 228 | ✅ | ✅ | ✅ | ✅ | Production Ready |
-| **GRVT** | ✅ 80 | ✅ | ✅ | ✅ | ✅ | Production Ready |
-| **EdgeX** | ✅ 292 | ✅ | ✅ | ❌ | ✅ | Production Ready |
-| **Nado** | ✅ 26 | ✅ | ✅ | ❌ | ✅ | Production Ready |
-| **Backpack** | ✅ 154 | ✅ | ✅ | ❌ | ✅ | Production Ready |
-| **Lighter** | ✅ 132 | ✅ | ✅ | ❌ | - | Production Ready |
-| **Paradex** | ✅ 108 | ❌ JWT | ❌ JWT | ❌ | - | Limited |
-| **Extended** | ✅ 0 | - | - | ❌ | - | Mainnet Only |
-| **Variational** | ✅ | ✅ | ✅ | ❌ | ✅ | In Development |
 
 ---
 
