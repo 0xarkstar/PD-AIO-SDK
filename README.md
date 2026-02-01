@@ -43,7 +43,7 @@
 | **Backpack** | ✅ Production | 75 perp, 79 spot | ED25519 | Solana-based |
 | **Lighter** | ✅ Production | 132 perp | Native FFI | Requires C library |
 | **Nado** | ✅ Production | 23 perp, 3 spot | EIP-712 (Ink L2) | No REST trades¹ |
-| **Extended** | 🟡 Mainnet Only | varies | API Key | Testnet offline |
+| **Extended** | 🟡 Mainnet Only | 94 perp | API Key | Testnet offline |
 | **Variational** | 🟡 Dev | RFQ-based | API Key | No WebSocket |
 
 > ¹ Use `watchTrades()` for real-time trade data
