@@ -36,15 +36,17 @@
 
 | Exchange | Status | Perp | Spot | Public API | Private API |
 |----------|--------|------|------|------------|-------------|
-| **EdgeX** | ✅ Production Ready | 292 | - | ✅ Full | ✅ Full |
 | **Hyperliquid** | ✅ Production Ready | 228 | - | ✅ Full | ✅ Full |
-| **Lighter** | ✅ Production Ready | 132 | - | ✅ Full | ✅ Full (Native FFI) |
-| **Paradex** | 🟡 Limited | 108 | - | ✅ Markets Only | ⚠️ JWT Required |
+| **EdgeX** | ✅ Production Ready | 292 | - | ⚠️ No REST Trades¹ | ✅ Full |
+| **Paradex** | ✅ Production Ready | 108 | - | ✅ Full | ✅ Full (StarkNet) |
 | **GRVT** | ✅ Production Ready | 80 | - | ✅ Full | ✅ Full |
 | **Backpack** | ✅ Production Ready | 75 | 79 | ✅ Full | ✅ Full |
-| **Nado** | ✅ Production Ready | 23 | 3 | ✅ Full | ✅ Full |
-| **Extended** | 🟡 Mainnet Only | 0 | - | ✅ Works | ✅ Full |
+| **Lighter** | ✅ Production Ready | 132 | - | ✅ Full | ✅ Full (Native FFI) |
+| **Nado** | ✅ Production Ready | 23 | 3 | ⚠️ No REST Trades¹ | ⚠️ No fetchMyTrades |
+| **Extended** | 🟡 Mainnet Only | - | - | ✅ Full | ✅ Full |
 | **Variational** | 🟡 In Development | RFQ | - | ✅ Full | ✅ Full (No WS) |
+
+> ¹ Use WebSocket (`watchTrades`) for real-time trade data
 
 ### 📊 API Completion Matrix
 
@@ -287,16 +289,19 @@ const exchange = createExchange('lighter', {
 - **Features**: Full trading support, WebSocket streaming
 - **Setup**: Requires native library from `lighter-sdk` Python package (see [Setup Guide](#lighter-native-library-setup))
 
-### 🟡 Partial Support
-
 #### Paradex
 ```typescript
-const exchange = createExchange('paradex', { testnet: true });
+const exchange = createExchange('paradex', {
+  starkPrivateKey: process.env.PARADEX_STARK_PRIVATE_KEY, // Optional for public API
+  testnet: true
+});
 ```
 - **Markets**: 108 perp
-- **Public API**: ✅ fetchMarkets only
-- **Ticker/OrderBook**: Requires JWT authentication (Paradex-specific limitation)
-- **Private API**: Requires StarkNet signatures + JWT
+- **Auth**: StarkNet ECDSA signatures + JWT
+- **Features**: Full REST API + WebSocket streaming
+- **WebSocket**: Real-time orderbook, trades, ticker, positions, orders, balance, user trades
+
+### 🟡 Partial Support
 
 #### Extended
 ```typescript
