@@ -44,7 +44,7 @@
 | **Backpack** | ✅ Production Ready | 75 | 79 | ✅ Full | ✅ Full |
 | **Nado** | ✅ Production Ready | 23 | 3 | ✅ Full | ✅ Full |
 | **Extended** | 🟡 Mainnet Only | 0 | - | ✅ Works | ✅ Full |
-| **Variational** | 🔴 Alpha (RFQ) | - | - | ❌ | ❌ |
+| **Variational** | 🟡 In Development | RFQ | - | ✅ Full | ✅ Full (No WS) |
 
 ### 📊 API Completion Matrix
 
