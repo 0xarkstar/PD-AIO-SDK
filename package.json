@@ -15,7 +15,9 @@
   "types": "./dist/index.d.ts",
   "browser": {
     "ws": "./dist/browser/ws-browser.js",
-    "crypto": false
+    "crypto": false,
+    "./dist/adapters/lighter/signer/LighterSigner.js": "./dist/adapters/lighter/signer/LighterWasmSigner.js",
+    "./dist/monitoring/metrics-server.js": false
   },
   "exports": {
     ".": {

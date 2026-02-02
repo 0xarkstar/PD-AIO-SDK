@@ -37,6 +37,7 @@ export declare class WebSocketClient extends EventEmitter<WebSocketEvents> {
     getState(): ConnectionState;
     /**
      * Check if connected
+     * Note: WebSocket.OPEN = 1 is a constant across all implementations
      */
     isConnected(): boolean;
     /**

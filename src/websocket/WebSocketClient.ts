@@ -23,13 +23,13 @@ import type WsWebSocket from 'ws';
 // WebSocket type that works for both environments
 type WebSocketLike = WsWebSocket | globalThis.WebSocket;
 
-// Import createRequire and pathToFileURL for ESM compatibility
-import { createRequire } from 'module';
-import { pathToFileURL } from 'url';
+// Cached WebSocket class (lazy-loaded)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let WS: any = null;
 
-// Helper to load ws module in Node.js
+// Helper to load ws module in Node.js (async, using dynamic imports)
 // Works in both CommonJS (Jest) and ESM (runtime) contexts
-function loadWsModule(): unknown {
+async function loadWsModule(): Promise<unknown> {
   // Check if we're in a CommonJS context where require is globally available
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   if (typeof require === 'function') {
@@ -39,7 +39,12 @@ function loadWsModule(): unknown {
       // Fall through to ESM approach
     }
   }
-  // ESM context - use pathToFileURL with __filename fallback or process.cwd()
+
+  // ESM context - dynamically import Node.js modules
+  const { createRequire } = await import('module');
+  const { pathToFileURL } = await import('url');
+
+  // Use pathToFileURL with __filename fallback or process.cwd()
   // This avoids import.meta.url which breaks in Jest
   const baseUrl =
     typeof __filename !== 'undefined'
@@ -49,13 +54,19 @@ function loadWsModule(): unknown {
   return esmRequire('ws');
 }
 
-// Get the appropriate WebSocket class
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let WS: any;
-if (isBrowser) {
-  WS = window.WebSocket;
-} else {
-  WS = loadWsModule();
+// Get the appropriate WebSocket class (lazy initialization)
+async function getWebSocketClass(): Promise<typeof WebSocket> {
+  if (WS) {
+    return WS;
+  }
+
+  if (isBrowser) {
+    WS = window.WebSocket;
+  } else {
+    WS = await loadWsModule();
+  }
+
+  return WS;
 }
 
 const DEFAULT_RECONNECT_CONFIG: ReconnectConfig = {
@@ -130,9 +141,10 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
 
   /**
    * Check if connected
+   * Note: WebSocket.OPEN = 1 is a constant across all implementations
    */
   isConnected(): boolean {
-    return this.state === 'connected' && this.ws?.readyState === WS.OPEN;
+    return this.state === 'connected' && this.ws?.readyState === 1;
   }
 
   /**
@@ -196,11 +208,14 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
    * Supports both Node.js (ws package) and browser (native WebSocket)
    */
   private async createConnection(): Promise<void> {
+    // Get WebSocket class (lazy-loaded for browser compatibility)
+    const WebSocketClass = await getWebSocketClass();
+
     return new Promise((resolve, reject) => {
       try {
         this.setState('connecting');
 
-        this.ws = new WS(this.url) as WebSocketLike;
+        this.ws = new WebSocketClass(this.url) as WebSocketLike;
 
         if (isBrowser) {
           // Browser WebSocket uses addEventListener
