@@ -23,16 +23,34 @@ import type { JupiterPositionSide } from './types.js';
 
 /**
  * Instruction discriminators for Jupiter Perps program
- * These are the first 8 bytes of each instruction to identify the operation
+ * Calculated from sha256("global:<instruction_name>")[0..8]
+ * Based on actual Jupiter Perpetuals IDL instruction names
+ *
+ * @see https://github.com/monakki/jup-perps-client/blob/main/generator/idl/jupiter-perpetuals.json
  */
 const INSTRUCTION_DISCRIMINATORS = {
-  openPosition: Buffer.from([0x87, 0x40, 0x6e, 0x53, 0x27, 0xc7, 0x44, 0x10]),
-  closePosition: Buffer.from([0x7b, 0x86, 0x51, 0x0d, 0x35, 0x96, 0x73, 0x21]),
-  increaseSize: Buffer.from([0xa3, 0xc4, 0x89, 0x11, 0x45, 0xd2, 0x88, 0x55]),
-  decreaseSize: Buffer.from([0xb5, 0x56, 0x77, 0x23, 0x67, 0x89, 0x99, 0x66]),
-  addCollateral: Buffer.from([0xc7, 0x68, 0x88, 0x34, 0x78, 0x90, 0xaa, 0x77]),
-  removeCollateral: Buffer.from([0xd9, 0x79, 0x99, 0x45, 0x89, 0xa1, 0xbb, 0x88]),
-  liquidate: Buffer.from([0xe0, 0x8a, 0xaa, 0x56, 0x9a, 0xb2, 0xcc, 0x99]),
+  // Position creation/modification (market orders)
+  createIncreasePositionMarketRequest: Buffer.from([0xb7, 0xc6, 0x61, 0xa9, 0x23, 0x01, 0xe1, 0x39]),
+  createDecreasePositionMarketRequest: Buffer.from([0x93, 0xee, 0x4c, 0x5b, 0x30, 0x56, 0xa7, 0xfd]),
+  createDecreasePositionRequest2: Buffer.from([0x37, 0x27, 0x0c, 0x16, 0xd8, 0x73, 0x35, 0x65]),
+
+  // Request management
+  closePositionRequest: Buffer.from([0x4b, 0xcf, 0x46, 0xad, 0x76, 0x7c, 0xda, 0xb3]),
+
+  // Position execution (called by keepers)
+  increasePosition4: Buffer.from([0x66, 0x77, 0x3c, 0x79, 0x00, 0xe7, 0xa7, 0x84]),
+  decreasePosition4: Buffer.from([0xad, 0xc4, 0x52, 0x5d, 0x3d, 0x5e, 0x90, 0x26]),
+
+  // Instant operations (atomic open/close)
+  instantIncreasePosition: Buffer.from([0x6f, 0x5a, 0xc5, 0xc4, 0xfd, 0xdc, 0x7d, 0x0f]),
+  instantDecreasePosition: Buffer.from([0x0f, 0x49, 0x76, 0xb1, 0xcf, 0x06, 0x19, 0x3e]),
+
+  // TP/SL management
+  instantCreateTpsl: Buffer.from([0x1e, 0x65, 0xb3, 0xb8, 0xfa, 0xba, 0xc5, 0xc8]),
+  instantUpdateTpsl: Buffer.from([0x3f, 0x28, 0x9e, 0x63, 0xc8, 0x9e, 0x89, 0xe9]),
+
+  // Liquidation
+  liquidateFullPosition4: Buffer.from([0x7a, 0x21, 0x6c, 0x7d, 0xd6, 0x8f, 0x62, 0x43]),
 } as const;
 
 // =============================================================================
@@ -385,6 +403,7 @@ export class JupiterInstructionBuilder {
 
   /**
    * Encode open position instruction data
+   * Uses createIncreasePositionMarketRequest for market orders
    */
   private encodeOpenPositionData(params: OpenPositionParams): Buffer {
     const PRICE_DECIMALS = 6;
@@ -404,8 +423,8 @@ export class JupiterInstructionBuilder {
     const buffer = Buffer.alloc(8 + 1 + 8 + 8 + 8);
     let offset = 0;
 
-    // Discriminator
-    INSTRUCTION_DISCRIMINATORS.openPosition.copy(buffer, offset);
+    // Discriminator for createIncreasePositionMarketRequest
+    INSTRUCTION_DISCRIMINATORS.createIncreasePositionMarketRequest.copy(buffer, offset);
     offset += 8;
 
     // Side
@@ -428,6 +447,7 @@ export class JupiterInstructionBuilder {
 
   /**
    * Encode close position instruction data
+   * Uses createDecreasePositionMarketRequest for market orders
    */
   private encodeClosePositionData(params: ClosePositionParams): Buffer {
     const PRICE_DECIMALS = 6;
@@ -445,8 +465,8 @@ export class JupiterInstructionBuilder {
     const buffer = Buffer.alloc(8 + 8 + 8);
     let offset = 0;
 
-    // Discriminator
-    INSTRUCTION_DISCRIMINATORS.closePosition.copy(buffer, offset);
+    // Discriminator for createDecreasePositionMarketRequest
+    INSTRUCTION_DISCRIMINATORS.createDecreasePositionMarketRequest.copy(buffer, offset);
     offset += 8;
 
     // Size USD
@@ -461,6 +481,7 @@ export class JupiterInstructionBuilder {
 
   /**
    * Encode increase size instruction data
+   * Uses createIncreasePositionMarketRequest (same as open, for adding to position)
    */
   private encodeIncreaseSizeData(params: IncreaseSizeParams): Buffer {
     const USD_DECIMALS = 6;
@@ -474,7 +495,7 @@ export class JupiterInstructionBuilder {
     const buffer = Buffer.alloc(8 + 8 + 8);
     let offset = 0;
 
-    INSTRUCTION_DISCRIMINATORS.increaseSize.copy(buffer, offset);
+    INSTRUCTION_DISCRIMINATORS.createIncreasePositionMarketRequest.copy(buffer, offset);
     offset += 8;
 
     buffer.writeBigUInt64LE(sizeDeltaScaled, offset);
@@ -487,6 +508,7 @@ export class JupiterInstructionBuilder {
 
   /**
    * Encode decrease size instruction data
+   * Uses createDecreasePositionMarketRequest (same as close, for partial close)
    */
   private encodeDecreaseSizeData(params: DecreaseSizeParams): Buffer {
     const USD_DECIMALS = 6;
@@ -500,7 +522,7 @@ export class JupiterInstructionBuilder {
     const buffer = Buffer.alloc(8 + 8 + 8);
     let offset = 0;
 
-    INSTRUCTION_DISCRIMINATORS.decreaseSize.copy(buffer, offset);
+    INSTRUCTION_DISCRIMINATORS.createDecreasePositionMarketRequest.copy(buffer, offset);
     offset += 8;
 
     buffer.writeBigUInt64LE(sizeDeltaScaled, offset);
@@ -513,38 +535,68 @@ export class JupiterInstructionBuilder {
 
   /**
    * Encode add collateral instruction data
+   * Uses createIncreasePositionMarketRequest with size=0 to add collateral only
    */
   private encodeAddCollateralData(params: AddCollateralParams): Buffer {
     const USD_DECIMALS = 6;
 
     const collateralScaled = BigInt(Math.floor(params.collateralAmount * 10 ** USD_DECIMALS));
+    const sizeUsd = BigInt(0); // No size change, just add collateral
+    const priceLimit = BigInt(0);
 
-    const buffer = Buffer.alloc(8 + 8);
+    // Build buffer with same format as increase position
+    const buffer = Buffer.alloc(8 + 1 + 8 + 8 + 8);
     let offset = 0;
 
-    INSTRUCTION_DISCRIMINATORS.addCollateral.copy(buffer, offset);
+    INSTRUCTION_DISCRIMINATORS.createIncreasePositionMarketRequest.copy(buffer, offset);
     offset += 8;
 
+    // Side (0 = long, but doesn't matter for collateral-only)
+    buffer.writeUInt8(0, offset);
+    offset += 1;
+
+    // Size USD (0 for collateral-only)
+    buffer.writeBigUInt64LE(sizeUsd, offset);
+    offset += 8;
+
+    // Collateral
     buffer.writeBigUInt64LE(collateralScaled, offset);
+    offset += 8;
+
+    // Price limit
+    buffer.writeBigUInt64LE(priceLimit, offset);
 
     return buffer;
   }
 
   /**
    * Encode remove collateral instruction data
+   * Uses createDecreasePositionMarketRequest with size=0 to remove collateral only
    */
   private encodeRemoveCollateralData(params: RemoveCollateralParams): Buffer {
     const USD_DECIMALS = 6;
 
     const collateralScaled = BigInt(Math.floor(params.collateralAmount * 10 ** USD_DECIMALS));
+    const sizeUsd = BigInt(0); // No size change, just remove collateral
+    const priceLimit = BigInt(0);
 
-    const buffer = Buffer.alloc(8 + 8);
+    // Build buffer with same format as decrease position
+    const buffer = Buffer.alloc(8 + 8 + 8 + 8);
     let offset = 0;
 
-    INSTRUCTION_DISCRIMINATORS.removeCollateral.copy(buffer, offset);
+    INSTRUCTION_DISCRIMINATORS.createDecreasePositionMarketRequest.copy(buffer, offset);
     offset += 8;
 
+    // Size USD (0 for collateral-only)
+    buffer.writeBigUInt64LE(sizeUsd, offset);
+    offset += 8;
+
+    // Collateral to remove
     buffer.writeBigUInt64LE(collateralScaled, offset);
+    offset += 8;
+
+    // Price limit
+    buffer.writeBigUInt64LE(priceLimit, offset);
 
     return buffer;
   }
