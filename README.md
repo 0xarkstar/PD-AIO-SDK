@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-1982%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-2400%2B%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![npm version](https://img.shields.io/badge/npm-v0.2.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
@@ -14,11 +14,11 @@
 
 ## 🎯 What is PD AIO SDK?
 
-**PD AIO SDK** (Perp DEX All-In-One SDK) is a production-ready, unified TypeScript SDK that lets you trade on **9 decentralized perpetual exchanges** through a single, consistent interface. No more learning different APIs for each exchange - write once, trade anywhere.
+**PD AIO SDK** (Perp DEX All-In-One SDK) is a production-ready, unified TypeScript SDK that lets you trade on **13 decentralized perpetual exchanges** through a single, consistent interface. No more learning different APIs for each exchange - write once, trade anywhere.
 
 ### Why "All-In-One"?
 
-- **One Interface** → 9 Exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational)
+- **One Interface** → 13 Exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX)
 - **One Codebase** → All Trading Operations (market data, orders, positions, WebSocket)
 - **One Installation** → Full-Stack Solution (authentication, rate limiting, error handling)
 
@@ -45,8 +45,13 @@
 | **Nado** | ✅ Production | 23 perp, 3 spot | EIP-712 (Ink L2) | No REST trades¹ |
 | **Extended** | 🟡 Mainnet Only | 94 perp | API Key | Testnet offline |
 | **Variational** | 🟡 Dev | RFQ-based | API Key | No WebSocket |
+| **dYdX v4** | ✅ Production | 220+ perp | Cosmos SDK | Full trading + WebSocket |
+| **Jupiter Perps** | ✅ Production | 3 perp | Solana Wallet | SOL/ETH/BTC markets |
+| **Drift Protocol** | ✅ Production | 30+ perp | Solana Wallet | DLOB + WebSocket |
+| **GMX v2** | 🟡 Read-Only | 11 perp | On-chain | Arbitrum/Avalanche² |
 
 > ¹ Use `watchTrades()` for real-time trade data
+> ² GMX trading requires on-chain transactions via ExchangeRouter contract
 
 ### 📊 API Completion Matrix
 
@@ -56,69 +61,77 @@
 - ❌ Not implemented
 
 #### Public API Methods
-| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational |
-|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
-| fetchMarkets | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| fetchTicker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| fetchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| fetchTrades | ✅ | ❌¹ | ✅ | ✅ | ⚠️² | ✅ | ⚠️³ | ✅ | ❌ |
-| fetchOHLCV | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| fetchFundingRate | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| fetchFundingRateHistory | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|
+| fetchMarkets | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchTicker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁵ |
+| fetchTrades | ✅ | ❌¹ | ✅ | ✅ | ⚠️² | ✅ | ⚠️³ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| fetchOHLCV | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ |
+| fetchFundingRate | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchFundingRateHistory | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
 
 #### Trading Methods
-| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational |
-|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
-| createOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| cancelOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| cancelAllOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| createBatchOrders | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ⚠️⁴ |
-| cancelBatchOrders | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ⚠️⁴ |
-| editOrder | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|
+| createOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁶ |
+| cancelOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁶ |
+| cancelAllOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁶ |
+| createBatchOrders | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ⚠️⁴ | ✅ | ❌ | ❌ | ❌ |
+| cancelBatchOrders | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ⚠️⁴ | ✅ | ❌ | ❌ | ❌ |
+| editOrder | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 #### Account Methods
-| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational |
-|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
-| fetchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| fetchBalance | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| fetchOrderHistory | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| fetchMyTrades | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
-| fetchUserFees | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| fetchPortfolio | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| setLeverage | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| setMarginMode | ❌ | ❌ | ✅ | ❌ | ⚠️ | ❌ | ❌ | ❌ | ❌ |
+| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|
+| fetchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁷ |
+| fetchBalance | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁷ |
+| fetchOrderHistory | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
+| fetchMyTrades | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
+| fetchUserFees | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| fetchPortfolio | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| setLeverage | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌⁸ |
+| setMarginMode | ❌ | ❌ | ✅ | ❌ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 #### WebSocket Methods
-| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational |
-|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|
-| watchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| watchTrades | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| watchTicker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
-| watchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| watchOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| watchBalance | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
-| watchMyTrades | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| watchFundingRate | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Method | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|
+| watchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| watchTrades | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| watchTicker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| watchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| watchOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| watchBalance | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| watchMyTrades | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| watchFundingRate | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 #### Completion Summary by Adapter
 
 | Adapter | Public | Trading | Account | WebSocket | **Total** |
 |---------|:------:|:-------:|:-------:|:---------:|:---------:|
 | **Extended** | 6/7 (86%) | 6/6 (100%) | 8/8 (100%) | 7/8 (88%) | **93%** |
+| **dYdX v4** | 7/7 (100%) | 5/6 (83%) | 5/8 (63%) | 7/8 (88%) | **83%** |
 | **Hyperliquid** | 6/7 (86%) | 5/6 (83%) | 7/8 (88%) | 6/8 (75%) | **83%** |
+| **Drift** | 6/7 (86%) | 3/6 (50%) | 5/8 (63%) | 7/8 (88%) | **72%** |
 | **GRVT** | 6/7 (86%) | 4/6 (67%) | 5/8 (63%) | 6/8 (75%) | **72%** |
 | **Paradex** | 5/7 (71%) | 3/6 (50%) | 6/8 (75%) | 7/8 (88%) | **71%** |
 | **Backpack** | 5/7 (71%) | 3/6 (50%) | 5/8 (63%) | 6/8 (75%) | **65%** |
 | **Lighter** | 5/7 (71%) | 3/6 (50%) | 5/8 (63%) | 6/8 (75%) | **65%** |
 | **Nado** | 4/7 (57%) | 4/6 (67%) | 5/8 (63%) | 5/8 (63%) | **62%** |
-| **EdgeX** | 4/7 (57%) | 3/6 (50%) | 4/8 (50%) | 6/8 (75%) | **58%** |
+| **EdgeX** | 4/7 (57%) | 5/6 (83%) | 4/8 (50%) | 6/8 (75%) | **62%** |
+| **Jupiter** | 5/7 (71%) | 3/6 (50%) | 3/8 (38%) | 0/8 (0%) | **38%** |
 | **Variational** | 4/7 (57%) | 5/6 (83%) | 4/8 (50%) | 0/8 (0%) | **45%** |
+| **GMX v2** | 5/7 (71%) | 0/6 (0%) | 0/8 (0%) | 0/8 (0%) | **17%** |
 
 > **Notes:**
 > - ¹ EdgeX: No REST endpoint for trades
 > - ² Hyperliquid: REST returns empty, use WebSocket
 > - ³ Nado: REST available but limited, prefer WebSocket
 > - ⁴ Variational: Batch operations are emulated (sequential)
+> - ⁵ GMX: AMM-based, no traditional orderbook
+> - ⁶ GMX: Trading requires on-chain transactions via ExchangeRouter
+> - ⁷ GMX: Requires subgraph or RPC integration
+> - ⁸ dYdX/Jupiter/Drift/GMX: Leverage is per-position at order time
 
 ### ⚡ Enterprise Features
 - **WebSocket streaming** - Real-time data with backpressure handling
@@ -129,7 +142,7 @@
 - **Request tracing** - Correlation IDs for distributed debugging
 - **Type safety** - Runtime validation (Zod) + TypeScript strict mode
 - **Health checks** - Prometheus metrics, structured JSON logging
-- **1982+ tests** - 100% pass rate, coverage thresholds enforced
+- **2400+ tests** - 100% pass rate, coverage thresholds enforced
 
 ---
 
@@ -255,6 +268,30 @@ const variational = createExchange('variational', {
   apiSecret: process.env.VARIATIONAL_API_SECRET,
   testnet: true
 });
+
+// dYdX v4 (Cosmos SDK)
+const dydx = createExchange('dydx', {
+  mnemonic: process.env.DYDX_MNEMONIC,  // 24-word seed phrase
+  testnet: true
+});
+
+// Jupiter Perps (Solana)
+const jupiter = createExchange('jupiter', {
+  walletAddress: process.env.JUPITER_WALLET_ADDRESS,
+  privateKey: process.env.JUPITER_PRIVATE_KEY,  // Optional, for trading
+});
+
+// Drift Protocol (Solana)
+const drift = createExchange('drift', {
+  walletAddress: process.env.DRIFT_WALLET_ADDRESS,
+  privateKey: process.env.DRIFT_PRIVATE_KEY,  // Optional, for trading
+});
+
+// GMX v2 (Arbitrum/Avalanche) - read-only via REST
+const gmx = createExchange('gmx', {
+  chain: 'arbitrum',  // or 'avalanche'
+  walletAddress: process.env.GMX_WALLET_ADDRESS,  // Optional, for positions
+});
 ```
 
 ### Exchange-Specific Notes
@@ -265,6 +302,9 @@ const variational = createExchange('variational', {
 | **Extended** | Testnet offline, mainnet only |
 | **Variational** | RFQ-based, no WebSocket support |
 | **EdgeX/Nado** | Use `watchTrades()` instead of `fetchTrades()` |
+| **dYdX v4** | Requires 24-word Cosmos mnemonic for trading |
+| **Jupiter/Drift** | Solana wallet required; private key for trading |
+| **GMX v2** | Read-only REST API; trading requires @gmx-io/sdk |
 
 ---
 
@@ -301,6 +341,21 @@ EXTENDED_API_KEY=your_api_key
 # Variational
 VARIATIONAL_API_KEY=your_api_key
 VARIATIONAL_API_SECRET=your_secret
+
+# dYdX v4
+DYDX_MNEMONIC="word1 word2 ... word24"  # 24-word Cosmos seed phrase
+
+# Jupiter Perps
+JUPITER_WALLET_ADDRESS=your_solana_address
+JUPITER_PRIVATE_KEY=base58_private_key   # Optional, for trading
+
+# Drift Protocol
+DRIFT_WALLET_ADDRESS=your_solana_address
+DRIFT_PRIVATE_KEY=base58_private_key     # Optional, for trading
+
+# GMX v2
+GMX_CHAIN=arbitrum                        # or 'avalanche'
+GMX_WALLET_ADDRESS=0x...                  # Optional, for position data
 ```
 
 ---
@@ -325,7 +380,7 @@ for (const [timestamp, open, high, low, close, volume] of candles) {
 }
 
 // Supported timeframes: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
-// Currently available on: Hyperliquid, GRVT
+// Currently available on: Hyperliquid, GRVT, dYdX, Drift, GMX
 ```
 
 ### WebSocket Streaming
@@ -502,9 +557,9 @@ npm test -- hyperliquid
 ### Test Results
 
 ```
-✅ 1982+ tests passing (100% pass rate)
-✅ 70 test suites
-✅ Coverage thresholds enforced
+✅ 2400+ tests passing (100% pass rate)
+✅ 90+ test suites
+✅ Coverage thresholds enforced (60%+)
 ```
 
 ---
@@ -513,7 +568,7 @@ npm test -- hyperliquid
 
 ### Pattern A: Full-Featured Architecture
 
-All **9 exchange adapters** follow **Pattern A** (Full-Featured) architecture:
+All **13 exchange adapters** follow **Pattern A** (Full-Featured) architecture:
 
 ```
 src/adapters/{exchange}/
