@@ -39,7 +39,7 @@
 | **EdgeX** | ✅ 프로덕션 준비 | 292 | - | ✅ 전체 | ✅ 전체 |
 | **Hyperliquid** | ✅ 프로덕션 준비 | 228 | - | ✅ 전체 | ✅ 전체 |
 | **dYdX v4** | ✅ 프로덕션 준비 | 220+ | - | ✅ 전체 | ✅ 전체 |
-| **Lighter** | ✅ 프로덕션 준비 | 132 | - | ✅ 전체 | ✅ 전체 (Native FFI) |
+| **Lighter** | ✅ 프로덕션 준비 | 132 | - | ✅ 전체 | ✅ 전체 (WASM) |
 | **Paradex** | 🟡 제한적 | 108 | - | ✅ Markets만 | ⚠️ JWT 필요 |
 | **GRVT** | ✅ 프로덕션 준비 | 80 | - | ✅ 전체 | ✅ 전체 |
 | **Backpack** | ✅ 프로덕션 준비 | 75 | 79 | ✅ 전체 | ✅ 전체 |
@@ -136,7 +136,8 @@
 - **StarkNet ECDSA + SHA3** (EdgeX)
 - **StarkNet 서명** (Paradex)
 - **ED25519** (Backpack)
-- **API Key 인증** (Lighter, Extended)
+- **WASM 기반 서명** (Lighter) - 크로스 플랫폼, 네이티브 의존성 없음
+- **API Key 인증** (Extended)
 - **Cosmos SDK 서명** (dYdX v4)
 - **Solana 지갑 서명** (Jupiter, Drift)
 - **보안 자격증명 관리** 및 검증 기능
@@ -294,9 +295,9 @@ const exchange = createExchange('lighter', {
 });
 ```
 - **마켓**: 132 perp
-- **인증**: Native FFI 서명 (koffi + C 라이브러리)
+- **인증**: WASM 기반 서명 (크로스 플랫폼)
 - **특징**: 완전한 거래 지원, WebSocket 스트리밍
-- **설정**: `lighter-sdk` Python 패키지에서 네이티브 라이브러리 필요
+- **설정**: 추가 설정 불필요 - WASM 모듈 자동 포함
 
 #### dYdX v4
 ```typescript
@@ -394,9 +395,9 @@ NADO_PRIVATE_KEY=0x...  # EVM 개인키
 NADO_TESTNET=true
 
 # ============================================
-# Lighter - 🟡 Public API만
+# Lighter (WASM 서명) - ✅ 프로덕션 준비
 # ============================================
-# 참고: Private API는 공식 lighter-sdk 필요
+LIGHTER_PRIVATE_KEY=0x...  # 64자리 16진수
 LIGHTER_TESTNET=true
 
 # ============================================

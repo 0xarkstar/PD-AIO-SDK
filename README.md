@@ -41,7 +41,7 @@
 | **Paradex** | ✅ Production | 108 perp | StarkNet + JWT | Full API + WebSocket |
 | **GRVT** | ✅ Production | 80 perp | API Key + EIP-712 | Sub-ms latency |
 | **Backpack** | ✅ Production | 75 perp, 79 spot | ED25519 | Solana-based |
-| **Lighter** | ✅ Production | 132 perp | Native FFI | Requires C library |
+| **Lighter** | ✅ Production | 132 perp | WASM Signing | Cross-platform |
 | **Nado** | ✅ Production | 23 perp, 3 spot | EIP-712 (Ink L2) | No REST trades¹ |
 | **Extended** | 🟡 Mainnet Only | 94 perp | API Key | Testnet offline |
 | **Variational** | 🟡 Dev | RFQ-based | API Key | No WebSocket |
@@ -245,7 +245,7 @@ const backpack = createExchange('backpack', {
   apiSecret: process.env.BACKPACK_API_SECRET
 });
 
-// Lighter (Native FFI) - requires setup, see below
+// Lighter (WASM Signing) - cross-platform, no native dependencies
 const lighter = createExchange('lighter', {
   apiPrivateKey: process.env.LIGHTER_PRIVATE_KEY,
   testnet: true
@@ -298,7 +298,7 @@ const gmx = createExchange('gmx', {
 
 | Exchange | Special Requirements |
 |----------|---------------------|
-| **Lighter** | Requires native C library setup ([see guide](#lighter-native-library-setup)) |
+| **Lighter** | WASM-based signing, works cross-platform without native dependencies |
 | **Extended** | Testnet offline, mainnet only |
 | **Variational** | RFQ-based, no WebSocket support |
 | **EdgeX/Nado** | Use `watchTrades()` instead of `fetchTrades()` |
@@ -487,52 +487,39 @@ console.log(`API latency: ${health.api.latency}ms`);
 
 ---
 
-## 🔧 Lighter Native Library Setup
+## 🔧 Lighter Setup
 
-Lighter requires a native C library for transaction signing. Follow these steps to enable full trading functionality:
+Lighter uses WASM-based transaction signing that works cross-platform without any native dependencies. The `@oraichain/lighter-ts-sdk` package is included as a dependency.
 
-### Step 1: Install Python SDK
-
-```bash
-pip3 install lighter-sdk
-```
-
-### Step 2: Locate and Copy Native Library
-
-```bash
-# Find the library location
-python3 -c "import lighter; print(lighter.__file__)"
-# Output: /path/to/site-packages/lighter/__init__.py
-
-# Copy libraries to your project
-cp /path/to/site-packages/lighter/signers/* native/lighter/
-```
-
-### Step 3: Remove macOS Quarantine (if needed)
-
-```bash
-xattr -d com.apple.quarantine native/lighter/*.dylib
-```
-
-### Step 4: Install koffi (FFI library)
-
-```bash
-npm install koffi
-```
-
-### Verify Installation
+### Basic Setup
 
 ```typescript
 import { createExchange } from 'pd-aio-sdk';
 
 const lighter = createExchange('lighter', {
-  apiPrivateKey: '0x...',
+  apiPrivateKey: '0x...',  // Your Lighter private key
   testnet: true,
 });
 
 await lighter.initialize();
-console.log('FFI Signing:', lighter.hasFFISigning); // Should be true
+
+// Verify WASM signing is available
+console.log('WASM Signing:', lighter.hasWasmSigning); // Should be true
+
+// Full trading support - no additional setup required
+const order = await lighter.createOrder({
+  symbol: 'BTC/USDT:USDT',
+  side: 'buy',
+  type: 'limit',
+  amount: 0.01,
+  price: 50000,
+});
 ```
+
+### Features
+- **Cross-platform**: Works on macOS, Linux, Windows without native binaries
+- **No Python required**: Pure TypeScript/WASM implementation
+- **Full trading support**: Orders, cancellations, withdrawals all work out of the box
 
 ---
 
