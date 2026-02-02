@@ -14,8 +14,12 @@ import { BackpackAdapter, type BackpackConfig } from './adapters/backpack/index.
 import { NadoAdapter, type NadoConfig } from './adapters/nado/index.js';
 import { VariationalAdapter, type VariationalConfig } from './adapters/variational/index.js';
 import { ExtendedAdapter, type ExtendedConfig } from './adapters/extended/index.js';
+import { DydxAdapter, type DydxConfig } from './adapters/dydx/index.js';
+import { JupiterAdapter, type JupiterAdapterConfig } from './adapters/jupiter/index.js';
+import { DriftAdapter, type DriftConfig } from './adapters/drift/index.js';
+import { GmxAdapter, type GmxConfig } from './adapters/gmx/index.js';
 
-export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'nado' | 'variational' | 'extended';
+export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx';
 
 export type ExchangeConfigMap = {
   hyperliquid: HyperliquidConfig;
@@ -27,6 +31,10 @@ export type ExchangeConfigMap = {
   nado: NadoConfig;
   variational: VariationalConfig;
   extended: ExtendedConfig;
+  dydx: DydxConfig;
+  jupiter: JupiterAdapterConfig;
+  drift: DriftConfig;
+  gmx: GmxConfig;
 };
 
 /**
@@ -83,6 +91,18 @@ export function createExchange<T extends SupportedExchange>(
     case 'extended':
       return new ExtendedAdapter(config as ExtendedConfig);
 
+    case 'dydx':
+      return new DydxAdapter(config as DydxConfig);
+
+    case 'jupiter':
+      return new JupiterAdapter(config as JupiterAdapterConfig);
+
+    case 'drift':
+      return new DriftAdapter(config as DriftConfig);
+
+    case 'gmx':
+      return new GmxAdapter(config as GmxConfig);
+
     default:
       throw new Error(`Unknown exchange: ${exchange as string}`);
   }
@@ -92,7 +112,7 @@ export function createExchange<T extends SupportedExchange>(
  * Get list of supported exchanges
  */
 export function getSupportedExchanges(): SupportedExchange[] {
-  return ['hyperliquid', 'lighter', 'grvt', 'paradex', 'edgex', 'backpack', 'nado', 'variational', 'extended'];
+  return ['hyperliquid', 'lighter', 'grvt', 'paradex', 'edgex', 'backpack', 'nado', 'variational', 'extended', 'dydx', 'jupiter', 'drift', 'gmx'];
 }
 
 /**

@@ -36,6 +36,18 @@ const EXCHANGE_ENV_REQUIREMENTS: Record<SupportedExchange, string[]> = {
   grvt: ['GRVT_PRIVATE_KEY', 'GRVT_API_KEY'],
   paradex: ['PARADEX_STARK_PRIVATE_KEY'],
   backpack: ['BACKPACK_API_KEY', 'BACKPACK_SECRET_KEY'],
+
+  // Cosmos SDK based (dYdX v4)
+  dydx: ['DYDX_MNEMONIC'],
+
+  // Solana based (Jupiter Perps)
+  jupiter: ['JUPITER_WALLET_ADDRESS'], // Read-only; for trading add JUPITER_PRIVATE_KEY
+
+  // Solana based (Drift Protocol)
+  drift: ['DRIFT_WALLET_ADDRESS'], // Read-only; for trading add DRIFT_PRIVATE_KEY
+
+  // EVM based on-chain DEX (GMX v2 on Arbitrum/Avalanche)
+  gmx: ['GMX_CHAIN'], // Chain selection; add GMX_WALLET_ADDRESS for positions
 };
 
 /**
@@ -149,6 +161,10 @@ export function getConfigErrorMessage(exchange: SupportedExchange, missingVars: 
     nado: 'Export your MetaMask private key for Ink L2 trading on Nado',
     variational: 'Register at variational.io and create HMAC API credentials',
     extended: 'Register at extended.exchange and generate API key',
+    dydx: 'Generate a Cosmos wallet mnemonic (24 words) for dYdX v4 trading',
+    jupiter: 'Provide your Solana wallet address for Jupiter Perps (add private key for trading)',
+    drift: 'Provide your Solana wallet address for Drift Protocol (add private key for trading)',
+    gmx: 'Set GMX_CHAIN to arbitrum or avalanche (add GMX_WALLET_ADDRESS for position data)',
   };
 
   return (

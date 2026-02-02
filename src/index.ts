@@ -287,6 +287,22 @@ export type { BackpackConfig } from './adapters/backpack/index.js';
 export { NadoAdapter } from './adapters/nado/index.js';
 export type { NadoConfig } from './adapters/nado/index.js';
 
+// dYdX v4
+export { DydxAdapter, DydxAuth, DydxNormalizer } from './adapters/dydx/index.js';
+export type { DydxConfig } from './adapters/dydx/index.js';
+
+// Jupiter Perps
+export { JupiterAdapter, JupiterAuth, JupiterNormalizer } from './adapters/jupiter/index.js';
+export type { JupiterAdapterConfig } from './adapters/jupiter/index.js';
+
+// Drift Protocol
+export { DriftAdapter, DriftAuth, DriftNormalizer } from './adapters/drift/index.js';
+export type { DriftConfig } from './adapters/drift/index.js';
+
+// GMX v2
+export { GmxAdapter, GmxNormalizer } from './adapters/gmx/index.js';
+export type { GmxConfig, GmxChain } from './adapters/gmx/index.js';
+
 // =============================================================================
 // Version
 // =============================================================================

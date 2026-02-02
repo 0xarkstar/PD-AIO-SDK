@@ -24,7 +24,7 @@ import type {
   IPositions,
   IOrder,
 } from '@grvt/client/interfaces';
-import type { OrderBook, Trade, Position, Order, Balance } from '../../types/common.js';
+import type { OrderBook, Trade, Position, Order, Balance, Ticker } from '../../types/common.js';
 import { GRVTNormalizer } from './GRVTNormalizer.js';
 import { GRVT_API_URLS } from './constants.js';
 
@@ -462,6 +462,107 @@ export class GRVTWebSocketWrapper {
         info: position.info,
       };
       yield [balance];
+    }
+  }
+
+  /**
+   * Watch ticker updates for a symbol
+   *
+   * GRVT doesn't have a dedicated ticker stream, so we derive ticker
+   * from trade stream updates. Each trade update contains price info
+   * that can be used to construct ticker-like updates.
+   *
+   * @param symbol - Trading symbol in CCXT format (e.g., "BTC/USDT:USDT")
+   * @returns AsyncGenerator yielding Ticker updates
+   *
+   * @example
+   * ```typescript
+   * for await (const ticker of wrapper.watchTicker('BTC/USDT:USDT')) {
+   *   console.log('Price:', ticker.last, 'Volume:', ticker.quoteVolume);
+   * }
+   * ```
+   */
+  async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
+    const instrument = this.normalizer.symbolFromCCXT(symbol);
+
+    const queue: ITrade[] = [];
+    let error: Error | null = null;
+    let subscriptionKey: string | null = null;
+    let resolver: ((value: ITrade) => void) | null = null;
+    let rejecter: ((err: Error) => void) | null = null;
+
+    // Use trade stream to derive ticker updates
+    const request: IWSTradeRequest = {
+      stream: EStream.TRADE,
+      params: {
+        instrument,
+      },
+      onData: (data) => {
+        if (resolver) {
+          resolver(data);
+          resolver = null;
+          rejecter = null;
+        } else {
+          this.boundedPush(queue, data, 'ticker');
+        }
+      },
+      onError: (err) => {
+        error = err;
+        if (rejecter) {
+          rejecter(err);
+          resolver = null;
+          rejecter = null;
+        }
+      },
+    };
+
+    try {
+      subscriptionKey = this.ws.subscribe(request);
+
+      while (true) {
+        if (error) throw error;
+
+        let tradeData: ITrade;
+
+        if (queue.length > 0) {
+          tradeData = queue.shift()!;
+        } else {
+          tradeData = await new Promise<ITrade>((resolve, reject) => {
+            resolver = resolve;
+            rejecter = reject;
+          });
+        }
+
+        if (error) throw error;
+
+        // Convert trade to ticker-like update
+        // Note: GRVT doesn't have a dedicated ticker stream, so we derive from trades
+        // Some fields are set to 0 as they require aggregated 24h data
+        const lastPrice = parseFloat(tradeData.price || '0');
+        const lastSize = parseFloat(tradeData.size || '0');
+        const ticker: Ticker = {
+          symbol: this.normalizer.symbolToCCXT(instrument),
+          timestamp: typeof tradeData.event_time === 'number' ? tradeData.event_time : Date.now(),
+          last: lastPrice,
+          bid: 0,  // Not available from trade stream
+          ask: 0,  // Not available from trade stream
+          high: lastPrice,  // Single trade, same as last
+          low: lastPrice,   // Single trade, same as last
+          open: lastPrice,  // Single trade, same as last
+          close: lastPrice,
+          change: 0,  // Requires 24h aggregation
+          percentage: 0,  // Requires 24h aggregation
+          baseVolume: lastSize,
+          quoteVolume: lastPrice * lastSize,
+          info: tradeData as unknown as Record<string, unknown>,
+        };
+
+        yield ticker;
+      }
+    } finally {
+      if (subscriptionKey) {
+        this.ws.unsubscribe(subscriptionKey);
+      }
     }
   }
 

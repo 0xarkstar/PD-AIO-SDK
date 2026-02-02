@@ -734,6 +734,24 @@ export class GRVTAdapter extends BaseAdapter {
   }
 
   /**
+   * Watch ticker updates in real-time
+   *
+   * @param symbol - Trading symbol (e.g., "BTC/USDT:USDT")
+   * @returns AsyncGenerator yielding Ticker updates
+   *
+   * @example
+   * ```typescript
+   * for await (const ticker of adapter.watchTicker('BTC/USDT:USDT')) {
+   *   console.log('Price:', ticker.last);
+   * }
+   * ```
+   */
+  async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
+    const ws = await this.ensureWebSocket();
+    yield* ws.watchTicker(symbol);
+  }
+
+  /**
    * Watch balance updates in real-time
    *
    * @returns AsyncGenerator yielding Balance array

@@ -101,6 +101,7 @@ export class LighterAdapter extends BaseAdapter {
     watchPositions: true,
     watchOrders: true,
     watchBalance: true,
+    watchMyTrades: true,
   };
 
   private readonly apiUrl: string;
@@ -1226,6 +1227,42 @@ export class LighterAdapter extends BaseAdapter {
 
     for await (const balances of this.wsManager.watch<LighterBalance[]>(channelId, subscription)) {
       yield balances.map(balance => this.normalizer.normalizeBalance(balance));
+    }
+  }
+
+  /**
+   * Watch user trades (fills) in real-time
+   *
+   * @param symbol - Optional symbol filter
+   * @returns AsyncGenerator yielding Trade updates
+   *
+   * @example
+   * ```typescript
+   * for await (const trade of adapter.watchMyTrades('BTC/USDT:USDT')) {
+   *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
+   * }
+   * ```
+   */
+  async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
+    if (!this.wsManager) {
+      throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
+    }
+
+    if (!this.hasAuthentication) {
+      throw new PerpDEXError('API credentials required for trade streaming', 'AUTH_REQUIRED', this.id);
+    }
+
+    const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.FILLS);
+
+    if (symbol) {
+      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
+      (subscription as any).symbol = lighterSymbol;
+    }
+
+    const channelId = `${LIGHTER_WS_CHANNELS.FILLS}:${this.getAuthIdentifier()}`;
+
+    for await (const trade of this.wsManager.watch<LighterTrade>(channelId, subscription)) {
+      yield this.normalizer.normalizeTrade(trade);
     }
   }
 

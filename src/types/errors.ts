@@ -149,6 +149,114 @@ export class InsufficientPermissionsError extends PerpDEXError {
 }
 
 // =============================================================================
+// Validation Errors
+// =============================================================================
+
+export class ValidationError extends PerpDEXError {
+  constructor(message: string, code: string, exchange: string, originalError?: unknown) {
+    super(message, code, exchange, originalError);
+    this.name = 'ValidationError';
+    Object.setPrototypeOf(this, ValidationError.prototype);
+  }
+}
+
+export class InvalidSymbolError extends PerpDEXError {
+  constructor(message: string, code: string, exchange: string, originalError?: unknown) {
+    super(message, code, exchange, originalError);
+    this.name = 'InvalidSymbolError';
+    Object.setPrototypeOf(this, InvalidSymbolError.prototype);
+  }
+}
+
+export class InvalidParameterError extends PerpDEXError {
+  constructor(message: string, code: string, exchange: string, originalError?: unknown) {
+    super(message, code, exchange, originalError);
+    this.name = 'InvalidParameterError';
+    Object.setPrototypeOf(this, InvalidParameterError.prototype);
+  }
+}
+
+// =============================================================================
+// Timeout Errors
+// =============================================================================
+
+export class TimeoutError extends PerpDEXError {
+  constructor(
+    message: string,
+    code: string,
+    exchange: string,
+    public readonly timeoutMs?: number,
+    originalError?: unknown
+  ) {
+    super(message, code, exchange, originalError);
+    this.name = 'TimeoutError';
+    Object.setPrototypeOf(this, TimeoutError.prototype);
+  }
+}
+
+export class RequestTimeoutError extends TimeoutError {
+  constructor(
+    message: string,
+    code: string,
+    exchange: string,
+    timeoutMs?: number,
+    originalError?: unknown
+  ) {
+    super(message, code, exchange, timeoutMs, originalError);
+    this.name = 'RequestTimeoutError';
+    Object.setPrototypeOf(this, RequestTimeoutError.prototype);
+  }
+}
+
+// =============================================================================
+// Order Execution Errors
+// =============================================================================
+
+export class InsufficientBalanceError extends PerpDEXError {
+  constructor(
+    message: string,
+    code: string,
+    exchange: string,
+    public readonly required?: number,
+    public readonly available?: number,
+    originalError?: unknown
+  ) {
+    super(message, code, exchange, originalError);
+    this.name = 'InsufficientBalanceError';
+    Object.setPrototypeOf(this, InsufficientBalanceError.prototype);
+  }
+}
+
+export class OrderRejectedError extends PerpDEXError {
+  constructor(
+    message: string,
+    code: string,
+    exchange: string,
+    public readonly reason?: string,
+    originalError?: unknown
+  ) {
+    super(message, code, exchange, originalError);
+    this.name = 'OrderRejectedError';
+    Object.setPrototypeOf(this, OrderRejectedError.prototype);
+  }
+}
+
+export class MinimumOrderSizeError extends PerpDEXError {
+  constructor(
+    message: string,
+    code: string,
+    exchange: string,
+    public readonly minSize?: number,
+    public readonly requestedSize?: number,
+    originalError?: unknown
+  ) {
+    super(message, code, exchange, originalError);
+    this.name = 'MinimumOrderSizeError';
+    Object.setPrototypeOf(this, MinimumOrderSizeError.prototype);
+  }
+}
+
+// =============================================================================
 // DEX-Specific Errors
 // =============================================================================
 
@@ -210,3 +318,97 @@ export function isAuthError(
     error instanceof InsufficientPermissionsError
   );
 }
+
+export function isNetworkError(error: unknown): error is NetworkError {
+  return error instanceof NetworkError;
+}
+
+export function isTimeoutError(error: unknown): error is TimeoutError {
+  return error instanceof TimeoutError;
+}
+
+export function isValidationError(error: unknown): error is ValidationError {
+  return error instanceof ValidationError;
+}
+
+export function isOrderError(
+  error: unknown
+): error is InvalidOrderError | OrderNotFoundError | OrderRejectedError {
+  return (
+    error instanceof InvalidOrderError ||
+    error instanceof OrderNotFoundError ||
+    error instanceof OrderRejectedError
+  );
+}
+
+export function isTradingError(
+  error: unknown
+): error is InsufficientMarginError | InsufficientBalanceError | LiquidationError {
+  return (
+    error instanceof InsufficientMarginError ||
+    error instanceof InsufficientBalanceError ||
+    error instanceof LiquidationError
+  );
+}
+
+// =============================================================================
+// Standard Error Codes
+// =============================================================================
+
+/**
+ * Standardized error codes used across all adapters.
+ * When mapping exchange-specific errors, prefer using these standard codes.
+ */
+export const StandardErrorCodes = {
+  // Generic
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+  INVALID_RESPONSE: 'INVALID_RESPONSE',
+  NOT_SUPPORTED: 'NOT_SUPPORTED',
+  NOT_IMPLEMENTED: 'NOT_IMPLEMENTED',
+
+  // Authentication
+  MISSING_CREDENTIALS: 'MISSING_CREDENTIALS',
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  INVALID_SIGNATURE: 'INVALID_SIGNATURE',
+  EXPIRED_AUTH: 'EXPIRED_AUTH',
+  INSUFFICIENT_PERMISSIONS: 'INSUFFICIENT_PERMISSIONS',
+
+  // Network
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  REQUEST_TIMEOUT: 'REQUEST_TIMEOUT',
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+  EXCHANGE_UNAVAILABLE: 'EXCHANGE_UNAVAILABLE',
+  WEBSOCKET_DISCONNECTED: 'WEBSOCKET_DISCONNECTED',
+
+  // Validation
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  INVALID_SYMBOL: 'INVALID_SYMBOL',
+  INVALID_PARAMETER: 'INVALID_PARAMETER',
+  INVALID_ORDER_TYPE: 'INVALID_ORDER_TYPE',
+  INVALID_AMOUNT: 'INVALID_AMOUNT',
+  INVALID_PRICE: 'INVALID_PRICE',
+
+  // Order Errors
+  ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
+  ORDER_REJECTED: 'ORDER_REJECTED',
+  ORDER_ALREADY_FILLED: 'ORDER_ALREADY_FILLED',
+  ORDER_ALREADY_CANCELLED: 'ORDER_ALREADY_CANCELLED',
+  INSUFFICIENT_MARGIN: 'INSUFFICIENT_MARGIN',
+  INSUFFICIENT_BALANCE: 'INSUFFICIENT_BALANCE',
+  MIN_ORDER_SIZE: 'MIN_ORDER_SIZE',
+  MAX_ORDER_SIZE: 'MAX_ORDER_SIZE',
+  PRICE_OUT_OF_RANGE: 'PRICE_OUT_OF_RANGE',
+
+  // Position Errors
+  POSITION_NOT_FOUND: 'POSITION_NOT_FOUND',
+  MAX_LEVERAGE_EXCEEDED: 'MAX_LEVERAGE_EXCEEDED',
+  REDUCE_ONLY_VIOLATION: 'REDUCE_ONLY_VIOLATION',
+
+  // DEX-Specific
+  TRANSACTION_FAILED: 'TRANSACTION_FAILED',
+  SLIPPAGE_EXCEEDED: 'SLIPPAGE_EXCEEDED',
+  LIQUIDATION: 'LIQUIDATION',
+  NONCE_ERROR: 'NONCE_ERROR',
+} as const;
+
+export type StandardErrorCode = typeof StandardErrorCodes[keyof typeof StandardErrorCodes];

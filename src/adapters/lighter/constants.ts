@@ -57,4 +57,5 @@ export const LIGHTER_WS_CHANNELS = {
   TICKER: 'ticker',
   POSITIONS: 'positions',
   ORDERS: 'orders',
+  FILLS: 'fills',
 } as const;

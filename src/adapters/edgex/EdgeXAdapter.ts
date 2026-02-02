@@ -60,6 +60,8 @@ export class EdgeXAdapter extends BaseAdapter {
     fetchOrderHistory: true,
     fetchMyTrades: true,
     createOrder: true,
+    createBatchOrders: true,
+    editOrder: true,
     cancelOrder: true,
     cancelAllOrders: true,
     setLeverage: true,
@@ -316,6 +318,100 @@ export class EdgeXAdapter extends BaseAdapter {
     }
 
     return response.orders.map((order: any) => this.normalizer.normalizeOrder(order));
+  }
+
+  /**
+   * Create multiple orders in a single request
+   *
+   * @param orders - Array of order requests
+   * @returns Array of created orders
+   */
+  async createBatchOrders(orders: OrderRequest[]): Promise<Order[]> {
+    this.requireAuth();
+
+    const batchPayload = orders.map((order) => {
+      const market = this.normalizer.toEdgeXSymbol(order.symbol);
+      const orderType = toEdgeXOrderType(order.type);
+      const side = toEdgeXOrderSide(order.side);
+      const timeInForce = toEdgeXTimeInForce(order.timeInForce);
+
+      return {
+        market,
+        side,
+        type: orderType,
+        size: order.amount.toString(),
+        price: order.price?.toString(),
+        time_in_force: timeInForce,
+        reduce_only: order.reduceOnly ?? false,
+        post_only: order.postOnly ?? false,
+        client_order_id: order.clientOrderId,
+      };
+    });
+
+    const response = await this.makeRequest(
+      'POST',
+      '/api/v1/private/order/batchCreateOrder',
+      'createBatchOrders',
+      { orders: batchPayload }
+    );
+
+    if (response.code !== 'SUCCESS' || !Array.isArray(response.data?.orders)) {
+      if (response.code === 'NOT_FOUND' || !response.data) {
+        throw new PerpDEXError('Batch orders endpoint not available', 'NOT_SUPPORTED', 'edgex');
+      }
+      throw new PerpDEXError('Invalid batch orders response', 'INVALID_RESPONSE', 'edgex');
+    }
+
+    return response.data.orders.map((order: any) => this.normalizer.normalizeOrder(order));
+  }
+
+  /**
+   * Modify an existing order
+   *
+   * @param orderId - Order ID to modify
+   * @param symbol - Trading symbol
+   * @param type - Order type (market/limit)
+   * @param side - Order side (buy/sell)
+   * @param amount - New order amount (optional)
+   * @param price - New order price (optional)
+   * @returns Modified order
+   */
+  async modifyOrder(
+    orderId: string,
+    symbol: string,
+    type: 'market' | 'limit',
+    side: 'buy' | 'sell',
+    amount?: number,
+    price?: number
+  ): Promise<Order> {
+    this.requireAuth();
+
+    const payload: Record<string, unknown> = {
+      orderId,
+    };
+
+    if (amount !== undefined) {
+      payload.size = amount.toString();
+    }
+    if (price !== undefined) {
+      payload.price = price.toString();
+    }
+
+    const response = await this.makeRequest(
+      'POST',
+      '/api/v1/private/order/modifyOrder',
+      'modifyOrder',
+      payload
+    );
+
+    if (response.code !== 'SUCCESS' || !response.data) {
+      if (response.code === 'NOT_FOUND') {
+        throw new PerpDEXError('Order not found', 'ORDER_NOT_FOUND', 'edgex');
+      }
+      throw new PerpDEXError('Invalid modify order response', 'INVALID_RESPONSE', 'edgex');
+    }
+
+    return this.normalizer.normalizeOrder(response.data);
   }
 
   /**
