@@ -216,6 +216,32 @@ export {
   ConfigurationError,
 } from './utils/config.js';
 
+// Cross-platform Crypto Utilities
+export {
+  createHmacSha256,
+  createSha3Hash,
+  createSha3HashBuffer,
+  createSha256Hash,
+  createSha256HashBuffer,
+  hexToBytes,
+  bytesToHex,
+} from './utils/crypto.js';
+
+// Cross-platform Buffer Utilities
+export {
+  toBuffer,
+  fromBuffer,
+  allocBuffer,
+  readBigUInt64LE,
+  readBigUInt64BE,
+  writeBigUInt64LE,
+  writeBigUInt64BE,
+  concatBuffers,
+  buffersEqual,
+  copyBuffer,
+  sliceBuffer,
+} from './utils/buffer.js';
+
 // =============================================================================
 // Validation
 // =============================================================================

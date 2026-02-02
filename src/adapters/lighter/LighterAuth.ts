@@ -7,7 +7,7 @@
  * 2. HMAC mode: HMAC-SHA256 for legacy/read-only operations
  */
 
-import { createHmac } from 'crypto';
+import { createHmacSha256 } from '../../utils/crypto.js';
 import type { IAuthStrategy, RequestParams, AuthenticatedRequest } from '../../types/adapter.js';
 import { LighterSigner } from './signer/index.js';
 import { NonceManager } from './NonceManager.js';
@@ -179,7 +179,7 @@ export class LighterAuth implements IAuthStrategy {
     } else if (this.mode === 'hmac' && this.config.apiKey && this.config.apiSecret) {
       // HMAC mode
       const timestamp = (request.timestamp ?? Date.now()).toString();
-      const signature = this.generateHmacSignature(
+      const signature = await this.generateHmacSignature(
         request.method,
         request.path,
         timestamp,
@@ -260,17 +260,16 @@ export class LighterAuth implements IAuthStrategy {
 
   /**
    * Generate HMAC-SHA256 signature
+   * Note: This is now async to support browser Web Crypto API
    */
-  private generateHmacSignature(
+  private async generateHmacSignature(
     method: string,
     path: string,
     timestamp: string,
     body?: Record<string, unknown>
-  ): string {
+  ): Promise<string> {
     const message = `${timestamp}${method}${path}${body ? JSON.stringify(body) : ''}`;
-    return createHmac('sha256', this.config.apiSecret!)
-      .update(message)
-      .digest('hex');
+    return createHmacSha256(this.config.apiSecret!, message);
   }
 
   /**

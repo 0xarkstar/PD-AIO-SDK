@@ -9,7 +9,7 @@
  * Install @oraichain/lighter-ts-sdk for full trading functionality.
  */
 
-import { createHmac } from 'crypto';
+import { createHmacSha256 } from '../../utils/crypto.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type {
   Market,
@@ -1081,12 +1081,12 @@ export class LighterAdapter extends BaseAdapter {
       } catch {
         // Fall back to HMAC if token creation fails
         if (this.apiKey && this.apiSecret) {
-          this.addHMACHeaders(headers, method, path, body);
+          await this.addHMACHeaders(headers, method, path, body);
         }
       }
     } else if (this.apiKey && this.apiSecret) {
       // HMAC mode
-      this.addHMACHeaders(headers, method, path, body);
+      await this.addHMACHeaders(headers, method, path, body);
     }
 
     try {
@@ -1107,15 +1107,16 @@ export class LighterAdapter extends BaseAdapter {
 
   /**
    * Add HMAC authentication headers
+   * Note: This is now async to support browser Web Crypto API
    */
-  private addHMACHeaders(
+  private async addHMACHeaders(
     headers: Record<string, string>,
     method: string,
     path: string,
     body?: Record<string, unknown>
-  ): void {
+  ): Promise<void> {
     const timestamp = Date.now().toString();
-    const signature = this.generateSignature(method, path, timestamp, body);
+    const signature = await this.generateSignature(method, path, timestamp, body);
     headers['X-API-KEY'] = this.apiKey!;
     headers['X-TIMESTAMP'] = timestamp;
     headers['X-SIGNATURE'] = signature;
@@ -1313,17 +1314,16 @@ export class LighterAdapter extends BaseAdapter {
 
   /**
    * Generate HMAC signature for authenticated requests
+   * Note: This is now async to support browser Web Crypto API
    */
-  private generateSignature(
+  private async generateSignature(
     method: string,
     path: string,
     timestamp: string,
     body?: Record<string, unknown>
-  ): string {
+  ): Promise<string> {
     const message = `${timestamp}${method}${path}${body ? JSON.stringify(body) : ''}`;
-    return createHmac('sha256', this.apiSecret!)
-      .update(message)
-      .digest('hex');
+    return createHmacSha256(this.apiSecret!, message);
   }
 
   /**

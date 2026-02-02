@@ -76,7 +76,7 @@
  * @see https://variational.io/ - Variational official website
  */
 
-import { createHmac } from 'crypto';
+import { createHmacSha256 } from '../../utils/crypto.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type {
   Market,
@@ -727,14 +727,15 @@ export class VariationalAdapter extends BaseAdapter {
 
   /**
    * Generate HMAC-SHA256 signature for authenticated requests
+   * Note: This is now async to support browser Web Crypto API
    */
-  private generateSignature(method: string, path: string, timestamp: string, body?: Record<string, unknown>): string {
+  private async generateSignature(method: string, path: string, timestamp: string, body?: Record<string, unknown>): Promise<string> {
     if (!this.apiSecret) {
       throw new PerpDEXError('API secret required for authentication', 'MISSING_API_SECRET', this.id);
     }
 
     const message = `${timestamp}${method}${path}${body ? JSON.stringify(body) : ''}`;
-    return createHmac('sha256', this.apiSecret).update(message).digest('hex');
+    return createHmacSha256(this.apiSecret, message);
   }
 
   /**
@@ -751,7 +752,7 @@ export class VariationalAdapter extends BaseAdapter {
     body?: Record<string, unknown>
   ): Promise<T> {
     const timestamp = Date.now().toString();
-    const signature = this.generateSignature(method, path, timestamp, body);
+    const signature = await this.generateSignature(method, path, timestamp, body);
 
     const headers = {
       'X-API-Key': this.apiKey!,

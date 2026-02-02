@@ -1,11 +1,11 @@
 /**
  * WebSocket Client with Auto-Reconnection
  *
- * Handles connection lifecycle, reconnection logic, and heartbeat
+ * Handles connection lifecycle, reconnection logic, and heartbeat.
+ * Works in both Node.js and browser environments.
  */
 
 import EventEmitter from 'eventemitter3';
-import WebSocket from 'ws';
 import type {
   ConnectionState,
   HeartbeatConfig,
@@ -13,6 +13,26 @@ import type {
   WebSocketConfig,
   WebSocketMetrics,
 } from './types.js';
+
+// Browser/Node.js WebSocket detection
+const isBrowser = typeof window !== 'undefined' && typeof window.WebSocket !== 'undefined';
+
+// Import Node.js ws types for type safety
+import type WsWebSocket from 'ws';
+
+// WebSocket type that works for both environments
+type WebSocketLike = WsWebSocket | globalThis.WebSocket;
+
+// Get the appropriate WebSocket class
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let WS: any;
+if (isBrowser) {
+  WS = window.WebSocket;
+} else {
+  // Dynamic import for Node.js - require is used here for synchronous class initialization
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  WS = require('ws');
+}
 
 const DEFAULT_RECONNECT_CONFIG: ReconnectConfig = {
   enabled: true,
@@ -42,7 +62,7 @@ interface WebSocketEvents {
 }
 
 export class WebSocketClient extends EventEmitter<WebSocketEvents> {
-  private ws: WebSocket | null = null;
+  private ws: WebSocketLike | null = null;
   private state: ConnectionState = 'disconnected';
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
@@ -88,7 +108,7 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
    * Check if connected
    */
   isConnected(): boolean {
-    return this.state === 'connected' && this.ws?.readyState === WebSocket.OPEN;
+    return this.state === 'connected' && this.ws?.readyState === WS.OPEN;
   }
 
   /**
@@ -149,35 +169,67 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
 
   /**
    * Create WebSocket connection
+   * Supports both Node.js (ws package) and browser (native WebSocket)
    */
   private async createConnection(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
         this.setState('connecting');
 
-        this.ws = new WebSocket(this.url);
+        this.ws = new WS(this.url) as WebSocketLike;
 
-        this.ws.on('open', () => {
-          this.handleOpen();
-          resolve();
-        });
+        if (isBrowser) {
+          // Browser WebSocket uses addEventListener
+          // Use type casting to avoid conflicts between DOM types and ws types
+          const browserWs = this.ws as unknown as globalThis.WebSocket;
 
-        this.ws.on('message', (data: WebSocket.RawData) => {
-          this.handleMessage(data);
-        });
+          browserWs.onopen = () => {
+            this.handleOpen();
+            resolve();
+          };
 
-        this.ws.on('close', () => {
-          this.handleClose();
-        });
+          browserWs.onmessage = (event) => {
+            this.handleMessage(event.data);
+          };
 
-        this.ws.on('error', (error: Error) => {
-          this.handleError(error);
-          reject(error);
-        });
+          browserWs.onclose = () => {
+            this.handleClose();
+          };
 
-        this.ws.on('pong', () => {
-          this.handlePong();
-        });
+          browserWs.onerror = () => {
+            const error = new Error('WebSocket error');
+            this.handleError(error);
+            reject(error);
+          };
+
+          // Browser WebSocket doesn't have 'pong' event
+          // Heartbeat timeout will handle connection health
+        } else {
+          // Node.js ws package uses .on() method
+          const ws = this.ws as WsWebSocket;
+
+          ws.on('open', () => {
+            this.handleOpen();
+            resolve();
+          });
+
+          ws.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
+            this.handleMessage(data);
+          });
+
+          ws.on('close', () => {
+            this.handleClose();
+          });
+
+          ws.on('error', (error: Error) => {
+            this.handleError(error);
+            reject(error);
+          });
+
+          ws.on('pong', () => {
+            this.handlePong();
+          });
+        }
       } catch (error) {
         this.handleError(error instanceof Error ? error : new Error(String(error)));
         reject(error);
@@ -205,12 +257,23 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
 
   /**
    * Handle incoming message
+   * Supports both Node.js Buffer and browser string/ArrayBuffer
    */
-  private handleMessage(data: WebSocket.RawData): void {
+  private handleMessage(data: unknown): void {
     try {
       this.messagesReceived++;
 
-      const message = data.toString();
+      // Convert data to string based on type
+      let message: string;
+      if (typeof data === 'string') {
+        message = data;
+      } else if (data instanceof ArrayBuffer) {
+        message = new TextDecoder().decode(data);
+      } else if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) {
+        message = data.toString();
+      } else {
+        message = String(data);
+      }
 
       // Try to parse as JSON, fallback to raw string
       try {
@@ -308,6 +371,8 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
 
   /**
    * Start heartbeat/ping mechanism
+   * In browsers, we rely on application-level ping messages since
+   * the WebSocket API doesn't expose ping/pong frames.
    */
   private startHeartbeat(): void {
     if (!this.heartbeatConfig.enabled) {
@@ -319,25 +384,53 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
     this.heartbeatTimer = setInterval(() => {
       if (this.isConnected()) {
         try {
-          // Send ping
+          // Send ping message
           if (this.heartbeatConfig.pingMessage) {
             this.send(this.heartbeatConfig.pingMessage);
-          } else {
-            // Use WebSocket ping frame
-            this.ws!.ping();
+          } else if (!isBrowser) {
+            // Use WebSocket ping frame (Node.js only)
+            this.sendPing();
           }
+          // In browser without pingMessage, skip ping (browser handles keep-alive)
 
-          // Set timeout for pong response
-          this.heartbeatTimeoutTimer = setTimeout(() => {
-            // No pong received - connection is dead
-            this.emit('error', new Error('Heartbeat timeout - no pong received'));
-            this.ws?.terminate();
-          }, this.heartbeatConfig.timeout);
+          // Set timeout for pong response (only if we sent a ping)
+          if (this.heartbeatConfig.pingMessage || !isBrowser) {
+            this.heartbeatTimeoutTimer = setTimeout(() => {
+              // No pong received - connection is dead
+              this.emit('error', new Error('Heartbeat timeout - no pong received'));
+              this.terminateConnection();
+            }, this.heartbeatConfig.timeout);
+          }
         } catch (error) {
           this.emit('error', new Error(`Heartbeat failed: ${error}`));
         }
       }
     }, this.heartbeatConfig.interval);
+  }
+
+  /**
+   * Send WebSocket ping frame (Node.js only)
+   */
+  private sendPing(): void {
+    if (this.ws && 'ping' in this.ws && typeof (this.ws as any).ping === 'function') {
+      (this.ws as any).ping();
+    }
+  }
+
+  /**
+   * Forcefully terminate the connection
+   * Uses terminate() on Node.js, close() on browsers
+   */
+  private terminateConnection(): void {
+    if (this.ws) {
+      if ('terminate' in this.ws && typeof (this.ws as any).terminate === 'function') {
+        // Node.js ws package has terminate()
+        (this.ws as any).terminate();
+      } else {
+        // Browser WebSocket only has close()
+        this.ws.close();
+      }
+    }
   }
 
   /**

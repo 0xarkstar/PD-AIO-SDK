@@ -5,7 +5,7 @@
  * API Docs: https://edgex-1.gitbook.io/edgeX-documentation/api
  */
 
-import { createHash } from 'crypto';
+import { createSha3HashBuffer } from '../../utils/crypto.js';
 import { ec } from 'starknet';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type {
@@ -638,8 +638,8 @@ export class EdgeXAdapter extends BaseAdapter {
       // Create message: timestamp + METHOD + path + sorted_params
       const message = `${timestamp}${method.toUpperCase()}${basePath}${sortedParams}`;
 
-      // Hash with SHA3-256
-      const messageHash = createHash('sha3-256').update(message).digest();
+      // Hash with SHA3-256 (cross-platform)
+      const messageHash = await createSha3HashBuffer(message);
 
       // Sign with ECDSA using private key
       const signature = ec.starkCurve.sign(messageHash, this.starkPrivateKey);

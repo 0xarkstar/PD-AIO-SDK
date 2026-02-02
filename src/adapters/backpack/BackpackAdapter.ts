@@ -5,6 +5,7 @@
  */
 
 import * as ed from '@noble/ed25519';
+import { toBuffer, fromBuffer } from '../../utils/buffer.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type {
   Market,
@@ -519,6 +520,7 @@ export class BackpackAdapter extends BaseAdapter {
 
   /**
    * Sign request with ED25519 signature
+   * Uses cross-platform buffer utilities for browser compatibility
    */
   private async signRequest(
     method: string,
@@ -540,20 +542,20 @@ export class BackpackAdapter extends BaseAdapter {
       let privateKey: Uint8Array;
       if (this.apiSecret.startsWith('0x')) {
         // Hex format with 0x prefix
-        privateKey = Uint8Array.from(Buffer.from(this.apiSecret.slice(2), 'hex'));
+        privateKey = toBuffer(this.apiSecret.slice(2), 'hex');
       } else if (/^[0-9a-fA-F]+$/.test(this.apiSecret)) {
         // Plain hex format
-        privateKey = Uint8Array.from(Buffer.from(this.apiSecret, 'hex'));
+        privateKey = toBuffer(this.apiSecret, 'hex');
       } else {
         // Assume base64 format (Backpack's default format)
-        privateKey = Uint8Array.from(Buffer.from(this.apiSecret, 'base64'));
+        privateKey = toBuffer(this.apiSecret, 'base64');
       }
 
       // Sign the message with ED25519
       const signature = await ed.signAsync(messageBytes, privateKey);
 
       // Return signature as base64 string (Backpack expects base64)
-      return Buffer.from(signature).toString('base64');
+      return fromBuffer(new Uint8Array(signature), 'base64');
     } catch (error) {
       throw new PerpDEXError(
         `Failed to sign request: ${error instanceof Error ? error.message : String(error)}`,
