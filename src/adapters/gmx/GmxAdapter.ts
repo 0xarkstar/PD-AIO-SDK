@@ -49,7 +49,19 @@ import { mapGmxError } from './error-codes.js';
 import type {
   GmxMarketInfo,
   GmxCandlestick,
+  GmxTokenInfo,
 } from './types.js';
+
+/**
+ * Ticker price data from GMX API
+ */
+interface GmxTickerPrice {
+  tokenAddress: string;
+  tokenSymbol?: string;
+  minPrice: string;
+  maxPrice: string;
+  updatedAt?: number;
+}
 
 export type GmxChain = 'arbitrum' | 'avalanche';
 
@@ -134,6 +146,9 @@ export class GmxAdapter extends BaseAdapter {
   private marketsCache: Map<string, GmxMarketInfo> = new Map();
   private marketsCacheTimestamp: number = 0;
   private marketsCacheTTL = 60000; // 1 minute
+  private pricesCache: Map<string, GmxTickerPrice> = new Map();
+  private pricesCacheTimestamp: number = 0;
+  private pricesCacheTTL = 5000; // 5 seconds for price data
 
   constructor(config: GmxConfig = {}) {
     super({
@@ -174,6 +189,7 @@ export class GmxAdapter extends BaseAdapter {
   async disconnect(): Promise<void> {
     this._isReady = false;
     this.marketsCache.clear();
+    this.pricesCache.clear();
     this.info('GMX adapter disconnected');
   }
 
@@ -208,17 +224,27 @@ export class GmxAdapter extends BaseAdapter {
     }
 
     try {
-      const marketsInfo = await this.fetchMarketsInfo();
+      const [marketsInfo, prices] = await Promise.all([
+        this.fetchMarketsInfo(),
+        this.fetchPrices(),
+      ]);
       const config = GMX_MARKETS[marketKey];
       const marketInfo = marketsInfo.find(
-        m => m.marketTokenAddress.toLowerCase() === config.marketAddress.toLowerCase()
+        m => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase()
       );
 
       if (!marketInfo) {
         throw new Error(`Market info not found for ${symbol}`);
       }
 
-      return this.normalizer.normalizeTicker(marketInfo);
+      // Get price for the index token
+      const indexTokenPrice = prices.get(config.indexToken.toLowerCase());
+      const priceData = indexTokenPrice ? {
+        minPrice: parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE,
+        maxPrice: parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE,
+      } : undefined;
+
+      return this.normalizer.normalizeTicker(marketInfo, priceData);
     } catch (error) {
       throw mapGmxError(error);
     }
@@ -243,20 +269,27 @@ export class GmxAdapter extends BaseAdapter {
     }
 
     try {
-      const marketsInfo = await this.fetchMarketsInfo();
+      const [marketsInfo, prices] = await Promise.all([
+        this.fetchMarketsInfo(),
+        this.fetchPrices(),
+      ]);
       const config = GMX_MARKETS[marketKey];
       const marketInfo = marketsInfo.find(
-        m => m.marketTokenAddress.toLowerCase() === config.marketAddress.toLowerCase()
+        m => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase()
       );
 
       if (!marketInfo) {
         throw new Error(`Market info not found for ${symbol}`);
       }
 
-      // Get price for calculations
-      const minPrice = parseFloat(marketInfo.indexToken.prices.minPrice) / GMX_PRECISION.PRICE;
-      const maxPrice = parseFloat(marketInfo.indexToken.prices.maxPrice) / GMX_PRECISION.PRICE;
-      const indexPrice = (minPrice + maxPrice) / 2;
+      // Get price for calculations from prices endpoint
+      const indexTokenPrice = prices.get(config.indexToken.toLowerCase());
+      let indexPrice = 0;
+      if (indexTokenPrice) {
+        const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
+        const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+        indexPrice = (minPrice + maxPrice) / 2;
+      }
 
       // Calculate funding rate from market info
       const longOI = parseFloat(marketInfo.longInterestUsd) / GMX_PRECISION.USD;
@@ -422,11 +455,40 @@ export class GmxAdapter extends BaseAdapter {
     // Update cache
     this.marketsCache.clear();
     for (const market of response.markets) {
-      this.marketsCache.set(market.marketTokenAddress.toLowerCase(), market);
+      this.marketsCache.set(market.marketToken.toLowerCase(), market);
     }
     this.marketsCacheTimestamp = now;
 
     return response.markets;
+  }
+
+  /**
+   * Fetch token prices from API with caching
+   */
+  private async fetchPrices(): Promise<Map<string, GmxTickerPrice>> {
+    const now = Date.now();
+
+    // Return cached if fresh (shorter TTL for prices)
+    if (this.pricesCache.size > 0 && now - this.pricesCacheTimestamp < this.pricesCacheTTL) {
+      return this.pricesCache;
+    }
+
+    try {
+      const url = `${this.apiBaseUrl}/prices/tickers`;
+      const response = await this.request<GmxTickerPrice[]>('GET', url);
+
+      // Update cache
+      this.pricesCache.clear();
+      for (const price of response) {
+        this.pricesCache.set(price.tokenAddress.toLowerCase(), price);
+      }
+      this.pricesCacheTimestamp = now;
+    } catch (error) {
+      // Log but don't fail - prices are optional for some operations
+      this.debug(`Failed to fetch prices: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    return this.pricesCache;
   }
 
   /**

@@ -21,119 +21,96 @@ describe('GmxNormalizer', () => {
     normalizer = new GmxNormalizer();
   });
 
-  describe('normalizeMarket', () => {
-    const mockMarketInfo: GmxMarketInfo = {
-      marketTokenAddress: GMX_MARKETS['ETH/USD:ETH'].marketAddress,
-      indexTokenAddress: GMX_MARKETS['ETH/USD:ETH'].indexToken,
-      longTokenAddress: GMX_MARKETS['ETH/USD:ETH'].longToken,
-      shortTokenAddress: GMX_MARKETS['ETH/USD:ETH'].shortToken,
-      indexToken: {
-        address: GMX_MARKETS['ETH/USD:ETH'].indexToken,
-        symbol: 'ETH',
-        decimals: 18,
-        prices: {
-          minPrice: (3000 * GMX_PRECISION.PRICE).toString(),
-          maxPrice: (3001 * GMX_PRECISION.PRICE).toString(),
-        },
-      },
-      longToken: {
-        address: GMX_MARKETS['ETH/USD:ETH'].longToken,
-        symbol: 'WETH',
-        decimals: 18,
-        prices: {
-          minPrice: (3000 * GMX_PRECISION.PRICE).toString(),
-          maxPrice: (3001 * GMX_PRECISION.PRICE).toString(),
-        },
-      },
-      shortToken: {
-        address: GMX_MARKETS['ETH/USD:ETH'].shortToken,
-        symbol: 'USDC',
-        decimals: 6,
-        prices: {
-          minPrice: (1 * GMX_PRECISION.PRICE).toString(),
-          maxPrice: (1 * GMX_PRECISION.PRICE).toString(),
-        },
-      },
-      longPoolAmount: '1000000000000000000000',
-      shortPoolAmount: '3000000000000',
-      maxLongPoolAmount: '5000000000000000000000',
-      maxShortPoolAmount: '15000000000000',
-      maxLongPoolUsdForDeposit: '0',
-      maxShortPoolUsdForDeposit: '0',
-      longPoolAmountAdjustment: '0',
-      shortPoolAmountAdjustment: '0',
-      poolValueMin: '0',
-      poolValueMax: '0',
-      reserveFactorLong: '0',
-      reserveFactorShort: '0',
-      openInterestReserveFactorLong: '0',
-      openInterestReserveFactorShort: '0',
-      maxOpenInterestLong: (5000000 * GMX_PRECISION.USD).toString(),
-      maxOpenInterestShort: (5000000 * GMX_PRECISION.USD).toString(),
-      totalBorrowingFees: '0',
-      positionImpactPoolAmount: '0',
-      minPositionImpactPoolAmount: '0',
-      positionImpactPoolDistributionRate: '0',
-      swapImpactPoolAmountLong: '0',
-      swapImpactPoolAmountShort: '0',
-      borrowingFactorLong: '100000000000000000000000',
-      borrowingFactorShort: '100000000000000000000000',
-      borrowingExponentFactorLong: '0',
-      borrowingExponentFactorShort: '0',
-      fundingFactor: '1000000000000000000000000',
-      fundingExponentFactor: '0',
-      fundingIncreaseFactorPerSecond: '0',
-      fundingDecreaseFactorPerSecond: '0',
-      thresholdForStableFunding: '0',
-      thresholdForDecreaseFunding: '0',
-      minFundingFactorPerSecond: '0',
-      maxFundingFactorPerSecond: '0',
-      pnlLongMax: '0',
-      pnlLongMin: '0',
-      pnlShortMax: '0',
-      pnlShortMin: '0',
-      netPnlMax: '0',
-      netPnlMin: '0',
-      maxPnlFactorForTradersLong: '0',
-      maxPnlFactorForTradersShort: '0',
-      minCollateralFactor: '0',
-      minCollateralFactorForOpenInterestLong: '0',
-      minCollateralFactorForOpenInterestShort: '0',
-      claimableFundingAmountLong: '0',
-      claimableFundingAmountShort: '0',
-      positionFeeFactorForPositiveImpact: '500000000000000000000000000',
-      positionFeeFactorForNegativeImpact: '700000000000000000000000000',
-      positionImpactFactorPositive: '0',
-      positionImpactFactorNegative: '0',
-      maxPositionImpactFactorPositive: '0',
-      maxPositionImpactFactorNegativePrice: '0',
-      positionImpactExponentFactor: '0',
-      swapFeeFactorForPositiveImpact: '0',
-      swapFeeFactorForNegativeImpact: '0',
-      swapImpactFactorPositive: '0',
-      swapImpactFactorNegative: '0',
-      swapImpactExponentFactor: '0',
-      longInterestInTokens: '100000000000000000000',
-      shortInterestInTokens: '50000000000000000000',
-      longInterestUsd: (300000 * GMX_PRECISION.USD).toString(),
-      shortInterestUsd: (150000 * GMX_PRECISION.USD).toString(),
-      longInterestInTokensUsingLongToken: '0',
-      longInterestInTokensUsingShortToken: '0',
-      shortInterestInTokensUsingLongToken: '0',
-      shortInterestInTokensUsingShortToken: '0',
-      isDisabled: false,
-      virtualPoolAmountForLongToken: '0',
-      virtualPoolAmountForShortToken: '0',
-      virtualInventoryForPositions: '0',
-      virtualMarketId: '0x',
-      virtualLongTokenId: '0x',
-      virtualShortTokenId: '0x',
-    };
+  // Helper to create mock market info with new API format
+  const createMockMarketInfo = (overrides?: Partial<GmxMarketInfo>): GmxMarketInfo => ({
+    marketToken: GMX_MARKETS['ETH/USD:ETH'].marketAddress,
+    indexToken: GMX_MARKETS['ETH/USD:ETH'].indexToken,
+    longToken: GMX_MARKETS['ETH/USD:ETH'].longToken,
+    shortToken: GMX_MARKETS['ETH/USD:ETH'].shortToken,
+    name: 'ETH/USD [WETH-USDC]',
+    longPoolAmount: '1000000000000000000000',
+    shortPoolAmount: '3000000000000',
+    maxLongPoolAmount: '5000000000000000000000',
+    maxShortPoolAmount: '15000000000000',
+    maxLongPoolUsdForDeposit: '0',
+    maxShortPoolUsdForDeposit: '0',
+    longPoolAmountAdjustment: '0',
+    shortPoolAmountAdjustment: '0',
+    poolValueMin: '0',
+    poolValueMax: '0',
+    reserveFactorLong: '0',
+    reserveFactorShort: '0',
+    openInterestReserveFactorLong: '0',
+    openInterestReserveFactorShort: '0',
+    maxOpenInterestLong: (5000000 * GMX_PRECISION.USD).toString(),
+    maxOpenInterestShort: (5000000 * GMX_PRECISION.USD).toString(),
+    totalBorrowingFees: '0',
+    positionImpactPoolAmount: '0',
+    minPositionImpactPoolAmount: '0',
+    positionImpactPoolDistributionRate: '0',
+    swapImpactPoolAmountLong: '0',
+    swapImpactPoolAmountShort: '0',
+    borrowingFactorLong: '100000000000000000000000',
+    borrowingFactorShort: '100000000000000000000000',
+    borrowingExponentFactorLong: '0',
+    borrowingExponentFactorShort: '0',
+    fundingFactor: '1000000000000000000000000',
+    fundingExponentFactor: '0',
+    fundingIncreaseFactorPerSecond: '0',
+    fundingDecreaseFactorPerSecond: '0',
+    thresholdForStableFunding: '0',
+    thresholdForDecreaseFunding: '0',
+    minFundingFactorPerSecond: '0',
+    maxFundingFactorPerSecond: '0',
+    pnlLongMax: '0',
+    pnlLongMin: '0',
+    pnlShortMax: '0',
+    pnlShortMin: '0',
+    netPnlMax: '0',
+    netPnlMin: '0',
+    maxPnlFactorForTradersLong: '0',
+    maxPnlFactorForTradersShort: '0',
+    minCollateralFactor: '0',
+    minCollateralFactorForOpenInterestLong: '0',
+    minCollateralFactorForOpenInterestShort: '0',
+    claimableFundingAmountLong: '0',
+    claimableFundingAmountShort: '0',
+    positionFeeFactorForPositiveImpact: '500000000000000000000000000',
+    positionFeeFactorForNegativeImpact: '700000000000000000000000000',
+    positionImpactFactorPositive: '0',
+    positionImpactFactorNegative: '0',
+    maxPositionImpactFactorPositive: '0',
+    maxPositionImpactFactorNegativePrice: '0',
+    positionImpactExponentFactor: '0',
+    swapFeeFactorForPositiveImpact: '0',
+    swapFeeFactorForNegativeImpact: '0',
+    swapImpactFactorPositive: '0',
+    swapImpactFactorNegative: '0',
+    swapImpactExponentFactor: '0',
+    longInterestInTokens: '100000000000000000000',
+    shortInterestInTokens: '50000000000000000000',
+    longInterestUsd: (300000 * GMX_PRECISION.USD).toString(),
+    shortInterestUsd: (150000 * GMX_PRECISION.USD).toString(),
+    longInterestInTokensUsingLongToken: '0',
+    longInterestInTokensUsingShortToken: '0',
+    shortInterestInTokensUsingLongToken: '0',
+    shortInterestInTokensUsingShortToken: '0',
+    isDisabled: false,
+    virtualPoolAmountForLongToken: '0',
+    virtualPoolAmountForShortToken: '0',
+    virtualInventoryForPositions: '0',
+    virtualMarketId: '0x',
+    virtualLongTokenId: '0x',
+    virtualShortTokenId: '0x',
+    ...overrides,
+  });
 
+  describe('normalizeMarket', () => {
     test('should normalize market to unified format', () => {
+      const mockMarketInfo = createMockMarketInfo();
       const market = normalizer.normalizeMarket(mockMarketInfo, 'arbitrum');
 
-      expect(market.id).toBe(mockMarketInfo.marketTokenAddress);
+      expect(market.id).toBe(mockMarketInfo.marketToken);
       expect(market.symbol).toBe('ETH/USD:ETH');
       expect(market.base).toBe('ETH');
       expect(market.quote).toBe('USD');
@@ -142,17 +119,19 @@ describe('GmxNormalizer', () => {
     });
 
     test('should calculate max leverage from market config', () => {
+      const mockMarketInfo = createMockMarketInfo();
       const market = normalizer.normalizeMarket(mockMarketInfo, 'arbitrum');
       expect(market.maxLeverage).toBe(100);
     });
 
     test('should set market as inactive when disabled', () => {
-      const disabledMarket = { ...mockMarketInfo, isDisabled: true };
+      const disabledMarket = createMockMarketInfo({ isDisabled: true });
       const market = normalizer.normalizeMarket(disabledMarket, 'arbitrum');
       expect(market.active).toBe(false);
     });
 
     test('should include chain info in market info', () => {
+      const mockMarketInfo = createMockMarketInfo();
       const market = normalizer.normalizeMarket(mockMarketInfo, 'arbitrum');
       expect(market.info.chain).toBe('arbitrum');
     });
@@ -161,107 +140,10 @@ describe('GmxNormalizer', () => {
   describe('normalizeMarkets', () => {
     test('should normalize array of markets', () => {
       const mockMarkets: GmxMarketInfo[] = [
-        {
-          marketTokenAddress: GMX_MARKETS['ETH/USD:ETH'].marketAddress,
-          indexTokenAddress: GMX_MARKETS['ETH/USD:ETH'].indexToken,
-          longTokenAddress: GMX_MARKETS['ETH/USD:ETH'].longToken,
-          shortTokenAddress: GMX_MARKETS['ETH/USD:ETH'].shortToken,
-          indexToken: {
-            address: GMX_MARKETS['ETH/USD:ETH'].indexToken,
-            symbol: 'ETH',
-            decimals: 18,
-            prices: {
-              minPrice: (3000 * GMX_PRECISION.PRICE).toString(),
-              maxPrice: (3001 * GMX_PRECISION.PRICE).toString(),
-            },
-          },
-          longToken: {
-            address: GMX_MARKETS['ETH/USD:ETH'].longToken,
-            symbol: 'WETH',
-            decimals: 18,
-            prices: { minPrice: '0', maxPrice: '0' },
-          },
-          shortToken: {
-            address: GMX_MARKETS['ETH/USD:ETH'].shortToken,
-            symbol: 'USDC',
-            decimals: 6,
-            prices: { minPrice: '0', maxPrice: '0' },
-          },
-          longPoolAmount: '0',
-          shortPoolAmount: '0',
-          maxLongPoolAmount: '0',
-          maxShortPoolAmount: '0',
-          maxLongPoolUsdForDeposit: '0',
-          maxShortPoolUsdForDeposit: '0',
-          longPoolAmountAdjustment: '0',
-          shortPoolAmountAdjustment: '0',
-          poolValueMin: '0',
-          poolValueMax: '0',
-          reserveFactorLong: '0',
-          reserveFactorShort: '0',
-          openInterestReserveFactorLong: '0',
-          openInterestReserveFactorShort: '0',
+        createMockMarketInfo({
           maxOpenInterestLong: (1000000 * GMX_PRECISION.USD).toString(),
           maxOpenInterestShort: (1000000 * GMX_PRECISION.USD).toString(),
-          totalBorrowingFees: '0',
-          positionImpactPoolAmount: '0',
-          minPositionImpactPoolAmount: '0',
-          positionImpactPoolDistributionRate: '0',
-          swapImpactPoolAmountLong: '0',
-          swapImpactPoolAmountShort: '0',
-          borrowingFactorLong: '0',
-          borrowingFactorShort: '0',
-          borrowingExponentFactorLong: '0',
-          borrowingExponentFactorShort: '0',
-          fundingFactor: '0',
-          fundingExponentFactor: '0',
-          fundingIncreaseFactorPerSecond: '0',
-          fundingDecreaseFactorPerSecond: '0',
-          thresholdForStableFunding: '0',
-          thresholdForDecreaseFunding: '0',
-          minFundingFactorPerSecond: '0',
-          maxFundingFactorPerSecond: '0',
-          pnlLongMax: '0',
-          pnlLongMin: '0',
-          pnlShortMax: '0',
-          pnlShortMin: '0',
-          netPnlMax: '0',
-          netPnlMin: '0',
-          maxPnlFactorForTradersLong: '0',
-          maxPnlFactorForTradersShort: '0',
-          minCollateralFactor: '0',
-          minCollateralFactorForOpenInterestLong: '0',
-          minCollateralFactorForOpenInterestShort: '0',
-          claimableFundingAmountLong: '0',
-          claimableFundingAmountShort: '0',
-          positionFeeFactorForPositiveImpact: '0',
-          positionFeeFactorForNegativeImpact: '0',
-          positionImpactFactorPositive: '0',
-          positionImpactFactorNegative: '0',
-          maxPositionImpactFactorPositive: '0',
-          maxPositionImpactFactorNegativePrice: '0',
-          positionImpactExponentFactor: '0',
-          swapFeeFactorForPositiveImpact: '0',
-          swapFeeFactorForNegativeImpact: '0',
-          swapImpactFactorPositive: '0',
-          swapImpactFactorNegative: '0',
-          swapImpactExponentFactor: '0',
-          longInterestInTokens: '0',
-          shortInterestInTokens: '0',
-          longInterestUsd: '0',
-          shortInterestUsd: '0',
-          longInterestInTokensUsingLongToken: '0',
-          longInterestInTokensUsingShortToken: '0',
-          shortInterestInTokensUsingLongToken: '0',
-          shortInterestInTokensUsingShortToken: '0',
-          isDisabled: false,
-          virtualPoolAmountForLongToken: '0',
-          virtualPoolAmountForShortToken: '0',
-          virtualInventoryForPositions: '0',
-          virtualMarketId: '0x',
-          virtualLongTokenId: '0x',
-          virtualShortTokenId: '0x',
-        },
+        }),
       ];
 
       const markets = normalizer.normalizeMarkets(mockMarkets, 'arbitrum');
@@ -271,110 +153,15 @@ describe('GmxNormalizer', () => {
   });
 
   describe('normalizeTicker', () => {
-    const mockMarketInfo: GmxMarketInfo = {
-      marketTokenAddress: GMX_MARKETS['ETH/USD:ETH'].marketAddress,
-      indexTokenAddress: GMX_MARKETS['ETH/USD:ETH'].indexToken,
-      longTokenAddress: GMX_MARKETS['ETH/USD:ETH'].longToken,
-      shortTokenAddress: GMX_MARKETS['ETH/USD:ETH'].shortToken,
-      indexToken: {
-        address: GMX_MARKETS['ETH/USD:ETH'].indexToken,
-        symbol: 'ETH',
-        decimals: 18,
-        prices: {
-          minPrice: (2999 * GMX_PRECISION.PRICE).toString(),
-          maxPrice: (3001 * GMX_PRECISION.PRICE).toString(),
-        },
-      },
-      longToken: {
-        address: GMX_MARKETS['ETH/USD:ETH'].longToken,
-        symbol: 'WETH',
-        decimals: 18,
-        prices: { minPrice: '0', maxPrice: '0' },
-      },
-      shortToken: {
-        address: GMX_MARKETS['ETH/USD:ETH'].shortToken,
-        symbol: 'USDC',
-        decimals: 6,
-        prices: { minPrice: '0', maxPrice: '0' },
-      },
-      longPoolAmount: '0',
-      shortPoolAmount: '0',
-      maxLongPoolAmount: '0',
-      maxShortPoolAmount: '0',
-      maxLongPoolUsdForDeposit: '0',
-      maxShortPoolUsdForDeposit: '0',
-      longPoolAmountAdjustment: '0',
-      shortPoolAmountAdjustment: '0',
-      poolValueMin: '0',
-      poolValueMax: '0',
-      reserveFactorLong: '0',
-      reserveFactorShort: '0',
-      openInterestReserveFactorLong: '0',
-      openInterestReserveFactorShort: '0',
-      maxOpenInterestLong: '0',
-      maxOpenInterestShort: '0',
-      totalBorrowingFees: '0',
-      positionImpactPoolAmount: '0',
-      minPositionImpactPoolAmount: '0',
-      positionImpactPoolDistributionRate: '0',
-      swapImpactPoolAmountLong: '0',
-      swapImpactPoolAmountShort: '0',
-      borrowingFactorLong: '0',
-      borrowingFactorShort: '0',
-      borrowingExponentFactorLong: '0',
-      borrowingExponentFactorShort: '0',
-      fundingFactor: '0',
-      fundingExponentFactor: '0',
-      fundingIncreaseFactorPerSecond: '0',
-      fundingDecreaseFactorPerSecond: '0',
-      thresholdForStableFunding: '0',
-      thresholdForDecreaseFunding: '0',
-      minFundingFactorPerSecond: '0',
-      maxFundingFactorPerSecond: '0',
-      pnlLongMax: '0',
-      pnlLongMin: '0',
-      pnlShortMax: '0',
-      pnlShortMin: '0',
-      netPnlMax: '0',
-      netPnlMin: '0',
-      maxPnlFactorForTradersLong: '0',
-      maxPnlFactorForTradersShort: '0',
-      minCollateralFactor: '0',
-      minCollateralFactorForOpenInterestLong: '0',
-      minCollateralFactorForOpenInterestShort: '0',
-      claimableFundingAmountLong: '0',
-      claimableFundingAmountShort: '0',
-      positionFeeFactorForPositiveImpact: '0',
-      positionFeeFactorForNegativeImpact: '0',
-      positionImpactFactorPositive: '0',
-      positionImpactFactorNegative: '0',
-      maxPositionImpactFactorPositive: '0',
-      maxPositionImpactFactorNegativePrice: '0',
-      positionImpactExponentFactor: '0',
-      swapFeeFactorForPositiveImpact: '0',
-      swapFeeFactorForNegativeImpact: '0',
-      swapImpactFactorPositive: '0',
-      swapImpactFactorNegative: '0',
-      swapImpactExponentFactor: '0',
-      longInterestInTokens: '0',
-      shortInterestInTokens: '0',
-      longInterestUsd: (500000 * GMX_PRECISION.USD).toString(),
-      shortInterestUsd: (300000 * GMX_PRECISION.USD).toString(),
-      longInterestInTokensUsingLongToken: '0',
-      longInterestInTokensUsingShortToken: '0',
-      shortInterestInTokensUsingLongToken: '0',
-      shortInterestInTokensUsingShortToken: '0',
-      isDisabled: false,
-      virtualPoolAmountForLongToken: '0',
-      virtualPoolAmountForShortToken: '0',
-      virtualInventoryForPositions: '0',
-      virtualMarketId: '0x',
-      virtualLongTokenId: '0x',
-      virtualShortTokenId: '0x',
-    };
-
     test('should normalize to ticker format', () => {
-      const ticker = normalizer.normalizeTicker(mockMarketInfo);
+      const mockMarketInfo = createMockMarketInfo({
+        longInterestUsd: (500000 * GMX_PRECISION.USD).toString(),
+        shortInterestUsd: (300000 * GMX_PRECISION.USD).toString(),
+      });
+
+      // Provide price data since it's no longer in the market info
+      const priceData = { minPrice: 2999, maxPrice: 3001 };
+      const ticker = normalizer.normalizeTicker(mockMarketInfo, priceData);
 
       expect(ticker.symbol).toBe('ETH/USD:ETH');
       expect(ticker.bid).toBeCloseTo(2999, 5);
@@ -384,14 +171,26 @@ describe('GmxNormalizer', () => {
     });
 
     test('should calculate spread info', () => {
-      const ticker = normalizer.normalizeTicker(mockMarketInfo);
+      const mockMarketInfo = createMockMarketInfo({
+        longInterestUsd: (500000 * GMX_PRECISION.USD).toString(),
+        shortInterestUsd: (300000 * GMX_PRECISION.USD).toString(),
+      });
+
+      const priceData = { minPrice: 2999, maxPrice: 3001 };
+      const ticker = normalizer.normalizeTicker(mockMarketInfo, priceData);
 
       expect(ticker.info.spread).toBeCloseTo(2, 5);
       expect(ticker.info.spreadPercent).toBeCloseTo(0.0667, 2);
     });
 
     test('should include open interest info', () => {
-      const ticker = normalizer.normalizeTicker(mockMarketInfo);
+      const mockMarketInfo = createMockMarketInfo({
+        longInterestUsd: (500000 * GMX_PRECISION.USD).toString(),
+        shortInterestUsd: (300000 * GMX_PRECISION.USD).toString(),
+      });
+
+      const priceData = { minPrice: 2999, maxPrice: 3001 };
+      const ticker = normalizer.normalizeTicker(mockMarketInfo, priceData);
 
       expect(ticker.info.longOpenInterestUsd).toBe(500000);
       expect(ticker.info.shortOpenInterestUsd).toBe(300000);

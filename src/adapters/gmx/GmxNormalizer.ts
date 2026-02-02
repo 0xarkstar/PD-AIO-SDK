@@ -37,26 +37,40 @@ import {
  */
 export class GmxNormalizer {
   /**
+   * Extract base symbol from market name
+   * @example "ENA/USD [ETH-USDC]" -> "ENA"
+   * @example "ETH/USD" -> "ETH"
+   */
+  private extractBaseFromName(name: string | undefined): string {
+    if (!name) return 'UNKNOWN';
+    const match = name.match(/^([A-Z0-9]+)\//);
+    return match?.[1] ?? 'UNKNOWN';
+  }
+
+  /**
    * Normalize market info to unified Market
    */
   normalizeMarket(market: GmxMarketInfo, chain: 'arbitrum' | 'avalanche'): Market {
-    const marketKey = GMX_MARKET_ADDRESS_MAP[market.marketTokenAddress.toLowerCase()];
+    const marketKey = GMX_MARKET_ADDRESS_MAP[market.marketToken.toLowerCase()];
     const config = marketKey ? GMX_MARKETS[marketKey] : undefined;
 
-    const symbol = config?.symbol || `${market.indexToken.symbol}/USD`;
-    const minPrice = parseFloat(market.indexToken.prices.minPrice) / GMX_PRECISION.PRICE;
-    const maxPrice = parseFloat(market.indexToken.prices.maxPrice) / GMX_PRECISION.PRICE;
-    const midPrice = (minPrice + maxPrice) / 2;
+    // Get base symbol from config or extract from market name
+    const baseSymbol = config?.baseAsset || this.extractBaseFromName(market.name);
+    const symbol = config?.symbol || `${baseSymbol}/USD`;
+
+    // Price info may not be available in markets/info response
+    // Use a reasonable default for calculations
+    const maxOI = parseFloat(market.maxOpenInterestLong) / GMX_PRECISION.USD;
 
     return {
-      id: market.marketTokenAddress,
+      id: market.marketToken,
       symbol,
-      base: market.indexToken.symbol,
+      base: baseSymbol,
       quote: 'USD',
       settle: config?.settleAsset || 'USD',
       active: !market.isDisabled,
       minAmount: config?.minOrderSize || 0.001,
-      maxAmount: parseFloat(market.maxOpenInterestLong) / GMX_PRECISION.USD / midPrice,
+      maxAmount: maxOI > 0 ? maxOI : 1000000, // Fallback if price unavailable
       pricePrecision: this.getPrecisionFromTickSize(config?.tickSize || 0.01),
       amountPrecision: this.getPrecisionFromTickSize(config?.stepSize || 0.0001),
       priceTickSize: config?.tickSize || 0.01,
@@ -67,10 +81,10 @@ export class GmxNormalizer {
       fundingIntervalHours: 1, // Continuous funding, normalized to 1h
       contractSize: 1,
       info: {
-        marketTokenAddress: market.marketTokenAddress,
-        indexTokenAddress: market.indexTokenAddress,
-        longTokenAddress: market.longTokenAddress,
-        shortTokenAddress: market.shortTokenAddress,
+        marketToken: market.marketToken,
+        indexToken: market.indexToken,
+        longToken: market.longToken,
+        shortToken: market.shortToken,
         chain,
         longPoolAmount: market.longPoolAmount,
         shortPoolAmount: market.shortPoolAmount,
@@ -282,14 +296,19 @@ export class GmxNormalizer {
 
   /**
    * Normalize market info to ticker
+   * Note: Price data requires separate fetch from tickers endpoint
    */
-  normalizeTicker(market: GmxMarketInfo): Ticker {
-    const marketKey = GMX_MARKET_ADDRESS_MAP[market.marketTokenAddress.toLowerCase()];
+  normalizeTicker(market: GmxMarketInfo, priceData?: { minPrice: number; maxPrice: number }): Ticker {
+    const marketKey = GMX_MARKET_ADDRESS_MAP[market.marketToken.toLowerCase()];
     const config = marketKey ? GMX_MARKETS[marketKey] : undefined;
-    const symbol = config?.symbol || `${market.indexToken.symbol}/USD`;
 
-    const minPrice = parseFloat(market.indexToken.prices.minPrice) / GMX_PRECISION.PRICE;
-    const maxPrice = parseFloat(market.indexToken.prices.maxPrice) / GMX_PRECISION.PRICE;
+    // Get base symbol from config or extract from market name
+    const baseSymbol = config?.baseAsset || this.extractBaseFromName(market.name);
+    const symbol = config?.symbol || `${baseSymbol}/USD`;
+
+    // Use provided price data or defaults
+    const minPrice = priceData?.minPrice ?? 0;
+    const maxPrice = priceData?.maxPrice ?? 0;
     const midPrice = (minPrice + maxPrice) / 2;
     const spread = maxPrice - minPrice;
 
@@ -311,11 +330,11 @@ export class GmxNormalizer {
       baseVolume: 0, // Would need volume data
       quoteVolume: 0,
       info: {
-        marketTokenAddress: market.marketTokenAddress,
+        marketToken: market.marketToken,
         minPrice,
         maxPrice,
         spread,
-        spreadPercent: (spread / midPrice) * 100,
+        spreadPercent: midPrice > 0 ? (spread / midPrice) * 100 : 0,
         longOpenInterestUsd: longOI,
         shortOpenInterestUsd: shortOI,
         totalOpenInterestUsd: longOI + shortOI,

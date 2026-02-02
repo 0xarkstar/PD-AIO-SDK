@@ -7,8 +7,8 @@
  */
 export const PARADEX_API_URLS = {
   mainnet: {
-    rest: 'https://api.paradex.trade/v1',
-    websocket: 'wss://ws.paradex.trade/v1',
+    rest: 'https://api.prod.paradex.trade/v1',
+    websocket: 'wss://ws.prod.paradex.trade/v1',
   },
   testnet: {
     rest: 'https://api.testnet.paradex.trade/v1',

@@ -14,13 +14,24 @@
  * Market info from /markets/info endpoint
  */
 export interface GmxMarketInfo {
-  marketTokenAddress: string;
-  indexTokenAddress: string;
-  longTokenAddress: string;
-  shortTokenAddress: string;
-  indexToken: GmxTokenInfo;
-  longToken: GmxTokenInfo;
-  shortToken: GmxTokenInfo;
+  /** Market token address (API field: marketToken) */
+  marketToken: string;
+  /** Index token address (API field: indexToken) */
+  indexToken: string;
+  /** Long token address (API field: longToken) */
+  longToken: string;
+  /** Short token address (API field: shortToken) */
+  shortToken: string;
+  /** Market name */
+  name?: string;
+  /** Whether market is listed */
+  isListed?: boolean;
+  /** Index token info (may not be in API response) */
+  indexTokenInfo?: GmxTokenInfo;
+  /** Long token info (may not be in API response) */
+  longTokenInfo?: GmxTokenInfo;
+  /** Short token info (may not be in API response) */
+  shortTokenInfo?: GmxTokenInfo;
   longPoolAmount: string;
   shortPoolAmount: string;
   maxLongPoolAmount: string;
