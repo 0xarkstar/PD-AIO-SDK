@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { ParadexAuth } from '../../src/adapters/paradex/auth.js';
+import { ParadexAuth } from '../../src/adapters/paradex/ParadexAuth.js';
 
 describe('ParadexAuth', () => {
   describe('constructor', () => {

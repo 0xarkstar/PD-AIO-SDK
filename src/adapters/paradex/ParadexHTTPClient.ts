@@ -10,7 +10,7 @@
  * @see https://docs.paradex.trade/api
  */
 
-import type { ParadexAuth } from './auth.js';
+import type { ParadexAuth } from './ParadexAuth.js';
 import { mapHttpError, mapAxiosError } from './ParadexErrorMapper.js';
 import { PerpDEXError } from '../../types/errors.js';
 

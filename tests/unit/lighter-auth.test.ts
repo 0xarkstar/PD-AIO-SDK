@@ -3,7 +3,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { LighterAuth } from '../../src/adapters/lighter/auth.js';
+import { LighterAuth } from '../../src/adapters/lighter/LighterAuth.js';
 import type { HTTPClient } from '../../src/core/http/HTTPClient.js';
 
 // Create a mock HTTPClient

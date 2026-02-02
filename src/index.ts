@@ -303,8 +303,16 @@ export type { DriftConfig } from './adapters/drift/index.js';
 export { GmxAdapter, GmxNormalizer } from './adapters/gmx/index.js';
 export type { GmxConfig, GmxChain } from './adapters/gmx/index.js';
 
+// Variational
+export { VariationalAdapter } from './adapters/variational/index.js';
+export type { VariationalConfig } from './adapters/variational/index.js';
+
+// Extended (StarkNet)
+export { ExtendedAdapter } from './adapters/extended/index.js';
+export type { ExtendedConfig } from './adapters/extended/index.js';
+
 // =============================================================================
 // Version
 // =============================================================================
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';

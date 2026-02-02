@@ -3,7 +3,7 @@
  */
 
 export { ParadexAdapter } from './ParadexAdapter.js';
-export { ParadexAuth } from './auth.js';
+export { ParadexAuth } from './ParadexAuth.js';
 export type { ParadexConfig, ParadexAuthConfig } from './types.js';
 export type {
   ParadexMarket,

@@ -17,7 +17,7 @@ import {
   NADO_SERVER_ERRORS,
   NADO_RATE_LIMIT_ERROR,
   NADO_NETWORK_ERRORS,
-} from '../../src/adapters/nado/errors.js';
+} from '../../src/adapters/nado/error-codes.js';
 import {
   PerpDEXError,
   InvalidOrderError,

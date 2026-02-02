@@ -15,7 +15,7 @@ import {
   mapHttpError,
   extractNadoError,
   isRetryableError,
-} from './errors.js';
+} from './error-codes.js';
 import { PerpDEXError, ExchangeUnavailableError } from '../../types/errors.js';
 
 /**

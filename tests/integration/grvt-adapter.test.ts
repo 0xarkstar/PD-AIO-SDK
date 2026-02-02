@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { GRVTAdapter } from '../../src/adapters/grvt/GRVTAdapter.js';
 import { GRVTSDKWrapper } from '../../src/adapters/grvt/GRVTSDKWrapper.js';
-import { GRVTAuth } from '../../src/adapters/grvt/auth.js';
+import { GRVTAuth } from '../../src/adapters/grvt/GRVTAuth.js';
 import type {
   IInstrumentDisplay,
   IOrder,
@@ -20,7 +20,7 @@ import type {
 
 // Mock the SDK wrapper and auth
 jest.mock('../../src/adapters/grvt/GRVTSDKWrapper.js');
-jest.mock('../../src/adapters/grvt/auth.js');
+jest.mock('../../src/adapters/grvt/GRVTAuth.js');
 
 describe('GRVTAdapter Integration Tests', () => {
   let adapter: GRVTAdapter;

@@ -36,7 +36,7 @@ import { InvalidSignatureError, PerpDEXError } from '../../types/errors.js';
 
 // New components
 import { GRVTSDKWrapper } from './GRVTSDKWrapper.js';
-import { GRVTAuth, type GRVTAuthConfig } from './auth.js';
+import { GRVTAuth, type GRVTAuthConfig } from './GRVTAuth.js';
 import { GRVTNormalizer } from './GRVTNormalizer.js';
 import { mapAxiosError, mapGRVTError } from './GRVTErrorMapper.js';
 import { GRVTWebSocketWrapper } from './GRVTWebSocketWrapper.js';

@@ -11,7 +11,7 @@ import { ParadexWebSocketWrapper } from '../../src/adapters/paradex/ParadexWebSo
 jest.mock('../../src/adapters/paradex/ParadexWebSocketWrapper.js');
 jest.mock('../../src/adapters/paradex/ParadexHTTPClient.js');
 jest.mock('../../src/adapters/paradex/ParadexParaclearWrapper.js');
-jest.mock('../../src/adapters/paradex/auth.js');
+jest.mock('../../src/adapters/paradex/ParadexAuth.js');
 
 describe('Paradex WebSocket Integration Tests', () => {
   let adapter: ParadexAdapter;

@@ -6,7 +6,7 @@
 
 import { Wallet } from 'ethers';
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { GRVTAuth } from '../../src/adapters/grvt/auth.js';
+import { GRVTAuth } from '../../src/adapters/grvt/GRVTAuth.js';
 import type { GRVTOrderSignPayload } from '../../src/adapters/grvt/types.js';
 import type { RequestParams } from '../../src/types/adapter.js';
 

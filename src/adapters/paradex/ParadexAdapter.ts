@@ -33,7 +33,7 @@ import {
   PARADEX_RATE_LIMITS,
   PARADEX_ENDPOINT_WEIGHTS,
 } from './constants.js';
-import { ParadexAuth } from './auth.js';
+import { ParadexAuth } from './ParadexAuth.js';
 import { ParadexHTTPClient } from './ParadexHTTPClient.js';
 import { ParadexNormalizer } from './ParadexNormalizer.js';
 import { mapAxiosError } from './ParadexErrorMapper.js';
