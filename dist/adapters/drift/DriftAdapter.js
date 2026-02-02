@@ -1,0 +1,640 @@
+/**
+ * Drift Protocol Exchange Adapter
+ *
+ * Adapter for Drift Protocol on Solana.
+ * Drift is a decentralized perpetuals DEX with cross-margin and up to 20x leverage.
+ *
+ * Key characteristics:
+ * - On-chain positions via Solana program
+ * - Hourly funding rate settlements
+ * - Supports 10+ perpetual markets
+ * - Cross-margin by default
+ * - DLOB (Decentralized Limit Order Book)
+ *
+ * @see https://docs.drift.trade/
+ * @see https://drift-labs.github.io/v2-teacher/
+ */
+import { BaseAdapter } from '../base/BaseAdapter.js';
+import { DriftNormalizer } from './DriftNormalizer.js';
+import { DriftAuth } from './DriftAuth.js';
+import { DriftClientWrapper } from './DriftClientWrapper.js';
+import { DriftOrderBuilder } from './orderBuilder.js';
+import { DRIFT_API_URLS, DRIFT_PERP_MARKETS, DRIFT_PRECISION, unifiedToDrift, driftToUnified, getMarketIndex, } from './constants.js';
+import { mapDriftError } from './error-codes.js';
+import { isValidMarket, getMarketConfig, buildOrderbookUrl, buildTradesUrl, } from './utils.js';
+/**
+ * Drift Protocol Exchange Adapter
+ *
+ * @example
+ * ```typescript
+ * // Read-only mode (market data only)
+ * const drift = new DriftAdapter();
+ * await drift.initialize();
+ *
+ * // Fetch ticker
+ * const ticker = await drift.fetchTicker('SOL/USD:USD');
+ *
+ * // With wallet for positions
+ * const drift = new DriftAdapter({
+ *   walletAddress: 'your-solana-wallet-address',
+ * });
+ * await drift.initialize();
+ * const positions = await drift.fetchPositions();
+ *
+ * // Full trading mode
+ * const drift = new DriftAdapter({
+ *   privateKey: '[1,2,3,...,64]', // JSON array format
+ * });
+ * await drift.initialize();
+ * const order = await drift.createOrder({
+ *   symbol: 'SOL/USD:USD',
+ *   side: 'buy',
+ *   type: 'market',
+ *   amount: 1,
+ * });
+ * ```
+ */
+export class DriftAdapter extends BaseAdapter {
+    id = 'drift';
+    name = 'Drift Protocol';
+    has = {
+        // Market data
+        fetchMarkets: true,
+        fetchTicker: true,
+        fetchOrderBook: true,
+        fetchTrades: true,
+        fetchFundingRate: true,
+        fetchFundingRateHistory: true,
+        fetchOHLCV: false, // Requires historical data API
+        // Trading (enabled with private key)
+        createOrder: true,
+        cancelOrder: true,
+        cancelAllOrders: true,
+        createBatchOrders: false,
+        cancelBatchOrders: false,
+        // Account data
+        fetchPositions: true,
+        fetchBalance: true,
+        fetchOpenOrders: true,
+        fetchOrderHistory: false,
+        fetchMyTrades: false,
+        // Position management
+        setLeverage: false, // Cross-margin, no per-market leverage
+        setMarginMode: false, // Always cross margin
+        // WebSocket (via DLOB server)
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchPositions: false,
+        watchOrders: false,
+        watchBalance: false,
+    };
+    normalizer;
+    auth;
+    driftClient;
+    orderBuilder;
+    dlobBaseUrl;
+    isTestnet;
+    marketStatsCache = new Map();
+    statsCacheTTL = 5000; // 5 seconds
+    constructor(config = {}) {
+        super({
+            timeout: 30000,
+            ...config,
+        });
+        this.isTestnet = config.testnet || false;
+        this.dlobBaseUrl = this.isTestnet
+            ? DRIFT_API_URLS.devnet.dlob
+            : DRIFT_API_URLS.mainnet.dlob;
+        this.normalizer = new DriftNormalizer();
+        // Initialize auth if credentials provided
+        if (config.privateKey || config.walletAddress) {
+            this.auth = new DriftAuth({
+                privateKey: config.privateKey,
+                walletAddress: config.walletAddress,
+                subAccountId: config.subAccountId,
+                rpcEndpoint: config.rpcEndpoint || (this.isTestnet
+                    ? DRIFT_API_URLS.devnet.rpc
+                    : DRIFT_API_URLS.mainnet.rpc),
+                isDevnet: this.isTestnet,
+            });
+        }
+        // Initialize order builder
+        this.orderBuilder = new DriftOrderBuilder(config.orderConfig);
+    }
+    // ==========================================================================
+    // Connection Management
+    // ==========================================================================
+    async initialize() {
+        if (this._isReady) {
+            this.debug('Already initialized');
+            return;
+        }
+        this.debug('Initializing Drift adapter...');
+        try {
+            // Validate API connectivity by fetching orderbook
+            await this.request('GET', buildOrderbookUrl(this.dlobBaseUrl, 0, 'perp', 5));
+            // Initialize Drift client if auth is available and can sign
+            if (this.auth?.canSign()) {
+                await this.initializeDriftClient();
+            }
+            this._isReady = true;
+            this.info('Drift adapter initialized successfully');
+        }
+        catch (error) {
+            const mappedError = mapDriftError(error);
+            this.error('Failed to initialize Drift adapter', mappedError);
+            throw mappedError;
+        }
+    }
+    /**
+     * Initialize the Drift SDK client for trading
+     */
+    async initializeDriftClient() {
+        if (!this.auth) {
+            throw new Error('Auth not configured');
+        }
+        try {
+            const { Connection } = await import('@solana/web3.js');
+            const connection = new Connection(this.auth.getRpcEndpoint(), 'confirmed');
+            const keypair = this.auth.getKeypair();
+            if (!keypair) {
+                throw new Error('Keypair not available');
+            }
+            this.driftClient = new DriftClientWrapper({
+                connection,
+                keypair,
+                subAccountId: this.auth.getSubAccountId(),
+                isDevnet: this.isTestnet,
+            });
+            await this.driftClient.initialize();
+            this.debug('Drift SDK client initialized');
+        }
+        catch (error) {
+            this.warn(`Failed to initialize Drift SDK client: ${error instanceof Error ? error.message : String(error)}`);
+            // Don't throw - allow adapter to work in read-only mode
+        }
+    }
+    async disconnect() {
+        if (this.driftClient) {
+            await this.driftClient.disconnect();
+        }
+        this._isReady = false;
+        this.debug('Drift adapter disconnected');
+    }
+    // ==========================================================================
+    // Symbol Conversion
+    // ==========================================================================
+    symbolToExchange(symbol) {
+        return unifiedToDrift(symbol);
+    }
+    symbolFromExchange(exchangeSymbol) {
+        return driftToUnified(exchangeSymbol);
+    }
+    // ==========================================================================
+    // Market Data
+    // ==========================================================================
+    async fetchMarkets(params) {
+        this.ensureInitialized();
+        // Check cache first
+        const cached = this.getPreloadedMarkets();
+        if (cached) {
+            return this.filterMarkets(cached, params);
+        }
+        try {
+            // Build markets from constants (actual on-chain data requires SDK)
+            const markets = Object.entries(DRIFT_PERP_MARKETS).map(([key, config]) => ({
+                id: key,
+                symbol: config.symbol,
+                base: config.baseAsset,
+                quote: 'USD',
+                settle: 'USD',
+                active: true,
+                minAmount: config.minOrderSize,
+                maxAmount: 1000000, // Varies by market
+                pricePrecision: Math.max(0, -Math.floor(Math.log10(config.tickSize))),
+                amountPrecision: Math.max(0, -Math.floor(Math.log10(config.stepSize))),
+                priceTickSize: config.tickSize,
+                amountStepSize: config.stepSize,
+                makerFee: -0.0002, // Maker rebate
+                takerFee: 0.001, // 0.1% taker
+                maxLeverage: config.maxLeverage,
+                fundingIntervalHours: 1,
+                contractSize: 1,
+                info: {
+                    marketIndex: config.marketIndex,
+                    contractTier: config.contractTier,
+                    initialMarginRatio: config.initialMarginRatio,
+                    maintenanceMarginRatio: config.maintenanceMarginRatio,
+                },
+            }));
+            return this.filterMarkets(markets, params);
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    async fetchTicker(symbol) {
+        this.ensureInitialized();
+        const driftSymbol = this.symbolToExchange(symbol);
+        if (!isValidMarket(driftSymbol)) {
+            throw new Error(`Invalid market: ${symbol}`);
+        }
+        try {
+            const marketIndex = getMarketIndex(symbol);
+            const orderbook = await this.request('GET', buildOrderbookUrl(this.dlobBaseUrl, marketIndex, 'perp', 1));
+            // Build ticker from orderbook data
+            const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+            const bestBid = orderbook.bids[0] ? parseFloat(orderbook.bids[0].price) / DRIFT_PRECISION.PRICE : oraclePrice * 0.999;
+            const bestAsk = orderbook.asks[0] ? parseFloat(orderbook.asks[0].price) / DRIFT_PRECISION.PRICE : oraclePrice * 1.001;
+            const markPrice = (bestBid + bestAsk) / 2;
+            const config = getMarketConfig(symbol);
+            return {
+                symbol: config?.symbol || symbol,
+                timestamp: Date.now(),
+                last: markPrice,
+                bid: bestBid,
+                ask: bestAsk,
+                high: markPrice, // Would need historical data
+                low: markPrice,
+                open: oraclePrice,
+                close: markPrice,
+                change: markPrice - oraclePrice,
+                percentage: oraclePrice > 0 ? ((markPrice - oraclePrice) / oraclePrice) * 100 : 0,
+                baseVolume: 0, // Would need stats API
+                quoteVolume: 0,
+                info: {
+                    marketIndex,
+                    oraclePrice,
+                    slot: orderbook.slot,
+                },
+            };
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    async fetchOrderBook(symbol, params) {
+        this.ensureInitialized();
+        const driftSymbol = this.symbolToExchange(symbol);
+        if (!isValidMarket(driftSymbol)) {
+            throw new Error(`Invalid market: ${symbol}`);
+        }
+        try {
+            const marketIndex = getMarketIndex(symbol);
+            const depth = params?.limit || 20;
+            const orderbook = await this.request('GET', buildOrderbookUrl(this.dlobBaseUrl, marketIndex, 'perp', depth));
+            return this.normalizer.normalizeOrderBook(orderbook);
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    async fetchTrades(symbol, params) {
+        this.ensureInitialized();
+        const driftSymbol = this.symbolToExchange(symbol);
+        if (!isValidMarket(driftSymbol)) {
+            throw new Error(`Invalid market: ${symbol}`);
+        }
+        try {
+            const marketIndex = getMarketIndex(symbol);
+            const limit = params?.limit || 50;
+            const url = buildTradesUrl(this.dlobBaseUrl, marketIndex, 'perp', limit);
+            const trades = await this.request('GET', url);
+            return trades.map(t => this.normalizer.normalizeTrade(t));
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    async fetchFundingRate(symbol) {
+        this.ensureInitialized();
+        const driftSymbol = this.symbolToExchange(symbol);
+        if (!isValidMarket(driftSymbol)) {
+            throw new Error(`Invalid market: ${symbol}`);
+        }
+        try {
+            const marketIndex = getMarketIndex(symbol);
+            // Get funding rate from DLOB API
+            const url = `${this.dlobBaseUrl}/fundingRate?marketIndex=${marketIndex}`;
+            const funding = await this.request('GET', url);
+            return this.normalizer.normalizeFundingRate(funding);
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    async fetchFundingRateHistory(symbol, since, limit) {
+        this.ensureInitialized();
+        const driftSymbol = this.symbolToExchange(symbol);
+        if (!isValidMarket(driftSymbol)) {
+            throw new Error(`Invalid market: ${symbol}`);
+        }
+        try {
+            const marketIndex = getMarketIndex(symbol);
+            const params = new URLSearchParams({
+                marketIndex: marketIndex.toString(),
+            });
+            if (limit)
+                params.set('limit', limit.toString());
+            const url = `${this.dlobBaseUrl}/fundingRateHistory?${params.toString()}`;
+            const history = await this.request('GET', url);
+            return history.map(f => this.normalizer.normalizeFundingRate(f));
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    // ==========================================================================
+    // Account Data
+    // ==========================================================================
+    async fetchPositions(symbols) {
+        this.ensureInitialized();
+        if (!this.auth?.canRead()) {
+            throw new Error('Wallet address required to fetch positions');
+        }
+        const walletAddress = this.auth.getWalletAddress();
+        const subAccountId = this.auth.getSubAccountId();
+        if (!walletAddress) {
+            throw new Error('Wallet address not configured');
+        }
+        try {
+            // Fetch user positions from DLOB API
+            const url = `${this.dlobBaseUrl}/user?userAccount=${walletAddress}&subAccountId=${subAccountId}`;
+            const userData = await this.request('GET', url);
+            // Filter out empty positions and normalize
+            const positions = [];
+            for (const pos of userData.perpPositions) {
+                if (parseFloat(pos.baseAssetAmount) === 0)
+                    continue;
+                // Get mark price from orderbook
+                const orderbook = await this.request('GET', buildOrderbookUrl(this.dlobBaseUrl, pos.marketIndex, 'perp', 1));
+                const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+                const position = this.normalizer.normalizePosition({
+                    ...pos,
+                    lastCumulativeFundingRate: '0',
+                    openBids: '0',
+                    openAsks: '0',
+                    perLpBase: 0,
+                }, oraclePrice, oraclePrice);
+                // Filter by symbols if provided
+                if (!symbols || symbols.includes(position.symbol)) {
+                    positions.push(position);
+                }
+            }
+            return positions;
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    async fetchBalance() {
+        this.ensureInitialized();
+        if (!this.auth?.canRead()) {
+            throw new Error('Wallet address required to fetch balance');
+        }
+        const walletAddress = this.auth.getWalletAddress();
+        const subAccountId = this.auth.getSubAccountId();
+        if (!walletAddress) {
+            throw new Error('Wallet address not configured');
+        }
+        try {
+            // Fetch user account from DLOB API
+            const url = `${this.dlobBaseUrl}/user?userAccount=${walletAddress}&subAccountId=${subAccountId}`;
+            const userData = await this.request('GET', url);
+            const balances = [];
+            // Add USDC balance (market index 0 for spot)
+            const usdcPosition = userData.spotPositions.find(p => p.marketIndex === 0);
+            if (usdcPosition) {
+                const total = parseFloat(usdcPosition.scaledBalance) / DRIFT_PRECISION.QUOTE;
+                balances.push({
+                    currency: 'USDC',
+                    total: usdcPosition.balanceType === 'deposit' ? total : -total,
+                    free: parseFloat(userData.freeCollateral) / DRIFT_PRECISION.QUOTE,
+                    used: parseFloat(userData.totalCollateral) / DRIFT_PRECISION.QUOTE -
+                        parseFloat(userData.freeCollateral) / DRIFT_PRECISION.QUOTE,
+                    usdValue: usdcPosition.balanceType === 'deposit' ? total : -total,
+                });
+            }
+            return balances;
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    async fetchOpenOrders(symbol) {
+        this.ensureInitialized();
+        if (!this.auth?.canRead()) {
+            throw new Error('Wallet address required to fetch orders');
+        }
+        const walletAddress = this.auth.getWalletAddress();
+        const subAccountId = this.auth.getSubAccountId();
+        if (!walletAddress) {
+            throw new Error('Wallet address not configured');
+        }
+        try {
+            const url = `${this.dlobBaseUrl}/orders?userAccount=${walletAddress}&subAccountId=${subAccountId}`;
+            const ordersData = await this.request('GET', url);
+            const orders = ordersData.orders
+                .filter(o => o.marketType === 'perp')
+                .map(o => this.normalizer.normalizeOrder({
+                ...o,
+                orderType: o.orderType,
+                direction: o.direction,
+                status: o.status,
+                triggerCondition: o.triggerCondition,
+                postOnly: o.postOnly,
+                existingPositionDirection: o.existingPositionDirection,
+            }));
+            if (symbol) {
+                const marketIndex = getMarketIndex(symbol);
+                return orders.filter(o => o.info?.marketIndex === marketIndex);
+            }
+            return orders;
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    // ==========================================================================
+    // Trading Operations
+    // ==========================================================================
+    async createOrder(request) {
+        this.ensureInitialized();
+        if (!this.auth?.canSign()) {
+            throw new Error('Private key required for trading');
+        }
+        if (!this.driftClient) {
+            throw new Error('Drift SDK client not initialized. Ensure private key is provided.');
+        }
+        if (!this.orderBuilder) {
+            throw new Error('Order builder not initialized');
+        }
+        try {
+            // Get oracle price for the market
+            const marketIndex = getMarketIndex(request.symbol);
+            const orderbook = await this.request('GET', buildOrderbookUrl(this.dlobBaseUrl, marketIndex, 'perp', 1));
+            const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+            // Build order parameters
+            const orderParams = this.orderBuilder.buildOrderParams(request, oraclePrice);
+            // Place the order via Drift SDK
+            this.debug('Placing order via Drift SDK...');
+            const result = await this.driftClient.placePerpOrder(orderParams);
+            // Return normalized order
+            return {
+                id: result.orderId?.toString() || result.txSig,
+                symbol: request.symbol,
+                type: request.type,
+                side: request.side,
+                amount: request.amount,
+                price: request.price,
+                status: 'open',
+                filled: 0,
+                remaining: request.amount,
+                reduceOnly: request.reduceOnly || false,
+                postOnly: request.postOnly || false,
+                clientOrderId: request.clientOrderId,
+                timestamp: Date.now(),
+                info: {
+                    txSig: result.txSig,
+                    slot: result.slot,
+                    orderParams,
+                },
+            };
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    async cancelOrder(orderId, symbol) {
+        this.ensureInitialized();
+        if (!this.auth?.canSign()) {
+            throw new Error('Private key required for trading');
+        }
+        if (!this.driftClient) {
+            throw new Error('Drift SDK client not initialized');
+        }
+        try {
+            const result = await this.driftClient.cancelOrder(parseInt(orderId));
+            return {
+                id: orderId,
+                symbol: symbol || 'UNKNOWN',
+                type: 'limit',
+                side: 'buy',
+                amount: 0,
+                status: 'canceled',
+                filled: 0,
+                remaining: 0,
+                reduceOnly: false,
+                postOnly: false,
+                timestamp: Date.now(),
+                info: {
+                    txSig: result.txSig,
+                },
+            };
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    async cancelAllOrders(symbol) {
+        this.ensureInitialized();
+        if (!this.auth?.canSign()) {
+            throw new Error('Private key required for trading');
+        }
+        if (!this.driftClient) {
+            throw new Error('Drift SDK client not initialized');
+        }
+        try {
+            let txSig;
+            if (symbol) {
+                const marketIndex = getMarketIndex(symbol);
+                const results = await this.driftClient.cancelOrdersForMarket(marketIndex);
+                return results.map(r => ({
+                    id: r.orderId.toString(),
+                    symbol,
+                    type: 'limit',
+                    side: 'buy',
+                    amount: 0,
+                    status: 'canceled',
+                    filled: 0,
+                    remaining: 0,
+                    reduceOnly: false,
+                    postOnly: false,
+                    timestamp: Date.now(),
+                    info: { txSig: r.txSig },
+                }));
+            }
+            else {
+                txSig = await this.driftClient.cancelAllPerpOrders();
+                // Return a single order representing all cancellations
+                return [{
+                        id: 'all',
+                        symbol: 'ALL',
+                        type: 'limit',
+                        side: 'buy',
+                        amount: 0,
+                        status: 'canceled',
+                        filled: 0,
+                        remaining: 0,
+                        reduceOnly: false,
+                        postOnly: false,
+                        timestamp: Date.now(),
+                        info: { txSig },
+                    }];
+            }
+        }
+        catch (error) {
+            throw mapDriftError(error);
+        }
+    }
+    async fetchOrderHistory(symbol, since, limit) {
+        this.warn('Order history requires indexing on-chain transactions');
+        return [];
+    }
+    async fetchMyTrades(symbol, since, limit) {
+        this.warn('Trade history requires indexing on-chain transactions');
+        return [];
+    }
+    async setLeverage(symbol, leverage) {
+        throw new Error('Drift uses cross-margin. Leverage is determined by position size relative to collateral.');
+    }
+    // ==========================================================================
+    // Health Check
+    // ==========================================================================
+    async performApiHealthCheck() {
+        // Check DLOB API connectivity
+        await this.request('GET', buildOrderbookUrl(this.dlobBaseUrl, 0, 'perp', 1));
+    }
+    // ==========================================================================
+    // Helper Methods
+    // ==========================================================================
+    /**
+     * Filter markets by params
+     */
+    filterMarkets(markets, params) {
+        if (!params)
+            return markets;
+        let filtered = markets;
+        if (params.active !== undefined) {
+            filtered = filtered.filter(m => m.active === params.active);
+        }
+        if (params.ids && params.ids.length > 0) {
+            filtered = filtered.filter(m => params.ids.includes(m.id));
+        }
+        return filtered;
+    }
+    /**
+     * Get wallet address (for position queries)
+     */
+    async getAddress() {
+        return this.auth?.getWalletAddress();
+    }
+    /**
+     * Get sub-account ID
+     */
+    getSubAccountId() {
+        return this.auth?.getSubAccountId() ?? 0;
+    }
+}
+//# sourceMappingURL=DriftAdapter.js.map

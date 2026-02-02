@@ -1,0 +1,1 @@
+{"version":3,"file":"ws-browser.js","sourceRoot":"","sources":["../../src/browser/ws-browser.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAEH,oCAAoC;AACpC,MAAM,gBAAgB,GAAG,OAAO,MAAM,KAAK,WAAW;IACpD,CAAC,CAAC,MAAM,CAAC,SAAS;IAClB,CAAC,CAAE,UAAkB,CAAC,SAAS,CAAC;AAElC,qEAAqE;AACrE,eAAe,gBAAgB,CAAC;AAChC,OAAO,EAAE,gBAAgB,IAAI,SAAS,EAAE,CAAC"}

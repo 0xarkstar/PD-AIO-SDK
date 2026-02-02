@@ -1,0 +1,153 @@
+/**
+ * GRVT constants and configuration
+ */
+/**
+ * GRVT API endpoints
+ *
+ * GRVT uses different hosts for different services:
+ * - Market Data: market-data.{env}.grvt.io (public)
+ * - Trading: edge.{env}.grvt.io (authenticated)
+ * - WebSocket: market-data.{env}.grvt.io/ws
+ *
+ * @see https://api-docs.grvt.io/api_setup/
+ */
+export const GRVT_API_URLS = {
+    mainnet: {
+        rest: 'https://market-data.grvt.io',
+        trading: 'https://edge.grvt.io',
+        websocket: 'wss://market-data.grvt.io/ws',
+    },
+    testnet: {
+        rest: 'https://market-data.testnet.grvt.io',
+        trading: 'https://edge.testnet.grvt.io',
+        websocket: 'wss://market-data.testnet.grvt.io/ws',
+    },
+};
+/**
+ * GRVT rate limits (per 10-second window)
+ */
+export const GRVT_RATE_LIMITS = {
+    rest: {
+        maxRequests: 100,
+        windowMs: 10000, // 10 seconds
+    },
+    websocket: {
+        maxSubscriptions: 50,
+    },
+};
+/**
+ * GRVT API endpoint weights
+ */
+export const GRVT_ENDPOINT_WEIGHTS = {
+    fetchMarkets: 1,
+    fetchTicker: 1,
+    fetchOrderBook: 2,
+    fetchTrades: 2,
+    fetchFundingRate: 1,
+    fetchPositions: 2,
+    fetchBalance: 2,
+    fetchOpenOrders: 2,
+    fetchClosedOrders: 3,
+    createOrder: 5,
+    cancelOrder: 3,
+    createBatchOrders: 10,
+    cancelAllOrders: 10,
+    modifyOrder: 5,
+    fetchOrder: 2,
+    fetchMyTrades: 3,
+    fetchDeposits: 2,
+    fetchWithdrawals: 2,
+    transfer: 5,
+};
+/**
+ * GRVT order types mapping
+ */
+export const GRVT_ORDER_TYPES = {
+    market: 'MARKET',
+    limit: 'LIMIT',
+    limitMaker: 'LIMIT_MAKER',
+};
+/**
+ * GRVT order sides mapping
+ */
+export const GRVT_ORDER_SIDES = {
+    buy: 'BUY',
+    sell: 'SELL',
+};
+/**
+ * GRVT time in force mapping
+ */
+export const GRVT_TIME_IN_FORCE = {
+    GTC: 'GTC',
+    IOC: 'IOC',
+    FOK: 'FOK',
+    POST_ONLY: 'POST_ONLY',
+};
+/**
+ * GRVT order status mapping
+ */
+export const GRVT_ORDER_STATUS = {
+    PENDING: 'pending',
+    OPEN: 'open',
+    PARTIALLY_FILLED: 'partiallyFilled',
+    FILLED: 'filled',
+    CANCELLED: 'canceled',
+    REJECTED: 'rejected',
+};
+/**
+ * GRVT WebSocket channels
+ */
+export const GRVT_WS_CHANNELS = {
+    orderbook: 'orderbook',
+    trades: 'trades',
+    ticker: 'ticker',
+    positions: 'positions',
+    orders: 'orders',
+    balance: 'balance',
+};
+/**
+ * EIP-712 domain configuration for GRVT
+ */
+export const GRVT_EIP712_DOMAIN = {
+    name: 'GRVT',
+    version: '1',
+    chainId: 1, // Mainnet
+    verifyingContract: '0x0000000000000000000000000000000000000000', // Placeholder
+};
+/**
+ * EIP-712 order type definition
+ */
+export const GRVT_EIP712_ORDER_TYPE = {
+    Order: [
+        { name: 'instrument', type: 'string' },
+        { name: 'orderType', type: 'string' },
+        { name: 'side', type: 'string' },
+        { name: 'size', type: 'string' },
+        { name: 'price', type: 'string' },
+        { name: 'timeInForce', type: 'string' },
+        { name: 'reduceOnly', type: 'bool' },
+        { name: 'postOnly', type: 'bool' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'expiry', type: 'uint256' },
+    ],
+};
+/**
+ * GRVT precision defaults
+ */
+export const GRVT_PRECISION = {
+    amount: 8,
+    price: 8,
+};
+/**
+ * GRVT session cookie duration (milliseconds)
+ */
+export const GRVT_SESSION_DURATION = 3600000; // 1 hour
+/**
+ * GRVT max leverage
+ */
+export const GRVT_MAX_LEVERAGE = 100;
+/**
+ * GRVT maintenance margin rate
+ */
+export const GRVT_MAINTENANCE_MARGIN_RATE = 0.005; // 0.5%
+//# sourceMappingURL=constants.js.map

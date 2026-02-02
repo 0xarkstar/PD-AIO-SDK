@@ -5,9 +5,9 @@ yarn.lock
 pnpm-lock.yaml
 
 # Build outputs
-dist/
 build/
 *.tsbuildinfo
+# Note: dist/ is NOT ignored - included for GitHub installs
 
 # Testing
 coverage/
