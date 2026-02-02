@@ -4,7 +4,7 @@
  * Manages multiple WebSocket connections and subscriptions
  * with bounded queue and backpressure support
  */
-import EventEmitter from 'eventemitter3';
+import { EventEmitter } from 'eventemitter3';
 import { WebSocketDisconnectedError } from '../types/errors.js';
 import { WebSocketClient } from './WebSocketClient.js';
 /** Maximum queue size for message backpressure */

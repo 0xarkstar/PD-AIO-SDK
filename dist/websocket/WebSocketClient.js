@@ -4,9 +4,33 @@
  * Handles connection lifecycle, reconnection logic, and heartbeat.
  * Works in both Node.js and browser environments.
  */
-import EventEmitter from 'eventemitter3';
+import { EventEmitter } from 'eventemitter3';
 // Browser/Node.js WebSocket detection
 const isBrowser = typeof window !== 'undefined' && typeof window.WebSocket !== 'undefined';
+// Import createRequire and pathToFileURL for ESM compatibility
+import { createRequire } from 'module';
+import { pathToFileURL } from 'url';
+// Helper to load ws module in Node.js
+// Works in both CommonJS (Jest) and ESM (runtime) contexts
+function loadWsModule() {
+    // Check if we're in a CommonJS context where require is globally available
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    if (typeof require === 'function') {
+        try {
+            return require('ws');
+        }
+        catch {
+            // Fall through to ESM approach
+        }
+    }
+    // ESM context - use pathToFileURL with __filename fallback or process.cwd()
+    // This avoids import.meta.url which breaks in Jest
+    const baseUrl = typeof __filename !== 'undefined'
+        ? pathToFileURL(__filename).href
+        : pathToFileURL(process.cwd() + '/index.js').href;
+    const esmRequire = createRequire(baseUrl);
+    return esmRequire('ws');
+}
 // Get the appropriate WebSocket class
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let WS;
@@ -14,9 +38,7 @@ if (isBrowser) {
     WS = window.WebSocket;
 }
 else {
-    // Dynamic import for Node.js - require is used here for synchronous class initialization
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    WS = require('ws');
+    WS = loadWsModule();
 }
 const DEFAULT_RECONNECT_CONFIG = {
     enabled: true,

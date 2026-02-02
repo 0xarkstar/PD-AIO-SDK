@@ -4,7 +4,7 @@
  * Manages multiple WebSocket connections and subscriptions
  * with bounded queue and backpressure support
  */
-import EventEmitter from 'eventemitter3';
+import { EventEmitter } from 'eventemitter3';
 import type { Subscription, WebSocketConfig } from './types.js';
 interface ManagerEvents {
     message: (channel: string, data: unknown) => void;

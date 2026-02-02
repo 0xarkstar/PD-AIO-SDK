@@ -4,7 +4,7 @@
  * Handles connection lifecycle, reconnection logic, and heartbeat.
  * Works in both Node.js and browser environments.
  */
-import EventEmitter from 'eventemitter3';
+import { EventEmitter } from 'eventemitter3';
 import type { ConnectionState, WebSocketConfig, WebSocketMetrics } from './types.js';
 interface WebSocketEvents {
     stateChange: (state: ConnectionState) => void;

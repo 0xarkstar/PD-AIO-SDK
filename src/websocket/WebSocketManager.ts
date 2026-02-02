@@ -5,7 +5,7 @@
  * with bounded queue and backpressure support
  */
 
-import EventEmitter from 'eventemitter3';
+import { EventEmitter } from 'eventemitter3';
 import { WebSocketDisconnectedError } from '../types/errors.js';
 import type { Subscription, WebSocketConfig, WebSocketMessage } from './types.js';
 import { WebSocketClient } from './WebSocketClient.js';

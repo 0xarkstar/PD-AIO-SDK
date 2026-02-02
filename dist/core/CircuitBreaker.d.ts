@@ -9,7 +9,7 @@
  * - OPEN: Too many failures, all requests rejected immediately
  * - HALF_OPEN: Testing recovery, limited requests allowed
  */
-import EventEmitter from 'eventemitter3';
+import { EventEmitter } from 'eventemitter3';
 /**
  * Circuit breaker states
  */
