@@ -323,3 +323,6 @@ export class LighterWasmSigner {
 // Re-export types for convenience
 export { OrderType, TimeInForce };
 export type { LighterSignerConfig, SignedTx, CreateOrderParams, CancelOrderParams, CancelAllOrdersParams, WithdrawCollateralParams };
+
+// Alias for browser compatibility (package.json browser field maps LighterSigner -> LighterWasmSigner)
+export { LighterWasmSigner as LighterSigner };

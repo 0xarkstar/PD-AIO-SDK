@@ -266,4 +266,6 @@ export class LighterWasmSigner {
 }
 // Re-export types for convenience
 export { OrderType, TimeInForce };
+// Alias for browser compatibility (package.json browser field maps LighterSigner -> LighterWasmSigner)
+export { LighterWasmSigner as LighterSigner };
 //# sourceMappingURL=LighterWasmSigner.js.map
