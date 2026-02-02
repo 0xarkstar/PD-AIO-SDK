@@ -66,6 +66,7 @@
   "dependencies": {
     "@grvt/client": "^1.6.11",
     "@noble/ed25519": "^3.0.0",
+    "@oraichain/lighter-ts-sdk": "^1.1.5",
     "@paradex/sdk": "^0.7.0",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.0",

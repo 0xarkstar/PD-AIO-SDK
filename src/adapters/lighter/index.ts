@@ -7,7 +7,10 @@ export * from './types.js';
 export * from './constants.js';
 export { NonceManager, type NonceManagerConfig } from './NonceManager.js';
 export { LighterAuth, type LighterAuthConfig, type AuthMode } from './auth.js';
+
+// Signers - WASM is recommended, FFI is legacy
 export {
+  LighterWasmSigner,
   LighterSigner,
   OrderType,
   TimeInForce,

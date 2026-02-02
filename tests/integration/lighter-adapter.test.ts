@@ -865,11 +865,11 @@ describe('LighterAdapter Integration Tests', () => {
       expect(typeof adapter.withdrawCollateral).toBe('function');
     });
 
-    it('should require FFI signing for withdrawCollateral', async () => {
+    it('should require WASM signing for withdrawCollateral', async () => {
       // Adapter with only HMAC auth should reject withdrawal
       await expect(
         adapter.withdrawCollateral(0, BigInt(100000000), '0x' + '1'.repeat(40))
-      ).rejects.toThrow('FFI signing');
+      ).rejects.toThrow('WASM signing');
     });
 
     it('should validate destination address format', async () => {

@@ -178,8 +178,8 @@ async function main() {
 
     // Test: Withdraw Collateral (commented out for safety)
     console.log('10. Collateral withdrawal test...');
-    if (lighter.hasFFISigning) {
-      console.log('   FFI signing available - withdrawal possible');
+    if (lighter.hasWasmSigning) {
+      console.log('   WASM signing available - withdrawal possible');
       console.log('   Skipping actual withdrawal in test mode.');
       console.log('   To test withdrawal, uncomment the code below:');
       /*
@@ -201,7 +201,7 @@ async function main() {
       }
       */
     } else {
-      console.log('   FFI signing not available - cannot test withdrawals');
+      console.log('   WASM signing not available - cannot test withdrawals');
     }
     console.log();
 

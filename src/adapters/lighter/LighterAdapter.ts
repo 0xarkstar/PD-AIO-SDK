@@ -3,9 +3,10 @@
  *
  * Supports two authentication modes:
  * 1. HMAC mode (legacy): Uses apiKey + apiSecret for HMAC-SHA256 signing
- * 2. FFI mode (native): Uses apiPrivateKey for native library signing
+ * 2. WASM mode (recommended): Uses apiPrivateKey for WASM-based signing
  *
- * FFI mode is required for full trading functionality.
+ * WASM signing is cross-platform and requires no native dependencies.
+ * Install @oraichain/lighter-ts-sdk for full trading functionality.
  */
 
 import { createHmac } from 'crypto';
@@ -32,7 +33,7 @@ import { WebSocketManager } from '../../websocket/WebSocketManager.js';
 import { LIGHTER_API_URLS, LIGHTER_RATE_LIMITS, LIGHTER_ENDPOINT_WEIGHTS, LIGHTER_WS_CONFIG, LIGHTER_WS_CHANNELS } from './constants.js';
 import { LighterNormalizer } from './LighterNormalizer.js';
 import { mapError } from './utils.js';
-import { LighterSigner, OrderType, TimeInForce } from './signer/index.js';
+import { LighterWasmSigner, OrderType, TimeInForce } from './signer/index.js';
 import { NonceManager } from './NonceManager.js';
 import type {
   LighterConfig,
@@ -57,17 +58,17 @@ const LIGHTER_CHAIN_IDS = {
 /**
  * Lighter exchange adapter
  *
- * High-performance order book DEX on Arbitrum/zkSync
+ * High-performance order book DEX on zkProof L2
  *
  * @example
  * ```typescript
- * // FFI mode (full trading)
+ * // WASM mode (recommended - full trading, cross-platform)
  * const lighter = new LighterAdapter({
  *   apiPrivateKey: '0x...',
  *   testnet: true,
  * });
  *
- * // HMAC mode (legacy/read-only)
+ * // HMAC mode (legacy)
  * const lighterLegacy = new LighterAdapter({
  *   apiKey: 'your-api-key',
  *   apiSecret: 'your-api-secret',
@@ -113,9 +114,9 @@ export class LighterAdapter extends BaseAdapter {
   private readonly apiKey?: string;
   private readonly apiSecret?: string;
 
-  // FFI auth (native signing)
+  // WASM auth (recommended - cross-platform signing)
   private readonly apiPrivateKey?: string;
-  private signer: LighterSigner | null = null;
+  private signer: LighterWasmSigner | null = null;
   private nonceManager: NonceManager | null = null;
   private readonly accountIndex: number;
   private readonly apiKeyIndex: number;
@@ -187,15 +188,14 @@ export class LighterAdapter extends BaseAdapter {
       exchange: this.id,
     });
 
-    // Setup FFI signer if private key is provided
+    // Setup WASM signer if private key is provided
     if (this.apiPrivateKey) {
-      this.signer = new LighterSigner({
+      this.signer = new LighterWasmSigner({
         apiPrivateKey: this.apiPrivateKey,
         apiPublicKey: config.apiPublicKey,
         accountIndex: this.accountIndex,
         apiKeyIndex: this.apiKeyIndex,
         chainId: this.chainId,
-        libraryPath: config.nativeLibraryPath,
       });
 
       this.nonceManager = new NonceManager({
@@ -206,9 +206,17 @@ export class LighterAdapter extends BaseAdapter {
   }
 
   /**
-   * Check if FFI signing is available and initialized
+   * Check if WASM signing is available and initialized
+   * @deprecated Use hasWasmSigning instead
    */
   get hasFFISigning(): boolean {
+    return this.hasWasmSigning;
+  }
+
+  /**
+   * Check if WASM signing is available and initialized
+   */
+  get hasWasmSigning(): boolean {
     return this.signer !== null && this.signer.isInitialized;
   }
 
@@ -220,13 +228,13 @@ export class LighterAdapter extends BaseAdapter {
   }
 
   async initialize(): Promise<void> {
-    // Initialize FFI signer if configured
+    // Initialize WASM signer if configured
     if (this.signer) {
       try {
         await this.signer.initialize();
       } catch (error) {
-        // FFI initialization is optional - fall back to HMAC or public-only mode
-        console.warn('FFI signer initialization failed, falling back to HMAC mode:', error);
+        // WASM initialization failed - fall back to HMAC or public-only mode
+        console.warn('WASM signer initialization failed, falling back to HMAC mode:', error);
         this.signer = null;
         this.nonceManager = null;
       }
@@ -449,9 +457,9 @@ export class LighterAdapter extends BaseAdapter {
   async createOrder(request: OrderRequest): Promise<Order> {
     await this.rateLimiter.acquire('createOrder');
 
-    // FFI signing is preferred for trading
+    // WASM signing is preferred for trading
     if (this.signer && this.nonceManager) {
-      return this.createOrderFFI(request);
+      return this.createOrderWasm(request);
     }
 
     // Fall back to HMAC if available
@@ -467,9 +475,9 @@ export class LighterAdapter extends BaseAdapter {
   }
 
   /**
-   * Create order using FFI signing
+   * Create order using WASM signing
    */
-  private async createOrderFFI(request: OrderRequest): Promise<Order> {
+  private async createOrderWasm(request: OrderRequest): Promise<Order> {
     const lighterSymbol = this.normalizer.toLighterSymbol(request.symbol);
 
     // Ensure market metadata is loaded
@@ -552,9 +560,9 @@ export class LighterAdapter extends BaseAdapter {
   async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
     await this.rateLimiter.acquire('cancelOrder');
 
-    // FFI signing is preferred
+    // WASM signing is preferred
     if (this.signer && this.nonceManager) {
-      return this.cancelOrderFFI(orderId, symbol);
+      return this.cancelOrderWasm(orderId, symbol);
     }
 
     // Fall back to HMAC
@@ -570,9 +578,9 @@ export class LighterAdapter extends BaseAdapter {
   }
 
   /**
-   * Cancel order using FFI signing
+   * Cancel order using WASM signing
    */
-  private async cancelOrderFFI(orderId: string, symbol?: string): Promise<Order> {
+  private async cancelOrderWasm(orderId: string, symbol?: string): Promise<Order> {
     // Get market index
     let marketIndex = 0;
     if (symbol) {
@@ -626,9 +634,9 @@ export class LighterAdapter extends BaseAdapter {
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
     await this.rateLimiter.acquire('cancelAllOrders');
 
-    // FFI signing is preferred
+    // WASM signing is preferred
     if (this.signer && this.nonceManager) {
-      return this.cancelAllOrdersFFI(symbol);
+      return this.cancelAllOrdersWasm(symbol);
     }
 
     // Fall back to HMAC
@@ -644,9 +652,9 @@ export class LighterAdapter extends BaseAdapter {
   }
 
   /**
-   * Cancel all orders using FFI signing
+   * Cancel all orders using WASM signing
    */
-  private async cancelAllOrdersFFI(symbol?: string): Promise<Order[]> {
+  private async cancelAllOrdersWasm(symbol?: string): Promise<Order[]> {
     // Get market index (-1 for all markets)
     let marketIndex = -1;
     if (symbol) {
@@ -707,7 +715,7 @@ export class LighterAdapter extends BaseAdapter {
   /**
    * Withdraw collateral from trading account
    *
-   * Requires FFI signing - HMAC mode does not support withdrawals.
+   * Requires WASM signing - HMAC mode does not support withdrawals.
    *
    * @param collateralIndex - Collateral type index (0 = USDC)
    * @param amount - Amount to withdraw in base units
@@ -729,9 +737,9 @@ export class LighterAdapter extends BaseAdapter {
     amount: bigint,
     destinationAddress: string
   ): Promise<string> {
-    if (!this.hasFFISigning || !this.nonceManager) {
+    if (!this.hasWasmSigning || !this.nonceManager) {
       throw new PerpDEXError(
-        'Withdrawals require FFI signing. Configure apiPrivateKey.',
+        'Withdrawals require WASM signing. Configure apiPrivateKey and install @oraichain/lighter-ts-sdk.',
         'AUTH_REQUIRED',
         'lighter'
       );
@@ -1276,7 +1284,7 @@ export class LighterAdapter extends BaseAdapter {
     };
 
     // Use auth token for FFI mode, apiKey for HMAC mode
-    if (this.hasFFISigning) {
+    if (this.hasWasmSigning) {
       try {
         const authToken = await this.signer!.createAuthToken();
         subscription.authToken = authToken;
@@ -1295,7 +1303,7 @@ export class LighterAdapter extends BaseAdapter {
    * Get authentication identifier for channel naming
    */
   private getAuthIdentifier(): string {
-    if (this.hasFFISigning) {
+    if (this.hasWasmSigning) {
       return `account-${this.accountIndex}-${this.apiKeyIndex}`;
     }
     return this.apiKey || 'anonymous';
@@ -1350,7 +1358,7 @@ export class LighterAdapter extends BaseAdapter {
   async getStatus(): Promise<{
     ready: boolean;
     authenticated: boolean;
-    authMode: 'ffi' | 'hmac' | 'none';
+    authMode: 'wasm' | 'hmac' | 'none';
     wsConnected: boolean;
     network: 'mainnet' | 'testnet';
     latencyMs?: number;
@@ -1371,7 +1379,7 @@ export class LighterAdapter extends BaseAdapter {
     return {
       ready: this._isReady,
       authenticated: this.hasAuthentication,
-      authMode: this.hasFFISigning ? 'ffi' : (this.apiKey && this.apiSecret ? 'hmac' : 'none'),
+      authMode: this.hasWasmSigning ? 'wasm' : (this.apiKey && this.apiSecret ? 'hmac' : 'none'),
       wsConnected: this.wsManager !== null,
       network: this.testnet ? 'testnet' : 'mainnet',
       latencyMs,

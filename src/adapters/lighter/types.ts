@@ -7,20 +7,21 @@
  *
  * Supports two authentication modes:
  * 1. HMAC mode (legacy): Uses apiKey + apiSecret for HMAC-SHA256 signing
- * 2. FFI mode (native): Uses apiPrivateKey for native library signing
+ * 2. WASM mode (recommended): Uses apiPrivateKey for WASM-based signing
  *
- * FFI mode is required for full trading functionality as it supports
+ * WASM mode is required for full trading functionality as it supports
  * the transaction signing required by the Lighter protocol.
+ * Install @oraichain/lighter-ts-sdk for WASM signing support.
  */
 export interface LighterConfig {
-  // ============ HMAC Auth (Legacy/Read-only) ============
+  // ============ HMAC Auth (Legacy) ============
   /** API key for HMAC authentication (legacy mode) */
   apiKey?: string;
   /** API secret for HMAC authentication (legacy mode) */
   apiSecret?: string;
 
-  // ============ FFI Auth (Full Trading) ============
-  /** API private key (hex string) for FFI signing */
+  // ============ WASM Auth (Recommended - Full Trading) ============
+  /** API private key (hex string) for WASM signing */
   apiPrivateKey?: string;
   /** API public key (hex string, optional - derived from private if not provided) */
   apiPublicKey?: string;
@@ -38,10 +39,6 @@ export interface LighterConfig {
   timeout?: number;
   /** Rate limit tier */
   rateLimitTier?: 'tier1' | 'tier2' | 'tier3';
-
-  // ============ Advanced ============
-  /** Path to native library (optional, auto-detected) */
-  nativeLibraryPath?: string;
 }
 
 export interface LighterMarket {
