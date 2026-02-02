@@ -36,6 +36,10 @@ import type {
   TradeParams,
 } from '../../types/index.js';
 import { GmxNormalizer } from './GmxNormalizer.js';
+import { GmxAuth, type GmxAuthConfig } from './GmxAuth.js';
+import { GmxContracts } from './GmxContracts.js';
+import { GmxSubgraph } from './GmxSubgraph.js';
+import { GmxOrderBuilder, type GmxPriceData, type OrderBuilderConfig } from './GmxOrderBuilder.js';
 import {
   GMX_API_URLS,
   GMX_MARKETS,
@@ -73,8 +77,12 @@ export interface GmxConfig extends ExchangeConfig {
   chain?: GmxChain;
   /** Wallet address for fetching positions */
   walletAddress?: string;
+  /** Private key for trading */
+  privateKey?: string;
   /** Custom RPC endpoint */
   rpcEndpoint?: string;
+  /** Order builder configuration */
+  orderConfig?: OrderBuilderConfig;
 }
 
 /**
@@ -96,6 +104,20 @@ export interface GmxConfig extends ExchangeConfig {
  * });
  * await gmx.initialize();
  * const positions = await gmx.fetchPositions();
+ *
+ * // Full trading mode
+ * const gmx = new GmxAdapter({
+ *   chain: 'arbitrum',
+ *   privateKey: '0x...',
+ * });
+ * await gmx.initialize();
+ * const order = await gmx.createOrder({
+ *   symbol: 'ETH/USD:ETH',
+ *   side: 'buy',
+ *   type: 'market',
+ *   amount: 0.1,
+ *   leverage: 10,
+ * });
  * ```
  */
 export class GmxAdapter extends BaseAdapter {
@@ -112,18 +134,18 @@ export class GmxAdapter extends BaseAdapter {
     fetchFundingRateHistory: false,
     fetchOHLCV: true,
 
-    // Trading (requires on-chain transactions)
-    createOrder: false, // Requires wallet integration
-    cancelOrder: false,
-    cancelAllOrders: false,
+    // Trading (enabled with private key)
+    createOrder: true,
+    cancelOrder: true,
+    cancelAllOrders: true,
     createBatchOrders: false,
     cancelBatchOrders: false,
 
-    // Account data (requires subgraph)
-    fetchPositions: false, // Requires subgraph
-    fetchBalance: false,
-    fetchOpenOrders: false,
-    fetchOrderHistory: false,
+    // Account data
+    fetchPositions: true,
+    fetchBalance: true,
+    fetchOpenOrders: true,
+    fetchOrderHistory: true,
     fetchMyTrades: false,
 
     // Position management
@@ -143,6 +165,11 @@ export class GmxAdapter extends BaseAdapter {
   private chain: GmxChain;
   private apiBaseUrl: string;
   private walletAddress?: string;
+  private auth?: GmxAuth;
+  private contracts?: GmxContracts;
+  private subgraph?: GmxSubgraph;
+  private orderBuilder?: GmxOrderBuilder;
+  private orderConfig?: OrderBuilderConfig;
   private marketsCache: Map<string, GmxMarketInfo> = new Map();
   private marketsCacheTimestamp: number = 0;
   private marketsCacheTTL = 60000; // 1 minute
@@ -159,7 +186,24 @@ export class GmxAdapter extends BaseAdapter {
     this.chain = config.chain || 'arbitrum';
     this.apiBaseUrl = GMX_API_URLS[this.chain].api;
     this.walletAddress = config.walletAddress;
+    this.orderConfig = config.orderConfig;
     this.normalizer = new GmxNormalizer();
+
+    // Initialize auth if credentials provided
+    if (config.privateKey) {
+      this.auth = new GmxAuth({
+        privateKey: config.privateKey,
+        chain: this.chain,
+        rpcEndpoint: config.rpcEndpoint,
+      });
+      this.walletAddress = this.auth.getWalletAddress();
+    } else if (config.walletAddress) {
+      this.auth = new GmxAuth({
+        walletAddress: config.walletAddress,
+        chain: this.chain,
+        rpcEndpoint: config.rpcEndpoint,
+      });
+    }
   }
 
   // ==========================================================================
@@ -177,6 +221,26 @@ export class GmxAdapter extends BaseAdapter {
     try {
       // Validate API connectivity by fetching markets
       await this.fetchMarketsInfo();
+
+      // Initialize contracts and subgraph if auth is available
+      if (this.auth) {
+        this.contracts = new GmxContracts(
+          this.chain,
+          this.auth.getProvider(),
+          this.auth.getSigner()
+        );
+        this.subgraph = new GmxSubgraph(this.chain);
+
+        // Initialize order builder if trading is enabled
+        if (this.auth.canSign() && this.contracts) {
+          this.orderBuilder = new GmxOrderBuilder(
+            this.chain,
+            this.auth,
+            this.contracts,
+            this.orderConfig
+          );
+        }
+      }
 
       this._isReady = true;
       this.info(`GMX adapter initialized successfully (${this.chain})`);
@@ -377,23 +441,214 @@ export class GmxAdapter extends BaseAdapter {
   }
 
   // ==========================================================================
-  // Account Data (Not available via REST API)
+  // Account Data
   // ==========================================================================
 
-  async fetchPositions(): Promise<Position[]> {
-    throw new Error('fetchPositions requires subgraph integration. Not available via REST API.');
+  async fetchPositions(symbols?: string[]): Promise<Position[]> {
+    this.ensureInitialized();
+
+    if (!this.auth || !this.walletAddress) {
+      throw new Error('Wallet address required to fetch positions');
+    }
+
+    if (!this.subgraph) {
+      throw new Error('Subgraph not initialized');
+    }
+
+    try {
+      // Get positions from subgraph
+      const rawPositions = await this.subgraph.fetchPositions(this.walletAddress);
+
+      // Get current prices for PnL calculation
+      const prices = await this.fetchPrices();
+
+      // Normalize positions
+      const positions: Position[] = [];
+      for (const pos of rawPositions) {
+        // Get mark price for this position's market
+        const marketConfig = Object.values(GMX_MARKETS).find(
+          m => m.marketAddress.toLowerCase() === pos.market.toLowerCase()
+        );
+
+        if (!marketConfig) continue;
+
+        const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
+        let markPrice = 0;
+        if (indexTokenPrice) {
+          const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
+          const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+          markPrice = (minPrice + maxPrice) / 2;
+        }
+
+        const position = this.normalizer.normalizePosition(pos, markPrice, this.chain);
+
+        // Filter by symbols if provided
+        if (!symbols || symbols.includes(position.symbol)) {
+          positions.push(position);
+        }
+      }
+
+      return positions;
+    } catch (error) {
+      throw mapGmxError(error);
+    }
   }
 
   async fetchBalance(): Promise<Balance[]> {
-    throw new Error('fetchBalance requires on-chain RPC calls. Not available via REST API.');
+    this.ensureInitialized();
+
+    if (!this.auth || !this.walletAddress) {
+      throw new Error('Wallet address required to fetch balance');
+    }
+
+    try {
+      // Fetch ETH balance
+      const ethBalance = await this.auth.getBalance();
+      const ethBalanceNum = Number(ethBalance) / 1e18;
+
+      // Get ETH price
+      const prices = await this.fetchPrices();
+      const wethAddress = this.chain === 'arbitrum'
+        ? '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'
+        : '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7';
+
+      const ethPriceData = prices.get(wethAddress.toLowerCase());
+      let ethPrice = 0;
+      if (ethPriceData) {
+        const minPrice = parseFloat(ethPriceData.minPrice) / GMX_PRECISION.PRICE;
+        const maxPrice = parseFloat(ethPriceData.maxPrice) / GMX_PRECISION.PRICE;
+        ethPrice = (minPrice + maxPrice) / 2;
+      }
+
+      const balances: Balance[] = [
+        {
+          currency: this.chain === 'arbitrum' ? 'ETH' : 'AVAX',
+          total: ethBalanceNum,
+          free: ethBalanceNum,
+          used: 0,
+          usdValue: ethBalanceNum * ethPrice,
+        },
+      ];
+
+      // Fetch USDC balance
+      const usdcAddress = this.chain === 'arbitrum'
+        ? '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'
+        : '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E';
+
+      const usdcBalance = await this.auth.getTokenBalance(usdcAddress);
+      const usdcBalanceNum = Number(usdcBalance) / 1e6;
+
+      balances.push({
+        currency: 'USDC',
+        total: usdcBalanceNum,
+        free: usdcBalanceNum,
+        used: 0,
+        usdValue: usdcBalanceNum,
+      });
+
+      return balances;
+    } catch (error) {
+      throw mapGmxError(error);
+    }
   }
 
-  async fetchOpenOrders(): Promise<Order[]> {
-    throw new Error('fetchOpenOrders requires subgraph integration. Not available via REST API.');
+  async fetchOpenOrders(symbol?: string): Promise<Order[]> {
+    this.ensureInitialized();
+
+    if (!this.auth || !this.walletAddress) {
+      throw new Error('Wallet address required to fetch orders');
+    }
+
+    if (!this.subgraph) {
+      throw new Error('Subgraph not initialized');
+    }
+
+    try {
+      const orders = await this.subgraph.fetchOpenOrders(this.walletAddress);
+
+      // Get current prices for amount calculation
+      const prices = await this.fetchPrices();
+
+      const normalizedOrders: Order[] = [];
+      for (const order of orders) {
+        const marketConfig = Object.values(GMX_MARKETS).find(
+          m => m.marketAddress.toLowerCase() === order.market.toLowerCase()
+        );
+
+        let marketPrice: number | undefined;
+        if (marketConfig) {
+          const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
+          if (indexTokenPrice) {
+            const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
+            const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+            marketPrice = (minPrice + maxPrice) / 2;
+          }
+        }
+
+        const normalizedOrder = this.normalizer.normalizeOrder(order, marketPrice);
+
+        // Filter by symbol if provided
+        if (!symbol || normalizedOrder.symbol === symbol) {
+          normalizedOrders.push(normalizedOrder);
+        }
+      }
+
+      return normalizedOrders;
+    } catch (error) {
+      throw mapGmxError(error);
+    }
   }
 
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
-    throw new Error('fetchOrderHistory requires subgraph integration. Not available via REST API.');
+    this.ensureInitialized();
+
+    if (!this.auth || !this.walletAddress) {
+      throw new Error('Wallet address required to fetch order history');
+    }
+
+    if (!this.subgraph) {
+      throw new Error('Subgraph not initialized');
+    }
+
+    try {
+      const orders = await this.subgraph.fetchOrderHistory(this.walletAddress, since);
+
+      // Get current prices for amount calculation
+      const prices = await this.fetchPrices();
+
+      const normalizedOrders: Order[] = [];
+      for (const order of orders) {
+        const marketConfig = Object.values(GMX_MARKETS).find(
+          m => m.marketAddress.toLowerCase() === order.market.toLowerCase()
+        );
+
+        let marketPrice: number | undefined;
+        if (marketConfig) {
+          const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
+          if (indexTokenPrice) {
+            const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
+            const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+            marketPrice = (minPrice + maxPrice) / 2;
+          }
+        }
+
+        const normalizedOrder = this.normalizer.normalizeOrder(order, marketPrice);
+
+        // Filter by symbol if provided
+        if (!symbol || normalizedOrder.symbol === symbol) {
+          normalizedOrders.push(normalizedOrder);
+        }
+      }
+
+      // Apply limit
+      if (limit && normalizedOrders.length > limit) {
+        return normalizedOrders.slice(0, limit);
+      }
+
+      return normalizedOrders;
+    } catch (error) {
+      throw mapGmxError(error);
+    }
   }
 
   async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
@@ -401,28 +656,184 @@ export class GmxAdapter extends BaseAdapter {
   }
 
   // ==========================================================================
-  // Trading (Not available - requires on-chain transactions)
+  // Trading Operations
   // ==========================================================================
 
   async createOrder(request: OrderRequest): Promise<Order> {
-    throw new Error(
-      'GMX trading requires on-chain transactions via the ExchangeRouter contract. ' +
-      'Use the @gmx-io/sdk for trading operations.'
-    );
+    this.ensureInitialized();
+
+    if (!this.auth || !this.auth.canSign()) {
+      throw new Error('Private key required for trading');
+    }
+
+    if (!this.contracts || !this.orderBuilder) {
+      throw new Error('Trading components not initialized');
+    }
+
+    try {
+      // Validate order parameters
+      this.orderBuilder.validateOrderParams(request);
+
+      // Get current prices
+      const prices = await this.fetchPrices();
+      const marketKey = unifiedToGmx(request.symbol);
+      if (!marketKey) {
+        throw new Error(`Invalid market: ${request.symbol}`);
+      }
+      const marketConfig = GMX_MARKETS[marketKey];
+
+      // Get index token price
+      const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
+      if (!indexTokenPrice) {
+        throw new Error(`Price not available for ${request.symbol}`);
+      }
+
+      const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
+      const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+      const indexPrice = (minPrice + maxPrice) / 2;
+
+      const priceData: GmxPriceData = {
+        indexPrice,
+        longTokenPrice: indexPrice, // Simplified
+        shortTokenPrice: 1, // USDC = $1
+      };
+
+      // Build order parameters
+      const orderParams = this.orderBuilder.buildCreateOrderParams(request, priceData);
+
+      // Calculate execution fee
+      const executionFee = await this.orderBuilder.getMinExecutionFee();
+      orderParams.executionFee = executionFee;
+
+      // If using USDC as collateral, need to approve token spending
+      if (!request.reduceOnly) {
+        const collateralAmount = orderParams.initialCollateralDeltaAmount;
+        const usdcAddress = marketConfig.shortToken;
+
+        // Check allowance
+        const allowance = await this.auth.getTokenAllowance(
+          usdcAddress,
+          GMX_API_URLS[this.chain].api.includes('arbitrum')
+            ? '0x7452c558d45f8afC8c83dAe62C3f8A5BE19c71f6' // Arbitrum Router
+            : '0x820F5FfC5b525cD4d88Cd91aCd2119b38cB97b10' // Avalanche Router
+        );
+
+        if (allowance < collateralAmount) {
+          this.debug('Approving USDC spending...');
+          const approveTx = await this.auth.approveToken(
+            usdcAddress,
+            this.contracts.getAddresses().router,
+            collateralAmount * 2n // Approve 2x for future orders
+          );
+          await approveTx.wait();
+        }
+      }
+
+      // Create the order on-chain
+      this.debug('Creating order on-chain...');
+      const tx = await this.contracts.createOrder(orderParams, executionFee);
+      const receipt = await tx.wait();
+
+      if (!receipt) {
+        throw new Error('Transaction failed');
+      }
+
+      // Extract order key from events (simplified - would need proper event parsing)
+      const orderKey = receipt.logs[0]?.topics[1] || receipt.hash;
+
+      // Return order object
+      return {
+        id: orderKey,
+        symbol: request.symbol,
+        type: request.type,
+        side: request.side,
+        amount: request.amount,
+        price: request.price,
+        status: 'open',
+        filled: 0,
+        remaining: request.amount,
+        reduceOnly: request.reduceOnly || false,
+        postOnly: request.postOnly || false,
+        clientOrderId: request.clientOrderId,
+        timestamp: Date.now(),
+        info: {
+          txHash: receipt.hash,
+          executionFee: executionFee.toString(),
+          orderParams,
+        },
+      };
+    } catch (error) {
+      throw mapGmxError(error);
+    }
   }
 
-  async cancelOrder(orderId: string, symbol: string): Promise<Order> {
-    throw new Error(
-      'GMX order cancellation requires on-chain transactions. ' +
-      'Use the @gmx-io/sdk for trading operations.'
-    );
+  async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+    this.ensureInitialized();
+
+    if (!this.auth || !this.auth.canSign()) {
+      throw new Error('Private key required for trading');
+    }
+
+    if (!this.contracts) {
+      throw new Error('Contracts not initialized');
+    }
+
+    try {
+      // Cancel the order on-chain
+      const tx = await this.contracts.cancelOrder(orderId);
+      const receipt = await tx.wait();
+
+      if (!receipt) {
+        throw new Error('Transaction failed');
+      }
+
+      return {
+        id: orderId,
+        symbol: symbol || 'UNKNOWN',
+        type: 'limit',
+        side: 'buy',
+        amount: 0,
+        status: 'canceled',
+        filled: 0,
+        remaining: 0,
+        reduceOnly: false,
+        postOnly: false,
+        timestamp: Date.now(),
+        info: {
+          txHash: receipt.hash,
+        },
+      };
+    } catch (error) {
+      throw mapGmxError(error);
+    }
   }
 
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
-    throw new Error(
-      'GMX order cancellation requires on-chain transactions. ' +
-      'Use the @gmx-io/sdk for trading operations.'
-    );
+    this.ensureInitialized();
+
+    if (!this.auth || !this.auth.canSign()) {
+      throw new Error('Private key required for trading');
+    }
+
+    try {
+      // Fetch all open orders
+      const openOrders = await this.fetchOpenOrders(symbol);
+
+      // Cancel each order
+      const canceledOrders: Order[] = [];
+      for (const order of openOrders) {
+        try {
+          const canceled = await this.cancelOrder(order.id, order.symbol);
+          canceledOrders.push(canceled);
+        } catch (error) {
+          this.warn(`Failed to cancel order ${order.id}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
+      return canceledOrders;
+    } catch (error) {
+      throw mapGmxError(error);
+    }
   }
 
   async setLeverage(symbol: string, leverage: number): Promise<void> {

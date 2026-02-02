@@ -64,10 +64,13 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@drift-labs/sdk": "^2.155.0",
     "@grvt/client": "^1.6.11",
     "@noble/ed25519": "^3.0.0",
     "@oraichain/lighter-ts-sdk": "^1.1.5",
     "@paradex/sdk": "^0.7.0",
+    "@solana/web3.js": "^1.98.4",
+    "bs58": "^6.0.0",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.0",
     "eventemitter3": "^5.0.1",

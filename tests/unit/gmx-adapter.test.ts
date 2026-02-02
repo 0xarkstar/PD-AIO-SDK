@@ -67,20 +67,20 @@ describe('GmxAdapter', () => {
       expect(adapter.has.fetchTrades).toBe(false);
     });
 
-    test('should NOT support createOrder (on-chain)', () => {
-      expect(adapter.has.createOrder).toBe(false);
+    test('should support createOrder (on-chain via contracts)', () => {
+      expect(adapter.has.createOrder).toBe(true);
     });
 
-    test('should NOT support cancelOrder (on-chain)', () => {
-      expect(adapter.has.cancelOrder).toBe(false);
+    test('should support cancelOrder (on-chain via contracts)', () => {
+      expect(adapter.has.cancelOrder).toBe(true);
     });
 
-    test('should NOT support fetchPositions (requires subgraph)', () => {
-      expect(adapter.has.fetchPositions).toBe(false);
+    test('should support fetchPositions (via Reader contract)', () => {
+      expect(adapter.has.fetchPositions).toBe(true);
     });
 
-    test('should NOT support fetchBalance (requires RPC)', () => {
-      expect(adapter.has.fetchBalance).toBe(false);
+    test('should support fetchBalance (via RPC)', () => {
+      expect(adapter.has.fetchBalance).toBe(true);
     });
 
     test('should NOT support WebSocket', () => {
@@ -137,31 +137,31 @@ describe('GmxAdapter', () => {
       await expect(adapter.fetchTrades('ETH/USD:ETH')).rejects.toThrow(/subgraph/i);
     });
 
-    test('fetchPositions should throw not supported error', async () => {
-      await expect(adapter.fetchPositions()).rejects.toThrow(/subgraph/i);
+    test('fetchPositions should throw not initialized error', async () => {
+      await expect(adapter.fetchPositions()).rejects.toThrow(/not initialized/i);
     });
 
-    test('fetchBalance should throw not supported error', async () => {
-      await expect(adapter.fetchBalance()).rejects.toThrow(/RPC/i);
+    test('fetchBalance should throw not initialized error', async () => {
+      await expect(adapter.fetchBalance()).rejects.toThrow(/not initialized/i);
     });
 
-    test('fetchOpenOrders should throw not supported error', async () => {
-      await expect(adapter.fetchOpenOrders()).rejects.toThrow(/subgraph/i);
+    test('fetchOpenOrders should throw not initialized error', async () => {
+      await expect(adapter.fetchOpenOrders()).rejects.toThrow(/not initialized/i);
     });
 
-    test('fetchOrderHistory should throw not supported error', async () => {
-      await expect(adapter.fetchOrderHistory()).rejects.toThrow(/subgraph/i);
+    test('fetchOrderHistory should throw not initialized error', async () => {
+      await expect(adapter.fetchOrderHistory()).rejects.toThrow(/not initialized/i);
     });
 
-    test('fetchMyTrades should throw not supported error', async () => {
+    test('fetchMyTrades should throw subgraph required error', async () => {
       await expect(adapter.fetchMyTrades()).rejects.toThrow(/subgraph/i);
     });
 
-    test('fetchFundingRateHistory should throw not supported error', async () => {
+    test('fetchFundingRateHistory should throw subgraph required error', async () => {
       await expect(adapter.fetchFundingRateHistory('ETH/USD:ETH')).rejects.toThrow(/subgraph/i);
     });
 
-    test('createOrder should throw on-chain required error', async () => {
+    test('createOrder should throw not initialized error', async () => {
       await expect(
         adapter.createOrder({
           symbol: 'ETH/USD:ETH',
@@ -169,15 +169,15 @@ describe('GmxAdapter', () => {
           side: 'buy',
           amount: 1,
         })
-      ).rejects.toThrow(/on-chain/i);
+      ).rejects.toThrow(/not initialized/i);
     });
 
-    test('cancelOrder should throw on-chain required error', async () => {
-      await expect(adapter.cancelOrder('order123', 'ETH/USD:ETH')).rejects.toThrow(/on-chain/i);
+    test('cancelOrder should throw not initialized error', async () => {
+      await expect(adapter.cancelOrder('order123', 'ETH/USD:ETH')).rejects.toThrow(/not initialized/i);
     });
 
-    test('cancelAllOrders should throw on-chain required error', async () => {
-      await expect(adapter.cancelAllOrders()).rejects.toThrow(/on-chain/i);
+    test('cancelAllOrders should throw not initialized error', async () => {
+      await expect(adapter.cancelAllOrders()).rejects.toThrow(/not initialized/i);
     });
 
     test('setLeverage should throw not applicable error', async () => {

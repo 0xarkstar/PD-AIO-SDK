@@ -70,11 +70,11 @@ describe('DriftAdapter', () => {
       expect(adapter.has.fetchOHLCV).toBe(false);
     });
 
-    test('should not support trading (requires Drift SDK)', () => {
-      expect(adapter.has.createOrder).toBe(false);
-      expect(adapter.has.cancelOrder).toBe(false);
-      expect(adapter.has.cancelAllOrders).toBe(false);
-      expect(adapter.has.createBatchOrders).toBe(false);
+    test('should support trading via Drift SDK', () => {
+      expect(adapter.has.createOrder).toBe(true);
+      expect(adapter.has.cancelOrder).toBe(true);
+      expect(adapter.has.cancelAllOrders).toBe(true);
+      expect(adapter.has.createBatchOrders).toBe(false); // Batch orders not supported
     });
 
     test('should not support websocket (not implemented)', () => {

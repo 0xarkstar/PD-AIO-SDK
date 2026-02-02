@@ -9,6 +9,23 @@
 // Main adapter
 export { GmxAdapter, type GmxConfig, type GmxChain } from './GmxAdapter.js';
 
+// Auth
+export { GmxAuth, type GmxAuthConfig, isValidEthereumAddress, isValidEthereumPrivateKey } from './GmxAuth.js';
+
+// Contracts
+export { GmxContracts, type GmxPositionData, type GmxOrderData } from './GmxContracts.js';
+
+// Subgraph
+export {
+  GmxSubgraph,
+  type NormalizedGmxPosition,
+  type NormalizedGmxOrder,
+  type NormalizedGmxTrade,
+} from './GmxSubgraph.js';
+
+// Order Builder
+export { GmxOrderBuilder, type GmxPriceData as GmxOrderPriceData, type OrderBuilderConfig } from './GmxOrderBuilder.js';
+
 // Normalizer
 export { GmxNormalizer } from './GmxNormalizer.js';
 

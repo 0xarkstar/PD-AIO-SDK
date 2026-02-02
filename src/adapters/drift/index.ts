@@ -12,6 +12,22 @@ export { DriftAdapter, type DriftConfig } from './DriftAdapter.js';
 // Authentication
 export { DriftAuth, type DriftAuthConfig, isValidSolanaAddress, isValidSolanaPrivateKey } from './DriftAuth.js';
 
+// Client Wrapper
+export {
+  DriftClientWrapper,
+  type DriftClientWrapperConfig,
+  type DriftOrderParams,
+  type PlaceOrderResult,
+  type CancelOrderResult,
+} from './DriftClientWrapper.js';
+
+// Order Builder
+export {
+  DriftOrderBuilder,
+  type DriftOrderBuilderConfig,
+  createOrderBuilder,
+} from './orderBuilder.js';
+
 // Normalizer
 export { DriftNormalizer } from './DriftNormalizer.js';
 

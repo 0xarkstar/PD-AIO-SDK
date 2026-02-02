@@ -37,6 +37,8 @@ import type {
 } from '../../types/index.js';
 import { DriftNormalizer } from './DriftNormalizer.js';
 import { DriftAuth, type DriftAuthConfig } from './DriftAuth.js';
+import { DriftClientWrapper, type DriftClientWrapperConfig } from './DriftClientWrapper.js';
+import { DriftOrderBuilder, type DriftOrderBuilderConfig } from './orderBuilder.js';
 import {
   DRIFT_API_URLS,
   DRIFT_PERP_MARKETS,
@@ -74,6 +76,8 @@ export interface DriftConfig extends ExchangeConfig {
   subAccountId?: number;
   /** Custom Solana RPC endpoint */
   rpcEndpoint?: string;
+  /** Order builder configuration */
+  orderConfig?: DriftOrderBuilderConfig;
 }
 
 /**
@@ -94,6 +98,18 @@ export interface DriftConfig extends ExchangeConfig {
  * });
  * await drift.initialize();
  * const positions = await drift.fetchPositions();
+ *
+ * // Full trading mode
+ * const drift = new DriftAdapter({
+ *   privateKey: '[1,2,3,...,64]', // JSON array format
+ * });
+ * await drift.initialize();
+ * const order = await drift.createOrder({
+ *   symbol: 'SOL/USD:USD',
+ *   side: 'buy',
+ *   type: 'market',
+ *   amount: 1,
+ * });
  * ```
  */
 export class DriftAdapter extends BaseAdapter {
@@ -110,15 +126,15 @@ export class DriftAdapter extends BaseAdapter {
     fetchFundingRateHistory: true,
     fetchOHLCV: false, // Requires historical data API
 
-    // Trading (requires Drift SDK integration)
-    createOrder: false, // Requires @drift-labs/sdk
-    cancelOrder: false,
-    cancelAllOrders: false,
+    // Trading (enabled with private key)
+    createOrder: true,
+    cancelOrder: true,
+    cancelAllOrders: true,
     createBatchOrders: false,
     cancelBatchOrders: false,
 
     // Account data
-    fetchPositions: true, // Via DLOB API
+    fetchPositions: true,
     fetchBalance: true,
     fetchOpenOrders: true,
     fetchOrderHistory: false,
@@ -139,6 +155,8 @@ export class DriftAdapter extends BaseAdapter {
 
   private normalizer: DriftNormalizer;
   private auth?: DriftAuth;
+  private driftClient?: DriftClientWrapper;
+  private orderBuilder?: DriftOrderBuilder;
   private dlobBaseUrl: string;
   private isTestnet: boolean;
   private marketStatsCache: Map<number, { stats: DriftMarketStats; timestamp: number }> = new Map();
@@ -166,8 +184,12 @@ export class DriftAdapter extends BaseAdapter {
         rpcEndpoint: config.rpcEndpoint || (this.isTestnet
           ? DRIFT_API_URLS.devnet.rpc
           : DRIFT_API_URLS.mainnet.rpc),
+        isDevnet: this.isTestnet,
       });
     }
+
+    // Initialize order builder
+    this.orderBuilder = new DriftOrderBuilder(config.orderConfig);
   }
 
   // ==========================================================================
@@ -189,6 +211,11 @@ export class DriftAdapter extends BaseAdapter {
         buildOrderbookUrl(this.dlobBaseUrl, 0, 'perp', 5)
       );
 
+      // Initialize Drift client if auth is available and can sign
+      if (this.auth?.canSign()) {
+        await this.initializeDriftClient();
+      }
+
       this._isReady = true;
       this.info('Drift adapter initialized successfully');
     } catch (error) {
@@ -196,6 +223,46 @@ export class DriftAdapter extends BaseAdapter {
       this.error('Failed to initialize Drift adapter', mappedError);
       throw mappedError;
     }
+  }
+
+  /**
+   * Initialize the Drift SDK client for trading
+   */
+  private async initializeDriftClient(): Promise<void> {
+    if (!this.auth) {
+      throw new Error('Auth not configured');
+    }
+
+    try {
+      const { Connection } = await import('@solana/web3.js');
+      const connection = new Connection(this.auth.getRpcEndpoint(), 'confirmed');
+      const keypair = this.auth.getKeypair();
+
+      if (!keypair) {
+        throw new Error('Keypair not available');
+      }
+
+      this.driftClient = new DriftClientWrapper({
+        connection,
+        keypair,
+        subAccountId: this.auth.getSubAccountId(),
+        isDevnet: this.isTestnet,
+      });
+
+      await this.driftClient.initialize();
+      this.debug('Drift SDK client initialized');
+    } catch (error) {
+      this.warn(`Failed to initialize Drift SDK client: ${error instanceof Error ? error.message : String(error)}`);
+      // Don't throw - allow adapter to work in read-only mode
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.driftClient) {
+      await this.driftClient.disconnect();
+    }
+    this._isReady = false;
+    this.debug('Drift adapter disconnected');
   }
 
   // ==========================================================================
@@ -588,28 +655,153 @@ export class DriftAdapter extends BaseAdapter {
   }
 
   // ==========================================================================
-  // Trading Operations (Not implemented - requires Drift SDK)
+  // Trading Operations
   // ==========================================================================
 
   async createOrder(request: OrderRequest): Promise<Order> {
-    throw new Error(
-      'Drift trading requires @drift-labs/sdk integration. ' +
-      'Use the Drift SDK directly for trading operations: https://docs.drift.trade/sdk-documentation'
-    );
+    this.ensureInitialized();
+
+    if (!this.auth?.canSign()) {
+      throw new Error('Private key required for trading');
+    }
+
+    if (!this.driftClient) {
+      throw new Error('Drift SDK client not initialized. Ensure private key is provided.');
+    }
+
+    if (!this.orderBuilder) {
+      throw new Error('Order builder not initialized');
+    }
+
+    try {
+      // Get oracle price for the market
+      const marketIndex = getMarketIndex(request.symbol);
+      const orderbook = await this.request<DriftL2OrderBook>(
+        'GET',
+        buildOrderbookUrl(this.dlobBaseUrl, marketIndex, 'perp', 1)
+      );
+      const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+
+      // Build order parameters
+      const orderParams = this.orderBuilder.buildOrderParams(request, oraclePrice);
+
+      // Place the order via Drift SDK
+      this.debug('Placing order via Drift SDK...');
+      const result = await this.driftClient.placePerpOrder(orderParams);
+
+      // Return normalized order
+      return {
+        id: result.orderId?.toString() || result.txSig,
+        symbol: request.symbol,
+        type: request.type,
+        side: request.side,
+        amount: request.amount,
+        price: request.price,
+        status: 'open',
+        filled: 0,
+        remaining: request.amount,
+        reduceOnly: request.reduceOnly || false,
+        postOnly: request.postOnly || false,
+        clientOrderId: request.clientOrderId,
+        timestamp: Date.now(),
+        info: {
+          txSig: result.txSig,
+          slot: result.slot,
+          orderParams,
+        },
+      };
+    } catch (error) {
+      throw mapDriftError(error);
+    }
   }
 
   async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
-    throw new Error(
-      'Drift trading requires @drift-labs/sdk integration. ' +
-      'Use the Drift SDK directly for trading operations.'
-    );
+    this.ensureInitialized();
+
+    if (!this.auth?.canSign()) {
+      throw new Error('Private key required for trading');
+    }
+
+    if (!this.driftClient) {
+      throw new Error('Drift SDK client not initialized');
+    }
+
+    try {
+      const result = await this.driftClient.cancelOrder(parseInt(orderId));
+
+      return {
+        id: orderId,
+        symbol: symbol || 'UNKNOWN',
+        type: 'limit',
+        side: 'buy',
+        amount: 0,
+        status: 'canceled',
+        filled: 0,
+        remaining: 0,
+        reduceOnly: false,
+        postOnly: false,
+        timestamp: Date.now(),
+        info: {
+          txSig: result.txSig,
+        },
+      };
+    } catch (error) {
+      throw mapDriftError(error);
+    }
   }
 
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
-    throw new Error(
-      'Drift trading requires @drift-labs/sdk integration. ' +
-      'Use the Drift SDK directly for trading operations.'
-    );
+    this.ensureInitialized();
+
+    if (!this.auth?.canSign()) {
+      throw new Error('Private key required for trading');
+    }
+
+    if (!this.driftClient) {
+      throw new Error('Drift SDK client not initialized');
+    }
+
+    try {
+      let txSig: string;
+
+      if (symbol) {
+        const marketIndex = getMarketIndex(symbol);
+        const results = await this.driftClient.cancelOrdersForMarket(marketIndex);
+        return results.map(r => ({
+          id: r.orderId.toString(),
+          symbol,
+          type: 'limit' as const,
+          side: 'buy' as const,
+          amount: 0,
+          status: 'canceled' as const,
+          filled: 0,
+          remaining: 0,
+          reduceOnly: false,
+          postOnly: false,
+          timestamp: Date.now(),
+          info: { txSig: r.txSig },
+        }));
+      } else {
+        txSig = await this.driftClient.cancelAllPerpOrders();
+        // Return a single order representing all cancellations
+        return [{
+          id: 'all',
+          symbol: 'ALL',
+          type: 'limit',
+          side: 'buy',
+          amount: 0,
+          status: 'canceled',
+          filled: 0,
+          remaining: 0,
+          reduceOnly: false,
+          postOnly: false,
+          timestamp: Date.now(),
+          info: { txSig },
+        }];
+      }
+    } catch (error) {
+      throw mapDriftError(error);
+    }
   }
 
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {

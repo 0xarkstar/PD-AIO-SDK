@@ -6,12 +6,19 @@
  */
 
 import type { IAuthStrategy, RequestParams, AuthenticatedRequest } from '../../types/adapter.js';
+import { SOLANA_DEFAULT_RPC } from './constants.js';
+
+// Dynamic imports for @solana/web3.js types
+type Connection = import('@solana/web3.js').Connection;
+type Keypair = import('@solana/web3.js').Keypair;
+type PublicKey = import('@solana/web3.js').PublicKey;
+type Transaction = import('@solana/web3.js').Transaction;
 
 /**
  * Configuration for Jupiter authentication
  */
 export interface JupiterAuthConfig {
-  /** Solana private key (base58 or array) */
+  /** Solana private key (base58, JSON array, or Uint8Array) */
   privateKey?: string | Uint8Array;
   /** Wallet address (public key) - for read-only operations */
   walletAddress?: string;
@@ -29,18 +36,68 @@ export interface JupiterAuthConfig {
  * For write operations (trading), the private key is required for signing.
  */
 export class JupiterAuth implements IAuthStrategy {
-  private readonly privateKey?: Uint8Array;
-  private readonly walletAddress?: string;
+  private keypair?: Keypair;
+  private walletAddress?: string;
+  private publicKey?: PublicKey;
   private readonly rpcEndpoint: string;
+  private connection?: Connection;
+  private isInitialized = false;
 
   constructor(config: JupiterAuthConfig) {
-    this.rpcEndpoint = config.rpcEndpoint || 'https://api.mainnet-beta.solana.com';
+    this.rpcEndpoint = config.rpcEndpoint || SOLANA_DEFAULT_RPC;
 
+    // Store config for lazy initialization
     if (config.privateKey) {
-      this.privateKey = this.parsePrivateKey(config.privateKey);
-      this.walletAddress = config.walletAddress || this.deriveWalletAddress();
+      this.initializeFromPrivateKey(config.privateKey);
     } else if (config.walletAddress) {
       this.walletAddress = config.walletAddress;
+    }
+  }
+
+  /**
+   * Initialize keypair from private key
+   */
+  private initializeFromPrivateKey(privateKey: string | Uint8Array): void {
+    try {
+      const bytes = this.parsePrivateKey(privateKey);
+      // Lazy import to handle ESM module
+      this.initKeypairAsync(bytes);
+    } catch (error) {
+      console.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Async initialization of keypair (for dynamic import)
+   */
+  private async initKeypairAsync(bytes: Uint8Array): Promise<void> {
+    try {
+      const { Keypair, Connection, PublicKey } = await import('@solana/web3.js');
+      this.keypair = Keypair.fromSecretKey(bytes);
+      this.publicKey = this.keypair.publicKey;
+      this.walletAddress = this.publicKey.toBase58();
+      this.connection = new Connection(this.rpcEndpoint, 'confirmed');
+      this.isInitialized = true;
+    } catch (error) {
+      console.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Ensure async initialization is complete
+   */
+  async ensureInitialized(): Promise<void> {
+    if (!this.isInitialized && this.walletAddress) {
+      try {
+        const { Connection, PublicKey } = await import('@solana/web3.js');
+        this.connection = new Connection(this.rpcEndpoint, 'confirmed');
+        if (this.walletAddress) {
+          this.publicKey = new PublicKey(this.walletAddress);
+        }
+        this.isInitialized = true;
+      } catch (error) {
+        throw new Error(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
   }
 
@@ -67,38 +124,54 @@ export class JupiterAuth implements IAuthStrategy {
   }
 
   /**
-   * Sign a message (for potential off-chain verification)
+   * Sign a message
    */
-  async signMessage(message: string): Promise<string> {
-    if (!this.privateKey) {
+  async signMessage(message: string): Promise<Uint8Array> {
+    if (!this.keypair) {
       throw new Error('Private key required for signing');
     }
 
-    // Would use @solana/web3.js Keypair for actual signing
-    // This is a placeholder - actual implementation requires Solana SDK
+    const { sign } = await import('@noble/ed25519');
     const messageBytes = new TextEncoder().encode(message);
-    return this.signBytes(messageBytes);
+    return sign(messageBytes, this.keypair.secretKey.slice(0, 32));
   }
 
   /**
    * Sign bytes (for transaction signing)
    */
-  async signBytes(bytes: Uint8Array): Promise<string> {
-    if (!this.privateKey) {
+  async signBytes(bytes: Uint8Array): Promise<Uint8Array> {
+    if (!this.keypair) {
       throw new Error('Private key required for signing');
     }
 
-    // Placeholder for actual Ed25519 signing
-    // In production, use @solana/web3.js:
-    // const keypair = Keypair.fromSecretKey(this.privateKey);
-    // const signature = nacl.sign.detached(bytes, keypair.secretKey);
-    // return bs58.encode(signature);
+    const { sign } = await import('@noble/ed25519');
+    return sign(bytes, this.keypair.secretKey.slice(0, 32));
+  }
 
-    // For now, return a placeholder that indicates signing is required
-    throw new Error(
-      'Transaction signing requires @solana/web3.js integration. ' +
-      'Please use the Solana SDK directly for trading operations.'
-    );
+  /**
+   * Sign a Solana transaction
+   */
+  async signTransaction(transaction: Transaction): Promise<Transaction> {
+    if (!this.keypair) {
+      throw new Error('Private key required for transaction signing');
+    }
+
+    transaction.sign(this.keypair);
+    return transaction;
+  }
+
+  /**
+   * Sign multiple Solana transactions
+   */
+  async signAllTransactions(transactions: Transaction[]): Promise<Transaction[]> {
+    if (!this.keypair) {
+      throw new Error('Private key required for transaction signing');
+    }
+
+    for (const tx of transactions) {
+      tx.sign(this.keypair);
+    }
+    return transactions;
   }
 
   /**
@@ -109,10 +182,24 @@ export class JupiterAuth implements IAuthStrategy {
   }
 
   /**
+   * Get the public key
+   */
+  getPublicKey(): PublicKey | undefined {
+    return this.publicKey;
+  }
+
+  /**
+   * Get the keypair (for SDK usage)
+   */
+  getKeypair(): Keypair | undefined {
+    return this.keypair;
+  }
+
+  /**
    * Check if authentication is configured for trading
    */
   canSign(): boolean {
-    return this.privateKey !== undefined;
+    return this.keypair !== undefined;
   }
 
   /**
@@ -130,24 +217,84 @@ export class JupiterAuth implements IAuthStrategy {
   }
 
   /**
-   * Create an unsigned transaction instruction for Jupiter Perps
-   * The actual transaction building requires Jupiter SDK
+   * Get Solana connection
    */
-  async createTransactionPayload(
-    instruction: 'openPosition' | 'closePosition' | 'modifyPosition',
-    params: Record<string, unknown>
-  ): Promise<Record<string, unknown>> {
-    if (!this.walletAddress) {
-      throw new Error('Wallet address required for transaction creation');
+  async getConnection(): Promise<Connection> {
+    await this.ensureInitialized();
+    if (!this.connection) {
+      throw new Error('Connection not initialized');
+    }
+    return this.connection;
+  }
+
+  /**
+   * Get SOL balance
+   */
+  async getSolBalance(): Promise<number> {
+    await this.ensureInitialized();
+    if (!this.connection || !this.publicKey) {
+      throw new Error('Connection or public key not initialized');
     }
 
-    // Return instruction data that would be used with Jupiter SDK
-    return {
-      instruction,
-      owner: this.walletAddress,
-      params,
-      requiresSignature: true,
-    };
+    const balance = await this.connection.getBalance(this.publicKey);
+    return balance / 1e9; // Convert lamports to SOL
+  }
+
+  /**
+   * Get token balance for an SPL token
+   */
+  async getTokenBalance(tokenMint: string): Promise<number> {
+    await this.ensureInitialized();
+    if (!this.connection || !this.publicKey) {
+      throw new Error('Connection or public key not initialized');
+    }
+
+    const { PublicKey } = await import('@solana/web3.js');
+    const tokenMintPubkey = new PublicKey(tokenMint);
+
+    // Get associated token account
+    const tokenAccounts = await this.connection.getTokenAccountsByOwner(
+      this.publicKey,
+      { mint: tokenMintPubkey }
+    );
+
+    if (tokenAccounts.value.length === 0) {
+      return 0;
+    }
+
+    // Parse account data to get balance
+    const accountInfo = tokenAccounts.value[0];
+    if (!accountInfo) {
+      return 0;
+    }
+
+    // Account data layout: 64 bytes mint, 32 bytes owner, 8 bytes amount
+    const data = accountInfo.account.data;
+    const amountBytes = data.slice(64, 72);
+    const amount = Buffer.from(amountBytes).readBigUInt64LE();
+
+    return Number(amount);
+  }
+
+  /**
+   * Get associated token account address
+   */
+  async getAssociatedTokenAddress(tokenMint: string): Promise<string> {
+    if (!this.publicKey) {
+      throw new Error('Public key not initialized');
+    }
+
+    const { PublicKey } = await import('@solana/web3.js');
+    const mintPubkey = new PublicKey(tokenMint);
+    const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+
+    const [address] = await PublicKey.findProgramAddress(
+      [this.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintPubkey.toBuffer()],
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    return address.toBase58();
   }
 
   // ==========================================================================
@@ -173,14 +320,14 @@ export class JupiterAuth implements IAuthStrategy {
     }
 
     // Try to parse as base58 (Phantom wallet format)
-    // Would use bs58.decode in production
-    // For now, assume it's a hex string or base58
     if (/^[1-9A-HJ-NP-Za-km-z]+$/.test(key)) {
-      // Base58 format - would use bs58.decode
-      throw new Error(
-        'Base58 private key parsing requires bs58 library. ' +
-        'Please provide private key as JSON array format.'
-      );
+      try {
+        // Use bs58 for base58 decoding
+        const bs58 = require('bs58') as { decode: (str: string) => Uint8Array };
+        return bs58.decode(key);
+      } catch {
+        throw new Error('Invalid base58 private key format');
+      }
     }
 
     // Try hex format
@@ -194,22 +341,6 @@ export class JupiterAuth implements IAuthStrategy {
     }
 
     throw new Error('Unsupported private key format');
-  }
-
-  /**
-   * Derive wallet address from private key
-   * Placeholder - actual implementation requires @solana/web3.js
-   */
-  private deriveWalletAddress(): string {
-    // In production:
-    // const keypair = Keypair.fromSecretKey(this.privateKey);
-    // return keypair.publicKey.toBase58();
-
-    // Placeholder - return empty to indicate derivation not implemented
-    throw new Error(
-      'Wallet address derivation requires @solana/web3.js. ' +
-      'Please provide walletAddress in config.'
-    );
   }
 }
 

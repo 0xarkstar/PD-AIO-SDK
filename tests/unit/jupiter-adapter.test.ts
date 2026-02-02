@@ -57,10 +57,10 @@ describe('JupiterAdapter', () => {
       expect(adapter.has.fetchOrderBook).toBe(true);
     });
 
-    test('does not support trading via SDK', () => {
-      expect(adapter.has.createOrder).toBe(false);
-      expect(adapter.has.cancelOrder).toBe(false);
-      expect(adapter.has.cancelAllOrders).toBe(false);
+    test('supports createOrder, but not cancel (instant execution)', () => {
+      expect(adapter.has.createOrder).toBe(true);
+      expect(adapter.has.cancelOrder).toBe(false); // Jupiter uses instant execution
+      expect(adapter.has.cancelAllOrders).toBe(false); // Jupiter uses instant execution
     });
 
     test('supports account data', () => {
@@ -411,7 +411,7 @@ describe('JupiterAdapter', () => {
       );
     });
 
-    test('returns empty array with wallet (placeholder)', async () => {
+    test('requires Solana client for fetching positions with wallet', async () => {
       adapter = new JupiterAdapter({
         walletAddress: '7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs',
       });
@@ -431,9 +431,8 @@ describe('JupiterAdapter', () => {
       });
 
       await adapter.initialize();
-      const positions = await adapter.fetchPositions();
-
-      expect(positions).toEqual([]);
+      // Now requires Solana client initialization which throws when not properly configured
+      await expect(adapter.fetchPositions()).rejects.toThrow();
     });
   });
 
@@ -512,7 +511,7 @@ describe('JupiterAdapter', () => {
       await adapter.initialize();
     });
 
-    test('createOrder throws with SDK integration message', async () => {
+    test('createOrder throws without private key', async () => {
       await expect(
         adapter.createOrder({
           symbol: 'SOL/USD:USD',
@@ -520,7 +519,7 @@ describe('JupiterAdapter', () => {
           type: 'market',
           amount: 1,
         })
-      ).rejects.toThrow('Jupiter trading requires @solana/web3.js integration');
+      ).rejects.toThrow('Private key required for trading');
     });
 
     test('cancelOrder throws', async () => {

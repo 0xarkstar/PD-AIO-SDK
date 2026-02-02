@@ -80,34 +80,36 @@ describe('JupiterAuth', () => {
     });
   });
 
-  describe('createTransactionPayload', () => {
-    test('creates transaction payload with wallet address', async () => {
+  describe('Solana transaction support', () => {
+    test('canSign returns false when keypair initialization fails', async () => {
+      // Invalid keypair will fail to initialize but won't throw
+      const invalidKeypair = JSON.stringify(Array(64).fill(1));
+      const auth = new JupiterAuth({
+        privateKey: invalidKeypair,
+      });
+
+      // Wait for async initialization to potentially complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // canSign is false because the invalid keypair fails to load
+      expect(auth.canSign()).toBe(false);
+    });
+
+    test('canSign returns false without private key', () => {
       const auth = new JupiterAuth({
         walletAddress: '7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs',
       });
 
-      const payload = await auth.createTransactionPayload('openPosition', {
-        market: 'SOL-PERP',
-        side: 'long',
-        size: 100,
-      });
-
-      expect(payload.instruction).toBe('openPosition');
-      expect(payload.owner).toBe('7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs');
-      expect(payload.requiresSignature).toBe(true);
-      expect(payload.params).toEqual({
-        market: 'SOL-PERP',
-        side: 'long',
-        size: 100,
-      });
+      expect(auth.canSign()).toBe(false);
+      expect(auth.canRead()).toBe(true);
     });
 
-    test('throws without wallet address', async () => {
-      const auth = new JupiterAuth({});
+    test('wallet address is accessible', () => {
+      const auth = new JupiterAuth({
+        walletAddress: '7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs',
+      });
 
-      await expect(
-        auth.createTransactionPayload('openPosition', {})
-      ).rejects.toThrow('Wallet address required for transaction creation');
+      expect(auth.getWalletAddress()).toBe('7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs');
     });
   });
 });

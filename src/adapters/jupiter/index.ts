@@ -12,6 +12,28 @@ export { JupiterAdapter, type JupiterAdapterConfig } from './JupiterAdapter.js';
 // Authentication
 export { JupiterAuth, type JupiterAuthConfig, isValidSolanaAddress, isValidSolanaPrivateKey } from './JupiterAuth.js';
 
+// Solana Client
+export {
+  SolanaClient,
+  type SolanaClientConfig,
+  type TransactionResult,
+  type AccountFetchResult,
+  createSolanaClient,
+} from './solana.js';
+
+// Instruction Builder
+export {
+  JupiterInstructionBuilder,
+  type OpenPositionParams,
+  type ClosePositionParams,
+  type IncreaseSizeParams,
+  type DecreaseSizeParams,
+  type AddCollateralParams,
+  type RemoveCollateralParams,
+  type PositionAccounts,
+  createInstructionBuilder,
+} from './instructions.js';
+
 // Normalizer
 export { JupiterNormalizer } from './JupiterNormalizer.js';
 
