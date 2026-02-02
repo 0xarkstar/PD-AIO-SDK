@@ -59,6 +59,10 @@ describe('getSupportedExchanges', () => {
       'nado',
       'variational',
       'extended',
+      'dydx',
+      'jupiter',
+      'drift',
+      'gmx',
     ]);
   });
 });
@@ -72,7 +76,14 @@ describe('isExchangeSupported', () => {
 
   test('returns false for unsupported exchanges', () => {
     expect(isExchangeSupported('binance')).toBe(false);
-    expect(isExchangeSupported('dydx')).toBe(false);
+    expect(isExchangeSupported('ftx')).toBe(false);
     expect(isExchangeSupported('invalid')).toBe(false);
+  });
+
+  test('returns true for new adapters', () => {
+    expect(isExchangeSupported('dydx')).toBe(true);
+    expect(isExchangeSupported('jupiter')).toBe(true);
+    expect(isExchangeSupported('drift')).toBe(true);
+    expect(isExchangeSupported('gmx')).toBe(true);
   });
 });
