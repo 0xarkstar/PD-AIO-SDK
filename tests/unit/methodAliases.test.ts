@@ -89,13 +89,15 @@ class MockAdapter extends BaseAdapter {
   }
 
   async fetchFundingRate(symbol: string) {
+    // Use fixed timestamp to avoid flaky tests
+    const now = 1700000000000;
     return {
       symbol,
       fundingRate: 0.0001,
-      fundingTimestamp: Date.now() + 8 * 60 * 60 * 1000,
-      fundingDatetime: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
-      timestamp: Date.now(),
-      datetime: new Date().toISOString(),
+      fundingTimestamp: now + 8 * 60 * 60 * 1000,
+      fundingDatetime: new Date(now + 8 * 60 * 60 * 1000).toISOString(),
+      timestamp: now,
+      datetime: new Date(now).toISOString(),
     };
   }
 
