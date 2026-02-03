@@ -285,15 +285,15 @@ export declare const GRVTOrderBookSchema: z.ZodObject<{
     sequence: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     timestamp: number;
-    instrument: string;
     bids: [string, string][];
     asks: [string, string][];
+    instrument: string;
     sequence: number;
 }, {
     timestamp: number;
-    instrument: string;
     bids: [string, string][];
     asks: [string, string][];
+    instrument: string;
     sequence: number;
 }>;
 /**
@@ -318,9 +318,9 @@ export declare const GRVTOrderSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "OPEN" | "PENDING" | "PARTIALLY_FILLED" | "FILLED" | "CANCELLED" | "REJECTED";
     side: "BUY" | "SELL";
+    size: string;
     order_type: "MARKET" | "LIMIT" | "LIMIT_MAKER";
     instrument: string;
-    size: string;
     order_id: string;
     time_in_force: "GTC" | "IOC" | "FOK" | "POST_ONLY";
     reduce_only: boolean;
@@ -334,9 +334,9 @@ export declare const GRVTOrderSchema: z.ZodObject<{
 }, {
     status: "OPEN" | "PENDING" | "PARTIALLY_FILLED" | "FILLED" | "CANCELLED" | "REJECTED";
     side: "BUY" | "SELL";
+    size: string;
     order_type: "MARKET" | "LIMIT" | "LIMIT_MAKER";
     instrument: string;
-    size: string;
     order_id: string;
     time_in_force: "GTC" | "IOC" | "FOK" | "POST_ONLY";
     reduce_only: boolean;
@@ -366,26 +366,26 @@ export declare const GRVTPositionSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     margin: string;
     side: "LONG" | "SHORT";
+    leverage: string;
     timestamp: number;
-    instrument: string;
     size: string;
+    instrument: string;
     mark_price: string;
     entry_price: string;
     unrealized_pnl: string;
     realized_pnl: string;
-    leverage: string;
     liquidation_price?: string | undefined;
 }, {
     margin: string;
     side: "LONG" | "SHORT";
+    leverage: string;
     timestamp: number;
-    instrument: string;
     size: string;
+    instrument: string;
     mark_price: string;
     entry_price: string;
     unrealized_pnl: string;
     realized_pnl: string;
-    leverage: string;
     liquidation_price?: string | undefined;
 }>;
 /**
@@ -398,15 +398,15 @@ export declare const GRVTBalanceSchema: z.ZodObject<{
     reserved: z.ZodString;
     unrealized_pnl: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    currency: string;
     total: string;
     unrealized_pnl: string;
-    currency: string;
     available: string;
     reserved: string;
 }, {
+    currency: string;
     total: string;
     unrealized_pnl: string;
-    currency: string;
     available: string;
     reserved: string;
 }>;
@@ -423,18 +423,18 @@ export declare const GRVTTradeSchema: z.ZodObject<{
     is_buyer_maker: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     side: "BUY" | "SELL";
-    timestamp: number;
     price: string;
-    instrument: string;
+    timestamp: number;
     size: string;
+    instrument: string;
     trade_id: string;
     is_buyer_maker: boolean;
 }, {
     side: "BUY" | "SELL";
-    timestamp: number;
     price: string;
-    instrument: string;
+    timestamp: number;
     size: string;
+    instrument: string;
     trade_id: string;
     is_buyer_maker: boolean;
 }>;

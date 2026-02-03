@@ -239,9 +239,9 @@ export declare const VariationalMarketSchema: z.ZodObject<{
     quoteAsset: string;
     minOrderSize: string;
     tickSize: string;
-    maxOrderSize?: string | undefined;
-    contractSize?: string | undefined;
     maxLeverage?: string | undefined;
+    contractSize?: string | undefined;
+    maxOrderSize?: string | undefined;
     fundingInterval?: number | undefined;
     settlementTime?: number | undefined;
 }, {
@@ -251,9 +251,9 @@ export declare const VariationalMarketSchema: z.ZodObject<{
     quoteAsset: string;
     minOrderSize: string;
     tickSize: string;
-    maxOrderSize?: string | undefined;
-    contractSize?: string | undefined;
     maxLeverage?: string | undefined;
+    contractSize?: string | undefined;
+    maxOrderSize?: string | undefined;
     fundingInterval?: number | undefined;
     settlementTime?: number | undefined;
 }>;
@@ -321,18 +321,18 @@ export declare const VariationalTradeSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     symbol: string;
     side: "buy" | "sell";
-    timestamp: number;
-    id: string;
     amount: string;
     price: string;
+    id: string;
+    timestamp: number;
     isMaker?: boolean | undefined;
 }, {
     symbol: string;
     side: "buy" | "sell";
-    timestamp: number;
-    id: string;
     amount: string;
     price: string;
+    id: string;
+    timestamp: number;
     isMaker?: boolean | undefined;
 }>;
 export declare const VariationalQuoteSchema: z.ZodObject<{
@@ -348,20 +348,20 @@ export declare const VariationalQuoteSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     symbol: string;
     side: "buy" | "sell";
-    expiresAt: number;
-    timestamp: number;
     amount: string;
     price: string;
+    timestamp: number;
+    expiresAt: number;
     quoteId: string;
     marketMaker: string;
     spread?: string | undefined;
 }, {
     symbol: string;
     side: "buy" | "sell";
-    expiresAt: number;
-    timestamp: number;
     amount: string;
     price: string;
+    timestamp: number;
+    expiresAt: number;
     quoteId: string;
     marketMaker: string;
     spread?: string | undefined;
@@ -398,14 +398,14 @@ export declare const VariationalOrderSchema: z.ZodObject<{
     status: "open" | "expired" | "rejected" | "filled" | "pending" | "cancelled" | "partially_filled";
     type: "market" | "limit" | "rfq";
     side: "buy" | "sell";
-    orderId: string;
-    timestamp: number;
     amount: string;
+    timestamp: number;
+    orderId: string;
     price?: string | undefined;
-    clientOrderId?: string | undefined;
-    averagePrice?: string | undefined;
     reduceOnly?: boolean | undefined;
     postOnly?: boolean | undefined;
+    clientOrderId?: string | undefined;
+    averagePrice?: string | undefined;
     quoteId?: string | undefined;
     filledAmount?: string | undefined;
     remainingAmount?: string | undefined;
@@ -419,14 +419,14 @@ export declare const VariationalOrderSchema: z.ZodObject<{
     status: "open" | "expired" | "rejected" | "filled" | "pending" | "cancelled" | "partially_filled";
     type: "market" | "limit" | "rfq";
     side: "buy" | "sell";
-    orderId: string;
-    timestamp: number;
     amount: string;
+    timestamp: number;
+    orderId: string;
     price?: string | undefined;
-    clientOrderId?: string | undefined;
-    averagePrice?: string | undefined;
     reduceOnly?: boolean | undefined;
     postOnly?: boolean | undefined;
+    clientOrderId?: string | undefined;
+    averagePrice?: string | undefined;
     quoteId?: string | undefined;
     filledAmount?: string | undefined;
     remainingAmount?: string | undefined;
@@ -452,26 +452,26 @@ export declare const VariationalPositionSchema: z.ZodObject<{
     symbol: string;
     margin: string;
     side: "long" | "short";
-    timestamp: number;
-    markPrice: string;
-    size: string;
     leverage: string;
-    unrealizedPnl: string;
+    timestamp: number;
+    size: string;
     entryPrice: string;
-    realizedPnl?: string | undefined;
+    markPrice: string;
+    unrealizedPnl: string;
     liquidationPrice?: string | undefined;
+    realizedPnl?: string | undefined;
 }, {
     symbol: string;
     margin: string;
     side: "long" | "short";
-    timestamp: number;
-    markPrice: string;
-    size: string;
     leverage: string;
-    unrealizedPnl: string;
+    timestamp: number;
+    size: string;
     entryPrice: string;
-    realizedPnl?: string | undefined;
+    markPrice: string;
+    unrealizedPnl: string;
     liquidationPrice?: string | undefined;
+    realizedPnl?: string | undefined;
 }>;
 export declare const VariationalBalanceSchema: z.ZodObject<{
     asset: z.ZodString;
@@ -483,17 +483,17 @@ export declare const VariationalBalanceSchema: z.ZodObject<{
     timestamp: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     total: string;
+    free: string;
     locked: string;
     asset: string;
-    free: string;
     timestamp?: number | undefined;
     availableMargin?: string | undefined;
     usedMargin?: string | undefined;
 }, {
     total: string;
+    free: string;
     locked: string;
     asset: string;
-    free: string;
     timestamp?: number | undefined;
     availableMargin?: string | undefined;
     usedMargin?: string | undefined;

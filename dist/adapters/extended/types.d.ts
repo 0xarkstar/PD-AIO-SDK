@@ -238,9 +238,10 @@ export declare const ExtendedMarketSchema: z.ZodObject<{
     settlementPeriod: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     symbol: string;
+    pricePrecision: number;
+    maxLeverage: string;
     baseAsset: string;
     quoteAsset: string;
-    maxLeverage: string;
     fundingInterval: number;
     marketId: string;
     settleAsset: string;
@@ -250,14 +251,14 @@ export declare const ExtendedMarketSchema: z.ZodObject<{
     minPrice: string;
     maxPrice: string;
     quantityPrecision: number;
-    pricePrecision: number;
     contractMultiplier: string;
     settlementPeriod?: number | undefined;
 }, {
     symbol: string;
+    pricePrecision: number;
+    maxLeverage: string;
     baseAsset: string;
     quoteAsset: string;
-    maxLeverage: string;
     fundingInterval: number;
     marketId: string;
     settleAsset: string;
@@ -267,7 +268,6 @@ export declare const ExtendedMarketSchema: z.ZodObject<{
     minPrice: string;
     maxPrice: string;
     quantityPrecision: number;
-    pricePrecision: number;
     contractMultiplier: string;
     settlementPeriod?: number | undefined;
 }>;
@@ -301,8 +301,8 @@ export declare const ExtendedTickerSchema: z.ZodObject<{
     priceChangePercent24h: string;
     quoteVolume24h: string;
     markPrice?: string | undefined;
-    indexPrice?: string | undefined;
     fundingRate?: string | undefined;
+    indexPrice?: string | undefined;
     openInterest?: string | undefined;
     nextFundingTime?: number | undefined;
 }, {
@@ -318,8 +318,8 @@ export declare const ExtendedTickerSchema: z.ZodObject<{
     priceChangePercent24h: string;
     quoteVolume24h: string;
     markPrice?: string | undefined;
-    indexPrice?: string | undefined;
     fundingRate?: string | undefined;
+    indexPrice?: string | undefined;
     openInterest?: string | undefined;
     nextFundingTime?: number | undefined;
 }>;
@@ -335,15 +335,15 @@ export declare const ExtendedOrderBookSchema: z.ZodObject<{
     timestamp: number;
     bids: [string, string][];
     asks: [string, string][];
-    sequence?: number | undefined;
     checksum?: string | undefined;
+    sequence?: number | undefined;
 }, {
     symbol: string;
     timestamp: number;
     bids: [string, string][];
     asks: [string, string][];
-    sequence?: number | undefined;
     checksum?: string | undefined;
+    sequence?: number | undefined;
 }>;
 export declare const ExtendedTradeSchema: z.ZodObject<{
     id: z.ZodString;
@@ -357,18 +357,18 @@ export declare const ExtendedTradeSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     symbol: string;
     side: "buy" | "sell";
-    timestamp: number;
-    id: string;
     price: string;
+    id: string;
+    timestamp: number;
     quantity: string;
     isMaker?: boolean | undefined;
     tradeId?: string | undefined;
 }, {
     symbol: string;
     side: "buy" | "sell";
-    timestamp: number;
-    id: string;
     price: string;
+    id: string;
+    timestamp: number;
     quantity: string;
     isMaker?: boolean | undefined;
     tradeId?: string | undefined;
@@ -409,17 +409,17 @@ export declare const ExtendedOrderSchema: z.ZodObject<{
     status: "open" | "expired" | "rejected" | "filled" | "pending" | "cancelled" | "partially_filled";
     type: "market" | "limit" | "stop_limit" | "stop";
     side: "buy" | "sell";
-    orderId: string;
     timestamp: number;
+    orderId: string;
     quantity: string;
     price?: string | undefined;
-    clientOrderId?: string | undefined;
     stopPrice?: string | undefined;
-    averagePrice?: string | undefined;
     timeInForce?: "GTC" | "IOC" | "FOK" | undefined;
     reduceOnly?: boolean | undefined;
     postOnly?: boolean | undefined;
+    clientOrderId?: string | undefined;
     leverage?: string | undefined;
+    averagePrice?: string | undefined;
     marginMode?: "cross" | "isolated" | undefined;
     updateTime?: number | undefined;
     fees?: {
@@ -434,17 +434,17 @@ export declare const ExtendedOrderSchema: z.ZodObject<{
     status: "open" | "expired" | "rejected" | "filled" | "pending" | "cancelled" | "partially_filled";
     type: "market" | "limit" | "stop_limit" | "stop";
     side: "buy" | "sell";
-    orderId: string;
     timestamp: number;
+    orderId: string;
     quantity: string;
     price?: string | undefined;
-    clientOrderId?: string | undefined;
     stopPrice?: string | undefined;
-    averagePrice?: string | undefined;
     timeInForce?: "GTC" | "IOC" | "FOK" | undefined;
     reduceOnly?: boolean | undefined;
     postOnly?: boolean | undefined;
+    clientOrderId?: string | undefined;
     leverage?: string | undefined;
+    averagePrice?: string | undefined;
     marginMode?: "cross" | "isolated" | undefined;
     updateTime?: number | undefined;
     fees?: {
@@ -478,17 +478,17 @@ export declare const ExtendedPositionSchema: z.ZodObject<{
     symbol: string;
     margin: string;
     side: "long" | "short";
-    timestamp: number;
-    markPrice: string;
-    size: string;
     leverage: string;
+    timestamp: number;
+    size: string;
+    entryPrice: string;
+    markPrice: string;
+    liquidationPrice: string;
     unrealizedPnl: string;
     realizedPnl: string;
     marginMode: "cross" | "isolated";
-    entryPrice: string;
-    liquidationPrice: string;
-    initialMargin: string;
     maintenanceMargin: string;
+    initialMargin: string;
     indexPrice?: string | undefined;
     roi?: string | undefined;
     adlLevel?: number | undefined;
@@ -497,17 +497,17 @@ export declare const ExtendedPositionSchema: z.ZodObject<{
     symbol: string;
     margin: string;
     side: "long" | "short";
-    timestamp: number;
-    markPrice: string;
-    size: string;
     leverage: string;
+    timestamp: number;
+    size: string;
+    entryPrice: string;
+    markPrice: string;
+    liquidationPrice: string;
     unrealizedPnl: string;
     realizedPnl: string;
     marginMode: "cross" | "isolated";
-    entryPrice: string;
-    liquidationPrice: string;
-    initialMargin: string;
     maintenanceMargin: string;
+    initialMargin: string;
     indexPrice?: string | undefined;
     roi?: string | undefined;
     adlLevel?: number | undefined;
@@ -524,18 +524,18 @@ export declare const ExtendedBalanceSchema: z.ZodObject<{
     timestamp: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     total: string;
+    free: string;
     locked: string;
     asset: string;
-    free: string;
     availableMargin: string;
     usedMargin: string;
     timestamp?: number | undefined;
     equity?: string | undefined;
 }, {
     total: string;
+    free: string;
     locked: string;
     asset: string;
-    free: string;
     availableMargin: string;
     usedMargin: string;
     timestamp?: number | undefined;

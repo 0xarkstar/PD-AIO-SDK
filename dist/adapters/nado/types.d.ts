@@ -228,9 +228,9 @@ export declare const NadoOrderSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "open" | "expired" | "rejected" | "filled" | "cancelled";
     side: 0 | 1;
+    amount: string;
     timestamp: number;
     nonce: number;
-    amount: string;
     order_id: string;
     expiration: number;
     product_id: number;
@@ -246,9 +246,9 @@ export declare const NadoOrderSchema: z.ZodObject<{
 }, {
     status: "open" | "expired" | "rejected" | "filled" | "cancelled";
     side: 0 | 1;
+    amount: string;
     timestamp: number;
     nonce: number;
-    amount: string;
     order_id: string;
     expiration: number;
     product_id: number;
@@ -292,25 +292,25 @@ export declare const NadoPositionSchema: z.ZodObject<{
     timestamp: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     margin: string;
+    leverage: string;
     timestamp: number;
     size: string;
     mark_price: string;
     entry_price: string;
     unrealized_pnl: string;
     realized_pnl: string;
-    leverage: string;
     product_id: number;
     subaccount: string;
     liquidation_price?: string | undefined;
 }, {
     margin: string;
+    leverage: string;
     timestamp: number;
     size: string;
     mark_price: string;
     entry_price: string;
     unrealized_pnl: string;
     realized_pnl: string;
-    leverage: string;
     product_id: number;
     subaccount: string;
     liquidation_price?: string | undefined;
@@ -378,16 +378,16 @@ export declare const NadoTradeSchema: z.ZodObject<{
     is_maker: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     side: 0 | 1;
-    timestamp: number;
     price: string;
+    timestamp: number;
     size: string;
     trade_id: string;
     product_id: number;
     is_maker: boolean;
 }, {
     side: 0 | 1;
-    timestamp: number;
     price: string;
+    timestamp: number;
     size: string;
     trade_id: string;
     product_id: number;
