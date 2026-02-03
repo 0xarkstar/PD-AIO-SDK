@@ -769,3 +769,705 @@ describe('GMX Symbol Conversion', () => {
     });
   });
 });
+
+describe('GMX Error Mapping', () => {
+  let mapGmxError: typeof import('../../src/adapters/gmx/error-codes.js').mapGmxError;
+  let GmxErrorCodes: typeof import('../../src/adapters/gmx/error-codes.js').GmxErrorCodes;
+
+  beforeAll(async () => {
+    const errorModule = await import('../../src/adapters/gmx/error-codes.js');
+    mapGmxError = errorModule.mapGmxError;
+    GmxErrorCodes = errorModule.GmxErrorCodes;
+  });
+
+  describe('mapGmxError', () => {
+    test('should pass through PerpDEXError', async () => {
+      const { PerpDEXError } = await import('../../src/types/errors.js');
+      const perpError = new PerpDEXError('Test error', 'TEST_CODE', 'gmx');
+      const result = mapGmxError(perpError);
+      expect(result).toBe(perpError);
+    });
+
+    test('should map insufficient funds error', () => {
+      const error = new Error('insufficient funds for transaction');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('INSUFFICIENT_GAS');
+    });
+
+    test('should map nonce error', () => {
+      const error = new Error('nonce too low');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('NONCE_ERROR');
+    });
+
+    test('should map already known transaction error', () => {
+      const error = new Error('transaction already known');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('NONCE_ERROR');
+    });
+
+    test('should map signature error', () => {
+      const error = new Error('invalid signature');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('INVALID_SIGNATURE');
+    });
+
+    test('should map unauthorized error', () => {
+      const error = new Error('unauthorized access');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('INVALID_SIGNATURE');
+    });
+
+    test('should map rate limit error (429)', () => {
+      const error = new Error('429 Too Many Requests');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('RATE_LIMIT');
+    });
+
+    test('should map rate limit error (too many requests)', () => {
+      const error = new Error('too many requests');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('RATE_LIMIT');
+    });
+
+    test('should map 503 service unavailable', () => {
+      const error = new Error('503 Service Unavailable');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('API_UNAVAILABLE');
+    });
+
+    test('should map 502 bad gateway', () => {
+      const error = new Error('502 Bad Gateway');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('API_UNAVAILABLE');
+    });
+
+    test('should map 504 gateway timeout', () => {
+      const error = new Error('504 Gateway Timeout');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('API_UNAVAILABLE');
+    });
+
+    test('should map timeout error', () => {
+      const error = new Error('request timed out');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('TIMEOUT');
+    });
+
+    test('should map network error', () => {
+      const error = new Error('network connection failed');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('NETWORK_ERROR');
+    });
+
+    test('should map connection error', () => {
+      const error = new Error('connection refused');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('NETWORK_ERROR');
+    });
+
+    test('should map graphql error', () => {
+      const error = new Error('graphql query failed');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('SUBGRAPH_ERROR');
+    });
+
+    test('should map transaction reverted error', () => {
+      const error = new Error('transaction reverted');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('TX_REVERTED');
+    });
+
+    test('should map revert error', () => {
+      const error = new Error('execution revert');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('TX_REVERTED');
+    });
+
+    test('should map keeper error', () => {
+      // Note: "keeper execution failed" matches "execution failed" pattern first
+      // This tests the "keeper" pattern specifically
+      const error = new Error('keeper unavailable');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('KEEPER_ERROR');
+    });
+
+    test('should map invalid market error', () => {
+      const error = new Error('market not found');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('INVALID_MARKET');
+    });
+
+    test('should map disabled market error', () => {
+      const error = new Error('market is disabled');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('MARKET_DISABLED');
+    });
+
+    test('should map paused market error', () => {
+      const error = new Error('market is paused');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('MARKET_DISABLED');
+    });
+
+    test('should map position size error', () => {
+      const error = new Error('position size exceeds limit');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('MAX_POSITION_SIZE');
+    });
+
+    test('should map min collateral error', () => {
+      const error = new Error('min collateral not met');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('MIN_COLLATERAL');
+    });
+
+    test('should map unknown error to default', () => {
+      const error = new Error('some random error');
+      const result = mapGmxError(error);
+      expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+
+    test('should handle non-Error objects', () => {
+      const result = mapGmxError('string error');
+      expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+
+    test('should handle null/undefined', () => {
+      const result1 = mapGmxError(null);
+      expect(result1.code).toBe('UNKNOWN_ERROR');
+
+      const result2 = mapGmxError(undefined);
+      expect(result2.code).toBe('UNKNOWN_ERROR');
+    });
+  });
+
+  describe('GmxErrorCodes', () => {
+    test('should have all expected error codes', () => {
+      expect(GmxErrorCodes.INSUFFICIENT_MARGIN).toBe('INSUFFICIENT_MARGIN');
+      expect(GmxErrorCodes.INSUFFICIENT_BALANCE).toBe('INSUFFICIENT_BALANCE');
+      expect(GmxErrorCodes.INSUFFICIENT_GAS).toBe('INSUFFICIENT_GAS');
+      expect(GmxErrorCodes.MAX_LEVERAGE_EXCEEDED).toBe('MAX_LEVERAGE_EXCEEDED');
+      expect(GmxErrorCodes.MIN_ORDER_SIZE).toBe('MIN_ORDER_SIZE');
+      expect(GmxErrorCodes.MAX_POSITION_SIZE).toBe('MAX_POSITION_SIZE');
+      expect(GmxErrorCodes.MIN_COLLATERAL).toBe('MIN_COLLATERAL');
+      expect(GmxErrorCodes.SLIPPAGE_EXCEEDED).toBe('SLIPPAGE_EXCEEDED');
+      expect(GmxErrorCodes.INVALID_PRICE).toBe('INVALID_PRICE');
+      expect(GmxErrorCodes.POSITION_NOT_FOUND).toBe('POSITION_NOT_FOUND');
+      expect(GmxErrorCodes.POSITION_LIQUIDATED).toBe('POSITION_LIQUIDATED');
+      expect(GmxErrorCodes.ORDER_NOT_FOUND).toBe('ORDER_NOT_FOUND');
+      expect(GmxErrorCodes.ORDER_CANCELLED).toBe('ORDER_CANCELLED');
+      expect(GmxErrorCodes.INVALID_MARKET).toBe('INVALID_MARKET');
+      expect(GmxErrorCodes.ORACLE_ERROR).toBe('ORACLE_ERROR');
+      expect(GmxErrorCodes.INVALID_ORACLE_PRICE).toBe('INVALID_ORACLE_PRICE');
+      expect(GmxErrorCodes.MARKET_PAUSED).toBe('MARKET_PAUSED');
+      expect(GmxErrorCodes.MARKET_DISABLED).toBe('MARKET_DISABLED');
+      expect(GmxErrorCodes.TRANSACTION_FAILED).toBe('TRANSACTION_FAILED');
+      expect(GmxErrorCodes.TX_REVERTED).toBe('TX_REVERTED');
+      expect(GmxErrorCodes.NONCE_ERROR).toBe('NONCE_ERROR');
+      expect(GmxErrorCodes.INVALID_SIGNATURE).toBe('INVALID_SIGNATURE');
+      expect(GmxErrorCodes.KEEPER_ERROR).toBe('KEEPER_ERROR');
+      expect(GmxErrorCodes.KEEPER_EXECUTION_FAILED).toBe('KEEPER_EXECUTION_FAILED');
+      expect(GmxErrorCodes.RATE_LIMIT).toBe('RATE_LIMIT');
+      expect(GmxErrorCodes.API_UNAVAILABLE).toBe('API_UNAVAILABLE');
+      expect(GmxErrorCodes.NETWORK_ERROR).toBe('NETWORK_ERROR');
+      expect(GmxErrorCodes.TIMEOUT).toBe('TIMEOUT');
+      expect(GmxErrorCodes.SUBGRAPH_ERROR).toBe('SUBGRAPH_ERROR');
+      expect(GmxErrorCodes.LIQUIDATION).toBe('LIQUIDATION');
+      expect(GmxErrorCodes.UNKNOWN_ERROR).toBe('UNKNOWN_ERROR');
+    });
+  });
+});
+
+describe('GMX Auth Validation', () => {
+  let isValidEthereumAddress: typeof import('../../src/adapters/gmx/GmxAuth.js').isValidEthereumAddress;
+  let isValidEthereumPrivateKey: typeof import('../../src/adapters/gmx/GmxAuth.js').isValidEthereumPrivateKey;
+
+  beforeAll(async () => {
+    const authModule = await import('../../src/adapters/gmx/GmxAuth.js');
+    isValidEthereumAddress = authModule.isValidEthereumAddress;
+    isValidEthereumPrivateKey = authModule.isValidEthereumPrivateKey;
+  });
+
+  describe('isValidEthereumAddress', () => {
+    test('should accept valid checksummed address', () => {
+      expect(isValidEthereumAddress('0x70d95587d40A2caf56bd97485aB3Eec10Bee6336')).toBe(true);
+    });
+
+    test('should accept valid lowercase address', () => {
+      expect(isValidEthereumAddress('0x70d95587d40a2caf56bd97485ab3eec10bee6336')).toBe(true);
+    });
+
+    test('should accept valid uppercase address', () => {
+      expect(isValidEthereumAddress('0x70D95587D40A2CAF56BD97485AB3EEC10BEE6336')).toBe(true);
+    });
+
+    test('should accept address without 0x prefix (ethers.isAddress behavior)', () => {
+      // ethers.isAddress accepts addresses without 0x prefix
+      expect(isValidEthereumAddress('70d95587d40a2caf56bd97485ab3eec10bee6336')).toBe(true);
+    });
+
+    test('should reject short address', () => {
+      expect(isValidEthereumAddress('0x70d95587d40a2caf56bd97485ab3eec10bee633')).toBe(false);
+    });
+
+    test('should reject long address', () => {
+      expect(isValidEthereumAddress('0x70d95587d40a2caf56bd97485ab3eec10bee63360')).toBe(false);
+    });
+
+    test('should reject address with invalid characters', () => {
+      expect(isValidEthereumAddress('0x70d95587d40a2caf56bd97485ab3eec10bee633g')).toBe(false);
+    });
+
+    test('should reject empty string', () => {
+      expect(isValidEthereumAddress('')).toBe(false);
+    });
+
+    test('should reject non-hex string', () => {
+      expect(isValidEthereumAddress('not an address')).toBe(false);
+    });
+  });
+
+  describe('isValidEthereumPrivateKey', () => {
+    test('should accept valid private key with 0x prefix', () => {
+      const validKey = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+      expect(isValidEthereumPrivateKey(validKey)).toBe(true);
+    });
+
+    test('should accept valid private key without 0x prefix', () => {
+      const validKey = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+      expect(isValidEthereumPrivateKey(validKey)).toBe(true);
+    });
+
+    test('should reject short private key', () => {
+      expect(isValidEthereumPrivateKey('0x1234567890abcdef')).toBe(false);
+    });
+
+    test('should reject long private key', () => {
+      const longKey = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef00';
+      expect(isValidEthereumPrivateKey(longKey)).toBe(false);
+    });
+
+    test('should reject private key with invalid characters', () => {
+      const invalidKey = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdeg';
+      expect(isValidEthereumPrivateKey(invalidKey)).toBe(false);
+    });
+
+    test('should reject empty string', () => {
+      expect(isValidEthereumPrivateKey('')).toBe(false);
+    });
+
+    test('should reject non-hex string', () => {
+      expect(isValidEthereumPrivateKey('not a private key')).toBe(false);
+    });
+  });
+});
+
+describe('GMX Subgraph Normalizers', () => {
+  let GmxSubgraph: typeof import('../../src/adapters/gmx/GmxSubgraph.js').GmxSubgraph;
+  let subgraph: InstanceType<typeof import('../../src/adapters/gmx/GmxSubgraph.js').GmxSubgraph>;
+
+  beforeAll(async () => {
+    const subgraphModule = await import('../../src/adapters/gmx/GmxSubgraph.js');
+    GmxSubgraph = subgraphModule.GmxSubgraph;
+    subgraph = new GmxSubgraph('arbitrum');
+  });
+
+  describe('normalizePosition', () => {
+    test('should normalize long position correctly', () => {
+      // GMX_PRECISION.USD = 1e30, so "1e32" = 100 USD
+      const mockPosition = {
+        id: 'pos-1',
+        account: '0xaccount',
+        market: '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
+        collateralToken: '0xusdc',
+        sizeInUsd: '100000000000000000000000000000000', // 1e32 / 1e30 = 100 USD
+        sizeInTokens: '50000000000000000000', // parseFloat = 5e19 (raw number used for entry price calc)
+        collateralAmount: '10000000000000000000', // parseFloat = 1e19
+        borrowingFactor: '0',
+        fundingFeeAmountPerSize: '0',
+        longTokenClaimableFundingAmountPerSize: '0',
+        shortTokenClaimableFundingAmountPerSize: '0',
+        increasedAtBlock: '1000',
+        decreasedAtBlock: '0',
+        isLong: true,
+      };
+
+      const result = subgraph.normalizePosition(mockPosition, 2000);
+
+      expect(result.side).toBe('long');
+      expect(result.isLong).toBe(true);
+      expect(result.marketAddress).toBe(mockPosition.market);
+      expect(result.sizeUsd).toBe(100); // 1e32 / 1e30 = 100 USD
+      expect(result.collateral).toBe(1e19); // raw parseFloat
+    });
+
+    test('should normalize short position correctly', () => {
+      const mockPosition = {
+        id: 'pos-2',
+        account: '0xaccount',
+        market: '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
+        collateralToken: '0xusdc',
+        sizeInUsd: '50000000000000000000000000000000', // 5e31 / 1e30 = 50 USD
+        sizeInTokens: '25000000000000000000', // 25 tokens
+        collateralAmount: '5000000000000000000', // 5 tokens
+        borrowingFactor: '0',
+        fundingFeeAmountPerSize: '0',
+        longTokenClaimableFundingAmountPerSize: '0',
+        shortTokenClaimableFundingAmountPerSize: '0',
+        increasedAtBlock: '1000',
+        decreasedAtBlock: '0',
+        isLong: false,
+      };
+
+      const result = subgraph.normalizePosition(mockPosition, 2000);
+
+      expect(result.side).toBe('short');
+      expect(result.isLong).toBe(false);
+      expect(result.sizeUsd).toBe(50); // 5e31 / 1e30 = 50 USD
+    });
+
+    test('should calculate leverage correctly', () => {
+      // With sizeUsd=100 and collateral=10000, leverage = 100/10000 = 0.01
+      const mockPosition = {
+        id: 'pos-3',
+        account: '0xaccount',
+        market: '0xmarket',
+        collateralToken: '0xusdc',
+        sizeInUsd: '100000000000000000000000000000000', // 100 USD
+        sizeInTokens: '50000000000000000000',
+        collateralAmount: '10000', // 10000 collateral
+        borrowingFactor: '0',
+        fundingFeeAmountPerSize: '0',
+        longTokenClaimableFundingAmountPerSize: '0',
+        shortTokenClaimableFundingAmountPerSize: '0',
+        increasedAtBlock: '1000',
+        decreasedAtBlock: '0',
+        isLong: true,
+      };
+
+      const result = subgraph.normalizePosition(mockPosition, 2000);
+
+      // leverage = sizeUsd / collateral = 100 / 10000 = 0.01
+      expect(result.leverage).toBe(100 / 10000);
+    });
+  });
+
+  describe('normalizeOrder', () => {
+    test('should normalize market increase order', () => {
+      const mockOrder = {
+        key: 'order-1',
+        account: '0xaccount',
+        receiver: '0xreceiver',
+        callbackContract: '0x0',
+        uiFeeReceiver: '0x0',
+        market: '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
+        initialCollateralToken: '0xusdc',
+        swapPath: [],
+        orderType: 0, // MarketIncrease
+        decreasePositionSwapType: 0,
+        sizeDeltaUsd: '100000000000000000000000000000000', // $100k
+        initialCollateralDeltaAmount: '10000000000000000000',
+        triggerPrice: '0',
+        acceptablePrice: '2000000000000000000000000000000', // $2000
+        executionFee: '100000000000000',
+        callbackGasLimit: '0',
+        minOutputAmount: '0',
+        updatedAtBlock: '1000',
+        isLong: true,
+        isFrozen: false,
+        status: 'Created',
+        createdTxn: '0xtx1',
+        cancelledTxn: undefined,
+        executedTxn: undefined,
+      };
+
+      const result = subgraph.normalizeOrder(mockOrder);
+
+      expect(result.id).toBe('order-1');
+      expect(result.type).toBe('market');
+      expect(result.side).toBe('buy'); // Long increase = buy
+      expect(result.isLong).toBe(true);
+      expect(result.status).toBe('open');
+    });
+
+    test('should normalize limit decrease order', () => {
+      // triggerPrice: 2.1e30 / 1e30 = 2.1
+      const mockOrder = {
+        key: 'order-2',
+        account: '0xaccount',
+        receiver: '0xreceiver',
+        callbackContract: '0x0',
+        uiFeeReceiver: '0x0',
+        market: '0xmarket',
+        initialCollateralToken: '0xusdc',
+        swapPath: [],
+        orderType: 3, // LimitDecrease
+        decreasePositionSwapType: 0,
+        sizeDeltaUsd: '50000000000000000000000000000000',
+        initialCollateralDeltaAmount: '0',
+        triggerPrice: '2100000000000000000000000000000', // 2.1e30 / 1e30 = 2.1
+        acceptablePrice: '2095000000000000000000000000000',
+        executionFee: '100000000000000',
+        callbackGasLimit: '0',
+        minOutputAmount: '0',
+        updatedAtBlock: '1000',
+        isLong: true,
+        isFrozen: false,
+        status: 'Executed',
+        createdTxn: '0xtx1',
+        cancelledTxn: undefined,
+        executedTxn: '0xtx2',
+      };
+
+      const result = subgraph.normalizeOrder(mockOrder);
+
+      expect(result.type).toBe('limit');
+      expect(result.side).toBe('sell'); // Long decrease = sell
+      expect(result.status).toBe('filled');
+      expect(result.triggerPrice).toBe(2.1); // 2.1e30 / 1e30 = 2.1
+    });
+
+    test('should normalize stop loss order', () => {
+      const mockOrder = {
+        key: 'order-3',
+        account: '0xaccount',
+        receiver: '0xreceiver',
+        callbackContract: '0x0',
+        uiFeeReceiver: '0x0',
+        market: '0xmarket',
+        initialCollateralToken: '0xusdc',
+        swapPath: [],
+        orderType: 4, // StopLossDecrease
+        decreasePositionSwapType: 0,
+        sizeDeltaUsd: '50000000000000000000000000000000',
+        initialCollateralDeltaAmount: '0',
+        triggerPrice: '1900000000000000000000000000000', // $1900
+        acceptablePrice: '1890000000000000000000000000000',
+        executionFee: '100000000000000',
+        callbackGasLimit: '0',
+        minOutputAmount: '0',
+        updatedAtBlock: '1000',
+        isLong: true,
+        isFrozen: false,
+        status: 'Cancelled',
+        createdTxn: '0xtx1',
+        cancelledTxn: '0xtx3',
+        executedTxn: undefined,
+      };
+
+      const result = subgraph.normalizeOrder(mockOrder);
+
+      expect(result.type).toBe('stopMarket');
+      expect(result.status).toBe('cancelled');
+    });
+
+    test('should normalize short order sides correctly', () => {
+      const mockShortIncrease = {
+        key: 'order-4',
+        account: '0xaccount',
+        receiver: '0xreceiver',
+        callbackContract: '0x0',
+        uiFeeReceiver: '0x0',
+        market: '0xmarket',
+        initialCollateralToken: '0xusdc',
+        swapPath: [],
+        orderType: 0, // MarketIncrease
+        decreasePositionSwapType: 0,
+        sizeDeltaUsd: '50000000000000000000000000000000',
+        initialCollateralDeltaAmount: '5000000000000000000',
+        triggerPrice: '0',
+        acceptablePrice: '2000000000000000000000000000000',
+        executionFee: '100000000000000',
+        callbackGasLimit: '0',
+        minOutputAmount: '0',
+        updatedAtBlock: '1000',
+        isLong: false, // Short
+        isFrozen: false,
+        status: 'Created',
+        createdTxn: '0xtx1',
+        cancelledTxn: undefined,
+        executedTxn: undefined,
+      };
+
+      const result = subgraph.normalizeOrder(mockShortIncrease);
+
+      expect(result.side).toBe('sell'); // Short increase = sell
+      expect(result.isLong).toBe(false);
+    });
+  });
+
+  describe('normalizeTrade', () => {
+    test('should normalize trade correctly', () => {
+      // All values are scaled by GMX_PRECISION (1e30)
+      // sizeDeltaUsd: 1e32 / 1e30 = 100 USD
+      // executionPrice: 2e30 / 1e30 = 2
+      // pnlUsd: 5e30 / 1e30 = 5
+      // priceImpactUsd: 1e27 / 1e30 = 0.001
+      const mockTrade = {
+        id: 'trade-1',
+        account: '0xaccount',
+        marketAddress: '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
+        collateralTokenAddress: '0xusdc',
+        sizeDeltaUsd: '100000000000000000000000000000000', // 1e32 / 1e30 = 100 USD
+        collateralDeltaAmount: '10000000000000000000',
+        orderType: 0, // MarketIncrease
+        isLong: true,
+        executionPrice: '2000000000000000000000000000000', // 2e30 / 1e30 = 2
+        priceImpactUsd: '1000000000000000000000000000', // 1e27 / 1e30 = 0.001
+        pnlUsd: '5000000000000000000000000000000', // 5e30 / 1e30 = 5
+        timestamp: '1700000000',
+        transactionHash: '0xtxhash',
+      };
+
+      const result = subgraph.normalizeTrade(mockTrade);
+
+      expect(result.id).toBe('trade-1');
+      expect(result.side).toBe('buy');
+      expect(result.isLong).toBe(true);
+      expect(result.price).toBe(2); // 2e30 / 1e30 = 2
+      expect(result.cost).toBe(100); // 1e32 / 1e30 = 100 USD
+      expect(result.pnl).toBe(5); // 5e30 / 1e30 = 5
+      expect(result.priceImpact).toBe(0.001); // 1e27 / 1e30 = 0.001
+      expect(result.timestamp).toBe(1700000000000); // milliseconds
+      expect(result.transactionHash).toBe('0xtxhash');
+    });
+
+    test('should normalize short decrease trade', () => {
+      const mockTrade = {
+        id: 'trade-2',
+        account: '0xaccount',
+        marketAddress: '0xmarket',
+        collateralTokenAddress: '0xusdc',
+        sizeDeltaUsd: '50000000000000000000000000000000', // $50k
+        collateralDeltaAmount: '5000000000000000000',
+        orderType: 1, // MarketDecrease
+        isLong: false, // Short
+        executionPrice: '1900000000000000000000000000000', // $1900
+        priceImpactUsd: '0',
+        pnlUsd: '2500000000000000000000000000000', // $2500
+        timestamp: '1700000100',
+        transactionHash: '0xtxhash2',
+      };
+
+      const result = subgraph.normalizeTrade(mockTrade);
+
+      expect(result.side).toBe('buy'); // Short decrease = buy (closing short)
+      expect(result.isLong).toBe(false);
+    });
+
+    test('should handle trade without PnL', () => {
+      const mockTrade = {
+        id: 'trade-3',
+        account: '0xaccount',
+        marketAddress: '0xmarket',
+        collateralTokenAddress: '0xusdc',
+        sizeDeltaUsd: '50000000000000000000000000000000',
+        collateralDeltaAmount: '5000000000000000000',
+        orderType: 0,
+        isLong: true,
+        executionPrice: '2000000000000000000000000000000',
+        priceImpactUsd: '0',
+        timestamp: '1700000200',
+        transactionHash: '0xtxhash3',
+      };
+
+      const result = subgraph.normalizeTrade(mockTrade);
+
+      expect(result.pnl).toBe(0);
+    });
+  });
+});
+
+describe('GMX Additional Constants Tests', () => {
+  let GMX_PRECISION: typeof import('../../src/adapters/gmx/constants.js').GMX_PRECISION;
+  let GMX_DECREASE_POSITION_SWAP_TYPES: typeof import('../../src/adapters/gmx/constants.js').GMX_DECREASE_POSITION_SWAP_TYPES;
+  let GMX_ERROR_MESSAGES: typeof import('../../src/adapters/gmx/constants.js').GMX_ERROR_MESSAGES;
+  let GMX_FUNDING: typeof import('../../src/adapters/gmx/constants.js').GMX_FUNDING;
+  let GMX_RATE_LIMIT: typeof import('../../src/adapters/gmx/constants.js').GMX_RATE_LIMIT;
+
+  beforeAll(async () => {
+    const constantsModule = await import('../../src/adapters/gmx/constants.js');
+    GMX_PRECISION = constantsModule.GMX_PRECISION;
+    GMX_DECREASE_POSITION_SWAP_TYPES = constantsModule.GMX_DECREASE_POSITION_SWAP_TYPES;
+    GMX_ERROR_MESSAGES = constantsModule.GMX_ERROR_MESSAGES;
+    GMX_FUNDING = constantsModule.GMX_FUNDING;
+    GMX_RATE_LIMIT = constantsModule.GMX_RATE_LIMIT;
+  });
+
+  describe('GMX_PRECISION', () => {
+    test('should have USD precision of 1e30', () => {
+      expect(GMX_PRECISION.USD).toBe(1e30);
+    });
+
+    test('should have PRICE precision of 1e30', () => {
+      expect(GMX_PRECISION.PRICE).toBe(1e30);
+    });
+
+    test('should have FACTOR precision of 1e30', () => {
+      expect(GMX_PRECISION.FACTOR).toBe(1e30);
+    });
+
+    test('should have BASIS_POINTS of 1e4', () => {
+      expect(GMX_PRECISION.BASIS_POINTS).toBe(1e4);
+    });
+
+    test('should have FLOAT precision of 1e8', () => {
+      expect(GMX_PRECISION.FLOAT).toBe(1e8);
+    });
+
+    test('should have TOKEN_DECIMALS mapping', () => {
+      expect(GMX_PRECISION.TOKEN_DECIMALS).toBeDefined();
+      expect(GMX_PRECISION.TOKEN_DECIMALS.ETH).toBe(18);
+      expect(GMX_PRECISION.TOKEN_DECIMALS.USDC).toBe(6);
+      expect(GMX_PRECISION.TOKEN_DECIMALS.BTC).toBe(8);
+    });
+  });
+
+  describe('GMX_DECREASE_POSITION_SWAP_TYPES', () => {
+    test('should have expected swap types', () => {
+      expect(GMX_DECREASE_POSITION_SWAP_TYPES.NO_SWAP).toBe(0);
+      expect(GMX_DECREASE_POSITION_SWAP_TYPES.SWAP_PNL_TOKEN_TO_COLLATERAL).toBe(1);
+      expect(GMX_DECREASE_POSITION_SWAP_TYPES.SWAP_COLLATERAL_TO_PNL_TOKEN).toBe(2);
+    });
+  });
+
+  describe('GMX_ERROR_MESSAGES', () => {
+    test('should have error message mappings', () => {
+      expect(GMX_ERROR_MESSAGES).toBeDefined();
+      expect(typeof GMX_ERROR_MESSAGES).toBe('object');
+    });
+
+    test('should map common error patterns', () => {
+      const keys = Object.keys(GMX_ERROR_MESSAGES);
+      expect(keys.length).toBeGreaterThan(0);
+      expect(GMX_ERROR_MESSAGES['insufficient collateral']).toBe('INSUFFICIENT_MARGIN');
+      expect(GMX_ERROR_MESSAGES['insufficient balance']).toBe('INSUFFICIENT_BALANCE');
+      expect(GMX_ERROR_MESSAGES['oracle error']).toBe('ORACLE_ERROR');
+    });
+  });
+
+  describe('GMX_FUNDING', () => {
+    test('should have funding calculation type', () => {
+      expect(GMX_FUNDING.calculationType).toBe('continuous');
+    });
+
+    test('should have base rate factor', () => {
+      expect(GMX_FUNDING.baseRateFactor).toBeDefined();
+      expect(GMX_FUNDING.baseRateFactor).toBeGreaterThan(0);
+    });
+  });
+
+  describe('GMX_RATE_LIMIT', () => {
+    test('should have rate limit config', () => {
+      expect(GMX_RATE_LIMIT.maxRequests).toBe(60);
+      expect(GMX_RATE_LIMIT.windowMs).toBe(60000);
+    });
+
+    test('should have weight config', () => {
+      expect(GMX_RATE_LIMIT.weights).toBeDefined();
+      expect(GMX_RATE_LIMIT.weights.fetchMarkets).toBe(1);
+      expect(GMX_RATE_LIMIT.weights.fetchPositions).toBe(3);
+    });
+  });
+});
