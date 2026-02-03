@@ -793,6 +793,28 @@ export class BaseAdapter {
         return this.has[feature] === true;
     }
     /**
+     * Assert that a feature is supported, throwing an error if not
+     *
+     * Use this at the beginning of methods that require specific features
+     * to provide clear error messages when unsupported features are called.
+     *
+     * @param feature - The feature to check
+     * @throws NotSupportedError if the feature is not supported
+     *
+     * @example
+     * ```typescript
+     * async fetchOHLCV(symbol: string, timeframe: OHLCVTimeframe): Promise<OHLCV[]> {
+     *   this.assertFeatureSupported('fetchOHLCV');
+     *   // ... implementation
+     * }
+     * ```
+     */
+    assertFeatureSupported(feature) {
+        if (!this.has[feature]) {
+            throw new NotSupportedError(`Feature '${feature}' is not supported by ${this.name}`, 'NOT_SUPPORTED', this.id);
+        }
+    }
+    /**
      * Ensure adapter is initialized
      */
     ensureInitialized() {

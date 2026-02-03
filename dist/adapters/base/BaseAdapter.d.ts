@@ -304,6 +304,24 @@ export declare abstract class BaseAdapter implements IExchangeAdapter {
      */
     protected supportsFeature(feature: keyof FeatureMap): boolean;
     /**
+     * Assert that a feature is supported, throwing an error if not
+     *
+     * Use this at the beginning of methods that require specific features
+     * to provide clear error messages when unsupported features are called.
+     *
+     * @param feature - The feature to check
+     * @throws NotSupportedError if the feature is not supported
+     *
+     * @example
+     * ```typescript
+     * async fetchOHLCV(symbol: string, timeframe: OHLCVTimeframe): Promise<OHLCV[]> {
+     *   this.assertFeatureSupported('fetchOHLCV');
+     *   // ... implementation
+     * }
+     * ```
+     */
+    protected assertFeatureSupported(feature: keyof FeatureMap): void;
+    /**
      * Ensure adapter is initialized
      */
     protected ensureInitialized(): void;
