@@ -29,11 +29,13 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "native"
   ],
   "scripts": {
     "prepare": "npm run build",
-    "build": "tsc",
+    "build": "tsc && npm run build:cjs",
+    "build:cjs": "esbuild src/index.ts --bundle --platform=node --format=cjs --outfile=dist/index.cjs --external:ws --external:ethers --external:starknet --external:@drift-labs/sdk --external:@grvt/client --external:@paradex/sdk --external:@solana/web3.js --external:koffi --external:prom-client --external:@oraichain/lighter-ts-sdk",
     "dev": "tsc --watch",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -109,6 +111,7 @@
     "@types/ws": "^8.5.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "esbuild": "^0.20.2",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.0",

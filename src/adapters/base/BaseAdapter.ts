@@ -35,7 +35,7 @@ import type {
   Transaction,
   UserFees,
 } from '../../types/index.js';
-import { NotSupportedError } from '../../types/errors.js';
+import { NotSupportedError, PerpDEXError } from '../../types/errors.js';
 import type {
   HealthCheckConfig,
   HealthCheckResult,
@@ -48,6 +48,8 @@ import { Logger, LogLevel, generateCorrelationId } from '../../core/logger.js';
 import { CircuitBreaker } from '../../core/CircuitBreaker.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { PrometheusMetrics, isMetricsInitialized, getMetrics } from '../../monitoring/prometheus.js';
+import type { RateLimiter } from '../../core/RateLimiter.js';
+import { validateOrderRequest, createValidator } from '../../core/validation/middleware.js';
 
 export abstract class BaseAdapter implements IExchangeAdapter {
   abstract readonly id: string;
@@ -58,7 +60,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   protected _isDisconnected = false;
   protected readonly config: ExchangeConfig;
   protected authStrategy?: IAuthStrategy;
-  protected rateLimiter?: any; // Rate limiter instance (if used)
+  protected rateLimiter?: RateLimiter;
   private _logger?: Logger;
   protected circuitBreaker: CircuitBreaker;
   protected httpClient?: HTTPClient;
@@ -1093,6 +1095,74 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     }
   }
 
+  // ===========================================================================
+  // Input Validation
+  // ===========================================================================
+
+  /**
+   * Validate an order request using Zod schemas
+   *
+   * Validates that the order request has all required fields and
+   * enforces type-specific constraints (e.g., limit orders need price).
+   *
+   * @param request - Order request to validate
+   * @param correlationId - Optional correlation ID for error tracking
+   * @returns Validated order request
+   * @throws {InvalidOrderError} If validation fails
+   *
+   * @example
+   * ```typescript
+   * async createOrder(request: OrderRequest): Promise<Order> {
+   *   const validated = this.validateOrder(request);
+   *   // ... create order with validated data
+   * }
+   * ```
+   */
+  protected validateOrder(request: OrderRequest, correlationId?: string): OrderRequest {
+    return validateOrderRequest(request, {
+      exchange: this.id,
+      context: correlationId ? { correlationId } : undefined,
+    }) as OrderRequest;
+  }
+
+  /**
+   * Get a validator instance for this adapter
+   *
+   * Creates a validator bound to this adapter's exchange ID
+   * for use with custom validation needs.
+   *
+   * @returns Validator with methods for common validation tasks
+   *
+   * @example
+   * ```typescript
+   * const validator = this.getValidator();
+   * const params = validator.orderBookParams(rawParams);
+   * ```
+   */
+  protected getValidator() {
+    return createValidator(this.id);
+  }
+
+  /**
+   * Attach correlation ID to an error for request tracing
+   *
+   * If the error is a PerpDEXError, attaches the correlation ID directly.
+   * Otherwise, wraps the error in a PerpDEXError with the correlation ID.
+   *
+   * @param error - Error to attach correlation ID to
+   * @param correlationId - Correlation ID for request tracing
+   * @returns Error with correlation ID attached
+   */
+  protected attachCorrelationId(error: unknown, correlationId: string): Error {
+    if (error instanceof PerpDEXError) {
+      error.withCorrelationId(correlationId);
+      return error;
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    return new PerpDEXError(message, 'REQUEST_ERROR', this.id, error).withCorrelationId(correlationId);
+  }
+
   /**
    * Convert unified symbol to exchange-specific format
    * Must be implemented by subclass
@@ -1259,11 +1329,12 @@ export abstract class BaseAdapter implements IExchangeAdapter {
             continue;
           }
 
-          throw error;
+          // Attach correlation ID to PerpDEXError instances
+          throw this.attachCorrelationId(error, correlationId);
         }
       }
 
-      throw lastError || new Error('Request failed after retries');
+      throw this.attachCorrelationId(lastError || new Error('Request failed after retries'), correlationId);
     });
   }
 

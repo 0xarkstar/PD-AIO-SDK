@@ -10,6 +10,7 @@ import { Logger } from '../../core/logger.js';
 import { CircuitBreaker } from '../../core/CircuitBreaker.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { PrometheusMetrics } from '../../monitoring/prometheus.js';
+import type { RateLimiter } from '../../core/RateLimiter.js';
 export declare abstract class BaseAdapter implements IExchangeAdapter {
     abstract readonly id: string;
     abstract readonly name: string;
@@ -18,7 +19,7 @@ export declare abstract class BaseAdapter implements IExchangeAdapter {
     protected _isDisconnected: boolean;
     protected readonly config: ExchangeConfig;
     protected authStrategy?: IAuthStrategy;
-    protected rateLimiter?: any;
+    protected rateLimiter?: RateLimiter;
     private _logger?;
     protected circuitBreaker: CircuitBreaker;
     protected httpClient?: HTTPClient;
@@ -325,6 +326,61 @@ export declare abstract class BaseAdapter implements IExchangeAdapter {
      * Ensure adapter is initialized
      */
     protected ensureInitialized(): void;
+    /**
+     * Validate an order request using Zod schemas
+     *
+     * Validates that the order request has all required fields and
+     * enforces type-specific constraints (e.g., limit orders need price).
+     *
+     * @param request - Order request to validate
+     * @param correlationId - Optional correlation ID for error tracking
+     * @returns Validated order request
+     * @throws {InvalidOrderError} If validation fails
+     *
+     * @example
+     * ```typescript
+     * async createOrder(request: OrderRequest): Promise<Order> {
+     *   const validated = this.validateOrder(request);
+     *   // ... create order with validated data
+     * }
+     * ```
+     */
+    protected validateOrder(request: OrderRequest, correlationId?: string): OrderRequest;
+    /**
+     * Get a validator instance for this adapter
+     *
+     * Creates a validator bound to this adapter's exchange ID
+     * for use with custom validation needs.
+     *
+     * @returns Validator with methods for common validation tasks
+     *
+     * @example
+     * ```typescript
+     * const validator = this.getValidator();
+     * const params = validator.orderBookParams(rawParams);
+     * ```
+     */
+    protected getValidator(): {
+        validate: <T>(schema: import("zod").ZodType<T>, data: unknown, context?: import("../../core/logger.js").RequestContext) => T;
+        orderRequest: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../index.js").OrderRequestSchema>;
+        orderBookParams: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../core/index.js").OrderBookParamsSchema> | undefined;
+        tradeParams: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../core/index.js").TradeParamsSchema> | undefined;
+        marketParams: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../core/index.js").MarketParamsSchema> | undefined;
+        ohlcvParams: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../core/validation/schemas.js").OHLCVParamsSchema> | undefined;
+        ohlcvTimeframe: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../core/validation/schemas.js").OHLCVTimeframeSchema>;
+        array: <T>(schema: import("zod").ZodType<T>, data: unknown[], context?: import("../../core/logger.js").RequestContext) => T[];
+    };
+    /**
+     * Attach correlation ID to an error for request tracing
+     *
+     * If the error is a PerpDEXError, attaches the correlation ID directly.
+     * Otherwise, wraps the error in a PerpDEXError with the correlation ID.
+     *
+     * @param error - Error to attach correlation ID to
+     * @param correlationId - Correlation ID for request tracing
+     * @returns Error with correlation ID attached
+     */
+    protected attachCorrelationId(error: unknown, correlationId: string): Error;
     /**
      * Convert unified symbol to exchange-specific format
      * Must be implemented by subclass

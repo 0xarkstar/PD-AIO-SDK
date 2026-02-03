@@ -11,24 +11,34 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 /**
  * Get the appropriate native library filename for the current platform
+ *
+ * Supported platforms:
+ * - darwin-arm64 (Apple Silicon Mac)
+ * - darwin-amd64 (Intel Mac) - requires binary to be built separately
+ * - linux-arm64
+ * - linux-amd64
+ * - win32-amd64
+ *
+ * @throws Error if platform is not supported with guidance on alternatives
  */
 function getLibraryFilename() {
     const os = platform();
     const architecture = arch();
-    switch (os) {
-        case 'darwin':
-            return architecture === 'arm64'
-                ? 'lighter-signer-darwin-arm64.dylib'
-                : 'lighter-signer-darwin-amd64.dylib';
-        case 'linux':
-            return architecture === 'arm64'
-                ? 'lighter-signer-linux-arm64.so'
-                : 'lighter-signer-linux-amd64.so';
-        case 'win32':
-            return 'lighter-signer-windows-amd64.dll';
-        default:
-            throw new Error(`Unsupported platform: ${os}-${architecture}`);
+    const platformKey = `${os}-${architecture === 'x64' ? 'amd64' : architecture}`;
+    const platformMap = {
+        'darwin-arm64': 'lighter-signer-darwin-arm64.dylib',
+        'darwin-amd64': 'lighter-signer-darwin-amd64.dylib',
+        'linux-arm64': 'lighter-signer-linux-arm64.so',
+        'linux-amd64': 'lighter-signer-linux-amd64.so',
+        'win32-amd64': 'lighter-signer-windows-amd64.dll',
+    };
+    const filename = platformMap[platformKey];
+    if (!filename) {
+        throw new Error(`Native signer not supported on ${os}-${architecture}. ` +
+            `Supported platforms: ${Object.keys(platformMap).join(', ')}. ` +
+            `Consider using WASM signer (LighterWasmSigner) as a cross-platform alternative.`);
     }
+    return filename;
 }
 /**
  * Find the native library path

@@ -3,18 +3,19 @@
  *
  * Abstract base class providing common functionality for all adapters
  */
-import { NotSupportedError } from '../../types/errors.js';
+import { NotSupportedError, PerpDEXError } from '../../types/errors.js';
 import { determineHealthStatus } from '../../types/health.js';
 import { createMetricsSnapshot } from '../../types/metrics.js';
 import { Logger, LogLevel, generateCorrelationId } from '../../core/logger.js';
 import { CircuitBreaker } from '../../core/CircuitBreaker.js';
 import { isMetricsInitialized, getMetrics } from '../../monitoring/prometheus.js';
+import { validateOrderRequest, createValidator } from '../../core/validation/middleware.js';
 export class BaseAdapter {
     _isReady = false;
     _isDisconnected = false;
     config;
     authStrategy;
-    rateLimiter; // Rate limiter instance (if used)
+    rateLimiter;
     _logger;
     circuitBreaker;
     httpClient;
@@ -822,6 +823,69 @@ export class BaseAdapter {
             throw new Error(`${this.name} adapter not initialized. Call initialize() first.`);
         }
     }
+    // ===========================================================================
+    // Input Validation
+    // ===========================================================================
+    /**
+     * Validate an order request using Zod schemas
+     *
+     * Validates that the order request has all required fields and
+     * enforces type-specific constraints (e.g., limit orders need price).
+     *
+     * @param request - Order request to validate
+     * @param correlationId - Optional correlation ID for error tracking
+     * @returns Validated order request
+     * @throws {InvalidOrderError} If validation fails
+     *
+     * @example
+     * ```typescript
+     * async createOrder(request: OrderRequest): Promise<Order> {
+     *   const validated = this.validateOrder(request);
+     *   // ... create order with validated data
+     * }
+     * ```
+     */
+    validateOrder(request, correlationId) {
+        return validateOrderRequest(request, {
+            exchange: this.id,
+            context: correlationId ? { correlationId } : undefined,
+        });
+    }
+    /**
+     * Get a validator instance for this adapter
+     *
+     * Creates a validator bound to this adapter's exchange ID
+     * for use with custom validation needs.
+     *
+     * @returns Validator with methods for common validation tasks
+     *
+     * @example
+     * ```typescript
+     * const validator = this.getValidator();
+     * const params = validator.orderBookParams(rawParams);
+     * ```
+     */
+    getValidator() {
+        return createValidator(this.id);
+    }
+    /**
+     * Attach correlation ID to an error for request tracing
+     *
+     * If the error is a PerpDEXError, attaches the correlation ID directly.
+     * Otherwise, wraps the error in a PerpDEXError with the correlation ID.
+     *
+     * @param error - Error to attach correlation ID to
+     * @param correlationId - Correlation ID for request tracing
+     * @returns Error with correlation ID attached
+     */
+    attachCorrelationId(error, correlationId) {
+        if (error instanceof PerpDEXError) {
+            error.withCorrelationId(correlationId);
+            return error;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        return new PerpDEXError(message, 'REQUEST_ERROR', this.id, error).withCorrelationId(correlationId);
+    }
     /**
      * Make HTTP request with timeout, circuit breaker, retry, and metrics tracking
      */
@@ -943,10 +1007,11 @@ export class BaseAdapter {
                         await new Promise(resolve => setTimeout(resolve, delay));
                         continue;
                     }
-                    throw error;
+                    // Attach correlation ID to PerpDEXError instances
+                    throw this.attachCorrelationId(error, correlationId);
                 }
             }
-            throw lastError || new Error('Request failed after retries');
+            throw this.attachCorrelationId(lastError || new Error('Request failed after retries'), correlationId);
         });
     }
     /**

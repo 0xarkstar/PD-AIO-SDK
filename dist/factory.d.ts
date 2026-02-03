@@ -1,9 +1,10 @@
 /**
  * Exchange Factory
  *
- * Factory function for creating exchange adapter instances
+ * Factory function for creating exchange adapter instances.
+ * Supports both built-in adapters and custom adapters via plugin registration.
  */
-import type { IExchangeAdapter } from './types/index.js';
+import type { ExchangeConfig, IExchangeAdapter } from './types/index.js';
 import { type HyperliquidConfig } from './adapters/hyperliquid/index.js';
 import { type LighterConfig } from './adapters/lighter/index.js';
 import { type GRVTAdapterConfig } from './adapters/grvt/index.js';
@@ -34,7 +35,42 @@ export type ExchangeConfigMap = {
     gmx: GmxConfig;
 };
 /**
+ * Type for adapter constructor function
+ */
+export type AdapterConstructor<C extends ExchangeConfig = ExchangeConfig> = new (config?: C) => IExchangeAdapter;
+/**
+ * Register a custom exchange adapter
+ *
+ * Use this to add support for new exchanges without modifying the SDK.
+ *
+ * @param id - Unique exchange identifier (lowercase)
+ * @param constructor - Adapter class constructor
+ *
+ * @example
+ * ```typescript
+ * import { registerExchange } from 'pd-aio-sdk';
+ * import { MyCustomAdapter } from './my-adapter';
+ *
+ * // Register custom adapter
+ * registerExchange('myexchange', MyCustomAdapter);
+ *
+ * // Now you can use it with createExchange
+ * const exchange = createExchange('myexchange' as any, { ... });
+ * ```
+ */
+export declare function registerExchange<C extends ExchangeConfig>(id: string, constructor: AdapterConstructor<C>): void;
+/**
+ * Unregister an exchange adapter
+ *
+ * @param id - Exchange identifier to remove
+ * @returns true if adapter was removed, false if not found
+ */
+export declare function unregisterExchange(id: string): boolean;
+/**
  * Create an exchange adapter instance
+ *
+ * Uses the adapter registry to instantiate adapters. Built-in adapters
+ * are pre-registered, and custom adapters can be added via registerExchange().
  *
  * @param exchange - Exchange identifier
  * @param config - Exchange-specific configuration
@@ -42,7 +78,7 @@ export type ExchangeConfigMap = {
  *
  * @example
  * ```typescript
- * import { createExchange } from 'perp-dex-sdk';
+ * import { createExchange } from 'pd-aio-sdk';
  * import { Wallet } from 'ethers';
  *
  * const wallet = new Wallet(process.env.PRIVATE_KEY);
@@ -58,10 +94,21 @@ export type ExchangeConfigMap = {
 export declare function createExchange<T extends SupportedExchange>(exchange: T, config?: ExchangeConfigMap[T]): IExchangeAdapter;
 /**
  * Get list of supported exchanges
+ *
+ * Returns all registered exchange IDs including both built-in
+ * and custom-registered adapters.
  */
-export declare function getSupportedExchanges(): SupportedExchange[];
+export declare function getSupportedExchanges(): string[];
+/**
+ * Get list of built-in exchanges (for type safety)
+ */
+export declare function getBuiltInExchanges(): SupportedExchange[];
 /**
  * Check if an exchange is supported
  */
-export declare function isExchangeSupported(exchange: string): exchange is SupportedExchange;
+export declare function isExchangeSupported(exchange: string): boolean;
+/**
+ * Check if an exchange is a built-in supported exchange
+ */
+export declare function isBuiltInExchange(exchange: string): exchange is SupportedExchange;
 //# sourceMappingURL=factory.d.ts.map

@@ -3,6 +3,7 @@
  */
 
 export { EdgeXAdapter } from './EdgeXAdapter.js';
+export { EdgeXAuth, type EdgeXAuthConfig } from './EdgeXAuth.js';
 export type { EdgeXConfig } from './types.js';
 export type {
   EdgeXMarket,

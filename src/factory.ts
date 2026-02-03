@@ -1,7 +1,8 @@
 /**
  * Exchange Factory
  *
- * Factory function for creating exchange adapter instances
+ * Factory function for creating exchange adapter instances.
+ * Supports both built-in adapters and custom adapters via plugin registration.
  */
 
 import type { ExchangeConfig, IExchangeAdapter } from './types/index.js';
@@ -38,7 +39,81 @@ export type ExchangeConfigMap = {
 };
 
 /**
+ * Type for adapter constructor function
+ */
+export type AdapterConstructor<C extends ExchangeConfig = ExchangeConfig> =
+  new (config?: C) => IExchangeAdapter;
+
+/**
+ * Plugin registry for exchange adapters
+ *
+ * Built-in adapters are pre-registered. Custom adapters can be added
+ * via registerExchange() for extensibility.
+ */
+const adapterRegistry = new Map<string, AdapterConstructor>([
+  ['hyperliquid', HyperliquidAdapter as AdapterConstructor],
+  ['lighter', LighterAdapter as AdapterConstructor],
+  ['grvt', GRVTAdapter as AdapterConstructor],
+  ['paradex', ParadexAdapter as AdapterConstructor],
+  ['edgex', EdgeXAdapter as AdapterConstructor],
+  ['backpack', BackpackAdapter as AdapterConstructor],
+  ['nado', NadoAdapter as AdapterConstructor],
+  ['variational', VariationalAdapter as AdapterConstructor],
+  ['extended', ExtendedAdapter as AdapterConstructor],
+  ['dydx', DydxAdapter as AdapterConstructor],
+  ['jupiter', JupiterAdapter as AdapterConstructor],
+  ['drift', DriftAdapter as AdapterConstructor],
+  ['gmx', GmxAdapter as AdapterConstructor],
+]);
+
+/**
+ * Register a custom exchange adapter
+ *
+ * Use this to add support for new exchanges without modifying the SDK.
+ *
+ * @param id - Unique exchange identifier (lowercase)
+ * @param constructor - Adapter class constructor
+ *
+ * @example
+ * ```typescript
+ * import { registerExchange } from 'pd-aio-sdk';
+ * import { MyCustomAdapter } from './my-adapter';
+ *
+ * // Register custom adapter
+ * registerExchange('myexchange', MyCustomAdapter);
+ *
+ * // Now you can use it with createExchange
+ * const exchange = createExchange('myexchange' as any, { ... });
+ * ```
+ */
+export function registerExchange<C extends ExchangeConfig>(
+  id: string,
+  constructor: AdapterConstructor<C>
+): void {
+  const normalizedId = id.toLowerCase();
+
+  if (adapterRegistry.has(normalizedId)) {
+    console.warn(`Exchange '${normalizedId}' already registered. Overwriting.`);
+  }
+
+  adapterRegistry.set(normalizedId, constructor as AdapterConstructor);
+}
+
+/**
+ * Unregister an exchange adapter
+ *
+ * @param id - Exchange identifier to remove
+ * @returns true if adapter was removed, false if not found
+ */
+export function unregisterExchange(id: string): boolean {
+  return adapterRegistry.delete(id.toLowerCase());
+}
+
+/**
  * Create an exchange adapter instance
+ *
+ * Uses the adapter registry to instantiate adapters. Built-in adapters
+ * are pre-registered, and custom adapters can be added via registerExchange().
  *
  * @param exchange - Exchange identifier
  * @param config - Exchange-specific configuration
@@ -46,7 +121,7 @@ export type ExchangeConfigMap = {
  *
  * @example
  * ```typescript
- * import { createExchange } from 'perp-dex-sdk';
+ * import { createExchange } from 'pd-aio-sdk';
  * import { Wallet } from 'ethers';
  *
  * const wallet = new Wallet(process.env.PRIVATE_KEY);
@@ -63,61 +138,47 @@ export function createExchange<T extends SupportedExchange>(
   exchange: T,
   config?: ExchangeConfigMap[T]
 ): IExchangeAdapter {
-  switch (exchange) {
-    case 'hyperliquid':
-      return new HyperliquidAdapter(config as HyperliquidConfig);
+  const normalizedId = exchange.toLowerCase();
+  const Constructor = adapterRegistry.get(normalizedId);
 
-    case 'lighter':
-      return new LighterAdapter(config as LighterConfig);
-
-    case 'grvt':
-      return new GRVTAdapter(config as GRVTAdapterConfig);
-
-    case 'paradex':
-      return new ParadexAdapter(config as ParadexConfig);
-
-    case 'edgex':
-      return new EdgeXAdapter(config as EdgeXConfig);
-
-    case 'backpack':
-      return new BackpackAdapter(config as BackpackConfig);
-
-    case 'nado':
-      return new NadoAdapter(config as NadoConfig);
-
-    case 'variational':
-      return new VariationalAdapter(config as VariationalConfig);
-
-    case 'extended':
-      return new ExtendedAdapter(config as ExtendedConfig);
-
-    case 'dydx':
-      return new DydxAdapter(config as DydxConfig);
-
-    case 'jupiter':
-      return new JupiterAdapter(config as JupiterAdapterConfig);
-
-    case 'drift':
-      return new DriftAdapter(config as DriftConfig);
-
-    case 'gmx':
-      return new GmxAdapter(config as GmxConfig);
-
-    default:
-      throw new Error(`Unknown exchange: ${exchange as string}`);
+  if (!Constructor) {
+    throw new Error(
+      `Unknown exchange: ${exchange}. ` +
+      `Supported exchanges: ${getSupportedExchanges().join(', ')}. ` +
+      `Use registerExchange() to add custom adapters.`
+    );
   }
+
+  return new Constructor(config);
 }
 
 /**
  * Get list of supported exchanges
+ *
+ * Returns all registered exchange IDs including both built-in
+ * and custom-registered adapters.
  */
-export function getSupportedExchanges(): SupportedExchange[] {
+export function getSupportedExchanges(): string[] {
+  return Array.from(adapterRegistry.keys());
+}
+
+/**
+ * Get list of built-in exchanges (for type safety)
+ */
+export function getBuiltInExchanges(): SupportedExchange[] {
   return ['hyperliquid', 'lighter', 'grvt', 'paradex', 'edgex', 'backpack', 'nado', 'variational', 'extended', 'dydx', 'jupiter', 'drift', 'gmx'];
 }
 
 /**
  * Check if an exchange is supported
  */
-export function isExchangeSupported(exchange: string): exchange is SupportedExchange {
-  return getSupportedExchanges().includes(exchange as SupportedExchange);
+export function isExchangeSupported(exchange: string): boolean {
+  return adapterRegistry.has(exchange.toLowerCase());
+}
+
+/**
+ * Check if an exchange is a built-in supported exchange
+ */
+export function isBuiltInExchange(exchange: string): exchange is SupportedExchange {
+  return getBuiltInExchanges().includes(exchange as SupportedExchange);
 }

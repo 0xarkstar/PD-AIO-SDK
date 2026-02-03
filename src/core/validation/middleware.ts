@@ -42,8 +42,8 @@ export interface ValidationError {
 export interface ValidationOptions {
   /** Exchange identifier for error context */
   exchange: string;
-  /** Request context for correlation tracking */
-  context?: RequestContext;
+  /** Request context for correlation tracking (only correlationId is used) */
+  context?: RequestContext | { correlationId: string };
   /** Whether to throw on validation failure (default: true) */
   throwOnError?: boolean;
   /** Custom error message prefix */
