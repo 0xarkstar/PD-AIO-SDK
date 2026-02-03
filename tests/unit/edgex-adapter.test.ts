@@ -407,3 +407,148 @@ describe('EdgeXAdapter', () => {
     });
   });
 });
+
+describe('EdgeX Utility Functions', () => {
+  let toEdgeXOrderType: typeof import('../../src/adapters/edgex/utils.js').toEdgeXOrderType;
+  let toEdgeXOrderSide: typeof import('../../src/adapters/edgex/utils.js').toEdgeXOrderSide;
+  let toEdgeXTimeInForce: typeof import('../../src/adapters/edgex/utils.js').toEdgeXTimeInForce;
+  let mapEdgeXError: typeof import('../../src/adapters/edgex/utils.js').mapEdgeXError;
+
+  beforeAll(async () => {
+    const utilsModule = await import('../../src/adapters/edgex/utils.js');
+    toEdgeXOrderType = utilsModule.toEdgeXOrderType;
+    toEdgeXOrderSide = utilsModule.toEdgeXOrderSide;
+    toEdgeXTimeInForce = utilsModule.toEdgeXTimeInForce;
+    mapEdgeXError = utilsModule.mapEdgeXError;
+  });
+
+  describe('toEdgeXOrderType', () => {
+    test('should convert market order type', () => {
+      const result = toEdgeXOrderType('market');
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+    });
+
+    test('should convert limit order type', () => {
+      const result = toEdgeXOrderType('limit');
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+    });
+
+    test('should convert other types to limit', () => {
+      const result = toEdgeXOrderType('stopLimit');
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('toEdgeXOrderSide', () => {
+    test('should convert buy side', () => {
+      const result = toEdgeXOrderSide('buy');
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+    });
+
+    test('should convert sell side', () => {
+      const result = toEdgeXOrderSide('sell');
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+    });
+  });
+
+  describe('toEdgeXTimeInForce', () => {
+    test('should convert GTC', () => {
+      const result = toEdgeXTimeInForce('GTC');
+      expect(result).toBeDefined();
+    });
+
+    test('should convert IOC', () => {
+      const result = toEdgeXTimeInForce('IOC');
+      expect(result).toBeDefined();
+    });
+
+    test('should convert FOK', () => {
+      const result = toEdgeXTimeInForce('FOK');
+      expect(result).toBeDefined();
+    });
+
+    test('should default to GTC when undefined', () => {
+      const result = toEdgeXTimeInForce(undefined);
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('mapEdgeXError', () => {
+    test('should map invalid order error (1001)', () => {
+      const result = mapEdgeXError({ code: 1001 });
+      expect(result.code).toBe('INVALID_ORDER');
+    });
+
+    test('should map insufficient margin error (1002)', () => {
+      const result = mapEdgeXError({ code: 1002 });
+      expect(result.code).toBe('INSUFFICIENT_MARGIN');
+    });
+
+    test('should map order not found error (1003)', () => {
+      const result = mapEdgeXError({ code: 1003 });
+      expect(result.code).toBe('ORDER_NOT_FOUND');
+    });
+
+    test('should map position not found error (1004)', () => {
+      const result = mapEdgeXError({ code: 1004 });
+      expect(result.code).toBe('POSITION_NOT_FOUND');
+    });
+
+    test('should map invalid signature error (2001)', () => {
+      const result = mapEdgeXError({ code: 2001 });
+      expect(result.code).toBe('INVALID_SIGNATURE');
+    });
+
+    test('should map expired auth error (2002)', () => {
+      const result = mapEdgeXError({ code: 2002 });
+      expect(result.code).toBe('EXPIRED_AUTH');
+    });
+
+    test('should map invalid API key error (2003)', () => {
+      const result = mapEdgeXError({ code: 2003 });
+      expect(result.code).toBe('INVALID_API_KEY');
+    });
+
+    test('should map rate limit error (4001)', () => {
+      const result = mapEdgeXError({ code: 4001 });
+      expect(result.code).toBe('RATE_LIMIT_EXCEEDED');
+    });
+
+    test('should map exchange unavailable error (5001)', () => {
+      const result = mapEdgeXError({ code: 5001 });
+      expect(result.code).toBe('EXCHANGE_UNAVAILABLE');
+    });
+
+    test('should map unknown error code with message', () => {
+      const result = mapEdgeXError({ code: 9999, message: 'Custom error' });
+      expect(result.code).toBe('UNKNOWN_ERROR');
+      expect(result.message).toBe('Custom error');
+    });
+
+    test('should map unknown error code without message', () => {
+      const result = mapEdgeXError({ code: 9999 });
+      expect(result.code).toBe('UNKNOWN_ERROR');
+      expect(result.message).toBe('Unknown error occurred');
+    });
+
+    test('should handle non-object error', () => {
+      const result = mapEdgeXError('string error');
+      expect(result.code).toBe('UNKNOWN_ERROR');
+      expect(result.message).toBe('Unknown error occurred');
+    });
+
+    test('should handle null error', () => {
+      const result = mapEdgeXError(null);
+      expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+
+    test('should handle undefined error', () => {
+      const result = mapEdgeXError(undefined);
+      expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+  });
+});
