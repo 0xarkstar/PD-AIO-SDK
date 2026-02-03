@@ -11,6 +11,15 @@ import { EventEmitter } from 'eventemitter3';
 // Mock ws library
 jest.mock('ws');
 
+// Helper to flush promises - works with fake timers
+const flushPromises = async () => {
+  // Run all pending microtasks
+  await Promise.resolve();
+  // Run any scheduled timers (for setTimeout(0))
+  jest.runAllTicks();
+  await Promise.resolve();
+};
+
 describe('WebSocketClient', () => {
   let client: WebSocketClient;
   let mockWs: jest.Mocked<WebSocket>;
@@ -111,6 +120,9 @@ describe('WebSocketClient', () => {
     test('should connect successfully', async () => {
       const connectPromise = client.connect();
 
+      // Wait for async WebSocket class initialization
+      await flushPromises();
+
       // Simulate WebSocket open event
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
@@ -131,6 +143,9 @@ describe('WebSocketClient', () => {
 
       const connectPromise = client.connect();
 
+      // Wait for async WebSocket class initialization
+      await flushPromises();
+
       // Simulate connection
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
@@ -150,6 +165,9 @@ describe('WebSocketClient', () => {
 
       const connectPromise = client.connect();
 
+      // Wait for async WebSocket class initialization
+      await flushPromises();
+
       mockWs.readyState = WebSocket.OPEN;
       const wsOpenHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (wsOpenHandler) {
@@ -164,6 +182,7 @@ describe('WebSocketClient', () => {
     test('should disconnect successfully', async () => {
       // First connect
       const connectPromise = client.connect();
+      await flushPromises();
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (openHandler) {
@@ -183,6 +202,7 @@ describe('WebSocketClient', () => {
       client.on('close', closeHandler);
 
       const connectPromise = client.connect();
+      await flushPromises();
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (openHandler) {
@@ -204,6 +224,7 @@ describe('WebSocketClient', () => {
       client.on('error', errorHandler);
 
       const connectPromise = client.connect();
+      await flushPromises();
 
       // Simulate error
       const testError = new Error('Connection failed');
@@ -225,6 +246,7 @@ describe('WebSocketClient', () => {
 
       // Connect first
       const connectPromise = client.connect();
+      await flushPromises();
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (openHandler) {
@@ -325,6 +347,7 @@ describe('WebSocketClient', () => {
 
       // Initial connection
       const connectPromise = client.connect();
+      await flushPromises();
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (openHandler) {
@@ -340,6 +363,7 @@ describe('WebSocketClient', () => {
 
       // Fast-forward reconnect delay
       jest.advanceTimersByTime(1000);
+      await flushPromises();
 
       expect(reconnectingHandler).toHaveBeenCalledWith(1);
       expect(WebSocket).toHaveBeenCalledTimes(2); // Initial + 1 reconnect attempt
@@ -363,6 +387,7 @@ describe('WebSocketClient', () => {
 
       // Initial connection
       const connectPromise = client.connect();
+      await flushPromises();
       mockWs.readyState = WebSocket.OPEN;
       let openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (openHandler) {
@@ -378,6 +403,7 @@ describe('WebSocketClient', () => {
 
       // Fast-forward and simulate successful reconnection
       jest.advanceTimersByTime(500);
+      await flushPromises();
 
       // Get the new mock WebSocket instance created by reconnection
       mockWs.readyState = WebSocket.OPEN;
@@ -407,6 +433,7 @@ describe('WebSocketClient', () => {
 
       // Initial connection
       const connectPromise = client.connect();
+      await flushPromises();
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (openHandler) {
@@ -426,7 +453,7 @@ describe('WebSocketClient', () => {
         jest.advanceTimersByTime(100 * Math.pow(2, attempt));
 
         // Allow promises to resolve
-        await Promise.resolve();
+        await flushPromises();
 
         // Get the error handler for this reconnection attempt
         const errorHandlers = mockWs.on.mock.calls.filter(call => call[0] === 'error');
@@ -437,11 +464,11 @@ describe('WebSocketClient', () => {
         }
 
         // Allow error to propagate
-        await Promise.resolve();
+        await flushPromises();
       }
 
       // Give time for maxRetriesExceeded to be emitted
-      await Promise.resolve();
+      await flushPromises();
 
       expect(maxRetriesHandler).toHaveBeenCalled();
     });
@@ -461,6 +488,7 @@ describe('WebSocketClient', () => {
 
       // Initial connection
       const connectPromise = client.connect();
+      await flushPromises();
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (openHandler) {
@@ -475,6 +503,7 @@ describe('WebSocketClient', () => {
 
       // Fast-forward past reconnection delay
       jest.advanceTimersByTime(5000);
+      await flushPromises();
 
       // Should not create new WebSocket instances
       expect((WebSocket as unknown as jest.Mock).mock.calls.length).toBe(initialCallCount);
@@ -495,6 +524,7 @@ describe('WebSocketClient', () => {
 
       // Connect
       const connectPromise = client.connect();
+      await flushPromises();
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (openHandler) {
@@ -524,6 +554,7 @@ describe('WebSocketClient', () => {
 
       // Connect
       const connectPromise = client.connect();
+      await flushPromises();
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (openHandler) {
@@ -549,6 +580,7 @@ describe('WebSocketClient', () => {
 
       // Connect
       const connectPromise = client.connect();
+      await flushPromises();
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (openHandler) {
@@ -572,6 +604,7 @@ describe('WebSocketClient', () => {
       }
 
       jest.advanceTimersByTime(1000);
+      await flushPromises();
 
       const metrics = client.getMetrics();
       expect(metrics.reconnectAttempts).toBeGreaterThan(0);
@@ -590,6 +623,10 @@ describe('WebSocketClient', () => {
       });
 
       const promise1 = client.connect();
+      // Wait for first connect to reach 'connecting' state
+      await flushPromises();
+
+      // Second connect should return immediately since state is 'connecting'
       const promise2 = client.connect();
 
       mockWs.readyState = WebSocket.OPEN;
@@ -625,6 +662,7 @@ describe('WebSocketClient', () => {
 
       // Connect
       const connectPromise = client.connect();
+      await flushPromises();
       mockWs.readyState = WebSocket.OPEN;
       const openHandler = mockWs.on.mock.calls.find(call => call[0] === 'open')?.[1];
       if (openHandler) {
