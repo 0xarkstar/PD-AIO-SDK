@@ -26990,7 +26990,7 @@ var JupiterAuth = class {
   initializeFromPrivateKey(privateKey) {
     try {
       const bytes = this.parsePrivateKey(privateKey);
-      this.initKeypairAsync(bytes);
+      void this.initKeypairAsync(bytes);
     } catch (error) {
       console.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -29477,7 +29477,7 @@ var DriftAuth = class {
   initializeFromPrivateKey(privateKey) {
     try {
       const bytes = this.parsePrivateKey(privateKey);
-      this.initKeypairAsync(bytes);
+      void this.initKeypairAsync(bytes);
     } catch (error) {
       console.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
     }

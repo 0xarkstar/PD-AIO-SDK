@@ -42,8 +42,8 @@ export class DriftAuth {
     initializeFromPrivateKey(privateKey) {
         try {
             const bytes = this.parsePrivateKey(privateKey);
-            // Lazy import to handle ESM module
-            this.initKeypairAsync(bytes);
+            // Lazy import to handle ESM module - void prefix for intentional fire-and-forget
+            void this.initKeypairAsync(bytes);
         }
         catch (error) {
             console.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
