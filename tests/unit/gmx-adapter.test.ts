@@ -601,4 +601,171 @@ describe('GMX Constants', () => {
     expect(GMX_API_URLS.arbitrum.api).toContain('arbitrum');
     expect(GMX_API_URLS.avalanche.api).toContain('avalanche');
   });
+
+  test('GMX_API_URLS should have testnet config', () => {
+    expect(GMX_API_URLS.arbitrumSepolia).toBeDefined();
+    expect(GMX_API_URLS.arbitrumSepolia.chainId).toBe(421614);
+  });
+});
+
+describe('GMX Symbol Conversion', () => {
+  let unifiedToGmx: typeof import('../../src/adapters/gmx/constants.js').unifiedToGmx;
+  let gmxToUnified: typeof import('../../src/adapters/gmx/constants.js').gmxToUnified;
+  let getMarketByAddress: typeof import('../../src/adapters/gmx/constants.js').getMarketByAddress;
+  let getBaseToken: typeof import('../../src/adapters/gmx/constants.js').getBaseToken;
+  let getMarketsForChain: typeof import('../../src/adapters/gmx/constants.js').getMarketsForChain;
+  let GMX_MARKET_ADDRESS_MAP: typeof import('../../src/adapters/gmx/constants.js').GMX_MARKET_ADDRESS_MAP;
+  let GMX_ORDER_TYPES: typeof import('../../src/adapters/gmx/constants.js').GMX_ORDER_TYPES;
+  let GMX_CONTRACTS: typeof import('../../src/adapters/gmx/constants.js').GMX_CONTRACTS;
+
+  beforeAll(async () => {
+    const gmxModule = await import('../../src/adapters/gmx/constants.js');
+    unifiedToGmx = gmxModule.unifiedToGmx;
+    gmxToUnified = gmxModule.gmxToUnified;
+    getMarketByAddress = gmxModule.getMarketByAddress;
+    getBaseToken = gmxModule.getBaseToken;
+    getMarketsForChain = gmxModule.getMarketsForChain;
+    GMX_MARKET_ADDRESS_MAP = gmxModule.GMX_MARKET_ADDRESS_MAP;
+    GMX_ORDER_TYPES = gmxModule.GMX_ORDER_TYPES;
+    GMX_CONTRACTS = gmxModule.GMX_CONTRACTS;
+  });
+
+  describe('unifiedToGmx', () => {
+    test('should return existing market key unchanged', () => {
+      expect(unifiedToGmx('ETH/USD:ETH')).toBe('ETH/USD:ETH');
+      expect(unifiedToGmx('BTC/USD:BTC')).toBe('BTC/USD:BTC');
+    });
+
+    test('should find market by base asset', () => {
+      const result = unifiedToGmx('ETH/USD');
+      expect(result).toBeDefined();
+      expect(result).toContain('ETH');
+    });
+
+    test('should return undefined for unknown market', () => {
+      expect(unifiedToGmx('UNKNOWN/USD')).toBeUndefined();
+      expect(unifiedToGmx('XYZ/ABC')).toBeUndefined();
+    });
+
+    test('should return undefined for empty string', () => {
+      expect(unifiedToGmx('')).toBeUndefined();
+    });
+
+    test('should handle case-insensitive base asset', () => {
+      const result = unifiedToGmx('eth/usd');
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('gmxToUnified', () => {
+    test('should convert GMX market key to unified symbol', () => {
+      expect(gmxToUnified('ETH/USD:ETH')).toBe('ETH/USD:ETH');
+      expect(gmxToUnified('BTC/USD:BTC')).toBe('BTC/USD:BTC');
+      expect(gmxToUnified('AVAX/USD:AVAX')).toBe('AVAX/USD:AVAX');
+    });
+  });
+
+  describe('getMarketByAddress', () => {
+    test('should find market by address', () => {
+      const market = getMarketByAddress('0x70d95587d40A2caf56bd97485aB3Eec10Bee6336');
+      expect(market).toBeDefined();
+      expect(market?.baseAsset).toBe('ETH');
+    });
+
+    test('should find market with lowercase address', () => {
+      const market = getMarketByAddress('0x70d95587d40a2caf56bd97485ab3eec10bee6336');
+      expect(market).toBeDefined();
+      expect(market?.baseAsset).toBe('ETH');
+    });
+
+    test('should return undefined for unknown address', () => {
+      expect(getMarketByAddress('0x0000000000000000000000000000000000000000')).toBeUndefined();
+    });
+  });
+
+  describe('getBaseToken', () => {
+    test('should extract base token from symbol', () => {
+      expect(getBaseToken('ETH/USD:ETH')).toBe('ETH');
+      expect(getBaseToken('BTC/USD:BTC')).toBe('BTC');
+      expect(getBaseToken('SOL/USD')).toBe('SOL');
+    });
+
+    test('should handle lowercase input', () => {
+      expect(getBaseToken('eth/usd')).toBe('ETH');
+    });
+
+    test('should return empty string for invalid input', () => {
+      expect(getBaseToken('')).toBe('');
+    });
+  });
+
+  describe('getMarketsForChain', () => {
+    test('should return arbitrum markets', () => {
+      const markets = getMarketsForChain('arbitrum');
+      expect(markets.length).toBeGreaterThan(0);
+      expect(markets.every(m => m.chain === 'arbitrum')).toBe(true);
+    });
+
+    test('should return avalanche markets', () => {
+      const markets = getMarketsForChain('avalanche');
+      expect(markets.length).toBeGreaterThan(0);
+      expect(markets.every(m => m.chain === 'avalanche')).toBe(true);
+    });
+
+    test('arbitrum should have more markets than avalanche', () => {
+      const arbitrumMarkets = getMarketsForChain('arbitrum');
+      const avalancheMarkets = getMarketsForChain('avalanche');
+      expect(arbitrumMarkets.length).toBeGreaterThan(avalancheMarkets.length);
+    });
+  });
+
+  describe('GMX_MARKET_ADDRESS_MAP', () => {
+    test('should map addresses to market keys', () => {
+      const ethAddress = '0x70d95587d40a2caf56bd97485ab3eec10bee6336';
+      expect(GMX_MARKET_ADDRESS_MAP[ethAddress]).toBe('ETH/USD:ETH');
+    });
+
+    test('should have lowercase addresses as keys', () => {
+      const keys = Object.keys(GMX_MARKET_ADDRESS_MAP);
+      expect(keys.every(k => k === k.toLowerCase())).toBe(true);
+    });
+  });
+
+  describe('GMX_ORDER_TYPES', () => {
+    test('should have expected order types', () => {
+      expect(GMX_ORDER_TYPES.MARKET_INCREASE).toBe(0);
+      expect(GMX_ORDER_TYPES.MARKET_DECREASE).toBe(1);
+      expect(GMX_ORDER_TYPES.LIMIT_INCREASE).toBe(2);
+      expect(GMX_ORDER_TYPES.LIMIT_DECREASE).toBe(3);
+      expect(GMX_ORDER_TYPES.STOP_LOSS).toBe(4);
+      expect(GMX_ORDER_TYPES.LIQUIDATION).toBe(5);
+    });
+  });
+
+  describe('GMX_CONTRACTS', () => {
+    test('should have arbitrum contract addresses', () => {
+      expect(GMX_CONTRACTS.arbitrum.exchangeRouter).toBeDefined();
+      expect(GMX_CONTRACTS.arbitrum.router).toBeDefined();
+      expect(GMX_CONTRACTS.arbitrum.dataStore).toBeDefined();
+      expect(GMX_CONTRACTS.arbitrum.reader).toBeDefined();
+      expect(GMX_CONTRACTS.arbitrum.orderVault).toBeDefined();
+    });
+
+    test('should have avalanche contract addresses', () => {
+      expect(GMX_CONTRACTS.avalanche.exchangeRouter).toBeDefined();
+      expect(GMX_CONTRACTS.avalanche.router).toBeDefined();
+      expect(GMX_CONTRACTS.avalanche.dataStore).toBeDefined();
+      expect(GMX_CONTRACTS.avalanche.reader).toBeDefined();
+      expect(GMX_CONTRACTS.avalanche.orderVault).toBeDefined();
+    });
+
+    test('contract addresses should be valid ethereum addresses', () => {
+      const arbitrumAddresses = Object.values(GMX_CONTRACTS.arbitrum);
+      const avalancheAddresses = Object.values(GMX_CONTRACTS.avalanche);
+
+      [...arbitrumAddresses, ...avalancheAddresses].forEach(address => {
+        expect(address).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      });
+    });
+  });
 });
