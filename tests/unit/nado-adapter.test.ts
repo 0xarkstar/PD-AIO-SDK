@@ -9,6 +9,35 @@ import { Wallet } from 'ethers';
 import { NadoAdapter } from '../../src/adapters/nado/NadoAdapter.js';
 import { PerpDEXError, InvalidOrderError } from '../../src/types/errors.js';
 
+// Mock NadoAPIClient
+jest.mock('../../src/adapters/nado/NadoAPIClient.js', () => ({
+  NadoAPIClient: jest.fn().mockImplementation(() => ({
+    query: jest.fn(),
+    execute: jest.fn(),
+  })),
+}));
+
+// Mock NadoAuth
+jest.mock('../../src/adapters/nado/NadoAuth.js', () => ({
+  NadoAuth: jest.fn().mockImplementation(() => ({
+    getAddress: jest.fn().mockReturnValue('0x1234567890abcdef1234567890abcdef12345678'),
+    getNextNonce: jest.fn().mockReturnValue('1'),
+    getCurrentNonce: jest.fn().mockReturnValue('0'),
+    setNonce: jest.fn(),
+    signOrder: jest.fn().mockResolvedValue('0xsignature'),
+    signCancellation: jest.fn().mockResolvedValue('0xsignature'),
+  })),
+}));
+
+// Mock WebSocketManager
+jest.mock('../../src/websocket/index.js', () => ({
+  WebSocketManager: jest.fn().mockImplementation(() => ({
+    connect: jest.fn(),
+    disconnect: jest.fn(),
+    subscribe: jest.fn(),
+  })),
+}));
+
 describe('NadoAdapter', () => {
   const testPrivateKey = '0x' + '1'.repeat(64);
 
@@ -313,6 +342,215 @@ describe('NadoAdapter', () => {
 
     it('should have normalizer instance', () => {
       expect((adapter as any).normalizer).toBeDefined();
+    });
+  });
+
+  describe('fetchMarketsFromAPI with mocked client', () => {
+    let adapter: NadoAdapter;
+    let mockApiClient: any;
+
+    beforeEach(() => {
+      adapter = new NadoAdapter({ privateKey: testPrivateKey });
+      mockApiClient = (adapter as any).apiClient;
+    });
+
+    it('should handle empty symbols', async () => {
+      mockApiClient.query.mockResolvedValue({ symbols: {} });
+
+      const markets = await (adapter as any).fetchMarketsFromAPI();
+
+      expect(markets).toHaveLength(0);
+    });
+  });
+
+  describe('fetchTicker with mocked client', () => {
+    let adapter: NadoAdapter;
+    let mockApiClient: any;
+
+    beforeEach(() => {
+      adapter = new NadoAdapter({ privateKey: testPrivateKey });
+      mockApiClient = (adapter as any).apiClient;
+
+      // Set up product mappings
+      (adapter as any).productMappings.set('BTC/USDT:USDT', {
+        productId: 1,
+        symbol: 'BTC-PERP',
+        ccxtSymbol: 'BTC/USDT:USDT',
+      });
+    });
+
+    it('should throw when no ticker data returned', async () => {
+      mockApiClient.query.mockResolvedValue({ market_prices: [] });
+
+      await expect(adapter.fetchTicker('BTC/USDT:USDT')).rejects.toThrow(PerpDEXError);
+    });
+  });
+
+  describe('fetchOrderBook with mocked client', () => {
+    let adapter: NadoAdapter;
+    let mockApiClient: any;
+
+    beforeEach(() => {
+      adapter = new NadoAdapter({ privateKey: testPrivateKey });
+      mockApiClient = (adapter as any).apiClient;
+
+      // Set up product mappings
+      (adapter as any).productMappings.set('BTC/USDT:USDT', {
+        productId: 1,
+        symbol: 'BTC-PERP',
+        ccxtSymbol: 'BTC/USDT:USDT',
+      });
+    });
+
+    it('should call API with correct parameters', async () => {
+      // Use x18 format for bid/ask as expected by Nado
+      const mockOrderBook = {
+        bids: [
+          ['50000000000000000000000', '1500000000000000000'], // 50000.00, 1.5 in x18
+        ],
+        asks: [
+          ['50001000000000000000000', '1000000000000000000'], // 50001.00, 1.0 in x18
+        ],
+      };
+
+      mockApiClient.query.mockResolvedValue(mockOrderBook);
+
+      const orderBook = await adapter.fetchOrderBook('BTC/USDT:USDT', { limit: 10 });
+
+      expect(mockApiClient.query).toHaveBeenCalledWith('market_liquidity', {
+        product_id: 1,
+        depth: 10,
+      });
+      expect(orderBook).toBeDefined();
+    });
+  });
+
+  describe('fetchFundingRateHistory', () => {
+    let adapter: NadoAdapter;
+
+    beforeEach(() => {
+      adapter = new NadoAdapter({ privateKey: testPrivateKey });
+    });
+
+    it('should throw not supported error', async () => {
+      await expect(adapter.fetchFundingRateHistory('BTC/USDT:USDT')).rejects.toThrow(
+        /not supported/i
+      );
+    });
+  });
+
+  describe('fetchTrades', () => {
+    let adapter: NadoAdapter;
+
+    beforeEach(() => {
+      adapter = new NadoAdapter({ privateKey: testPrivateKey });
+    });
+
+    it('should throw not supported error', async () => {
+      await expect(adapter.fetchTrades('BTC/USDT:USDT')).rejects.toThrow(/not supported/i);
+    });
+  });
+
+  describe('private methods without auth', () => {
+    let adapter: NadoAdapter;
+
+    beforeEach(() => {
+      // Create adapter without credentials
+      adapter = new NadoAdapter({ testnet: true });
+    });
+
+    it('fetchPositions should throw without auth', async () => {
+      await expect(adapter.fetchPositions()).rejects.toThrow(PerpDEXError);
+      await expect(adapter.fetchPositions()).rejects.toMatchObject({
+        code: 'MISSING_CREDENTIALS',
+      });
+    });
+
+    it('fetchBalance should throw without auth', async () => {
+      await expect(adapter.fetchBalance()).rejects.toThrow(PerpDEXError);
+      await expect(adapter.fetchBalance()).rejects.toMatchObject({
+        code: 'MISSING_CREDENTIALS',
+      });
+    });
+
+    it('fetchOrderHistory should throw without auth', async () => {
+      await expect(adapter.fetchOrderHistory()).rejects.toThrow(PerpDEXError);
+    });
+  });
+
+  describe('initialize', () => {
+    let adapter: NadoAdapter;
+    let mockApiClient: any;
+
+    beforeEach(() => {
+      adapter = new NadoAdapter({ privateKey: testPrivateKey });
+      mockApiClient = (adapter as any).apiClient;
+    });
+
+    it('should skip re-initialization if already ready', async () => {
+      (adapter as any)._isReady = true;
+
+      await adapter.initialize();
+
+      expect(mockApiClient.query).not.toHaveBeenCalled();
+    });
+
+    it('should throw on initialization failure', async () => {
+      mockApiClient.query.mockRejectedValue(new Error('Network error'));
+
+      await expect(adapter.initialize()).rejects.toThrow('Nado initialization failed');
+    });
+  });
+
+  describe('fetchPositions with mocked client', () => {
+    let adapter: NadoAdapter;
+    let mockApiClient: any;
+
+    beforeEach(() => {
+      adapter = new NadoAdapter({ privateKey: testPrivateKey });
+      mockApiClient = (adapter as any).apiClient;
+
+      // Set up product mappings
+      (adapter as any).productMappings.set('BTC/USDT:USDT', {
+        productId: 1,
+        symbol: 'BTC-PERP',
+        ccxtSymbol: 'BTC/USDT:USDT',
+      });
+    });
+
+    it('should skip positions with unknown product ID', async () => {
+      // Use x18 format for position amounts as expected by Nado
+      const mockPositions = [
+        {
+          product_id: 999, // Unknown product ID
+          amount_x18: '1500000000000000000',
+          v_quote_balance_x18: '5000000000000000000000',
+          last_cumulative_funding_x18: '0',
+        },
+      ];
+
+      mockApiClient.query.mockResolvedValue(mockPositions);
+
+      const positions = await adapter.fetchPositions();
+
+      expect(positions).toHaveLength(0);
+    });
+  });
+
+  describe('getMetrics', () => {
+    let adapter: NadoAdapter;
+
+    beforeEach(() => {
+      adapter = new NadoAdapter({ privateKey: testPrivateKey });
+    });
+
+    it('should return metrics object', () => {
+      const metrics = adapter.getMetrics();
+
+      expect(metrics).toBeDefined();
+      expect(metrics.totalRequests).toBe(0);
+      expect(metrics.successfulRequests).toBe(0);
+      expect(metrics.failedRequests).toBe(0);
     });
   });
 });
