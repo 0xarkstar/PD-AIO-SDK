@@ -16,7 +16,7 @@ export declare class EdgeXAdapter extends BaseAdapter {
     readonly id = "edgex";
     readonly name = "EdgeX";
     readonly has: Partial<FeatureMap>;
-    private readonly starkPrivateKey?;
+    private readonly auth?;
     private readonly baseUrl;
     private readonly wsUrl;
     private wsManager;
@@ -151,16 +151,5 @@ export declare class EdgeXAdapter extends BaseAdapter {
      * Authentication headers are added for private endpoints
      */
     protected makeRequest(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, endpoint: string, body?: Record<string, unknown>): Promise<any>;
-    /**
-     * Sign request with ECDSA signature using SHA3 hash
-     *
-     * EdgeX authentication process:
-     * 1. Create message: {timestamp}{METHOD}{path}{sorted_params}
-     * 2. Hash with SHA3-256
-     * 3. Sign with ECDSA using private key
-     *
-     * @see https://edgex-1.gitbook.io/edgeX-documentation/api/authentication
-     */
-    private signRequest;
 }
 //# sourceMappingURL=EdgeXAdapter.d.ts.map

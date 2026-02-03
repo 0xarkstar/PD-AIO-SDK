@@ -17887,9 +17887,6 @@ var ParadexAdapter = class extends BaseAdapter {
   }
 };
 
-// src/adapters/edgex/EdgeXAdapter.ts
-var import_starknet2 = require("starknet");
-
 // src/adapters/edgex/constants.ts
 var EDGEX_API_URLS = {
   mainnet: {
@@ -18279,6 +18276,83 @@ var EdgeXNormalizer = class {
   }
 };
 
+// src/adapters/edgex/EdgeXAuth.ts
+var import_starknet2 = require("starknet");
+var EdgeXAuth = class {
+  starkPrivateKey;
+  constructor(config) {
+    this.starkPrivateKey = config.starkPrivateKey;
+  }
+  /**
+   * Sign a request with ECDSA signature using SHA3 hash
+   */
+  async sign(request) {
+    const timestamp = Date.now().toString();
+    const signature = await this.signRequest(
+      request.method,
+      request.path,
+      timestamp,
+      request.body
+    );
+    return {
+      ...request,
+      headers: {
+        ...this.getHeaders(),
+        "X-edgeX-Api-Timestamp": timestamp,
+        "X-edgeX-Api-Signature": signature
+      }
+    };
+  }
+  /**
+   * Get authentication headers
+   */
+  getHeaders() {
+    return {
+      "Content-Type": "application/json"
+    };
+  }
+  /**
+   * Sign request with ECDSA signature using SHA3 hash
+   *
+   * EdgeX authentication process:
+   * 1. Create message: {timestamp}{METHOD}{path}{sorted_params}
+   * 2. Hash with SHA3-256
+   * 3. Sign with ECDSA using private key
+   *
+   * @see https://edgex-1.gitbook.io/edgeX-documentation/api/authentication
+   */
+  async signRequest(method, path, timestamp, body) {
+    try {
+      const [basePath, queryString] = path.split("?");
+      let sortedParams = "";
+      if (queryString) {
+        const params = new URLSearchParams(queryString);
+        const sortedKeys = Array.from(params.keys()).sort();
+        sortedParams = sortedKeys.map((k) => `${k}=${params.get(k)}`).join("&");
+      } else if (body) {
+        const sortedKeys = Object.keys(body).sort();
+        sortedParams = sortedKeys.map((k) => `${k}=${body[k]}`).join("&");
+      }
+      const message = `${timestamp}${method.toUpperCase()}${basePath}${sortedParams}`;
+      const messageHash = await createSha3HashBuffer(message);
+      const signature = import_starknet2.ec.starkCurve.sign(messageHash, this.starkPrivateKey);
+      return `0x${signature.r.toString(16).padStart(64, "0")}${signature.s.toString(16).padStart(64, "0")}`;
+    } catch (error) {
+      throw new PerpDEXError(
+        `Failed to sign request: ${error instanceof Error ? error.message : String(error)}`,
+        "SIGNATURE_ERROR",
+        "edgex"
+      );
+    }
+  }
+  /**
+   * Verify if credentials are available
+   */
+  hasCredentials() {
+    return !!this.starkPrivateKey;
+  }
+};
+
 // src/adapters/edgex/utils.ts
 function toEdgeXOrderType(type) {
   return type === "market" ? EDGEX_ORDER_TYPES.market : EDGEX_ORDER_TYPES.limit;
@@ -18360,7 +18434,7 @@ var EdgeXAdapter = class extends BaseAdapter {
     watchOrders: true,
     watchBalance: true
   };
-  starkPrivateKey;
+  auth;
   baseUrl;
   wsUrl;
   wsManager;
@@ -18368,7 +18442,9 @@ var EdgeXAdapter = class extends BaseAdapter {
   normalizer;
   constructor(config = {}) {
     super(config);
-    this.starkPrivateKey = config.starkPrivateKey;
+    if (config.starkPrivateKey) {
+      this.auth = new EdgeXAuth({ starkPrivateKey: config.starkPrivateKey });
+    }
     this.normalizer = new EdgeXNormalizer();
     this.rateLimiter = new RateLimiter({
       maxTokens: EDGEX_RATE_LIMITS.rest.maxRequests,
@@ -18392,7 +18468,7 @@ var EdgeXAdapter = class extends BaseAdapter {
    * Require authentication for private API operations
    */
   requireAuth() {
-    if (!this.starkPrivateKey) {
+    if (!this.auth) {
       throw new PerpDEXError(
         "Authentication required. Provide starkPrivateKey in config.",
         "MISSING_CREDENTIALS",
@@ -18750,10 +18826,10 @@ var EdgeXAdapter = class extends BaseAdapter {
       "Content-Type": "application/json"
     };
     const isPrivateEndpoint = path.includes("/private/");
-    if (isPrivateEndpoint && this.starkPrivateKey) {
+    if (isPrivateEndpoint && this.auth) {
       const timestamp = Date.now().toString();
       headers["X-edgeX-Api-Timestamp"] = timestamp;
-      headers["X-edgeX-Api-Signature"] = await this.signRequest(method, path, timestamp, body);
+      headers["X-edgeX-Api-Signature"] = await this.auth.signRequest(method, path, timestamp, body);
     }
     try {
       const response = await fetch(url, {
@@ -18775,158 +18851,7 @@ var EdgeXAdapter = class extends BaseAdapter {
       throw new PerpDEXError("Request failed", code, "edgex", error);
     }
   }
-  /**
-   * Sign request with ECDSA signature using SHA3 hash
-   *
-   * EdgeX authentication process:
-   * 1. Create message: {timestamp}{METHOD}{path}{sorted_params}
-   * 2. Hash with SHA3-256
-   * 3. Sign with ECDSA using private key
-   *
-   * @see https://edgex-1.gitbook.io/edgeX-documentation/api/authentication
-   */
-  async signRequest(method, path, timestamp, body) {
-    if (!this.starkPrivateKey) {
-      return "";
-    }
-    try {
-      const [basePath, queryString] = path.split("?");
-      let sortedParams = "";
-      if (queryString) {
-        const params = new URLSearchParams(queryString);
-        const sortedKeys = Array.from(params.keys()).sort();
-        sortedParams = sortedKeys.map((k) => `${k}=${params.get(k)}`).join("&");
-      } else if (body) {
-        const sortedKeys = Object.keys(body).sort();
-        sortedParams = sortedKeys.map((k) => `${k}=${body[k]}`).join("&");
-      }
-      const message = `${timestamp}${method.toUpperCase()}${basePath}${sortedParams}`;
-      const messageHash = await createSha3HashBuffer(message);
-      const signature = import_starknet2.ec.starkCurve.sign(messageHash, this.starkPrivateKey);
-      return `0x${signature.r.toString(16).padStart(64, "0")}${signature.s.toString(16).padStart(64, "0")}`;
-    } catch (error) {
-      throw new PerpDEXError(
-        `Failed to sign request: ${error instanceof Error ? error.message : String(error)}`,
-        "SIGNATURE_ERROR",
-        "edgex"
-      );
-    }
-  }
 };
-
-// src/adapters/edgex/EdgeXAuth.ts
-var import_starknet3 = require("starknet");
-
-// src/adapters/backpack/BackpackAdapter.ts
-init_ed25519();
-
-// src/utils/buffer.ts
-var isBrowser3 = typeof window !== "undefined";
-function toBuffer(data, encoding) {
-  if (data instanceof Uint8Array) {
-    return data;
-  }
-  if (encoding === "hex") {
-    return hexToBytes3(data);
-  }
-  if (encoding === "base64") {
-    return base64ToBytes(data);
-  }
-  return new TextEncoder().encode(data);
-}
-function fromBuffer(data, encoding) {
-  if (encoding === "hex") {
-    return bytesToHex3(data);
-  }
-  if (encoding === "base64") {
-    return bytesToBase64(data);
-  }
-  return new TextDecoder().decode(data);
-}
-function allocBuffer(size) {
-  return new Uint8Array(size);
-}
-function readBigUInt64LE(data, offset = 0) {
-  const view = new DataView(data.buffer, data.byteOffset + offset, 8);
-  return view.getBigUint64(0, true);
-}
-function readBigUInt64BE(data, offset = 0) {
-  const view = new DataView(data.buffer, data.byteOffset + offset, 8);
-  return view.getBigUint64(0, false);
-}
-function writeBigUInt64LE(data, value, offset = 0) {
-  const view = new DataView(data.buffer, data.byteOffset + offset, 8);
-  view.setBigUint64(0, value, true);
-}
-function writeBigUInt64BE(data, value, offset = 0) {
-  const view = new DataView(data.buffer, data.byteOffset + offset, 8);
-  view.setBigUint64(0, value, false);
-}
-function concatBuffers(...arrays) {
-  const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-  return result;
-}
-function buffersEqual(a, b) {
-  if (a.length !== b.length) {
-    return false;
-  }
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) {
-      return false;
-    }
-  }
-  return true;
-}
-function copyBuffer(data) {
-  return new Uint8Array(data);
-}
-function sliceBuffer(data, start = 0, end) {
-  return data.slice(start, end);
-}
-function hexToBytes3(hex) {
-  const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
-  if (cleanHex.length % 2 !== 0) {
-    throw new Error("Invalid hex string: odd length");
-  }
-  const bytes = new Uint8Array(cleanHex.length / 2);
-  for (let i = 0; i < cleanHex.length; i += 2) {
-    const byte = parseInt(cleanHex.substr(i, 2), 16);
-    if (isNaN(byte)) {
-      throw new Error(`Invalid hex character at position ${i}`);
-    }
-    bytes[i / 2] = byte;
-  }
-  return bytes;
-}
-function bytesToHex3(bytes) {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-function base64ToBytes(base64) {
-  if (isBrowser3) {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-  } else {
-    return new Uint8Array(Buffer.from(base64, "base64"));
-  }
-}
-function bytesToBase64(bytes) {
-  if (isBrowser3) {
-    const binary = String.fromCharCode(...bytes);
-    return btoa(binary);
-  } else {
-    return Buffer.from(bytes).toString("base64");
-  }
-}
 
 // src/adapters/backpack/constants.ts
 var BACKPACK_API_URLS = {
@@ -19279,6 +19204,195 @@ var BackpackNormalizer = class {
   }
 };
 
+// src/adapters/backpack/BackpackAuth.ts
+init_ed25519();
+
+// src/utils/buffer.ts
+var isBrowser3 = typeof window !== "undefined";
+function toBuffer(data, encoding) {
+  if (data instanceof Uint8Array) {
+    return data;
+  }
+  if (encoding === "hex") {
+    return hexToBytes3(data);
+  }
+  if (encoding === "base64") {
+    return base64ToBytes(data);
+  }
+  return new TextEncoder().encode(data);
+}
+function fromBuffer(data, encoding) {
+  if (encoding === "hex") {
+    return bytesToHex3(data);
+  }
+  if (encoding === "base64") {
+    return bytesToBase64(data);
+  }
+  return new TextDecoder().decode(data);
+}
+function allocBuffer(size) {
+  return new Uint8Array(size);
+}
+function readBigUInt64LE(data, offset = 0) {
+  const view = new DataView(data.buffer, data.byteOffset + offset, 8);
+  return view.getBigUint64(0, true);
+}
+function readBigUInt64BE(data, offset = 0) {
+  const view = new DataView(data.buffer, data.byteOffset + offset, 8);
+  return view.getBigUint64(0, false);
+}
+function writeBigUInt64LE(data, value, offset = 0) {
+  const view = new DataView(data.buffer, data.byteOffset + offset, 8);
+  view.setBigUint64(0, value, true);
+}
+function writeBigUInt64BE(data, value, offset = 0) {
+  const view = new DataView(data.buffer, data.byteOffset + offset, 8);
+  view.setBigUint64(0, value, false);
+}
+function concatBuffers(...arrays) {
+  const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const arr of arrays) {
+    result.set(arr, offset);
+    offset += arr.length;
+  }
+  return result;
+}
+function buffersEqual(a, b) {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+function copyBuffer(data) {
+  return new Uint8Array(data);
+}
+function sliceBuffer(data, start = 0, end) {
+  return data.slice(start, end);
+}
+function hexToBytes3(hex) {
+  const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
+  if (cleanHex.length % 2 !== 0) {
+    throw new Error("Invalid hex string: odd length");
+  }
+  const bytes = new Uint8Array(cleanHex.length / 2);
+  for (let i = 0; i < cleanHex.length; i += 2) {
+    const byte = parseInt(cleanHex.substr(i, 2), 16);
+    if (isNaN(byte)) {
+      throw new Error(`Invalid hex character at position ${i}`);
+    }
+    bytes[i / 2] = byte;
+  }
+  return bytes;
+}
+function bytesToHex3(bytes) {
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function base64ToBytes(base64) {
+  if (isBrowser3) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  } else {
+    return new Uint8Array(Buffer.from(base64, "base64"));
+  }
+}
+function bytesToBase64(bytes) {
+  if (isBrowser3) {
+    const binary = String.fromCharCode(...bytes);
+    return btoa(binary);
+  } else {
+    return Buffer.from(bytes).toString("base64");
+  }
+}
+
+// src/adapters/backpack/BackpackAuth.ts
+var BackpackAuth = class {
+  apiKey;
+  apiSecret;
+  constructor(config) {
+    this.apiKey = config.apiKey;
+    this.apiSecret = config.apiSecret;
+  }
+  /**
+   * Sign a request with ED25519 signature
+   */
+  async sign(request) {
+    const timestamp = Date.now().toString();
+    const signature = await this.signRequest(
+      request.method,
+      request.path,
+      timestamp,
+      request.body
+    );
+    return {
+      ...request,
+      headers: {
+        ...this.getHeaders(),
+        "X-API-KEY": this.apiKey,
+        "X-Timestamp": timestamp,
+        "X-Signature": signature
+      }
+    };
+  }
+  /**
+   * Get authentication headers
+   */
+  getHeaders() {
+    return {
+      "Content-Type": "application/json",
+      "X-API-KEY": this.apiKey
+    };
+  }
+  /**
+   * Sign request with ED25519 signature
+   * Uses cross-platform buffer utilities for browser compatibility
+   */
+  async signRequest(method, path, timestamp, body) {
+    try {
+      const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ""}`;
+      const messageBytes = new TextEncoder().encode(message);
+      let privateKey;
+      if (this.apiSecret.startsWith("0x")) {
+        privateKey = toBuffer(this.apiSecret.slice(2), "hex");
+      } else if (/^[0-9a-fA-F]+$/.test(this.apiSecret)) {
+        privateKey = toBuffer(this.apiSecret, "hex");
+      } else {
+        privateKey = toBuffer(this.apiSecret, "base64");
+      }
+      const signature = await signAsync(messageBytes, privateKey);
+      return fromBuffer(new Uint8Array(signature), "base64");
+    } catch (error) {
+      throw new PerpDEXError(
+        `Failed to sign request: ${error instanceof Error ? error.message : String(error)}`,
+        "SIGNATURE_ERROR",
+        "backpack"
+      );
+    }
+  }
+  /**
+   * Verify if credentials are available
+   */
+  hasCredentials() {
+    return !!(this.apiKey && this.apiSecret);
+  }
+  /**
+   * Get the API key
+   */
+  getApiKey() {
+    return this.apiKey;
+  }
+};
+
 // src/adapters/backpack/utils.ts
 function toBackpackOrderType(type, postOnly) {
   if (type === "market") {
@@ -19366,8 +19480,7 @@ var BackpackAdapter = class extends BaseAdapter {
     watchOrders: true,
     watchBalance: true
   };
-  apiKey;
-  apiSecret;
+  auth;
   baseUrl;
   wsUrl;
   httpClient;
@@ -19376,8 +19489,9 @@ var BackpackAdapter = class extends BaseAdapter {
   normalizer;
   constructor(config = {}) {
     super(config);
-    this.apiKey = config.apiKey;
-    this.apiSecret = config.apiSecret;
+    if (config.apiKey && config.apiSecret) {
+      this.auth = new BackpackAuth({ apiKey: config.apiKey, apiSecret: config.apiSecret });
+    }
     this.normalizer = new BackpackNormalizer();
     this.rateLimiter = new RateLimiter({
       maxTokens: BACKPACK_RATE_LIMITS.rest.maxRequests,
@@ -19419,7 +19533,7 @@ var BackpackAdapter = class extends BaseAdapter {
    * Check if credentials are available for private API methods
    */
   hasCredentials() {
-    return !!(this.apiKey && this.apiSecret);
+    return !!this.auth?.hasCredentials();
   }
   /**
    * Require credentials for private methods
@@ -19699,13 +19813,11 @@ var BackpackAdapter = class extends BaseAdapter {
     await this.rateLimiter.acquire(endpoint);
     const fullPath = `/api/v1${path}`;
     const headers = {};
-    if (this.apiKey) {
-      headers["X-API-KEY"] = this.apiKey;
-    }
-    if (this.apiSecret) {
+    if (this.auth) {
       const timestamp = Date.now().toString();
+      headers["X-API-KEY"] = this.auth.getApiKey();
       headers["X-Timestamp"] = timestamp;
-      headers["X-Signature"] = await this.signRequest(method, fullPath, timestamp, body);
+      headers["X-Signature"] = await this.auth.signRequest(method, fullPath, timestamp, body);
     }
     try {
       switch (method) {
@@ -19726,35 +19838,6 @@ var BackpackAdapter = class extends BaseAdapter {
       }
       const { code, message } = mapBackpackError(error);
       throw new PerpDEXError("Request failed", code, "backpack", error);
-    }
-  }
-  /**
-   * Sign request with ED25519 signature
-   * Uses cross-platform buffer utilities for browser compatibility
-   */
-  async signRequest(method, path, timestamp, body) {
-    if (!this.apiSecret) {
-      return "";
-    }
-    try {
-      const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ""}`;
-      const messageBytes = new TextEncoder().encode(message);
-      let privateKey;
-      if (this.apiSecret.startsWith("0x")) {
-        privateKey = toBuffer(this.apiSecret.slice(2), "hex");
-      } else if (/^[0-9a-fA-F]+$/.test(this.apiSecret)) {
-        privateKey = toBuffer(this.apiSecret, "hex");
-      } else {
-        privateKey = toBuffer(this.apiSecret, "base64");
-      }
-      const signature = await signAsync(messageBytes, privateKey);
-      return fromBuffer(new Uint8Array(signature), "base64");
-    } catch (error) {
-      throw new PerpDEXError(
-        `Failed to sign request: ${error instanceof Error ? error.message : String(error)}`,
-        "SIGNATURE_ERROR",
-        "backpack"
-      );
     }
   }
 };
@@ -23673,7 +23756,7 @@ var ExtendedNormalizer = class {
 };
 
 // src/adapters/extended/ExtendedStarkNetClient.ts
-var import_starknet4 = require("starknet");
+var import_starknet3 = require("starknet");
 var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
   provider;
   account;
@@ -23683,7 +23766,7 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
     this.network = config.network;
     this.logger = new Logger("ExtendedStarkNetClient");
     const nodeUrl = config.rpcUrl || (config.network === "mainnet" ? "https://starknet-mainnet.public.blastapi.io" : "https://starknet-testnet.public.blastapi.io");
-    this.provider = new import_starknet4.RpcProvider({ nodeUrl });
+    this.provider = new import_starknet3.RpcProvider({ nodeUrl });
     if (config.privateKey && config.accountAddress) {
       this.initializeAccount(config.privateKey, config.accountAddress);
     }
@@ -23703,7 +23786,7 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
         signer: privateKey,
         cairoVersion: "1"
       };
-      this.account = new import_starknet4.Account(accountOptions);
+      this.account = new import_starknet3.Account(accountOptions);
       this.logger.info("StarkNet account initialized", { address: formattedAddress });
     } catch (error) {
       this.logger.error("Failed to initialize StarkNet account", error instanceof Error ? error : void 0);
@@ -23751,7 +23834,7 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
         const result = await this.provider.callContract({
           contractAddress: _ExtendedStarkNetClient.ETH_CONTRACT_ADDRESS,
           entrypoint: "balanceOf",
-          calldata: import_starknet4.CallData.compile({ account: formattedAddress })
+          calldata: import_starknet3.CallData.compile({ account: formattedAddress })
         });
         if (result && result.length > 0) {
           const lowValue = result[0];
@@ -23832,7 +23915,7 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
   async callContract(contractAddress, entrypoint, calldata = []) {
     try {
       const formattedAddress = formatStarkNetAddress(contractAddress);
-      const compiledCalldata = Array.isArray(calldata) ? calldata.map(String) : import_starknet4.CallData.compile(calldata);
+      const compiledCalldata = Array.isArray(calldata) ? calldata.map(String) : import_starknet3.CallData.compile(calldata);
       const result = await this.provider.callContract({
         contractAddress: formattedAddress,
         entrypoint,
@@ -23857,7 +23940,7 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
     }
     try {
       const formattedAddress = formatStarkNetAddress(contractAddress);
-      const compiledCalldata = Array.isArray(calldata) ? calldata.map(String) : import_starknet4.CallData.compile(calldata);
+      const compiledCalldata = Array.isArray(calldata) ? calldata.map(String) : import_starknet3.CallData.compile(calldata);
       const { transaction_hash } = await this.account.execute({
         contractAddress: formattedAddress,
         entrypoint,
@@ -23942,7 +24025,7 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
     }
     try {
       const formattedAddress = formatStarkNetAddress(contractAddress);
-      const compiledCalldata = Array.isArray(calldata) ? calldata.map(String) : import_starknet4.CallData.compile(calldata);
+      const compiledCalldata = Array.isArray(calldata) ? calldata.map(String) : import_starknet3.CallData.compile(calldata);
       const feeEstimate = await this.account.estimateInvokeFee({
         contractAddress: formattedAddress,
         entrypoint,

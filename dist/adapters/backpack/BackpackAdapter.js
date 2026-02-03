@@ -3,8 +3,6 @@
  *
  * Centralized exchange with perpetual futures using ED25519 signatures
  */
-import * as ed from '@noble/ed25519';
-import { toBuffer, fromBuffer } from '../../utils/buffer.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
@@ -12,6 +10,7 @@ import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { WebSocketManager } from '../../websocket/WebSocketManager.js';
 import { BACKPACK_API_URLS, BACKPACK_RATE_LIMITS, BACKPACK_ENDPOINT_WEIGHTS, } from './constants.js';
 import { BackpackNormalizer } from './BackpackNormalizer.js';
+import { BackpackAuth } from './BackpackAuth.js';
 import { toBackpackOrderType, toBackpackOrderSide, toBackpackTimeInForce, mapBackpackError, } from './utils.js';
 /**
  * Backpack adapter implementation
@@ -41,8 +40,7 @@ export class BackpackAdapter extends BaseAdapter {
         watchOrders: true,
         watchBalance: true,
     };
-    apiKey;
-    apiSecret;
+    auth;
     baseUrl;
     wsUrl;
     httpClient;
@@ -51,8 +49,10 @@ export class BackpackAdapter extends BaseAdapter {
     normalizer;
     constructor(config = {}) {
         super(config);
-        this.apiKey = config.apiKey;
-        this.apiSecret = config.apiSecret;
+        // Initialize auth if credentials provided
+        if (config.apiKey && config.apiSecret) {
+            this.auth = new BackpackAuth({ apiKey: config.apiKey, apiSecret: config.apiSecret });
+        }
         // Initialize normalizer
         this.normalizer = new BackpackNormalizer();
         this.rateLimiter = new RateLimiter({
@@ -98,7 +98,7 @@ export class BackpackAdapter extends BaseAdapter {
      * Check if credentials are available for private API methods
      */
     hasCredentials() {
-        return !!(this.apiKey && this.apiSecret);
+        return !!this.auth?.hasCredentials();
     }
     /**
      * Require credentials for private methods
@@ -369,13 +369,11 @@ export class BackpackAdapter extends BaseAdapter {
         // Backpack requires /api/v1 prefix for all endpoints
         const fullPath = `/api/v1${path}`;
         const headers = {};
-        if (this.apiKey) {
-            headers['X-API-KEY'] = this.apiKey;
-        }
-        if (this.apiSecret) {
+        if (this.auth) {
             const timestamp = Date.now().toString();
+            headers['X-API-KEY'] = this.auth.getApiKey();
             headers['X-Timestamp'] = timestamp;
-            headers['X-Signature'] = await this.signRequest(method, fullPath, timestamp, body);
+            headers['X-Signature'] = await this.auth.signRequest(method, fullPath, timestamp, body);
         }
         try {
             switch (method) {
@@ -397,42 +395,6 @@ export class BackpackAdapter extends BaseAdapter {
             }
             const { code, message } = mapBackpackError(error);
             throw new PerpDEXError('Request failed', code, 'backpack', error);
-        }
-    }
-    /**
-     * Sign request with ED25519 signature
-     * Uses cross-platform buffer utilities for browser compatibility
-     */
-    async signRequest(method, path, timestamp, body) {
-        if (!this.apiSecret) {
-            return '';
-        }
-        try {
-            // Create message to sign
-            const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ''}`;
-            const messageBytes = new TextEncoder().encode(message);
-            // Convert private key to Uint8Array
-            // Support both hex (0x... or plain hex) and base64 formats
-            let privateKey;
-            if (this.apiSecret.startsWith('0x')) {
-                // Hex format with 0x prefix
-                privateKey = toBuffer(this.apiSecret.slice(2), 'hex');
-            }
-            else if (/^[0-9a-fA-F]+$/.test(this.apiSecret)) {
-                // Plain hex format
-                privateKey = toBuffer(this.apiSecret, 'hex');
-            }
-            else {
-                // Assume base64 format (Backpack's default format)
-                privateKey = toBuffer(this.apiSecret, 'base64');
-            }
-            // Sign the message with ED25519
-            const signature = await ed.signAsync(messageBytes, privateKey);
-            // Return signature as base64 string (Backpack expects base64)
-            return fromBuffer(new Uint8Array(signature), 'base64');
-        }
-        catch (error) {
-            throw new PerpDEXError(`Failed to sign request: ${error instanceof Error ? error.message : String(error)}`, 'SIGNATURE_ERROR', 'backpack');
         }
     }
 }

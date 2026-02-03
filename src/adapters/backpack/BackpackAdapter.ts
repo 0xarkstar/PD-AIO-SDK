@@ -4,8 +4,6 @@
  * Centralized exchange with perpetual futures using ED25519 signatures
  */
 
-import * as ed from '@noble/ed25519';
-import { toBuffer, fromBuffer } from '../../utils/buffer.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type {
   Market,
@@ -31,6 +29,7 @@ import {
   BACKPACK_ENDPOINT_WEIGHTS,
 } from './constants.js';
 import { BackpackNormalizer } from './BackpackNormalizer.js';
+import { BackpackAuth } from './BackpackAuth.js';
 import {
   toBackpackOrderType,
   toBackpackOrderSide,
@@ -69,8 +68,7 @@ export class BackpackAdapter extends BaseAdapter {
     watchBalance: true,
   };
 
-  private readonly apiKey?: string;
-  private readonly apiSecret?: string;
+  private readonly auth?: BackpackAuth;
   private readonly baseUrl: string;
   private readonly wsUrl: string;
   protected readonly httpClient: HTTPClient;
@@ -81,8 +79,10 @@ export class BackpackAdapter extends BaseAdapter {
   constructor(config: BackpackConfig = {}) {
     super(config);
 
-    this.apiKey = config.apiKey;
-    this.apiSecret = config.apiSecret;
+    // Initialize auth if credentials provided
+    if (config.apiKey && config.apiSecret) {
+      this.auth = new BackpackAuth({ apiKey: config.apiKey, apiSecret: config.apiSecret });
+    }
 
     // Initialize normalizer
     this.normalizer = new BackpackNormalizer();
@@ -135,7 +135,7 @@ export class BackpackAdapter extends BaseAdapter {
    * Check if credentials are available for private API methods
    */
   private hasCredentials(): boolean {
-    return !!(this.apiKey && this.apiSecret);
+    return !!this.auth?.hasCredentials();
   }
 
   /**
@@ -486,14 +486,11 @@ export class BackpackAdapter extends BaseAdapter {
 
     const headers: Record<string, string> = {};
 
-    if (this.apiKey) {
-      headers['X-API-KEY'] = this.apiKey;
-    }
-
-    if (this.apiSecret) {
+    if (this.auth) {
       const timestamp = Date.now().toString();
+      headers['X-API-KEY'] = this.auth.getApiKey();
       headers['X-Timestamp'] = timestamp;
-      headers['X-Signature'] = await this.signRequest(method, fullPath, timestamp, body);
+      headers['X-Signature'] = await this.auth.signRequest(method, fullPath, timestamp, body);
     }
 
     try {
@@ -518,50 +515,4 @@ export class BackpackAdapter extends BaseAdapter {
     }
   }
 
-  /**
-   * Sign request with ED25519 signature
-   * Uses cross-platform buffer utilities for browser compatibility
-   */
-  private async signRequest(
-    method: string,
-    path: string,
-    timestamp: string,
-    body?: Record<string, unknown>
-  ): Promise<string> {
-    if (!this.apiSecret) {
-      return '';
-    }
-
-    try {
-      // Create message to sign
-      const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ''}`;
-      const messageBytes = new TextEncoder().encode(message);
-
-      // Convert private key to Uint8Array
-      // Support both hex (0x... or plain hex) and base64 formats
-      let privateKey: Uint8Array;
-      if (this.apiSecret.startsWith('0x')) {
-        // Hex format with 0x prefix
-        privateKey = toBuffer(this.apiSecret.slice(2), 'hex');
-      } else if (/^[0-9a-fA-F]+$/.test(this.apiSecret)) {
-        // Plain hex format
-        privateKey = toBuffer(this.apiSecret, 'hex');
-      } else {
-        // Assume base64 format (Backpack's default format)
-        privateKey = toBuffer(this.apiSecret, 'base64');
-      }
-
-      // Sign the message with ED25519
-      const signature = await ed.signAsync(messageBytes, privateKey);
-
-      // Return signature as base64 string (Backpack expects base64)
-      return fromBuffer(new Uint8Array(signature), 'base64');
-    } catch (error) {
-      throw new PerpDEXError(
-        `Failed to sign request: ${error instanceof Error ? error.message : String(error)}`,
-        'SIGNATURE_ERROR',
-        'backpack'
-      );
-    }
-  }
 }

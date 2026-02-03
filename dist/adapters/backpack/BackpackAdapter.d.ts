@@ -16,8 +16,7 @@ export declare class BackpackAdapter extends BaseAdapter {
     readonly id = "backpack";
     readonly name = "Backpack";
     readonly has: Partial<FeatureMap>;
-    private readonly apiKey?;
-    private readonly apiSecret?;
+    private readonly auth?;
     private readonly baseUrl;
     private readonly wsUrl;
     protected readonly httpClient: HTTPClient;
@@ -124,10 +123,5 @@ export declare class BackpackAdapter extends BaseAdapter {
      * Backpack API uses /api/v1 prefix for all endpoints.
      */
     protected makeRequest(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, endpoint: string, body?: Record<string, unknown>): Promise<any>;
-    /**
-     * Sign request with ED25519 signature
-     * Uses cross-platform buffer utilities for browser compatibility
-     */
-    private signRequest;
 }
 //# sourceMappingURL=BackpackAdapter.d.ts.map

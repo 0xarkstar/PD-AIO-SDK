@@ -5,8 +5,6 @@
  * API Docs: https://edgex-1.gitbook.io/edgeX-documentation/api
  */
 
-import { createSha3HashBuffer } from '../../utils/crypto.js';
-import { ec } from 'starknet';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type {
   Market,
@@ -31,6 +29,7 @@ import {
   EDGEX_ENDPOINT_WEIGHTS,
 } from './constants.js';
 import { EdgeXNormalizer } from './EdgeXNormalizer.js';
+import { EdgeXAuth } from './EdgeXAuth.js';
 import {
   toEdgeXOrderType,
   toEdgeXOrderSide,
@@ -73,7 +72,7 @@ export class EdgeXAdapter extends BaseAdapter {
     watchBalance: true,
   };
 
-  private readonly starkPrivateKey?: string;
+  private readonly auth?: EdgeXAuth;
   private readonly baseUrl: string;
   private readonly wsUrl: string;
   private wsManager: WebSocketManager;
@@ -83,7 +82,10 @@ export class EdgeXAdapter extends BaseAdapter {
   constructor(config: EdgeXConfig = {}) {
     super(config);
 
-    this.starkPrivateKey = config.starkPrivateKey;
+    // Initialize auth if credentials provided
+    if (config.starkPrivateKey) {
+      this.auth = new EdgeXAuth({ starkPrivateKey: config.starkPrivateKey });
+    }
 
     // Initialize normalizer
     this.normalizer = new EdgeXNormalizer();
@@ -115,7 +117,7 @@ export class EdgeXAdapter extends BaseAdapter {
    * Require authentication for private API operations
    */
   private requireAuth(): void {
-    if (!this.starkPrivateKey) {
+    if (!this.auth) {
       throw new PerpDEXError(
         'Authentication required. Provide starkPrivateKey in config.',
         'MISSING_CREDENTIALS',
@@ -571,10 +573,10 @@ export class EdgeXAdapter extends BaseAdapter {
 
     // Add authentication headers for private endpoints
     const isPrivateEndpoint = path.includes('/private/');
-    if (isPrivateEndpoint && this.starkPrivateKey) {
+    if (isPrivateEndpoint && this.auth) {
       const timestamp = Date.now().toString();
       headers['X-edgeX-Api-Timestamp'] = timestamp;
-      headers['X-edgeX-Api-Signature'] = await this.signRequest(method, path, timestamp, body);
+      headers['X-edgeX-Api-Signature'] = await this.auth.signRequest(method, path, timestamp, body);
     }
 
     try {
@@ -600,58 +602,4 @@ export class EdgeXAdapter extends BaseAdapter {
     }
   }
 
-  /**
-   * Sign request with ECDSA signature using SHA3 hash
-   *
-   * EdgeX authentication process:
-   * 1. Create message: {timestamp}{METHOD}{path}{sorted_params}
-   * 2. Hash with SHA3-256
-   * 3. Sign with ECDSA using private key
-   *
-   * @see https://edgex-1.gitbook.io/edgeX-documentation/api/authentication
-   */
-  private async signRequest(
-    method: string,
-    path: string,
-    timestamp: string,
-    body?: Record<string, unknown>
-  ): Promise<string> {
-    if (!this.starkPrivateKey) {
-      return '';
-    }
-
-    try {
-      // Parse path and query parameters
-      const [basePath, queryString] = path.split('?');
-
-      // Build sorted query parameters
-      let sortedParams = '';
-      if (queryString) {
-        const params = new URLSearchParams(queryString);
-        const sortedKeys = Array.from(params.keys()).sort();
-        sortedParams = sortedKeys.map(k => `${k}=${params.get(k)}`).join('&');
-      } else if (body) {
-        const sortedKeys = Object.keys(body).sort();
-        sortedParams = sortedKeys.map(k => `${k}=${body[k]}`).join('&');
-      }
-
-      // Create message: timestamp + METHOD + path + sorted_params
-      const message = `${timestamp}${method.toUpperCase()}${basePath}${sortedParams}`;
-
-      // Hash with SHA3-256 (cross-platform)
-      const messageHash = await createSha3HashBuffer(message);
-
-      // Sign with ECDSA using private key
-      const signature = ec.starkCurve.sign(messageHash, this.starkPrivateKey);
-
-      // Return signature in hex format
-      return `0x${signature.r.toString(16).padStart(64, '0')}${signature.s.toString(16).padStart(64, '0')}`;
-    } catch (error) {
-      throw new PerpDEXError(
-        `Failed to sign request: ${error instanceof Error ? error.message : String(error)}`,
-        'SIGNATURE_ERROR',
-        'edgex'
-      );
-    }
-  }
 }
