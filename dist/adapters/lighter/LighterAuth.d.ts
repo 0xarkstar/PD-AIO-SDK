@@ -7,7 +7,7 @@
  * 2. HMAC mode: HMAC-SHA256 for legacy/read-only operations
  */
 import type { IAuthStrategy, RequestParams, AuthenticatedRequest } from '../../types/adapter.js';
-import { LighterSigner } from './signer/index.js';
+import { LighterSigner, LighterWasmSigner } from './signer/index.js';
 import { NonceManager } from './NonceManager.js';
 import type { HTTPClient } from '../../core/http/HTTPClient.js';
 /**
@@ -123,7 +123,7 @@ export declare class LighterAuth implements IAuthStrategy {
     /**
      * Get the signer instance (for advanced usage)
      */
-    getSigner(): LighterSigner | null;
+    getSigner(): LighterSigner | LighterWasmSigner | null;
     /**
      * Get the nonce manager (for advanced usage)
      */

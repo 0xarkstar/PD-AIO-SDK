@@ -9,7 +9,7 @@
 
 import { createHmacSha256 } from '../../utils/crypto.js';
 import type { IAuthStrategy, RequestParams, AuthenticatedRequest } from '../../types/adapter.js';
-import { LighterSigner } from './signer/index.js';
+import { LighterSigner, LighterWasmSigner } from './signer/index.js';
 import { NonceManager } from './NonceManager.js';
 import type { HTTPClient } from '../../core/http/HTTPClient.js';
 
@@ -63,7 +63,7 @@ export type AuthMode = 'ffi' | 'hmac' | 'none';
  */
 export class LighterAuth implements IAuthStrategy {
   private readonly config: LighterAuthConfig;
-  private signer: LighterSigner | null = null;
+  private signer: LighterSigner | LighterWasmSigner | null = null;
   private nonceManager: NonceManager | null = null;
   private authToken: string | null = null;
   private authTokenExpiry = 0;
@@ -131,22 +131,30 @@ export class LighterAuth implements IAuthStrategy {
     }
 
     if (this.mode === 'ffi' && this.config.apiPrivateKey) {
-      // Initialize FFI signer
-      this.signer = new LighterSigner({
+      const signerConfig = {
         apiPrivateKey: this.config.apiPrivateKey,
         apiPublicKey: this.config.apiPublicKey,
         accountIndex: this.config.accountIndex,
         apiKeyIndex: this.config.apiKeyIndex,
         chainId: this.config.chainId ?? 300,
         libraryPath: this.config.nativeLibraryPath,
-      });
+      };
 
+      // Try native FFI signer first, fall back to WASM
       try {
+        this.signer = new LighterSigner(signerConfig);
         await this.signer.initialize();
-      } catch (error) {
-        // FFI initialization failed, disable FFI mode
-        console.warn('FFI signer initialization failed:', error);
-        this.signer = null;
+      } catch (nativeError) {
+        // Native signer failed, try WASM fallback
+        console.warn('Native FFI signer unavailable, falling back to WASM:', nativeError instanceof Error ? nativeError.message : nativeError);
+        try {
+          this.signer = new LighterWasmSigner(signerConfig);
+          await this.signer.initialize();
+        } catch (wasmError) {
+          // Both signers failed
+          console.warn('WASM signer initialization also failed:', wasmError instanceof Error ? wasmError.message : wasmError);
+          this.signer = null;
+        }
       }
 
       // Initialize nonce manager if HTTP client is available
@@ -275,7 +283,7 @@ export class LighterAuth implements IAuthStrategy {
   /**
    * Get the signer instance (for advanced usage)
    */
-  getSigner(): LighterSigner | null {
+  getSigner(): LighterSigner | LighterWasmSigner | null {
     return this.signer;
   }
 

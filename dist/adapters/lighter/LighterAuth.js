@@ -7,7 +7,7 @@
  * 2. HMAC mode: HMAC-SHA256 for legacy/read-only operations
  */
 import { createHmacSha256 } from '../../utils/crypto.js';
-import { LighterSigner } from './signer/index.js';
+import { LighterSigner, LighterWasmSigner } from './signer/index.js';
 import { NonceManager } from './NonceManager.js';
 /**
  * Lighter Authentication Strategy
@@ -93,22 +93,31 @@ export class LighterAuth {
             return;
         }
         if (this.mode === 'ffi' && this.config.apiPrivateKey) {
-            // Initialize FFI signer
-            this.signer = new LighterSigner({
+            const signerConfig = {
                 apiPrivateKey: this.config.apiPrivateKey,
                 apiPublicKey: this.config.apiPublicKey,
                 accountIndex: this.config.accountIndex,
                 apiKeyIndex: this.config.apiKeyIndex,
                 chainId: this.config.chainId ?? 300,
                 libraryPath: this.config.nativeLibraryPath,
-            });
+            };
+            // Try native FFI signer first, fall back to WASM
             try {
+                this.signer = new LighterSigner(signerConfig);
                 await this.signer.initialize();
             }
-            catch (error) {
-                // FFI initialization failed, disable FFI mode
-                console.warn('FFI signer initialization failed:', error);
-                this.signer = null;
+            catch (nativeError) {
+                // Native signer failed, try WASM fallback
+                console.warn('Native FFI signer unavailable, falling back to WASM:', nativeError instanceof Error ? nativeError.message : nativeError);
+                try {
+                    this.signer = new LighterWasmSigner(signerConfig);
+                    await this.signer.initialize();
+                }
+                catch (wasmError) {
+                    // Both signers failed
+                    console.warn('WASM signer initialization also failed:', wasmError instanceof Error ? wasmError.message : wasmError);
+                    this.signer = null;
+                }
             }
             // Initialize nonce manager if HTTP client is available
             if (this.config.httpClient) {
