@@ -1078,3 +1078,401 @@ describe('DydxNormalizer', () => {
     });
   });
 });
+
+describe('dYdX Utility Functions', () => {
+  let mapTimeframeToDydx: typeof import('../../src/adapters/dydx/utils.js').mapTimeframeToDydx;
+  let getDefaultOHLCVDuration: typeof import('../../src/adapters/dydx/utils.js').getDefaultOHLCVDuration;
+  let roundToPrecision: typeof import('../../src/adapters/dydx/utils.js').roundToPrecision;
+  let roundToTickSize: typeof import('../../src/adapters/dydx/utils.js').roundToTickSize;
+  let roundToStepSize: typeof import('../../src/adapters/dydx/utils.js').roundToStepSize;
+  let getGoodTilTimeInSeconds: typeof import('../../src/adapters/dydx/utils.js').getGoodTilTimeInSeconds;
+  let parseISOTimestamp: typeof import('../../src/adapters/dydx/utils.js').parseISOTimestamp;
+  let buildSubaccountId: typeof import('../../src/adapters/dydx/utils.js').buildSubaccountId;
+  let parseSubaccountId: typeof import('../../src/adapters/dydx/utils.js').parseSubaccountId;
+  let buildQueryString: typeof import('../../src/adapters/dydx/utils.js').buildQueryString;
+  let buildUrl: typeof import('../../src/adapters/dydx/utils.js').buildUrl;
+  let convertOrderRequest: typeof import('../../src/adapters/dydx/utils.js').convertOrderRequest;
+  let DYDX_CANDLE_RESOLUTIONS: typeof import('../../src/adapters/dydx/utils.js').DYDX_CANDLE_RESOLUTIONS;
+
+  beforeAll(async () => {
+    const utilsModule = await import('../../src/adapters/dydx/utils.js');
+    mapTimeframeToDydx = utilsModule.mapTimeframeToDydx;
+    getDefaultOHLCVDuration = utilsModule.getDefaultOHLCVDuration;
+    roundToPrecision = utilsModule.roundToPrecision;
+    roundToTickSize = utilsModule.roundToTickSize;
+    roundToStepSize = utilsModule.roundToStepSize;
+    getGoodTilTimeInSeconds = utilsModule.getGoodTilTimeInSeconds;
+    parseISOTimestamp = utilsModule.parseISOTimestamp;
+    buildSubaccountId = utilsModule.buildSubaccountId;
+    parseSubaccountId = utilsModule.parseSubaccountId;
+    buildQueryString = utilsModule.buildQueryString;
+    buildUrl = utilsModule.buildUrl;
+    convertOrderRequest = utilsModule.convertOrderRequest;
+    DYDX_CANDLE_RESOLUTIONS = utilsModule.DYDX_CANDLE_RESOLUTIONS;
+  });
+
+  describe('mapTimeframeToDydx', () => {
+    test('should map 1m to 1MIN', () => {
+      expect(mapTimeframeToDydx('1m')).toBe('1MIN');
+    });
+
+    test('should map 5m to 5MINS', () => {
+      expect(mapTimeframeToDydx('5m')).toBe('5MINS');
+    });
+
+    test('should map 15m to 15MINS', () => {
+      expect(mapTimeframeToDydx('15m')).toBe('15MINS');
+    });
+
+    test('should map 1h to 1HOUR', () => {
+      expect(mapTimeframeToDydx('1h')).toBe('1HOUR');
+    });
+
+    test('should map 4h to 4HOURS', () => {
+      expect(mapTimeframeToDydx('4h')).toBe('4HOURS');
+    });
+
+    test('should map 1d to 1DAY', () => {
+      expect(mapTimeframeToDydx('1d')).toBe('1DAY');
+    });
+
+    test('should default to 1HOUR for unknown timeframe', () => {
+      expect(mapTimeframeToDydx('1w' as any)).toBe('1HOUR');
+    });
+  });
+
+  describe('getDefaultOHLCVDuration', () => {
+    test('should return 24 hours for 1m', () => {
+      expect(getDefaultOHLCVDuration('1m')).toBe(24 * 60 * 60 * 1000);
+    });
+
+    test('should return 5 days for 5m', () => {
+      expect(getDefaultOHLCVDuration('5m')).toBe(5 * 24 * 60 * 60 * 1000);
+    });
+
+    test('should return 30 days for 1h', () => {
+      expect(getDefaultOHLCVDuration('1h')).toBe(30 * 24 * 60 * 60 * 1000);
+    });
+
+    test('should return 90 days for 4h', () => {
+      expect(getDefaultOHLCVDuration('4h')).toBe(90 * 24 * 60 * 60 * 1000);
+    });
+
+    test('should return 1 year for 1d', () => {
+      expect(getDefaultOHLCVDuration('1d')).toBe(365 * 24 * 60 * 60 * 1000);
+    });
+
+    test('should return 30 days for unknown timeframe', () => {
+      expect(getDefaultOHLCVDuration('1w' as any)).toBe(30 * 24 * 60 * 60 * 1000);
+    });
+  });
+
+  describe('roundToPrecision', () => {
+    test('should round to 2 decimal places', () => {
+      expect(roundToPrecision(3.14159, 2)).toBe(3.14);
+    });
+
+    test('should round to 0 decimal places', () => {
+      expect(roundToPrecision(3.7, 0)).toBe(4);
+    });
+
+    test('should round to 4 decimal places', () => {
+      expect(roundToPrecision(1.123456, 4)).toBe(1.1235);
+    });
+
+    test('should handle negative numbers', () => {
+      expect(roundToPrecision(-3.14159, 2)).toBe(-3.14);
+    });
+  });
+
+  describe('roundToTickSize', () => {
+    test('should round price to tick size 0.01', () => {
+      expect(roundToTickSize(100.123, 0.01)).toBeCloseTo(100.12, 2);
+    });
+
+    test('should round price to tick size 0.5', () => {
+      expect(roundToTickSize(100.3, 0.5)).toBe(100.5);
+    });
+
+    test('should round price to tick size 1', () => {
+      expect(roundToTickSize(100.4, 1)).toBe(100);
+    });
+
+    test('should round price to tick size 10', () => {
+      expect(roundToTickSize(123, 10)).toBe(120);
+    });
+  });
+
+  describe('roundToStepSize', () => {
+    test('should round amount down to step size 0.001', () => {
+      expect(roundToStepSize(1.1239, 0.001)).toBeCloseTo(1.123, 3);
+    });
+
+    test('should round amount down to step size 0.1', () => {
+      expect(roundToStepSize(1.99, 0.1)).toBeCloseTo(1.9, 1);
+    });
+
+    test('should round amount down to step size 1', () => {
+      expect(roundToStepSize(5.9, 1)).toBe(5);
+    });
+  });
+
+  describe('getGoodTilTimeInSeconds', () => {
+    test('should return future timestamp with default duration', () => {
+      const now = Math.floor(Date.now() / 1000);
+      const result = getGoodTilTimeInSeconds();
+      expect(result).toBeGreaterThan(now);
+      expect(result).toBeLessThanOrEqual(now + 610); // 10 minutes + buffer
+    });
+
+    test('should return future timestamp with custom duration', () => {
+      const now = Math.floor(Date.now() / 1000);
+      const result = getGoodTilTimeInSeconds(3600); // 1 hour
+      expect(result).toBeGreaterThan(now);
+      expect(result).toBeLessThanOrEqual(now + 3610);
+    });
+  });
+
+  describe('parseISOTimestamp', () => {
+    test('should parse ISO timestamp to milliseconds', () => {
+      expect(parseISOTimestamp('2024-01-01T00:00:00Z')).toBe(1704067200000);
+    });
+
+    test('should parse ISO timestamp with timezone', () => {
+      const ts = parseISOTimestamp('2024-01-01T12:00:00+00:00');
+      expect(ts).toBe(1704110400000);
+    });
+  });
+
+  describe('buildSubaccountId', () => {
+    test('should build subaccount ID', () => {
+      expect(buildSubaccountId('dydx1abc', 0)).toBe('dydx1abc/0');
+    });
+
+    test('should build subaccount ID with non-zero number', () => {
+      expect(buildSubaccountId('dydx1xyz', 5)).toBe('dydx1xyz/5');
+    });
+  });
+
+  describe('parseSubaccountId', () => {
+    test('should parse subaccount ID', () => {
+      const result = parseSubaccountId('dydx1abc/0');
+      expect(result.address).toBe('dydx1abc');
+      expect(result.subaccountNumber).toBe(0);
+    });
+
+    test('should parse subaccount ID with non-zero number', () => {
+      const result = parseSubaccountId('dydx1xyz/5');
+      expect(result.address).toBe('dydx1xyz');
+      expect(result.subaccountNumber).toBe(5);
+    });
+
+    test('should handle invalid format', () => {
+      const result = parseSubaccountId('invalid');
+      expect(result.address).toBe('invalid');
+      expect(result.subaccountNumber).toBe(0);
+    });
+  });
+
+  describe('buildQueryString', () => {
+    test('should build query string from params', () => {
+      const result = buildQueryString({ a: 'b', c: 'd' });
+      expect(result).toBe('a=b&c=d');
+    });
+
+    test('should handle number values', () => {
+      const result = buildQueryString({ limit: 100, offset: 0 });
+      expect(result).toBe('limit=100&offset=0');
+    });
+
+    test('should handle boolean values', () => {
+      const result = buildQueryString({ active: true });
+      expect(result).toBe('active=true');
+    });
+
+    test('should filter out undefined values', () => {
+      const result = buildQueryString({ a: 'b', c: undefined, d: 'e' });
+      expect(result).toBe('a=b&d=e');
+    });
+
+    test('should encode special characters', () => {
+      const result = buildQueryString({ q: 'hello world' });
+      expect(result).toBe('q=hello%20world');
+    });
+  });
+
+  describe('buildUrl', () => {
+    test('should build URL with path', () => {
+      expect(buildUrl('https://api.example.com', '/v1/markets')).toBe('https://api.example.com/v1/markets');
+    });
+
+    test('should build URL with params', () => {
+      expect(buildUrl('https://api.example.com', '/v1/markets', { limit: 10 })).toBe('https://api.example.com/v1/markets?limit=10');
+    });
+
+    test('should handle empty params', () => {
+      expect(buildUrl('https://api.example.com', '/v1/markets', {})).toBe('https://api.example.com/v1/markets');
+    });
+
+    test('should handle undefined params', () => {
+      expect(buildUrl('https://api.example.com', '/v1/markets', undefined)).toBe('https://api.example.com/v1/markets');
+    });
+  });
+
+  describe('convertOrderRequest', () => {
+    test('should convert market buy order', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'buy' as const,
+        type: 'market' as const,
+        amount: 1.5,
+      };
+
+      const result = convertOrderRequest(request, 0);
+
+      expect(result.marketId).toBe('BTC-USD');
+      expect(result.side).toBe('BUY');
+      expect(result.type).toBe('MARKET');
+      expect(result.size).toBe('1.5');
+      expect(result.subaccountNumber).toBe(0);
+    });
+
+    test('should convert limit sell order', () => {
+      const request = {
+        symbol: 'ETH/USD:USD',
+        side: 'sell' as const,
+        type: 'limit' as const,
+        amount: 10,
+        price: 3000,
+      };
+
+      const result = convertOrderRequest(request, 1);
+
+      expect(result.marketId).toBe('ETH-USD');
+      expect(result.side).toBe('SELL');
+      expect(result.type).toBe('LIMIT');
+      expect(result.price).toBe('3000');
+      expect(result.size).toBe('10');
+      expect(result.subaccountNumber).toBe(1);
+    });
+
+    test('should convert stop limit order', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'sell' as const,
+        type: 'stopLimit' as const,
+        amount: 1,
+        price: 49000,
+        stopPrice: 50000,
+      };
+
+      const result = convertOrderRequest(request, 0);
+
+      expect(result.type).toBe('STOP_LIMIT');
+      expect(result.triggerPrice).toBe('50000');
+    });
+
+    test('should convert stop market order', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'sell' as const,
+        type: 'stopMarket' as const,
+        amount: 1,
+        stopPrice: 50000,
+      };
+
+      const result = convertOrderRequest(request, 0);
+
+      expect(result.type).toBe('STOP_MARKET');
+      expect(result.triggerPrice).toBe('50000');
+    });
+
+    test('should handle IOC time in force', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'buy' as const,
+        type: 'limit' as const,
+        amount: 1,
+        price: 50000,
+        timeInForce: 'IOC' as const,
+      };
+
+      const result = convertOrderRequest(request, 0);
+
+      expect(result.timeInForce).toBe('IOC');
+      expect(result.execution).toBe('IOC');
+    });
+
+    test('should handle FOK time in force', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'buy' as const,
+        type: 'limit' as const,
+        amount: 1,
+        price: 50000,
+        timeInForce: 'FOK' as const,
+      };
+
+      const result = convertOrderRequest(request, 0);
+
+      expect(result.timeInForce).toBe('FOK');
+      expect(result.execution).toBe('FOK');
+    });
+
+    test('should handle postOnly flag', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'buy' as const,
+        type: 'limit' as const,
+        amount: 1,
+        price: 50000,
+        postOnly: true,
+      };
+
+      const result = convertOrderRequest(request, 0);
+
+      expect(result.postOnly).toBe(true);
+      expect(result.execution).toBe('POST_ONLY');
+    });
+
+    test('should handle reduceOnly flag', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'sell' as const,
+        type: 'market' as const,
+        amount: 1,
+        reduceOnly: true,
+      };
+
+      const result = convertOrderRequest(request, 0);
+
+      expect(result.reduceOnly).toBe(true);
+    });
+
+    test('should handle clientOrderId', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'buy' as const,
+        type: 'market' as const,
+        amount: 1,
+        clientOrderId: '12345',
+      };
+
+      const result = convertOrderRequest(request, 0);
+
+      expect(result.clientId).toBe(12345);
+    });
+  });
+
+  describe('DYDX_CANDLE_RESOLUTIONS', () => {
+    test('should have correct mappings', () => {
+      expect(DYDX_CANDLE_RESOLUTIONS['1m']).toBe('1MIN');
+      expect(DYDX_CANDLE_RESOLUTIONS['5m']).toBe('5MINS');
+      expect(DYDX_CANDLE_RESOLUTIONS['15m']).toBe('15MINS');
+      expect(DYDX_CANDLE_RESOLUTIONS['30m']).toBe('30MINS');
+      expect(DYDX_CANDLE_RESOLUTIONS['1h']).toBe('1HOUR');
+      expect(DYDX_CANDLE_RESOLUTIONS['4h']).toBe('4HOURS');
+      expect(DYDX_CANDLE_RESOLUTIONS['1d']).toBe('1DAY');
+    });
+  });
+});
