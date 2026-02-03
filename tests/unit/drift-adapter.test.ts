@@ -999,3 +999,131 @@ describe('DriftNormalizer', () => {
     });
   });
 });
+
+describe('DriftAuth Validation Functions', () => {
+  let isValidSolanaAddress: typeof import('../../src/adapters/drift/DriftAuth.js').isValidSolanaAddress;
+  let isValidSolanaPrivateKey: typeof import('../../src/adapters/drift/DriftAuth.js').isValidSolanaPrivateKey;
+
+  beforeAll(async () => {
+    const authModule = await import('../../src/adapters/drift/DriftAuth.js');
+    isValidSolanaAddress = authModule.isValidSolanaAddress;
+    isValidSolanaPrivateKey = authModule.isValidSolanaPrivateKey;
+  });
+
+  describe('isValidSolanaAddress', () => {
+    test('should accept valid base58 address (32 chars)', () => {
+      // 32-char address (minimum valid)
+      expect(isValidSolanaAddress('11111111111111111111111111111111')).toBe(true);
+    });
+
+    test('should accept valid base58 address (44 chars)', () => {
+      // Common Solana pubkey length
+      expect(isValidSolanaAddress('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')).toBe(true);
+    });
+
+    test('should accept valid base58 address (43 chars)', () => {
+      expect(isValidSolanaAddress('So11111111111111111111111111111111111111112')).toBe(true);
+    });
+
+    test('should reject address with invalid base58 chars (0)', () => {
+      expect(isValidSolanaAddress('01111111111111111111111111111111')).toBe(false);
+    });
+
+    test('should reject address with invalid base58 chars (O)', () => {
+      expect(isValidSolanaAddress('O1111111111111111111111111111111')).toBe(false);
+    });
+
+    test('should reject address with invalid base58 chars (I)', () => {
+      expect(isValidSolanaAddress('I1111111111111111111111111111111')).toBe(false);
+    });
+
+    test('should reject address with invalid base58 chars (l)', () => {
+      expect(isValidSolanaAddress('l1111111111111111111111111111111')).toBe(false);
+    });
+
+    test('should reject too short address', () => {
+      expect(isValidSolanaAddress('1111111111111111111111111111111')).toBe(false); // 31 chars
+    });
+
+    test('should reject too long address', () => {
+      expect(isValidSolanaAddress('111111111111111111111111111111111111111111111')).toBe(false); // 45 chars
+    });
+
+    test('should reject empty string', () => {
+      expect(isValidSolanaAddress('')).toBe(false);
+    });
+  });
+
+  describe('isValidSolanaPrivateKey', () => {
+    test('should accept valid Uint8Array (64 bytes)', () => {
+      const key = new Uint8Array(64).fill(1);
+      expect(isValidSolanaPrivateKey(key)).toBe(true);
+    });
+
+    test('should reject Uint8Array with wrong length', () => {
+      const shortKey = new Uint8Array(32).fill(1);
+      expect(isValidSolanaPrivateKey(shortKey)).toBe(false);
+
+      const longKey = new Uint8Array(128).fill(1);
+      expect(isValidSolanaPrivateKey(longKey)).toBe(false);
+    });
+
+    test('should accept valid JSON array format (64 bytes)', () => {
+      const jsonKey = JSON.stringify(Array(64).fill(1));
+      expect(isValidSolanaPrivateKey(jsonKey)).toBe(true);
+    });
+
+    test('should reject JSON array with wrong length', () => {
+      const shortJson = JSON.stringify(Array(32).fill(1));
+      expect(isValidSolanaPrivateKey(shortJson)).toBe(false);
+
+      const longJson = JSON.stringify(Array(128).fill(1));
+      expect(isValidSolanaPrivateKey(longJson)).toBe(false);
+    });
+
+    test('should reject invalid JSON', () => {
+      expect(isValidSolanaPrivateKey('[invalid json')).toBe(false);
+    });
+
+    test('should accept valid base58 format (87-88 chars)', () => {
+      // 87 char base58 private key
+      const base58Key87 = '1'.repeat(87);
+      expect(isValidSolanaPrivateKey(base58Key87)).toBe(true);
+
+      // 88 char base58 private key
+      const base58Key88 = '1'.repeat(88);
+      expect(isValidSolanaPrivateKey(base58Key88)).toBe(true);
+    });
+
+    test('should reject invalid base58 length', () => {
+      const shortBase58 = '1'.repeat(86);
+      expect(isValidSolanaPrivateKey(shortBase58)).toBe(false);
+
+      const longBase58 = '1'.repeat(89);
+      expect(isValidSolanaPrivateKey(longBase58)).toBe(false);
+    });
+
+    test('should accept valid hex format (128 hex chars)', () => {
+      const hexKey = 'a'.repeat(128);
+      expect(isValidSolanaPrivateKey(hexKey)).toBe(true);
+    });
+
+    test('should accept hex format with 0x prefix', () => {
+      const hexKey = '0x' + 'a'.repeat(128);
+      expect(isValidSolanaPrivateKey(hexKey)).toBe(true);
+    });
+
+    test('should reject invalid hex length', () => {
+      const shortHex = 'a'.repeat(64);
+      expect(isValidSolanaPrivateKey(shortHex)).toBe(false);
+    });
+
+    test('should reject empty string', () => {
+      expect(isValidSolanaPrivateKey('')).toBe(false);
+    });
+
+    test('should reject random string', () => {
+      expect(isValidSolanaPrivateKey('not a valid key')).toBe(false);
+    });
+  });
+});
