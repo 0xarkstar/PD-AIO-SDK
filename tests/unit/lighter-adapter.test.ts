@@ -222,3 +222,257 @@ describe('LighterAdapter', () => {
     });
   });
 });
+
+describe('Lighter Utility Functions', () => {
+  let convertOrderRequest: typeof import('../../src/adapters/lighter/utils.js').convertOrderRequest;
+  let mapError: typeof import('../../src/adapters/lighter/utils.js').mapError;
+
+  beforeAll(async () => {
+    const utilsModule = await import('../../src/adapters/lighter/utils.js');
+    convertOrderRequest = utilsModule.convertOrderRequest;
+    mapError = utilsModule.mapError;
+  });
+
+  describe('convertOrderRequest', () => {
+    test('should convert basic market order', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'buy' as const,
+        type: 'market' as const,
+        amount: 1.5,
+      };
+
+      const result = convertOrderRequest(request, 'BTC-USD');
+
+      expect(result.symbol).toBe('BTC-USD');
+      expect(result.side).toBe('buy');
+      expect(result.type).toBe('market');
+      expect(result.quantity).toBe(1.5);
+    });
+
+    test('should convert limit order with price', () => {
+      const request = {
+        symbol: 'ETH/USD:USD',
+        side: 'sell' as const,
+        type: 'limit' as const,
+        amount: 10,
+        price: 3000,
+      };
+
+      const result = convertOrderRequest(request, 'ETH-USD');
+
+      expect(result.price).toBe(3000);
+    });
+
+    test('should include clientOrderId when provided', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'buy' as const,
+        type: 'market' as const,
+        amount: 1,
+        clientOrderId: 'client-123',
+      };
+
+      const result = convertOrderRequest(request, 'BTC-USD');
+
+      expect(result.clientOrderId).toBe('client-123');
+    });
+
+    test('should not include clientOrderId when not provided', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'buy' as const,
+        type: 'market' as const,
+        amount: 1,
+      };
+
+      const result = convertOrderRequest(request, 'BTC-USD');
+
+      expect(result.clientOrderId).toBeUndefined();
+    });
+
+    test('should set reduceOnly when true', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'sell' as const,
+        type: 'market' as const,
+        amount: 1,
+        reduceOnly: true,
+      };
+
+      const result = convertOrderRequest(request, 'BTC-USD');
+
+      expect(result.reduceOnly).toBe(true);
+    });
+
+    test('should not set reduceOnly when false', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'sell' as const,
+        type: 'market' as const,
+        amount: 1,
+        reduceOnly: false,
+      };
+
+      const result = convertOrderRequest(request, 'BTC-USD');
+
+      expect(result.reduceOnly).toBeUndefined();
+    });
+
+    test('should set timeInForce to PO for postOnly', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'buy' as const,
+        type: 'limit' as const,
+        amount: 1,
+        price: 50000,
+        postOnly: true,
+      };
+
+      const result = convertOrderRequest(request, 'BTC-USD');
+
+      expect(result.timeInForce).toBe('PO');
+    });
+
+    test('should set timeInForce when provided', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'buy' as const,
+        type: 'limit' as const,
+        amount: 1,
+        price: 50000,
+        timeInForce: 'IOC' as const,
+      };
+
+      const result = convertOrderRequest(request, 'BTC-USD');
+
+      expect(result.timeInForce).toBe('IOC');
+    });
+
+    test('should prefer postOnly over timeInForce', () => {
+      const request = {
+        symbol: 'BTC/USD:USD',
+        side: 'buy' as const,
+        type: 'limit' as const,
+        amount: 1,
+        price: 50000,
+        postOnly: true,
+        timeInForce: 'GTC' as const,
+      };
+
+      const result = convertOrderRequest(request, 'BTC-USD');
+
+      expect(result.timeInForce).toBe('PO');
+    });
+  });
+
+  describe('mapError', () => {
+    test('should pass through PerpDEXError', async () => {
+      const { PerpDEXError } = await import('../../src/types/errors.js');
+      const perpError = new PerpDEXError('Test error', 'TEST_CODE', 'lighter');
+      const result = mapError(perpError);
+      expect(result).toBe(perpError);
+    });
+
+    test('should map rate limit error', () => {
+      const error = new Error('rate limit exceeded');
+      const result = mapError(error);
+      expect(result.code).toBe('RATE_LIMIT_EXCEEDED');
+    });
+
+    test('should map too many requests error', () => {
+      const error = new Error('too many requests');
+      const result = mapError(error);
+      expect(result.code).toBe('RATE_LIMIT_EXCEEDED');
+    });
+
+    test('should map insufficient margin error', () => {
+      const error = new Error('insufficient margin');
+      const result = mapError(error);
+      expect(result.code).toBe('INSUFFICIENT_MARGIN');
+    });
+
+    test('should map insufficient balance error', () => {
+      const error = new Error('insufficient balance');
+      const result = mapError(error);
+      expect(result.code).toBe('INSUFFICIENT_MARGIN');
+    });
+
+    test('should map invalid order error', () => {
+      const error = new Error('invalid order parameters');
+      const result = mapError(error);
+      expect(result.code).toBe('INVALID_ORDER');
+    });
+
+    test('should map order size error', () => {
+      const error = new Error('order size too small');
+      const result = mapError(error);
+      expect(result.code).toBe('INVALID_ORDER');
+    });
+
+    test('should map price error', () => {
+      const error = new Error('price is invalid');
+      const result = mapError(error);
+      expect(result.code).toBe('INVALID_ORDER');
+    });
+
+    test('should map order not found error', () => {
+      const error = new Error('order not found');
+      const result = mapError(error);
+      expect(result.code).toBe('ORDER_NOT_FOUND');
+    });
+
+    test('should map unauthorized error', () => {
+      const error = new Error('unauthorized');
+      const result = mapError(error);
+      expect(result.code).toBe('INVALID_SIGNATURE');
+    });
+
+    test('should map authentication error', () => {
+      const error = new Error('authentication failed');
+      const result = mapError(error);
+      expect(result.code).toBe('INVALID_SIGNATURE');
+    });
+
+    test('should map invalid signature error', () => {
+      const error = new Error('invalid signature');
+      const result = mapError(error);
+      expect(result.code).toBe('INVALID_SIGNATURE');
+    });
+
+    test('should map unavailable error', () => {
+      const error = new Error('service unavailable');
+      const result = mapError(error);
+      expect(result.code).toBe('EXCHANGE_UNAVAILABLE');
+    });
+
+    test('should map maintenance error', () => {
+      const error = new Error('system under maintenance');
+      const result = mapError(error);
+      expect(result.code).toBe('EXCHANGE_UNAVAILABLE');
+    });
+
+    test('should map offline error', () => {
+      const error = new Error('exchange offline');
+      const result = mapError(error);
+      expect(result.code).toBe('EXCHANGE_UNAVAILABLE');
+    });
+
+    test('should map unknown error', () => {
+      const error = new Error('some random error');
+      const result = mapError(error);
+      expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+
+    test('should handle string error', () => {
+      const result = mapError('string error message');
+      expect(result.code).toBe('UNKNOWN_ERROR');
+      expect(result.message).toBe('string error message');
+    });
+
+    test('should handle non-Error object', () => {
+      const result = mapError({ custom: 'error' });
+      expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+  });
+});
