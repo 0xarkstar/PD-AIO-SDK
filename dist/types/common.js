@@ -39,4 +39,24 @@ export const OHLCV_TIMEFRAMES = [
     '1h', '2h', '4h', '6h', '8h', '12h',
     '1d', '3d', '1w', '1M'
 ];
+// =============================================================================
+// Ledger Types (CCXT-compatible)
+// =============================================================================
+export const LEDGER_ENTRY_TYPES = [
+    'trade',
+    'fee',
+    'deposit',
+    'withdrawal',
+    'transfer',
+    'funding',
+    'margin',
+    'rebate',
+    'cashback',
+    'referral',
+    'other',
+];
+// =============================================================================
+// Exchange Status Types (CCXT-compatible)
+// =============================================================================
+export const EXCHANGE_STATUS_VALUES = ['ok', 'maintenance', 'error', 'unknown'];
 //# sourceMappingURL=common.js.map

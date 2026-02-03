@@ -178,10 +178,10 @@ export declare const PositionSchema: z.ZodObject<{
     info: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
 }, "strip", z.ZodTypeAny, {
     symbol: string;
+    margin: number;
     side: "long" | "short";
     timestamp: number;
     markPrice: number;
-    margin: number;
     size: number;
     leverage: number;
     unrealizedPnl: number;
@@ -194,10 +194,10 @@ export declare const PositionSchema: z.ZodObject<{
     info?: Record<string, unknown> | undefined;
 }, {
     symbol: string;
+    margin: number;
     side: "long" | "short";
     timestamp: number;
     markPrice: number;
-    margin: number;
     size: number;
     leverage: number;
     unrealizedPnl: number;

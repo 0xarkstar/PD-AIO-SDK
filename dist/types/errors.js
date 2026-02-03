@@ -39,6 +39,59 @@ export class PerpDEXError extends Error {
     }
 }
 // =============================================================================
+// General Exchange Errors (CCXT-compatible)
+// =============================================================================
+/**
+ * General exchange error - base for exchange-specific errors
+ */
+export class ExchangeError extends PerpDEXError {
+    constructor(message, code, exchange, originalError) {
+        super(message, code, exchange, originalError);
+        this.name = 'ExchangeError';
+        Object.setPrototypeOf(this, ExchangeError.prototype);
+    }
+}
+/**
+ * Feature not supported by exchange
+ */
+export class NotSupportedError extends PerpDEXError {
+    constructor(message, code, exchange, originalError) {
+        super(message, code, exchange, originalError);
+        this.name = 'NotSupportedError';
+        Object.setPrototypeOf(this, NotSupportedError.prototype);
+    }
+}
+/**
+ * Bad request - malformed or invalid request parameters
+ */
+export class BadRequestError extends PerpDEXError {
+    constructor(message, code, exchange, originalError) {
+        super(message, code, exchange, originalError);
+        this.name = 'BadRequestError';
+        Object.setPrototypeOf(this, BadRequestError.prototype);
+    }
+}
+/**
+ * Bad response - invalid or unexpected API response
+ */
+export class BadResponseError extends PerpDEXError {
+    constructor(message, code, exchange, originalError) {
+        super(message, code, exchange, originalError);
+        this.name = 'BadResponseError';
+        Object.setPrototypeOf(this, BadResponseError.prototype);
+    }
+}
+/**
+ * General authentication error
+ */
+export class AuthenticationError extends PerpDEXError {
+    constructor(message, code, exchange, originalError) {
+        super(message, code, exchange, originalError);
+        this.name = 'AuthenticationError';
+        Object.setPrototypeOf(this, AuthenticationError.prototype);
+    }
+}
+// =============================================================================
 // Trading Errors
 // =============================================================================
 export class InsufficientMarginError extends PerpDEXError {
@@ -256,6 +309,21 @@ export function isTimeoutError(error) {
 export function isValidationError(error) {
     return error instanceof ValidationError;
 }
+export function isExchangeError(error) {
+    return error instanceof ExchangeError;
+}
+export function isNotSupportedError(error) {
+    return error instanceof NotSupportedError;
+}
+export function isBadRequestError(error) {
+    return error instanceof BadRequestError;
+}
+export function isBadResponseError(error) {
+    return error instanceof BadResponseError;
+}
+export function isAuthenticationError(error) {
+    return error instanceof AuthenticationError;
+}
 export function isOrderError(error) {
     return (error instanceof InvalidOrderError ||
         error instanceof OrderNotFoundError ||
@@ -279,6 +347,9 @@ export const StandardErrorCodes = {
     INVALID_RESPONSE: 'INVALID_RESPONSE',
     NOT_SUPPORTED: 'NOT_SUPPORTED',
     NOT_IMPLEMENTED: 'NOT_IMPLEMENTED',
+    EXCHANGE_ERROR: 'EXCHANGE_ERROR',
+    BAD_REQUEST: 'BAD_REQUEST',
+    BAD_RESPONSE: 'BAD_RESPONSE',
     // Authentication
     MISSING_CREDENTIALS: 'MISSING_CREDENTIALS',
     INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',

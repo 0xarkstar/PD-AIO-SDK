@@ -12,6 +12,17 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export declare const TIME_IN_FORCE: readonly ["GTC", "IOC", "FOK", "PO"];
 export type TimeInForce = (typeof TIME_IN_FORCE)[number];
 /**
+ * Order fee information (CCXT-compatible)
+ */
+export interface OrderFee {
+    /** Fee cost */
+    cost: number;
+    /** Fee currency */
+    currency: string;
+    /** Fee rate (decimal) */
+    rate?: number;
+}
+/**
  * Unified order structure
  */
 export interface Order {
@@ -29,6 +40,10 @@ export interface Order {
     price?: number;
     /** Stop/trigger price (for stop orders) */
     stopPrice?: number;
+    /** Take profit price */
+    takeProfitPrice?: number;
+    /** Stop loss price */
+    stopLossPrice?: number;
     /** Current order status */
     status: OrderStatus;
     /** Filled amount */
@@ -37,6 +52,10 @@ export interface Order {
     remaining: number;
     /** Average fill price */
     averagePrice?: number;
+    /** Total cost (price × filled) */
+    cost?: number;
+    /** Fee information */
+    fee?: OrderFee;
     /** Time in force */
     timeInForce?: TimeInForce;
     /** Whether order reduces position only */
@@ -204,6 +223,8 @@ export interface Trade {
     amount: number;
     /** Trade value (price * amount) */
     cost: number;
+    /** Fee information */
+    fee?: OrderFee;
     /** Trade timestamp (ms) */
     timestamp: number;
     /** Exchange-specific metadata */
@@ -447,6 +468,100 @@ export interface RateLimitStatus {
     resetAt: number;
     /** Percentage of limit used */
     percentUsed: number;
+    /** Exchange-specific metadata */
+    info?: Record<string, unknown>;
+}
+export declare const LEDGER_ENTRY_TYPES: readonly ["trade", "fee", "deposit", "withdrawal", "transfer", "funding", "margin", "rebate", "cashback", "referral", "other"];
+export type LedgerEntryType = (typeof LEDGER_ENTRY_TYPES)[number];
+/**
+ * Account ledger entry
+ */
+export interface LedgerEntry {
+    /** Unique ledger entry ID */
+    id: string;
+    /** Entry type */
+    type: LedgerEntryType;
+    /** Currency */
+    currency: string;
+    /** Amount (positive for credit, negative for debit) */
+    amount: number;
+    /** Balance after this entry */
+    after?: number;
+    /** Balance before this entry */
+    before?: number;
+    /** Related order ID (for trades) */
+    referenceId?: string;
+    /** Related account (for transfers) */
+    referenceAccount?: string;
+    /** Entry timestamp (ms) */
+    timestamp: number;
+    /** Fee (if applicable) */
+    fee?: OrderFee;
+    /** Entry description */
+    description?: string;
+    /** Exchange-specific metadata */
+    info?: Record<string, unknown>;
+}
+/**
+ * Funding payment record
+ */
+export interface FundingPayment {
+    /** Unique funding payment ID */
+    id: string;
+    /** Symbol */
+    symbol: string;
+    /** Funding rate applied */
+    fundingRate: number;
+    /** Payment amount (positive = received, negative = paid) */
+    amount: number;
+    /** Position size at time of funding */
+    positionSize?: number;
+    /** Payment timestamp (ms) */
+    timestamp: number;
+    /** Exchange-specific metadata */
+    info?: Record<string, unknown>;
+}
+/**
+ * Currency/Asset information
+ */
+export interface Currency {
+    /** Currency ID (e.g., "BTC") */
+    id: string;
+    /** Currency code (e.g., "BTC") */
+    code: string;
+    /** Currency name (e.g., "Bitcoin") */
+    name?: string;
+    /** Whether currency is active */
+    active: boolean;
+    /** Decimal precision */
+    precision: number;
+    /** Minimum withdrawal amount */
+    minWithdraw?: number;
+    /** Maximum withdrawal amount */
+    maxWithdraw?: number;
+    /** Withdrawal fee */
+    withdrawFee?: number;
+    /** Supported networks */
+    networks?: string[];
+    /** Exchange-specific metadata */
+    info?: Record<string, unknown>;
+}
+export declare const EXCHANGE_STATUS_VALUES: readonly ["ok", "maintenance", "error", "unknown"];
+export type ExchangeStatusValue = (typeof EXCHANGE_STATUS_VALUES)[number];
+/**
+ * Exchange operational status
+ */
+export interface ExchangeStatus {
+    /** Overall status */
+    status: ExchangeStatusValue;
+    /** Status message */
+    message?: string;
+    /** Last updated timestamp (ms) */
+    updated: number;
+    /** Estimated maintenance end (ms) */
+    eta?: number;
+    /** Exchange URL */
+    url?: string;
     /** Exchange-specific metadata */
     info?: Record<string, unknown>;
 }

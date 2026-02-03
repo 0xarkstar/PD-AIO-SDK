@@ -291,8 +291,8 @@ export declare const NadoPositionSchema: z.ZodObject<{
     margin: z.ZodString;
     timestamp: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    timestamp: number;
     margin: string;
+    timestamp: number;
     size: string;
     mark_price: string;
     entry_price: string;
@@ -303,8 +303,8 @@ export declare const NadoPositionSchema: z.ZodObject<{
     subaccount: string;
     liquidation_price?: string | undefined;
 }, {
-    timestamp: number;
     margin: string;
+    timestamp: number;
     size: string;
     mark_price: string;
     entry_price: string;

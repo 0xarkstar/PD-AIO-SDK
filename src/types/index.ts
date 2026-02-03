@@ -10,6 +10,7 @@ export type {
   OrderSide,
   OrderStatus,
   TimeInForce,
+  OrderFee,
   Position,
   PositionSide,
   MarginMode,
@@ -33,6 +34,13 @@ export type {
   OHLCVData,
   OHLCVTimeframe,
   OHLCVParams,
+  // New CCXT-compatible types
+  LedgerEntry,
+  LedgerEntryType,
+  FundingPayment,
+  Currency,
+  ExchangeStatus,
+  ExchangeStatusValue,
 } from './common.js';
 
 export {
@@ -45,6 +53,9 @@ export {
   TRANSACTION_TYPES,
   TRANSACTION_STATUSES,
   OHLCV_TIMEFRAMES,
+  // New CCXT-compatible constants
+  LEDGER_ENTRY_TYPES,
+  EXCHANGE_STATUS_VALUES,
 } from './common.js';
 
 // Adapter interface
@@ -77,20 +88,57 @@ export {
 // Errors
 export {
   PerpDEXError,
+  // General Exchange Errors (CCXT-compatible)
+  ExchangeError,
+  NotSupportedError,
+  BadRequestError,
+  BadResponseError,
+  AuthenticationError,
+  // Trading Errors
   InsufficientMarginError,
   OrderNotFoundError,
   InvalidOrderError,
   PositionNotFoundError,
+  // Network Errors
+  NetworkError,
   RateLimitError,
   ExchangeUnavailableError,
   WebSocketDisconnectedError,
+  // Auth Errors
   InvalidSignatureError,
   ExpiredAuthError,
   InsufficientPermissionsError,
+  // Validation Errors
+  ValidationError,
+  InvalidSymbolError,
+  InvalidParameterError,
+  // Timeout Errors
+  TimeoutError,
+  RequestTimeoutError,
+  // Order Execution Errors
+  InsufficientBalanceError,
+  OrderRejectedError,
+  MinimumOrderSizeError,
+  // DEX-Specific Errors
   TransactionFailedError,
   SlippageExceededError,
   LiquidationError,
+  // Type Guards
   isPerpDEXError,
   isRateLimitError,
   isAuthError,
+  isNetworkError,
+  isTimeoutError,
+  isValidationError,
+  isExchangeError,
+  isNotSupportedError,
+  isBadRequestError,
+  isBadResponseError,
+  isAuthenticationError,
+  isOrderError,
+  isTradingError,
+  // Standard Error Codes
+  StandardErrorCodes,
 } from './errors.js';
+
+export type { StandardErrorCode } from './errors.js';

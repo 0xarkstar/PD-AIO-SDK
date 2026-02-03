@@ -450,10 +450,10 @@ export declare const VariationalPositionSchema: z.ZodObject<{
     timestamp: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     symbol: string;
+    margin: string;
     side: "long" | "short";
     timestamp: number;
     markPrice: string;
-    margin: string;
     size: string;
     leverage: string;
     unrealizedPnl: string;
@@ -462,10 +462,10 @@ export declare const VariationalPositionSchema: z.ZodObject<{
     liquidationPrice?: string | undefined;
 }, {
     symbol: string;
+    margin: string;
     side: "long" | "short";
     timestamp: number;
     markPrice: string;
-    margin: string;
     size: string;
     leverage: string;
     unrealizedPnl: string;

@@ -4,18 +4,22 @@
  * Defines the contract that all exchange adapters must implement
  */
 import type { CircuitBreakerConfig } from '../core/CircuitBreaker.js';
-import type { Balance, FundingRate, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, Portfolio, Position, RateLimitStatus, Ticker, Trade, TradeParams, Transaction, UserFees } from './common.js';
+import type { Balance, Currency, ExchangeStatus, FundingPayment, FundingRate, LedgerEntry, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, OrderSide, OrderType, Portfolio, Position, RateLimitStatus, Ticker, Trade, TradeParams, Transaction, UserFees } from './common.js';
 /**
  * Feature capabilities map
  */
 export interface FeatureMap {
     fetchMarkets: boolean;
     fetchTicker: boolean;
+    fetchTickers: boolean;
     fetchOrderBook: boolean;
     fetchTrades: boolean;
     fetchOHLCV: boolean;
     fetchFundingRate: boolean;
     fetchFundingRateHistory: boolean;
+    fetchCurrencies: boolean;
+    fetchStatus: boolean;
+    fetchTime: boolean;
     createOrder: boolean;
     cancelOrder: boolean;
     cancelAllOrders: boolean;
@@ -23,11 +27,14 @@ export interface FeatureMap {
     cancelBatchOrders: boolean | 'emulated';
     editOrder: boolean;
     fetchOpenOrders: boolean;
+    fetchClosedOrders: boolean;
     fetchOrder: boolean;
     fetchOrderHistory: boolean;
     fetchMyTrades: boolean;
     fetchDeposits: boolean;
     fetchWithdrawals: boolean;
+    fetchLedger: boolean;
+    fetchFundingHistory: boolean;
     fetchPositions: boolean;
     fetchBalance: boolean;
     setLeverage: boolean;
@@ -35,6 +42,7 @@ export interface FeatureMap {
     watchOrderBook: boolean;
     watchTrades: boolean;
     watchTicker: boolean;
+    watchTickers: boolean;
     watchOHLCV: boolean;
     watchPositions: boolean;
     watchOrders: boolean;
@@ -194,6 +202,41 @@ export interface IExchangeAdapter {
      */
     fetchOHLCV(symbol: string, timeframe: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]>;
     /**
+     * Fetch 24h ticker statistics for multiple symbols
+     *
+     * @param symbols - Optional array of symbols (fetches all if not provided)
+     * @returns Promise resolving to map of symbol to ticker
+     * @throws {ExchangeUnavailableError} If API is unavailable
+     *
+     * @example
+     * ```typescript
+     * const tickers = await exchange.fetchTickers(['BTC/USDT:USDT', 'ETH/USDT:USDT']);
+     * console.log(tickers['BTC/USDT:USDT'].last);
+     * ```
+     */
+    fetchTickers(symbols?: string[]): Promise<Record<string, Ticker>>;
+    /**
+     * Fetch available currencies/assets
+     *
+     * @returns Promise resolving to map of currency code to currency info
+     * @throws {ExchangeUnavailableError} If API is unavailable
+     */
+    fetchCurrencies(): Promise<Record<string, Currency>>;
+    /**
+     * Fetch exchange operational status
+     *
+     * @returns Promise resolving to exchange status
+     * @throws {ExchangeUnavailableError} If API is unavailable
+     */
+    fetchStatus(): Promise<ExchangeStatus>;
+    /**
+     * Fetch exchange server time
+     *
+     * @returns Promise resolving to server timestamp (ms)
+     * @throws {ExchangeUnavailableError} If API is unavailable
+     */
+    fetchTime(): Promise<number>;
+    /**
      * Create a new order
      *
      * @param request - Order parameters
@@ -247,6 +290,108 @@ export interface IExchangeAdapter {
      * @returns Promise resolving to array of canceled orders
      */
     cancelBatchOrders(orderIds: string[], symbol?: string): Promise<Order[]>;
+    /**
+     * Edit/modify an existing order
+     *
+     * @param orderId - Order ID to modify
+     * @param symbol - Symbol in unified format
+     * @param type - New order type
+     * @param side - Order side
+     * @param amount - New amount (optional)
+     * @param price - New price (optional)
+     * @param params - Additional parameters
+     * @returns Promise resolving to modified order
+     * @throws {OrderNotFoundError} If order not found
+     * @throws {NotSupportedError} If exchange doesn't support order editing
+     */
+    editOrder(orderId: string, symbol: string, type: OrderType, side: OrderSide, amount?: number, price?: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Fetch a single order by ID
+     *
+     * @param orderId - Order ID to fetch
+     * @param symbol - Symbol (required by some exchanges)
+     * @returns Promise resolving to order
+     * @throws {OrderNotFoundError} If order not found
+     */
+    fetchOrder(orderId: string, symbol?: string): Promise<Order>;
+    /**
+     * Fetch all open/pending orders
+     *
+     * @param symbol - Optional symbol to filter (fetches all symbols if not provided)
+     * @param since - Optional start timestamp (ms)
+     * @param limit - Optional maximum number of orders
+     * @returns Promise resolving to array of open orders
+     * @throws {ExchangeUnavailableError} If API is unavailable
+     */
+    fetchOpenOrders(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
+    /**
+     * Fetch closed (filled/canceled) orders
+     *
+     * @param symbol - Optional symbol to filter (fetches all symbols if not provided)
+     * @param since - Optional start timestamp (ms)
+     * @param limit - Optional maximum number of orders
+     * @returns Promise resolving to array of closed orders
+     * @throws {ExchangeUnavailableError} If API is unavailable
+     */
+    fetchClosedOrders(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
+    /**
+     * Create a limit buy order
+     *
+     * @param symbol - Symbol in unified format
+     * @param amount - Order amount
+     * @param price - Limit price
+     * @param params - Additional parameters
+     * @returns Promise resolving to created order
+     */
+    createLimitBuyOrder(symbol: string, amount: number, price: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Create a limit sell order
+     *
+     * @param symbol - Symbol in unified format
+     * @param amount - Order amount
+     * @param price - Limit price
+     * @param params - Additional parameters
+     * @returns Promise resolving to created order
+     */
+    createLimitSellOrder(symbol: string, amount: number, price: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Create a market buy order
+     *
+     * @param symbol - Symbol in unified format
+     * @param amount - Order amount
+     * @param params - Additional parameters
+     * @returns Promise resolving to created order
+     */
+    createMarketBuyOrder(symbol: string, amount: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Create a market sell order
+     *
+     * @param symbol - Symbol in unified format
+     * @param amount - Order amount
+     * @param params - Additional parameters
+     * @returns Promise resolving to created order
+     */
+    createMarketSellOrder(symbol: string, amount: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Create a stop loss order
+     *
+     * @param symbol - Symbol in unified format
+     * @param amount - Order amount
+     * @param stopPrice - Stop/trigger price
+     * @param params - Additional parameters
+     * @returns Promise resolving to created order
+     */
+    createStopLossOrder(symbol: string, amount: number, stopPrice: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Create a take profit order
+     *
+     * @param symbol - Symbol in unified format
+     * @param amount - Order amount
+     * @param takeProfitPrice - Take profit price
+     * @param params - Additional parameters
+     * @returns Promise resolving to created order
+     */
+    createTakeProfitOrder(symbol: string, amount: number, takeProfitPrice: number, params?: Record<string, unknown>): Promise<Order>;
     /**
      * Fetch all open positions
      *
@@ -341,6 +486,43 @@ export interface IExchangeAdapter {
      */
     fetchWithdrawals(currency?: string, since?: number, limit?: number): Promise<Transaction[]>;
     /**
+     * Fetch account ledger (transaction history)
+     *
+     * @param currency - Optional currency to filter
+     * @param since - Optional start timestamp (ms)
+     * @param limit - Optional maximum number of entries
+     * @param params - Additional parameters
+     * @returns Promise resolving to array of ledger entries
+     * @throws {ExchangeUnavailableError} If API is unavailable
+     *
+     * @example
+     * ```typescript
+     * const ledger = await exchange.fetchLedger('USDT', Date.now() - 86400000);
+     * for (const entry of ledger) {
+     *   console.log(`${entry.type}: ${entry.amount} ${entry.currency}`);
+     * }
+     * ```
+     */
+    fetchLedger(currency?: string, since?: number, limit?: number, params?: Record<string, unknown>): Promise<LedgerEntry[]>;
+    /**
+     * Fetch funding payment history
+     *
+     * @param symbol - Optional symbol to filter
+     * @param since - Optional start timestamp (ms)
+     * @param limit - Optional maximum number of payments
+     * @returns Promise resolving to array of funding payments
+     * @throws {ExchangeUnavailableError} If API is unavailable
+     *
+     * @example
+     * ```typescript
+     * const payments = await exchange.fetchFundingHistory('BTC/USDT:USDT');
+     * for (const payment of payments) {
+     *   console.log(`Funding: ${payment.amount} at rate ${payment.fundingRate}`);
+     * }
+     * ```
+     */
+    fetchFundingHistory(symbol?: string, since?: number, limit?: number): Promise<FundingPayment[]>;
+    /**
      * Subscribe to real-time order book updates
      *
      * @param symbol - Symbol in unified format
@@ -371,6 +553,20 @@ export interface IExchangeAdapter {
      * @returns Async generator yielding ticker updates
      */
     watchTicker(symbol: string): AsyncGenerator<Ticker>;
+    /**
+     * Subscribe to real-time ticker updates for multiple symbols
+     *
+     * @param symbols - Optional array of symbols (subscribes to all if not provided)
+     * @returns Async generator yielding ticker updates
+     *
+     * @example
+     * ```typescript
+     * for await (const ticker of exchange.watchTickers(['BTC/USDT:USDT', 'ETH/USDT:USDT'])) {
+     *   console.log(`${ticker.symbol}: ${ticker.last}`);
+     * }
+     * ```
+     */
+    watchTickers(symbols?: string[]): AsyncGenerator<Ticker>;
     /**
      * Subscribe to real-time position updates
      *
@@ -412,6 +608,20 @@ export interface IExchangeAdapter {
      * ```
      */
     watchOHLCV(symbol: string, timeframe: OHLCVTimeframe): AsyncGenerator<OHLCV>;
+    /**
+     * Subscribe to real-time user trade (fill) updates
+     *
+     * @param symbol - Optional symbol to filter
+     * @returns Async generator yielding trade fills
+     *
+     * @example
+     * ```typescript
+     * for await (const trade of exchange.watchMyTrades('BTC/USDT:USDT')) {
+     *   console.log(`Fill: ${trade.amount} @ ${trade.price}`);
+     * }
+     * ```
+     */
+    watchMyTrades(symbol?: string): AsyncGenerator<Trade>;
     /**
      * Fetch user fee rates
      *

@@ -19,6 +19,36 @@ export declare class PerpDEXError extends Error {
     withCorrelationId(correlationId: string): this;
     toJSON(): Record<string, unknown>;
 }
+/**
+ * General exchange error - base for exchange-specific errors
+ */
+export declare class ExchangeError extends PerpDEXError {
+    constructor(message: string, code: string, exchange: string, originalError?: unknown);
+}
+/**
+ * Feature not supported by exchange
+ */
+export declare class NotSupportedError extends PerpDEXError {
+    constructor(message: string, code: string, exchange: string, originalError?: unknown);
+}
+/**
+ * Bad request - malformed or invalid request parameters
+ */
+export declare class BadRequestError extends PerpDEXError {
+    constructor(message: string, code: string, exchange: string, originalError?: unknown);
+}
+/**
+ * Bad response - invalid or unexpected API response
+ */
+export declare class BadResponseError extends PerpDEXError {
+    constructor(message: string, code: string, exchange: string, originalError?: unknown);
+}
+/**
+ * General authentication error
+ */
+export declare class AuthenticationError extends PerpDEXError {
+    constructor(message: string, code: string, exchange: string, originalError?: unknown);
+}
 export declare class InsufficientMarginError extends PerpDEXError {
     constructor(message: string, code: string, exchange: string, originalError?: unknown);
 }
@@ -101,6 +131,11 @@ export declare function isAuthError(error: unknown): error is InvalidSignatureEr
 export declare function isNetworkError(error: unknown): error is NetworkError;
 export declare function isTimeoutError(error: unknown): error is TimeoutError;
 export declare function isValidationError(error: unknown): error is ValidationError;
+export declare function isExchangeError(error: unknown): error is ExchangeError;
+export declare function isNotSupportedError(error: unknown): error is NotSupportedError;
+export declare function isBadRequestError(error: unknown): error is BadRequestError;
+export declare function isBadResponseError(error: unknown): error is BadResponseError;
+export declare function isAuthenticationError(error: unknown): error is AuthenticationError;
 export declare function isOrderError(error: unknown): error is InvalidOrderError | OrderNotFoundError | OrderRejectedError;
 export declare function isTradingError(error: unknown): error is InsufficientMarginError | InsufficientBalanceError | LiquidationError;
 /**
@@ -112,6 +147,9 @@ export declare const StandardErrorCodes: {
     readonly INVALID_RESPONSE: "INVALID_RESPONSE";
     readonly NOT_SUPPORTED: "NOT_SUPPORTED";
     readonly NOT_IMPLEMENTED: "NOT_IMPLEMENTED";
+    readonly EXCHANGE_ERROR: "EXCHANGE_ERROR";
+    readonly BAD_REQUEST: "BAD_REQUEST";
+    readonly BAD_RESPONSE: "BAD_RESPONSE";
     readonly MISSING_CREDENTIALS: "MISSING_CREDENTIALS";
     readonly INVALID_CREDENTIALS: "INVALID_CREDENTIALS";
     readonly INVALID_SIGNATURE: "INVALID_SIGNATURE";

@@ -476,10 +476,10 @@ export declare const ExtendedPositionSchema: z.ZodObject<{
     starknetPosition: z.ZodOptional<z.ZodAny>;
 }, "strip", z.ZodTypeAny, {
     symbol: string;
+    margin: string;
     side: "long" | "short";
     timestamp: number;
     markPrice: string;
-    margin: string;
     size: string;
     leverage: string;
     unrealizedPnl: string;
@@ -495,10 +495,10 @@ export declare const ExtendedPositionSchema: z.ZodObject<{
     starknetPosition?: any;
 }, {
     symbol: string;
+    margin: string;
     side: "long" | "short";
     timestamp: number;
     markPrice: string;
-    margin: string;
     size: string;
     leverage: string;
     unrealizedPnl: string;

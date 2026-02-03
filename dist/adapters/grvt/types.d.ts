@@ -364,9 +364,9 @@ export declare const GRVTPositionSchema: z.ZodObject<{
     leverage: z.ZodString;
     timestamp: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
+    margin: string;
     side: "LONG" | "SHORT";
     timestamp: number;
-    margin: string;
     instrument: string;
     size: string;
     mark_price: string;
@@ -376,9 +376,9 @@ export declare const GRVTPositionSchema: z.ZodObject<{
     leverage: string;
     liquidation_price?: string | undefined;
 }, {
+    margin: string;
     side: "LONG" | "SHORT";
     timestamp: number;
-    margin: string;
     instrument: string;
     size: string;
     mark_price: string;

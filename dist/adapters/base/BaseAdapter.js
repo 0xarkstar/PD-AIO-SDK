@@ -3,6 +3,7 @@
  *
  * Abstract base class providing common functionality for all adapters
  */
+import { NotSupportedError } from '../../types/errors.js';
 import { determineHealthStatus } from '../../types/health.js';
 import { createMetricsSnapshot } from '../../types/metrics.js';
 import { Logger, LogLevel, generateCorrelationId } from '../../core/logger.js';
@@ -324,9 +325,74 @@ export class BaseAdapter {
      */
     async fetchOHLCV(symbol, timeframe, params) {
         if (!this.has.fetchOHLCV) {
-            throw new Error(`${this.name} does not support OHLCV data`);
+            throw new NotSupportedError(`${this.name} does not support OHLCV data`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('fetchOHLCV must be implemented by subclass');
+    }
+    /**
+     * Fetch multiple tickers at once
+     * Default implementation fetches tickers sequentially
+     */
+    async fetchTickers(symbols) {
+        if (!this.has.fetchTickers) {
+            // Fallback: fetch tickers one by one
+            const result = {};
+            const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map(m => m.symbol);
+            for (const symbol of symbolsToFetch) {
+                try {
+                    result[symbol] = await this.fetchTicker(symbol);
+                }
+                catch (error) {
+                    this.debug(`Failed to fetch ticker for ${symbol}`, { error });
+                }
+            }
+            return result;
+        }
+        throw new Error('fetchTickers must be implemented by subclass');
+    }
+    /**
+     * Fetch available currencies
+     * Default implementation throws if not supported
+     */
+    async fetchCurrencies() {
+        if (!this.has.fetchCurrencies) {
+            throw new NotSupportedError(`${this.name} does not support fetching currencies`, 'NOT_SUPPORTED', this.id);
+        }
+        throw new Error('fetchCurrencies must be implemented by subclass');
+    }
+    /**
+     * Fetch exchange status
+     * Default implementation returns 'ok' if fetchMarkets succeeds
+     */
+    async fetchStatus() {
+        if (!this.has.fetchStatus) {
+            // Default: check if API is responsive
+            try {
+                await this.fetchMarkets();
+                return {
+                    status: 'ok',
+                    updated: Date.now(),
+                };
+            }
+            catch (error) {
+                return {
+                    status: 'error',
+                    message: error instanceof Error ? error.message : 'Unknown error',
+                    updated: Date.now(),
+                };
+            }
+        }
+        throw new Error('fetchStatus must be implemented by subclass');
+    }
+    /**
+     * Fetch exchange server time
+     * Default implementation returns local time (not recommended)
+     */
+    async fetchTime() {
+        if (!this.has.fetchTime) {
+            throw new NotSupportedError(`${this.name} does not support fetching server time`, 'NOT_SUPPORTED', this.id);
+        }
+        throw new Error('fetchTime must be implemented by subclass');
     }
     /**
      * Fetch deposit history
@@ -334,7 +400,7 @@ export class BaseAdapter {
      */
     async fetchDeposits(currency, since, limit) {
         if (!this.has.fetchDeposits) {
-            throw new Error(`${this.name} does not support fetching deposit history`);
+            throw new NotSupportedError(`${this.name} does not support fetching deposit history`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('fetchDeposits must be implemented by subclass');
     }
@@ -344,9 +410,29 @@ export class BaseAdapter {
      */
     async fetchWithdrawals(currency, since, limit) {
         if (!this.has.fetchWithdrawals) {
-            throw new Error(`${this.name} does not support fetching withdrawal history`);
+            throw new NotSupportedError(`${this.name} does not support fetching withdrawal history`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('fetchWithdrawals must be implemented by subclass');
+    }
+    /**
+     * Fetch account ledger (transaction history)
+     * Default implementation throws if not supported by exchange
+     */
+    async fetchLedger(currency, since, limit, params) {
+        if (!this.has.fetchLedger) {
+            throw new NotSupportedError(`${this.name} does not support fetching ledger`, 'NOT_SUPPORTED', this.id);
+        }
+        throw new Error('fetchLedger must be implemented by subclass');
+    }
+    /**
+     * Fetch funding payment history
+     * Default implementation throws if not supported by exchange
+     */
+    async fetchFundingHistory(symbol, since, limit) {
+        if (!this.has.fetchFundingHistory) {
+            throw new NotSupportedError(`${this.name} does not support fetching funding history`, 'NOT_SUPPORTED', this.id);
+        }
+        throw new Error('fetchFundingHistory must be implemented by subclass');
     }
     // ===========================================================================
     // Batch Operations - with automatic fallback to sequential execution
@@ -461,9 +547,133 @@ export class BaseAdapter {
         }
         return orders;
     }
+    /**
+     * Edit/modify an existing order
+     * Default implementation throws if not supported
+     */
+    async editOrder(orderId, symbol, type, side, amount, price, params) {
+        if (!this.has.editOrder) {
+            throw new NotSupportedError(`${this.name} does not support editing orders`, 'NOT_SUPPORTED', this.id);
+        }
+        throw new Error('editOrder must be implemented by subclass');
+    }
+    // ===========================================================================
+    // Order Query
+    // ===========================================================================
+    /**
+     * Fetch a single order by ID
+     * Default implementation throws if not supported
+     */
+    async fetchOrder(orderId, symbol) {
+        if (!this.has.fetchOrder) {
+            throw new NotSupportedError(`${this.name} does not support fetching single orders`, 'NOT_SUPPORTED', this.id);
+        }
+        throw new Error('fetchOrder must be implemented by subclass');
+    }
+    /**
+     * Fetch all open/pending orders
+     * Default implementation throws if not supported
+     */
+    async fetchOpenOrders(symbol, since, limit) {
+        if (!this.has.fetchOpenOrders) {
+            throw new NotSupportedError(`${this.name} does not support fetching open orders`, 'NOT_SUPPORTED', this.id);
+        }
+        throw new Error('fetchOpenOrders must be implemented by subclass');
+    }
+    /**
+     * Fetch closed (filled/canceled) orders
+     * Default implementation throws if not supported
+     */
+    async fetchClosedOrders(symbol, since, limit) {
+        if (!this.has.fetchClosedOrders) {
+            throw new NotSupportedError(`${this.name} does not support fetching closed orders`, 'NOT_SUPPORTED', this.id);
+        }
+        throw new Error('fetchClosedOrders must be implemented by subclass');
+    }
+    // ===========================================================================
+    // Convenience Order Methods (CCXT-compatible)
+    // ===========================================================================
+    /**
+     * Create a limit buy order
+     */
+    async createLimitBuyOrder(symbol, amount, price, params) {
+        return this.createOrder({
+            symbol,
+            type: 'limit',
+            side: 'buy',
+            amount,
+            price,
+            ...params,
+        });
+    }
+    /**
+     * Create a limit sell order
+     */
+    async createLimitSellOrder(symbol, amount, price, params) {
+        return this.createOrder({
+            symbol,
+            type: 'limit',
+            side: 'sell',
+            amount,
+            price,
+            ...params,
+        });
+    }
+    /**
+     * Create a market buy order
+     */
+    async createMarketBuyOrder(symbol, amount, params) {
+        return this.createOrder({
+            symbol,
+            type: 'market',
+            side: 'buy',
+            amount,
+            ...params,
+        });
+    }
+    /**
+     * Create a market sell order
+     */
+    async createMarketSellOrder(symbol, amount, params) {
+        return this.createOrder({
+            symbol,
+            type: 'market',
+            side: 'sell',
+            amount,
+            ...params,
+        });
+    }
+    /**
+     * Create a stop loss order
+     */
+    async createStopLossOrder(symbol, amount, stopPrice, params) {
+        return this.createOrder({
+            symbol,
+            type: 'stopMarket',
+            side: 'sell', // Default to sell for stop loss
+            amount,
+            stopPrice,
+            reduceOnly: true,
+            ...params,
+        });
+    }
+    /**
+     * Create a take profit order
+     */
+    async createTakeProfitOrder(symbol, amount, takeProfitPrice, params) {
+        return this.createOrder({
+            symbol,
+            type: 'limit',
+            side: 'sell', // Default to sell for take profit
+            amount,
+            price: takeProfitPrice,
+            reduceOnly: true,
+            ...params,
+        });
+    }
     async setMarginMode(symbol, marginMode) {
         if (!this.has.setMarginMode || this.has.setMarginMode === 'emulated') {
-            throw new Error(`${this.name} does not support setting margin mode directly`);
+            throw new NotSupportedError(`${this.name} does not support setting margin mode directly`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('setMarginMode must be implemented by subclass');
     }
@@ -472,59 +682,73 @@ export class BaseAdapter {
     // ===========================================================================
     async *watchOrderBook(symbol, limit) {
         if (!this.has.watchOrderBook) {
-            throw new Error(`${this.name} does not support order book streaming`);
+            throw new NotSupportedError(`${this.name} does not support order book streaming`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('watchOrderBook must be implemented by subclass');
         yield {}; // Type system requirement
     }
     async *watchTrades(symbol) {
         if (!this.has.watchTrades) {
-            throw new Error(`${this.name} does not support trade streaming`);
+            throw new NotSupportedError(`${this.name} does not support trade streaming`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('watchTrades must be implemented by subclass');
         yield {}; // Type system requirement
     }
     async *watchTicker(symbol) {
         if (!this.has.watchTicker) {
-            throw new Error(`${this.name} does not support ticker streaming`);
+            throw new NotSupportedError(`${this.name} does not support ticker streaming`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('watchTicker must be implemented by subclass');
         yield {}; // Type system requirement
     }
+    async *watchTickers(symbols) {
+        if (!this.has.watchTickers) {
+            throw new NotSupportedError(`${this.name} does not support multiple ticker streaming`, 'NOT_SUPPORTED', this.id);
+        }
+        throw new Error('watchTickers must be implemented by subclass');
+        yield {}; // Type system requirement
+    }
     async *watchPositions() {
         if (!this.has.watchPositions) {
-            throw new Error(`${this.name} does not support position streaming`);
+            throw new NotSupportedError(`${this.name} does not support position streaming`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('watchPositions must be implemented by subclass');
         yield []; // Type system requirement
     }
     async *watchOrders() {
         if (!this.has.watchOrders) {
-            throw new Error(`${this.name} does not support order streaming`);
+            throw new NotSupportedError(`${this.name} does not support order streaming`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('watchOrders must be implemented by subclass');
         yield []; // Type system requirement
     }
     async *watchBalance() {
         if (!this.has.watchBalance) {
-            throw new Error(`${this.name} does not support balance streaming`);
+            throw new NotSupportedError(`${this.name} does not support balance streaming`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('watchBalance must be implemented by subclass');
         yield []; // Type system requirement
     }
     async *watchFundingRate(symbol) {
         if (!this.has.watchFundingRate) {
-            throw new Error(`${this.name} does not support funding rate streaming`);
+            throw new NotSupportedError(`${this.name} does not support funding rate streaming`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('watchFundingRate must be implemented by subclass');
         yield {}; // Type system requirement
     }
     async *watchOHLCV(symbol, timeframe) {
         if (!this.has.watchOHLCV) {
-            throw new Error(`${this.name} does not support OHLCV streaming`);
+            throw new NotSupportedError(`${this.name} does not support OHLCV streaming`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('watchOHLCV must be implemented by subclass');
         yield [0, 0, 0, 0, 0, 0]; // Type system requirement
+    }
+    async *watchMyTrades(symbol) {
+        if (!this.has.watchMyTrades) {
+            throw new NotSupportedError(`${this.name} does not support user trade streaming`, 'NOT_SUPPORTED', this.id);
+        }
+        throw new Error('watchMyTrades must be implemented by subclass');
+        yield {}; // Type system requirement
     }
     // ===========================================================================
     // Additional Info Methods
@@ -535,7 +759,7 @@ export class BaseAdapter {
      */
     async fetchUserFees() {
         if (!this.has.fetchUserFees) {
-            throw new Error(`${this.name} does not support fetching user fees`);
+            throw new NotSupportedError(`${this.name} does not support fetching user fees`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('fetchUserFees must be implemented by subclass');
     }
@@ -545,7 +769,7 @@ export class BaseAdapter {
      */
     async fetchPortfolio() {
         if (!this.has.fetchPortfolio) {
-            throw new Error(`${this.name} does not support fetching portfolio metrics`);
+            throw new NotSupportedError(`${this.name} does not support fetching portfolio metrics`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('fetchPortfolio must be implemented by subclass');
     }
@@ -555,7 +779,7 @@ export class BaseAdapter {
      */
     async fetchRateLimitStatus() {
         if (!this.has.fetchRateLimitStatus) {
-            throw new Error(`${this.name} does not support fetching rate limit status`);
+            throw new NotSupportedError(`${this.name} does not support fetching rate limit status`, 'NOT_SUPPORTED', this.id);
         }
         throw new Error('fetchRateLimitStatus must be implemented by subclass');
     }
@@ -954,9 +1178,7 @@ export class BaseAdapter {
      * Alias for fetchOpenOrders() - Python-style naming
      * @see fetchOpenOrders
      */
-    fetch_open_orders(symbol) {
-        throw new Error('fetchOpenOrders must be implemented by subclass');
-    }
+    fetch_open_orders = this.fetchOpenOrders.bind(this);
     /**
      * Alias for healthCheck() - Python-style naming
      * @see healthCheck

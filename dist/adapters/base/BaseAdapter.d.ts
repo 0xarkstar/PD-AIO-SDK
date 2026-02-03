@@ -3,7 +3,7 @@
  *
  * Abstract base class providing common functionality for all adapters
  */
-import type { Balance, ExchangeConfig, FeatureMap, FundingRate, IAuthStrategy, IExchangeAdapter, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, Portfolio, Position, RateLimitStatus, Ticker, Trade, TradeParams, Transaction, UserFees } from '../../types/index.js';
+import type { Balance, Currency, ExchangeConfig, ExchangeStatus, FeatureMap, FundingPayment, FundingRate, IAuthStrategy, IExchangeAdapter, LedgerEntry, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, OrderSide, OrderType, Portfolio, Position, RateLimitStatus, Ticker, Trade, TradeParams, Transaction, UserFees } from '../../types/index.js';
 import type { HealthCheckConfig, HealthCheckResult, ComponentHealth } from '../../types/health.js';
 import type { APIMetrics, MetricsSnapshot } from '../../types/metrics.js';
 import { Logger } from '../../core/logger.js';
@@ -143,6 +143,26 @@ export declare abstract class BaseAdapter implements IExchangeAdapter {
      * Default implementation throws if not supported by exchange
      */
     fetchOHLCV(symbol: string, timeframe: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]>;
+    /**
+     * Fetch multiple tickers at once
+     * Default implementation fetches tickers sequentially
+     */
+    fetchTickers(symbols?: string[]): Promise<Record<string, Ticker>>;
+    /**
+     * Fetch available currencies
+     * Default implementation throws if not supported
+     */
+    fetchCurrencies(): Promise<Record<string, Currency>>;
+    /**
+     * Fetch exchange status
+     * Default implementation returns 'ok' if fetchMarkets succeeds
+     */
+    fetchStatus(): Promise<ExchangeStatus>;
+    /**
+     * Fetch exchange server time
+     * Default implementation returns local time (not recommended)
+     */
+    fetchTime(): Promise<number>;
     abstract createOrder(request: OrderRequest): Promise<Order>;
     abstract cancelOrder(orderId: string, symbol?: string): Promise<Order>;
     abstract cancelAllOrders(symbol?: string): Promise<Order[]>;
@@ -158,6 +178,16 @@ export declare abstract class BaseAdapter implements IExchangeAdapter {
      * Default implementation throws if not supported by exchange
      */
     fetchWithdrawals(currency?: string, since?: number, limit?: number): Promise<Transaction[]>;
+    /**
+     * Fetch account ledger (transaction history)
+     * Default implementation throws if not supported by exchange
+     */
+    fetchLedger(currency?: string, since?: number, limit?: number, params?: Record<string, unknown>): Promise<LedgerEntry[]>;
+    /**
+     * Fetch funding payment history
+     * Default implementation throws if not supported by exchange
+     */
+    fetchFundingHistory(symbol?: string, since?: number, limit?: number): Promise<FundingPayment[]>;
     /**
      * Create multiple orders in batch
      *
@@ -196,6 +226,50 @@ export declare abstract class BaseAdapter implements IExchangeAdapter {
      * ```
      */
     cancelBatchOrders(orderIds: string[], symbol?: string): Promise<Order[]>;
+    /**
+     * Edit/modify an existing order
+     * Default implementation throws if not supported
+     */
+    editOrder(orderId: string, symbol: string, type: OrderType, side: OrderSide, amount?: number, price?: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Fetch a single order by ID
+     * Default implementation throws if not supported
+     */
+    fetchOrder(orderId: string, symbol?: string): Promise<Order>;
+    /**
+     * Fetch all open/pending orders
+     * Default implementation throws if not supported
+     */
+    fetchOpenOrders(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
+    /**
+     * Fetch closed (filled/canceled) orders
+     * Default implementation throws if not supported
+     */
+    fetchClosedOrders(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
+    /**
+     * Create a limit buy order
+     */
+    createLimitBuyOrder(symbol: string, amount: number, price: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Create a limit sell order
+     */
+    createLimitSellOrder(symbol: string, amount: number, price: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Create a market buy order
+     */
+    createMarketBuyOrder(symbol: string, amount: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Create a market sell order
+     */
+    createMarketSellOrder(symbol: string, amount: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Create a stop loss order
+     */
+    createStopLossOrder(symbol: string, amount: number, stopPrice: number, params?: Record<string, unknown>): Promise<Order>;
+    /**
+     * Create a take profit order
+     */
+    createTakeProfitOrder(symbol: string, amount: number, takeProfitPrice: number, params?: Record<string, unknown>): Promise<Order>;
     abstract fetchPositions(symbols?: string[]): Promise<Position[]>;
     abstract fetchBalance(): Promise<Balance[]>;
     abstract setLeverage(symbol: string, leverage: number): Promise<void>;
@@ -203,11 +277,13 @@ export declare abstract class BaseAdapter implements IExchangeAdapter {
     watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook>;
     watchTrades(symbol: string): AsyncGenerator<Trade>;
     watchTicker(symbol: string): AsyncGenerator<Ticker>;
+    watchTickers(symbols?: string[]): AsyncGenerator<Ticker>;
     watchPositions(): AsyncGenerator<Position[]>;
     watchOrders(): AsyncGenerator<Order[]>;
     watchBalance(): AsyncGenerator<Balance[]>;
     watchFundingRate(symbol: string): AsyncGenerator<FundingRate>;
     watchOHLCV(symbol: string, timeframe: OHLCVTimeframe): AsyncGenerator<OHLCV>;
+    watchMyTrades(symbol?: string): AsyncGenerator<Trade>;
     /**
      * Fetch user fee rates
      * Default implementation throws if not supported by exchange
@@ -419,7 +495,7 @@ export declare abstract class BaseAdapter implements IExchangeAdapter {
      * Alias for fetchOpenOrders() - Python-style naming
      * @see fetchOpenOrders
      */
-    fetch_open_orders(symbol?: string): Promise<Order[]>;
+    fetch_open_orders: (symbol?: string, since?: number, limit?: number) => Promise<Order[]>;
     /**
      * Alias for healthCheck() - Python-style naming
      * @see healthCheck
