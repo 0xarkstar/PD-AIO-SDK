@@ -493,6 +493,9 @@ export class HyperliquidAdapter extends BaseAdapter {
   async createOrder(request: OrderRequest): Promise<Order> {
     this.ensureInitialized();
 
+    // Validate order request
+    const validatedRequest = this.validateOrder(request);
+
     if (!this.auth) {
       throw new Error('Authentication required for trading');
     }
@@ -500,8 +503,8 @@ export class HyperliquidAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('createOrder');
 
     try {
-      const exchangeSymbol = this.symbolToExchange(request.symbol);
-      const orderRequest = convertOrderRequest(request, exchangeSymbol);
+      const exchangeSymbol = this.symbolToExchange(validatedRequest.symbol);
+      const orderRequest = convertOrderRequest(validatedRequest, exchangeSymbol);
 
       // Create action
       const action: HyperliquidAction = {

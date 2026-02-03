@@ -349,14 +349,16 @@ export class LighterAdapter extends BaseAdapter {
     }
     // ==================== Trading Methods ====================
     async createOrder(request) {
+        // Validate order request
+        const validatedRequest = this.validateOrder(request);
         await this.rateLimiter.acquire('createOrder');
         // WASM signing is preferred for trading
         if (this.signer && this.nonceManager) {
-            return this.createOrderWasm(request);
+            return this.createOrderWasm(validatedRequest);
         }
         // Fall back to HMAC if available
         if (this.apiKey && this.apiSecret) {
-            return this.createOrderHMAC(request);
+            return this.createOrderHMAC(validatedRequest);
         }
         throw new InvalidOrderError('API credentials required for trading. Provide apiPrivateKey (recommended) or apiKey + apiSecret.', 'AUTH_REQUIRED', 'lighter');
     }

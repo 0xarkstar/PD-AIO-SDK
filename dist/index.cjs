@@ -10200,13 +10200,14 @@ var HyperliquidAdapter = class extends BaseAdapter {
   // ===========================================================================
   async createOrder(request) {
     this.ensureInitialized();
+    const validatedRequest = this.validateOrder(request);
     if (!this.auth) {
       throw new Error("Authentication required for trading");
     }
     await this.rateLimiter.acquire("createOrder");
     try {
-      const exchangeSymbol = this.symbolToExchange(request.symbol);
-      const orderRequest = convertOrderRequest(request, exchangeSymbol);
+      const exchangeSymbol = this.symbolToExchange(validatedRequest.symbol);
+      const orderRequest = convertOrderRequest(validatedRequest, exchangeSymbol);
       const action = {
         type: "order",
         orders: [orderRequest],
@@ -12023,12 +12024,13 @@ var LighterAdapter = class extends BaseAdapter {
   }
   // ==================== Trading Methods ====================
   async createOrder(request) {
+    const validatedRequest = this.validateOrder(request);
     await this.rateLimiter.acquire("createOrder");
     if (this.signer && this.nonceManager) {
-      return this.createOrderWasm(request);
+      return this.createOrderWasm(validatedRequest);
     }
     if (this.apiKey && this.apiSecret) {
-      return this.createOrderHMAC(request);
+      return this.createOrderHMAC(validatedRequest);
     }
     throw new InvalidOrderError(
       "API credentials required for trading. Provide apiPrivateKey (recommended) or apiKey + apiSecret.",
@@ -14870,20 +14872,21 @@ var GRVTAdapter = class extends BaseAdapter {
   }
   // ==================== Trading Methods ====================
   async createOrder(request) {
+    const validatedRequest = this.validateOrder(request);
     this.auth.requireAuth();
     await this.rateLimiter.acquire("createOrder");
     try {
-      const grvtSymbol = this.normalizer.symbolFromCCXT(request.symbol);
+      const grvtSymbol = this.normalizer.symbolFromCCXT(validatedRequest.symbol);
       const orderRequest = {
         instrument: grvtSymbol,
-        order_type: this.mapOrderType(request.type),
-        side: request.side === "buy" ? "BUY" : "SELL",
-        size: request.amount.toString(),
-        price: request.price?.toString() || "0",
-        time_in_force: this.mapTimeInForce(request.timeInForce),
-        reduce_only: request.reduceOnly || false,
-        post_only: request.postOnly || false,
-        client_order_id: request.clientOrderId
+        order_type: this.mapOrderType(validatedRequest.type),
+        side: validatedRequest.side === "buy" ? "BUY" : "SELL",
+        size: validatedRequest.amount.toString(),
+        price: validatedRequest.price?.toString() || "0",
+        time_in_force: this.mapTimeInForce(validatedRequest.timeInForce),
+        reduce_only: validatedRequest.reduceOnly || false,
+        post_only: validatedRequest.postOnly || false,
+        client_order_id: validatedRequest.clientOrderId
       };
       if (this.auth.getAddress()) {
         const payload = {
@@ -17566,23 +17569,24 @@ var ParadexAdapter = class extends BaseAdapter {
    * Create a new order
    */
   async createOrder(order) {
+    const validatedOrder = this.validateOrder(order);
     this.requireAuth();
     await this.rateLimiter.acquire("createOrder");
     try {
-      const market = this.normalizer.symbolFromCCXT(order.symbol);
-      const orderType = this.normalizer.toParadexOrderType(order.type, order.postOnly);
-      const side = this.normalizer.toParadexOrderSide(order.side);
-      const timeInForce = this.normalizer.toParadexTimeInForce(order.timeInForce, order.postOnly);
+      const market = this.normalizer.symbolFromCCXT(validatedOrder.symbol);
+      const orderType = this.normalizer.toParadexOrderType(validatedOrder.type, validatedOrder.postOnly);
+      const side = this.normalizer.toParadexOrderSide(validatedOrder.side);
+      const timeInForce = this.normalizer.toParadexTimeInForce(validatedOrder.timeInForce, validatedOrder.postOnly);
       const payload = {
         market,
         side,
         type: orderType,
-        size: order.amount.toString(),
-        price: order.price?.toString(),
+        size: validatedOrder.amount.toString(),
+        price: validatedOrder.price?.toString(),
         time_in_force: timeInForce,
-        reduce_only: order.reduceOnly ?? false,
-        post_only: order.postOnly ?? false,
-        client_id: order.clientOrderId
+        reduce_only: validatedOrder.reduceOnly ?? false,
+        post_only: validatedOrder.postOnly ?? false,
+        client_id: validatedOrder.clientOrderId
       };
       const response = await this.client.post("/orders", payload);
       return this.normalizer.normalizeOrder(response);
@@ -18589,21 +18593,22 @@ var EdgeXAdapter = class extends BaseAdapter {
    * Create a new order
    */
   async createOrder(order) {
+    const validatedOrder = this.validateOrder(order);
     this.requireAuth();
-    const market = this.normalizer.toEdgeXSymbol(order.symbol);
-    const orderType = toEdgeXOrderType(order.type);
-    const side = toEdgeXOrderSide(order.side);
-    const timeInForce = toEdgeXTimeInForce(order.timeInForce);
+    const market = this.normalizer.toEdgeXSymbol(validatedOrder.symbol);
+    const orderType = toEdgeXOrderType(validatedOrder.type);
+    const side = toEdgeXOrderSide(validatedOrder.side);
+    const timeInForce = toEdgeXTimeInForce(validatedOrder.timeInForce);
     const payload = {
       market,
       side,
       type: orderType,
-      size: order.amount.toString(),
-      price: order.price?.toString(),
+      size: validatedOrder.amount.toString(),
+      price: validatedOrder.price?.toString(),
       time_in_force: timeInForce,
-      reduce_only: order.reduceOnly ?? false,
-      post_only: order.postOnly ?? false,
-      client_order_id: order.clientOrderId
+      reduce_only: validatedOrder.reduceOnly ?? false,
+      post_only: validatedOrder.postOnly ?? false,
+      client_order_id: validatedOrder.clientOrderId
     };
     const response = await this.makeRequest("POST", "/api/v1/private/order/createOrder", "createOrder", payload);
     return this.normalizer.normalizeOrder(response);
@@ -19676,21 +19681,22 @@ var BackpackAdapter = class extends BaseAdapter {
    * Create a new order
    */
   async createOrder(order) {
+    const validatedOrder = this.validateOrder(order);
     this.requireAuth();
-    const market = this.normalizer.toBackpackSymbol(order.symbol);
-    const orderType = toBackpackOrderType(order.type, order.postOnly);
-    const side = toBackpackOrderSide(order.side);
-    const timeInForce = toBackpackTimeInForce(order.timeInForce, order.postOnly);
+    const market = this.normalizer.toBackpackSymbol(validatedOrder.symbol);
+    const orderType = toBackpackOrderType(validatedOrder.type, validatedOrder.postOnly);
+    const side = toBackpackOrderSide(validatedOrder.side);
+    const timeInForce = toBackpackTimeInForce(validatedOrder.timeInForce, validatedOrder.postOnly);
     const payload = {
       market,
       side,
       type: orderType,
-      size: order.amount.toString(),
-      price: order.price?.toString(),
+      size: validatedOrder.amount.toString(),
+      price: validatedOrder.price?.toString(),
       time_in_force: timeInForce,
-      reduce_only: order.reduceOnly ?? false,
-      post_only: order.postOnly ?? false,
-      client_order_id: order.clientOrderId
+      reduce_only: validatedOrder.reduceOnly ?? false,
+      post_only: validatedOrder.postOnly ?? false,
+      client_order_id: validatedOrder.clientOrderId
     };
     const response = await this.makeRequest("POST", "/orders", "createOrder", payload);
     return this.normalizer.normalizeOrder(response);

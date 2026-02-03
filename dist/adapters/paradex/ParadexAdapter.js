@@ -270,23 +270,25 @@ export class ParadexAdapter extends BaseAdapter {
      * Create a new order
      */
     async createOrder(order) {
+        // Validate order request
+        const validatedOrder = this.validateOrder(order);
         this.requireAuth();
         await this.rateLimiter.acquire('createOrder');
         try {
-            const market = this.normalizer.symbolFromCCXT(order.symbol);
-            const orderType = this.normalizer.toParadexOrderType(order.type, order.postOnly);
-            const side = this.normalizer.toParadexOrderSide(order.side);
-            const timeInForce = this.normalizer.toParadexTimeInForce(order.timeInForce, order.postOnly);
+            const market = this.normalizer.symbolFromCCXT(validatedOrder.symbol);
+            const orderType = this.normalizer.toParadexOrderType(validatedOrder.type, validatedOrder.postOnly);
+            const side = this.normalizer.toParadexOrderSide(validatedOrder.side);
+            const timeInForce = this.normalizer.toParadexTimeInForce(validatedOrder.timeInForce, validatedOrder.postOnly);
             const payload = {
                 market,
                 side,
                 type: orderType,
-                size: order.amount.toString(),
-                price: order.price?.toString(),
+                size: validatedOrder.amount.toString(),
+                price: validatedOrder.price?.toString(),
                 time_in_force: timeInForce,
-                reduce_only: order.reduceOnly ?? false,
-                post_only: order.postOnly ?? false,
-                client_id: order.clientOrderId,
+                reduce_only: validatedOrder.reduceOnly ?? false,
+                post_only: validatedOrder.postOnly ?? false,
+                client_id: validatedOrder.clientOrderId,
             };
             const response = await this.client.post('/orders', payload);
             return this.normalizer.normalizeOrder(response);

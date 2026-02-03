@@ -319,22 +319,25 @@ export class BackpackAdapter extends BaseAdapter {
    * Create a new order
    */
   async createOrder(order: OrderRequest): Promise<Order> {
+    // Validate order request
+    const validatedOrder = this.validateOrder(order);
+
     this.requireAuth();
-    const market = this.normalizer.toBackpackSymbol(order.symbol);
-    const orderType = toBackpackOrderType(order.type, order.postOnly);
-    const side = toBackpackOrderSide(order.side);
-    const timeInForce = toBackpackTimeInForce(order.timeInForce, order.postOnly);
+    const market = this.normalizer.toBackpackSymbol(validatedOrder.symbol);
+    const orderType = toBackpackOrderType(validatedOrder.type, validatedOrder.postOnly);
+    const side = toBackpackOrderSide(validatedOrder.side);
+    const timeInForce = toBackpackTimeInForce(validatedOrder.timeInForce, validatedOrder.postOnly);
 
     const payload = {
       market,
       side,
       type: orderType,
-      size: order.amount.toString(),
-      price: order.price?.toString(),
+      size: validatedOrder.amount.toString(),
+      price: validatedOrder.price?.toString(),
       time_in_force: timeInForce,
-      reduce_only: order.reduceOnly ?? false,
-      post_only: order.postOnly ?? false,
-      client_order_id: order.clientOrderId,
+      reduce_only: validatedOrder.reduceOnly ?? false,
+      post_only: validatedOrder.postOnly ?? false,
+      client_order_id: validatedOrder.clientOrderId,
     };
 
     const response = await this.makeRequest('POST', '/orders', 'createOrder', payload);

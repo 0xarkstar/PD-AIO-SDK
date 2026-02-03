@@ -271,21 +271,23 @@ export class GRVTAdapter extends BaseAdapter {
     }
     // ==================== Trading Methods ====================
     async createOrder(request) {
+        // Validate order request
+        const validatedRequest = this.validateOrder(request);
         this.auth.requireAuth();
         await this.rateLimiter.acquire('createOrder');
         try {
-            const grvtSymbol = this.normalizer.symbolFromCCXT(request.symbol);
+            const grvtSymbol = this.normalizer.symbolFromCCXT(validatedRequest.symbol);
             // Prepare order request
             const orderRequest = {
                 instrument: grvtSymbol,
-                order_type: this.mapOrderType(request.type),
-                side: request.side === 'buy' ? 'BUY' : 'SELL',
-                size: request.amount.toString(),
-                price: request.price?.toString() || '0',
-                time_in_force: this.mapTimeInForce(request.timeInForce),
-                reduce_only: request.reduceOnly || false,
-                post_only: request.postOnly || false,
-                client_order_id: request.clientOrderId,
+                order_type: this.mapOrderType(validatedRequest.type),
+                side: validatedRequest.side === 'buy' ? 'BUY' : 'SELL',
+                size: validatedRequest.amount.toString(),
+                price: validatedRequest.price?.toString() || '0',
+                time_in_force: this.mapTimeInForce(validatedRequest.timeInForce),
+                reduce_only: validatedRequest.reduceOnly || false,
+                post_only: validatedRequest.postOnly || false,
+                client_order_id: validatedRequest.clientOrderId,
             };
             // Sign if wallet available
             if (this.auth.getAddress()) {

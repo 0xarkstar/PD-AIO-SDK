@@ -186,21 +186,23 @@ export class EdgeXAdapter extends BaseAdapter {
      * Create a new order
      */
     async createOrder(order) {
+        // Validate order request
+        const validatedOrder = this.validateOrder(order);
         this.requireAuth();
-        const market = this.normalizer.toEdgeXSymbol(order.symbol);
-        const orderType = toEdgeXOrderType(order.type);
-        const side = toEdgeXOrderSide(order.side);
-        const timeInForce = toEdgeXTimeInForce(order.timeInForce);
+        const market = this.normalizer.toEdgeXSymbol(validatedOrder.symbol);
+        const orderType = toEdgeXOrderType(validatedOrder.type);
+        const side = toEdgeXOrderSide(validatedOrder.side);
+        const timeInForce = toEdgeXTimeInForce(validatedOrder.timeInForce);
         const payload = {
             market,
             side,
             type: orderType,
-            size: order.amount.toString(),
-            price: order.price?.toString(),
+            size: validatedOrder.amount.toString(),
+            price: validatedOrder.price?.toString(),
             time_in_force: timeInForce,
-            reduce_only: order.reduceOnly ?? false,
-            post_only: order.postOnly ?? false,
-            client_order_id: order.clientOrderId,
+            reduce_only: validatedOrder.reduceOnly ?? false,
+            post_only: validatedOrder.postOnly ?? false,
+            client_order_id: validatedOrder.clientOrderId,
         };
         const response = await this.makeRequest('POST', '/api/v1/private/order/createOrder', 'createOrder', payload);
         return this.normalizer.normalizeOrder(response);
