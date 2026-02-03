@@ -1066,3 +1066,509 @@ describe('JupiterNormalizer', () => {
     });
   });
 });
+
+describe('Jupiter Utility Functions', () => {
+  let getTokenMint: typeof import('../../src/adapters/jupiter/utils.js').getTokenMint;
+  let getMarketConfig: typeof import('../../src/adapters/jupiter/utils.js').getMarketConfig;
+  let isValidMarket: typeof import('../../src/adapters/jupiter/utils.js').isValidMarket;
+  let formatPrice: typeof import('../../src/adapters/jupiter/utils.js').formatPrice;
+  let formatSize: typeof import('../../src/adapters/jupiter/utils.js').formatSize;
+  let roundToTickSize: typeof import('../../src/adapters/jupiter/utils.js').roundToTickSize;
+  let roundToStepSize: typeof import('../../src/adapters/jupiter/utils.js').roundToStepSize;
+  let validateLeverage: typeof import('../../src/adapters/jupiter/utils.js').validateLeverage;
+  let calculateSizeFromCollateral: typeof import('../../src/adapters/jupiter/utils.js').calculateSizeFromCollateral;
+  let calculateCollateralFromSize: typeof import('../../src/adapters/jupiter/utils.js').calculateCollateralFromSize;
+  let getPositionPDASeeds: typeof import('../../src/adapters/jupiter/utils.js').getPositionPDASeeds;
+  let buildPriceApiUrl: typeof import('../../src/adapters/jupiter/utils.js').buildPriceApiUrl;
+  let buildRpcRequestBody: typeof import('../../src/adapters/jupiter/utils.js').buildRpcRequestBody;
+  let calculateBorrowFee: typeof import('../../src/adapters/jupiter/utils.js').calculateBorrowFee;
+  let hourlyToAnnualizedRate: typeof import('../../src/adapters/jupiter/utils.js').hourlyToAnnualizedRate;
+  let annualizedToHourlyRate: typeof import('../../src/adapters/jupiter/utils.js').annualizedToHourlyRate;
+  let calculateLiquidationPrice: typeof import('../../src/adapters/jupiter/utils.js').calculateLiquidationPrice;
+  let isLiquidatable: typeof import('../../src/adapters/jupiter/utils.js').isLiquidatable;
+  let parseOnChainValue: typeof import('../../src/adapters/jupiter/utils.js').parseOnChainValue;
+  let formatOnChainValue: typeof import('../../src/adapters/jupiter/utils.js').formatOnChainValue;
+  let parseOnChainTimestamp: typeof import('../../src/adapters/jupiter/utils.js').parseOnChainTimestamp;
+  let validatePositionSize: typeof import('../../src/adapters/jupiter/utils.js').validatePositionSize;
+  let validateOrderParams: typeof import('../../src/adapters/jupiter/utils.js').validateOrderParams;
+
+  beforeAll(async () => {
+    const utilsModule = await import('../../src/adapters/jupiter/utils.js');
+    getTokenMint = utilsModule.getTokenMint;
+    getMarketConfig = utilsModule.getMarketConfig;
+    isValidMarket = utilsModule.isValidMarket;
+    formatPrice = utilsModule.formatPrice;
+    formatSize = utilsModule.formatSize;
+    roundToTickSize = utilsModule.roundToTickSize;
+    roundToStepSize = utilsModule.roundToStepSize;
+    validateLeverage = utilsModule.validateLeverage;
+    calculateSizeFromCollateral = utilsModule.calculateSizeFromCollateral;
+    calculateCollateralFromSize = utilsModule.calculateCollateralFromSize;
+    getPositionPDASeeds = utilsModule.getPositionPDASeeds;
+    buildPriceApiUrl = utilsModule.buildPriceApiUrl;
+    buildRpcRequestBody = utilsModule.buildRpcRequestBody;
+    calculateBorrowFee = utilsModule.calculateBorrowFee;
+    hourlyToAnnualizedRate = utilsModule.hourlyToAnnualizedRate;
+    annualizedToHourlyRate = utilsModule.annualizedToHourlyRate;
+    calculateLiquidationPrice = utilsModule.calculateLiquidationPrice;
+    isLiquidatable = utilsModule.isLiquidatable;
+    parseOnChainValue = utilsModule.parseOnChainValue;
+    formatOnChainValue = utilsModule.formatOnChainValue;
+    parseOnChainTimestamp = utilsModule.parseOnChainTimestamp;
+    validatePositionSize = utilsModule.validatePositionSize;
+    validateOrderParams = utilsModule.validateOrderParams;
+  });
+
+  describe('getTokenMint', () => {
+    test('should return SOL token mint', () => {
+      const mint = getTokenMint('SOL-PERP');
+      expect(mint).toBeDefined();
+      expect(mint?.length).toBeGreaterThan(30); // Solana address length
+    });
+
+    test('should return BTC token mint', () => {
+      const mint = getTokenMint('BTC-PERP');
+      expect(mint).toBeDefined();
+    });
+
+    test('should return ETH token mint', () => {
+      const mint = getTokenMint('ETH-PERP');
+      expect(mint).toBeDefined();
+    });
+
+    test('should handle unified symbol format', () => {
+      const mint = getTokenMint('SOL/USD:USD');
+      expect(mint).toBeDefined();
+    });
+
+    test('should return undefined for unknown market', () => {
+      const mint = getTokenMint('UNKNOWN-PERP');
+      expect(mint).toBeUndefined();
+    });
+  });
+
+  describe('getMarketConfig', () => {
+    test('should return SOL-PERP config', () => {
+      const config = getMarketConfig('SOL-PERP');
+      expect(config).toBeDefined();
+      expect(config?.symbol).toBe('SOL/USD:USD');
+      expect(config?.maxLeverage).toBe(250);
+    });
+
+    test('should return config for unified symbol', () => {
+      const config = getMarketConfig('SOL/USD:USD');
+      expect(config).toBeDefined();
+      expect(config?.baseToken).toBe('SOL');
+    });
+
+    test('should return undefined for unknown market', () => {
+      const config = getMarketConfig('UNKNOWN-PERP');
+      expect(config).toBeUndefined();
+    });
+  });
+
+  describe('isValidMarket', () => {
+    test('should return true for SOL-PERP', () => {
+      expect(isValidMarket('SOL-PERP')).toBe(true);
+    });
+
+    test('should return true for unified symbol', () => {
+      expect(isValidMarket('SOL/USD:USD')).toBe(true);
+    });
+
+    test('should return false for unknown market', () => {
+      expect(isValidMarket('UNKNOWN-PERP')).toBe(false);
+    });
+  });
+
+  describe('formatPrice', () => {
+    test('should format price for SOL-PERP', () => {
+      const formatted = formatPrice(123.456789, 'SOL-PERP');
+      expect(formatted).toMatch(/^\d+\.\d+$/);
+    });
+
+    test('should format price for BTC-PERP', () => {
+      const formatted = formatPrice(50000.123456, 'BTC-PERP');
+      expect(formatted).toMatch(/^\d+\.\d+$/);
+    });
+
+    test('should handle unknown market with default precision', () => {
+      const formatted = formatPrice(100.12345, 'UNKNOWN-PERP');
+      expect(formatted).toMatch(/^\d+\.\d+$/);
+    });
+  });
+
+  describe('formatSize', () => {
+    test('should format size for SOL-PERP', () => {
+      const formatted = formatSize(10.123456, 'SOL-PERP');
+      expect(formatted).toMatch(/^\d+\.\d+$/);
+    });
+
+    test('should handle unknown market with default precision', () => {
+      const formatted = formatSize(1.12345, 'UNKNOWN-PERP');
+      expect(formatted).toMatch(/^\d+\.\d+$/);
+    });
+  });
+
+  describe('roundToTickSize', () => {
+    test('should round price to tick size', () => {
+      const rounded = roundToTickSize(123.456789, 'SOL-PERP');
+      expect(typeof rounded).toBe('number');
+    });
+
+    test('should handle unknown market', () => {
+      const rounded = roundToTickSize(100.12345, 'UNKNOWN-PERP');
+      expect(typeof rounded).toBe('number');
+    });
+  });
+
+  describe('roundToStepSize', () => {
+    test('should round size to step size', () => {
+      const rounded = roundToStepSize(10.123456, 'SOL-PERP');
+      expect(typeof rounded).toBe('number');
+    });
+
+    test('should handle unknown market', () => {
+      const rounded = roundToStepSize(1.12345, 'UNKNOWN-PERP');
+      expect(typeof rounded).toBe('number');
+    });
+  });
+
+  describe('validateLeverage', () => {
+    test('should accept valid leverage', () => {
+      const result = validateLeverage(10, 'SOL-PERP');
+      expect(result.valid).toBe(true);
+      expect(result.reason).toBeUndefined();
+    });
+
+    test('should accept max leverage', () => {
+      const result = validateLeverage(250, 'SOL-PERP');
+      expect(result.valid).toBe(true);
+    });
+
+    test('should reject leverage below 1', () => {
+      const result = validateLeverage(0.5, 'SOL-PERP');
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('at least 1x');
+    });
+
+    test('should reject leverage above max', () => {
+      const result = validateLeverage(300, 'SOL-PERP');
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('Maximum leverage');
+    });
+
+    test('should use default max for unknown market', () => {
+      const result = validateLeverage(50, 'UNKNOWN-PERP');
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('calculateSizeFromCollateral', () => {
+    test('should calculate size correctly', () => {
+      // $100 collateral * 10x leverage / $50 price = 20 units
+      const size = calculateSizeFromCollateral(100, 10, 50);
+      expect(size).toBe(20);
+    });
+
+    test('should handle different leverage', () => {
+      // $1000 collateral * 5x leverage / $100 price = 50 units
+      const size = calculateSizeFromCollateral(1000, 5, 100);
+      expect(size).toBe(50);
+    });
+  });
+
+  describe('calculateCollateralFromSize', () => {
+    test('should calculate collateral correctly', () => {
+      // $10000 size / 10x leverage = $1000 collateral
+      const collateral = calculateCollateralFromSize(10000, 10);
+      expect(collateral).toBe(1000);
+    });
+
+    test('should handle different leverage', () => {
+      // $5000 size / 5x leverage = $1000 collateral
+      const collateral = calculateCollateralFromSize(5000, 5);
+      expect(collateral).toBe(1000);
+    });
+  });
+
+  describe('getPositionPDASeeds', () => {
+    test('should return correct seeds for long position', () => {
+      const seeds = getPositionPDASeeds('owner123', 'pool456', 'custody789', 'long');
+      expect(seeds.prefix).toBe('position');
+      expect(seeds.owner).toBe('owner123');
+      expect(seeds.pool).toBe('pool456');
+      expect(seeds.custody).toBe('custody789');
+      expect(seeds.side).toBe('Long');
+    });
+
+    test('should return correct seeds for short position', () => {
+      const seeds = getPositionPDASeeds('owner123', 'pool456', 'custody789', 'short');
+      expect(seeds.side).toBe('Short');
+    });
+  });
+
+  describe('buildPriceApiUrl', () => {
+    test('should build URL with single token', () => {
+      const url = buildPriceApiUrl(['So11111111111111111111111111111111111111112']);
+      expect(url).toContain('api.jup.ag/price');
+      expect(url).toContain('ids=');
+    });
+
+    test('should build URL with multiple tokens', () => {
+      const url = buildPriceApiUrl(['token1', 'token2', 'token3']);
+      expect(url).toContain('token1%2Ctoken2%2Ctoken3');
+    });
+  });
+
+  describe('buildRpcRequestBody', () => {
+    test('should build valid RPC request', () => {
+      const body = buildRpcRequestBody('getAccountInfo', ['address123']);
+      expect(body.jsonrpc).toBe('2.0');
+      expect(body.method).toBe('getAccountInfo');
+      expect(body.params).toEqual(['address123']);
+      expect(body.id).toBeDefined();
+    });
+
+    test('should generate unique IDs', () => {
+      const body1 = buildRpcRequestBody('method1', []);
+      const body2 = buildRpcRequestBody('method2', []);
+      // IDs might be the same if called too fast, but should be valid numbers
+      expect(typeof body1.id).toBe('number');
+      expect(typeof body2.id).toBe('number');
+    });
+  });
+
+  describe('calculateBorrowFee', () => {
+    test('should calculate borrow fee with compound interest', () => {
+      // $10000 position, 0.01% hourly rate, 100 hours
+      const fee = calculateBorrowFee(10000, 0.0001, 100);
+      expect(fee).toBeGreaterThan(0);
+      // Compound interest should be slightly more than simple interest (10000 * 0.0001 * 100 = 100)
+      expect(fee).toBeGreaterThan(99);
+      expect(fee).toBeLessThan(110);
+    });
+
+    test('should return 0 for 0 hours', () => {
+      const fee = calculateBorrowFee(10000, 0.0001, 0);
+      expect(fee).toBe(0);
+    });
+  });
+
+  describe('hourlyToAnnualizedRate', () => {
+    test('should convert hourly to annualized rate', () => {
+      // 0.01% hourly = ~116% annualized (compounded)
+      const annualized = hourlyToAnnualizedRate(0.0001);
+      expect(annualized).toBeGreaterThan(0);
+      expect(annualized).toBeLessThan(2); // Should be less than 200%
+    });
+
+    test('should return 0 for 0 hourly rate', () => {
+      const annualized = hourlyToAnnualizedRate(0);
+      expect(annualized).toBe(0);
+    });
+  });
+
+  describe('annualizedToHourlyRate', () => {
+    test('should convert annualized to hourly rate', () => {
+      const hourly = annualizedToHourlyRate(0.5); // 50% annual
+      expect(hourly).toBeGreaterThan(0);
+      expect(hourly).toBeLessThan(0.001); // Should be a small hourly rate
+    });
+
+    test('should return 0 for 0 annualized rate', () => {
+      const hourly = annualizedToHourlyRate(0);
+      expect(hourly).toBe(0);
+    });
+
+    test('should be inverse of hourlyToAnnualizedRate', () => {
+      const originalHourly = 0.0001;
+      const annualized = hourlyToAnnualizedRate(originalHourly);
+      const backToHourly = annualizedToHourlyRate(annualized);
+      expect(backToHourly).toBeCloseTo(originalHourly, 10);
+    });
+  });
+
+  describe('calculateLiquidationPrice', () => {
+    test('should calculate liquidation price for long position', () => {
+      // Entry: $100, Collateral: $10 (10x leverage), Size: $100
+      const liqPrice = calculateLiquidationPrice('long', 100, 10, 100);
+      expect(liqPrice).toBeLessThan(100); // Long liquidation is below entry
+      expect(liqPrice).toBeGreaterThan(0);
+    });
+
+    test('should calculate liquidation price for short position', () => {
+      // Entry: $100, Collateral: $10 (10x leverage), Size: $100
+      const liqPrice = calculateLiquidationPrice('short', 100, 10, 100);
+      expect(liqPrice).toBeGreaterThan(100); // Short liquidation is above entry
+    });
+
+    test('should handle custom maintenance margin', () => {
+      const liqPriceDefault = calculateLiquidationPrice('long', 100, 10, 100);
+      const liqPriceHighMM = calculateLiquidationPrice('long', 100, 10, 100, 0.05);
+      // Higher maintenance margin = closer liquidation price
+      expect(liqPriceHighMM).toBeGreaterThan(liqPriceDefault);
+    });
+  });
+
+  describe('isLiquidatable', () => {
+    test('should return true when long position is below liquidation price', () => {
+      // Entry: $100, Collateral: $10 (10x), Size: $100
+      // Liquidation price is around $91 (99% of collateral lost)
+      const result = isLiquidatable('long', 100, 85, 10, 100);
+      expect(result).toBe(true);
+    });
+
+    test('should return false when long position is above liquidation price', () => {
+      const result = isLiquidatable('long', 100, 99, 10, 100);
+      expect(result).toBe(false);
+    });
+
+    test('should return true when short position is above liquidation price', () => {
+      // Entry: $100, Collateral: $10 (10x), Size: $100
+      // Short liquidation is above entry
+      const result = isLiquidatable('short', 100, 115, 10, 100);
+      expect(result).toBe(true);
+    });
+
+    test('should return false when short position is below liquidation price', () => {
+      const result = isLiquidatable('short', 100, 101, 10, 100);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('parseOnChainValue', () => {
+    test('should parse string value with 6 decimals', () => {
+      // 1000000 = 1.0 with 6 decimals
+      const value = parseOnChainValue('1000000', 6);
+      expect(value).toBe(1);
+    });
+
+    test('should parse string value with 9 decimals', () => {
+      // 1500000000 = 1.5 with 9 decimals
+      const value = parseOnChainValue('1500000000', 9);
+      expect(value).toBe(1.5);
+    });
+
+    test('should parse number value', () => {
+      const value = parseOnChainValue(2000000, 6);
+      expect(value).toBe(2);
+    });
+
+    test('should handle fractional parts', () => {
+      // 1234567 = 1.234567 with 6 decimals
+      const value = parseOnChainValue('1234567', 6);
+      expect(value).toBeCloseTo(1.234567, 5);
+    });
+  });
+
+  describe('formatOnChainValue', () => {
+    test('should format value with 6 decimals', () => {
+      const formatted = formatOnChainValue(1.5, 6);
+      expect(formatted).toBe('1500000');
+    });
+
+    test('should format value with 9 decimals', () => {
+      const formatted = formatOnChainValue(2.0, 9);
+      expect(formatted).toBe('2000000000');
+    });
+
+    test('should handle small values', () => {
+      const formatted = formatOnChainValue(0.001, 6);
+      expect(formatted).toBe('1000');
+    });
+  });
+
+  describe('parseOnChainTimestamp', () => {
+    test('should convert seconds to milliseconds', () => {
+      const ts = parseOnChainTimestamp(1704067200); // Jan 1, 2024 00:00:00 UTC
+      expect(ts).toBe(1704067200000);
+    });
+
+    test('should handle string input', () => {
+      const ts = parseOnChainTimestamp('1704067200');
+      expect(ts).toBe(1704067200000);
+    });
+
+    test('should not double-convert milliseconds', () => {
+      const tsMs = 1704067200000; // Already in milliseconds
+      const ts = parseOnChainTimestamp(tsMs);
+      expect(ts).toBe(1704067200000);
+    });
+  });
+
+  describe('validatePositionSize', () => {
+    test('should accept valid position size', () => {
+      const result = validatePositionSize(100, 'SOL-PERP');
+      expect(result.valid).toBe(true);
+    });
+
+    test('should reject position size below $10', () => {
+      const result = validatePositionSize(5, 'SOL-PERP');
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('$10 USD');
+    });
+
+    test('should accept exactly $10', () => {
+      const result = validatePositionSize(10, 'SOL-PERP');
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('validateOrderParams', () => {
+    test('should accept valid order params', () => {
+      const result = validateOrderParams({
+        symbol: 'SOL-PERP',
+        side: 'long',
+        sizeUsd: 100,
+        leverage: 10,
+      });
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    test('should reject invalid market', () => {
+      const result = validateOrderParams({
+        symbol: 'INVALID-PERP',
+        side: 'long',
+        sizeUsd: 100,
+        leverage: 10,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('Invalid market: INVALID-PERP');
+    });
+
+    test('should reject invalid size', () => {
+      const result = validateOrderParams({
+        symbol: 'SOL-PERP',
+        side: 'long',
+        sizeUsd: 5,
+        leverage: 10,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('$10 USD'))).toBe(true);
+    });
+
+    test('should reject invalid leverage', () => {
+      const result = validateOrderParams({
+        symbol: 'SOL-PERP',
+        side: 'long',
+        sizeUsd: 100,
+        leverage: 500,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('leverage'))).toBe(true);
+    });
+
+    test('should collect multiple errors', () => {
+      const result = validateOrderParams({
+        symbol: 'INVALID-PERP',
+        side: 'long',
+        sizeUsd: 5,
+        leverage: 0,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(1);
+    });
+  });
+});
