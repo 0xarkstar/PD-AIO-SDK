@@ -1,7 +1,8 @@
 /**
  * Base Exchange Adapter
  *
- * Abstract base class providing common functionality for all adapters
+ * Abstract base class providing common functionality for all adapters.
+ * Composes functionality from multiple mixins while maintaining type safety.
  */
 
 import type {
@@ -42,11 +43,11 @@ import type {
   ComponentHealth,
 } from '../../types/health.js';
 import { determineHealthStatus } from '../../types/health.js';
-import type { APIMetrics, EndpointMetrics, MetricsSnapshot } from '../../types/metrics.js';
+import type { APIMetrics, MetricsSnapshot } from '../../types/metrics.js';
 import { createMetricsSnapshot } from '../../types/metrics.js';
 import { Logger, LogLevel, generateCorrelationId } from '../../core/logger.js';
 import { CircuitBreaker } from '../../core/CircuitBreaker.js';
-import { HTTPClient } from '../../core/http/HTTPClient.js';
+import type { HTTPClient } from '../../core/http/HTTPClient.js';
 import { PrometheusMetrics, isMetricsInitialized, getMetrics } from '../../monitoring/prometheus.js';
 import type { RateLimiter } from '../../core/RateLimiter.js';
 import { validateOrderRequest, createValidator } from '../../core/validation/middleware.js';
@@ -143,13 +144,12 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     });
   }
 
-  /**
-   * Get logger instance (lazy initialization with adapter name as context)
-   */
+  // ===========================================================================
+  // Logger Methods (from LoggerMixin)
+  // ===========================================================================
+
   protected get logger(): Logger {
     if (!this._logger) {
-      // Initialize logger with adapter's actual name as context
-      // This happens on first access, after subclass has set this.name
       this._logger = new Logger(this.name, {
         level: this.config.debug ? LogLevel.DEBUG : LogLevel.INFO,
         enabled: true,
@@ -159,13 +159,30 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     return this._logger;
   }
 
+  protected debug(message: string, meta?: Record<string, unknown>): void {
+    this.logger.debug(message, meta);
+  }
+
+  protected info(message: string, meta?: Record<string, unknown>): void {
+    this.logger.info(message, meta);
+  }
+
+  protected warn(message: string, meta?: Record<string, unknown>): void {
+    this.logger.warn(message, meta);
+  }
+
+  protected error(message: string, error?: Error, meta?: Record<string, unknown>): void {
+    this.logger.error(message, error, meta);
+  }
+
+  // ===========================================================================
+  // State Getters
+  // ===========================================================================
+
   get isReady(): boolean {
     return this._isReady;
   }
 
-  /**
-   * Check if adapter has been disconnected
-   */
   isDisconnected(): boolean {
     return this._isDisconnected;
   }
@@ -176,11 +193,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
 
   abstract initialize(): Promise<void>;
 
-  /**
-   * Disconnect and cleanup all resources
-   *
-   * Subclasses should override and call super.disconnect() at the end
-   */
   async disconnect(): Promise<void> {
     if (this._isDisconnected) {
       this.debug('Already disconnected');
@@ -189,65 +201,40 @@ export abstract class BaseAdapter implements IExchangeAdapter {
 
     this.debug('Disconnecting and cleaning up resources...');
 
-    // 1. Clear all timers
     for (const timer of this.timers) {
       clearTimeout(timer);
     }
     this.timers.clear();
 
-    // 2. Clear all intervals
     for (const interval of this.intervals) {
       clearInterval(interval);
     }
     this.intervals.clear();
 
-    // 3. Abort all pending requests
     for (const controller of this.abortControllers) {
       controller.abort();
     }
     this.abortControllers.clear();
 
-    // 4. Clear caches
     this.clearCache();
-
-    // 5. Destroy circuit breaker
     this.circuitBreaker.destroy();
 
-    // 6. Update state
     this._isReady = false;
     this._isDisconnected = true;
 
     this.debug('Disconnected and cleanup complete');
   }
 
-  /**
-   * Clear all cached data
-   */
+  // ===========================================================================
+  // Cache Management (from CacheManagerMixin)
+  // ===========================================================================
+
   clearCache(): void {
     this.marketCache = null;
     this.marketCacheExpiry = 0;
   }
 
-  /**
-   * Preload market data with configurable TTL
-   *
-   * @param options - Configuration options
-   * @param options.ttl - Time-to-live for cache in milliseconds (default: 5 minutes)
-   * @param options.params - Additional parameters to pass to fetchMarkets()
-   *
-   * @example
-   * ```typescript
-   * // Preload markets with 10-minute cache
-   * await exchange.preloadMarkets({ ttl: 600000 });
-   *
-   * // Later calls to fetchMarkets() will use cached data
-   * const markets = await exchange.fetchMarkets(); // Uses cache
-   * ```
-   */
-  async preloadMarkets(options?: {
-    ttl?: number;
-    params?: MarketParams;
-  }): Promise<void> {
+  async preloadMarkets(options?: { ttl?: number; params?: MarketParams }): Promise<void> {
     const ttl = options?.ttl ?? this.marketCacheTTL;
     const params = options?.params;
 
@@ -261,21 +248,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     this.debug('Preloaded markets', { count: markets.length, ttl });
   }
 
-  /**
-   * Get preloaded markets if cache is still valid
-   *
-   * @returns Cached markets if available and not expired, null otherwise
-   *
-   * @example
-   * ```typescript
-   * const cached = exchange.getPreloadedMarkets();
-   * if (cached) {
-   *   console.log('Using cached markets:', cached.length);
-   * } else {
-   *   console.log('Cache expired or empty, fetching fresh data');
-   * }
-   * ```
-   */
   getPreloadedMarkets(): Market[] | null {
     if (!this.marketCache) {
       return null;
@@ -292,19 +264,14 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     return this.marketCache;
   }
 
-  /**
-   * Fetch markets from API (bypasses cache)
-   * Subclasses should implement this instead of fetchMarkets()
-   */
   protected async fetchMarketsFromAPI(params?: MarketParams): Promise<Market[]> {
-    // Default implementation delegates to fetchMarkets
-    // Subclasses override this to provide actual API implementation
     return this.fetchMarkets(params);
   }
 
-  /**
-   * Perform health check on exchange adapter
-   */
+  // ===========================================================================
+  // Health Check (from HealthCheckMixin)
+  // ===========================================================================
+
   async healthCheck(config: HealthCheckConfig = {}): Promise<HealthCheckResult> {
     const {
       timeout = 5000,
@@ -316,38 +283,29 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     const startTime = Date.now();
     const timestamp = Date.now();
 
-    // Initialize result
     const result: HealthCheckResult = {
       status: 'unhealthy',
       latency: 0,
       exchange: this.id,
-      api: {
-        reachable: false,
-        latency: 0,
-      },
+      api: { reachable: false, latency: 0 },
       timestamp,
     };
 
     try {
-      // 1. Check API connectivity
       result.api = await this.checkApiHealth(timeout);
 
-      // 2. Check WebSocket (if supported and enabled)
       if (checkWebSocket && this.has.watchOrderBook) {
         result.websocket = await this.checkWebSocketHealth();
       }
 
-      // 3. Check authentication (if applicable)
       if (checkAuth && this.authStrategy) {
         result.auth = await this.checkAuthHealth();
       }
 
-      // 4. Include rate limit info (if available)
       if (includeRateLimit && this.rateLimiter) {
         result.rateLimit = this.getRateLimitStatus();
       }
 
-      // Determine overall status
       result.status = determineHealthStatus(
         result.api.reachable,
         result.websocket?.connected,
@@ -355,7 +313,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       );
 
       result.latency = Date.now() - startTime;
-
       return result;
     } catch (error) {
       result.latency = Date.now() - startTime;
@@ -364,15 +321,10 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     }
   }
 
-  /**
-   * Check API health by making a lightweight request
-   */
   protected async checkApiHealth(timeout: number): Promise<ComponentHealth> {
     const startTime = Date.now();
 
     try {
-      // Try to fetch a single ticker (lightweight operation)
-      // Subclasses can override this method for exchange-specific checks
       await Promise.race([
         this.performApiHealthCheck(),
         new Promise((_, reject) =>
@@ -380,10 +332,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
         ),
       ]);
 
-      return {
-        reachable: true,
-        latency: Date.now() - startTime,
-      };
+      return { reachable: true, latency: Date.now() - startTime };
     } catch (error) {
       return {
         reachable: false,
@@ -393,57 +342,249 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     }
   }
 
-  /**
-   * Perform exchange-specific API health check
-   * Subclasses should override this for optimal lightweight check
-   */
   protected async performApiHealthCheck(): Promise<void> {
-    // Default: try to fetch markets (most exchanges support this)
     await this.fetchMarkets({ active: true });
   }
 
-  /**
-   * Check WebSocket health
-   * Subclasses should override if they use WebSocket
-   */
-  protected async checkWebSocketHealth(): Promise<{
-    connected: boolean;
-    reconnecting: boolean;
-  }> {
-    // Default implementation - subclasses should override
-    return {
-      connected: false,
-      reconnecting: false,
-    };
+  protected async checkWebSocketHealth(): Promise<{ connected: boolean; reconnecting: boolean }> {
+    return { connected: false, reconnecting: false };
   }
 
-  /**
-   * Check authentication health
-   * Subclasses should override for auth-specific checks
-   */
   protected async checkAuthHealth(): Promise<{
     valid: boolean;
     expiresAt?: number;
     expiresIn?: number;
     needsRefresh?: boolean;
   }> {
-    // Default: assume auth is valid if authStrategy exists
-    return {
-      valid: !!this.authStrategy,
-    };
+    return { valid: !!this.authStrategy };
   }
 
-  /**
-   * Get current rate limit status
-   */
   protected getRateLimitStatus(): {
     remaining: number;
     limit: number;
     resetAt: number;
     percentUsed: number;
   } | undefined {
-    // Subclasses should override if they track rate limits
     return undefined;
+  }
+
+  // ===========================================================================
+  // Metrics (from MetricsTrackerMixin)
+  // ===========================================================================
+
+  protected updateEndpointMetrics(endpointKey: string, latency: number, isError: boolean): void {
+    let stats = this.metrics.endpointStats.get(endpointKey);
+
+    if (!stats) {
+      stats = {
+        endpoint: endpointKey,
+        count: 0,
+        totalLatency: 0,
+        errors: 0,
+        minLatency: Infinity,
+        maxLatency: 0,
+      };
+      this.metrics.endpointStats.set(endpointKey, stats);
+    }
+
+    stats.count++;
+    stats.totalLatency += latency;
+    stats.minLatency = Math.min(stats.minLatency, latency);
+    stats.maxLatency = Math.max(stats.maxLatency, latency);
+    stats.lastRequestAt = Date.now();
+
+    if (isError) {
+      stats.errors++;
+    }
+  }
+
+  protected updateAverageLatency(latency: number): void {
+    const total = this.metrics.totalRequests;
+    const currentAvg = this.metrics.averageLatency;
+    this.metrics.averageLatency = (currentAvg * (total - 1) + latency) / total;
+  }
+
+  public getMetrics(): MetricsSnapshot {
+    return createMetricsSnapshot(this.metrics);
+  }
+
+  public getCircuitBreakerMetrics() {
+    return this.circuitBreaker.getMetrics();
+  }
+
+  public getCircuitBreakerState() {
+    return this.circuitBreaker.getState();
+  }
+
+  public resetMetrics(): void {
+    this.metrics.lastResetAt = Date.now();
+    this.metrics.totalRequests = 0;
+    this.metrics.successfulRequests = 0;
+    this.metrics.failedRequests = 0;
+    this.metrics.rateLimitHits = 0;
+    this.metrics.averageLatency = 0;
+    this.metrics.endpointStats.clear();
+  }
+
+  protected trackRateLimitHit(): void {
+    this.metrics.rateLimitHits++;
+  }
+
+  // ===========================================================================
+  // HTTP Request (from HttpRequestMixin)
+  // ===========================================================================
+
+  protected async request<T>(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    url: string,
+    body?: unknown,
+    headers?: Record<string, string>
+  ): Promise<T> {
+    const maxAttempts = 3;
+    const initialDelay = 1000;
+    const maxDelay = 10000;
+    const multiplier = 2;
+    const retryableStatuses = [408, 429, 500, 502, 503, 504];
+
+    const correlationId = generateCorrelationId();
+
+    return this.circuitBreaker.execute(async () => {
+      let lastError: Error | undefined;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const startTime = Date.now();
+        const endpoint = this.extractEndpoint(url);
+        const endpointKey = `${method}:${endpoint}`;
+
+        this.debug(`Request ${correlationId}`, { method, endpoint, attempt: attempt + 1, correlationId });
+
+        this.metrics.totalRequests++;
+
+        const controller = new AbortController();
+        this.abortControllers.add(controller);
+
+        const timeout = setTimeout(() => controller.abort(), this.config.timeout);
+        this.registerTimer(timeout);
+
+        try {
+          const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json', 'X-Correlation-ID': correlationId, ...headers },
+            body: body ? JSON.stringify(body) : undefined,
+            signal: controller.signal,
+          });
+
+          if (!response.ok) {
+            const shouldRetry = attempt < maxAttempts - 1 && retryableStatuses.includes(response.status);
+            const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+            if (!shouldRetry) {
+              throw error;
+            }
+
+            const latency = Date.now() - startTime;
+            this.metrics.failedRequests++;
+            this.updateEndpointMetrics(endpointKey, latency, true);
+            this.updateAverageLatency(latency);
+
+            lastError = error;
+
+            const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
+
+            clearTimeout(timeout);
+            this.timers.delete(timeout);
+            this.abortControllers.delete(controller);
+
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+
+          const result = (await response.json()) as T;
+
+          const latency = Date.now() - startTime;
+          this.metrics.successfulRequests++;
+          this.updateEndpointMetrics(endpointKey, latency, false);
+          this.updateAverageLatency(latency);
+
+          this.debug(`Request ${correlationId} completed`, { correlationId, latency, status: response.status });
+
+          if (this.prometheusMetrics) {
+            this.prometheusMetrics.recordRequest(this.id, endpoint, 'success', latency);
+          }
+
+          clearTimeout(timeout);
+          this.timers.delete(timeout);
+          this.abortControllers.delete(controller);
+
+          return result;
+        } catch (error) {
+          const latency = Date.now() - startTime;
+          this.metrics.failedRequests++;
+          this.updateEndpointMetrics(endpointKey, latency, true);
+          this.updateAverageLatency(latency);
+
+          this.debug(`Request ${correlationId} failed`, {
+            correlationId,
+            latency,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            attempt: attempt + 1,
+          });
+
+          if (this.prometheusMetrics) {
+            this.prometheusMetrics.recordRequest(this.id, endpoint, 'error', latency);
+            const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
+            this.prometheusMetrics.recordRequestError(this.id, endpoint, errorType);
+          }
+
+          clearTimeout(timeout);
+          this.timers.delete(timeout);
+          this.abortControllers.delete(controller);
+
+          const isNetworkError = error instanceof Error &&
+            (error.name === 'AbortError' || error.message.includes('fetch') || error.message.includes('network'));
+
+          if (attempt < maxAttempts - 1 && isNetworkError) {
+            lastError = error as Error;
+
+            const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
+
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+
+          throw this.attachCorrelationId(error, correlationId);
+        }
+      }
+
+      throw this.attachCorrelationId(lastError || new Error('Request failed after retries'), correlationId);
+    });
+  }
+
+  protected registerTimer(timer: NodeJS.Timeout): void {
+    this.timers.add(timer);
+  }
+
+  protected registerInterval(interval: NodeJS.Timeout): void {
+    this.intervals.add(interval);
+  }
+
+  protected unregisterTimer(timer: NodeJS.Timeout): void {
+    clearTimeout(timer);
+    this.timers.delete(timer);
+  }
+
+  protected unregisterInterval(interval: NodeJS.Timeout): void {
+    clearInterval(interval);
+    this.intervals.delete(interval);
+  }
+
+  protected extractEndpoint(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.pathname;
+    } catch {
+      return url;
+    }
   }
 
   // ===========================================================================
@@ -455,34 +596,17 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   abstract fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
   abstract fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
   abstract fetchFundingRate(symbol: string): Promise<FundingRate>;
-  abstract fetchFundingRateHistory(
-    symbol: string,
-    since?: number,
-    limit?: number
-  ): Promise<FundingRate[]>;
+  abstract fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
 
-  /**
-   * Fetch OHLCV (candlestick) data
-   * Default implementation throws if not supported by exchange
-   */
-  async fetchOHLCV(
-    symbol: string,
-    timeframe: OHLCVTimeframe,
-    params?: OHLCVParams
-  ): Promise<OHLCV[]> {
+  async fetchOHLCV(symbol: string, timeframe: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]> {
     if (!this.has.fetchOHLCV) {
       throw new NotSupportedError(`${this.name} does not support OHLCV data`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('fetchOHLCV must be implemented by subclass');
   }
 
-  /**
-   * Fetch multiple tickers at once
-   * Default implementation fetches tickers sequentially
-   */
   async fetchTickers(symbols?: string[]): Promise<Record<string, Ticker>> {
     if (!this.has.fetchTickers) {
-      // Fallback: fetch tickers one by one
       const result: Record<string, Ticker> = {};
       const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map(m => m.symbol);
 
@@ -498,10 +622,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     throw new Error('fetchTickers must be implemented by subclass');
   }
 
-  /**
-   * Fetch available currencies
-   * Default implementation throws if not supported
-   */
   async fetchCurrencies(): Promise<Record<string, Currency>> {
     if (!this.has.fetchCurrencies) {
       throw new NotSupportedError(`${this.name} does not support fetching currencies`, 'NOT_SUPPORTED', this.id);
@@ -509,34 +629,18 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     throw new Error('fetchCurrencies must be implemented by subclass');
   }
 
-  /**
-   * Fetch exchange status
-   * Default implementation returns 'ok' if fetchMarkets succeeds
-   */
   async fetchStatus(): Promise<ExchangeStatus> {
     if (!this.has.fetchStatus) {
-      // Default: check if API is responsive
       try {
         await this.fetchMarkets();
-        return {
-          status: 'ok',
-          updated: Date.now(),
-        };
+        return { status: 'ok', updated: Date.now() };
       } catch (error) {
-        return {
-          status: 'error',
-          message: error instanceof Error ? error.message : 'Unknown error',
-          updated: Date.now(),
-        };
+        return { status: 'error', message: error instanceof Error ? error.message : 'Unknown error', updated: Date.now() };
       }
     }
     throw new Error('fetchStatus must be implemented by subclass');
   }
 
-  /**
-   * Fetch exchange server time
-   * Default implementation returns local time (not recommended)
-   */
   async fetchTime(): Promise<number> {
     if (!this.has.fetchTime) {
       throw new NotSupportedError(`${this.name} does not support fetching server time`, 'NOT_SUPPORTED', this.id);
@@ -559,10 +663,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   abstract fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
   abstract fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
 
-  /**
-   * Fetch deposit history
-   * Default implementation throws if not supported by exchange
-   */
   async fetchDeposits(currency?: string, since?: number, limit?: number): Promise<Transaction[]> {
     if (!this.has.fetchDeposits) {
       throw new NotSupportedError(`${this.name} does not support fetching deposit history`, 'NOT_SUPPORTED', this.id);
@@ -570,10 +670,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     throw new Error('fetchDeposits must be implemented by subclass');
   }
 
-  /**
-   * Fetch withdrawal history
-   * Default implementation throws if not supported by exchange
-   */
   async fetchWithdrawals(currency?: string, since?: number, limit?: number): Promise<Transaction[]> {
     if (!this.has.fetchWithdrawals) {
       throw new NotSupportedError(`${this.name} does not support fetching withdrawal history`, 'NOT_SUPPORTED', this.id);
@@ -581,26 +677,13 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     throw new Error('fetchWithdrawals must be implemented by subclass');
   }
 
-  /**
-   * Fetch account ledger (transaction history)
-   * Default implementation throws if not supported by exchange
-   */
-  async fetchLedger(
-    currency?: string,
-    since?: number,
-    limit?: number,
-    params?: Record<string, unknown>
-  ): Promise<LedgerEntry[]> {
+  async fetchLedger(currency?: string, since?: number, limit?: number, params?: Record<string, unknown>): Promise<LedgerEntry[]> {
     if (!this.has.fetchLedger) {
       throw new NotSupportedError(`${this.name} does not support fetching ledger`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('fetchLedger must be implemented by subclass');
   }
 
-  /**
-   * Fetch funding payment history
-   * Default implementation throws if not supported by exchange
-   */
   async fetchFundingHistory(symbol?: string, since?: number, limit?: number): Promise<FundingPayment[]> {
     if (!this.has.fetchFundingHistory) {
       throw new NotSupportedError(`${this.name} does not support fetching funding history`, 'NOT_SUPPORTED', this.id);
@@ -609,33 +692,14 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   }
 
   // ===========================================================================
-  // Batch Operations - with automatic fallback to sequential execution
+  // Batch Operations (from OrderHelpersMixin)
   // ===========================================================================
 
-  /**
-   * Create multiple orders in batch
-   *
-   * If the exchange supports native batch creation (has.createBatchOrders === true),
-   * subclasses should override this method. Otherwise, falls back to sequential creation.
-   *
-   * @param requests - Array of order requests
-   * @returns Array of created orders
-   *
-   * @example
-   * ```typescript
-   * const orders = await exchange.createBatchOrders([
-   *   { symbol: 'BTC/USDT:USDT', side: 'buy', type: 'limit', amount: 0.1, price: 50000 },
-   *   { symbol: 'ETH/USDT:USDT', side: 'buy', type: 'limit', amount: 1.0, price: 3000 },
-   * ]);
-   * ```
-   */
   async createBatchOrders(requests: OrderRequest[]): Promise<Order[]> {
-    // If native batch is supported, subclass should override this method
     if (this.has.createBatchOrders === true) {
       throw new Error('createBatchOrders must be implemented by subclass when has.createBatchOrders is true');
     }
 
-    // Fallback to sequential execution
     this.debug('No native batch support, creating orders sequentially', { count: requests.length });
 
     const orders: Order[] = [];
@@ -643,7 +707,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
 
     for (let i = 0; i < requests.length; i++) {
       const request = requests[i];
-      if (!request) continue; // Skip undefined entries
+      if (!request) continue;
 
       try {
         const order = await this.createOrder(request);
@@ -651,23 +715,17 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         errors.push({ index: i, error: err });
-
         this.debug('Failed to create order', { index: i + 1, total: requests.length, error: err.message });
-        // Continue with remaining orders despite failure
       }
     }
 
-    // If all orders failed, throw an error
     if (orders.length === 0 && errors.length > 0) {
       const firstError = errors[0];
       if (firstError) {
-        throw new Error(
-          `All batch order creations failed. First error: ${firstError.error.message}`
-        );
+        throw new Error(`All batch order creations failed. First error: ${firstError.error.message}`);
       }
     }
 
-    // Log summary if some failed
     if (errors.length > 0) {
       this.debug('Batch order creation completed', { succeeded: orders.length, failed: errors.length });
     }
@@ -675,32 +733,11 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     return orders;
   }
 
-  /**
-   * Cancel multiple orders in batch
-   *
-   * If the exchange supports native batch cancellation (has.cancelBatchOrders === true),
-   * subclasses should override this method. Otherwise, falls back to sequential cancellation.
-   *
-   * @param orderIds - Array of order IDs to cancel
-   * @param symbol - Optional symbol (required for some exchanges)
-   * @returns Array of canceled orders
-   *
-   * @example
-   * ```typescript
-   * const canceled = await exchange.cancelBatchOrders([
-   *   'order-123',
-   *   'order-456',
-   *   'order-789',
-   * ], 'BTC/USDT:USDT');
-   * ```
-   */
   async cancelBatchOrders(orderIds: string[], symbol?: string): Promise<Order[]> {
-    // If native batch is supported, subclass should override this method
     if (this.has.cancelBatchOrders === true) {
       throw new Error('cancelBatchOrders must be implemented by subclass when has.cancelBatchOrders is true');
     }
 
-    // Fallback to sequential execution
     this.debug('No native batch support, canceling orders sequentially', { count: orderIds.length });
 
     const orders: Order[] = [];
@@ -708,7 +745,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
 
     for (let i = 0; i < orderIds.length; i++) {
       const orderId = orderIds[i];
-      if (!orderId) continue; // Skip undefined entries
+      if (!orderId) continue;
 
       try {
         const order = await this.cancelOrder(orderId, symbol);
@@ -716,23 +753,17 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         errors.push({ index: i, orderId, error: err });
-
         this.debug('Failed to cancel order', { orderId, error: err.message });
-        // Continue with remaining orders despite failure
       }
     }
 
-    // If all cancellations failed, throw an error
     if (orders.length === 0 && errors.length > 0) {
       const firstError = errors[0];
       if (firstError) {
-        throw new Error(
-          `All batch order cancellations failed. First error: ${firstError.error.message}`
-        );
+        throw new Error(`All batch order cancellations failed. First error: ${firstError.error.message}`);
       }
     }
 
-    // Log summary if some failed
     if (errors.length > 0) {
       this.debug('Batch order cancellation completed', { succeeded: orders.length, failed: errors.length });
     }
@@ -740,10 +771,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     return orders;
   }
 
-  /**
-   * Edit/modify an existing order
-   * Default implementation throws if not supported
-   */
   async editOrder(
     orderId: string,
     symbol: string,
@@ -763,10 +790,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   // Order Query
   // ===========================================================================
 
-  /**
-   * Fetch a single order by ID
-   * Default implementation throws if not supported
-   */
   async fetchOrder(orderId: string, symbol?: string): Promise<Order> {
     if (!this.has.fetchOrder) {
       throw new NotSupportedError(`${this.name} does not support fetching single orders`, 'NOT_SUPPORTED', this.id);
@@ -774,10 +797,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     throw new Error('fetchOrder must be implemented by subclass');
   }
 
-  /**
-   * Fetch all open/pending orders
-   * Default implementation throws if not supported
-   */
   async fetchOpenOrders(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
     if (!this.has.fetchOpenOrders) {
       throw new NotSupportedError(`${this.name} does not support fetching open orders`, 'NOT_SUPPORTED', this.id);
@@ -785,10 +804,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     throw new Error('fetchOpenOrders must be implemented by subclass');
   }
 
-  /**
-   * Fetch closed (filled/canceled) orders
-   * Default implementation throws if not supported
-   */
   async fetchClosedOrders(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
     if (!this.has.fetchClosedOrders) {
       throw new NotSupportedError(`${this.name} does not support fetching closed orders`, 'NOT_SUPPORTED', this.id);
@@ -800,116 +815,28 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   // Convenience Order Methods (CCXT-compatible)
   // ===========================================================================
 
-  /**
-   * Create a limit buy order
-   */
-  async createLimitBuyOrder(
-    symbol: string,
-    amount: number,
-    price: number,
-    params?: Record<string, unknown>
-  ): Promise<Order> {
-    return this.createOrder({
-      symbol,
-      type: 'limit',
-      side: 'buy',
-      amount,
-      price,
-      ...params,
-    });
+  async createLimitBuyOrder(symbol: string, amount: number, price: number, params?: Record<string, unknown>): Promise<Order> {
+    return this.createOrder({ symbol, type: 'limit', side: 'buy', amount, price, ...params });
   }
 
-  /**
-   * Create a limit sell order
-   */
-  async createLimitSellOrder(
-    symbol: string,
-    amount: number,
-    price: number,
-    params?: Record<string, unknown>
-  ): Promise<Order> {
-    return this.createOrder({
-      symbol,
-      type: 'limit',
-      side: 'sell',
-      amount,
-      price,
-      ...params,
-    });
+  async createLimitSellOrder(symbol: string, amount: number, price: number, params?: Record<string, unknown>): Promise<Order> {
+    return this.createOrder({ symbol, type: 'limit', side: 'sell', amount, price, ...params });
   }
 
-  /**
-   * Create a market buy order
-   */
-  async createMarketBuyOrder(
-    symbol: string,
-    amount: number,
-    params?: Record<string, unknown>
-  ): Promise<Order> {
-    return this.createOrder({
-      symbol,
-      type: 'market',
-      side: 'buy',
-      amount,
-      ...params,
-    });
+  async createMarketBuyOrder(symbol: string, amount: number, params?: Record<string, unknown>): Promise<Order> {
+    return this.createOrder({ symbol, type: 'market', side: 'buy', amount, ...params });
   }
 
-  /**
-   * Create a market sell order
-   */
-  async createMarketSellOrder(
-    symbol: string,
-    amount: number,
-    params?: Record<string, unknown>
-  ): Promise<Order> {
-    return this.createOrder({
-      symbol,
-      type: 'market',
-      side: 'sell',
-      amount,
-      ...params,
-    });
+  async createMarketSellOrder(symbol: string, amount: number, params?: Record<string, unknown>): Promise<Order> {
+    return this.createOrder({ symbol, type: 'market', side: 'sell', amount, ...params });
   }
 
-  /**
-   * Create a stop loss order
-   */
-  async createStopLossOrder(
-    symbol: string,
-    amount: number,
-    stopPrice: number,
-    params?: Record<string, unknown>
-  ): Promise<Order> {
-    return this.createOrder({
-      symbol,
-      type: 'stopMarket',
-      side: 'sell', // Default to sell for stop loss
-      amount,
-      stopPrice,
-      reduceOnly: true,
-      ...params,
-    });
+  async createStopLossOrder(symbol: string, amount: number, stopPrice: number, params?: Record<string, unknown>): Promise<Order> {
+    return this.createOrder({ symbol, type: 'stopMarket', side: 'sell', amount, stopPrice, reduceOnly: true, ...params });
   }
 
-  /**
-   * Create a take profit order
-   */
-  async createTakeProfitOrder(
-    symbol: string,
-    amount: number,
-    takeProfitPrice: number,
-    params?: Record<string, unknown>
-  ): Promise<Order> {
-    return this.createOrder({
-      symbol,
-      type: 'limit',
-      side: 'sell', // Default to sell for take profit
-      amount,
-      price: takeProfitPrice,
-      reduceOnly: true,
-      ...params,
-    });
+  async createTakeProfitOrder(symbol: string, amount: number, takeProfitPrice: number, params?: Record<string, unknown>): Promise<Order> {
+    return this.createOrder({ symbol, type: 'limit', side: 'sell', amount, price: takeProfitPrice, reduceOnly: true, ...params });
   }
 
   // ===========================================================================
@@ -936,7 +863,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       throw new NotSupportedError(`${this.name} does not support order book streaming`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('watchOrderBook must be implemented by subclass');
-    yield {} as OrderBook; // Type system requirement
+    yield {} as OrderBook;
   }
 
   async *watchTrades(symbol: string): AsyncGenerator<Trade> {
@@ -944,7 +871,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       throw new NotSupportedError(`${this.name} does not support trade streaming`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('watchTrades must be implemented by subclass');
-    yield {} as Trade; // Type system requirement
+    yield {} as Trade;
   }
 
   async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
@@ -952,7 +879,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       throw new NotSupportedError(`${this.name} does not support ticker streaming`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('watchTicker must be implemented by subclass');
-    yield {} as Ticker; // Type system requirement
+    yield {} as Ticker;
   }
 
   async *watchTickers(symbols?: string[]): AsyncGenerator<Ticker> {
@@ -960,7 +887,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       throw new NotSupportedError(`${this.name} does not support multiple ticker streaming`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('watchTickers must be implemented by subclass');
-    yield {} as Ticker; // Type system requirement
+    yield {} as Ticker;
   }
 
   async *watchPositions(): AsyncGenerator<Position[]> {
@@ -968,7 +895,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       throw new NotSupportedError(`${this.name} does not support position streaming`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('watchPositions must be implemented by subclass');
-    yield [] as Position[]; // Type system requirement
+    yield [] as Position[];
   }
 
   async *watchOrders(): AsyncGenerator<Order[]> {
@@ -976,7 +903,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       throw new NotSupportedError(`${this.name} does not support order streaming`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('watchOrders must be implemented by subclass');
-    yield [] as Order[]; // Type system requirement
+    yield [] as Order[];
   }
 
   async *watchBalance(): AsyncGenerator<Balance[]> {
@@ -984,7 +911,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       throw new NotSupportedError(`${this.name} does not support balance streaming`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('watchBalance must be implemented by subclass');
-    yield [] as Balance[]; // Type system requirement
+    yield [] as Balance[];
   }
 
   async *watchFundingRate(symbol: string): AsyncGenerator<FundingRate> {
@@ -992,7 +919,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       throw new NotSupportedError(`${this.name} does not support funding rate streaming`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('watchFundingRate must be implemented by subclass');
-    yield {} as FundingRate; // Type system requirement
+    yield {} as FundingRate;
   }
 
   async *watchOHLCV(symbol: string, timeframe: OHLCVTimeframe): AsyncGenerator<OHLCV> {
@@ -1000,7 +927,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       throw new NotSupportedError(`${this.name} does not support OHLCV streaming`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('watchOHLCV must be implemented by subclass');
-    yield [0, 0, 0, 0, 0, 0] as OHLCV; // Type system requirement
+    yield [0, 0, 0, 0, 0, 0] as OHLCV;
   }
 
   async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
@@ -1008,17 +935,13 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       throw new NotSupportedError(`${this.name} does not support user trade streaming`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('watchMyTrades must be implemented by subclass');
-    yield {} as Trade; // Type system requirement
+    yield {} as Trade;
   }
 
   // ===========================================================================
   // Additional Info Methods
   // ===========================================================================
 
-  /**
-   * Fetch user fee rates
-   * Default implementation throws if not supported by exchange
-   */
   async fetchUserFees(): Promise<UserFees> {
     if (!this.has.fetchUserFees) {
       throw new NotSupportedError(`${this.name} does not support fetching user fees`, 'NOT_SUPPORTED', this.id);
@@ -1026,10 +949,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     throw new Error('fetchUserFees must be implemented by subclass');
   }
 
-  /**
-   * Fetch portfolio performance metrics
-   * Default implementation throws if not supported by exchange
-   */
   async fetchPortfolio(): Promise<Portfolio> {
     if (!this.has.fetchPortfolio) {
       throw new NotSupportedError(`${this.name} does not support fetching portfolio metrics`, 'NOT_SUPPORTED', this.id);
@@ -1037,10 +956,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     throw new Error('fetchPortfolio must be implemented by subclass');
   }
 
-  /**
-   * Fetch current rate limit status
-   * Default implementation throws if not supported by exchange
-   */
   async fetchRateLimitStatus(): Promise<RateLimitStatus> {
     if (!this.has.fetchRateLimitStatus) {
       throw new NotSupportedError(`${this.name} does not support fetching rate limit status`, 'NOT_SUPPORTED', this.id);
@@ -1052,43 +967,16 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   // Utility Methods
   // ===========================================================================
 
-  /**
-   * Check if a feature is supported
-   */
   protected supportsFeature(feature: keyof FeatureMap): boolean {
     return this.has[feature] === true;
   }
 
-  /**
-   * Assert that a feature is supported, throwing an error if not
-   *
-   * Use this at the beginning of methods that require specific features
-   * to provide clear error messages when unsupported features are called.
-   *
-   * @param feature - The feature to check
-   * @throws NotSupportedError if the feature is not supported
-   *
-   * @example
-   * ```typescript
-   * async fetchOHLCV(symbol: string, timeframe: OHLCVTimeframe): Promise<OHLCV[]> {
-   *   this.assertFeatureSupported('fetchOHLCV');
-   *   // ... implementation
-   * }
-   * ```
-   */
   protected assertFeatureSupported(feature: keyof FeatureMap): void {
     if (!this.has[feature]) {
-      throw new NotSupportedError(
-        `Feature '${feature}' is not supported by ${this.name}`,
-        'NOT_SUPPORTED',
-        this.id
-      );
+      throw new NotSupportedError(`Feature '${feature}' is not supported by ${this.name}`, 'NOT_SUPPORTED', this.id);
     }
   }
 
-  /**
-   * Ensure adapter is initialized
-   */
   protected ensureInitialized(): void {
     if (!this._isReady) {
       throw new Error(`${this.name} adapter not initialized. Call initialize() first.`);
@@ -1099,25 +987,6 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   // Input Validation
   // ===========================================================================
 
-  /**
-   * Validate an order request using Zod schemas
-   *
-   * Validates that the order request has all required fields and
-   * enforces type-specific constraints (e.g., limit orders need price).
-   *
-   * @param request - Order request to validate
-   * @param correlationId - Optional correlation ID for error tracking
-   * @returns Validated order request
-   * @throws {InvalidOrderError} If validation fails
-   *
-   * @example
-   * ```typescript
-   * async createOrder(request: OrderRequest): Promise<Order> {
-   *   const validated = this.validateOrder(request);
-   *   // ... create order with validated data
-   * }
-   * ```
-   */
   protected validateOrder(request: OrderRequest, correlationId?: string): OrderRequest {
     return validateOrderRequest(request, {
       exchange: this.id,
@@ -1125,34 +994,10 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     }) as OrderRequest;
   }
 
-  /**
-   * Get a validator instance for this adapter
-   *
-   * Creates a validator bound to this adapter's exchange ID
-   * for use with custom validation needs.
-   *
-   * @returns Validator with methods for common validation tasks
-   *
-   * @example
-   * ```typescript
-   * const validator = this.getValidator();
-   * const params = validator.orderBookParams(rawParams);
-   * ```
-   */
   protected getValidator() {
     return createValidator(this.id);
   }
 
-  /**
-   * Attach correlation ID to an error for request tracing
-   *
-   * If the error is a PerpDEXError, attaches the correlation ID directly.
-   * Otherwise, wraps the error in a PerpDEXError with the correlation ID.
-   *
-   * @param error - Error to attach correlation ID to
-   * @param correlationId - Correlation ID for request tracing
-   * @returns Error with correlation ID attached
-   */
   protected attachCorrelationId(error: unknown, correlationId: string): Error {
     if (error instanceof PerpDEXError) {
       error.withCorrelationId(correlationId);
@@ -1163,537 +1008,43 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     return new PerpDEXError(message, 'REQUEST_ERROR', this.id, error).withCorrelationId(correlationId);
   }
 
-  /**
-   * Convert unified symbol to exchange-specific format
-   * Must be implemented by subclass
-   */
   protected abstract symbolToExchange(symbol: string): string;
-
-  /**
-   * Convert exchange-specific symbol to unified format
-   * Must be implemented by subclass
-   */
   protected abstract symbolFromExchange(exchangeSymbol: string): string;
-
-  /**
-   * Make HTTP request with timeout, circuit breaker, retry, and metrics tracking
-   */
-  protected async request<T>(
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-    url: string,
-    body?: unknown,
-    headers?: Record<string, string>
-  ): Promise<T> {
-    // Retry configuration
-    const maxAttempts = 3;
-    const initialDelay = 1000;
-    const maxDelay = 10000;
-    const multiplier = 2;
-    const retryableStatuses = [408, 429, 500, 502, 503, 504];
-
-    // Generate correlation ID for request tracing
-    const correlationId = generateCorrelationId();
-
-    // Wrap the entire request in circuit breaker
-    return this.circuitBreaker.execute(async () => {
-      let lastError: Error | undefined;
-
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const startTime = Date.now();
-        const endpoint = this.extractEndpoint(url);
-        const endpointKey = `${method}:${endpoint}`;
-
-        // Log request with correlation ID
-        this.debug(`Request ${correlationId}`, {
-          method,
-          endpoint,
-          attempt: attempt + 1,
-          correlationId,
-        });
-
-        // Increment total requests
-        this.metrics.totalRequests++;
-
-        const controller = new AbortController();
-        this.abortControllers.add(controller);
-
-        const timeout = setTimeout(() => controller.abort(), this.config.timeout);
-        this.registerTimer(timeout);
-
-        try {
-          const response = await fetch(url, {
-            method,
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Correlation-ID': correlationId,
-              ...headers,
-            },
-            body: body ? JSON.stringify(body) : undefined,
-            signal: controller.signal,
-          });
-
-          if (!response.ok) {
-            const shouldRetry = attempt < maxAttempts - 1 && retryableStatuses.includes(response.status);
-            const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
-
-            if (!shouldRetry) {
-              throw error;
-            }
-
-            // Track failed request (will retry)
-            const latency = Date.now() - startTime;
-            this.metrics.failedRequests++;
-            this.updateEndpointMetrics(endpointKey, latency, true);
-            this.updateAverageLatency(latency);
-
-            lastError = error;
-
-            // Calculate delay with exponential backoff
-            const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
-
-            // Clean up before retry
-            clearTimeout(timeout);
-            this.timers.delete(timeout);
-            this.abortControllers.delete(controller);
-
-            // Wait before retry
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue;
-          }
-
-          const result = (await response.json()) as T;
-
-          // Track successful request
-          const latency = Date.now() - startTime;
-          this.metrics.successfulRequests++;
-          this.updateEndpointMetrics(endpointKey, latency, false);
-          this.updateAverageLatency(latency);
-
-          // Log success with correlation ID
-          this.debug(`Request ${correlationId} completed`, {
-            correlationId,
-            latency,
-            status: response.status,
-          });
-
-          // Track in Prometheus
-          if (this.prometheusMetrics) {
-            this.prometheusMetrics.recordRequest(this.id, endpoint, 'success', latency);
-          }
-
-          // Clean up
-          clearTimeout(timeout);
-          this.timers.delete(timeout);
-          this.abortControllers.delete(controller);
-
-          return result;
-        } catch (error) {
-          // Track failed request
-          const latency = Date.now() - startTime;
-          this.metrics.failedRequests++;
-          this.updateEndpointMetrics(endpointKey, latency, true);
-          this.updateAverageLatency(latency);
-
-          // Log error with correlation ID
-          this.debug(`Request ${correlationId} failed`, {
-            correlationId,
-            latency,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            attempt: attempt + 1,
-          });
-
-          // Track in Prometheus
-          if (this.prometheusMetrics) {
-            this.prometheusMetrics.recordRequest(this.id, endpoint, 'error', latency);
-            const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
-            this.prometheusMetrics.recordRequestError(this.id, endpoint, errorType);
-          }
-
-          // Clean up
-          clearTimeout(timeout);
-          this.timers.delete(timeout);
-          this.abortControllers.delete(controller);
-
-          // Check if should retry
-          const isNetworkError = error instanceof Error &&
-            (error.name === 'AbortError' || error.message.includes('fetch') || error.message.includes('network'));
-
-          if (attempt < maxAttempts - 1 && isNetworkError) {
-            lastError = error as Error;
-
-            // Calculate delay with exponential backoff
-            const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
-
-            // Wait before retry
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue;
-          }
-
-          // Attach correlation ID to PerpDEXError instances
-          throw this.attachCorrelationId(error, correlationId);
-        }
-      }
-
-      throw this.attachCorrelationId(lastError || new Error('Request failed after retries'), correlationId);
-    });
-  }
-
-  /**
-   * Register a timer for cleanup tracking
-   */
-  protected registerTimer(timer: NodeJS.Timeout): void {
-    this.timers.add(timer);
-  }
-
-  /**
-   * Register an interval for cleanup tracking
-   */
-  protected registerInterval(interval: NodeJS.Timeout): void {
-    this.intervals.add(interval);
-  }
-
-  /**
-   * Unregister and clear a timer
-   */
-  protected unregisterTimer(timer: NodeJS.Timeout): void {
-    clearTimeout(timer);
-    this.timers.delete(timer);
-  }
-
-  /**
-   * Unregister and clear an interval
-   */
-  protected unregisterInterval(interval: NodeJS.Timeout): void {
-    clearInterval(interval);
-    this.intervals.delete(interval);
-  }
-
-  /**
-   * Extract endpoint path from URL for metrics tracking
-   */
-  protected extractEndpoint(url: string): string {
-    try {
-      const urlObj = new URL(url);
-      return urlObj.pathname;
-    } catch {
-      // If URL parsing fails, return the URL as-is
-      return url;
-    }
-  }
-
-  /**
-   * Update per-endpoint metrics
-   */
-  protected updateEndpointMetrics(
-    endpointKey: string,
-    latency: number,
-    isError: boolean
-  ): void {
-    let stats = this.metrics.endpointStats.get(endpointKey);
-
-    if (!stats) {
-      stats = {
-        endpoint: endpointKey,
-        count: 0,
-        totalLatency: 0,
-        errors: 0,
-        minLatency: Infinity,
-        maxLatency: 0,
-      };
-      this.metrics.endpointStats.set(endpointKey, stats);
-    }
-
-    stats.count++;
-    stats.totalLatency += latency;
-    stats.minLatency = Math.min(stats.minLatency, latency);
-    stats.maxLatency = Math.max(stats.maxLatency, latency);
-    stats.lastRequestAt = Date.now();
-
-    if (isError) {
-      stats.errors++;
-    }
-  }
-
-  /**
-   * Update rolling average latency
-   */
-  protected updateAverageLatency(latency: number): void {
-    const total = this.metrics.totalRequests;
-    const currentAvg = this.metrics.averageLatency;
-
-    // Calculate new rolling average
-    this.metrics.averageLatency = (currentAvg * (total - 1) + latency) / total;
-  }
-
-  /**
-   * Get current metrics snapshot
-   *
-   * @returns Metrics snapshot with aggregated statistics
-   *
-   * @example
-   * ```typescript
-   * const metrics = exchange.getMetrics();
-   * console.log(`Success rate: ${(metrics.successRate * 100).toFixed(2)}%`);
-   * console.log(`Average latency: ${metrics.averageLatency.toFixed(2)}ms`);
-   * ```
-   */
-  public getMetrics(): MetricsSnapshot {
-    return createMetricsSnapshot(this.metrics);
-  }
-
-  /**
-   * Get circuit breaker metrics
-   *
-   * @returns Circuit breaker metrics including state and performance stats
-   *
-   * @example
-   * ```typescript
-   * const cbMetrics = exchange.getCircuitBreakerMetrics();
-   * console.log(`Circuit state: ${cbMetrics.state}`);
-   * console.log(`Error rate: ${(cbMetrics.errorRate * 100).toFixed(2)}%`);
-   * ```
-   */
-  public getCircuitBreakerMetrics() {
-    return this.circuitBreaker.getMetrics();
-  }
-
-  /**
-   * Get circuit breaker state
-   *
-   * @returns Current circuit state: 'CLOSED', 'OPEN', or 'HALF_OPEN'
-   */
-  public getCircuitBreakerState() {
-    return this.circuitBreaker.getState();
-  }
-
-  /**
-   * Reset all metrics to initial state
-   *
-   * @example
-   * ```typescript
-   * exchange.resetMetrics();
-   * // All counters reset, collection starts fresh
-   * ```
-   */
-  public resetMetrics(): void {
-    this.metrics.lastResetAt = Date.now();
-    this.metrics.totalRequests = 0;
-    this.metrics.successfulRequests = 0;
-    this.metrics.failedRequests = 0;
-    this.metrics.rateLimitHits = 0;
-    this.metrics.averageLatency = 0;
-    this.metrics.endpointStats.clear();
-  }
-
-  /**
-   * Track rate limit hit (to be called by subclasses when rate limited)
-   */
-  protected trackRateLimitHit(): void {
-    this.metrics.rateLimitHits++;
-  }
-
-  // ===========================================================================
-  // Logging Methods
-  // ===========================================================================
-
-  /**
-   * Log debug message
-   */
-  protected debug(message: string, meta?: Record<string, unknown>): void {
-    this.logger.debug(message, meta);
-  }
-
-  /**
-   * Log info message
-   */
-  protected info(message: string, meta?: Record<string, unknown>): void {
-    this.logger.info(message, meta);
-  }
-
-  /**
-   * Log warning message
-   */
-  protected warn(message: string, meta?: Record<string, unknown>): void {
-    this.logger.warn(message, meta);
-  }
-
-  /**
-   * Log error message
-   */
-  protected error(message: string, error?: Error, meta?: Record<string, unknown>): void {
-    this.logger.error(message, error, meta);
-  }
 
   // ===========================================================================
   // Python-style Method Aliases
   // ===========================================================================
-  // These aliases provide Python/snake_case naming conventions
-  // for developers who prefer that style
 
-  /**
-   * Alias for fetchMarkets() - Python-style naming
-   * @see fetchMarkets
-   */
   fetch_markets = this.fetchMarkets.bind(this);
-
-  /**
-   * Alias for fetchTicker() - Python-style naming
-   * @see fetchTicker
-   */
   fetch_ticker = this.fetchTicker.bind(this);
-
-  /**
-   * Alias for fetchOrderBook() - Python-style naming
-   * @see fetchOrderBook
-   */
   fetch_order_book = this.fetchOrderBook.bind(this);
-
-  /**
-   * Alias for fetchTrades() - Python-style naming
-   * @see fetchTrades
-   */
   fetch_trades = this.fetchTrades.bind(this);
-
-  /**
-   * Alias for fetchFundingRate() - Python-style naming
-   * @see fetchFundingRate
-   */
   fetch_funding_rate = this.fetchFundingRate.bind(this);
-
-  /**
-   * Alias for fetchFundingRateHistory() - Python-style naming
-   * @see fetchFundingRateHistory
-   */
   fetch_funding_rate_history = this.fetchFundingRateHistory.bind(this);
-
-  /**
-   * Alias for fetchOHLCV() - Python-style naming
-   * @see fetchOHLCV
-   */
   fetch_ohlcv = this.fetchOHLCV.bind(this);
-
-  /**
-   * Alias for createOrder() - Python-style naming
-   * @see createOrder
-   */
   create_order = this.createOrder.bind(this);
-
-  /**
-   * Alias for cancelOrder() - Python-style naming
-   * @see cancelOrder
-   */
   cancel_order = this.cancelOrder.bind(this);
-
-  /**
-   * Alias for cancelAllOrders() - Python-style naming
-   * @see cancelAllOrders
-   */
   cancel_all_orders = this.cancelAllOrders.bind(this);
-
-  /**
-   * Alias for createBatchOrders() - Python-style naming
-   * @see createBatchOrders
-   */
   create_batch_orders = this.createBatchOrders.bind(this);
-
-  /**
-   * Alias for cancelBatchOrders() - Python-style naming
-   * @see cancelBatchOrders
-   */
   cancel_batch_orders = this.cancelBatchOrders.bind(this);
-
-  /**
-   * Alias for fetchPositions() - Python-style naming
-   * @see fetchPositions
-   */
   fetch_positions = this.fetchPositions.bind(this);
-
-  /**
-   * Alias for fetchBalance() - Python-style naming
-   * @see fetchBalance
-   */
   fetch_balance = this.fetchBalance.bind(this);
-
-  /**
-   * Alias for setLeverage() - Python-style naming
-   * @see setLeverage
-   */
   set_leverage = this.setLeverage.bind(this);
-
-  /**
-   * Alias for setMarginMode() - Python-style naming
-   * @see setMarginMode
-   */
   set_margin_mode = this.setMarginMode.bind(this);
-
-  /**
-   * Alias for fetchOpenOrders() - Python-style naming
-   * @see fetchOpenOrders
-   */
   fetch_open_orders = this.fetchOpenOrders.bind(this);
-
-  /**
-   * Alias for healthCheck() - Python-style naming
-   * @see healthCheck
-   */
   health_check = this.healthCheck.bind(this);
-
-  /**
-   * Alias for getMetrics() - Python-style naming
-   * @see getMetrics
-   */
   get_metrics = this.getMetrics.bind(this);
-
-  /**
-   * Alias for resetMetrics() - Python-style naming
-   * @see resetMetrics
-   */
   reset_metrics = this.resetMetrics.bind(this);
-
-  /**
-   * Alias for preloadMarkets() - Python-style naming
-   * @see preloadMarkets
-   */
   preload_markets = this.preloadMarkets.bind(this);
-
-  /**
-   * Alias for getPreloadedMarkets() - Python-style naming
-   * @see getPreloadedMarkets
-   */
   get_preloaded_markets = this.getPreloadedMarkets.bind(this);
-
-  /**
-   * Alias for clearCache() - Python-style naming
-   * @see clearCache
-   */
   clear_cache = this.clearCache.bind(this);
-
-  /**
-   * Alias for fetchDeposits() - Python-style naming
-   * @see fetchDeposits
-   */
   fetch_deposits = this.fetchDeposits.bind(this);
-
-  /**
-   * Alias for fetchWithdrawals() - Python-style naming
-   * @see fetchWithdrawals
-   */
   fetch_withdrawals = this.fetchWithdrawals.bind(this);
 
-  /**
-   * Alias for fetchOrderHistory() - Python-style naming
-   * Note: Subclasses must implement fetchOrderHistory
-   * @see fetchOrderHistory
-   */
   get fetch_order_history() {
     return this.fetchOrderHistory.bind(this);
   }
 
-  /**
-   * Alias for fetchMyTrades() - Python-style naming
-   * Note: Subclasses must implement fetchMyTrades
-   * @see fetchMyTrades
-   */
   get fetch_my_trades() {
     return this.fetchMyTrades.bind(this);
   }
