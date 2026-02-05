@@ -27,6 +27,7 @@ import type {
 import type { OrderBook, Trade, Position, Order, Balance, Ticker } from '../../types/common.js';
 import { GRVTNormalizer } from './GRVTNormalizer.js';
 import { GRVT_API_URLS } from './constants.js';
+import { Logger } from '../../core/logger.js';
 
 export interface GRVTWebSocketConfig {
   testnet?: boolean;
@@ -44,6 +45,7 @@ export class GRVTWebSocketWrapper {
   private readonly ws: WS;
   private readonly normalizer: GRVTNormalizer;
   private readonly subAccountId?: string;
+  private readonly logger = new Logger('GRVTWebSocket');
   private isConnected = false;
 
   /**
@@ -53,7 +55,7 @@ export class GRVTWebSocketWrapper {
     if (queue.length >= GRVTWebSocketWrapper.MAX_QUEUE_SIZE) {
       queue.shift(); // Drop oldest message
       if (channel) {
-        console.warn(`[GRVT WebSocket] Queue overflow on ${channel}, dropping oldest message`);
+        this.logger.warn(`Queue overflow on ${channel}, dropping oldest message`);
       }
     }
     queue.push(item);
@@ -86,7 +88,7 @@ export class GRVTWebSocketWrapper {
     });
 
     this.ws.onError((error) => {
-      console.error('[GRVT WebSocket] Error:', error);
+      this.logger.error('WebSocket error', error instanceof Error ? error : undefined, { error });
     });
   }
 

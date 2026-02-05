@@ -15,6 +15,7 @@ import {
   formatPrice,
   formatAmount,
   safeParseFloat,
+  mapError,
 } from '../../src/adapters/variational/utils.js';
 import type { OrderRequest } from '../../src/types/common.js';
 import { PerpDEXError } from '../../src/types/errors.js';
@@ -129,6 +130,10 @@ describe('Variational Utils', () => {
     it('should return symbol as-is for invalid format', () => {
       expect(formatSymbolForAPI('INVALID')).toBe('INVALID');
       expect(formatSymbolForAPI('BTC')).toBe('BTC');
+    });
+
+    it('should return as-is for empty string (line 62)', () => {
+      expect(formatSymbolForAPI('')).toBe('');
     });
   });
 
@@ -400,6 +405,48 @@ describe('Variational Utils', () => {
     it('should handle numeric values directly', () => {
       expect(safeParseFloat(123.45)).toBe(123.45);
       expect(safeParseFloat(0)).toBe(0);
+    });
+  });
+
+  describe('mapError', () => {
+    it('should pass through PerpDEXError unchanged', () => {
+      const originalError = new PerpDEXError('Test error', 'TEST_CODE', 'variational');
+      const result = mapError(originalError);
+      expect(result).toBe(originalError);
+    });
+
+    it('should map Error with message', () => {
+      const error = new Error('Something went wrong');
+      const result = mapError(error);
+      expect(result).toBeInstanceOf(PerpDEXError);
+      expect(result.message).toContain('Something went wrong');
+    });
+
+    it('should map error with code property', () => {
+      const error = { code: 'INSUFFICIENT_MARGIN', message: 'Not enough margin' };
+      const result = mapError(error);
+      expect(result).toBeInstanceOf(PerpDEXError);
+    });
+
+    it('should map error with error property', () => {
+      const error = { error: 'Invalid order' };
+      const result = mapError(error);
+      expect(result).toBeInstanceOf(PerpDEXError);
+      expect(result.message).toContain('Invalid order');
+    });
+
+    it('should handle string errors', () => {
+      const result = mapError('Some string error');
+      expect(result).toBeInstanceOf(PerpDEXError);
+      expect(result.message).toContain('Some string error');
+    });
+
+    it('should handle null/undefined with defaults', () => {
+      const nullResult = mapError(null);
+      expect(nullResult).toBeInstanceOf(PerpDEXError);
+
+      const undefinedResult = mapError(undefined);
+      expect(undefinedResult).toBeInstanceOf(PerpDEXError);
     });
   });
 });

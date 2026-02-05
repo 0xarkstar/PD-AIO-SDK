@@ -11,6 +11,7 @@ import type {
   TransactionSignature,
   Keypair,
 } from '@solana/web3.js';
+import { Logger } from '../../core/logger.js';
 
 // Types for @drift-labs/sdk - actual import would be:
 // import { DriftClient, OrderParams, PositionDirection, OrderType, ... } from '@drift-labs/sdk';
@@ -82,6 +83,7 @@ export class DriftClientWrapper {
   private driftClient: any; // Would be DriftClient type
   private isInitialized = false;
   private userAccountPublicKey?: PublicKey;
+  private readonly logger = new Logger('DriftClientWrapper');
 
   constructor(config: DriftClientWrapperConfig) {
     this.config = config;
@@ -147,7 +149,7 @@ export class DriftClientWrapper {
       const userAccountExists = await this.driftClient.getUserAccountExists();
       if (!userAccountExists) {
         // User account needs to be initialized first
-        console.warn(
+        this.logger.warn(
           'Drift user account does not exist. ' +
           'Please deposit funds first to create an account.'
         );

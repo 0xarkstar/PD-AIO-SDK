@@ -285,7 +285,7 @@ export class HTTPClient {
    * Handle error response
    */
   private async handleErrorResponse(response: Response): Promise<never> {
-    let errorBody: any = {};
+    let errorBody: Record<string, unknown> = {};
     try {
       errorBody = await response.json();
     } catch {

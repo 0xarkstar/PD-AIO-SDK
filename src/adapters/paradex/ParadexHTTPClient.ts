@@ -13,6 +13,7 @@
 import type { ParadexAuth } from './ParadexAuth.js';
 import { mapHttpError, mapAxiosError } from './ParadexErrorMapper.js';
 import { PerpDEXError } from '../../types/errors.js';
+import { Logger } from '../../core/logger.js';
 
 /**
  * HTTP Client configuration
@@ -56,6 +57,7 @@ export class ParadexHTTPClient {
   private readonly auth: ParadexAuth;
   private readonly timeout: number;
   private readonly enableLogging: boolean;
+  private readonly logger = new Logger('ParadexHTTPClient');
 
   constructor(config: ParadexHTTPClientConfig) {
     this.baseUrl = config.baseUrl;
@@ -71,7 +73,7 @@ export class ParadexHTTPClient {
    * @param params - Query parameters
    * @returns Response data
    */
-  async get(path: string, params?: Record<string, string | number>): Promise<any> {
+  async get<T = unknown>(path: string, params?: Record<string, string | number>): Promise<T> {
     let fullPath = path;
 
     if (params) {
@@ -83,7 +85,7 @@ export class ParadexHTTPClient {
       fullPath = `${path}${queryString ? `?${queryString}` : ''}`;
     }
 
-    return this.request('GET', fullPath);
+    return this.request<T>('GET', fullPath);
   }
 
   /**
@@ -93,8 +95,8 @@ export class ParadexHTTPClient {
    * @param body - Request body
    * @returns Response data
    */
-  async post(path: string, body: any): Promise<any> {
-    return this.request('POST', path, body);
+  async post<T = unknown>(path: string, body: Record<string, unknown>): Promise<T> {
+    return this.request<T>('POST', path, body);
   }
 
   /**
@@ -104,30 +106,32 @@ export class ParadexHTTPClient {
    * @param body - Request body
    * @returns Response data
    */
-  async put(path: string, body: any): Promise<any> {
-    return this.request('PUT', path, body);
+  async put<T = unknown>(path: string, body: Record<string, unknown>): Promise<T> {
+    return this.request<T>('PUT', path, body);
   }
 
   /**
    * Make DELETE request
    *
    * @param path - API endpoint path
-   * @param params - Query parameters
+   * @param params - Query parameters or body
    * @returns Response data
    */
-  async delete(path: string, params?: Record<string, string | number>): Promise<any> {
+  async delete<T = unknown>(path: string, params?: Record<string, unknown>): Promise<T> {
     let fullPath = path;
 
-    if (params) {
+    // Handle as query params if it's simple key-value pairs
+    if (params && Object.values(params).every(v => typeof v === 'string' || typeof v === 'number')) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
-        searchParams.append(key, value.toString());
+        searchParams.append(key, String(value));
       });
       const queryString = searchParams.toString();
       fullPath = `${path}${queryString ? `?${queryString}` : ''}`;
+      return this.request<T>('DELETE', fullPath);
     }
 
-    return this.request('DELETE', fullPath);
+    return this.request<T>('DELETE', fullPath);
   }
 
   /**
@@ -140,11 +144,11 @@ export class ParadexHTTPClient {
    *
    * @throws {PerpDEXError} On network or API errors
    */
-  async request(
+  async request<T = unknown>(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
-    body?: any
-  ): Promise<any> {
+    body?: Record<string, unknown>
+  ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
 
     // Get authenticated request from auth strategy
@@ -163,15 +167,15 @@ export class ParadexHTTPClient {
     };
 
     if (this.enableLogging) {
-      console.log(`[Paradex HTTP] ${method} ${path}`, body || '');
+      this.logger.debug(`${method} ${path}`, { body: body || undefined });
     }
 
     try {
       const response = await fetch(url, requestInit);
-      return await this.handleResponse(response);
-    } catch (error: any) {
+      return await this.handleResponse<T>(response);
+    } catch (error: unknown) {
       // Handle timeout
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new PerpDEXError(
           `Request timeout after ${this.timeout}ms`,
           'ETIMEDOUT',
@@ -181,7 +185,7 @@ export class ParadexHTTPClient {
       }
 
       // Handle network errors
-      if (error.code && typeof error.code === 'string') {
+      if (error instanceof Error && 'code' in error && typeof (error as { code?: string }).code === 'string') {
         throw mapAxiosError(error);
       }
 
@@ -191,8 +195,9 @@ export class ParadexHTTPClient {
       }
 
       // Generic error
+      const message = error instanceof Error ? error.message : 'Request failed';
       throw new PerpDEXError(
-        error.message || 'Request failed',
+        message,
         'UNKNOWN_ERROR',
         'paradex',
         error
@@ -208,12 +213,12 @@ export class ParadexHTTPClient {
    *
    * @throws {PerpDEXError} On HTTP errors
    */
-  private async handleResponse(response: Response): Promise<any> {
+  private async handleResponse<T>(response: Response): Promise<T> {
     // Parse response body
-    let data: any;
+    let data: T | null;
     try {
-      data = await response.json();
-    } catch (error) {
+      data = await response.json() as T;
+    } catch {
       // Empty or non-JSON response
       data = null;
     }
@@ -221,9 +226,10 @@ export class ParadexHTTPClient {
     // Handle HTTP errors
     if (!response.ok) {
       if (this.enableLogging) {
-        console.error(
-          `[Paradex HTTP] Error ${response.status}: ${response.statusText}`,
-          data
+        this.logger.error(
+          `Error ${response.status}: ${response.statusText}`,
+          undefined,
+          { data }
         );
       }
 
@@ -231,10 +237,10 @@ export class ParadexHTTPClient {
     }
 
     if (this.enableLogging) {
-      console.log(`[Paradex HTTP] Response:`, data);
+      this.logger.debug('Response', { data });
     }
 
-    return data;
+    return data as T;
   }
 
   /**

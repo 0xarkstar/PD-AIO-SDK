@@ -394,6 +394,20 @@ describe('PrometheusMetrics', () => {
       const reg = metrics.getRegistry();
       expect(reg).toBe(registry);
     });
+
+    test('should clear all metrics (line 429)', async () => {
+      metrics.recordRequest('hyperliquid', 'fetchMarkets', 'success', 100);
+      metrics.recordOrder('hyperliquid', 'buy', 'limit', 'placed', 50);
+
+      let metricsData = await registry.getMetricsAsJSON();
+      expect(metricsData.length).toBeGreaterThan(0);
+
+      metrics.clearMetrics();
+
+      metricsData = await registry.getMetricsAsJSON();
+      // After clear, the registry should have no metrics
+      expect(metricsData.length).toBe(0);
+    });
   });
 
   describe('Global Metrics Instance', () => {

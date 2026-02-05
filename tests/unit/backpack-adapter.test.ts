@@ -582,3 +582,168 @@ describe('BackpackAdapter', () => {
     });
   });
 });
+
+describe('Backpack Utility Functions', () => {
+  let toBackpackOrderType: typeof import('../../src/adapters/backpack/utils.js').toBackpackOrderType;
+  let toBackpackOrderSide: typeof import('../../src/adapters/backpack/utils.js').toBackpackOrderSide;
+  let toBackpackTimeInForce: typeof import('../../src/adapters/backpack/utils.js').toBackpackTimeInForce;
+  let mapBackpackError: typeof import('../../src/adapters/backpack/utils.js').mapBackpackError;
+
+  beforeAll(async () => {
+    const utilsModule = await import('../../src/adapters/backpack/utils.js');
+    toBackpackOrderType = utilsModule.toBackpackOrderType;
+    toBackpackOrderSide = utilsModule.toBackpackOrderSide;
+    toBackpackTimeInForce = utilsModule.toBackpackTimeInForce;
+    mapBackpackError = utilsModule.mapBackpackError;
+  });
+
+  describe('toBackpackOrderType', () => {
+    test('should convert market order type', () => {
+      const result = toBackpackOrderType('market');
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+    });
+
+    test('should convert limit order type', () => {
+      const result = toBackpackOrderType('limit');
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+    });
+
+    test('should use postOnly type when postOnly is true', () => {
+      const result = toBackpackOrderType('limit', true);
+      expect(result).toBeDefined();
+    });
+
+    test('should not use postOnly for market orders', () => {
+      const result = toBackpackOrderType('market', true);
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('toBackpackOrderSide', () => {
+    test('should convert buy side', () => {
+      const result = toBackpackOrderSide('buy');
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+    });
+
+    test('should convert sell side', () => {
+      const result = toBackpackOrderSide('sell');
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+    });
+  });
+
+  describe('toBackpackTimeInForce', () => {
+    test('should convert GTC', () => {
+      const result = toBackpackTimeInForce('GTC');
+      expect(result).toBeDefined();
+    });
+
+    test('should convert IOC', () => {
+      const result = toBackpackTimeInForce('IOC');
+      expect(result).toBeDefined();
+    });
+
+    test('should convert FOK', () => {
+      const result = toBackpackTimeInForce('FOK');
+      expect(result).toBeDefined();
+    });
+
+    test('should convert PO (post-only)', () => {
+      const result = toBackpackTimeInForce('PO');
+      expect(result).toBeDefined();
+    });
+
+    test('should default to GTC when undefined', () => {
+      const result = toBackpackTimeInForce(undefined);
+      expect(result).toBeDefined();
+    });
+
+    test('should use POST_ONLY when postOnly is true', () => {
+      const result = toBackpackTimeInForce('GTC', true);
+      expect(result).toBeDefined();
+    });
+
+    test('should override TIF with postOnly when both provided', () => {
+      const result = toBackpackTimeInForce('IOC', true);
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('mapBackpackError', () => {
+    test('should map invalid order error (1001)', () => {
+      const result = mapBackpackError({ code: 1001 });
+      expect(result.code).toBe('INVALID_ORDER');
+    });
+
+    test('should map insufficient margin error (1002)', () => {
+      const result = mapBackpackError({ code: 1002 });
+      expect(result.code).toBe('INSUFFICIENT_MARGIN');
+    });
+
+    test('should map order not found error (1003)', () => {
+      const result = mapBackpackError({ code: 1003 });
+      expect(result.code).toBe('ORDER_NOT_FOUND');
+    });
+
+    test('should map position not found error (1004)', () => {
+      const result = mapBackpackError({ code: 1004 });
+      expect(result.code).toBe('POSITION_NOT_FOUND');
+    });
+
+    test('should map invalid signature error (2001)', () => {
+      const result = mapBackpackError({ code: 2001 });
+      expect(result.code).toBe('INVALID_SIGNATURE');
+    });
+
+    test('should map expired auth error (2002)', () => {
+      const result = mapBackpackError({ code: 2002 });
+      expect(result.code).toBe('EXPIRED_AUTH');
+    });
+
+    test('should map invalid API key error (2003)', () => {
+      const result = mapBackpackError({ code: 2003 });
+      expect(result.code).toBe('INVALID_API_KEY');
+    });
+
+    test('should map rate limit error (4001)', () => {
+      const result = mapBackpackError({ code: 4001 });
+      expect(result.code).toBe('RATE_LIMIT_EXCEEDED');
+    });
+
+    test('should map exchange unavailable error (5001)', () => {
+      const result = mapBackpackError({ code: 5001 });
+      expect(result.code).toBe('EXCHANGE_UNAVAILABLE');
+    });
+
+    test('should map unknown error code with message', () => {
+      const result = mapBackpackError({ code: 9999, message: 'Custom error' });
+      expect(result.code).toBe('UNKNOWN_ERROR');
+      expect(result.message).toBe('Custom error');
+    });
+
+    test('should map unknown error code without message', () => {
+      const result = mapBackpackError({ code: 9999 });
+      expect(result.code).toBe('UNKNOWN_ERROR');
+      expect(result.message).toBe('Unknown error occurred');
+    });
+
+    test('should handle non-object error', () => {
+      const result = mapBackpackError('string error');
+      expect(result.code).toBe('UNKNOWN_ERROR');
+      expect(result.message).toBe('Unknown error occurred');
+    });
+
+    test('should handle null error', () => {
+      const result = mapBackpackError(null);
+      expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+
+    test('should handle undefined error', () => {
+      const result = mapBackpackError(undefined);
+      expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+  });
+});

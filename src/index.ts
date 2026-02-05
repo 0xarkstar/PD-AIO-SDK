@@ -295,7 +295,7 @@ export type { LighterConfig } from './adapters/lighter/index.js';
 
 // GRVT
 export { GRVTAdapter, GRVTAuth } from './adapters/grvt/index.js';
-export type { GRVTAdapterConfig, GRVTAuthConfig } from './adapters/grvt/index.js';
+export type { GRVTConfig, GRVTAdapterConfig, GRVTAuthConfig } from './adapters/grvt/index.js';
 
 // Paradex
 export { ParadexAdapter, ParadexAuth } from './adapters/paradex/index.js';
@@ -319,7 +319,7 @@ export type { DydxConfig } from './adapters/dydx/index.js';
 
 // Jupiter Perps
 export { JupiterAdapter, JupiterAuth, JupiterNormalizer } from './adapters/jupiter/index.js';
-export type { JupiterAdapterConfig } from './adapters/jupiter/index.js';
+export type { JupiterConfig, JupiterAdapterConfig } from './adapters/jupiter/index.js';
 
 // Drift Protocol
 export { DriftAdapter, DriftAuth, DriftNormalizer } from './adapters/drift/index.js';

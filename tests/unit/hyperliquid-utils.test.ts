@@ -30,6 +30,21 @@ import type { OrderRequest } from '../../src/types/index.js';
 // Create normalizer instance for all tests
 const normalizer = new HyperliquidNormalizer();
 
+describe('HyperliquidNormalizer symbolToCCXT (line 79)', () => {
+  test('converts BTC to BTC/USDT:USDT', () => {
+    // Hyperliquid uses just the base currency (BTC) not BTC-PERP
+    expect(normalizer.symbolToCCXT('BTC')).toBe('BTC/USDT:USDT');
+  });
+
+  test('converts ETH to ETH/USDT:USDT', () => {
+    expect(normalizer.symbolToCCXT('ETH')).toBe('ETH/USDT:USDT');
+  });
+
+  test('converts SOL to SOL/USDT:USDT', () => {
+    expect(normalizer.symbolToCCXT('SOL')).toBe('SOL/USDT:USDT');
+  });
+});
+
 describe('Symbol Conversion', () => {
   test('converts order correctly', () => {
     const request: OrderRequest = {
@@ -1244,6 +1259,176 @@ describe('normalizeTicker', () => {
     });
     expect(normalized.symbol).toBe('BTC/USDT:USDT');
     expect(normalized.last).toBe(50000);
+  });
+});
+
+describe('Batch Normalization Methods', () => {
+  test('normalizeOrders batch normalizes orders', () => {
+    const orders: HyperliquidOpenOrder[] = [
+      {
+        coin: 'BTC',
+        side: 'B',
+        limitPx: '50000.0',
+        sz: '0.1',
+        oid: 1,
+        timestamp: 1234567890000,
+        origSz: '0.1',
+      },
+      {
+        coin: 'ETH',
+        side: 'A',
+        limitPx: '3000.0',
+        sz: '2.0',
+        oid: 2,
+        timestamp: 1234567890000,
+        origSz: '2.0',
+      },
+    ];
+
+    const normalized = normalizer.normalizeOrders(orders, 'BTC');
+    expect(normalized).toHaveLength(2);
+    expect(normalized[0].symbol).toBe('BTC/USDT:USDT');
+    expect(normalized[1].symbol).toBe('ETH/USDT:USDT');
+  });
+
+  test('normalizePositions batch normalizes positions', () => {
+    const positions: HyperliquidPosition[] = [
+      {
+        position: {
+          coin: 'BTC',
+          entryPx: '50000',
+          leverage: { type: 'cross', value: 10 },
+          liquidationPx: '45000',
+          marginUsed: '5000',
+          positionValue: '50000',
+          returnOnEquity: '0.1',
+          szi: '1.0',
+          unrealizedPnl: '1000',
+        },
+        type: 'oneWay',
+      },
+      {
+        position: {
+          coin: 'ETH',
+          entryPx: '3000',
+          leverage: { type: 'isolated', value: 5 },
+          liquidationPx: '3500',
+          marginUsed: '1500',
+          positionValue: '15000',
+          returnOnEquity: '-0.05',
+          szi: '-5.0',
+          unrealizedPnl: '-250',
+        },
+        type: 'oneWay',
+      },
+    ];
+
+    const normalized = normalizer.normalizePositions(positions);
+    expect(normalized).toHaveLength(2);
+    expect(normalized[0].side).toBe('long');
+    expect(normalized[1].side).toBe('short');
+  });
+
+  test('normalizeMarkets batch normalizes markets', () => {
+    const assets: HyperliquidAsset[] = [
+      { name: 'BTC', szDecimals: 3, maxLeverage: 50, onlyIsolated: false },
+      { name: 'ETH', szDecimals: 4, maxLeverage: 30, onlyIsolated: true },
+    ];
+
+    const normalized = normalizer.normalizeMarkets(assets);
+    expect(normalized).toHaveLength(2);
+    expect(normalized[0].symbol).toBe('BTC/USDT:USDT');
+    expect(normalized[1].symbol).toBe('ETH/USDT:USDT');
+    expect(normalized[0].id).toBe('0');
+    expect(normalized[1].id).toBe('1');
+  });
+
+  test('normalizeTrades batch normalizes trades', () => {
+    const trades: HyperliquidWsTrade[] = [
+      { coin: 'BTC', side: 'B', px: '50000.0', sz: '0.5', time: 1234567890000, hash: '0x1' },
+      { coin: 'ETH', side: 'A', px: '3000.0', sz: '2.0', time: 1234567891000, hash: '0x2' },
+    ];
+
+    const normalized = normalizer.normalizeTrades(trades);
+    expect(normalized).toHaveLength(2);
+    expect(normalized[0].side).toBe('buy');
+    expect(normalized[1].side).toBe('sell');
+  });
+});
+
+describe('normalizeHistoricalOrder - Edge Cases', () => {
+  test('handles open historical order', () => {
+    const hlHistoricalOrder: HyperliquidHistoricalOrder = {
+      order: {
+        coin: 'BTC',
+        side: 'B',
+        limitPx: '50000.0',
+        sz: '0.5',
+        oid: 12345,
+        timestamp: 1234567890000,
+        origSz: '0.5',
+      },
+      status: 'open',
+      statusTimestamp: 1234567890000,
+    };
+
+    const normalized = normalizer.normalizeHistoricalOrder(hlHistoricalOrder);
+    expect(normalized.status).toBe('open');
+  });
+
+  test('handles unknown historical order status (defaults to open)', () => {
+    const hlHistoricalOrder: HyperliquidHistoricalOrder = {
+      order: {
+        coin: 'BTC',
+        side: 'B',
+        limitPx: '50000.0',
+        sz: '0.5',
+        oid: 12345,
+        timestamp: 1234567890000,
+        origSz: '0.5',
+      },
+      status: 'unknown' as any,
+      statusTimestamp: 1234567890000,
+    };
+
+    const normalized = normalizer.normalizeHistoricalOrder(hlHistoricalOrder);
+    expect(normalized.status).toBe('open');
+  });
+
+  test('handles sell historical order', () => {
+    const hlHistoricalOrder: HyperliquidHistoricalOrder = {
+      order: {
+        coin: 'ETH',
+        side: 'A',
+        limitPx: '3000.0',
+        sz: '1.0',
+        oid: 67890,
+        timestamp: 1234567890000,
+        origSz: '2.0',
+      },
+      status: 'filled',
+      statusTimestamp: 1234567890000,
+    };
+
+    const normalized = normalizer.normalizeHistoricalOrder(hlHistoricalOrder);
+    expect(normalized.side).toBe('sell');
+    expect(normalized.filled).toBeCloseTo(1.0, 10);
+    expect(normalized.remaining).toBe(1.0);
+  });
+});
+
+describe('symbolFromCCXT', () => {
+  test('converts CCXT format to Hyperliquid', () => {
+    expect(normalizer.symbolFromCCXT('BTC/USDT:USDT')).toBe('BTC-PERP');
+    expect(normalizer.symbolFromCCXT('ETH/USDT:USDT')).toBe('ETH-PERP');
+  });
+
+  test('handles simple base symbol', () => {
+    expect(normalizer.symbolFromCCXT('BTC/USD')).toBe('BTC-PERP');
+  });
+
+  test('handles already hyperliquid format', () => {
+    expect(normalizer.symbolFromCCXT('DOGE')).toBe('DOGE-PERP');
   });
 });
 

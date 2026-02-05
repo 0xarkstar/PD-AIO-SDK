@@ -326,4 +326,129 @@ describe('LighterAuth', () => {
       expect(auth.getNonceManager()).not.toBeNull();
     });
   });
+
+  describe('Double Initialization', () => {
+    it('should be idempotent - second initialize call does nothing', async () => {
+      const auth = new LighterAuth({
+        apiKey: 'test',
+        apiSecret: 'secret',
+      });
+
+      await auth.initialize();
+      const firstMode = auth.mode;
+
+      // Second initialization should return early
+      await auth.initialize();
+      expect(auth.mode).toBe(firstMode);
+    });
+
+    it('should not reinitialize FFI mode on second call', async () => {
+      const mockHttpClient = createMockHttpClient();
+      const auth = new LighterAuth({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        chainId: 300,
+        httpClient: mockHttpClient,
+      });
+
+      await auth.initialize();
+      const nonceManager1 = auth.getNonceManager();
+
+      await auth.initialize();
+      const nonceManager2 = auth.getNonceManager();
+
+      // Should be the same instance
+      expect(nonceManager1).toBe(nonceManager2);
+    });
+  });
+
+  describe('Auth Token (FFI mode without real signer)', () => {
+    it('should return null auth token when signer is not available', async () => {
+      const auth = new LighterAuth({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        chainId: 300,
+      });
+      await auth.initialize();
+
+      // Without real native library, hasFFISigning should be false
+      expect(auth.hasFFISigning).toBe(false);
+
+      // getAuthToken should return null
+      const token = await auth.getAuthToken();
+      expect(token).toBeNull();
+    });
+
+    it('should not add auth header when FFI signing is unavailable', async () => {
+      const auth = new LighterAuth({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        chainId: 300,
+      });
+      await auth.initialize();
+
+      const request = {
+        method: 'POST' as const,
+        path: '/api/v1/orders',
+        body: { symbol: 'BTC' },
+      };
+
+      const signed = await auth.sign(request);
+
+      // Without working FFI, should have empty headers
+      expect(signed.headers).toEqual({});
+    });
+  });
+
+  describe('getHeaders with various states', () => {
+    it('should return empty headers when no auth token and no API key', async () => {
+      const auth = new LighterAuth({});
+      await auth.initialize();
+
+      const headers = auth.getHeaders();
+      expect(headers).toEqual({});
+    });
+
+    it('should return API key header in HMAC mode', () => {
+      const auth = new LighterAuth({
+        apiKey: 'my-api-key',
+        apiSecret: 'secret',
+      });
+
+      const headers = auth.getHeaders();
+      expect(headers['X-API-KEY']).toBe('my-api-key');
+    });
+  });
+
+  describe('Nonce Sync', () => {
+    it('should call syncNonce without error when nonceManager exists', async () => {
+      const mockHttpClient = createMockHttpClient();
+      const auth = new LighterAuth({
+        apiPrivateKey: '0x' + '1'.repeat(64),
+        chainId: 300,
+        httpClient: mockHttpClient,
+      });
+      await auth.initialize();
+
+      // First get nonce to initialize
+      const nonce1 = await auth.getNextNonce();
+      expect(Number(nonce1)).toBe(100);
+
+      // Sync is rate-limited (1s), so consecutive calls may be skipped
+      // Just verify it doesn't throw
+      await expect(auth.syncNonce()).resolves.toBeUndefined();
+
+      // Verify we can still get nonces after sync call
+      const nonce2 = await auth.getNextNonce();
+      expect(Number(nonce2)).toBe(101);
+    });
+
+    it('should handle syncNonce when nonceManager is null', async () => {
+      const auth = new LighterAuth({
+        apiKey: 'test',
+        apiSecret: 'secret',
+      });
+      await auth.initialize();
+
+      // Should not throw - just does nothing
+      await expect(auth.syncNonce()).resolves.toBeUndefined();
+    });
+  });
 });

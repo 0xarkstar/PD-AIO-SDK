@@ -166,4 +166,41 @@ describe('RateLimiter', () => {
 
     expect(limiter.getAvailableTokens()).toBe(3);
   });
+
+  describe('destroy', () => {
+    test('should reject queued requests when destroyed (lines 210, 218)', async () => {
+      const limiter = new RateLimiter({
+        maxTokens: 1,
+        windowMs: 10000, // Long window to ensure requests queue
+      });
+
+      // First request succeeds immediately
+      await limiter.acquire();
+
+      // Second request will be queued
+      const promise = limiter.acquire();
+
+      // Destroy the limiter
+      limiter.destroy();
+
+      // Queued request should be rejected
+      await expect(promise).rejects.toThrow('RateLimiter destroyed');
+    });
+
+    test('should clear pending timers when destroyed (line 210)', async () => {
+      const limiter = new RateLimiter({
+        maxTokens: 1,
+        windowMs: 1000,
+      });
+
+      // Exhaust tokens and queue a request
+      await limiter.acquire();
+      const promise = limiter.acquire();
+
+      // Destroy before timer fires
+      limiter.destroy();
+
+      await expect(promise).rejects.toThrow('RateLimiter destroyed');
+    });
+  });
 });

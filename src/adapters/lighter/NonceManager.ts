@@ -6,6 +6,7 @@
  */
 
 import { HTTPClient } from '../../core/http/HTTPClient.js';
+import { Logger } from '../../core/logger.js';
 
 /**
  * Nonce response from Lighter API
@@ -42,6 +43,7 @@ export class NonceManager {
   private readonly autoSync: boolean;
   private syncPromise: Promise<void> | null = null;
   private lastSyncTime = 0;
+  private readonly logger = new Logger('NonceManager');
 
   /** Minimum time between forced syncs (ms) */
   private static readonly MIN_SYNC_INTERVAL = 1000;
@@ -134,7 +136,7 @@ export class NonceManager {
     } catch (error) {
       // If we have a local nonce, keep using it
       if (this.currentNonce !== BigInt(-1)) {
-        console.warn('Failed to sync nonce with server, using local value');
+        this.logger.warn('Failed to sync nonce with server, using local value');
         return;
       }
       throw error;

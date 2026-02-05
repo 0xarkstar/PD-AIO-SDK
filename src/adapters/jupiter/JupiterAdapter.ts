@@ -70,7 +70,7 @@ import type {
 /**
  * Jupiter adapter configuration
  */
-export interface JupiterAdapterConfig extends ExchangeConfig {
+export interface JupiterConfig extends ExchangeConfig {
   /** Solana private key for trading (optional for read-only) */
   privateKey?: string | Uint8Array;
   /** Wallet address for fetching positions/balances */
@@ -78,6 +78,11 @@ export interface JupiterAdapterConfig extends ExchangeConfig {
   /** Custom Solana RPC endpoint */
   rpcEndpoint?: string;
 }
+
+/**
+ * @deprecated Use JupiterConfig instead
+ */
+export type JupiterAdapterConfig = JupiterConfig;
 
 /**
  * Jupiter Perpetuals Exchange Adapter

@@ -164,6 +164,29 @@ describe('Lighter Error Codes', () => {
     it('should return unknown error for unrecognized messages', () => {
       expect(extractErrorCode('Some random error')).toBe('UNKNOWN_ERROR');
     });
+
+    it('should extract nonce too low error codes (lines 202-203)', () => {
+      expect(extractErrorCode('Nonce too low')).toBe('nonce_too_low');
+      expect(extractErrorCode('Nonce already used')).toBe('nonce_too_low');
+    });
+
+    it('should extract nonce too high error codes (lines 205-206)', () => {
+      expect(extractErrorCode('Nonce too high')).toBe('nonce_too_high');
+      expect(extractErrorCode('Nonce is in the future')).toBe('nonce_too_high');
+    });
+
+    it('should extract generic nonce error code (line 208)', () => {
+      expect(extractErrorCode('Invalid nonce value')).toBe('invalid_nonce');
+    });
+
+    it('should extract signing failed error codes (line 213)', () => {
+      expect(extractErrorCode('Signing operation failed')).toBe('signing_failed');
+      expect(extractErrorCode('Sign failed for order')).toBe('signing_failed');
+    });
+
+    it('should extract transaction failed error codes (line 216)', () => {
+      expect(extractErrorCode('Transaction failed to execute')).toBe('transaction_failed');
+    });
   });
 
   describe('mapLighterError', () => {
@@ -222,6 +245,14 @@ describe('Lighter Error Codes', () => {
       const originalError = new Error('Original');
       const error = mapLighterError('invalid_order', 'Invalid order', originalError);
       expect(error).toBeInstanceOf(InvalidOrderError);
+    });
+
+    it('should map nonce/transaction errors to InvalidOrderError (line 294)', () => {
+      expect(mapLighterError('invalid_nonce', 'Invalid nonce')).toBeInstanceOf(InvalidOrderError);
+      expect(mapLighterError('nonce_too_low', 'Nonce too low')).toBeInstanceOf(InvalidOrderError);
+      expect(mapLighterError('nonce_too_high', 'Nonce too high')).toBeInstanceOf(InvalidOrderError);
+      expect(mapLighterError('transaction_failed', 'Transaction failed')).toBeInstanceOf(InvalidOrderError);
+      expect(mapLighterError('signing_failed', 'Signing failed')).toBeInstanceOf(InvalidOrderError);
     });
   });
 

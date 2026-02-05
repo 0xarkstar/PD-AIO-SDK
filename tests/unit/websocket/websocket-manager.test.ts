@@ -582,4 +582,15 @@ describe('WebSocketManager', () => {
       }).not.toThrow();
     });
   });
+
+  describe('Dropped Message Counter (lines 40-47)', () => {
+    test('should return 0 initially for dropped message count', () => {
+      expect(manager.getDroppedMessageCount()).toBe(0);
+    });
+
+    test('should reset dropped message count to 0', () => {
+      manager.resetDroppedMessageCount();
+      expect(manager.getDroppedMessageCount()).toBe(0);
+    });
+  });
 });

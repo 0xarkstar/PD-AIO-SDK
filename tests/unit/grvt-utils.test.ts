@@ -15,6 +15,7 @@ import {
   toGRVTOrderType,
   toGRVTOrderSide,
   toGRVTTimeInForce,
+  mapGRVTError,
 } from '../../src/adapters/grvt/utils.js';
 import type {
   GRVTMarket,
@@ -286,5 +287,103 @@ describe('GRVT Conversion Functions', () => {
     expect(toGRVTTimeInForce('FOK')).toBe('FOK');
     expect(toGRVTTimeInForce('PO')).toBe('POST_ONLY');
     expect(toGRVTTimeInForce('GTC', true)).toBe('POST_ONLY');
+  });
+
+  test('uses default GTC when undefined', () => {
+    expect(toGRVTTimeInForce(undefined, false)).toBe('GTC');
+  });
+});
+
+describe('GRVT Symbol Edge Cases', () => {
+  test('normalizes legacy -PERP format', () => {
+    expect(normalizeSymbol('BTC-PERP')).toBe('BTC/USDT:USDT');
+    expect(normalizeSymbol('ETH-PERP')).toBe('ETH/USDT:USDT');
+  });
+
+  test('normalizes spot underscore format', () => {
+    expect(normalizeSymbol('BTC_USDT')).toBe('BTC/USDT');
+  });
+
+  test('handles fallback dash replacement', () => {
+    expect(normalizeSymbol('SOME-SYMBOL')).toBe('SOME/SYMBOL');
+  });
+});
+
+describe('GRVT Error Mapping', () => {
+  test('maps INVALID_ORDER error (code 1001)', () => {
+    const result = mapGRVTError({ code: 1001, message: 'Bad params' });
+    expect(result.code).toBe('INVALID_ORDER');
+    expect(result.message).toBe('Invalid order parameters');
+  });
+
+  test('maps INSUFFICIENT_MARGIN error (code 1002)', () => {
+    const result = mapGRVTError({ code: 1002, message: 'Not enough' });
+    expect(result.code).toBe('INSUFFICIENT_MARGIN');
+    expect(result.message).toBe('Insufficient margin');
+  });
+
+  test('maps ORDER_NOT_FOUND error (code 1003)', () => {
+    const result = mapGRVTError({ code: 1003 });
+    expect(result.code).toBe('ORDER_NOT_FOUND');
+    expect(result.message).toBe('Order not found');
+  });
+
+  test('maps POSITION_NOT_FOUND error (code 1004)', () => {
+    const result = mapGRVTError({ code: 1004 });
+    expect(result.code).toBe('POSITION_NOT_FOUND');
+    expect(result.message).toBe('Position not found');
+  });
+
+  test('maps INVALID_SIGNATURE error (code 2001)', () => {
+    const result = mapGRVTError({ code: 2001 });
+    expect(result.code).toBe('INVALID_SIGNATURE');
+    expect(result.message).toBe('Invalid signature');
+  });
+
+  test('maps EXPIRED_AUTH error (code 2002)', () => {
+    const result = mapGRVTError({ code: 2002 });
+    expect(result.code).toBe('EXPIRED_AUTH');
+    expect(result.message).toBe('Authentication expired');
+  });
+
+  test('maps INVALID_API_KEY error (code 2003)', () => {
+    const result = mapGRVTError({ code: 2003 });
+    expect(result.code).toBe('INVALID_API_KEY');
+    expect(result.message).toBe('Invalid API key');
+  });
+
+  test('maps RATE_LIMIT_EXCEEDED error (code 4001)', () => {
+    const result = mapGRVTError({ code: 4001 });
+    expect(result.code).toBe('RATE_LIMIT_EXCEEDED');
+    expect(result.message).toBe('Rate limit exceeded');
+  });
+
+  test('maps EXCHANGE_UNAVAILABLE error (code 5001)', () => {
+    const result = mapGRVTError({ code: 5001 });
+    expect(result.code).toBe('EXCHANGE_UNAVAILABLE');
+    expect(result.message).toBe('Exchange unavailable');
+  });
+
+  test('maps unknown error code to UNKNOWN_ERROR with message', () => {
+    const result = mapGRVTError({ code: 9999, message: 'Something else' });
+    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.message).toBe('Something else');
+  });
+
+  test('maps unknown error code to UNKNOWN_ERROR without message', () => {
+    const result = mapGRVTError({ code: 9999 });
+    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.message).toBe('Unknown error occurred');
+  });
+
+  test('handles non-object error', () => {
+    const result = mapGRVTError('string error');
+    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.message).toBe('Unknown error occurred');
+  });
+
+  test('handles null error', () => {
+    const result = mapGRVTError(null);
+    expect(result.code).toBe('UNKNOWN_ERROR');
   });
 });

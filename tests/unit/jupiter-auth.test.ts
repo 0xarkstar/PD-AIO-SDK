@@ -204,3 +204,143 @@ describe('isValidSolanaPrivateKey', () => {
     });
   });
 });
+
+describe('JupiterAuth additional tests', () => {
+  describe('sign method', () => {
+    test('returns request with empty headers', async () => {
+      const auth = new JupiterAuth({
+        walletAddress: '7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs',
+      });
+
+      const request = {
+        method: 'GET' as const,
+        path: '/api/test',
+        body: {},
+      };
+
+      const signed = await auth.sign(request);
+
+      expect(signed.method).toBe('GET');
+      expect(signed.path).toBe('/api/test');
+      expect(signed.headers).toEqual({});
+    });
+  });
+
+  describe('getKeypair', () => {
+    test('returns undefined without private key', () => {
+      const auth = new JupiterAuth({
+        walletAddress: '7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs',
+      });
+
+      expect(auth.getKeypair()).toBeUndefined();
+    });
+  });
+
+  describe('getPublicKey', () => {
+    test('returns undefined initially', () => {
+      const auth = new JupiterAuth({
+        walletAddress: '7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs',
+      });
+
+      expect(auth.getPublicKey()).toBeUndefined();
+    });
+  });
+
+  describe('signTransaction error cases', () => {
+    test('throws without private key', async () => {
+      const auth = new JupiterAuth({
+        walletAddress: '7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs',
+      });
+
+      const mockTx = {} as any;
+      await expect(auth.signTransaction(mockTx)).rejects.toThrow(
+        'Private key required for transaction signing'
+      );
+    });
+  });
+
+  describe('signAllTransactions error cases', () => {
+    test('throws without private key', async () => {
+      const auth = new JupiterAuth({
+        walletAddress: '7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs',
+      });
+
+      const mockTxs = [{}, {}] as any[];
+      await expect(auth.signAllTransactions(mockTxs)).rejects.toThrow(
+        'Private key required for transaction signing'
+      );
+    });
+  });
+
+  describe('getConnection error cases', () => {
+    test('throws when connection not initialized', async () => {
+      const auth = new JupiterAuth({});
+
+      await expect(auth.getConnection()).rejects.toThrow('Connection not initialized');
+    });
+  });
+
+  describe('getSolBalance error cases', () => {
+    test('throws when not initialized', async () => {
+      const auth = new JupiterAuth({});
+
+      await expect(auth.getSolBalance()).rejects.toThrow();
+    });
+  });
+
+  describe('getTokenBalance error cases', () => {
+    test('throws when not initialized', async () => {
+      const auth = new JupiterAuth({});
+
+      await expect(
+        auth.getTokenBalance('So11111111111111111111111111111111111111112')
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('getAssociatedTokenAddress error cases', () => {
+    test('throws when public key not initialized', async () => {
+      const auth = new JupiterAuth({});
+
+      await expect(
+        auth.getAssociatedTokenAddress('So11111111111111111111111111111111111111112')
+      ).rejects.toThrow('Public key not initialized');
+    });
+  });
+});
+
+describe('isValidSolanaAddress additional tests', () => {
+  test('rejects address with invalid characters (0)', () => {
+    expect(isValidSolanaAddress('0111111111111111111111111111111111111111111')).toBe(false);
+  });
+
+  test('rejects address too short (31 chars)', () => {
+    expect(isValidSolanaAddress('1111111111111111111111111111111')).toBe(false);
+  });
+
+  test('rejects address too long (45 chars)', () => {
+    expect(isValidSolanaAddress('111111111111111111111111111111111111111111111')).toBe(false);
+  });
+});
+
+describe('isValidSolanaPrivateKey additional tests', () => {
+  test('rejects base58 of wrong length (86 chars)', () => {
+    expect(isValidSolanaPrivateKey('1'.repeat(86))).toBe(false);
+  });
+
+  test('rejects base58 of wrong length (89 chars)', () => {
+    expect(isValidSolanaPrivateKey('1'.repeat(89))).toBe(false);
+  });
+
+  test('accepts base58 88-char format', () => {
+    expect(isValidSolanaPrivateKey('1'.repeat(88))).toBe(true);
+  });
+
+  test('rejects hex of wrong length (127 chars)', () => {
+    expect(isValidSolanaPrivateKey('a'.repeat(127))).toBe(false);
+  });
+
+  test('rejects hex of wrong length (129 chars)', () => {
+    expect(isValidSolanaPrivateKey('a'.repeat(129))).toBe(false);
+  });
+});

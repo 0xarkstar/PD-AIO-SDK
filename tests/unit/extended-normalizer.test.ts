@@ -56,6 +56,21 @@ describe('ExtendedNormalizer', () => {
     it('should handle symbols without settlement currency', () => {
       expect(normalizer.symbolFromCCXT('BTC/USD')).toBe('BTC-USD-PERP');
     });
+
+    it('should return as-is for empty string after colon split (line 65)', () => {
+      // This tests the case where pair is empty/undefined
+      expect(normalizer.symbolFromCCXT('')).toBe('');
+    });
+
+    it('should return as-is for symbol without slash (line 70)', () => {
+      // This tests the case where base or quote is undefined
+      expect(normalizer.symbolFromCCXT('BTCUSD')).toBe('BTCUSD');
+    });
+
+    it('should return as-is for partial symbol', () => {
+      // Tests case where only base is present without slash
+      expect(normalizer.symbolFromCCXT('BTC')).toBe('BTC');
+    });
   });
 
   describe('normalizeMarket', () => {
@@ -321,6 +336,22 @@ describe('ExtendedNormalizer', () => {
         const result = normalizer.normalizeOrder(order);
         expect(result.status).toBe(expectedStatus);
       });
+    });
+
+    it('should normalize unknown order status to open (default case, line 255)', () => {
+      const order = {
+        orderId: 'test',
+        symbol: 'BTC-USD-PERP',
+        type: 'limit' as const,
+        side: 'buy' as const,
+        quantity: '1',
+        status: 'unknown_status' as any, // Test the default case
+        timestamp: Date.now(),
+        updateTime: Date.now(),
+      };
+
+      const result = normalizer.normalizeOrder(order);
+      expect(result.status).toBe('open');
     });
 
     it('should handle stop orders', () => {

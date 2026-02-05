@@ -43,7 +43,6 @@ import { HyperliquidAuth } from './HyperliquidAuth.js';
 import type {
   HyperliquidAction,
   HyperliquidAllMids,
-  HyperliquidAllMidsWsMessage,
   HyperliquidHistoricalOrder,
   HyperliquidL2Book,
   HyperliquidMeta,
@@ -51,11 +50,9 @@ import type {
   HyperliquidOrderResponse,
   HyperliquidUserFill,
   HyperliquidUserState,
-  HyperliquidWsL2BookUpdate,
-  HyperliquidWsSubscription,
-  HyperliquidWsTrade,
 } from './types.js';
 import { HyperliquidNormalizer } from './HyperliquidNormalizer.js';
+import { HyperliquidWebSocket } from './HyperliquidWebSocket.js';
 import { convertOrderRequest, mapError } from './utils.js';
 
 export interface HyperliquidConfig extends ExchangeConfig {
@@ -123,6 +120,7 @@ export class HyperliquidAdapter extends BaseAdapter {
   private apiUrl: string;
   private wsUrl: string;
   private wsManager?: WebSocketManager;
+  private wsHandler?: HyperliquidWebSocket;
   private auth?: HyperliquidAuth;
   protected rateLimiter: RateLimiter;
   private normalizer: HyperliquidNormalizer;
@@ -170,6 +168,15 @@ export class HyperliquidAdapter extends BaseAdapter {
     });
 
     await this.wsManager.connect();
+
+    // Initialize WebSocket handler
+    this.wsHandler = new HyperliquidWebSocket({
+      wsManager: this.wsManager,
+      normalizer: this.normalizer,
+      auth: this.auth,
+      symbolToExchange: this.symbolToExchange.bind(this),
+      fetchOpenOrders: this.fetchOpenOrders.bind(this),
+    });
 
     this._isReady = true;
     this.debug('Adapter initialized');
@@ -997,121 +1004,39 @@ export class HyperliquidAdapter extends BaseAdapter {
   }
 
   // ===========================================================================
-  // WebSocket Streams
+  // WebSocket Streams (delegated to HyperliquidWebSocket)
   // ===========================================================================
 
   async *watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook> {
     this.ensureInitialized();
-
-    if (!this.wsManager) {
-      throw new Error('WebSocket manager not initialized');
+    if (!this.wsHandler) {
+      throw new Error('WebSocket handler not initialized');
     }
-
-    const exchangeSymbol = this.symbolToExchange(symbol);
-
-    const subscription: HyperliquidWsSubscription = {
-      method: 'subscribe',
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.L2_BOOK,
-        coin: exchangeSymbol,
-      },
-    };
-
-    const unsubscribe: HyperliquidWsSubscription = {
-      method: 'unsubscribe',
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.L2_BOOK,
-        coin: exchangeSymbol,
-      },
-    };
-
-    for await (const data of this.wsManager.watch<HyperliquidWsL2BookUpdate>(
-      `${HYPERLIQUID_WS_CHANNELS.L2_BOOK}:${exchangeSymbol}`,
-      subscription,
-      unsubscribe
-    )) {
-      // WebSocket L2Book update has the same format as REST API
-      yield this.normalizer.normalizeOrderBook(data);
-    }
+    yield* this.wsHandler.watchOrderBook(symbol, limit);
   }
 
   async *watchTrades(symbol: string): AsyncGenerator<Trade> {
     this.ensureInitialized();
-
-    if (!this.wsManager) {
-      throw new Error('WebSocket manager not initialized');
+    if (!this.wsHandler) {
+      throw new Error('WebSocket handler not initialized');
     }
-
-    const exchangeSymbol = this.symbolToExchange(symbol);
-
-    const subscription: HyperliquidWsSubscription = {
-      method: 'subscribe',
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.TRADES,
-        coin: exchangeSymbol,
-      },
-    };
-
-    for await (const data of this.wsManager.watch<HyperliquidWsTrade>(
-      `${HYPERLIQUID_WS_CHANNELS.TRADES}:${exchangeSymbol}`,
-      subscription
-    )) {
-      yield this.normalizer.normalizeTrade(data);
-    }
+    yield* this.wsHandler.watchTrades(symbol);
   }
 
   async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
     this.ensureInitialized();
-
-    if (!this.wsManager) {
-      throw new Error('WebSocket manager not initialized');
+    if (!this.wsHandler) {
+      throw new Error('WebSocket handler not initialized');
     }
-
-    const subscription: HyperliquidWsSubscription = {
-      method: 'subscribe',
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.ALL_MIDS,
-      },
-    };
-
-    const exchangeSymbol = this.symbolToExchange(symbol);
-
-    for await (const data of this.wsManager.watch<HyperliquidAllMidsWsMessage>(
-      HYPERLIQUID_WS_CHANNELS.ALL_MIDS,
-      subscription
-    )) {
-      const mid = data.mids?.[exchangeSymbol];
-      if (mid) {
-        yield this.normalizer.normalizeTicker(exchangeSymbol, { mid });
-      }
-    }
+    yield* this.wsHandler.watchTicker(symbol);
   }
 
   async *watchPositions(): AsyncGenerator<Position[]> {
     this.ensureInitialized();
-
-    if (!this.wsManager || !this.auth) {
-      throw new Error('WebSocket manager or auth not initialized');
+    if (!this.wsHandler) {
+      throw new Error('WebSocket handler not initialized');
     }
-
-    const subscription: HyperliquidWsSubscription = {
-      method: 'subscribe',
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.USER,
-        user: this.auth.getAddress(),
-      },
-    };
-
-    for await (const data of this.wsManager.watch<HyperliquidUserState>(
-      `${HYPERLIQUID_WS_CHANNELS.USER}:${this.auth.getAddress()}`,
-      subscription
-    )) {
-      const positions = data.assetPositions
-        .filter((p) => parseFloat(p.position.szi) !== 0)
-        .map((p) => this.normalizer.normalizePosition(p));
-
-      yield positions;
-    }
+    yield* this.wsHandler.watchPositions();
   }
 
   /**
@@ -1121,48 +1046,14 @@ export class HyperliquidAdapter extends BaseAdapter {
    * whenever fills occur. Provides real-time updates of the open order book.
    *
    * @returns AsyncGenerator that yields arrays of open orders
-   * @throws {Error} If WebSocket manager or authentication is not initialized
-   *
-   * @example
-   * ```typescript
-   * // Watch for order updates
-   * for await (const orders of adapter.watchOrders()) {
-   *   console.log(`Current open orders: ${orders.length}`);
-   *   orders.forEach(order => {
-   *     console.log(`${order.symbol}: ${order.side} ${order.amount} @ ${order.price}`);
-   *   });
-   * }
-   * ```
+   * @throws {Error} If WebSocket handler is not initialized
    */
   async *watchOrders(): AsyncGenerator<Order[]> {
     this.ensureInitialized();
-
-    if (!this.wsManager || !this.auth) {
-      throw new Error('WebSocket manager or auth not initialized');
+    if (!this.wsHandler) {
+      throw new Error('WebSocket handler not initialized');
     }
-
-    // Use user fills channel for order updates
-    // When fills occur, we fetch the latest open orders
-    const subscription: HyperliquidWsSubscription = {
-      method: 'subscribe',
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.USER_FILLS,
-        user: this.auth.getAddress(),
-      },
-    };
-
-    // Yield initial orders
-    yield await this.fetchOpenOrders();
-
-    // Watch for fill events and fetch updated orders
-    for await (const _fillEvent of this.wsManager.watch<HyperliquidUserFill>(
-      `${HYPERLIQUID_WS_CHANNELS.USER_FILLS}:${this.auth.getAddress()}`,
-      subscription
-    )) {
-      // When a fill occurs, fetch updated open orders
-      const orders = await this.fetchOpenOrders();
-      yield orders;
-    }
+    yield* this.wsHandler.watchOrders();
   }
 
   /**
@@ -1173,43 +1064,14 @@ export class HyperliquidAdapter extends BaseAdapter {
    *
    * @param symbol - Optional symbol to filter trades (e.g., "BTC/USDT:USDT")
    * @returns AsyncGenerator that yields individual trades
-   * @throws {Error} If WebSocket manager or authentication is not initialized
-   *
-   * @example
-   * ```typescript
-   * for await (const trade of adapter.watchMyTrades()) {
-   *   console.log(`Filled: ${trade.side} ${trade.amount} ${trade.symbol} @ ${trade.price}`);
-   * }
-   * ```
+   * @throws {Error} If WebSocket handler is not initialized
    */
   async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
     this.ensureInitialized();
-
-    if (!this.wsManager || !this.auth) {
-      throw new Error('WebSocket manager or auth not initialized');
+    if (!this.wsHandler) {
+      throw new Error('WebSocket handler not initialized');
     }
-
-    const subscription: HyperliquidWsSubscription = {
-      method: 'subscribe',
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.USER_FILLS,
-        user: this.auth.getAddress(),
-      },
-    };
-
-    const exchangeSymbol = symbol ? this.symbolToExchange(symbol) : undefined;
-
-    for await (const fill of this.wsManager.watch<HyperliquidUserFill>(
-      `${HYPERLIQUID_WS_CHANNELS.USER_FILLS}:${this.auth.getAddress()}`,
-      subscription
-    )) {
-      // Filter by symbol if provided
-      if (exchangeSymbol && fill.coin !== exchangeSymbol) {
-        continue;
-      }
-
-      yield this.normalizer.normalizeUserFill(fill);
-    }
+    yield* this.wsHandler.watchMyTrades(symbol);
   }
 
   // ===========================================================================

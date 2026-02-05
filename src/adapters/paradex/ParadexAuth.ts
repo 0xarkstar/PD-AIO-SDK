@@ -13,6 +13,7 @@ import { Account, ec, hash, encode } from 'starknet';
 import type { IAuthStrategy, AuthenticatedRequest, RequestParams } from '../../types/adapter.js';
 import { PARADEX_JWT_EXPIRY_BUFFER } from './constants.js';
 import type { ParadexJWT } from './types.js';
+import { Logger } from '../../core/logger.js';
 
 /**
  * Paradex authentication configuration
@@ -45,6 +46,7 @@ export class ParadexAuth implements IAuthStrategy {
   private readonly starkPrivateKey?: string;
   private readonly testnet: boolean;
   private jwtToken?: JWTToken;
+  private readonly logger = new Logger('ParadexAuth');
 
   constructor(config: ParadexAuthConfig) {
     this.apiKey = config.apiKey;
@@ -330,7 +332,7 @@ export class ParadexAuth implements IAuthStrategy {
       // Return the public key as the address (StarkNet format)
       return publicKey;
     } catch (error) {
-      console.error('Failed to derive StarkNet address:', error);
+      this.logger.error('Failed to derive StarkNet address', error instanceof Error ? error : undefined);
       return undefined;
     }
   }

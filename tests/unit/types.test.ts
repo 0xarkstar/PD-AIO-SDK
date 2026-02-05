@@ -16,7 +16,7 @@ import {
 
 describe('Type Constants', () => {
   test('ORDER_TYPES contains correct values', () => {
-    expect(ORDER_TYPES).toEqual(['market', 'limit', 'stopMarket', 'stopLimit']);
+    expect(ORDER_TYPES).toEqual(['market', 'limit', 'stopMarket', 'stopLimit', 'takeProfit', 'trailingStop']);
   });
 
   test('ORDER_SIDES contains correct values', () => {

@@ -15,6 +15,7 @@ import type {
   Trade,
   Ticker,
   FundingRate,
+  MarketParams,
   OrderBookParams,
   TradeParams,
 } from '../../types/common.js';
@@ -161,7 +162,7 @@ export class BackpackAdapter extends BaseAdapter {
   /**
    * Fetch all available markets
    */
-  async fetchMarkets(): Promise<Market[]> {
+  async fetchMarkets(params?: MarketParams): Promise<Market[]> {
     const response = await this.makeRequest('GET', '/markets', 'fetchMarkets');
 
     // Backpack returns array directly, not { markets: [...] }
@@ -318,26 +319,26 @@ export class BackpackAdapter extends BaseAdapter {
   /**
    * Create a new order
    */
-  async createOrder(order: OrderRequest): Promise<Order> {
+  async createOrder(request: OrderRequest): Promise<Order> {
     // Validate order request
-    const validatedOrder = this.validateOrder(order);
+    const validatedRequest = this.validateOrder(request);
 
     this.requireAuth();
-    const market = this.normalizer.toBackpackSymbol(validatedOrder.symbol);
-    const orderType = toBackpackOrderType(validatedOrder.type, validatedOrder.postOnly);
-    const side = toBackpackOrderSide(validatedOrder.side);
-    const timeInForce = toBackpackTimeInForce(validatedOrder.timeInForce, validatedOrder.postOnly);
+    const market = this.normalizer.toBackpackSymbol(validatedRequest.symbol);
+    const orderType = toBackpackOrderType(validatedRequest.type, validatedRequest.postOnly);
+    const side = toBackpackOrderSide(validatedRequest.side);
+    const timeInForce = toBackpackTimeInForce(validatedRequest.timeInForce, validatedRequest.postOnly);
 
     const payload = {
       market,
       side,
       type: orderType,
-      size: validatedOrder.amount.toString(),
-      price: validatedOrder.price?.toString(),
+      size: validatedRequest.amount.toString(),
+      price: validatedRequest.price?.toString(),
       time_in_force: timeInForce,
-      reduce_only: validatedOrder.reduceOnly ?? false,
-      post_only: validatedOrder.postOnly ?? false,
-      client_order_id: validatedOrder.clientOrderId,
+      reduce_only: validatedRequest.reduceOnly ?? false,
+      post_only: validatedRequest.postOnly ?? false,
+      client_order_id: validatedRequest.clientOrderId,
     };
 
     const response = await this.makeRequest('POST', '/orders', 'createOrder', payload);

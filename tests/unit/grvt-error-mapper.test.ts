@@ -577,6 +577,19 @@ describe('GRVTErrorMapper', () => {
         const error = mapGRVTError('RATE_LIMIT_EXCEEDED', 'Rate limit');
         expect(error).toBeInstanceOf(RateLimitError);
       });
+
+      it('should handle originalError without retry-after fields (line 445)', () => {
+        // Pass an object that is truthy but has no retry-after fields
+        const originalError = {
+          message: 'Some error',
+          status: 429,
+        };
+
+        const error = mapGRVTError('RATE_LIMIT_EXCEEDED', 'Rate limit', originalError);
+        expect(error).toBeInstanceOf(RateLimitError);
+        // retryAfter should be undefined since no retry-after info was found
+        expect((error as RateLimitError).retryAfter).toBeUndefined();
+      });
     });
 
     describe('Malformed Responses', () => {

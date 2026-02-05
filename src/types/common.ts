@@ -8,7 +8,7 @@
 // Order Types
 // =============================================================================
 
-export const ORDER_TYPES = ['market', 'limit', 'stopMarket', 'stopLimit'] as const;
+export const ORDER_TYPES = ['market', 'limit', 'stopMarket', 'stopLimit', 'takeProfit', 'trailingStop'] as const;
 export type OrderType = (typeof ORDER_TYPES)[number];
 
 export const ORDER_SIDES = ['buy', 'sell'] as const;

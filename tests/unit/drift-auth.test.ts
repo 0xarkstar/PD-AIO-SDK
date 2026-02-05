@@ -173,4 +173,130 @@ describe('Drift Auth', () => {
       expect(result.headers).toEqual({});
     });
   });
+
+  describe('Devnet configuration', () => {
+    test('should use devnet RPC when isDevnet is true', () => {
+      const auth = new DriftAuth({
+        walletAddress: 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK',
+        isDevnet: true,
+      });
+
+      expect(auth.getIsDevnet()).toBe(true);
+      expect(auth.getRpcEndpoint()).toContain('devnet');
+    });
+
+    test('should default to mainnet', () => {
+      const auth = new DriftAuth({
+        walletAddress: 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK',
+      });
+
+      expect(auth.getIsDevnet()).toBe(false);
+    });
+  });
+
+  describe('Keypair and public key getters', () => {
+    test('should return undefined keypair without private key', () => {
+      const auth = new DriftAuth({
+        walletAddress: 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK',
+      });
+
+      expect(auth.getKeypair()).toBeUndefined();
+    });
+
+    test('should return undefined public key initially', () => {
+      const auth = new DriftAuth({
+        walletAddress: 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK',
+      });
+
+      // PublicKey is set asynchronously
+      expect(auth.getPublicKey()).toBeUndefined();
+    });
+  });
+
+  describe('signMessage errors', () => {
+    test('should throw when signMessage called without private key', async () => {
+      const auth = new DriftAuth({
+        walletAddress: 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK',
+      });
+
+      await expect(auth.signMessage('Hello')).rejects.toThrow('Private key required for signing');
+    });
+  });
+
+  describe('signBytes errors', () => {
+    test('should throw when signBytes called without private key', async () => {
+      const auth = new DriftAuth({
+        walletAddress: 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK',
+      });
+
+      const bytes = new Uint8Array([1, 2, 3, 4]);
+      await expect(auth.signBytes(bytes)).rejects.toThrow('Private key required for signing');
+    });
+  });
+
+  describe('getConnection errors', () => {
+    test('should throw when connection not initialized', async () => {
+      const auth = new DriftAuth({});
+
+      await expect(auth.getConnection()).rejects.toThrow('Connection not initialized');
+    });
+  });
+
+  describe('getSolBalance errors', () => {
+    test('should throw when not initialized', async () => {
+      const auth = new DriftAuth({});
+
+      await expect(auth.getSolBalance()).rejects.toThrow();
+    });
+  });
+
+  describe('getTokenBalance errors', () => {
+    test('should throw when not initialized', async () => {
+      const auth = new DriftAuth({});
+
+      await expect(
+        auth.getTokenBalance('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('isValidSolanaPrivateKey additional cases', () => {
+    test('should accept hex format with 0x prefix', () => {
+      const hex = '0x' + 'a'.repeat(128);
+      expect(isValidSolanaPrivateKey(hex)).toBe(true);
+    });
+
+    test('should accept base58 88-char format', () => {
+      const base58 = '1'.repeat(88);
+      expect(isValidSolanaPrivateKey(base58)).toBe(true);
+    });
+
+    test('should reject base58 of wrong length', () => {
+      expect(isValidSolanaPrivateKey('1'.repeat(86))).toBe(false);
+      expect(isValidSolanaPrivateKey('1'.repeat(89))).toBe(false);
+    });
+
+    test('should reject invalid JSON that starts with bracket', () => {
+      expect(isValidSolanaPrivateKey('[not valid json')).toBe(false);
+    });
+
+    test('should reject hex of wrong length', () => {
+      expect(isValidSolanaPrivateKey('a'.repeat(127))).toBe(false);
+      expect(isValidSolanaPrivateKey('a'.repeat(129))).toBe(false);
+    });
+  });
+
+  describe('isValidSolanaAddress additional cases', () => {
+    test('should reject addresses that are too short', () => {
+      expect(isValidSolanaAddress('1111111111111111111111111111111')).toBe(false); // 31 chars
+    });
+
+    test('should reject addresses that are too long', () => {
+      expect(isValidSolanaAddress('111111111111111111111111111111111111111111111')).toBe(false); // 45 chars
+    });
+
+    test('should reject addresses with spaces', () => {
+      expect(isValidSolanaAddress('So1111111111111111111111111 111111111111112')).toBe(false);
+    });
+  });
 });

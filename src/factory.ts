@@ -6,6 +6,7 @@
  */
 
 import type { ExchangeConfig, IExchangeAdapter } from './types/index.js';
+import { Logger } from './core/logger.js';
 import { HyperliquidAdapter, type HyperliquidConfig } from './adapters/hyperliquid/index.js';
 import { LighterAdapter, type LighterConfig } from './adapters/lighter/index.js';
 import { GRVTAdapter, type GRVTAdapterConfig } from './adapters/grvt/index.js';
@@ -86,6 +87,8 @@ const adapterRegistry = new Map<string, AdapterConstructor>([
  * const exchange = createExchange('myexchange' as any, { ... });
  * ```
  */
+const factoryLogger = new Logger('ExchangeFactory');
+
 export function registerExchange<C extends ExchangeConfig>(
   id: string,
   constructor: AdapterConstructor<C>
@@ -93,7 +96,7 @@ export function registerExchange<C extends ExchangeConfig>(
   const normalizedId = id.toLowerCase();
 
   if (adapterRegistry.has(normalizedId)) {
-    console.warn(`Exchange '${normalizedId}' already registered. Overwriting.`);
+    factoryLogger.warn(`Exchange '${normalizedId}' already registered. Overwriting.`);
   }
 
   adapterRegistry.set(normalizedId, constructor as AdapterConstructor);

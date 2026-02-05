@@ -16,6 +16,7 @@ import type {
   Trade,
   Ticker,
   FundingRate,
+  MarketParams,
   OrderBookParams,
   TradeParams,
 } from '../../types/common.js';
@@ -136,7 +137,7 @@ export class EdgeXAdapter extends BaseAdapter {
   /**
    * Fetch all available markets
    */
-  async fetchMarkets(): Promise<Market[]> {
+  async fetchMarkets(params?: MarketParams): Promise<Market[]> {
     const response = await this.makeRequest('GET', '/api/v1/public/meta/getMetaData', 'fetchMarkets');
 
     // Handle new API format: { code: 'SUCCESS', data: { contractList: [...] } }
@@ -271,26 +272,26 @@ export class EdgeXAdapter extends BaseAdapter {
   /**
    * Create a new order
    */
-  async createOrder(order: OrderRequest): Promise<Order> {
+  async createOrder(request: OrderRequest): Promise<Order> {
     // Validate order request
-    const validatedOrder = this.validateOrder(order);
+    const validatedRequest = this.validateOrder(request);
 
     this.requireAuth();
-    const market = this.normalizer.toEdgeXSymbol(validatedOrder.symbol);
-    const orderType = toEdgeXOrderType(validatedOrder.type);
-    const side = toEdgeXOrderSide(validatedOrder.side);
-    const timeInForce = toEdgeXTimeInForce(validatedOrder.timeInForce);
+    const market = this.normalizer.toEdgeXSymbol(validatedRequest.symbol);
+    const orderType = toEdgeXOrderType(validatedRequest.type);
+    const side = toEdgeXOrderSide(validatedRequest.side);
+    const timeInForce = toEdgeXTimeInForce(validatedRequest.timeInForce);
 
     const payload = {
       market,
       side,
       type: orderType,
-      size: validatedOrder.amount.toString(),
-      price: validatedOrder.price?.toString(),
+      size: validatedRequest.amount.toString(),
+      price: validatedRequest.price?.toString(),
       time_in_force: timeInForce,
-      reduce_only: validatedOrder.reduceOnly ?? false,
-      post_only: validatedOrder.postOnly ?? false,
-      client_order_id: validatedOrder.clientOrderId,
+      reduce_only: validatedRequest.reduceOnly ?? false,
+      post_only: validatedRequest.postOnly ?? false,
+      client_order_id: validatedRequest.clientOrderId,
     };
 
     const response = await this.makeRequest('POST', '/api/v1/private/order/createOrder', 'createOrder', payload);

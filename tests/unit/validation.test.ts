@@ -92,6 +92,47 @@ describe('OrderRequestSchema', () => {
     expect(parsed.reduceOnly).toBe(false);
     expect(parsed.postOnly).toBe(false);
   });
+
+  test('validates stop order requires stopPrice (line 70)', () => {
+    const stopOrderWithoutPrice = {
+      symbol: 'BTC/USDT:USDT',
+      type: 'stopMarket' as const,
+      side: 'buy' as const,
+      amount: 0.1,
+      // Missing stopPrice
+    };
+
+    expect(() => OrderRequestSchema.parse(stopOrderWithoutPrice)).toThrow(
+      /Stop orders require a valid stopPrice/
+    );
+  });
+
+  test('validates stop order with valid stopPrice', () => {
+    const validStopOrder = {
+      symbol: 'BTC/USDT:USDT',
+      type: 'stopMarket' as const,
+      side: 'buy' as const,
+      amount: 0.1,
+      stopPrice: 45000,
+    };
+
+    expect(() => OrderRequestSchema.parse(validStopOrder)).not.toThrow();
+  });
+
+  test('validates stopLimit order requires both price and stopPrice', () => {
+    const stopLimitWithoutStopPrice = {
+      symbol: 'BTC/USDT:USDT',
+      type: 'stopLimit' as const,
+      side: 'buy' as const,
+      amount: 0.1,
+      price: 50000,
+      // Missing stopPrice
+    };
+
+    expect(() => OrderRequestSchema.parse(stopLimitWithoutStopPrice)).toThrow(
+      /Stop orders require a valid stopPrice/
+    );
+  });
 });
 
 describe('OrderSchema', () => {

@@ -177,7 +177,7 @@ export class ExtendedAdapter extends BaseAdapter {
     // Always use mainnet URLs - testnet flag is ignored with a warning
     const testnet = config.testnet ?? false;
     if (testnet) {
-      console.warn('[ExtendedAdapter] Warning: Extended testnet (Sepolia) is not operational. Using mainnet instead.');
+      this.logger.warn('Extended testnet (Sepolia) is not operational. Using mainnet instead.');
     }
     // Always use mainnet URLs since testnet returns 404
     const urls = EXTENDED_API_URLS.mainnet;

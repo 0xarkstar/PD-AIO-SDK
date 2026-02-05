@@ -11,6 +11,7 @@
 import {
   createResilientExecutor,
   withResilience,
+  Resilient,
   Bulkhead,
   withTimeout,
   withCache,
@@ -217,6 +218,148 @@ describe('Resilience Utilities', () => {
       await expect(resilientFn()).rejects.toThrow('fail');
 
       expect(onFailure.mock.calls[0][1].operation).toBe('customOperation');
+    });
+  });
+
+  describe('Resilient decorator', () => {
+    test('should throw when applied to non-method', () => {
+      expect(() => {
+        const descriptor = {
+          value: 'not a function',
+        };
+        Resilient()({}, 'prop', descriptor as any);
+      }).toThrow('@Resilient can only be applied to methods');
+    });
+
+    test('should decorate a method with resilience (manual application)', async () => {
+      class TestService {
+        callCount = 0;
+
+        async getData() {
+          this.callCount++;
+          return 'success';
+        }
+      }
+
+      // Manually apply decorator
+      const descriptor = Object.getOwnPropertyDescriptor(TestService.prototype, 'getData')!;
+      const decoratedDescriptor = Resilient()(TestService.prototype, 'getData', descriptor);
+      Object.defineProperty(TestService.prototype, 'getData', decoratedDescriptor);
+
+      const service = new TestService();
+      const result = await service.getData();
+
+      expect(result).toBe('success');
+      expect(service.callCount).toBe(1);
+    });
+
+    test('should retry on failure when configured (manual application)', async () => {
+      class TestService {
+        callCount = 0;
+
+        async getData() {
+          this.callCount++;
+          if (this.callCount < 3) {
+            throw new Error('not yet');
+          }
+          return 'success';
+        }
+      }
+
+      const descriptor = Object.getOwnPropertyDescriptor(TestService.prototype, 'getData')!;
+      const decoratedDescriptor = Resilient({
+        retry: {
+          maxAttempts: 3,
+          baseDelay: 10,
+          isRetryable: () => true,
+        },
+      })(TestService.prototype, 'getData', descriptor);
+      Object.defineProperty(TestService.prototype, 'getData', decoratedDescriptor);
+
+      const service = new TestService();
+      const result = await service.getData();
+
+      expect(result).toBe('success');
+      expect(service.callCount).toBe(3);
+    });
+
+    test('should use fallback when configured (manual application)', async () => {
+      class TestService {
+        async getData() {
+          throw new Error('always fails');
+        }
+      }
+
+      const descriptor = Object.getOwnPropertyDescriptor(TestService.prototype, 'getData')!;
+      const decoratedDescriptor = Resilient({
+        retry: { maxAttempts: 1, baseDelay: 10 },
+        fallback: async () => 'fallback value',
+      })(TestService.prototype, 'getData', descriptor);
+      Object.defineProperty(TestService.prototype, 'getData', decoratedDescriptor);
+
+      const service = new TestService();
+      const result = await service.getData();
+
+      expect(result).toBe('fallback value');
+    });
+
+    test('should include class and method name in operation', async () => {
+      const onFailure = jest.fn();
+
+      class MyTestService {
+        async fetchData() {
+          throw new Error('fail');
+        }
+      }
+
+      const descriptor = Object.getOwnPropertyDescriptor(MyTestService.prototype, 'fetchData')!;
+      const decoratedDescriptor = Resilient({
+        retry: { maxAttempts: 1, baseDelay: 10 },
+        onFailure,
+      })(MyTestService.prototype, 'fetchData', descriptor);
+      Object.defineProperty(MyTestService.prototype, 'fetchData', decoratedDescriptor);
+
+      const service = new MyTestService();
+      await expect(service.fetchData()).rejects.toThrow('fail');
+
+      expect(onFailure).toHaveBeenCalled();
+      expect(onFailure.mock.calls[0][1].operation).toBe('MyTestService.fetchData');
+    });
+
+    test('should preserve this context (manual application)', async () => {
+      class TestService {
+        name = 'TestService';
+
+        async getName() {
+          return this.name;
+        }
+      }
+
+      const descriptor = Object.getOwnPropertyDescriptor(TestService.prototype, 'getName')!;
+      const decoratedDescriptor = Resilient()(TestService.prototype, 'getName', descriptor);
+      Object.defineProperty(TestService.prototype, 'getName', decoratedDescriptor);
+
+      const service = new TestService();
+      const result = await service.getName();
+
+      expect(result).toBe('TestService');
+    });
+
+    test('should pass arguments correctly (manual application)', async () => {
+      class TestService {
+        async add(a: number, b: number) {
+          return a + b;
+        }
+      }
+
+      const descriptor = Object.getOwnPropertyDescriptor(TestService.prototype, 'add')!;
+      const decoratedDescriptor = Resilient()(TestService.prototype, 'add', descriptor);
+      Object.defineProperty(TestService.prototype, 'add', decoratedDescriptor);
+
+      const service = new TestService();
+      const result = await service.add(2, 3);
+
+      expect(result).toBe(5);
     });
   });
 

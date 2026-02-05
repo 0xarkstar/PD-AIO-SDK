@@ -7,6 +7,7 @@
 
 import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
 import { PrometheusMetrics, getMetrics, isMetricsInitialized } from './prometheus.js';
+import { Logger } from '../core/logger.js';
 
 /**
  * Metrics server configuration
@@ -92,6 +93,7 @@ export class MetricsServer {
   private metrics: PrometheusMetrics;
   private startTime: number;
   private isRunning = false;
+  private readonly logger = new Logger('MetricsServer');
 
   constructor(config: MetricsServerConfig = {}) {
     this.config = {
@@ -130,7 +132,7 @@ export class MetricsServer {
     return new Promise((resolve, reject) => {
       this.server = createServer((req, res) => {
         this.handleRequest(req, res).catch((error) => {
-          console.error('Error handling request:', error);
+          this.logger.error('Error handling request', error instanceof Error ? error : undefined);
           this.sendResponse(res, 500, 'Internal Server Error');
         });
       });
@@ -141,7 +143,7 @@ export class MetricsServer {
 
       this.server.listen(this.config.port, this.config.host, () => {
         this.isRunning = true;
-        console.log(
+        this.logger.info(
           `Metrics server listening on http://${this.config.host}:${this.config.port}`
         );
         resolve();
@@ -163,7 +165,7 @@ export class MetricsServer {
           reject(error);
         } else {
           this.isRunning = false;
-          console.log('Metrics server stopped');
+          this.logger.info('Metrics server stopped');
           resolve();
         }
       });
@@ -256,7 +258,7 @@ export class MetricsServer {
       res.setHeader('Content-Type', contentType);
       this.sendResponse(res, 200, metricsText);
     } catch (error) {
-      console.error('Error generating metrics:', error);
+      this.logger.error('Error generating metrics', error instanceof Error ? error : undefined);
       this.sendResponse(res, 500, 'Error generating metrics');
     }
   }
@@ -286,7 +288,7 @@ export class MetricsServer {
       res.setHeader('Content-Type', 'application/json');
       this.sendResponse(res, statusCode, JSON.stringify(healthResponse, null, 2));
     } catch (error) {
-      console.error('Error in health check:', error);
+      this.logger.error('Error in health check', error instanceof Error ? error : undefined);
       const errorResponse: HealthCheckResponse = {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),

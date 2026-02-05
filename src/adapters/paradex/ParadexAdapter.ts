@@ -22,6 +22,7 @@ import type {
   Trade,
   Ticker,
   FundingRate,
+  MarketParams,
   OrderBookParams,
   TradeParams,
 } from '../../types/common.js';
@@ -39,7 +40,53 @@ import { ParadexNormalizer } from './ParadexNormalizer.js';
 import { mapAxiosError } from './ParadexErrorMapper.js';
 import { ParadexParaclearWrapper } from './ParadexParaclearWrapper.js';
 import { ParadexWebSocketWrapper } from './ParadexWebSocketWrapper.js';
-import type { ParadexConfig } from './types.js';
+import type {
+  ParadexConfig,
+  ParadexMarket,
+  ParadexTicker,
+  ParadexOrderBook,
+  ParadexTrade,
+  ParadexFundingRate,
+  ParadexPosition,
+  ParadexBalance,
+  ParadexOrder,
+} from './types.js';
+
+/**
+ * Response wrapper types for Paradex API
+ */
+interface MarketsResponse {
+  results?: ParadexMarket[];
+  markets?: ParadexMarket[];
+}
+
+interface TradesResponse {
+  trades: ParadexTrade[];
+}
+
+interface FundingHistoryResponse {
+  history: ParadexFundingRate[];
+}
+
+interface PositionsResponse {
+  positions: ParadexPosition[];
+}
+
+interface BalancesResponse {
+  balances: ParadexBalance[];
+}
+
+interface OrdersResponse {
+  orders: ParadexOrder[];
+}
+
+interface OrderHistoryResponse {
+  results: ParadexOrder[];
+}
+
+interface FillsResponse {
+  results: ParadexTrade[];
+}
 
 /**
  * Paradex adapter implementation
@@ -161,11 +208,11 @@ export class ParadexAdapter extends BaseAdapter {
   /**
    * Fetch all available markets
    */
-  async fetchMarkets(): Promise<Market[]> {
+  async fetchMarkets(params?: MarketParams): Promise<Market[]> {
     await this.rateLimiter.acquire('fetchMarkets');
 
     try {
-      const response = await this.client.get('/markets');
+      const response = await this.client.get<MarketsResponse>('/markets');
 
       // Paradex API returns { results: [...] }
       const markets = response.results || response.markets;
@@ -187,7 +234,7 @@ export class ParadexAdapter extends BaseAdapter {
 
     try {
       const market = this.normalizer.symbolFromCCXT(symbol);
-      const response = await this.client.get(`/markets/${market}/ticker`);
+      const response = await this.client.get<ParadexTicker>(`/markets/${market}/ticker`);
 
       return this.normalizer.normalizeTicker(response);
     } catch (error) {
@@ -206,7 +253,7 @@ export class ParadexAdapter extends BaseAdapter {
       const limit = params?.limit;
 
       const queryParams = limit ? `?depth=${limit}` : '';
-      const response = await this.client.get(`/markets/${market}/orderbook${queryParams}`);
+      const response = await this.client.get<ParadexOrderBook>(`/markets/${market}/orderbook${queryParams}`);
 
       return this.normalizer.normalizeOrderBook(response);
     } catch (error) {
@@ -224,7 +271,7 @@ export class ParadexAdapter extends BaseAdapter {
       const market = this.normalizer.symbolFromCCXT(symbol);
       const limit = params?.limit ?? 100;
 
-      const response = await this.client.get(`/markets/${market}/trades?limit=${limit}`);
+      const response = await this.client.get<TradesResponse>(`/markets/${market}/trades?limit=${limit}`);
 
       if (!Array.isArray(response.trades)) {
         throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'paradex');
@@ -244,7 +291,7 @@ export class ParadexAdapter extends BaseAdapter {
 
     try {
       const market = this.normalizer.symbolFromCCXT(symbol);
-      const response = await this.client.get(`/markets/${market}/funding`);
+      const response = await this.client.get<ParadexFundingRate>(`/markets/${market}/funding`);
 
       return this.normalizer.normalizeFundingRate(response);
     } catch (error) {
@@ -272,7 +319,7 @@ export class ParadexAdapter extends BaseAdapter {
       const queryString = params.toString();
       const path = `/markets/${market}/funding/history${queryString ? `?${queryString}` : ''}`;
 
-      const response = await this.client.get(path);
+      const response = await this.client.get<FundingHistoryResponse>(path);
 
       if (!Array.isArray(response.history)) {
         throw new PerpDEXError('Invalid funding rate history response', 'INVALID_RESPONSE', 'paradex');
@@ -296,7 +343,7 @@ export class ParadexAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('fetchPositions');
 
     try {
-      const response = await this.client.get('/positions');
+      const response = await this.client.get<PositionsResponse>('/positions');
 
       if (!Array.isArray(response.positions)) {
         throw new PerpDEXError('Invalid positions response', 'INVALID_RESPONSE', 'paradex');
@@ -322,7 +369,7 @@ export class ParadexAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('fetchBalance');
 
     try {
-      const response = await this.client.get('/account/balance');
+      const response = await this.client.get<BalancesResponse>('/account/balance');
 
       if (!Array.isArray(response.balances)) {
         throw new PerpDEXError('Invalid balance response', 'INVALID_RESPONSE', 'paradex');
@@ -341,32 +388,32 @@ export class ParadexAdapter extends BaseAdapter {
   /**
    * Create a new order
    */
-  async createOrder(order: OrderRequest): Promise<Order> {
+  async createOrder(request: OrderRequest): Promise<Order> {
     // Validate order request
-    const validatedOrder = this.validateOrder(order);
+    const validatedRequest = this.validateOrder(request);
 
     this.requireAuth();
     await this.rateLimiter.acquire('createOrder');
 
     try {
-      const market = this.normalizer.symbolFromCCXT(validatedOrder.symbol);
-      const orderType = this.normalizer.toParadexOrderType(validatedOrder.type, validatedOrder.postOnly);
-      const side = this.normalizer.toParadexOrderSide(validatedOrder.side);
-      const timeInForce = this.normalizer.toParadexTimeInForce(validatedOrder.timeInForce, validatedOrder.postOnly);
+      const market = this.normalizer.symbolFromCCXT(validatedRequest.symbol);
+      const orderType = this.normalizer.toParadexOrderType(validatedRequest.type, validatedRequest.postOnly);
+      const side = this.normalizer.toParadexOrderSide(validatedRequest.side);
+      const timeInForce = this.normalizer.toParadexTimeInForce(validatedRequest.timeInForce, validatedRequest.postOnly);
 
       const payload = {
         market,
         side,
         type: orderType,
-        size: validatedOrder.amount.toString(),
-        price: validatedOrder.price?.toString(),
+        size: validatedRequest.amount.toString(),
+        price: validatedRequest.price?.toString(),
         time_in_force: timeInForce,
-        reduce_only: validatedOrder.reduceOnly ?? false,
-        post_only: validatedOrder.postOnly ?? false,
-        client_id: validatedOrder.clientOrderId,
+        reduce_only: validatedRequest.reduceOnly ?? false,
+        post_only: validatedRequest.postOnly ?? false,
+        client_id: validatedRequest.clientOrderId,
       };
 
-      const response = await this.client.post('/orders', payload);
+      const response = await this.client.post<ParadexOrder>('/orders', payload);
 
       return this.normalizer.normalizeOrder(response);
     } catch (error) {
@@ -382,7 +429,7 @@ export class ParadexAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('cancelOrder');
 
     try {
-      const response = await this.client.delete(`/orders/${orderId}`);
+      const response = await this.client.delete<ParadexOrder>(`/orders/${orderId}`);
 
       return this.normalizer.normalizeOrder(response);
     } catch (error) {
@@ -400,7 +447,7 @@ export class ParadexAdapter extends BaseAdapter {
     try {
       const payload = symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : undefined;
 
-      const response = await this.client.delete('/orders', payload);
+      const response = await this.client.delete<OrdersResponse>('/orders', payload);
 
       if (!Array.isArray(response.orders)) {
         throw new PerpDEXError('Invalid cancel all orders response', 'INVALID_RESPONSE', 'paradex');
@@ -421,7 +468,7 @@ export class ParadexAdapter extends BaseAdapter {
 
     try {
       const params = symbol ? `?market=${this.normalizer.symbolFromCCXT(symbol)}` : '';
-      const response = await this.client.get(`/orders${params}`);
+      const response = await this.client.get<OrdersResponse>(`/orders${params}`);
 
       if (!Array.isArray(response.orders)) {
         throw new PerpDEXError('Invalid open orders response', 'INVALID_RESPONSE', 'paradex');
@@ -441,7 +488,7 @@ export class ParadexAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('fetchOrder');
 
     try {
-      const response = await this.client.get(`/orders/${orderId}`);
+      const response = await this.client.get<ParadexOrder>(`/orders/${orderId}`);
 
       return this.normalizer.normalizeOrder(response);
     } catch (error) {
@@ -482,7 +529,7 @@ export class ParadexAdapter extends BaseAdapter {
       if (limit) params.append('page_size', limit.toString());
 
       const queryString = params.toString();
-      const response = await this.client.get(`/orders/history${queryString ? `?${queryString}` : ''}`);
+      const response = await this.client.get<OrderHistoryResponse>(`/orders/history${queryString ? `?${queryString}` : ''}`);
 
       if (!Array.isArray(response.results)) {
         throw new PerpDEXError('Invalid order history response', 'INVALID_RESPONSE', 'paradex');
@@ -508,7 +555,7 @@ export class ParadexAdapter extends BaseAdapter {
       if (limit) params.append('page_size', limit.toString());
 
       const queryString = params.toString();
-      const response = await this.client.get(`/fills${queryString ? `?${queryString}` : ''}`);
+      const response = await this.client.get<FillsResponse>(`/fills${queryString ? `?${queryString}` : ''}`);
 
       if (!Array.isArray(response.results)) {
         throw new PerpDEXError('Invalid fills response', 'INVALID_RESPONSE', 'paradex');

@@ -7,6 +7,7 @@
 
 import type { IAuthStrategy, RequestParams, AuthenticatedRequest } from '../../types/adapter.js';
 import { DRIFT_API_URLS } from './constants.js';
+import { Logger } from '../../core/logger.js';
 
 // We'll import these dynamically to handle the ESM module properly
 type Connection = import('@solana/web3.js').Connection;
@@ -47,6 +48,7 @@ export class DriftAuth implements IAuthStrategy {
   private readonly isDevnet: boolean;
   private connection?: Connection;
   private isInitialized = false;
+  private readonly logger = new Logger('DriftAuth');
 
   constructor(config: DriftAuthConfig) {
     const apiUrls = config.isDevnet ? DRIFT_API_URLS.devnet : DRIFT_API_URLS.mainnet;
@@ -71,7 +73,7 @@ export class DriftAuth implements IAuthStrategy {
       // Lazy import to handle ESM module - void prefix for intentional fire-and-forget
       void this.initKeypairAsync(bytes);
     } catch (error) {
-      console.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -87,7 +89,7 @@ export class DriftAuth implements IAuthStrategy {
       this.connection = new Connection(this.rpcEndpoint, 'confirmed');
       this.isInitialized = true;
     } catch (error) {
-      console.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

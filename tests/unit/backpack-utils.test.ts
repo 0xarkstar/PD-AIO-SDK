@@ -50,6 +50,20 @@ describe('Backpack Symbol Normalization', () => {
       expect(normalizer.toBackpackSymbol('BTC/USDC')).toBe('BTC_USDC');
       expect(normalizer.toBackpackSymbol('SOL/USDC')).toBe('SOL_USDC');
     });
+
+    test('returns symbol as-is when no slash present (fallback case, line 115)', () => {
+      expect(normalizer.toBackpackSymbol('UNKNOWN')).toBe('UNKNOWN');
+      expect(normalizer.toBackpackSymbol('BTCUSDT')).toBe('BTCUSDT');
+    });
+  });
+
+  describe('normalizeSymbol edge cases', () => {
+    test('normalizes legacy format without underscore (BTCUSDT -> BTC/USDT, lines 81-83)', () => {
+      // This tests the quoteMatch branch in normalizeSymbol
+      expect(normalizer.normalizeSymbol('BTCUSDT')).toBe('BTC/USDT');
+      expect(normalizer.normalizeSymbol('ETHUSDC')).toBe('ETH/USDC');
+      expect(normalizer.normalizeSymbol('SOLUSD')).toBe('SOL/USD');
+    });
   });
 });
 
@@ -176,6 +190,41 @@ describe('Backpack Position Normalization', () => {
       entryPrice: 48000,
       leverage: 10,
     });
+  });
+});
+
+describe('Backpack Balance Normalization', () => {
+  test('normalizes balance data (line 210)', () => {
+    const backpackBalance = {
+      asset: 'USDC',
+      total: '10000.5',
+      available: '8000.25',
+      locked: '2000.25',
+    };
+
+    const normalized = normalizer.normalizeBalance(backpackBalance);
+
+    expect(normalized.currency).toBe('USDC');
+    expect(normalized.total).toBe(10000.5);
+    expect(normalized.free).toBe(8000.25);
+    expect(normalized.used).toBe(2000.25);
+    expect(normalized.info).toBeDefined();
+  });
+
+  test('normalizes zero balance', () => {
+    const backpackBalance = {
+      asset: 'BTC',
+      total: '0',
+      available: '0',
+      locked: '0',
+    };
+
+    const normalized = normalizer.normalizeBalance(backpackBalance);
+
+    expect(normalized.currency).toBe('BTC');
+    expect(normalized.total).toBe(0);
+    expect(normalized.free).toBe(0);
+    expect(normalized.used).toBe(0);
   });
 });
 

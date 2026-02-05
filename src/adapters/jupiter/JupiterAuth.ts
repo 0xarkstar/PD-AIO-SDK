@@ -7,6 +7,7 @@
 
 import type { IAuthStrategy, RequestParams, AuthenticatedRequest } from '../../types/adapter.js';
 import { SOLANA_DEFAULT_RPC } from './constants.js';
+import { Logger } from '../../core/logger.js';
 
 // Dynamic imports for @solana/web3.js types
 type Connection = import('@solana/web3.js').Connection;
@@ -42,6 +43,7 @@ export class JupiterAuth implements IAuthStrategy {
   private readonly rpcEndpoint: string;
   private connection?: Connection;
   private isInitialized = false;
+  private readonly logger = new Logger('JupiterAuth');
 
   constructor(config: JupiterAuthConfig) {
     this.rpcEndpoint = config.rpcEndpoint || SOLANA_DEFAULT_RPC;
@@ -63,7 +65,7 @@ export class JupiterAuth implements IAuthStrategy {
       // Lazy import to handle ESM module - void prefix for intentional fire-and-forget
       void this.initKeypairAsync(bytes);
     } catch (error) {
-      console.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -79,7 +81,7 @@ export class JupiterAuth implements IAuthStrategy {
       this.connection = new Connection(this.rpcEndpoint, 'confirmed');
       this.isInitialized = true;
     } catch (error) {
-      console.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

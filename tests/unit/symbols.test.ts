@@ -104,6 +104,20 @@ describe('Symbol Utilities', () => {
       expect(() => parseSymbol('BTC/')).toThrow();
       expect(() => parseSymbol('/USDT')).toThrow();
     });
+
+    test('throws on missing parts in perpetual format', () => {
+      // Missing quote in pair part
+      expect(() => parseSymbol('BTC/:USDT')).toThrow('Invalid symbol format');
+      // Missing base in pair part
+      expect(() => parseSymbol('/USDT:USDT')).toThrow('Invalid symbol format');
+      // Missing settle
+      expect(() => parseSymbol('BTC/USDT:')).toThrow('Invalid symbol format');
+    });
+
+    test('throws on too many colons', () => {
+      expect(() => parseSymbol('BTC/USDT:USDT:EXTRA')).toThrow('Invalid symbol format');
+      expect(() => parseSymbol('BTC:USDT:USDT:MORE')).toThrow('Invalid symbol format');
+    });
   });
 
   describe('buildSymbol', () => {
@@ -120,6 +134,12 @@ describe('Symbol Utilities', () => {
     test('builds perpetual even without settle param if quote matches', () => {
       const symbol = buildSymbol('BTC', 'USDT', 'USDT');
       expect(symbol).toBe('BTC/USDT:USDT');
+    });
+
+    test('builds symbol with different settle currency', () => {
+      // When settle currency differs from quote (e.g., quanto contracts)
+      const symbol = buildSymbol('BTC', 'USD', 'ETH');
+      expect(symbol).toBe('BTC/USD:ETH');
     });
   });
 
@@ -255,6 +275,25 @@ describe('Symbol Utilities', () => {
       expect(usdtSymbols).toHaveLength(2);
       expect(usdtSymbols).toContain('BTC/USDT:USDT');
       expect(usdtSymbols).toContain('SOL/USDT:USDT');
+    });
+
+    test('handles empty result', () => {
+      const symbols = ['BTC/USDT:USDT', 'ETH/USDT:USDT'];
+      const usdcSymbols = filterByQuote(symbols, 'USDC');
+      expect(usdcSymbols).toHaveLength(0);
+    });
+
+    test('ignores invalid symbols', () => {
+      const symbols = ['BTC/USDT:USDT', 'INVALID', 'ETH/USDC:USDC'];
+      const usdtSymbols = filterByQuote(symbols, 'USDT');
+      expect(usdtSymbols).toHaveLength(1);
+    });
+
+    test('is case insensitive for filter input', () => {
+      // Filter input is normalized to uppercase
+      const symbols = ['BTC/USDT:USDT', 'ETH/USDT:USDT'];
+      const usdtSymbols = filterByQuote(symbols, 'usdt');
+      expect(usdtSymbols).toHaveLength(2);
     });
   });
 

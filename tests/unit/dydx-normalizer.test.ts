@@ -213,6 +213,166 @@ describe('DydxNormalizer', () => {
       expect(order.stopPrice).toBe(81000);
       expect(order.status).toBe('open');
     });
+
+    test('normalizes stop market order correctly', () => {
+      const dydxOrder: DydxOrder = {
+        id: 'order-stop-market-1',
+        subaccountId: 'dydx1abc/0',
+        clientId: 'client-stop-market',
+        clobPairId: '0',
+        side: 'SELL',
+        size: '0.5',
+        price: '0',
+        totalFilled: '0',
+        status: 'UNTRIGGERED',
+        type: 'STOP_MARKET',
+        timeInForce: 'GTT',
+        postOnly: false,
+        reduceOnly: true,
+        ticker: 'BTC-USD',
+        orderFlags: '0',
+        triggerPrice: '80000',
+        clientMetadata: '0',
+        updatedAt: '2024-01-15T13:00:00.000Z',
+      };
+
+      const order = normalizer.normalizeOrder(dydxOrder);
+
+      expect(order.type).toBe('stopMarket');
+      expect(order.stopPrice).toBe(80000);
+    });
+
+    test('normalizes market order correctly', () => {
+      const dydxOrder: DydxOrder = {
+        id: 'order-market-1',
+        subaccountId: 'dydx1abc/0',
+        clientId: 'client-market',
+        clobPairId: '0',
+        side: 'BUY',
+        size: '1.0',
+        price: '0',
+        totalFilled: '1.0',
+        status: 'FILLED',
+        type: 'MARKET',
+        timeInForce: 'IOC',
+        postOnly: false,
+        reduceOnly: false,
+        ticker: 'BTC-USD',
+        orderFlags: '0',
+        clientMetadata: '0',
+        updatedAt: '2024-01-15T13:00:00.000Z',
+      };
+
+      const order = normalizer.normalizeOrder(dydxOrder);
+
+      expect(order.type).toBe('market');
+      expect(order.status).toBe('filled');
+    });
+
+    test('normalizes order with FOK time in force', () => {
+      const dydxOrder: DydxOrder = {
+        id: 'order-fok-1',
+        subaccountId: 'dydx1abc/0',
+        clientId: 'client-fok',
+        clobPairId: '0',
+        side: 'BUY',
+        size: '2.0',
+        price: '85000',
+        totalFilled: '0',
+        status: 'OPEN',
+        type: 'LIMIT',
+        timeInForce: 'FOK',
+        postOnly: false,
+        reduceOnly: false,
+        ticker: 'BTC-USD',
+        orderFlags: '0',
+        clientMetadata: '0',
+        updatedAt: '2024-01-15T13:00:00.000Z',
+      };
+
+      const order = normalizer.normalizeOrder(dydxOrder);
+
+      expect(order.timeInForce).toBe('FOK');
+    });
+
+    test('normalizes order with BEST_EFFORT_CANCELED status', () => {
+      const dydxOrder: DydxOrder = {
+        id: 'order-best-effort-canceled',
+        subaccountId: 'dydx1abc/0',
+        clientId: 'client-bec',
+        clobPairId: '0',
+        side: 'BUY',
+        size: '1.0',
+        price: '85000',
+        totalFilled: '0',
+        status: 'BEST_EFFORT_CANCELED',
+        type: 'LIMIT',
+        timeInForce: 'GTT',
+        postOnly: false,
+        reduceOnly: false,
+        ticker: 'BTC-USD',
+        orderFlags: '0',
+        clientMetadata: '0',
+        updatedAt: '2024-01-15T13:00:00.000Z',
+      };
+
+      const order = normalizer.normalizeOrder(dydxOrder);
+
+      expect(order.status).toBe('canceled');
+    });
+
+    test('normalizes order with PENDING status', () => {
+      const dydxOrder: DydxOrder = {
+        id: 'order-pending-1',
+        subaccountId: 'dydx1abc/0',
+        clientId: 'client-pending',
+        clobPairId: '0',
+        side: 'BUY',
+        size: '1.0',
+        price: '85000',
+        totalFilled: '0',
+        status: 'PENDING',
+        type: 'LIMIT',
+        timeInForce: 'GTT',
+        postOnly: false,
+        reduceOnly: false,
+        ticker: 'BTC-USD',
+        orderFlags: '0',
+        clientMetadata: '0',
+        updatedAt: '2024-01-15T13:00:00.000Z',
+      };
+
+      const order = normalizer.normalizeOrder(dydxOrder);
+
+      expect(order.status).toBe('open');
+    });
+
+    test('normalizes order with unknown status to open', () => {
+      const dydxOrder: DydxOrder = {
+        id: 'order-unknown-status',
+        subaccountId: 'dydx1abc/0',
+        clientId: 'client-unknown',
+        clobPairId: '0',
+        side: 'BUY',
+        size: '1.0',
+        price: '85000',
+        totalFilled: '0',
+        status: 'SOME_UNKNOWN_STATUS' as any,
+        type: 'LIMIT',
+        timeInForce: 'GTT',
+        postOnly: false,
+        reduceOnly: false,
+        ticker: 'BTC-USD',
+        orderFlags: '0',
+        clientMetadata: '0',
+        updatedAt: '2024-01-15T13:00:00.000Z',
+      };
+
+      const order = normalizer.normalizeOrder(dydxOrder);
+
+      // Unknown status defaults to 'open'
+      expect(order.status).toBe('open');
+    });
   });
 
   describe('normalizePosition', () => {

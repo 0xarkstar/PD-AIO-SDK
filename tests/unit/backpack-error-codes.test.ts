@@ -187,6 +187,17 @@ describe('Backpack Error Codes', () => {
       const error = mapBackpackError(9999, 'Unknown');
       expect(error).toBeInstanceOf(PerpDEXError);
     });
+
+    it('should map network error string codes to ExchangeUnavailableError (line 209)', () => {
+      const error = mapBackpackError('ECONNRESET', 'Connection reset');
+      expect(error).toBeInstanceOf(ExchangeUnavailableError);
+
+      const error2 = mapBackpackError('ETIMEDOUT', 'Connection timed out');
+      expect(error2).toBeInstanceOf(ExchangeUnavailableError);
+
+      const error3 = mapBackpackError('NETWORK_ERROR', 'Network failure');
+      expect(error3).toBeInstanceOf(ExchangeUnavailableError);
+    });
   });
 
   describe('extractBackpackError', () => {

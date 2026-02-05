@@ -274,10 +274,10 @@ describe('ParadexHTTPClient', () => {
     });
 
     it('should handle timeout error', async () => {
-      mockFetch.mockRejectedValue({
-        name: 'AbortError',
-        message: 'The operation was aborted',
-      });
+      // Create a proper AbortError
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+      mockFetch.mockRejectedValue(abortError);
 
       await expect(client.get('/markets')).rejects.toThrow(PerpDEXError);
       await expect(client.get('/markets')).rejects.toThrow(/timeout/i);

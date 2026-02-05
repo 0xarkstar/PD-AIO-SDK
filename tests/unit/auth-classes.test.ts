@@ -101,10 +101,11 @@ describe('EdgeXAuth', () => {
     expect(sig1).not.toBe(sig2);
   });
 
-  test('signRequest throws PerpDEXError on invalid key/hash', async () => {
-    const auth = new EdgeXAuth({ starkPrivateKey: testPrivateKey });
+  test('signRequest throws PerpDEXError on invalid key', async () => {
+    // Use an invalid key that will cause signing to fail
+    const auth = new EdgeXAuth({ starkPrivateKey: 'invalid-key-format' });
 
-    // This will fail because test data doesn't satisfy STARK curve constraints
+    // This will fail because the key is not a valid StarkNet private key
     await expect(
       auth.signRequest('GET', '/api/v1/test', Date.now().toString())
     ).rejects.toThrow(/Failed to sign request/);

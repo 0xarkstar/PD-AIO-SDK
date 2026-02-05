@@ -350,4 +350,5 @@ describe('JupiterNormalizer', () => {
       expect(market.takerFee).toBe(0.0006);
     });
   });
+
 });

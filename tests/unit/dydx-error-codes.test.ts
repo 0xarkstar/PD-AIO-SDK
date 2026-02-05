@@ -82,6 +82,14 @@ describe('dYdX Error Codes', () => {
       expect(mapped).toBeInstanceOf(OrderNotFoundError);
     });
 
+    test('maps subaccount not found error (line 57)', () => {
+      const error = new Error('subaccount not found');
+      const mapped = mapDydxError(error);
+
+      expect(mapped).toBeInstanceOf(PerpDEXError);
+      expect(mapped.code).toBe('SUBACCOUNT_NOT_FOUND');
+    });
+
     test('maps rate limit exceeded error', () => {
       const error = new Error('rate limit exceeded');
       const mapped = mapDydxError(error);

@@ -16,6 +16,7 @@ import {
   toParadexOrderType,
   toParadexOrderSide,
   toParadexTimeInForce,
+  mapParadexError,
 } from '../../src/adapters/paradex/utils.js';
 import type {
   ParadexMarket,
@@ -182,6 +183,42 @@ describe('Paradex Position Normalization', () => {
   });
 });
 
+describe('Paradex Balance Normalization', () => {
+  test('normalizes balance', () => {
+    const paradexBalance: ParadexBalance = {
+      asset: 'USDC',
+      total: '10000',
+      available: '7500',
+      locked: '2500',
+    };
+
+    const normalized = normalizeBalance(paradexBalance);
+
+    expect(normalized).toMatchObject({
+      currency: 'USDC',
+      total: 10000,
+      free: 7500,
+      used: 2500,
+    });
+    expect(normalized.info).toBeDefined();
+  });
+
+  test('normalizes zero balance', () => {
+    const paradexBalance: ParadexBalance = {
+      asset: 'USD',
+      total: '0',
+      available: '0',
+      locked: '0',
+    };
+
+    const normalized = normalizeBalance(paradexBalance);
+
+    expect(normalized.total).toBe(0);
+    expect(normalized.free).toBe(0);
+    expect(normalized.used).toBe(0);
+  });
+});
+
 describe('Paradex OrderBook Normalization', () => {
   test('normalizes order book', () => {
     const paradexOrderBook: ParadexOrderBook = {
@@ -309,5 +346,87 @@ describe('Paradex Time In Force Conversion', () => {
     expect(toParadexTimeInForce('FOK', false)).toBe('FOK');
     expect(toParadexTimeInForce('PO', false)).toBe('POST_ONLY');
     expect(toParadexTimeInForce('GTC', true)).toBe('POST_ONLY');
+  });
+
+  test('uses default GTC when undefined', () => {
+    expect(toParadexTimeInForce(undefined, false)).toBe('GTC');
+  });
+});
+
+describe('Paradex Error Mapping', () => {
+  test('maps INVALID_ORDER error (code 1001)', () => {
+    const result = mapParadexError({ code: 1001, message: 'Bad params' });
+    expect(result.code).toBe('INVALID_ORDER');
+    expect(result.message).toBe('Invalid order parameters');
+  });
+
+  test('maps INSUFFICIENT_MARGIN error (code 1002)', () => {
+    const result = mapParadexError({ code: 1002, message: 'Not enough' });
+    expect(result.code).toBe('INSUFFICIENT_MARGIN');
+    expect(result.message).toBe('Insufficient margin');
+  });
+
+  test('maps ORDER_NOT_FOUND error (code 1003)', () => {
+    const result = mapParadexError({ code: 1003 });
+    expect(result.code).toBe('ORDER_NOT_FOUND');
+    expect(result.message).toBe('Order not found');
+  });
+
+  test('maps POSITION_NOT_FOUND error (code 1004)', () => {
+    const result = mapParadexError({ code: 1004 });
+    expect(result.code).toBe('POSITION_NOT_FOUND');
+    expect(result.message).toBe('Position not found');
+  });
+
+  test('maps INVALID_SIGNATURE error (code 2001)', () => {
+    const result = mapParadexError({ code: 2001 });
+    expect(result.code).toBe('INVALID_SIGNATURE');
+    expect(result.message).toBe('Invalid signature');
+  });
+
+  test('maps EXPIRED_AUTH error (code 2002)', () => {
+    const result = mapParadexError({ code: 2002 });
+    expect(result.code).toBe('EXPIRED_AUTH');
+    expect(result.message).toBe('JWT token expired');
+  });
+
+  test('maps INVALID_API_KEY error (code 2003)', () => {
+    const result = mapParadexError({ code: 2003 });
+    expect(result.code).toBe('INVALID_API_KEY');
+    expect(result.message).toBe('Invalid API key');
+  });
+
+  test('maps RATE_LIMIT_EXCEEDED error (code 4001)', () => {
+    const result = mapParadexError({ code: 4001 });
+    expect(result.code).toBe('RATE_LIMIT_EXCEEDED');
+    expect(result.message).toBe('Rate limit exceeded');
+  });
+
+  test('maps EXCHANGE_UNAVAILABLE error (code 5001)', () => {
+    const result = mapParadexError({ code: 5001 });
+    expect(result.code).toBe('EXCHANGE_UNAVAILABLE');
+    expect(result.message).toBe('Exchange unavailable');
+  });
+
+  test('maps unknown error code to UNKNOWN_ERROR', () => {
+    const result = mapParadexError({ code: 9999, message: 'Something else' });
+    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.message).toBe('Something else');
+  });
+
+  test('maps error without code to UNKNOWN_ERROR', () => {
+    const result = mapParadexError({ message: 'Generic error' });
+    expect(result.code).toBe('UNKNOWN_ERROR');
+  });
+
+  test('handles non-object error', () => {
+    const result = mapParadexError('string error');
+    expect(result.code).toBe('UNKNOWN_ERROR');
+    expect(result.message).toBe('Unknown error occurred');
+  });
+
+  test('handles null error', () => {
+    const result = mapParadexError(null);
+    expect(result.code).toBe('UNKNOWN_ERROR');
   });
 });

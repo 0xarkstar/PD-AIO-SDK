@@ -49,6 +49,22 @@ describe('GRVTAuth', () => {
       expect(authNoCredentials.hasCredentials()).toBe(false);
     });
 
+    it('should return false from verify when wallet.getAddress throws (lines 133-135)', async () => {
+      const mockWallet = {
+        getAddress: jest.fn().mockRejectedValue(new Error('Wallet error')),
+        signMessage: jest.fn(),
+        signTypedData: jest.fn(),
+      } as unknown as Wallet;
+
+      const authWithBrokenWallet = new GRVTAuth({
+        wallet: mockWallet,
+      });
+
+      // verify() catches the error and returns false
+      const isValid = await authWithBrokenWallet.verify();
+      expect(isValid).toBe(false);
+    });
+
     it('should throw requireAuth when no credentials and private method called', () => {
       const authNoCredentials = new GRVTAuth({});
       expect(() => authNoCredentials.requireAuth()).toThrow(
@@ -156,6 +172,20 @@ describe('GRVTAuth', () => {
       const signed = await auth.sign(request);
 
       expect(signed.headers).not.toHaveProperty('X-Signature');
+    });
+
+    it('should throw when signing trading request without wallet (line 201)', async () => {
+      const authNoWallet = new GRVTAuth({ apiKey: 'test-key' });
+
+      const request: RequestParams = {
+        method: 'POST',
+        path: '/orders',
+        body: { instrument: 'BTC_USDT_Perp' },
+      };
+
+      await expect(authNoWallet.sign(request)).rejects.toThrow(
+        'Wallet required for signing requests'
+      );
     });
   });
 

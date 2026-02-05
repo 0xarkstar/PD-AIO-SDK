@@ -447,6 +447,21 @@ describe('Nado Error Handling', () => {
         expect(error.code).toBe('HTTP_999');
         expect(error.message).toContain('999');
       });
+
+      it('should map redirect status to generic PerpDEXError (line 257)', () => {
+        const error = mapHttpError(302, 'Found');
+
+        expect(error).toBeInstanceOf(PerpDEXError);
+        expect(error.code).toBe('HTTP_302');
+        expect(error.message).toContain('302');
+      });
+
+      it('should map success status to generic PerpDEXError (line 257)', () => {
+        const error = mapHttpError(200, 'OK');
+
+        expect(error).toBeInstanceOf(PerpDEXError);
+        expect(error.code).toBe('HTTP_200');
+      });
     });
   });
 });

@@ -11,6 +11,17 @@ import {
   safeParseFloat,
   formatStarkNetAddress,
   isValidStarkNetAddress,
+  mapError,
+  countDecimals,
+  formatSymbolForAPI,
+  parseSymbolFromAPI,
+  formatPrice,
+  formatQuantity,
+  calculateLiquidationPrice,
+  calculateRequiredMargin,
+  calculateUnrealizedPnl,
+  formatTimestamp,
+  parseTimestamp,
 } from '../../src/adapters/extended/utils.js';
 import type { OrderRequest } from '../../src/types/common.js';
 import { PerpDEXError } from '../../src/types/errors.js';
@@ -389,6 +400,181 @@ describe('Extended Utils', () => {
     it('should handle case insensitivity', () => {
       expect(isValidStarkNetAddress('0x1234567890ABCDEF')).toBe(true);
       expect(isValidStarkNetAddress('0x1234567890AbCdEf')).toBe(true);
+    });
+  });
+
+  describe('mapError', () => {
+    it('should pass through PerpDEXError unchanged', () => {
+      const originalError = new PerpDEXError('Test error', 'TEST_CODE', 'extended');
+      const result = mapError(originalError);
+      expect(result).toBe(originalError);
+    });
+
+    it('should map HTTP response error', () => {
+      const error = {
+        response: {
+          status: 400,
+          data: { message: 'Bad request' },
+        },
+      };
+      const result = mapError(error);
+      expect(result).toBeInstanceOf(PerpDEXError);
+    });
+
+    it('should map network error (ETIMEDOUT)', () => {
+      const error = {
+        code: 'ETIMEDOUT',
+        message: 'Connection timed out',
+      };
+      const result = mapError(error);
+      expect(result).toBeInstanceOf(PerpDEXError);
+      expect(result.code).toBe('NETWORK_ERROR');
+    });
+
+    it('should map network error (ECONNREFUSED)', () => {
+      const error = {
+        code: 'ECONNREFUSED',
+        message: 'Connection refused',
+      };
+      const result = mapError(error);
+      expect(result).toBeInstanceOf(PerpDEXError);
+      expect(result.code).toBe('NETWORK_ERROR');
+    });
+
+    it('should map generic Error', () => {
+      const error = new Error('Something went wrong');
+      const result = mapError(error);
+      expect(result).toBeInstanceOf(PerpDEXError);
+    });
+
+    it('should handle string error', () => {
+      const result = mapError('string error message');
+      expect(result).toBeInstanceOf(PerpDEXError);
+    });
+  });
+
+  describe('countDecimals', () => {
+    it('should count decimal places in string', () => {
+      expect(countDecimals('0.001')).toBe(3);
+      expect(countDecimals('0.1')).toBe(1);
+      expect(countDecimals('123.456789')).toBe(6);
+    });
+
+    it('should count decimal places in number', () => {
+      expect(countDecimals(0.001)).toBe(3);
+      expect(countDecimals(0.1)).toBe(1);
+    });
+
+    it('should return 0 for integers', () => {
+      expect(countDecimals('100')).toBe(0);
+      expect(countDecimals(100)).toBe(0);
+    });
+  });
+
+  describe('formatSymbolForAPI', () => {
+    it('should convert unified perpetual symbol to Extended format', () => {
+      expect(formatSymbolForAPI('BTC/USD:USD')).toBe('BTC-USD-PERP');
+      expect(formatSymbolForAPI('ETH/USDC:USDC')).toBe('ETH-USDC-PERP');
+    });
+
+    it('should return original for invalid format', () => {
+      expect(formatSymbolForAPI('INVALID')).toBe('INVALID');
+      expect(formatSymbolForAPI('BTC')).toBe('BTC');
+    });
+  });
+
+  describe('parseSymbolFromAPI', () => {
+    it('should convert Extended perpetual format to unified', () => {
+      expect(parseSymbolFromAPI('BTC-USD-PERP')).toBe('BTC/USD:USD');
+      expect(parseSymbolFromAPI('ETH-USDC-PERP')).toBe('ETH/USDC:USDC');
+    });
+
+    it('should handle simple dash format', () => {
+      expect(parseSymbolFromAPI('BTC-USD')).toBe('BTC/USD:USD');
+    });
+
+    it('should handle concatenated format BTCUSD', () => {
+      expect(parseSymbolFromAPI('BTCUSD')).toBe('BTC/USD:USD');
+      expect(parseSymbolFromAPI('ETHUSDT')).toBe('ETH/USDT:USDT');
+      expect(parseSymbolFromAPI('SOLUSDC')).toBe('SOL/USDC:USDC');
+    });
+
+    it('should return original for unrecognized format', () => {
+      expect(parseSymbolFromAPI('INVALID')).toBe('INVALID');
+    });
+  });
+
+  describe('formatPrice', () => {
+    it('should format price with specified precision', () => {
+      expect(formatPrice(50000.123456, 2)).toBe('50000.12');
+      expect(formatPrice(50000.123456, 4)).toBe('50000.1235');
+      expect(formatPrice(50000.123456, 0)).toBe('50000');
+    });
+  });
+
+  describe('formatQuantity', () => {
+    it('should format quantity with specified precision', () => {
+      expect(formatQuantity(1.23456789, 4)).toBe('1.2346');
+      expect(formatQuantity(1.23456789, 2)).toBe('1.23');
+      expect(formatQuantity(1.23456789, 0)).toBe('1');
+    });
+  });
+
+  describe('calculateLiquidationPrice', () => {
+    it('should calculate liquidation price for long position', () => {
+      const liqPrice = calculateLiquidationPrice('long', 50000, 10, 0.005);
+      // Long: entry * (1 - 1/leverage + mmr) = 50000 * (1 - 0.1 + 0.005) = 50000 * 0.905 = 45250
+      expect(liqPrice).toBeCloseTo(45250, 0);
+    });
+
+    it('should calculate liquidation price for short position', () => {
+      const liqPrice = calculateLiquidationPrice('short', 50000, 10, 0.005);
+      // Short: entry * (1 + 1/leverage - mmr) = 50000 * (1 + 0.1 - 0.005) = 50000 * 1.095 = 54750
+      expect(liqPrice).toBeCloseTo(54750, 0);
+    });
+
+    it('should use default maintenance margin ratio', () => {
+      const liqPrice = calculateLiquidationPrice('long', 50000, 10);
+      expect(liqPrice).toBeCloseTo(45250, 0);
+    });
+  });
+
+  describe('calculateRequiredMargin', () => {
+    it('should calculate required margin', () => {
+      // positionValue = 1 * 50000 = 50000, margin = 50000 / 10 = 5000
+      expect(calculateRequiredMargin(1, 50000, 10)).toBe(5000);
+      expect(calculateRequiredMargin(0.5, 50000, 20)).toBe(1250);
+    });
+  });
+
+  describe('calculateUnrealizedPnl', () => {
+    it('should calculate unrealized PnL for long position', () => {
+      // Long: size * (markPrice - entryPrice) = 1 * (52000 - 50000) = 2000
+      expect(calculateUnrealizedPnl('long', 1, 50000, 52000)).toBe(2000);
+      expect(calculateUnrealizedPnl('long', 1, 50000, 48000)).toBe(-2000);
+    });
+
+    it('should calculate unrealized PnL for short position', () => {
+      // Short: size * (entryPrice - markPrice) = 1 * (50000 - 52000) = -2000
+      expect(calculateUnrealizedPnl('short', 1, 50000, 52000)).toBe(-2000);
+      expect(calculateUnrealizedPnl('short', 1, 50000, 48000)).toBe(2000);
+    });
+  });
+
+  describe('formatTimestamp', () => {
+    it('should return timestamp as-is', () => {
+      expect(formatTimestamp(1234567890000)).toBe(1234567890000);
+      expect(formatTimestamp(1234567890)).toBe(1234567890);
+    });
+  });
+
+  describe('parseTimestamp', () => {
+    it('should keep millisecond timestamps as-is', () => {
+      expect(parseTimestamp(1234567890000)).toBe(1234567890000);
+    });
+
+    it('should convert second timestamps to milliseconds', () => {
+      expect(parseTimestamp(1234567890)).toBe(1234567890000);
     });
   });
 });

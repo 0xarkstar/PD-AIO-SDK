@@ -370,4 +370,83 @@ describe('MetricsServer', () => {
       expect(server.getAddress()).toBeNull();
     });
   });
+
+  describe('Error Handling', () => {
+
+    test('should reject when server emits error during startup (line 139)', async () => {
+      // Use a port that requires elevated privileges to trigger EACCES error
+      server = new MetricsServer({ metrics, port: 80, host: '127.0.0.1' });
+
+      // On most systems, binding to port 80 without root privileges will fail
+      // This should trigger the server 'error' event handler
+      await expect(server.start()).rejects.toThrow();
+    });
+
+    test('should reject when address already in use (line 139)', async () => {
+      // Start first server
+      const server1 = new MetricsServer({ metrics, port: 9191, host: '127.0.0.1' });
+      await server1.start();
+
+      // Try to start second server on same port
+      server = new MetricsServer({ metrics, port: 9191, host: '127.0.0.1' });
+
+      try {
+        await expect(server.start()).rejects.toThrow('EADDRINUSE');
+      } finally {
+        await server1.stop();
+      }
+    });
+
+    test('should handle getMetrics error (lines 259-260)', async () => {
+      // Create a metrics instance that throws on getMetrics
+      const brokenMetrics = {
+        getMetrics: jest.fn().mockRejectedValue(new Error('Metrics generation failed')),
+        getContentType: jest.fn().mockReturnValue('text/plain'),
+        recordRequest: jest.fn(),
+        recordCircuitBreakerSuccess: jest.fn(),
+      } as unknown as PrometheusMetrics;
+
+      server = new MetricsServer({ metrics: brokenMetrics, port: 0 });
+      await server.start();
+
+      const address = server.getAddress()!;
+      const url = `http://localhost:${address.port}/metrics`;
+
+      // Suppress console.error for this test
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      const response = await fetch(url);
+      expect(response.status).toBe(500);
+      const text = await response.text();
+      expect(text).toBe('Error generating metrics');
+
+      consoleSpy.mockRestore();
+    });
+
+    test('should handle request handler throwing error (lines 133-134)', async () => {
+      // Create a metrics instance that throws synchronously
+      const throwingMetrics = {
+        getMetrics: jest.fn().mockImplementation(() => {
+          throw new Error('Sync error in handler');
+        }),
+        getContentType: jest.fn().mockReturnValue('text/plain'),
+        recordRequest: jest.fn(),
+        recordCircuitBreakerSuccess: jest.fn(),
+      } as unknown as PrometheusMetrics;
+
+      server = new MetricsServer({ metrics: throwingMetrics, port: 0 });
+      await server.start();
+
+      const address = server.getAddress()!;
+      const url = `http://localhost:${address.port}/metrics`;
+
+      // Suppress console.error for this test
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      const response = await fetch(url);
+      expect(response.status).toBe(500);
+
+      consoleSpy.mockRestore();
+    });
+  });
 });

@@ -9,6 +9,7 @@ import {
   EDGEX_RATE_LIMIT_ERROR,
   mapEdgeXError,
   mapError,
+  isRetryableError,
 } from '../../src/adapters/edgex/error-codes.js';
 import {
   PerpDEXError,
@@ -112,6 +113,33 @@ describe('EdgeX Error Codes', () => {
     it('should handle string errors', () => {
       const error = mapError('Some error message');
       expect(error).toBeInstanceOf(PerpDEXError);
+    });
+
+    it('should map rate limit errors from message (line 102)', () => {
+      const error = mapError(new Error('Rate limit exceeded'));
+      expect(error).toBeInstanceOf(RateLimitError);
+    });
+  });
+
+  describe('isRetryableError (line 112)', () => {
+    it('should return true for server errors', () => {
+      expect(isRetryableError('INTERNAL_ERROR')).toBe(true);
+      expect(isRetryableError('SERVICE_UNAVAILABLE')).toBe(true);
+      expect(isRetryableError('TIMEOUT')).toBe(true);
+    });
+
+    it('should return true for rate limit error', () => {
+      expect(isRetryableError('RATE_LIMIT_EXCEEDED')).toBe(true);
+    });
+
+    it('should return false for client errors', () => {
+      expect(isRetryableError('INVALID_ORDER')).toBe(false);
+      expect(isRetryableError('INVALID_SIGNATURE')).toBe(false);
+      expect(isRetryableError('ORDER_NOT_FOUND')).toBe(false);
+    });
+
+    it('should return false for unknown errors', () => {
+      expect(isRetryableError('UNKNOWN_ERROR')).toBe(false);
     });
   });
 });

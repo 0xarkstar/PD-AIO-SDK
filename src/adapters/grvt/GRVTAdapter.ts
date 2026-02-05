@@ -50,11 +50,16 @@ import {
 /**
  * GRVT adapter configuration
  */
-export interface GRVTAdapterConfig extends GRVTAuthConfig {
+export interface GRVTConfig extends GRVTAuthConfig {
   testnet?: boolean;
   timeout?: number;
   debug?: boolean;
 }
+
+/**
+ * @deprecated Use GRVTConfig instead
+ */
+export type GRVTAdapterConfig = GRVTConfig;
 
 /**
  * GRVT Exchange Adapter

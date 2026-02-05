@@ -40,6 +40,7 @@ import {
 } from './types.js';
 import { NADO_ORDER_SIDES } from './constants.js';
 import { PerpDEXError } from '../../types/errors.js';
+import { Logger } from '../../core/logger.js';
 
 /**
  * Nado Data Normalizer
@@ -62,6 +63,8 @@ import { PerpDEXError } from '../../types/errors.js';
  * ```
  */
 export class NadoNormalizer {
+  private readonly logger = new Logger('NadoNormalizer');
+
   // ===========================================================================
   // Symbol Conversion
   // ===========================================================================
@@ -178,7 +181,7 @@ export class NadoNormalizer {
 
       // Warn on precision loss (values exceeding safe integer range)
       if (Math.abs(parsed) > Number.MAX_SAFE_INTEGER) {
-        console.warn(`[Nado] Precision loss detected for value: ${value}`);
+        this.logger.warn('Precision loss detected for value', { value });
       }
 
       return parsed;
@@ -531,13 +534,13 @@ export class NadoNormalizer {
       .map(order => {
         const mapping = mappings.get(order.product_id.toString());
         if (!mapping) {
-          console.warn(`[Nado] No mapping found for product ID: ${order.product_id}`);
+          this.logger.warn('No mapping found for product ID', { productId: order.product_id });
           return null;
         }
         try {
           return this.normalizeOrder(order, mapping);
         } catch (error) {
-          console.error(`[Nado] Failed to normalize order ${order.order_id}:`, error);
+          this.logger.error('Failed to normalize order', error instanceof Error ? error : undefined, { orderId: order.order_id });
           return null;
         }
       })
@@ -568,13 +571,13 @@ export class NadoNormalizer {
       .map(position => {
         const mapping = mappings.get(position.product_id.toString());
         if (!mapping) {
-          console.warn(`[Nado] No mapping found for product ID: ${position.product_id}`);
+          this.logger.warn('No mapping found for product ID', { productId: position.product_id });
           return null;
         }
         try {
           return this.normalizePosition(position, mapping);
         } catch (error) {
-          console.error(`[Nado] Failed to normalize position for product ${position.product_id}:`, error);
+          this.logger.error('Failed to normalize position', error instanceof Error ? error : undefined, { productId: position.product_id });
           return null;
         }
       })
@@ -596,13 +599,13 @@ export class NadoNormalizer {
       .map(trade => {
         const mapping = mappings.get(trade.product_id.toString());
         if (!mapping) {
-          console.warn(`[Nado] No mapping found for product ID: ${trade.product_id}`);
+          this.logger.warn('No mapping found for product ID', { productId: trade.product_id });
           return null;
         }
         try {
           return this.normalizeTrade(trade, mapping);
         } catch (error) {
-          console.error(`[Nado] Failed to normalize trade ${trade.trade_id}:`, error);
+          this.logger.error('Failed to normalize trade', error instanceof Error ? error : undefined, { tradeId: trade.trade_id });
           return null;
         }
       })

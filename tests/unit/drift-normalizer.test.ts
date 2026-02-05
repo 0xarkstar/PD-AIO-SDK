@@ -146,6 +146,116 @@ describe('DriftNormalizer', () => {
     });
   });
 
+  describe('normalizeMarkets (line 89)', () => {
+    test('should normalize array of markets', () => {
+      const markets: DriftPerpMarketAccount[] = [
+        {
+          marketIndex: 0,
+          status: 'active',
+          name: 'SOL-PERP',
+          marginRatioInitial: 500,
+          marginRatioMaintenance: 300,
+          imfFactor: 0,
+          numberOfUsers: 100,
+          numberOfUsersWithBase: 50,
+          unrealizedPnlImfFactor: 0,
+          liquidatorFee: 0,
+          ifLiquidationFee: 0,
+          contractType: 'perpetual',
+          contractTier: 'A',
+          pausedOperations: 0,
+          quoteSpotMarketIndex: 0,
+          feeAdjustment: 0,
+          expiryTs: '0',
+          expiryPrice: '0',
+          unrealizedPnlMaxImbalance: '0',
+          nextFillRecordId: '1',
+          nextFundingRateRecordId: '1',
+          nextCurveRecordId: '1',
+          pnlPool: { scaledBalance: '0', marketIndex: 0 },
+          insuranceClaim: {
+            revenueWithdrawSinceLastSettle: '0',
+            maxRevenueWithdrawPerPeriod: '0',
+            lastRevenueWithdrawTs: '0',
+            quoteSettledInsurance: '0',
+            quoteMaxInsurance: '0',
+          },
+          amm: {
+            oracleSource: 'pyth',
+            baseAssetReserve: '1000000000000',
+            quoteAssetReserve: '1000000000000',
+            sqrtK: '1000000000000',
+            pegMultiplier: '1000000',
+            terminalQuoteAssetReserve: '1000000000000',
+            baseAssetAmountWithAmm: '0',
+            baseAssetAmountLong: '0',
+            baseAssetAmountShort: '0',
+            quoteAssetAmount: '0',
+            quoteEntryAmountLong: '0',
+            quoteEntryAmountShort: '0',
+            quoteBreakEvenAmountLong: '0',
+            quoteBreakEvenAmountShort: '0',
+            userLpShares: '0',
+            lastFundingRate: '0',
+            lastFundingRateLong: '0',
+            lastFundingRateShort: '0',
+            last24hAvgFundingRate: '0',
+            totalFee: '0',
+            totalMmFee: '0',
+            totalExchangeFee: '0',
+            totalFeeMinusDistributions: '0',
+            totalFeeWithdrawn: '0',
+            totalLiquidationFee: '0',
+            cumulativeFundingRateLong: '0',
+            cumulativeFundingRateShort: '0',
+            totalSocialLoss: '0',
+            orderStepSize: '10000000',
+            orderTickSize: '100',
+            minOrderSize: '10000000',
+            maxPositionSize: '100000000000000',
+            volume24h: '0',
+            longIntensityVolume: '0',
+            shortIntensityVolume: '0',
+            lastTradeTs: '0',
+            markStd: '0',
+            oracleStd: '0',
+            lastMarkPriceTwap: '100000000',
+            lastMarkPriceTwap5min: '100000000',
+            lastMarkPriceTwapTs: '0',
+            lastOraclePriceTwap: '100000000',
+            lastOraclePriceTwap5min: '100000000',
+            lastOracleConfPct: '0',
+            lastOracleReservePriceSpreadPct: '0',
+            lastOraclePriceTwapTs: '0',
+            oracle: 'test-oracle-address',
+            baseSpread: 0,
+            maxSpread: 0,
+            longSpread: 0,
+            shortSpread: 0,
+            maxFillReserveFraction: 0,
+            maxSlippageRatio: 0,
+            curveUpdateIntensity: 0,
+            concentrationCoef: 0,
+            ammJitIntensity: 0,
+            historicalOracleData: {
+              lastOraclePrice: '100000000',
+              lastOracleConf: '0',
+              lastOracleDelay: '0',
+              lastOraclePriceTwap: '100000000',
+              lastOraclePriceTwap5min: '100000000',
+              lastOraclePriceTwapTs: '0',
+            },
+          },
+        },
+      ];
+
+      const normalized = normalizer.normalizeMarkets(markets);
+
+      expect(normalized).toHaveLength(1);
+      expect(normalized[0].symbol).toBe('SOL/USD:USD');
+    });
+  });
+
   describe('normalizePosition', () => {
     test('should normalize long position', () => {
       const position: DriftPerpPosition = {
