@@ -1908,171 +1908,6 @@ Stack: ${entry.error.stack}`);
 // src/adapters/hyperliquid/HyperliquidAdapter.ts
 var import_ethers2 = require("ethers");
 
-// src/types/errors.ts
-var PerpDEXError = class _PerpDEXError extends Error {
-  constructor(message, code, exchange, originalError) {
-    super(message);
-    this.code = code;
-    this.exchange = exchange;
-    this.originalError = originalError;
-    this.name = "PerpDEXError";
-    Object.setPrototypeOf(this, _PerpDEXError.prototype);
-  }
-  /** Correlation ID for request tracing */
-  correlationId;
-  /**
-   * Set correlation ID for this error
-   */
-  withCorrelationId(correlationId) {
-    this.correlationId = correlationId;
-    return this;
-  }
-  toJSON() {
-    return {
-      name: this.name,
-      message: this.message,
-      code: this.code,
-      exchange: this.exchange,
-      correlationId: this.correlationId,
-      originalError: this.originalError
-    };
-  }
-};
-var NotSupportedError = class _NotSupportedError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "NotSupportedError";
-    Object.setPrototypeOf(this, _NotSupportedError.prototype);
-  }
-};
-var InsufficientMarginError = class _InsufficientMarginError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "InsufficientMarginError";
-    Object.setPrototypeOf(this, _InsufficientMarginError.prototype);
-  }
-};
-var OrderNotFoundError = class _OrderNotFoundError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "OrderNotFoundError";
-    Object.setPrototypeOf(this, _OrderNotFoundError.prototype);
-  }
-};
-var InvalidOrderError = class _InvalidOrderError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "InvalidOrderError";
-    Object.setPrototypeOf(this, _InvalidOrderError.prototype);
-  }
-};
-var PositionNotFoundError = class _PositionNotFoundError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "PositionNotFoundError";
-    Object.setPrototypeOf(this, _PositionNotFoundError.prototype);
-  }
-};
-var NetworkError = class _NetworkError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "NetworkError";
-    Object.setPrototypeOf(this, _NetworkError.prototype);
-  }
-};
-var RateLimitError = class _RateLimitError extends PerpDEXError {
-  constructor(message, code, exchange, retryAfter, originalError) {
-    super(message, code, exchange, originalError);
-    this.retryAfter = retryAfter;
-    this.name = "RateLimitError";
-    Object.setPrototypeOf(this, _RateLimitError.prototype);
-  }
-};
-var ExchangeUnavailableError = class _ExchangeUnavailableError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "ExchangeUnavailableError";
-    Object.setPrototypeOf(this, _ExchangeUnavailableError.prototype);
-  }
-};
-var WebSocketDisconnectedError = class _WebSocketDisconnectedError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "WebSocketDisconnectedError";
-    Object.setPrototypeOf(this, _WebSocketDisconnectedError.prototype);
-  }
-};
-var InvalidSignatureError = class _InvalidSignatureError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "InvalidSignatureError";
-    Object.setPrototypeOf(this, _InvalidSignatureError.prototype);
-  }
-};
-var ExpiredAuthError = class _ExpiredAuthError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "ExpiredAuthError";
-    Object.setPrototypeOf(this, _ExpiredAuthError.prototype);
-  }
-};
-var InsufficientPermissionsError = class _InsufficientPermissionsError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "InsufficientPermissionsError";
-    Object.setPrototypeOf(this, _InsufficientPermissionsError.prototype);
-  }
-};
-var InvalidSymbolError = class _InvalidSymbolError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "InvalidSymbolError";
-    Object.setPrototypeOf(this, _InvalidSymbolError.prototype);
-  }
-};
-var InsufficientBalanceError = class _InsufficientBalanceError extends PerpDEXError {
-  constructor(message, code, exchange, required, available, originalError) {
-    super(message, code, exchange, originalError);
-    this.required = required;
-    this.available = available;
-    this.name = "InsufficientBalanceError";
-    Object.setPrototypeOf(this, _InsufficientBalanceError.prototype);
-  }
-};
-var TransactionFailedError = class _TransactionFailedError extends PerpDEXError {
-  constructor(message, code, exchange, txHash, originalError) {
-    super(message, code, exchange, originalError);
-    this.txHash = txHash;
-    this.name = "TransactionFailedError";
-    Object.setPrototypeOf(this, _TransactionFailedError.prototype);
-  }
-};
-var SlippageExceededError = class _SlippageExceededError extends PerpDEXError {
-  constructor(message, code, exchange, expectedPrice, actualPrice, originalError) {
-    super(message, code, exchange, originalError);
-    this.expectedPrice = expectedPrice;
-    this.actualPrice = actualPrice;
-    this.name = "SlippageExceededError";
-    Object.setPrototypeOf(this, _SlippageExceededError.prototype);
-  }
-};
-var LiquidationError = class _LiquidationError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "LiquidationError";
-    Object.setPrototypeOf(this, _LiquidationError.prototype);
-  }
-};
-function isPerpDEXError(error) {
-  return error instanceof PerpDEXError;
-}
-function isRateLimitError(error) {
-  return error instanceof RateLimitError;
-}
-function isAuthError(error) {
-  return error instanceof InvalidSignatureError || error instanceof ExpiredAuthError || error instanceof InsufficientPermissionsError;
-}
-
 // src/core/RateLimiter.ts
 var RateLimiter = class {
   maxTokens;
@@ -2612,6 +2447,171 @@ var WebSocketClient = class extends import_index.default {
     }
   }
 };
+
+// src/types/errors.ts
+var PerpDEXError = class _PerpDEXError extends Error {
+  constructor(message, code, exchange, originalError) {
+    super(message);
+    this.code = code;
+    this.exchange = exchange;
+    this.originalError = originalError;
+    this.name = "PerpDEXError";
+    Object.setPrototypeOf(this, _PerpDEXError.prototype);
+  }
+  /** Correlation ID for request tracing */
+  correlationId;
+  /**
+   * Set correlation ID for this error
+   */
+  withCorrelationId(correlationId) {
+    this.correlationId = correlationId;
+    return this;
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      code: this.code,
+      exchange: this.exchange,
+      correlationId: this.correlationId,
+      originalError: this.originalError
+    };
+  }
+};
+var NotSupportedError = class _NotSupportedError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "NotSupportedError";
+    Object.setPrototypeOf(this, _NotSupportedError.prototype);
+  }
+};
+var InsufficientMarginError = class _InsufficientMarginError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "InsufficientMarginError";
+    Object.setPrototypeOf(this, _InsufficientMarginError.prototype);
+  }
+};
+var OrderNotFoundError = class _OrderNotFoundError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "OrderNotFoundError";
+    Object.setPrototypeOf(this, _OrderNotFoundError.prototype);
+  }
+};
+var InvalidOrderError = class _InvalidOrderError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "InvalidOrderError";
+    Object.setPrototypeOf(this, _InvalidOrderError.prototype);
+  }
+};
+var PositionNotFoundError = class _PositionNotFoundError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "PositionNotFoundError";
+    Object.setPrototypeOf(this, _PositionNotFoundError.prototype);
+  }
+};
+var NetworkError = class _NetworkError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "NetworkError";
+    Object.setPrototypeOf(this, _NetworkError.prototype);
+  }
+};
+var RateLimitError = class _RateLimitError extends PerpDEXError {
+  constructor(message, code, exchange, retryAfter, originalError) {
+    super(message, code, exchange, originalError);
+    this.retryAfter = retryAfter;
+    this.name = "RateLimitError";
+    Object.setPrototypeOf(this, _RateLimitError.prototype);
+  }
+};
+var ExchangeUnavailableError = class _ExchangeUnavailableError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "ExchangeUnavailableError";
+    Object.setPrototypeOf(this, _ExchangeUnavailableError.prototype);
+  }
+};
+var WebSocketDisconnectedError = class _WebSocketDisconnectedError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "WebSocketDisconnectedError";
+    Object.setPrototypeOf(this, _WebSocketDisconnectedError.prototype);
+  }
+};
+var InvalidSignatureError = class _InvalidSignatureError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "InvalidSignatureError";
+    Object.setPrototypeOf(this, _InvalidSignatureError.prototype);
+  }
+};
+var ExpiredAuthError = class _ExpiredAuthError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "ExpiredAuthError";
+    Object.setPrototypeOf(this, _ExpiredAuthError.prototype);
+  }
+};
+var InsufficientPermissionsError = class _InsufficientPermissionsError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "InsufficientPermissionsError";
+    Object.setPrototypeOf(this, _InsufficientPermissionsError.prototype);
+  }
+};
+var InvalidSymbolError = class _InvalidSymbolError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "InvalidSymbolError";
+    Object.setPrototypeOf(this, _InvalidSymbolError.prototype);
+  }
+};
+var InsufficientBalanceError = class _InsufficientBalanceError extends PerpDEXError {
+  constructor(message, code, exchange, required, available, originalError) {
+    super(message, code, exchange, originalError);
+    this.required = required;
+    this.available = available;
+    this.name = "InsufficientBalanceError";
+    Object.setPrototypeOf(this, _InsufficientBalanceError.prototype);
+  }
+};
+var TransactionFailedError = class _TransactionFailedError extends PerpDEXError {
+  constructor(message, code, exchange, txHash, originalError) {
+    super(message, code, exchange, originalError);
+    this.txHash = txHash;
+    this.name = "TransactionFailedError";
+    Object.setPrototypeOf(this, _TransactionFailedError.prototype);
+  }
+};
+var SlippageExceededError = class _SlippageExceededError extends PerpDEXError {
+  constructor(message, code, exchange, expectedPrice, actualPrice, originalError) {
+    super(message, code, exchange, originalError);
+    this.expectedPrice = expectedPrice;
+    this.actualPrice = actualPrice;
+    this.name = "SlippageExceededError";
+    Object.setPrototypeOf(this, _SlippageExceededError.prototype);
+  }
+};
+var LiquidationError = class _LiquidationError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "LiquidationError";
+    Object.setPrototypeOf(this, _LiquidationError.prototype);
+  }
+};
+function isPerpDEXError(error) {
+  return error instanceof PerpDEXError;
+}
+function isRateLimitError(error) {
+  return error instanceof RateLimitError;
+}
+function isAuthError(error) {
+  return error instanceof InvalidSignatureError || error instanceof ExpiredAuthError || error instanceof InsufficientPermissionsError;
+}
 
 // src/websocket/WebSocketManager.ts
 var MAX_QUEUE_SIZE = 1e3;
@@ -9495,6 +9495,207 @@ function mapError(error) {
   );
 }
 
+// src/adapters/hyperliquid/HyperliquidMarketData.ts
+var INTERVAL_MAP = {
+  "1m": "1m",
+  "3m": "3m",
+  "5m": "5m",
+  "15m": "15m",
+  "30m": "30m",
+  "1h": "1h",
+  "2h": "2h",
+  "4h": "4h",
+  "6h": "6h",
+  "8h": "8h",
+  "12h": "12h",
+  "1d": "1d",
+  "3d": "3d",
+  "1w": "1w",
+  "1M": "1M"
+};
+var DURATION_MAP = {
+  "1m": 24 * 60 * 60 * 1e3,
+  // 24 hours of 1m candles
+  "3m": 3 * 24 * 60 * 60 * 1e3,
+  // 3 days
+  "5m": 5 * 24 * 60 * 60 * 1e3,
+  // 5 days
+  "15m": 7 * 24 * 60 * 60 * 1e3,
+  // 7 days
+  "30m": 14 * 24 * 60 * 60 * 1e3,
+  // 14 days
+  "1h": 30 * 24 * 60 * 60 * 1e3,
+  // 30 days
+  "2h": 60 * 24 * 60 * 60 * 1e3,
+  // 60 days
+  "4h": 90 * 24 * 60 * 60 * 1e3,
+  // 90 days
+  "6h": 120 * 24 * 60 * 60 * 1e3,
+  // 120 days
+  "8h": 180 * 24 * 60 * 60 * 1e3,
+  // 180 days
+  "12h": 365 * 24 * 60 * 60 * 1e3,
+  // 1 year
+  "1d": 365 * 24 * 60 * 60 * 1e3,
+  // 1 year
+  "3d": 2 * 365 * 24 * 60 * 60 * 1e3,
+  // 2 years
+  "1w": 3 * 365 * 24 * 60 * 60 * 1e3,
+  // 3 years
+  "1M": 5 * 365 * 24 * 60 * 60 * 1e3
+  // 5 years
+};
+function getInterval(timeframe) {
+  return INTERVAL_MAP[timeframe] || "1h";
+}
+function getDefaultDuration(timeframe) {
+  return DURATION_MAP[timeframe] || 30 * 24 * 60 * 60 * 1e3;
+}
+function buildOHLCVRequest(exchangeSymbol, timeframe, params) {
+  const now = Date.now();
+  const defaultDuration = getDefaultDuration(timeframe);
+  return {
+    coin: exchangeSymbol,
+    interval: getInterval(timeframe),
+    startTime: params?.since ?? now - defaultDuration,
+    endTime: params?.until ?? now
+  };
+}
+function parseCandles(response, limit) {
+  if (!response || !Array.isArray(response)) {
+    return [];
+  }
+  const candles = limit ? response.slice(-limit) : response;
+  return candles.map((candle) => [
+    candle.t,
+    parseFloat(candle.o),
+    parseFloat(candle.h),
+    parseFloat(candle.l),
+    parseFloat(candle.c),
+    parseFloat(candle.v)
+  ]);
+}
+function parseFundingRates(response, symbol, markPrice, limit) {
+  let fundingRates = response.map((rate) => ({
+    symbol,
+    fundingRate: parseFloat(rate.fundingRate),
+    fundingTimestamp: rate.time,
+    nextFundingTimestamp: rate.time + 8 * 3600 * 1e3,
+    // 8 hours
+    markPrice,
+    indexPrice: markPrice,
+    fundingIntervalHours: 8
+  }));
+  fundingRates.sort((a, b) => b.fundingTimestamp - a.fundingTimestamp);
+  if (limit) {
+    fundingRates = fundingRates.slice(0, limit);
+  }
+  return fundingRates;
+}
+function buildCurrentFundingRate(latest, symbol, markPrice) {
+  return {
+    symbol,
+    fundingRate: parseFloat(latest.fundingRate),
+    fundingTimestamp: latest.time,
+    nextFundingTimestamp: latest.time + 8 * 3600 * 1e3,
+    // 8 hours
+    markPrice,
+    indexPrice: markPrice,
+    fundingIntervalHours: 8
+  };
+}
+
+// src/adapters/hyperliquid/HyperliquidInfoMethods.ts
+function parseUserFees(response) {
+  const makerFee = parseFloat(response.userAddRate);
+  const takerFee = parseFloat(response.userCrossRate);
+  return {
+    maker: makerFee,
+    taker: takerFee,
+    info: response
+  };
+}
+function parsePortfolio(response) {
+  const dayPeriod = response.find(([period]) => period === "day");
+  if (!dayPeriod) {
+    throw new PerpDEXError(
+      "Day period data not found in portfolio response",
+      "INVALID_RESPONSE",
+      "hyperliquid"
+    );
+  }
+  const [, dayData] = dayPeriod;
+  const latestAccountValue = dayData.accountValueHistory.length > 0 ? parseFloat(dayData.accountValueHistory[dayData.accountValueHistory.length - 1][1]) : 0;
+  const latestDailyPnl = dayData.pnlHistory.length > 0 ? parseFloat(dayData.pnlHistory[dayData.pnlHistory.length - 1][1]) : 0;
+  const weekPeriod = response.find(([period]) => period === "week");
+  const monthPeriod = response.find(([period]) => period === "month");
+  const weeklyPnl = weekPeriod && weekPeriod[1].pnlHistory.length > 0 ? parseFloat(weekPeriod[1].pnlHistory[weekPeriod[1].pnlHistory.length - 1][1]) : 0;
+  const monthlyPnl = monthPeriod && monthPeriod[1].pnlHistory.length > 0 ? parseFloat(monthPeriod[1].pnlHistory[monthPeriod[1].pnlHistory.length - 1][1]) : 0;
+  const dailyPnlPercentage = latestAccountValue > 0 ? latestDailyPnl / latestAccountValue * 100 : 0;
+  const weeklyPnlPercentage = latestAccountValue > 0 ? weeklyPnl / latestAccountValue * 100 : 0;
+  const monthlyPnlPercentage = latestAccountValue > 0 ? monthlyPnl / latestAccountValue * 100 : 0;
+  return {
+    totalValue: latestAccountValue,
+    dailyPnl: latestDailyPnl,
+    dailyPnlPercentage,
+    weeklyPnl,
+    weeklyPnlPercentage,
+    monthlyPnl,
+    monthlyPnlPercentage,
+    timestamp: Date.now(),
+    info: response
+  };
+}
+function parseRateLimitStatus(response) {
+  const used = response.nRequestsUsed;
+  const cap = response.nRequestsCap;
+  const windowMs = 6e4;
+  return {
+    remaining: cap - used,
+    limit: cap,
+    resetAt: Date.now() + windowMs,
+    percentUsed: cap > 0 ? used / cap * 100 : 0,
+    info: response
+  };
+}
+
+// src/adapters/hyperliquid/HyperliquidAccount.ts
+function processOrderHistory(response, normalizer, symbol, since, limit) {
+  let orders = response.map((order) => normalizer.normalizeHistoricalOrder(order));
+  if (symbol) {
+    orders = orders.filter((order) => order.symbol === symbol);
+  }
+  if (since) {
+    orders = orders.filter((order) => order.timestamp >= since);
+  }
+  orders.sort((a, b) => b.timestamp - a.timestamp);
+  if (limit) {
+    orders = orders.slice(0, limit);
+  }
+  return orders;
+}
+function processUserFills(response, normalizer, symbol, since, limit) {
+  let trades = response.map((fill) => normalizer.normalizeUserFill(fill));
+  if (symbol) {
+    trades = trades.filter((trade) => trade.symbol === symbol);
+  }
+  if (since) {
+    trades = trades.filter((trade) => trade.timestamp >= since);
+  }
+  trades.sort((a, b) => b.timestamp - a.timestamp);
+  if (limit) {
+    trades = trades.slice(0, limit);
+  }
+  return trades;
+}
+function processOpenOrders(response, normalizer, symbol) {
+  const orders = response.map((order) => normalizer.normalizeOrder(order, order.coin));
+  if (symbol) {
+    return orders.filter((o) => o.symbol === symbol);
+  }
+  return orders;
+}
+
 // src/adapters/hyperliquid/HyperliquidAdapter.ts
 var HyperliquidAdapter = class extends BaseAdapter {
   id = "hyperliquid";
@@ -9665,90 +9866,15 @@ var HyperliquidAdapter = class extends BaseAdapter {
     await this.rateLimiter.acquire("fetchOHLCV");
     try {
       const exchangeSymbol = this.symbolToExchange(symbol);
-      const intervalMap = {
-        "1m": "1m",
-        "3m": "3m",
-        "5m": "5m",
-        "15m": "15m",
-        "30m": "30m",
-        "1h": "1h",
-        "2h": "2h",
-        "4h": "4h",
-        "6h": "6h",
-        "8h": "8h",
-        "12h": "12h",
-        "1d": "1d",
-        "3d": "3d",
-        "1w": "1w",
-        "1M": "1M"
-      };
-      const interval = intervalMap[timeframe] || "1h";
-      const now = Date.now();
-      const defaultDuration = this.getDefaultDuration(timeframe);
-      const startTime = params?.since ?? now - defaultDuration;
-      const endTime = params?.until ?? now;
+      const req = buildOHLCVRequest(exchangeSymbol, timeframe, params);
       const response = await this.request("POST", `${this.apiUrl}/info`, {
         type: "candleSnapshot",
-        req: {
-          coin: exchangeSymbol,
-          interval,
-          startTime,
-          endTime
-        }
+        req
       });
-      if (!response || !Array.isArray(response)) {
-        return [];
-      }
-      const candles = params?.limit ? response.slice(-params.limit) : response;
-      return candles.map((candle) => [
-        candle.t,
-        parseFloat(candle.o),
-        parseFloat(candle.h),
-        parseFloat(candle.l),
-        parseFloat(candle.c),
-        parseFloat(candle.v)
-      ]);
+      return parseCandles(response, params?.limit);
     } catch (error) {
       throw mapError(error);
     }
-  }
-  /**
-   * Get default duration based on timeframe for initial data fetch
-   */
-  getDefaultDuration(timeframe) {
-    const durationMap = {
-      "1m": 24 * 60 * 60 * 1e3,
-      // 24 hours of 1m candles
-      "3m": 3 * 24 * 60 * 60 * 1e3,
-      // 3 days
-      "5m": 5 * 24 * 60 * 60 * 1e3,
-      // 5 days
-      "15m": 7 * 24 * 60 * 60 * 1e3,
-      // 7 days
-      "30m": 14 * 24 * 60 * 60 * 1e3,
-      // 14 days
-      "1h": 30 * 24 * 60 * 60 * 1e3,
-      // 30 days
-      "2h": 60 * 24 * 60 * 60 * 1e3,
-      // 60 days
-      "4h": 90 * 24 * 60 * 60 * 1e3,
-      // 90 days
-      "6h": 120 * 24 * 60 * 60 * 1e3,
-      // 120 days
-      "8h": 180 * 24 * 60 * 60 * 1e3,
-      // 180 days
-      "12h": 365 * 24 * 60 * 60 * 1e3,
-      // 1 year
-      "1d": 365 * 24 * 60 * 60 * 1e3,
-      // 1 year
-      "3d": 2 * 365 * 24 * 60 * 60 * 1e3,
-      // 2 years
-      "1w": 3 * 365 * 24 * 60 * 60 * 1e3,
-      // 3 years
-      "1M": 5 * 365 * 24 * 60 * 60 * 1e3
-      // 5 years
-    };
-    return durationMap[timeframe] || 30 * 24 * 60 * 60 * 1e3;
   }
   async fetchFundingRate(symbol) {
     await this.rateLimiter.acquire("fetchFundingRate");
@@ -9771,16 +9897,7 @@ var HyperliquidAdapter = class extends BaseAdapter {
         type: "allMids"
       });
       const markPrice = parseFloat(allMids[exchangeSymbol] ?? "0");
-      return {
-        symbol,
-        fundingRate: parseFloat(latest.fundingRate),
-        fundingTimestamp: latest.time,
-        nextFundingTimestamp: latest.time + 8 * 3600 * 1e3,
-        // 8 hours
-        markPrice,
-        indexPrice: markPrice,
-        fundingIntervalHours: 8
-      };
+      return buildCurrentFundingRate(latest, symbol, markPrice);
     } catch (error) {
       throw mapError(error);
     }
@@ -9806,21 +9923,7 @@ var HyperliquidAdapter = class extends BaseAdapter {
         type: "allMids"
       });
       const markPrice = parseFloat(allMids[exchangeSymbol] ?? "0");
-      let fundingRates = response.map((rate) => ({
-        symbol,
-        fundingRate: parseFloat(rate.fundingRate),
-        fundingTimestamp: rate.time,
-        nextFundingTimestamp: rate.time + 8 * 3600 * 1e3,
-        // 8 hours
-        markPrice,
-        indexPrice: markPrice,
-        fundingIntervalHours: 8
-      }));
-      fundingRates.sort((a, b) => b.fundingTimestamp - a.fundingTimestamp);
-      if (limit) {
-        fundingRates = fundingRates.slice(0, limit);
-      }
-      return fundingRates;
+      return parseFundingRates(response, symbol, markPrice, limit);
     } catch (error) {
       throw mapError(error);
     }
@@ -9829,11 +9932,8 @@ var HyperliquidAdapter = class extends BaseAdapter {
   // Trading (Private)
   // ===========================================================================
   async createOrder(request) {
-    this.ensureInitialized();
+    const auth = this.ensureAuth();
     const validatedRequest = this.validateOrder(request);
-    if (!this.auth) {
-      throw new Error("Authentication required for trading");
-    }
     await this.rateLimiter.acquire("createOrder");
     try {
       const exchangeSymbol = this.symbolToExchange(validatedRequest.symbol);
@@ -9843,7 +9943,7 @@ var HyperliquidAdapter = class extends BaseAdapter {
         orders: [orderRequest],
         grouping: "na"
       };
-      const signedRequest = await this.auth.sign({
+      const signedRequest = await auth.sign({
         method: "POST",
         path: "/exchange",
         body: action
@@ -9892,10 +9992,7 @@ var HyperliquidAdapter = class extends BaseAdapter {
     }
   }
   async cancelOrder(orderId, symbol) {
-    this.ensureInitialized();
-    if (!this.auth) {
-      throw new Error("Authentication required for trading");
-    }
+    const auth = this.ensureAuth();
     await this.rateLimiter.acquire("cancelOrder");
     try {
       if (!symbol) {
@@ -9904,14 +10001,9 @@ var HyperliquidAdapter = class extends BaseAdapter {
       const exchangeSymbol = this.symbolToExchange(symbol);
       const action = {
         type: "cancel",
-        cancels: [
-          {
-            coin: exchangeSymbol,
-            oid: parseInt(orderId)
-          }
-        ]
+        cancels: [{ coin: exchangeSymbol, oid: parseInt(orderId) }]
       };
-      const signedRequest = await this.auth.sign({
+      const signedRequest = await auth.sign({
         method: "POST",
         path: "/exchange",
         body: action
@@ -9940,10 +10032,7 @@ var HyperliquidAdapter = class extends BaseAdapter {
     }
   }
   async cancelAllOrders(symbol) {
-    this.ensureInitialized();
-    if (!this.auth) {
-      throw new Error("Authentication required for trading");
-    }
+    this.ensureAuth();
     await this.rateLimiter.acquire("cancelAllOrders");
     try {
       const openOrders = await this.fetchOpenOrders(symbol);
@@ -9966,59 +10055,17 @@ var HyperliquidAdapter = class extends BaseAdapter {
   // Account History
   // ===========================================================================
   async fetchOrderHistory(symbol, since, limit) {
-    this.ensureInitialized();
-    if (!this.auth) {
-      throw new Error("Authentication required");
-    }
-    await this.rateLimiter.acquire("fetchOrderHistory");
     try {
-      const response = await this.request(
-        "POST",
-        `${this.apiUrl}/info`,
-        {
-          type: "historicalOrders",
-          user: this.auth.getAddress()
-        }
-      );
-      let orders = response.map((order) => this.normalizer.normalizeHistoricalOrder(order));
-      if (symbol) {
-        orders = orders.filter((order) => order.symbol === symbol);
-      }
-      if (since) {
-        orders = orders.filter((order) => order.timestamp >= since);
-      }
-      orders.sort((a, b) => b.timestamp - a.timestamp);
-      if (limit) {
-        orders = orders.slice(0, limit);
-      }
-      return orders;
+      const response = await this.authInfoRequest("fetchOrderHistory", "historicalOrders");
+      return processOrderHistory(response, this.normalizer, symbol, since, limit);
     } catch (error) {
       throw mapError(error);
     }
   }
   async fetchMyTrades(symbol, since, limit) {
-    this.ensureInitialized();
-    if (!this.auth) {
-      throw new Error("Authentication required");
-    }
-    await this.rateLimiter.acquire("fetchMyTrades");
     try {
-      const response = await this.request("POST", `${this.apiUrl}/info`, {
-        type: "userFills",
-        user: this.auth.getAddress()
-      });
-      let trades = response.map((fill) => this.normalizer.normalizeUserFill(fill));
-      if (symbol) {
-        trades = trades.filter((trade) => trade.symbol === symbol);
-      }
-      if (since) {
-        trades = trades.filter((trade) => trade.timestamp >= since);
-      }
-      trades.sort((a, b) => b.timestamp - a.timestamp);
-      if (limit) {
-        trades = trades.slice(0, limit);
-      }
-      return trades;
+      const response = await this.authInfoRequest("fetchMyTrades", "userFills");
+      return processUserFills(response, this.normalizer, symbol, since, limit);
     } catch (error) {
       throw mapError(error);
     }
@@ -10027,16 +10074,8 @@ var HyperliquidAdapter = class extends BaseAdapter {
   // Positions & Balance
   // ===========================================================================
   async fetchPositions(symbols) {
-    this.ensureInitialized();
-    if (!this.auth) {
-      throw new Error("Authentication required");
-    }
-    await this.rateLimiter.acquire("fetchPositions");
     try {
-      const response = await this.request("POST", `${this.apiUrl}/info`, {
-        type: "clearinghouseState",
-        user: this.auth.getAddress()
-      });
+      const response = await this.authInfoRequest("fetchPositions", "clearinghouseState");
       const positions = response.assetPositions.filter((p) => parseFloat(p.position.szi) !== 0).map((p) => this.normalizer.normalizePosition(p));
       if (symbols && symbols.length > 0) {
         return positions.filter((p) => symbols.includes(p.symbol));
@@ -10047,136 +10086,58 @@ var HyperliquidAdapter = class extends BaseAdapter {
     }
   }
   async fetchBalance() {
-    this.ensureInitialized();
-    if (!this.auth) {
-      throw new Error("Authentication required");
-    }
-    await this.rateLimiter.acquire("fetchBalance");
     try {
-      const response = await this.request("POST", `${this.apiUrl}/info`, {
-        type: "clearinghouseState",
-        user: this.auth.getAddress()
-      });
+      const response = await this.authInfoRequest("fetchBalance", "clearinghouseState");
       return this.normalizer.normalizeBalance(response);
     } catch (error) {
       throw mapError(error);
     }
   }
   async setLeverage(symbol, leverage) {
-    this.ensureInitialized();
-    if (!this.auth) {
-      throw new Error("Authentication required");
-    }
+    this.ensureAuth();
     await this.rateLimiter.acquire("setLeverage", 5);
-    try {
-      this.debug(`setLeverage: Updating leverage for ${symbol} to ${leverage}x`);
-      this.debug("Note: Hyperliquid leverage is managed per-position in cross-margin mode");
-    } catch (error) {
-      throw mapError(error);
-    }
+    this.debug(`setLeverage: Updating leverage for ${symbol} to ${leverage}x`);
   }
   // ===========================================================================
   // Additional Info Methods
   // ===========================================================================
-  async fetchUserFees() {
+  /** Ensure authenticated and return auth instance */
+  ensureAuth() {
     this.ensureInitialized();
     if (!this.auth) {
       throw new Error("Authentication required");
     }
-    await this.rateLimiter.acquire("fetchUserFees");
+    return this.auth;
+  }
+  /** Make authenticated info request */
+  async authInfoRequest(rateLimitKey, type) {
+    const auth = this.ensureAuth();
+    await this.rateLimiter.acquire(rateLimitKey);
+    return this.request("POST", `${this.apiUrl}/info`, {
+      type,
+      user: auth.getAddress()
+    });
+  }
+  async fetchUserFees() {
     try {
-      const response = await this.request(
-        "POST",
-        `${this.apiUrl}/info`,
-        {
-          type: "userFees",
-          user: this.auth.getAddress()
-        }
-      );
-      const makerFee = parseFloat(response.userAddRate);
-      const takerFee = parseFloat(response.userCrossRate);
-      return {
-        maker: makerFee,
-        taker: takerFee,
-        info: response
-      };
+      const response = await this.authInfoRequest("fetchUserFees", "userFees");
+      return parseUserFees(response);
     } catch (error) {
       throw mapError(error);
     }
   }
   async fetchPortfolio() {
-    this.ensureInitialized();
-    if (!this.auth) {
-      throw new Error("Authentication required");
-    }
-    await this.rateLimiter.acquire("fetchPortfolio");
     try {
-      const response = await this.request(
-        "POST",
-        `${this.apiUrl}/info`,
-        {
-          type: "portfolio",
-          user: this.auth.getAddress()
-        }
-      );
-      const dayPeriod = response.find(([period]) => period === "day");
-      if (!dayPeriod) {
-        throw new PerpDEXError(
-          "Day period data not found in portfolio response",
-          "INVALID_RESPONSE",
-          "hyperliquid"
-        );
-      }
-      const [, dayData] = dayPeriod;
-      const latestAccountValue = dayData.accountValueHistory.length > 0 ? parseFloat(dayData.accountValueHistory[dayData.accountValueHistory.length - 1][1]) : 0;
-      const latestDailyPnl = dayData.pnlHistory.length > 0 ? parseFloat(dayData.pnlHistory[dayData.pnlHistory.length - 1][1]) : 0;
-      const weekPeriod = response.find(([period]) => period === "week");
-      const monthPeriod = response.find(([period]) => period === "month");
-      const weeklyPnl = weekPeriod && weekPeriod[1].pnlHistory.length > 0 ? parseFloat(weekPeriod[1].pnlHistory[weekPeriod[1].pnlHistory.length - 1][1]) : 0;
-      const monthlyPnl = monthPeriod && monthPeriod[1].pnlHistory.length > 0 ? parseFloat(monthPeriod[1].pnlHistory[monthPeriod[1].pnlHistory.length - 1][1]) : 0;
-      const dailyPnlPercentage = latestAccountValue > 0 ? latestDailyPnl / latestAccountValue * 100 : 0;
-      const weeklyPnlPercentage = latestAccountValue > 0 ? weeklyPnl / latestAccountValue * 100 : 0;
-      const monthlyPnlPercentage = latestAccountValue > 0 ? monthlyPnl / latestAccountValue * 100 : 0;
-      return {
-        totalValue: latestAccountValue,
-        dailyPnl: latestDailyPnl,
-        dailyPnlPercentage,
-        weeklyPnl,
-        weeklyPnlPercentage,
-        monthlyPnl,
-        monthlyPnlPercentage,
-        timestamp: Date.now(),
-        info: response
-      };
+      const response = await this.authInfoRequest("fetchPortfolio", "portfolio");
+      return parsePortfolio(response);
     } catch (error) {
       throw mapError(error);
     }
   }
   async fetchRateLimitStatus() {
-    this.ensureInitialized();
-    if (!this.auth) {
-      throw new Error("Authentication required");
-    }
-    await this.rateLimiter.acquire("fetchRateLimitStatus");
     try {
-      const response = await this.request(
-        "POST",
-        `${this.apiUrl}/info`,
-        {
-          type: "userRateLimit",
-          user: this.auth.getAddress()
-        }
-      );
-      const used = response.nRequestsUsed;
-      const cap = response.nRequestsCap;
-      const windowMs = 6e4;
-      return {
-        remaining: cap - used,
-        limit: cap,
-        resetAt: Date.now() + windowMs,
-        percentUsed: cap > 0 ? used / cap * 100 : 0,
-        info: response
-      };
+      const response = await this.authInfoRequest("fetchRateLimitStatus", "userRateLimit");
+      return parseRateLimitStatus(response);
     } catch (error) {
       throw mapError(error);
     }
@@ -10184,70 +10145,38 @@ var HyperliquidAdapter = class extends BaseAdapter {
   // ===========================================================================
   // WebSocket Streams (delegated to HyperliquidWebSocket)
   // ===========================================================================
-  async *watchOrderBook(symbol, limit) {
+  ensureWsHandler() {
     this.ensureInitialized();
     if (!this.wsHandler) {
       throw new Error("WebSocket handler not initialized");
     }
-    yield* this.wsHandler.watchOrderBook(symbol, limit);
+    return this.wsHandler;
+  }
+  async *watchOrderBook(symbol, limit) {
+    yield* this.ensureWsHandler().watchOrderBook(symbol, limit);
   }
   async *watchTrades(symbol) {
-    this.ensureInitialized();
-    if (!this.wsHandler) {
-      throw new Error("WebSocket handler not initialized");
-    }
-    yield* this.wsHandler.watchTrades(symbol);
+    yield* this.ensureWsHandler().watchTrades(symbol);
   }
   async *watchTicker(symbol) {
-    this.ensureInitialized();
-    if (!this.wsHandler) {
-      throw new Error("WebSocket handler not initialized");
-    }
-    yield* this.wsHandler.watchTicker(symbol);
+    yield* this.ensureWsHandler().watchTicker(symbol);
   }
   async *watchPositions() {
-    this.ensureInitialized();
-    if (!this.wsHandler) {
-      throw new Error("WebSocket handler not initialized");
-    }
-    yield* this.wsHandler.watchPositions();
+    yield* this.ensureWsHandler().watchPositions();
   }
-  /**
-   * Watch open orders in real-time
-   *
-   * Subscribes to the USER_FILLS WebSocket channel and yields updated order lists
-   * whenever fills occur. Provides real-time updates of the open order book.
-   *
-   * @returns AsyncGenerator that yields arrays of open orders
-   * @throws {Error} If WebSocket handler is not initialized
-   */
   async *watchOrders() {
-    this.ensureInitialized();
-    if (!this.wsHandler) {
-      throw new Error("WebSocket handler not initialized");
-    }
-    yield* this.wsHandler.watchOrders();
+    yield* this.ensureWsHandler().watchOrders();
   }
-  /**
-   * Watch user trades (fills) in real-time
-   *
-   * Subscribes to the USER_FILLS WebSocket channel and yields each trade
-   * as it occurs. Provides real-time fill notifications for the authenticated user.
-   *
-   * @param symbol - Optional symbol to filter trades (e.g., "BTC/USDT:USDT")
-   * @returns AsyncGenerator that yields individual trades
-   * @throws {Error} If WebSocket handler is not initialized
-   */
   async *watchMyTrades(symbol) {
-    this.ensureInitialized();
-    if (!this.wsHandler) {
-      throw new Error("WebSocket handler not initialized");
-    }
-    yield* this.wsHandler.watchMyTrades(symbol);
+    yield* this.ensureWsHandler().watchMyTrades(symbol);
   }
   // ===========================================================================
   // Helper Methods
   // ===========================================================================
+  /** Get default duration for OHLCV timeframe */
+  getDefaultDuration(timeframe) {
+    return getDefaultDuration(timeframe);
+  }
   symbolToExchange(symbol) {
     return unifiedToHyperliquid(symbol);
   }
@@ -10257,21 +10186,8 @@ var HyperliquidAdapter = class extends BaseAdapter {
   /**
    * Fetch open orders
    *
-   * Retrieves all open (unfilled) orders for the authenticated user.
-   * Can be filtered by symbol to get orders for a specific trading pair.
-   *
    * @param symbol - Optional symbol to filter orders (e.g., "BTC/USDT:USDT")
    * @returns Array of open orders
-   * @throws {Error} If authentication is required but not available
-   *
-   * @example
-   * ```typescript
-   * // Get all open orders
-   * const allOrders = await adapter.fetchOpenOrders();
-   *
-   * // Get open orders for specific symbol
-   * const ethOrders = await adapter.fetchOpenOrders('ETH/USDT:USDT');
-   * ```
    */
   async fetchOpenOrders(symbol) {
     if (!this.auth) {
@@ -10286,11 +10202,7 @@ var HyperliquidAdapter = class extends BaseAdapter {
           user: this.auth.getAddress()
         }
       );
-      const orders = response.map((order) => this.normalizer.normalizeOrder(order, order.coin));
-      if (symbol) {
-        return orders.filter((o) => o.symbol === symbol);
-      }
-      return orders;
+      return processOpenOrders(response, this.normalizer, symbol);
     } catch (error) {
       throw mapError(error);
     }
@@ -11404,6 +11316,453 @@ var NonceManager = class _NonceManager {
   }
 };
 
+// src/adapters/lighter/LighterOrderUtils.ts
+function toBaseUnits(amount, decimals) {
+  const factor = 10 ** decimals;
+  return BigInt(Math.round(amount * factor));
+}
+function toPriceUnits(price, tickSize) {
+  return Math.round(price / tickSize);
+}
+function mapOrderType(type) {
+  switch (type.toLowerCase()) {
+    case "limit":
+      return 0 /* LIMIT */;
+    case "market":
+      return 1 /* MARKET */;
+    case "stop_limit":
+    case "stop-limit":
+    case "stoplimit":
+      return 2 /* STOP_LIMIT */;
+    case "stop_market":
+    case "stop-market":
+    case "stopmarket":
+      return 3 /* STOP_MARKET */;
+    default:
+      return 0 /* LIMIT */;
+  }
+}
+function mapTimeInForce(tif, postOnly) {
+  if (postOnly) {
+    return 3 /* POST_ONLY */;
+  }
+  switch (tif?.toUpperCase()) {
+    case "IOC":
+      return 1 /* IOC */;
+    case "FOK":
+      return 2 /* FOK */;
+    case "PO":
+    case "POST_ONLY":
+    case "POSTONLY":
+      return 3 /* POST_ONLY */;
+    case "GTC":
+    default:
+      return 0 /* GTC */;
+  }
+}
+function convertOrderRequest2(request, lighterSymbol) {
+  const order = {
+    symbol: lighterSymbol,
+    side: request.side,
+    type: request.type,
+    quantity: request.amount
+  };
+  if (request.price !== void 0) {
+    order.price = request.price;
+  }
+  if (request.clientOrderId) {
+    order.clientOrderId = request.clientOrderId;
+  }
+  if (request.reduceOnly) {
+    order.reduceOnly = true;
+  }
+  if (request.postOnly) {
+    order.timeInForce = "PO";
+  } else if (request.timeInForce) {
+    order.timeInForce = request.timeInForce;
+  }
+  return order;
+}
+
+// src/adapters/lighter/LighterTrading.ts
+async function createOrderWasm(deps, request) {
+  const lighterSymbol = deps.normalizer.toLighterSymbol(request.symbol);
+  let marketId = deps.marketIdCache.get(lighterSymbol);
+  if (marketId === void 0) {
+    await deps.fetchMarkets();
+    marketId = deps.marketIdCache.get(lighterSymbol);
+    if (marketId === void 0) {
+      throw new InvalidOrderError(`Market not found: ${request.symbol}`, "INVALID_SYMBOL", "lighter");
+    }
+  }
+  const metadata = deps.marketMetadataCache.get(lighterSymbol);
+  if (!metadata) {
+    throw new InvalidOrderError(`Market metadata not found: ${request.symbol}`, "INVALID_SYMBOL", "lighter");
+  }
+  const nonce = await deps.nonceManager.getNextNonce();
+  try {
+    const baseAmount = toBaseUnits(request.amount, metadata.baseDecimals);
+    const price = toPriceUnits(request.price || 0, metadata.tickSize);
+    const orderType = mapOrderType(request.type);
+    const timeInForce = mapTimeInForce(request.timeInForce, request.postOnly);
+    const signedTx = await deps.signer.signCreateOrder({
+      marketIndex: marketId,
+      clientOrderIndex: BigInt(request.clientOrderId || Date.now()),
+      baseAmount,
+      price,
+      isAsk: request.side === "sell",
+      orderType,
+      timeInForce,
+      reduceOnly: request.reduceOnly ?? false,
+      triggerPrice: request.stopPrice ? toPriceUnits(request.stopPrice, metadata.tickSize) : 0,
+      orderExpiry: BigInt(0),
+      // No expiry
+      nonce
+    });
+    const response = await deps.request("POST", "/api/v1/sendTx", {
+      tx_type: signedTx.txType,
+      tx_info: signedTx.txInfo
+    });
+    if (response.code !== 0) {
+      await deps.handleTransactionError(response.code);
+      throw new InvalidOrderError(`Order creation failed: code ${response.code}`, "ORDER_REJECTED", "lighter");
+    }
+    return deps.normalizer.normalizeOrder(response.order);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "";
+    if (!errorMsg.includes("code")) {
+      deps.nonceManager.rollback();
+    }
+    throw mapError2(error);
+  }
+}
+async function createOrderHMAC(deps, request) {
+  const lighterSymbol = deps.normalizer.toLighterSymbol(request.symbol);
+  const orderRequest = convertOrderRequest2(request, lighterSymbol);
+  const response = await deps.request("POST", "/orders", orderRequest);
+  return deps.normalizer.normalizeOrder(response);
+}
+async function cancelOrderWasm(deps, orderId, symbol) {
+  let marketIndex = 0;
+  if (symbol) {
+    const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
+    const cached = deps.marketIdCache.get(lighterSymbol);
+    if (cached === void 0) {
+      await deps.fetchMarkets();
+      marketIndex = deps.marketIdCache.get(lighterSymbol) ?? 0;
+    } else {
+      marketIndex = cached;
+    }
+  }
+  const nonce = await deps.nonceManager.getNextNonce();
+  try {
+    const signedTx = await deps.signer.signCancelOrder({
+      marketIndex,
+      orderId: BigInt(orderId),
+      nonce
+    });
+    const response = await deps.request("POST", "/api/v1/sendTx", {
+      tx_type: signedTx.txType,
+      tx_info: signedTx.txInfo
+    });
+    if (response.code !== 0) {
+      await deps.handleTransactionError(response.code);
+      throw new InvalidOrderError(`Cancel failed: code ${response.code}`, "CANCEL_REJECTED", "lighter");
+    }
+    return deps.normalizer.normalizeOrder(response.order);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "";
+    if (!errorMsg.includes("code")) {
+      deps.nonceManager.rollback();
+    }
+    throw mapError2(error);
+  }
+}
+async function cancelOrderHMAC(deps, orderId) {
+  const response = await deps.request("DELETE", `/orders/${orderId}`);
+  return deps.normalizer.normalizeOrder(response);
+}
+async function cancelAllOrdersWasm(deps, symbol) {
+  let marketIndex = -1;
+  if (symbol) {
+    const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
+    const cached = deps.marketIdCache.get(lighterSymbol);
+    if (cached !== void 0) {
+      marketIndex = cached;
+    } else {
+      await deps.fetchMarkets();
+      marketIndex = deps.marketIdCache.get(lighterSymbol) ?? -1;
+    }
+  }
+  const nonce = await deps.nonceManager.getNextNonce();
+  try {
+    const signedTx = await deps.signer.signCancelAllOrders({
+      marketIndex: marketIndex >= 0 ? marketIndex : void 0,
+      nonce
+    });
+    const response = await deps.request("POST", "/api/v1/sendTx", {
+      tx_type: signedTx.txType,
+      tx_info: signedTx.txInfo
+    });
+    if (response.code !== 0) {
+      await deps.handleTransactionError(response.code);
+      throw new InvalidOrderError(`Cancel all failed: code ${response.code}`, "CANCEL_REJECTED", "lighter");
+    }
+    return (response.orders || []).map((order) => deps.normalizer.normalizeOrder(order));
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "";
+    if (!errorMsg.includes("code")) {
+      deps.nonceManager.rollback();
+    }
+    throw mapError2(error);
+  }
+}
+async function cancelAllOrdersHMAC(deps, symbol) {
+  const path = symbol ? `/orders?symbol=${deps.normalizer.toLighterSymbol(symbol)}` : "/orders";
+  const response = await deps.request("DELETE", path);
+  if (!Array.isArray(response)) {
+    return [];
+  }
+  return response.map((order) => deps.normalizer.normalizeOrder(order));
+}
+async function withdrawCollateral(deps, collateralIndex, amount, destinationAddress) {
+  if (!deps.signer?.isInitialized || !deps.nonceManager) {
+    throw new PerpDEXError(
+      "Withdrawals require WASM signing. Configure apiPrivateKey and install @oraichain/lighter-ts-sdk.",
+      "AUTH_REQUIRED",
+      "lighter"
+    );
+  }
+  if (!destinationAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+    throw new InvalidOrderError(
+      "Invalid destination address format",
+      "INVALID_ADDRESS",
+      "lighter"
+    );
+  }
+  const nonce = await deps.nonceManager.getNextNonce();
+  try {
+    const signedTx = await deps.signer.signWithdrawCollateral({
+      collateralIndex,
+      amount,
+      destinationAddress,
+      nonce
+    });
+    const response = await deps.request("POST", "/api/v1/sendTx", {
+      tx_type: signedTx.txType,
+      tx_info: signedTx.txInfo
+    });
+    if (response.code !== 0) {
+      await deps.handleTransactionError(response.code);
+      throw new PerpDEXError(
+        `Withdrawal failed: code ${response.code}`,
+        "WITHDRAWAL_FAILED",
+        "lighter"
+      );
+    }
+    return response.tx_hash || signedTx.txHash;
+  } catch (error) {
+    deps.nonceManager.rollback();
+    throw mapError2(error);
+  }
+}
+
+// src/adapters/lighter/LighterMarketData.ts
+async function fetchMarketsData(deps) {
+  try {
+    const response = await deps.request(
+      "GET",
+      "/api/v1/orderBookDetails"
+    );
+    if (!response.order_book_details || !Array.isArray(response.order_book_details)) {
+      throw new PerpDEXError("Invalid markets response", "INVALID_RESPONSE", "lighter");
+    }
+    const perpMarkets = response.order_book_details.filter(
+      (m) => m.market_type === "perp"
+    );
+    for (const market of perpMarkets) {
+      if (market.symbol && market.market_id !== void 0) {
+        deps.marketIdCache.set(market.symbol, market.market_id);
+        deps.marketMetadataCache.set(market.symbol, {
+          baseDecimals: market.base_decimals ?? 8,
+          quoteDecimals: market.quote_decimals ?? 6,
+          tickSize: parseFloat(market.tick_size ?? "0.01"),
+          stepSize: parseFloat(market.step_size ?? "0.001")
+        });
+      }
+    }
+    return perpMarkets.map((market) => deps.normalizer.normalizeMarket(market));
+  } catch (error) {
+    throw mapError2(error);
+  }
+}
+async function fetchTickerData(deps, symbol) {
+  try {
+    const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
+    const response = await deps.request(
+      "GET",
+      "/api/v1/orderBookDetails"
+    );
+    if (!response.order_book_details) {
+      throw new PerpDEXError("Invalid ticker response", "INVALID_RESPONSE", "lighter");
+    }
+    const market = response.order_book_details.find(
+      (m) => m.symbol === lighterSymbol && m.market_type === "perp"
+    );
+    if (!market) {
+      throw new PerpDEXError(`Market not found: ${symbol}`, "INVALID_SYMBOL", "lighter");
+    }
+    return deps.normalizer.normalizeTicker(market);
+  } catch (error) {
+    throw mapError2(error);
+  }
+}
+async function fetchOrderBookData(deps, symbol, limit, fetchMarkets) {
+  try {
+    const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
+    let marketId = deps.marketIdCache.get(lighterSymbol);
+    if (marketId === void 0) {
+      await fetchMarkets();
+      marketId = deps.marketIdCache.get(lighterSymbol);
+      if (marketId === void 0) {
+        throw new PerpDEXError(`Market not found: ${symbol}`, "INVALID_SYMBOL", "lighter");
+      }
+    }
+    const response = await deps.request(
+      "GET",
+      `/api/v1/orderBookOrders?market_id=${marketId}&limit=${limit}`
+    );
+    const orderBook = {
+      symbol: lighterSymbol,
+      bids: response.bids?.map((b) => [
+        parseFloat(b.price || "0"),
+        parseFloat(b.remaining_base_amount || b.size || "0")
+      ]) || [],
+      asks: response.asks?.map((a) => [
+        parseFloat(a.price || "0"),
+        parseFloat(a.remaining_base_amount || a.size || "0")
+      ]) || [],
+      timestamp: Date.now()
+    };
+    return deps.normalizer.normalizeOrderBook(orderBook);
+  } catch (error) {
+    throw mapError2(error);
+  }
+}
+async function fetchTradesData(deps, symbol, limit) {
+  try {
+    const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
+    const response = await deps.request(
+      "GET",
+      `/api/v1/trades?symbol=${lighterSymbol}&limit=${limit}`
+    );
+    const trades = response.trades || [];
+    if (!Array.isArray(trades)) {
+      throw new PerpDEXError("Invalid trades response", "INVALID_RESPONSE", "lighter");
+    }
+    return trades.map((trade) => {
+      const normalizedTrade = {
+        id: trade.id || trade.trade_id || String(Date.now()),
+        symbol: lighterSymbol,
+        side: (trade.side || "buy").toLowerCase(),
+        price: parseFloat(trade.price || "0"),
+        amount: parseFloat(trade.size || trade.amount || "0"),
+        timestamp: trade.timestamp || trade.created_at || Date.now()
+      };
+      return deps.normalizer.normalizeTrade(normalizedTrade);
+    });
+  } catch (error) {
+    throw mapError2(error);
+  }
+}
+async function fetchFundingRateData(deps, symbol) {
+  try {
+    const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
+    const response = await deps.request("GET", `/funding/${lighterSymbol}`);
+    return deps.normalizer.normalizeFundingRate(response);
+  } catch (error) {
+    throw mapError2(error);
+  }
+}
+
+// src/adapters/lighter/LighterAccount.ts
+async function fetchPositionsData(deps, symbols) {
+  try {
+    const response = await deps.request("GET", "/account/positions");
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid positions response", "INVALID_RESPONSE", "lighter");
+    }
+    let positions = response.map((position) => deps.normalizer.normalizePosition(position));
+    if (symbols && symbols.length > 0) {
+      positions = positions.filter((p) => symbols.includes(p.symbol));
+    }
+    return positions;
+  } catch (error) {
+    throw mapError2(error);
+  }
+}
+async function fetchBalanceData(deps) {
+  try {
+    const response = await deps.request("GET", "/account/balance");
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid balance response", "INVALID_RESPONSE", "lighter");
+    }
+    return response.map((balance) => deps.normalizer.normalizeBalance(balance));
+  } catch (error) {
+    throw mapError2(error);
+  }
+}
+async function fetchOpenOrdersData(deps, symbol) {
+  try {
+    const path = symbol ? `/orders?symbol=${deps.normalizer.toLighterSymbol(symbol)}` : "/orders";
+    const response = await deps.request("GET", path);
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid open orders response", "INVALID_RESPONSE", "lighter");
+    }
+    return response.map((order) => deps.normalizer.normalizeOrder(order));
+  } catch (error) {
+    throw mapError2(error);
+  }
+}
+async function fetchOrderHistoryData(deps, symbol, since, limit) {
+  try {
+    const params = new URLSearchParams();
+    if (symbol) params.append("symbol", deps.normalizer.toLighterSymbol(symbol));
+    if (since) params.append("startTime", since.toString());
+    if (limit) params.append("limit", limit.toString());
+    const queryString = params.toString();
+    const response = await deps.request(
+      "GET",
+      `/account/inactiveOrders${queryString ? `?${queryString}` : ""}`
+    );
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid order history response", "INVALID_RESPONSE", "lighter");
+    }
+    return response.map((order) => deps.normalizer.normalizeOrder(order));
+  } catch (error) {
+    throw mapError2(error);
+  }
+}
+async function fetchMyTradesData(deps, symbol, since, limit) {
+  try {
+    const params = new URLSearchParams();
+    if (symbol) params.append("symbol", deps.normalizer.toLighterSymbol(symbol));
+    if (since) params.append("startTime", since.toString());
+    if (limit) params.append("limit", limit.toString());
+    const queryString = params.toString();
+    const response = await deps.request(
+      "GET",
+      `/account/fills${queryString ? `?${queryString}` : ""}`
+    );
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid trade history response", "INVALID_RESPONSE", "lighter");
+    }
+    return response.map((trade) => deps.normalizer.normalizeTrade(trade));
+  } catch (error) {
+    throw mapError2(error);
+  }
+}
+
 // src/adapters/lighter/LighterAdapter.ts
 var LIGHTER_CHAIN_IDS = {
   mainnet: 304,
@@ -11514,7 +11873,7 @@ var LighterAdapter = class extends BaseAdapter {
   }
   /**
    * Check if WASM signing is available and initialized
-   * @deprecated Use hasWasmSigning instead
+   * Alias for hasWasmSigning for backward compatibility
    */
   get hasFFISigning() {
     return this.hasWasmSigning;
@@ -11587,141 +11946,63 @@ var LighterAdapter = class extends BaseAdapter {
     this._isReady = false;
   }
   // ==================== Market Data Methods ====================
+  /** Get market data dependencies for helper functions */
+  getMarketDataDeps() {
+    return {
+      normalizer: this.normalizer,
+      marketIdCache: this.marketIdCache,
+      marketMetadataCache: this.marketMetadataCache,
+      request: (method, path, body) => this.request(method, path, body)
+    };
+  }
   async fetchMarkets(_params) {
     await this.rateLimiter.acquire("fetchMarkets");
-    try {
-      const response = await this.request(
-        "GET",
-        "/api/v1/orderBookDetails"
-      );
-      if (!response.order_book_details || !Array.isArray(response.order_book_details)) {
-        throw new PerpDEXError("Invalid markets response", "INVALID_RESPONSE", "lighter");
-      }
-      const perpMarkets = response.order_book_details.filter(
-        (m) => m.market_type === "perp"
-      );
-      for (const market of perpMarkets) {
-        if (market.symbol && market.market_id !== void 0) {
-          this.marketIdCache.set(market.symbol, market.market_id);
-          this.marketMetadataCache.set(market.symbol, {
-            baseDecimals: market.base_decimals ?? 8,
-            quoteDecimals: market.quote_decimals ?? 6,
-            tickSize: parseFloat(market.tick_size ?? "0.01"),
-            stepSize: parseFloat(market.step_size ?? "0.001")
-          });
-        }
-      }
-      return perpMarkets.map((market) => this.normalizer.normalizeMarket(market));
-    } catch (error) {
-      throw mapError2(error);
-    }
+    return fetchMarketsData(this.getMarketDataDeps());
   }
   async fetchTicker(symbol) {
     await this.rateLimiter.acquire("fetchTicker");
-    try {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const response = await this.request(
-        "GET",
-        "/api/v1/orderBookDetails"
-      );
-      if (!response.order_book_details) {
-        throw new PerpDEXError("Invalid ticker response", "INVALID_RESPONSE", "lighter");
-      }
-      const market = response.order_book_details.find(
-        (m) => m.symbol === lighterSymbol && m.market_type === "perp"
-      );
-      if (!market) {
-        throw new PerpDEXError(`Market not found: ${symbol}`, "INVALID_SYMBOL", "lighter");
-      }
-      return this.normalizer.normalizeTicker(market);
-    } catch (error) {
-      throw mapError2(error);
-    }
+    return fetchTickerData(this.getMarketDataDeps(), symbol);
   }
   async fetchOrderBook(symbol, params) {
     await this.rateLimiter.acquire("fetchOrderBook");
-    try {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const limit = params?.limit || 50;
-      let marketId = this.marketIdCache.get(lighterSymbol);
-      if (marketId === void 0) {
-        await this.fetchMarkets();
-        marketId = this.marketIdCache.get(lighterSymbol);
-        if (marketId === void 0) {
-          throw new PerpDEXError(`Market not found: ${symbol}`, "INVALID_SYMBOL", "lighter");
-        }
-      }
-      const response = await this.request(
-        "GET",
-        `/api/v1/orderBookOrders?market_id=${marketId}&limit=${limit}`
-      );
-      const orderBook = {
-        symbol: lighterSymbol,
-        bids: response.bids?.map((b) => [
-          parseFloat(b.price || "0"),
-          parseFloat(b.remaining_base_amount || b.size || "0")
-        ]) || [],
-        asks: response.asks?.map((a) => [
-          parseFloat(a.price || "0"),
-          parseFloat(a.remaining_base_amount || a.size || "0")
-        ]) || [],
-        timestamp: Date.now()
-      };
-      return this.normalizer.normalizeOrderBook(orderBook);
-    } catch (error) {
-      throw mapError2(error);
-    }
+    return fetchOrderBookData(this.getMarketDataDeps(), symbol, params?.limit || 50, () => this.fetchMarkets());
   }
   async fetchTrades(symbol, params) {
     await this.rateLimiter.acquire("fetchTrades");
-    try {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const limit = params?.limit || 100;
-      const response = await this.request(
-        "GET",
-        `/api/v1/trades?symbol=${lighterSymbol}&limit=${limit}`
-      );
-      const trades = response.trades || [];
-      if (!Array.isArray(trades)) {
-        throw new PerpDEXError("Invalid trades response", "INVALID_RESPONSE", "lighter");
-      }
-      return trades.map((trade) => {
-        const normalizedTrade = {
-          id: trade.id || trade.trade_id || String(Date.now()),
-          symbol: lighterSymbol,
-          side: (trade.side || "buy").toLowerCase(),
-          price: parseFloat(trade.price || "0"),
-          amount: parseFloat(trade.size || trade.amount || "0"),
-          timestamp: trade.timestamp || trade.created_at || Date.now()
-        };
-        return this.normalizer.normalizeTrade(normalizedTrade);
-      });
-    } catch (error) {
-      throw mapError2(error);
-    }
+    return fetchTradesData(this.getMarketDataDeps(), symbol, params?.limit || 100);
   }
   async fetchFundingRate(symbol) {
     await this.rateLimiter.acquire("fetchFundingRate");
-    try {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const response = await this.request("GET", `/funding/${lighterSymbol}`);
-      return this.normalizer.normalizeFundingRate(response);
-    } catch (error) {
-      throw mapError2(error);
-    }
+    return fetchFundingRateData(this.getMarketDataDeps(), symbol);
   }
   async fetchFundingRateHistory(_symbol, _since, _limit) {
     throw new Error("Lighter does not support funding rate history");
   }
   // ==================== Trading Methods ====================
+  /** Get trading dependencies for helper functions */
+  getTradingDeps() {
+    return {
+      normalizer: this.normalizer,
+      signer: this.signer,
+      nonceManager: this.nonceManager,
+      apiKey: this.apiKey,
+      apiSecret: this.apiSecret,
+      marketIdCache: this.marketIdCache,
+      marketMetadataCache: this.marketMetadataCache,
+      fetchMarkets: () => this.fetchMarkets(),
+      request: (method, path, body) => this.request(method, path, body),
+      handleTransactionError: (code) => this.handleTransactionError(code)
+    };
+  }
   async createOrder(request) {
     const validatedRequest = this.validateOrder(request);
     await this.rateLimiter.acquire("createOrder");
+    const deps = this.getTradingDeps();
     if (this.signer && this.nonceManager) {
-      return this.createOrderWasm(validatedRequest);
+      return createOrderWasm(deps, validatedRequest);
     }
     if (this.apiKey && this.apiSecret) {
-      return this.createOrderHMAC(validatedRequest);
+      return createOrderHMAC(deps, validatedRequest);
     }
     throw new InvalidOrderError(
       "API credentials required for trading. Provide apiPrivateKey (recommended) or apiKey + apiSecret.",
@@ -11729,191 +12010,35 @@ var LighterAdapter = class extends BaseAdapter {
       "lighter"
     );
   }
-  /**
-   * Create order using WASM signing
-   */
-  async createOrderWasm(request) {
-    const lighterSymbol = this.normalizer.toLighterSymbol(request.symbol);
-    let marketId = this.marketIdCache.get(lighterSymbol);
-    if (marketId === void 0) {
-      await this.fetchMarkets();
-      marketId = this.marketIdCache.get(lighterSymbol);
-      if (marketId === void 0) {
-        throw new InvalidOrderError(`Market not found: ${request.symbol}`, "INVALID_SYMBOL", "lighter");
-      }
-    }
-    const metadata = this.marketMetadataCache.get(lighterSymbol);
-    if (!metadata) {
-      throw new InvalidOrderError(`Market metadata not found: ${request.symbol}`, "INVALID_SYMBOL", "lighter");
-    }
-    const nonce = await this.nonceManager.getNextNonce();
-    try {
-      const baseAmount = this.toBaseUnits(request.amount, metadata.baseDecimals);
-      const price = this.toPriceUnits(request.price || 0, metadata.tickSize);
-      const orderType = this.mapOrderType(request.type);
-      const timeInForce = this.mapTimeInForce(request.timeInForce, request.postOnly);
-      const signedTx = await this.signer.signCreateOrder({
-        marketIndex: marketId,
-        clientOrderIndex: BigInt(request.clientOrderId || Date.now()),
-        baseAmount,
-        price,
-        isAsk: request.side === "sell",
-        orderType,
-        timeInForce,
-        reduceOnly: request.reduceOnly ?? false,
-        triggerPrice: request.stopPrice ? this.toPriceUnits(request.stopPrice, metadata.tickSize) : 0,
-        orderExpiry: BigInt(0),
-        // No expiry
-        nonce
-      });
-      const response = await this.request("POST", "/api/v1/sendTx", {
-        tx_type: signedTx.txType,
-        tx_info: signedTx.txInfo
-      });
-      if (response.code !== 0) {
-        await this.handleTransactionError(response.code);
-        throw new InvalidOrderError(`Order creation failed: code ${response.code}`, "ORDER_REJECTED", "lighter");
-      }
-      return this.normalizer.normalizeOrder(response.order);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "";
-      if (!errorMsg.includes("code")) {
-        this.nonceManager.rollback();
-      }
-      throw mapError2(error);
-    }
-  }
-  /**
-   * Create order using HMAC signing (legacy)
-   */
-  async createOrderHMAC(request) {
-    const lighterSymbol = this.normalizer.toLighterSymbol(request.symbol);
-    const orderRequest = this.convertOrderRequest(request, lighterSymbol);
-    const response = await this.request("POST", "/orders", orderRequest);
-    return this.normalizer.normalizeOrder(response);
-  }
   async cancelOrder(orderId, symbol) {
     await this.rateLimiter.acquire("cancelOrder");
+    const deps = this.getTradingDeps();
     if (this.signer && this.nonceManager) {
-      return this.cancelOrderWasm(orderId, symbol);
+      return cancelOrderWasm(deps, orderId, symbol);
     }
     if (this.apiKey && this.apiSecret) {
-      return this.cancelOrderHMAC(orderId);
+      return cancelOrderHMAC(deps, orderId);
     }
     throw new InvalidOrderError(
       "API credentials required for trading",
       "AUTH_REQUIRED",
       "lighter"
     );
-  }
-  /**
-   * Cancel order using WASM signing
-   */
-  async cancelOrderWasm(orderId, symbol) {
-    let marketIndex = 0;
-    if (symbol) {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const cached = this.marketIdCache.get(lighterSymbol);
-      if (cached === void 0) {
-        await this.fetchMarkets();
-        marketIndex = this.marketIdCache.get(lighterSymbol) ?? 0;
-      } else {
-        marketIndex = cached;
-      }
-    }
-    const nonce = await this.nonceManager.getNextNonce();
-    try {
-      const signedTx = await this.signer.signCancelOrder({
-        marketIndex,
-        orderId: BigInt(orderId),
-        nonce
-      });
-      const response = await this.request("POST", "/api/v1/sendTx", {
-        tx_type: signedTx.txType,
-        tx_info: signedTx.txInfo
-      });
-      if (response.code !== 0) {
-        await this.handleTransactionError(response.code);
-        throw new InvalidOrderError(`Cancel failed: code ${response.code}`, "CANCEL_REJECTED", "lighter");
-      }
-      return this.normalizer.normalizeOrder(response.order);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "";
-      if (!errorMsg.includes("code")) {
-        this.nonceManager.rollback();
-      }
-      throw mapError2(error);
-    }
-  }
-  /**
-   * Cancel order using HMAC signing (legacy)
-   */
-  async cancelOrderHMAC(orderId) {
-    const response = await this.request("DELETE", `/orders/${orderId}`);
-    return this.normalizer.normalizeOrder(response);
   }
   async cancelAllOrders(symbol) {
     await this.rateLimiter.acquire("cancelAllOrders");
+    const deps = this.getTradingDeps();
     if (this.signer && this.nonceManager) {
-      return this.cancelAllOrdersWasm(symbol);
+      return cancelAllOrdersWasm(deps, symbol);
     }
     if (this.apiKey && this.apiSecret) {
-      return this.cancelAllOrdersHMAC(symbol);
+      return cancelAllOrdersHMAC(deps, symbol);
     }
     throw new InvalidOrderError(
       "API credentials required for trading",
       "AUTH_REQUIRED",
       "lighter"
     );
-  }
-  /**
-   * Cancel all orders using WASM signing
-   */
-  async cancelAllOrdersWasm(symbol) {
-    let marketIndex = -1;
-    if (symbol) {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const cached = this.marketIdCache.get(lighterSymbol);
-      if (cached !== void 0) {
-        marketIndex = cached;
-      } else {
-        await this.fetchMarkets();
-        marketIndex = this.marketIdCache.get(lighterSymbol) ?? -1;
-      }
-    }
-    const nonce = await this.nonceManager.getNextNonce();
-    try {
-      const signedTx = await this.signer.signCancelAllOrders({
-        marketIndex: marketIndex >= 0 ? marketIndex : void 0,
-        nonce
-      });
-      const response = await this.request("POST", "/api/v1/sendTx", {
-        tx_type: signedTx.txType,
-        tx_info: signedTx.txInfo
-      });
-      if (response.code !== 0) {
-        await this.handleTransactionError(response.code);
-        throw new InvalidOrderError(`Cancel all failed: code ${response.code}`, "CANCEL_REJECTED", "lighter");
-      }
-      return (response.orders || []).map((order) => this.normalizer.normalizeOrder(order));
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "";
-      if (!errorMsg.includes("code")) {
-        this.nonceManager.rollback();
-      }
-      throw mapError2(error);
-    }
-  }
-  /**
-   * Cancel all orders using HMAC signing (legacy)
-   */
-  async cancelAllOrdersHMAC(symbol) {
-    const path = symbol ? `/orders?symbol=${this.normalizer.toLighterSymbol(symbol)}` : "/orders";
-    const response = await this.request("DELETE", path);
-    if (!Array.isArray(response)) {
-      return [];
-    }
-    return response.map((order) => this.normalizer.normalizeOrder(order));
   }
   // ==================== Collateral Management ====================
   /**
@@ -11925,57 +12050,9 @@ var LighterAdapter = class extends BaseAdapter {
    * @param amount - Amount to withdraw in base units
    * @param destinationAddress - Ethereum address to withdraw to
    * @returns Transaction hash
-   *
-   * @example
-   * ```typescript
-   * // Withdraw 100 USDC
-   * const txHash = await lighter.withdrawCollateral(
-   *   0,          // USDC collateral index
-   *   100000000n, // 100 USDC (6 decimals)
-   *   '0x...'     // Your wallet address
-   * );
-   * ```
    */
   async withdrawCollateral(collateralIndex, amount, destinationAddress) {
-    if (!this.hasWasmSigning || !this.nonceManager) {
-      throw new PerpDEXError(
-        "Withdrawals require WASM signing. Configure apiPrivateKey and install @oraichain/lighter-ts-sdk.",
-        "AUTH_REQUIRED",
-        "lighter"
-      );
-    }
-    if (!destinationAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-      throw new InvalidOrderError(
-        "Invalid destination address format",
-        "INVALID_ADDRESS",
-        "lighter"
-      );
-    }
-    const nonce = await this.nonceManager.getNextNonce();
-    try {
-      const signedTx = await this.signer.signWithdrawCollateral({
-        collateralIndex,
-        amount,
-        destinationAddress,
-        nonce
-      });
-      const response = await this.request("POST", "/api/v1/sendTx", {
-        tx_type: signedTx.txType,
-        tx_info: signedTx.txInfo
-      });
-      if (response.code !== 0) {
-        await this.handleTransactionError(response.code);
-        throw new PerpDEXError(
-          `Withdrawal failed: code ${response.code}`,
-          "WITHDRAWAL_FAILED",
-          "lighter"
-        );
-      }
-      return response.tx_hash || signedTx.txHash;
-    } catch (error) {
-      this.nonceManager.rollback();
-      throw mapError2(error);
-    }
+    return withdrawCollateral(this.getTradingDeps(), collateralIndex, amount, destinationAddress);
   }
   /**
    * Handle transaction errors and auto-resync nonce if needed
@@ -11994,216 +12071,52 @@ var LighterAdapter = class extends BaseAdapter {
       await this.resyncNonce();
     }
   }
+  /** Get account dependencies for helper functions */
+  getAccountDeps() {
+    return {
+      normalizer: this.normalizer,
+      request: (method, path, body) => this.request(method, path, body)
+    };
+  }
+  ensureAuthenticated() {
+    if (!this.hasAuthentication) {
+      throw new PerpDEXError("API credentials required", "AUTH_REQUIRED", "lighter");
+    }
+  }
   async fetchPositions(symbols) {
     await this.rateLimiter.acquire("fetchPositions");
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError(
-        "API credentials required",
-        "AUTH_REQUIRED",
-        "lighter"
-      );
-    }
-    try {
-      const response = await this.request("GET", "/account/positions");
-      if (!Array.isArray(response)) {
-        throw new PerpDEXError("Invalid positions response", "INVALID_RESPONSE", "lighter");
-      }
-      let positions = response.map((position) => this.normalizer.normalizePosition(position));
-      if (symbols && symbols.length > 0) {
-        positions = positions.filter((p) => symbols.includes(p.symbol));
-      }
-      return positions;
-    } catch (error) {
-      throw mapError2(error);
-    }
+    this.ensureAuthenticated();
+    return fetchPositionsData(this.getAccountDeps(), symbols);
   }
   async fetchBalance() {
     await this.rateLimiter.acquire("fetchBalance");
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError(
-        "API credentials required",
-        "AUTH_REQUIRED",
-        "lighter"
-      );
-    }
-    try {
-      const response = await this.request("GET", "/account/balance");
-      if (!Array.isArray(response)) {
-        throw new PerpDEXError("Invalid balance response", "INVALID_RESPONSE", "lighter");
-      }
-      return response.map((balance) => this.normalizer.normalizeBalance(balance));
-    } catch (error) {
-      throw mapError2(error);
-    }
+    this.ensureAuthenticated();
+    return fetchBalanceData(this.getAccountDeps());
   }
   async fetchOpenOrders(symbol) {
     await this.rateLimiter.acquire("fetchOpenOrders");
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError(
-        "API credentials required",
-        "AUTH_REQUIRED",
-        "lighter"
-      );
-    }
-    try {
-      const path = symbol ? `/orders?symbol=${this.normalizer.toLighterSymbol(symbol)}` : "/orders";
-      const response = await this.request("GET", path);
-      if (!Array.isArray(response)) {
-        throw new PerpDEXError("Invalid open orders response", "INVALID_RESPONSE", "lighter");
-      }
-      return response.map((order) => this.normalizer.normalizeOrder(order));
-    } catch (error) {
-      throw mapError2(error);
-    }
+    this.ensureAuthenticated();
+    return fetchOpenOrdersData(this.getAccountDeps(), symbol);
   }
   // ==================== Required BaseAdapter Methods ====================
   async setLeverage(_symbol, _leverage) {
     throw new Error("Lighter does not support setLeverage");
   }
-  /**
-   * Fetch order history
-   */
   async fetchOrderHistory(symbol, since, limit) {
     await this.rateLimiter.acquire("fetchOrderHistory");
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError(
-        "API credentials required",
-        "AUTH_REQUIRED",
-        "lighter"
-      );
-    }
-    try {
-      const params = new URLSearchParams();
-      if (symbol) params.append("symbol", this.normalizer.toLighterSymbol(symbol));
-      if (since) params.append("startTime", since.toString());
-      if (limit) params.append("limit", limit.toString());
-      const queryString = params.toString();
-      const response = await this.request(
-        "GET",
-        `/account/inactiveOrders${queryString ? `?${queryString}` : ""}`
-      );
-      if (!Array.isArray(response)) {
-        throw new PerpDEXError("Invalid order history response", "INVALID_RESPONSE", "lighter");
-      }
-      return response.map((order) => this.normalizer.normalizeOrder(order));
-    } catch (error) {
-      throw mapError2(error);
-    }
+    this.ensureAuthenticated();
+    return fetchOrderHistoryData(this.getAccountDeps(), symbol, since, limit);
   }
-  /**
-   * Fetch user trade history
-   */
   async fetchMyTrades(symbol, since, limit) {
     await this.rateLimiter.acquire("fetchMyTrades");
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError(
-        "API credentials required",
-        "AUTH_REQUIRED",
-        "lighter"
-      );
-    }
-    try {
-      const params = new URLSearchParams();
-      if (symbol) params.append("symbol", this.normalizer.toLighterSymbol(symbol));
-      if (since) params.append("startTime", since.toString());
-      if (limit) params.append("limit", limit.toString());
-      const queryString = params.toString();
-      const response = await this.request(
-        "GET",
-        `/account/fills${queryString ? `?${queryString}` : ""}`
-      );
-      if (!Array.isArray(response)) {
-        throw new PerpDEXError("Invalid trade history response", "INVALID_RESPONSE", "lighter");
-      }
-      return response.map((trade) => this.normalizer.normalizeTrade(trade));
-    } catch (error) {
-      throw mapError2(error);
-    }
+    this.ensureAuthenticated();
+    return fetchMyTradesData(this.getAccountDeps(), symbol, since, limit);
   }
   symbolToExchange(symbol) {
     return this.normalizer.toLighterSymbol(symbol);
   }
   symbolFromExchange(exchangeSymbol) {
     return this.normalizer.normalizeSymbol(exchangeSymbol);
-  }
-  // ==================== Private Helper Methods ====================
-  /**
-   * Convert amount to base units
-   */
-  toBaseUnits(amount, decimals) {
-    const factor = 10 ** decimals;
-    return BigInt(Math.round(amount * factor));
-  }
-  /**
-   * Convert price to price units
-   */
-  toPriceUnits(price, tickSize) {
-    return Math.round(price / tickSize);
-  }
-  /**
-   * Map unified order type to Lighter order type
-   */
-  mapOrderType(type) {
-    switch (type.toLowerCase()) {
-      case "limit":
-        return 0 /* LIMIT */;
-      case "market":
-        return 1 /* MARKET */;
-      case "stop_limit":
-      case "stop-limit":
-        return 2 /* STOP_LIMIT */;
-      case "stop_market":
-      case "stop-market":
-        return 3 /* STOP_MARKET */;
-      default:
-        return 0 /* LIMIT */;
-    }
-  }
-  /**
-   * Map unified time in force to Lighter time in force
-   */
-  mapTimeInForce(tif, postOnly) {
-    if (postOnly) {
-      return 3 /* POST_ONLY */;
-    }
-    switch (tif?.toUpperCase()) {
-      case "IOC":
-        return 1 /* IOC */;
-      case "FOK":
-        return 2 /* FOK */;
-      case "PO":
-      case "POST_ONLY":
-        return 3 /* POST_ONLY */;
-      case "GTC":
-      default:
-        return 0 /* GTC */;
-    }
-  }
-  /**
-   * Convert unified order request to Lighter format (for HMAC mode)
-   */
-  convertOrderRequest(request, lighterSymbol) {
-    const order = {
-      symbol: lighterSymbol,
-      side: request.side,
-      type: request.type,
-      quantity: request.amount
-    };
-    if (request.price !== void 0) {
-      order.price = request.price;
-    }
-    if (request.clientOrderId) {
-      order.clientOrderId = request.clientOrderId;
-    }
-    if (request.reduceOnly) {
-      order.reduceOnly = true;
-    }
-    if (request.postOnly) {
-      order.timeInForce = "PO";
-    } else if (request.timeInForce) {
-      order.timeInForce = request.timeInForce;
-    }
-    return order;
   }
   /**
    * Make HTTP request to Lighter API using HTTPClient
@@ -20025,14 +19938,13 @@ var NadoAPIClient = class {
   async request(endpoint, body) {
     const controller = new AbortController();
     this.abortControllers.add(controller);
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
     try {
       const response = await fetch(`${this.apiUrl}${endpoint}`, {
         method: "POST",
         headers: NADO_REQUEST_CONFIG.headers,
         body: JSON.stringify(body),
-        signal: controller.signal,
-        // @ts-ignore - timeout not in standard fetch types
-        timeout: this.timeout
+        signal: controller.signal
       });
       if (!response.ok) {
         throw mapHttpError3(response.status, response.statusText);
@@ -20046,6 +19958,7 @@ var NadoAPIClient = class {
     } catch (error) {
       throw this.mapRequestError(error);
     } finally {
+      clearTimeout(timeoutId);
       this.abortControllers.delete(controller);
     }
   }

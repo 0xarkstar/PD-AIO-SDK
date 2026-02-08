@@ -4,7 +4,6 @@
  * Implements IExchangeAdapter for Hyperliquid DEX
  */
 import { Wallet } from 'ethers';
-import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { WebSocketManager } from '../../websocket/index.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
@@ -13,6 +12,9 @@ import { HyperliquidAuth } from './HyperliquidAuth.js';
 import { HyperliquidNormalizer } from './HyperliquidNormalizer.js';
 import { HyperliquidWebSocket } from './HyperliquidWebSocket.js';
 import { convertOrderRequest, mapError } from './utils.js';
+import { buildOHLCVRequest, parseCandles, parseFundingRates, buildCurrentFundingRate, getDefaultDuration as getDefaultOHLCVDuration, } from './HyperliquidMarketData.js';
+import { parseUserFees, parsePortfolio, parseRateLimitStatus, } from './HyperliquidInfoMethods.js';
+import { processOrderHistory, processUserFills, processOpenOrders, } from './HyperliquidAccount.js';
 export class HyperliquidAdapter extends BaseAdapter {
     id = 'hyperliquid';
     name = 'Hyperliquid';
@@ -198,80 +200,16 @@ export class HyperliquidAdapter extends BaseAdapter {
         await this.rateLimiter.acquire('fetchOHLCV');
         try {
             const exchangeSymbol = this.symbolToExchange(symbol);
-            // Map unified timeframe to Hyperliquid interval
-            const intervalMap = {
-                '1m': '1m',
-                '3m': '3m',
-                '5m': '5m',
-                '15m': '15m',
-                '30m': '30m',
-                '1h': '1h',
-                '2h': '2h',
-                '4h': '4h',
-                '6h': '6h',
-                '8h': '8h',
-                '12h': '12h',
-                '1d': '1d',
-                '3d': '3d',
-                '1w': '1w',
-                '1M': '1M',
-            };
-            const interval = intervalMap[timeframe] || '1h';
-            // Calculate time range
-            const now = Date.now();
-            const defaultDuration = this.getDefaultDuration(timeframe);
-            const startTime = params?.since ?? now - defaultDuration;
-            const endTime = params?.until ?? now;
+            const req = buildOHLCVRequest(exchangeSymbol, timeframe, params);
             const response = await this.request('POST', `${this.apiUrl}/info`, {
                 type: 'candleSnapshot',
-                req: {
-                    coin: exchangeSymbol,
-                    interval,
-                    startTime,
-                    endTime,
-                },
+                req,
             });
-            if (!response || !Array.isArray(response)) {
-                return [];
-            }
-            // Apply limit if specified
-            const candles = params?.limit ? response.slice(-params.limit) : response;
-            // Convert to OHLCV format
-            return candles.map((candle) => [
-                candle.t,
-                parseFloat(candle.o),
-                parseFloat(candle.h),
-                parseFloat(candle.l),
-                parseFloat(candle.c),
-                parseFloat(candle.v),
-            ]);
+            return parseCandles(response, params?.limit);
         }
         catch (error) {
             throw mapError(error);
         }
-    }
-    /**
-     * Get default duration based on timeframe for initial data fetch
-     */
-    getDefaultDuration(timeframe) {
-        const durationMap = {
-            '1m': 24 * 60 * 60 * 1000, // 24 hours of 1m candles
-            '3m': 3 * 24 * 60 * 60 * 1000, // 3 days
-            '5m': 5 * 24 * 60 * 60 * 1000, // 5 days
-            '15m': 7 * 24 * 60 * 60 * 1000, // 7 days
-            '30m': 14 * 24 * 60 * 60 * 1000, // 14 days
-            '1h': 30 * 24 * 60 * 60 * 1000, // 30 days
-            '2h': 60 * 24 * 60 * 60 * 1000, // 60 days
-            '4h': 90 * 24 * 60 * 60 * 1000, // 90 days
-            '6h': 120 * 24 * 60 * 60 * 1000, // 120 days
-            '8h': 180 * 24 * 60 * 60 * 1000, // 180 days
-            '12h': 365 * 24 * 60 * 60 * 1000, // 1 year
-            '1d': 365 * 24 * 60 * 60 * 1000, // 1 year
-            '3d': 2 * 365 * 24 * 60 * 60 * 1000, // 2 years
-            '1w': 3 * 365 * 24 * 60 * 60 * 1000, // 3 years
-            '1M': 5 * 365 * 24 * 60 * 60 * 1000, // 5 years
-        };
-        return durationMap[timeframe] || 30 * 24 * 60 * 60 * 1000;
     }
     async fetchFundingRate(symbol) {
         await this.rateLimiter.acquire('fetchFundingRate');
@@ -286,7 +224,6 @@ export class HyperliquidAdapter extends BaseAdapter {
             if (!response || response.length === 0) {
                 throw new Error(`No funding rate data for ${symbol}`);
             }
-            // Get latest funding rate
             const latest = response[response.length - 1];
             if (!latest) {
                 throw new Error(`No funding rate data for ${symbol}`);
@@ -296,15 +233,7 @@ export class HyperliquidAdapter extends BaseAdapter {
                 type: 'allMids',
             });
             const markPrice = parseFloat(allMids[exchangeSymbol] ?? '0');
-            return {
-                symbol,
-                fundingRate: parseFloat(latest.fundingRate),
-                fundingTimestamp: latest.time,
-                nextFundingTimestamp: latest.time + 8 * 3600 * 1000, // 8 hours
-                markPrice,
-                indexPrice: markPrice,
-                fundingIntervalHours: 8,
-            };
+            return buildCurrentFundingRate(latest, symbol, markPrice);
         }
         catch (error) {
             throw mapError(error);
@@ -329,23 +258,7 @@ export class HyperliquidAdapter extends BaseAdapter {
                 type: 'allMids',
             });
             const markPrice = parseFloat(allMids[exchangeSymbol] ?? '0');
-            // Convert to unified format
-            let fundingRates = response.map((rate) => ({
-                symbol,
-                fundingRate: parseFloat(rate.fundingRate),
-                fundingTimestamp: rate.time,
-                nextFundingTimestamp: rate.time + 8 * 3600 * 1000, // 8 hours
-                markPrice,
-                indexPrice: markPrice,
-                fundingIntervalHours: 8,
-            }));
-            // Sort by timestamp descending (newest first)
-            fundingRates.sort((a, b) => b.fundingTimestamp - a.fundingTimestamp);
-            // Apply limit if provided
-            if (limit) {
-                fundingRates = fundingRates.slice(0, limit);
-            }
-            return fundingRates;
+            return parseFundingRates(response, symbol, markPrice, limit);
         }
         catch (error) {
             throw mapError(error);
@@ -355,12 +268,9 @@ export class HyperliquidAdapter extends BaseAdapter {
     // Trading (Private)
     // ===========================================================================
     async createOrder(request) {
-        this.ensureInitialized();
+        const auth = this.ensureAuth();
         // Validate order request
         const validatedRequest = this.validateOrder(request);
-        if (!this.auth) {
-            throw new Error('Authentication required for trading');
-        }
         await this.rateLimiter.acquire('createOrder');
         try {
             const exchangeSymbol = this.symbolToExchange(validatedRequest.symbol);
@@ -372,13 +282,12 @@ export class HyperliquidAdapter extends BaseAdapter {
                 grouping: 'na',
             };
             // Sign and send
-            const signedRequest = await this.auth.sign({
+            const signedRequest = await auth.sign({
                 method: 'POST',
                 path: '/exchange',
                 body: action,
             });
             const response = await this.request('POST', `${this.apiUrl}/exchange`, signedRequest.body, signedRequest.headers);
-            // Parse response
             if (response.status === 'err') {
                 throw new Error('Order creation failed');
             }
@@ -400,7 +309,6 @@ export class HyperliquidAdapter extends BaseAdapter {
             else {
                 throw new Error('Unknown order status');
             }
-            // Return normalized order
             return {
                 id: orderId,
                 symbol: request.symbol,
@@ -422,34 +330,23 @@ export class HyperliquidAdapter extends BaseAdapter {
         }
     }
     async cancelOrder(orderId, symbol) {
-        this.ensureInitialized();
-        if (!this.auth) {
-            throw new Error('Authentication required for trading');
-        }
+        const auth = this.ensureAuth();
         await this.rateLimiter.acquire('cancelOrder');
         try {
             if (!symbol) {
                 throw new Error('Symbol required for order cancellation');
             }
             const exchangeSymbol = this.symbolToExchange(symbol);
-            // Create cancel action
             const action = {
                 type: 'cancel',
-                cancels: [
-                    {
-                        coin: exchangeSymbol,
-                        oid: parseInt(orderId),
-                    },
-                ],
+                cancels: [{ coin: exchangeSymbol, oid: parseInt(orderId) }],
             };
-            // Sign and send
-            const signedRequest = await this.auth.sign({
+            const signedRequest = await auth.sign({
                 method: 'POST',
                 path: '/exchange',
                 body: action,
             });
             await this.request('POST', `${this.apiUrl}/exchange`, signedRequest.body, signedRequest.headers);
-            // Return canceled order
             return {
                 id: orderId,
                 symbol,
@@ -469,10 +366,7 @@ export class HyperliquidAdapter extends BaseAdapter {
         }
     }
     async cancelAllOrders(symbol) {
-        this.ensureInitialized();
-        if (!this.auth) {
-            throw new Error('Authentication required for trading');
-        }
+        this.ensureAuth();
         await this.rateLimiter.acquire('cancelAllOrders');
         try {
             // Fetch open orders
@@ -499,64 +393,18 @@ export class HyperliquidAdapter extends BaseAdapter {
     // Account History
     // ===========================================================================
     async fetchOrderHistory(symbol, since, limit) {
-        this.ensureInitialized();
-        if (!this.auth) {
-            throw new Error('Authentication required');
-        }
-        await this.rateLimiter.acquire('fetchOrderHistory');
         try {
-            const response = await this.request('POST', `${this.apiUrl}/info`, {
-                type: 'historicalOrders',
-                user: this.auth.getAddress(),
-            });
-            let orders = response.map((order) => this.normalizer.normalizeHistoricalOrder(order));
-            // Filter by symbol if provided
-            if (symbol) {
-                orders = orders.filter((order) => order.symbol === symbol);
-            }
-            // Filter by since timestamp if provided
-            if (since) {
-                orders = orders.filter((order) => order.timestamp >= since);
-            }
-            // Sort by timestamp descending (newest first)
-            orders.sort((a, b) => b.timestamp - a.timestamp);
-            // Apply limit if provided
-            if (limit) {
-                orders = orders.slice(0, limit);
-            }
-            return orders;
+            const response = await this.authInfoRequest('fetchOrderHistory', 'historicalOrders');
+            return processOrderHistory(response, this.normalizer, symbol, since, limit);
         }
         catch (error) {
             throw mapError(error);
         }
     }
     async fetchMyTrades(symbol, since, limit) {
-        this.ensureInitialized();
-        if (!this.auth) {
-            throw new Error('Authentication required');
-        }
-        await this.rateLimiter.acquire('fetchMyTrades');
         try {
-            const response = await this.request('POST', `${this.apiUrl}/info`, {
-                type: 'userFills',
-                user: this.auth.getAddress(),
-            });
-            let trades = response.map((fill) => this.normalizer.normalizeUserFill(fill));
-            // Filter by symbol if provided
-            if (symbol) {
-                trades = trades.filter((trade) => trade.symbol === symbol);
-            }
-            // Filter by since timestamp if provided
-            if (since) {
-                trades = trades.filter((trade) => trade.timestamp >= since);
-            }
-            // Sort by timestamp descending (newest first)
-            trades.sort((a, b) => b.timestamp - a.timestamp);
-            // Apply limit if provided
-            if (limit) {
-                trades = trades.slice(0, limit);
-            }
-            return trades;
+            const response = await this.authInfoRequest('fetchMyTrades', 'userFills');
+            return processUserFills(response, this.normalizer, symbol, since, limit);
         }
         catch (error) {
             throw mapError(error);
@@ -566,20 +414,11 @@ export class HyperliquidAdapter extends BaseAdapter {
     // Positions & Balance
     // ===========================================================================
     async fetchPositions(symbols) {
-        this.ensureInitialized();
-        if (!this.auth) {
-            throw new Error('Authentication required');
-        }
-        await this.rateLimiter.acquire('fetchPositions');
         try {
-            const response = await this.request('POST', `${this.apiUrl}/info`, {
-                type: 'clearinghouseState',
-                user: this.auth.getAddress(),
-            });
+            const response = await this.authInfoRequest('fetchPositions', 'clearinghouseState');
             const positions = response.assetPositions
                 .filter((p) => parseFloat(p.position.szi) !== 0)
                 .map((p) => this.normalizer.normalizePosition(p));
-            // Filter by symbols if provided
             if (symbols && symbols.length > 0) {
                 return positions.filter((p) => symbols.includes(p.symbol));
             }
@@ -590,16 +429,8 @@ export class HyperliquidAdapter extends BaseAdapter {
         }
     }
     async fetchBalance() {
-        this.ensureInitialized();
-        if (!this.auth) {
-            throw new Error('Authentication required');
-        }
-        await this.rateLimiter.acquire('fetchBalance');
         try {
-            const response = await this.request('POST', `${this.apiUrl}/info`, {
-                type: 'clearinghouseState',
-                user: this.auth.getAddress(),
-            });
+            const response = await this.authInfoRequest('fetchBalance', 'clearinghouseState');
             return this.normalizer.normalizeBalance(response);
         }
         catch (error) {
@@ -607,127 +438,53 @@ export class HyperliquidAdapter extends BaseAdapter {
         }
     }
     async setLeverage(symbol, leverage) {
-        this.ensureInitialized();
-        if (!this.auth) {
-            throw new Error('Authentication required');
-        }
+        this.ensureAuth();
         await this.rateLimiter.acquire('setLeverage', 5);
-        try {
-            // Note: Actual implementation needs the updateLeverage action format
-            // For now, we'll log and acknowledge the limitation
-            this.debug(`setLeverage: Updating leverage for ${symbol} to ${leverage}x`);
-            this.debug('Note: Hyperliquid leverage is managed per-position in cross-margin mode');
-            // In Hyperliquid, leverage for isolated positions is set when opening
-            // For cross-margin, it's automatic based on account equity
-            // This is more of a placeholder/documentation than functional implementation
-        }
-        catch (error) {
-            throw mapError(error);
-        }
+        // Hyperliquid leverage is managed per-position in cross-margin mode
+        this.debug(`setLeverage: Updating leverage for ${symbol} to ${leverage}x`);
     }
     // ===========================================================================
     // Additional Info Methods
     // ===========================================================================
-    async fetchUserFees() {
+    /** Ensure authenticated and return auth instance */
+    ensureAuth() {
         this.ensureInitialized();
         if (!this.auth) {
             throw new Error('Authentication required');
         }
-        await this.rateLimiter.acquire('fetchUserFees');
+        return this.auth;
+    }
+    /** Make authenticated info request */
+    async authInfoRequest(rateLimitKey, type) {
+        const auth = this.ensureAuth();
+        await this.rateLimiter.acquire(rateLimitKey);
+        return this.request('POST', `${this.apiUrl}/info`, {
+            type,
+            user: auth.getAddress(),
+        });
+    }
+    async fetchUserFees() {
         try {
-            const response = await this.request('POST', `${this.apiUrl}/info`, {
-                type: 'userFees',
-                user: this.auth.getAddress(),
-            });
-            // Extract fee rates from response
-            const makerFee = parseFloat(response.userAddRate);
-            const takerFee = parseFloat(response.userCrossRate);
-            return {
-                maker: makerFee,
-                taker: takerFee,
-                info: response,
-            };
+            const response = await this.authInfoRequest('fetchUserFees', 'userFees');
+            return parseUserFees(response);
         }
         catch (error) {
             throw mapError(error);
         }
     }
     async fetchPortfolio() {
-        this.ensureInitialized();
-        if (!this.auth) {
-            throw new Error('Authentication required');
-        }
-        await this.rateLimiter.acquire('fetchPortfolio');
         try {
-            const response = await this.request('POST', `${this.apiUrl}/info`, {
-                type: 'portfolio',
-                user: this.auth.getAddress(),
-            });
-            // Find the 'day' period data
-            const dayPeriod = response.find(([period]) => period === 'day');
-            if (!dayPeriod) {
-                throw new PerpDEXError('Day period data not found in portfolio response', 'INVALID_RESPONSE', 'hyperliquid');
-            }
-            const [, dayData] = dayPeriod;
-            // Extract latest values from history arrays
-            const latestAccountValue = dayData.accountValueHistory.length > 0
-                ? parseFloat(dayData.accountValueHistory[dayData.accountValueHistory.length - 1][1])
-                : 0;
-            const latestDailyPnl = dayData.pnlHistory.length > 0
-                ? parseFloat(dayData.pnlHistory[dayData.pnlHistory.length - 1][1])
-                : 0;
-            // Find week and month periods for additional metrics
-            const weekPeriod = response.find(([period]) => period === 'week');
-            const monthPeriod = response.find(([period]) => period === 'month');
-            const weeklyPnl = weekPeriod && weekPeriod[1].pnlHistory.length > 0
-                ? parseFloat(weekPeriod[1].pnlHistory[weekPeriod[1].pnlHistory.length - 1][1])
-                : 0;
-            const monthlyPnl = monthPeriod && monthPeriod[1].pnlHistory.length > 0
-                ? parseFloat(monthPeriod[1].pnlHistory[monthPeriod[1].pnlHistory.length - 1][1])
-                : 0;
-            // Calculate percentage changes (use account value as base)
-            const dailyPnlPercentage = latestAccountValue > 0 ? (latestDailyPnl / latestAccountValue) * 100 : 0;
-            const weeklyPnlPercentage = latestAccountValue > 0 ? (weeklyPnl / latestAccountValue) * 100 : 0;
-            const monthlyPnlPercentage = latestAccountValue > 0 ? (monthlyPnl / latestAccountValue) * 100 : 0;
-            return {
-                totalValue: latestAccountValue,
-                dailyPnl: latestDailyPnl,
-                dailyPnlPercentage,
-                weeklyPnl,
-                weeklyPnlPercentage,
-                monthlyPnl,
-                monthlyPnlPercentage,
-                timestamp: Date.now(),
-                info: response,
-            };
+            const response = await this.authInfoRequest('fetchPortfolio', 'portfolio');
+            return parsePortfolio(response);
         }
         catch (error) {
             throw mapError(error);
         }
     }
     async fetchRateLimitStatus() {
-        this.ensureInitialized();
-        if (!this.auth) {
-            throw new Error('Authentication required');
-        }
-        await this.rateLimiter.acquire('fetchRateLimitStatus');
         try {
-            const response = await this.request('POST', `${this.apiUrl}/info`, {
-                type: 'userRateLimit',
-                user: this.auth.getAddress(),
-            });
-            // Extract rate limit info from response
-            const used = response.nRequestsUsed;
-            const cap = response.nRequestsCap;
-            // Hyperliquid uses a 60-second rolling window
-            const windowMs = 60000;
-            return {
-                remaining: cap - used,
-                limit: cap,
-                resetAt: Date.now() + windowMs,
-                percentUsed: cap > 0 ? (used / cap) * 100 : 0,
-                info: response,
-            };
+            const response = await this.authInfoRequest('fetchRateLimitStatus', 'userRateLimit');
+            return parseRateLimitStatus(response);
         }
         catch (error) {
             throw mapError(error);
@@ -736,70 +493,38 @@ export class HyperliquidAdapter extends BaseAdapter {
     // ===========================================================================
     // WebSocket Streams (delegated to HyperliquidWebSocket)
     // ===========================================================================
-    async *watchOrderBook(symbol, limit) {
+    ensureWsHandler() {
         this.ensureInitialized();
         if (!this.wsHandler) {
             throw new Error('WebSocket handler not initialized');
         }
-        yield* this.wsHandler.watchOrderBook(symbol, limit);
+        return this.wsHandler;
+    }
+    async *watchOrderBook(symbol, limit) {
+        yield* this.ensureWsHandler().watchOrderBook(symbol, limit);
     }
     async *watchTrades(symbol) {
-        this.ensureInitialized();
-        if (!this.wsHandler) {
-            throw new Error('WebSocket handler not initialized');
-        }
-        yield* this.wsHandler.watchTrades(symbol);
+        yield* this.ensureWsHandler().watchTrades(symbol);
     }
     async *watchTicker(symbol) {
-        this.ensureInitialized();
-        if (!this.wsHandler) {
-            throw new Error('WebSocket handler not initialized');
-        }
-        yield* this.wsHandler.watchTicker(symbol);
+        yield* this.ensureWsHandler().watchTicker(symbol);
     }
     async *watchPositions() {
-        this.ensureInitialized();
-        if (!this.wsHandler) {
-            throw new Error('WebSocket handler not initialized');
-        }
-        yield* this.wsHandler.watchPositions();
+        yield* this.ensureWsHandler().watchPositions();
     }
-    /**
-     * Watch open orders in real-time
-     *
-     * Subscribes to the USER_FILLS WebSocket channel and yields updated order lists
-     * whenever fills occur. Provides real-time updates of the open order book.
-     *
-     * @returns AsyncGenerator that yields arrays of open orders
-     * @throws {Error} If WebSocket handler is not initialized
-     */
     async *watchOrders() {
-        this.ensureInitialized();
-        if (!this.wsHandler) {
-            throw new Error('WebSocket handler not initialized');
-        }
-        yield* this.wsHandler.watchOrders();
+        yield* this.ensureWsHandler().watchOrders();
     }
-    /**
-     * Watch user trades (fills) in real-time
-     *
-     * Subscribes to the USER_FILLS WebSocket channel and yields each trade
-     * as it occurs. Provides real-time fill notifications for the authenticated user.
-     *
-     * @param symbol - Optional symbol to filter trades (e.g., "BTC/USDT:USDT")
-     * @returns AsyncGenerator that yields individual trades
-     * @throws {Error} If WebSocket handler is not initialized
-     */
     async *watchMyTrades(symbol) {
-        this.ensureInitialized();
-        if (!this.wsHandler) {
-            throw new Error('WebSocket handler not initialized');
-        }
-        yield* this.wsHandler.watchMyTrades(symbol);
+        yield* this.ensureWsHandler().watchMyTrades(symbol);
     }
     // ===========================================================================
     // Helper Methods
     // ===========================================================================
+    /** Get default duration for OHLCV timeframe */
+    getDefaultDuration(timeframe) {
+        return getDefaultOHLCVDuration(timeframe);
+    }
     symbolToExchange(symbol) {
         return unifiedToHyperliquid(symbol);
     }
@@ -809,21 +534,8 @@ export class HyperliquidAdapter extends BaseAdapter {
     /**
      * Fetch open orders
      *
-     * Retrieves all open (unfilled) orders for the authenticated user.
-     * Can be filtered by symbol to get orders for a specific trading pair.
-     *
      * @param symbol - Optional symbol to filter orders (e.g., "BTC/USDT:USDT")
      * @returns Array of open orders
-     * @throws {Error} If authentication is required but not available
-     *
-     * @example
-     * ```typescript
-     * // Get all open orders
-     * const allOrders = await adapter.fetchOpenOrders();
-     *
-     * // Get open orders for specific symbol
-     * const ethOrders = await adapter.fetchOpenOrders('ETH/USDT:USDT');
-     * ```
      */
     async fetchOpenOrders(symbol) {
         if (!this.auth) {
@@ -834,12 +546,7 @@ export class HyperliquidAdapter extends BaseAdapter {
                 type: 'openOrders',
                 user: this.auth.getAddress(),
             });
-            const orders = response.map((order) => this.normalizer.normalizeOrder(order, order.coin));
-            // Filter by symbol if provided
-            if (symbol) {
-                return orders.filter((o) => o.symbol === symbol);
-            }
-            return orders;
+            return processOpenOrders(response, this.normalizer, symbol);
         }
         catch (error) {
             throw mapError(error);

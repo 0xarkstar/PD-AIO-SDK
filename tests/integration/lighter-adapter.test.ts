@@ -662,9 +662,7 @@ describe('LighterAdapter Integration Tests', () => {
     });
 
     it('should handle invalid order parameters', async () => {
-      // Mock an error response from the API (non-2xx status)
-      mockFailedResponse(400, 'Invalid order size');
-
+      // Validation rejects negative amount before fetch is called
       await expect(
         adapter.createOrder({
           symbol: 'BTC/USDC:USDC',
@@ -674,6 +672,9 @@ describe('LighterAdapter Integration Tests', () => {
           price: 50000,
         })
       ).rejects.toThrow();
+
+      // Verify fetch was never called (validation catches invalid params)
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 

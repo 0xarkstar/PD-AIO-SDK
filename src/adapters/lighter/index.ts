@@ -25,6 +25,9 @@ export {
   validateLighterOrder,
 } from './LighterOrderUtils.js';
 
+// Trading helpers
+export type { TradingDeps, MarketMetadata } from './LighterTrading.js';
+
 // Signers - WASM is recommended, FFI is legacy
 export {
   LighterWasmSigner,

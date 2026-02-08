@@ -36,14 +36,14 @@ export default {
   ],
   coverageThreshold: {
     // ==========================================================================
-    // Global Thresholds - Target: 80% (Current: ~51%)
-    // Roadmap: 51% -> 60% -> 70% -> 80%
+    // Global Thresholds - Current: ~71%, Target: 80%
+    // Roadmap: 51% -> 65% -> 75% -> 80%
     // ==========================================================================
     global: {
-      branches: 45,
-      functions: 50,
-      lines: 50,
-      statements: 50
+      branches: 60,
+      functions: 70,
+      lines: 65,
+      statements: 65
     },
 
     // ==========================================================================
@@ -101,20 +101,20 @@ export default {
     // These are set to current coverage levels, will be raised incrementally
     // ==========================================================================
 
-    // dydx: Current ~46% overall (some files may be lower)
+    // dydx: Current ~46% overall (DydxAdapter at ~47%)
     './src/adapters/dydx/**/*.ts': {
-      branches: 0,
-      functions: 0,
-      lines: 0,
-      statements: 0
+      branches: 30,
+      functions: 40,
+      lines: 45,
+      statements: 45
     },
 
-    // drift: Current ~32% overall (some files at 0-4%)
+    // drift: Current ~32% overall (some files at 4-11%)
     './src/adapters/drift/**/*.ts': {
-      branches: 0,
-      functions: 0,
-      lines: 0,
-      statements: 0
+      branches: 5,
+      functions: 5,
+      lines: 4,
+      statements: 4
     },
 
     // gmx: Current ~29% overall (OrderBuilder has 0% functions)
@@ -128,9 +128,9 @@ export default {
     // jupiter: Current ~37% overall (some files at 5-18%)
     './src/adapters/jupiter/**/*.ts': {
       branches: 0,
-      functions: 0,
-      lines: 0,
-      statements: 0
+      functions: 5,
+      lines: 5,
+      statements: 5
     },
 
     // extended: Current ~50% overall (Adapter at 21%, types at 0%)

@@ -60,7 +60,7 @@ export declare class LighterAdapter extends BaseAdapter {
     constructor(config?: LighterConfig);
     /**
      * Check if WASM signing is available and initialized
-     * @deprecated Use hasWasmSigning instead
+     * Alias for hasWasmSigning for backward compatibility
      */
     get hasFFISigning(): boolean;
     /**
@@ -73,39 +73,19 @@ export declare class LighterAdapter extends BaseAdapter {
     get hasAuthentication(): boolean;
     initialize(): Promise<void>;
     disconnect(): Promise<void>;
+    /** Get market data dependencies for helper functions */
+    private getMarketDataDeps;
     fetchMarkets(_params?: MarketParams): Promise<Market[]>;
     fetchTicker(symbol: string): Promise<Ticker>;
     fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
     fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
     fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
+    /** Get trading dependencies for helper functions */
+    private getTradingDeps;
     createOrder(request: OrderRequest): Promise<Order>;
-    /**
-     * Create order using WASM signing
-     */
-    private createOrderWasm;
-    /**
-     * Create order using HMAC signing (legacy)
-     */
-    private createOrderHMAC;
     cancelOrder(orderId: string, symbol?: string): Promise<Order>;
-    /**
-     * Cancel order using WASM signing
-     */
-    private cancelOrderWasm;
-    /**
-     * Cancel order using HMAC signing (legacy)
-     */
-    private cancelOrderHMAC;
     cancelAllOrders(symbol?: string): Promise<Order[]>;
-    /**
-     * Cancel all orders using WASM signing
-     */
-    private cancelAllOrdersWasm;
-    /**
-     * Cancel all orders using HMAC signing (legacy)
-     */
-    private cancelAllOrdersHMAC;
     /**
      * Withdraw collateral from trading account
      *
@@ -115,56 +95,23 @@ export declare class LighterAdapter extends BaseAdapter {
      * @param amount - Amount to withdraw in base units
      * @param destinationAddress - Ethereum address to withdraw to
      * @returns Transaction hash
-     *
-     * @example
-     * ```typescript
-     * // Withdraw 100 USDC
-     * const txHash = await lighter.withdrawCollateral(
-     *   0,          // USDC collateral index
-     *   100000000n, // 100 USDC (6 decimals)
-     *   '0x...'     // Your wallet address
-     * );
-     * ```
      */
     withdrawCollateral(collateralIndex: number, amount: bigint, destinationAddress: string): Promise<string>;
     /**
      * Handle transaction errors and auto-resync nonce if needed
      */
     private handleTransactionError;
+    /** Get account dependencies for helper functions */
+    private getAccountDeps;
+    private ensureAuthenticated;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
     fetchOpenOrders(symbol?: string): Promise<Order[]>;
     setLeverage(_symbol: string, _leverage: number): Promise<void>;
-    /**
-     * Fetch order history
-     */
     fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
-    /**
-     * Fetch user trade history
-     */
     fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
     symbolToExchange(symbol: string): string;
     symbolFromExchange(exchangeSymbol: string): string;
-    /**
-     * Convert amount to base units
-     */
-    private toBaseUnits;
-    /**
-     * Convert price to price units
-     */
-    private toPriceUnits;
-    /**
-     * Map unified order type to Lighter order type
-     */
-    private mapOrderType;
-    /**
-     * Map unified time in force to Lighter time in force
-     */
-    private mapTimeInForce;
-    /**
-     * Convert unified order request to Lighter format (for HMAC mode)
-     */
-    private convertOrderRequest;
     /**
      * Make HTTP request to Lighter API using HTTPClient
      */

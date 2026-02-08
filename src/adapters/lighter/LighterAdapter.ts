@@ -34,17 +34,35 @@ import { LIGHTER_API_URLS, LIGHTER_RATE_LIMITS, LIGHTER_ENDPOINT_WEIGHTS, LIGHTE
 import { LighterNormalizer } from './LighterNormalizer.js';
 import { LighterWebSocket } from './LighterWebSocket.js';
 import { mapError } from './utils.js';
-import { LighterWasmSigner, OrderType, TimeInForce } from './signer/index.js';
+import { LighterWasmSigner } from './signer/index.js';
 import { NonceManager } from './NonceManager.js';
-import type {
-  LighterConfig,
-  LighterOrder,
-  LighterPosition,
-  LighterBalance,
-  LighterOrderBook,
-  LighterTrade,
-  LighterFundingRate,
-} from './types.js';
+import type { LighterConfig } from './types.js';
+import {
+  createOrderWasm,
+  createOrderHMAC,
+  cancelOrderWasm,
+  cancelOrderHMAC,
+  cancelAllOrdersWasm,
+  cancelAllOrdersHMAC,
+  withdrawCollateral as withdrawCollateralHelper,
+  type TradingDeps,
+} from './LighterTrading.js';
+import {
+  fetchMarketsData,
+  fetchTickerData,
+  fetchOrderBookData,
+  fetchTradesData,
+  fetchFundingRateData,
+  type MarketDataDeps,
+} from './LighterMarketData.js';
+import {
+  fetchPositionsData,
+  fetchBalanceData,
+  fetchOpenOrdersData,
+  fetchOrderHistoryData,
+  fetchMyTradesData,
+  type AccountDeps,
+} from './LighterAccount.js';
 
 // Re-export LighterConfig from types.ts (replaces local interface)
 export type { LighterConfig } from './types.js';
@@ -208,7 +226,7 @@ export class LighterAdapter extends BaseAdapter {
 
   /**
    * Check if WASM signing is available and initialized
-   * @deprecated Use hasWasmSigning instead
+   * Alias for hasWasmSigning for backward compatibility
    */
   get hasFFISigning(): boolean {
     return this.hasWasmSigning;
@@ -302,161 +320,40 @@ export class LighterAdapter extends BaseAdapter {
 
   // ==================== Market Data Methods ====================
 
+  /** Get market data dependencies for helper functions */
+  private getMarketDataDeps(): MarketDataDeps {
+    return {
+      normalizer: this.normalizer,
+      marketIdCache: this.marketIdCache,
+      marketMetadataCache: this.marketMetadataCache,
+      request: <T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: Record<string, unknown>) =>
+        this.request<T>(method, path, body),
+    };
+  }
+
   async fetchMarkets(_params?: MarketParams): Promise<Market[]> {
     await this.rateLimiter.acquire('fetchMarkets');
-
-    try {
-      const response = await this.request<{ code: number; order_book_details: any[] }>(
-        'GET',
-        '/api/v1/orderBookDetails'
-      );
-
-      if (!response.order_book_details || !Array.isArray(response.order_book_details)) {
-        throw new PerpDEXError('Invalid markets response', 'INVALID_RESPONSE', 'lighter');
-      }
-
-      // Filter for perp markets only
-      const perpMarkets = response.order_book_details.filter(
-        (m: any) => m.market_type === 'perp'
-      );
-
-      // Cache market_id and metadata for each symbol
-      for (const market of perpMarkets) {
-        if (market.symbol && market.market_id !== undefined) {
-          this.marketIdCache.set(market.symbol, market.market_id);
-          this.marketMetadataCache.set(market.symbol, {
-            baseDecimals: market.base_decimals ?? 8,
-            quoteDecimals: market.quote_decimals ?? 6,
-            tickSize: parseFloat(market.tick_size ?? '0.01'),
-            stepSize: parseFloat(market.step_size ?? '0.001'),
-          });
-        }
-      }
-
-      return perpMarkets.map((market: any) => this.normalizer.normalizeMarket(market));
-    } catch (error) {
-      throw mapError(error);
-    }
+    return fetchMarketsData(this.getMarketDataDeps());
   }
 
   async fetchTicker(symbol: string): Promise<Ticker> {
     await this.rateLimiter.acquire('fetchTicker');
-
-    try {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const response = await this.request<{ code: number; order_book_details: any[] }>(
-        'GET',
-        '/api/v1/orderBookDetails'
-      );
-
-      if (!response.order_book_details) {
-        throw new PerpDEXError('Invalid ticker response', 'INVALID_RESPONSE', 'lighter');
-      }
-
-      // Find the market matching the symbol
-      const market = response.order_book_details.find(
-        (m: any) => m.symbol === lighterSymbol && m.market_type === 'perp'
-      );
-
-      if (!market) {
-        throw new PerpDEXError(`Market not found: ${symbol}`, 'INVALID_SYMBOL', 'lighter');
-      }
-
-      return this.normalizer.normalizeTicker(market);
-    } catch (error) {
-      throw mapError(error);
-    }
+    return fetchTickerData(this.getMarketDataDeps(), symbol);
   }
 
   async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     await this.rateLimiter.acquire('fetchOrderBook');
-
-    try {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const limit = params?.limit || 50;
-
-      // Get market_id from cache, or fetch markets first if cache is empty
-      let marketId = this.marketIdCache.get(lighterSymbol);
-      if (marketId === undefined) {
-        await this.fetchMarkets();
-        marketId = this.marketIdCache.get(lighterSymbol);
-        if (marketId === undefined) {
-          throw new PerpDEXError(`Market not found: ${symbol}`, 'INVALID_SYMBOL', 'lighter');
-        }
-      }
-
-      // Lighter API requires market_id parameter for orderBookOrders endpoint
-      const response = await this.request<{ code: number; asks: any[]; bids: any[] }>(
-        'GET',
-        `/api/v1/orderBookOrders?market_id=${marketId}&limit=${limit}`
-      );
-
-      // Convert to LighterOrderBook format
-      // Response format: { asks: [{price, remaining_base_amount, ...}], bids: [...] }
-      const orderBook: LighterOrderBook = {
-        symbol: lighterSymbol,
-        bids: response.bids?.map((b: any) => [
-          parseFloat(b.price || '0'),
-          parseFloat(b.remaining_base_amount || b.size || '0')
-        ]) || [],
-        asks: response.asks?.map((a: any) => [
-          parseFloat(a.price || '0'),
-          parseFloat(a.remaining_base_amount || a.size || '0')
-        ]) || [],
-        timestamp: Date.now(),
-      };
-
-      return this.normalizer.normalizeOrderBook(orderBook);
-    } catch (error) {
-      throw mapError(error);
-    }
+    return fetchOrderBookData(this.getMarketDataDeps(), symbol, params?.limit || 50, () => this.fetchMarkets());
   }
 
   async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
     await this.rateLimiter.acquire('fetchTrades');
-
-    try {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const limit = params?.limit || 100;
-      // Lighter API uses /api/v1/trades endpoint
-      const response = await this.request<{ code: number; trades: any[] }>(
-        'GET',
-        `/api/v1/trades?symbol=${lighterSymbol}&limit=${limit}`
-      );
-
-      const trades = response.trades || [];
-      if (!Array.isArray(trades)) {
-        throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'lighter');
-      }
-
-      // Map trades to expected format
-      return trades.map((trade: any) => {
-        const normalizedTrade: LighterTrade = {
-          id: trade.id || trade.trade_id || String(Date.now()),
-          symbol: lighterSymbol,
-          side: (trade.side || 'buy').toLowerCase() as 'buy' | 'sell',
-          price: parseFloat(trade.price || '0'),
-          amount: parseFloat(trade.size || trade.amount || '0'),
-          timestamp: trade.timestamp || trade.created_at || Date.now(),
-        };
-        return this.normalizer.normalizeTrade(normalizedTrade);
-      });
-    } catch (error) {
-      throw mapError(error);
-    }
+    return fetchTradesData(this.getMarketDataDeps(), symbol, params?.limit || 100);
   }
 
   async fetchFundingRate(symbol: string): Promise<FundingRate> {
     await this.rateLimiter.acquire('fetchFundingRate');
-
-    try {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const response = await this.request<LighterFundingRate>('GET', `/funding/${lighterSymbol}`);
-
-      return this.normalizer.normalizeFundingRate(response);
-    } catch (error) {
-      throw mapError(error);
-    }
+    return fetchFundingRateData(this.getMarketDataDeps(), symbol);
   }
 
   async fetchFundingRateHistory(
@@ -469,20 +366,39 @@ export class LighterAdapter extends BaseAdapter {
 
   // ==================== Trading Methods ====================
 
+  /** Get trading dependencies for helper functions */
+  private getTradingDeps(): TradingDeps {
+    return {
+      normalizer: this.normalizer,
+      signer: this.signer,
+      nonceManager: this.nonceManager,
+      apiKey: this.apiKey,
+      apiSecret: this.apiSecret,
+      marketIdCache: this.marketIdCache,
+      marketMetadataCache: this.marketMetadataCache,
+      fetchMarkets: () => this.fetchMarkets(),
+      request: <T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: Record<string, unknown>) =>
+        this.request<T>(method, path, body),
+      handleTransactionError: (code: number) => this.handleTransactionError(code),
+    };
+  }
+
   async createOrder(request: OrderRequest): Promise<Order> {
     // Validate order request
     const validatedRequest = this.validateOrder(request);
 
     await this.rateLimiter.acquire('createOrder');
 
+    const deps = this.getTradingDeps();
+
     // WASM signing is preferred for trading
     if (this.signer && this.nonceManager) {
-      return this.createOrderWasm(validatedRequest);
+      return createOrderWasm(deps, validatedRequest);
     }
 
     // Fall back to HMAC if available
     if (this.apiKey && this.apiSecret) {
-      return this.createOrderHMAC(validatedRequest);
+      return createOrderHMAC(deps, validatedRequest);
     }
 
     throw new InvalidOrderError(
@@ -492,100 +408,19 @@ export class LighterAdapter extends BaseAdapter {
     );
   }
 
-  /**
-   * Create order using WASM signing
-   */
-  private async createOrderWasm(request: OrderRequest): Promise<Order> {
-    const lighterSymbol = this.normalizer.toLighterSymbol(request.symbol);
-
-    // Ensure market metadata is loaded
-    let marketId = this.marketIdCache.get(lighterSymbol);
-    if (marketId === undefined) {
-      await this.fetchMarkets();
-      marketId = this.marketIdCache.get(lighterSymbol);
-      if (marketId === undefined) {
-        throw new InvalidOrderError(`Market not found: ${request.symbol}`, 'INVALID_SYMBOL', 'lighter');
-      }
-    }
-
-    const metadata = this.marketMetadataCache.get(lighterSymbol);
-    if (!metadata) {
-      throw new InvalidOrderError(`Market metadata not found: ${request.symbol}`, 'INVALID_SYMBOL', 'lighter');
-    }
-
-    // Get nonce
-    const nonce = await this.nonceManager!.getNextNonce();
-
-    try {
-      // Convert to base units
-      const baseAmount = this.toBaseUnits(request.amount, metadata.baseDecimals);
-      const price = this.toPriceUnits(request.price || 0, metadata.tickSize);
-
-      // Map order type
-      const orderType = this.mapOrderType(request.type);
-      const timeInForce = this.mapTimeInForce(request.timeInForce, request.postOnly);
-
-      // Sign the order
-      const signedTx = await this.signer!.signCreateOrder({
-        marketIndex: marketId,
-        clientOrderIndex: BigInt(request.clientOrderId || Date.now()),
-        baseAmount,
-        price,
-        isAsk: request.side === 'sell',
-        orderType,
-        timeInForce,
-        reduceOnly: request.reduceOnly ?? false,
-        triggerPrice: request.stopPrice ? this.toPriceUnits(request.stopPrice, metadata.tickSize) : 0,
-        orderExpiry: BigInt(0), // No expiry
-        nonce,
-      });
-
-      // Send the transaction
-      const response = await this.request<{ code: number; order: any }>('POST', '/api/v1/sendTx', {
-        tx_type: signedTx.txType,
-        tx_info: signedTx.txInfo,
-      });
-
-      if (response.code !== 0) {
-        // Check for nonce errors and auto-resync
-        await this.handleTransactionError(response.code);
-        throw new InvalidOrderError(`Order creation failed: code ${response.code}`, 'ORDER_REJECTED', 'lighter');
-      }
-
-      return this.normalizer.normalizeOrder(response.order);
-    } catch (error) {
-      // Rollback nonce on pre-submission errors (signing failed, etc.)
-      const errorMsg = error instanceof Error ? error.message : '';
-      if (!errorMsg.includes('code')) {
-        this.nonceManager!.rollback();
-      }
-      throw mapError(error);
-    }
-  }
-
-  /**
-   * Create order using HMAC signing (legacy)
-   */
-  private async createOrderHMAC(request: OrderRequest): Promise<Order> {
-    const lighterSymbol = this.normalizer.toLighterSymbol(request.symbol);
-    const orderRequest = this.convertOrderRequest(request, lighterSymbol);
-
-    const response = await this.request<LighterOrder>('POST', '/orders', orderRequest);
-
-    return this.normalizer.normalizeOrder(response);
-  }
-
   async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
     await this.rateLimiter.acquire('cancelOrder');
 
+    const deps = this.getTradingDeps();
+
     // WASM signing is preferred
     if (this.signer && this.nonceManager) {
-      return this.cancelOrderWasm(orderId, symbol);
+      return cancelOrderWasm(deps, orderId, symbol);
     }
 
     // Fall back to HMAC
     if (this.apiKey && this.apiSecret) {
-      return this.cancelOrderHMAC(orderId);
+      return cancelOrderHMAC(deps, orderId);
     }
 
     throw new InvalidOrderError(
@@ -593,73 +428,21 @@ export class LighterAdapter extends BaseAdapter {
       'AUTH_REQUIRED',
       'lighter'
     );
-  }
-
-  /**
-   * Cancel order using WASM signing
-   */
-  private async cancelOrderWasm(orderId: string, symbol?: string): Promise<Order> {
-    // Get market index
-    let marketIndex = 0;
-    if (symbol) {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const cached = this.marketIdCache.get(lighterSymbol);
-      if (cached === undefined) {
-        await this.fetchMarkets();
-        marketIndex = this.marketIdCache.get(lighterSymbol) ?? 0;
-      } else {
-        marketIndex = cached;
-      }
-    }
-
-    const nonce = await this.nonceManager!.getNextNonce();
-
-    try {
-      const signedTx = await this.signer!.signCancelOrder({
-        marketIndex,
-        orderId: BigInt(orderId),
-        nonce,
-      });
-
-      const response = await this.request<{ code: number; order: any }>('POST', '/api/v1/sendTx', {
-        tx_type: signedTx.txType,
-        tx_info: signedTx.txInfo,
-      });
-
-      if (response.code !== 0) {
-        await this.handleTransactionError(response.code);
-        throw new InvalidOrderError(`Cancel failed: code ${response.code}`, 'CANCEL_REJECTED', 'lighter');
-      }
-
-      return this.normalizer.normalizeOrder(response.order);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : '';
-      if (!errorMsg.includes('code')) {
-        this.nonceManager!.rollback();
-      }
-      throw mapError(error);
-    }
-  }
-
-  /**
-   * Cancel order using HMAC signing (legacy)
-   */
-  private async cancelOrderHMAC(orderId: string): Promise<Order> {
-    const response = await this.request<LighterOrder>('DELETE', `/orders/${orderId}`);
-    return this.normalizer.normalizeOrder(response);
   }
 
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
     await this.rateLimiter.acquire('cancelAllOrders');
 
+    const deps = this.getTradingDeps();
+
     // WASM signing is preferred
     if (this.signer && this.nonceManager) {
-      return this.cancelAllOrdersWasm(symbol);
+      return cancelAllOrdersWasm(deps, symbol);
     }
 
     // Fall back to HMAC
     if (this.apiKey && this.apiSecret) {
-      return this.cancelAllOrdersHMAC(symbol);
+      return cancelAllOrdersHMAC(deps, symbol);
     }
 
     throw new InvalidOrderError(
@@ -667,65 +450,6 @@ export class LighterAdapter extends BaseAdapter {
       'AUTH_REQUIRED',
       'lighter'
     );
-  }
-
-  /**
-   * Cancel all orders using WASM signing
-   */
-  private async cancelAllOrdersWasm(symbol?: string): Promise<Order[]> {
-    // Get market index (-1 for all markets)
-    let marketIndex = -1;
-    if (symbol) {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      const cached = this.marketIdCache.get(lighterSymbol);
-      if (cached !== undefined) {
-        marketIndex = cached;
-      } else {
-        await this.fetchMarkets();
-        marketIndex = this.marketIdCache.get(lighterSymbol) ?? -1;
-      }
-    }
-
-    const nonce = await this.nonceManager!.getNextNonce();
-
-    try {
-      const signedTx = await this.signer!.signCancelAllOrders({
-        marketIndex: marketIndex >= 0 ? marketIndex : undefined,
-        nonce,
-      });
-
-      const response = await this.request<{ code: number; orders: any[] }>('POST', '/api/v1/sendTx', {
-        tx_type: signedTx.txType,
-        tx_info: signedTx.txInfo,
-      });
-
-      if (response.code !== 0) {
-        await this.handleTransactionError(response.code);
-        throw new InvalidOrderError(`Cancel all failed: code ${response.code}`, 'CANCEL_REJECTED', 'lighter');
-      }
-
-      return (response.orders || []).map((order: any) => this.normalizer.normalizeOrder(order));
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : '';
-      if (!errorMsg.includes('code')) {
-        this.nonceManager!.rollback();
-      }
-      throw mapError(error);
-    }
-  }
-
-  /**
-   * Cancel all orders using HMAC signing (legacy)
-   */
-  private async cancelAllOrdersHMAC(symbol?: string): Promise<Order[]> {
-    const path = symbol ? `/orders?symbol=${this.normalizer.toLighterSymbol(symbol)}` : '/orders';
-    const response = await this.request<LighterOrder[]>('DELETE', path);
-
-    if (!Array.isArray(response)) {
-      return [];
-    }
-
-    return response.map((order: any) => this.normalizer.normalizeOrder(order));
   }
 
   // ==================== Collateral Management ====================
@@ -739,69 +463,13 @@ export class LighterAdapter extends BaseAdapter {
    * @param amount - Amount to withdraw in base units
    * @param destinationAddress - Ethereum address to withdraw to
    * @returns Transaction hash
-   *
-   * @example
-   * ```typescript
-   * // Withdraw 100 USDC
-   * const txHash = await lighter.withdrawCollateral(
-   *   0,          // USDC collateral index
-   *   100000000n, // 100 USDC (6 decimals)
-   *   '0x...'     // Your wallet address
-   * );
-   * ```
    */
   async withdrawCollateral(
     collateralIndex: number,
     amount: bigint,
     destinationAddress: string
   ): Promise<string> {
-    if (!this.hasWasmSigning || !this.nonceManager) {
-      throw new PerpDEXError(
-        'Withdrawals require WASM signing. Configure apiPrivateKey and install @oraichain/lighter-ts-sdk.',
-        'AUTH_REQUIRED',
-        'lighter'
-      );
-    }
-
-    // Validate address format
-    if (!destinationAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-      throw new InvalidOrderError(
-        'Invalid destination address format',
-        'INVALID_ADDRESS',
-        'lighter'
-      );
-    }
-
-    const nonce = await this.nonceManager.getNextNonce();
-
-    try {
-      const signedTx = await this.signer!.signWithdrawCollateral({
-        collateralIndex,
-        amount,
-        destinationAddress,
-        nonce,
-      });
-
-      const response = await this.request<{ code: number; tx_hash: string }>('POST', '/api/v1/sendTx', {
-        tx_type: signedTx.txType,
-        tx_info: signedTx.txInfo,
-      });
-
-      if (response.code !== 0) {
-        // Check for nonce errors and resync
-        await this.handleTransactionError(response.code);
-        throw new PerpDEXError(
-          `Withdrawal failed: code ${response.code}`,
-          'WITHDRAWAL_FAILED',
-          'lighter'
-        );
-      }
-
-      return response.tx_hash || signedTx.txHash;
-    } catch (error) {
-      this.nonceManager.rollback();
-      throw mapError(error);
-    }
+    return withdrawCollateralHelper(this.getTradingDeps(), collateralIndex, amount, destinationAddress);
   }
 
   /**
@@ -821,84 +489,37 @@ export class LighterAdapter extends BaseAdapter {
     }
   }
 
+  /** Get account dependencies for helper functions */
+  private getAccountDeps(): AccountDeps {
+    return {
+      normalizer: this.normalizer,
+      request: <T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: Record<string, unknown>) =>
+        this.request<T>(method, path, body),
+    };
+  }
+
+  private ensureAuthenticated(): void {
+    if (!this.hasAuthentication) {
+      throw new PerpDEXError('API credentials required', 'AUTH_REQUIRED', 'lighter');
+    }
+  }
+
   async fetchPositions(symbols?: string[]): Promise<Position[]> {
     await this.rateLimiter.acquire('fetchPositions');
-
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError(
-        'API credentials required',
-        'AUTH_REQUIRED',
-        'lighter'
-      );
-    }
-
-    try {
-      const response = await this.request<LighterPosition[]>('GET', '/account/positions');
-
-      if (!Array.isArray(response)) {
-        throw new PerpDEXError('Invalid positions response', 'INVALID_RESPONSE', 'lighter');
-      }
-
-      let positions = response.map((position: any) => this.normalizer.normalizePosition(position));
-
-      // Filter by symbols if provided
-      if (symbols && symbols.length > 0) {
-        positions = positions.filter(p => symbols.includes(p.symbol));
-      }
-
-      return positions;
-    } catch (error) {
-      throw mapError(error);
-    }
+    this.ensureAuthenticated();
+    return fetchPositionsData(this.getAccountDeps(), symbols);
   }
 
   async fetchBalance(): Promise<Balance[]> {
     await this.rateLimiter.acquire('fetchBalance');
-
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError(
-        'API credentials required',
-        'AUTH_REQUIRED',
-        'lighter'
-      );
-    }
-
-    try {
-      const response = await this.request<LighterBalance[]>('GET', '/account/balance');
-
-      if (!Array.isArray(response)) {
-        throw new PerpDEXError('Invalid balance response', 'INVALID_RESPONSE', 'lighter');
-      }
-
-      return response.map((balance: any) => this.normalizer.normalizeBalance(balance));
-    } catch (error) {
-      throw mapError(error);
-    }
+    this.ensureAuthenticated();
+    return fetchBalanceData(this.getAccountDeps());
   }
 
   async fetchOpenOrders(symbol?: string): Promise<Order[]> {
     await this.rateLimiter.acquire('fetchOpenOrders');
-
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError(
-        'API credentials required',
-        'AUTH_REQUIRED',
-        'lighter'
-      );
-    }
-
-    try {
-      const path = symbol ? `/orders?symbol=${this.normalizer.toLighterSymbol(symbol)}` : '/orders';
-      const response = await this.request<LighterOrder[]>('GET', path);
-
-      if (!Array.isArray(response)) {
-        throw new PerpDEXError('Invalid open orders response', 'INVALID_RESPONSE', 'lighter');
-      }
-
-      return response.map((order: any) => this.normalizer.normalizeOrder(order));
-    } catch (error) {
-      throw mapError(error);
-    }
+    this.ensureAuthenticated();
+    return fetchOpenOrdersData(this.getAccountDeps(), symbol);
   }
 
   // ==================== Required BaseAdapter Methods ====================
@@ -907,76 +528,16 @@ export class LighterAdapter extends BaseAdapter {
     throw new Error('Lighter does not support setLeverage');
   }
 
-  /**
-   * Fetch order history
-   */
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
     await this.rateLimiter.acquire('fetchOrderHistory');
-
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError(
-        'API credentials required',
-        'AUTH_REQUIRED',
-        'lighter'
-      );
-    }
-
-    try {
-      const params = new URLSearchParams();
-      if (symbol) params.append('symbol', this.normalizer.toLighterSymbol(symbol));
-      if (since) params.append('startTime', since.toString());
-      if (limit) params.append('limit', limit.toString());
-
-      const queryString = params.toString();
-      const response = await this.request<LighterOrder[]>(
-        'GET',
-        `/account/inactiveOrders${queryString ? `?${queryString}` : ''}`
-      );
-
-      if (!Array.isArray(response)) {
-        throw new PerpDEXError('Invalid order history response', 'INVALID_RESPONSE', 'lighter');
-      }
-
-      return response.map((order: any) => this.normalizer.normalizeOrder(order));
-    } catch (error) {
-      throw mapError(error);
-    }
+    this.ensureAuthenticated();
+    return fetchOrderHistoryData(this.getAccountDeps(), symbol, since, limit);
   }
 
-  /**
-   * Fetch user trade history
-   */
   async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
     await this.rateLimiter.acquire('fetchMyTrades');
-
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError(
-        'API credentials required',
-        'AUTH_REQUIRED',
-        'lighter'
-      );
-    }
-
-    try {
-      const params = new URLSearchParams();
-      if (symbol) params.append('symbol', this.normalizer.toLighterSymbol(symbol));
-      if (since) params.append('startTime', since.toString());
-      if (limit) params.append('limit', limit.toString());
-
-      const queryString = params.toString();
-      const response = await this.request<LighterTrade[]>(
-        'GET',
-        `/account/fills${queryString ? `?${queryString}` : ''}`
-      );
-
-      if (!Array.isArray(response)) {
-        throw new PerpDEXError('Invalid trade history response', 'INVALID_RESPONSE', 'lighter');
-      }
-
-      return response.map((trade: any) => this.normalizer.normalizeTrade(trade));
-    } catch (error) {
-      throw mapError(error);
-    }
+    this.ensureAuthenticated();
+    return fetchMyTradesData(this.getAccountDeps(), symbol, since, limit);
   }
 
   symbolToExchange(symbol: string): string {
@@ -985,99 +546,6 @@ export class LighterAdapter extends BaseAdapter {
 
   symbolFromExchange(exchangeSymbol: string): string {
     return this.normalizer.normalizeSymbol(exchangeSymbol);
-  }
-
-  // ==================== Private Helper Methods ====================
-
-  /**
-   * Convert amount to base units
-   */
-  private toBaseUnits(amount: number, decimals: number): bigint {
-    const factor = 10 ** decimals;
-    return BigInt(Math.round(amount * factor));
-  }
-
-  /**
-   * Convert price to price units
-   */
-  private toPriceUnits(price: number, tickSize: number): number {
-    return Math.round(price / tickSize);
-  }
-
-  /**
-   * Map unified order type to Lighter order type
-   */
-  private mapOrderType(type: string): OrderType {
-    switch (type.toLowerCase()) {
-      case 'limit':
-        return OrderType.LIMIT;
-      case 'market':
-        return OrderType.MARKET;
-      case 'stop_limit':
-      case 'stop-limit':
-        return OrderType.STOP_LIMIT;
-      case 'stop_market':
-      case 'stop-market':
-        return OrderType.STOP_MARKET;
-      default:
-        return OrderType.LIMIT;
-    }
-  }
-
-  /**
-   * Map unified time in force to Lighter time in force
-   */
-  private mapTimeInForce(tif?: string, postOnly?: boolean): TimeInForce {
-    if (postOnly) {
-      return TimeInForce.POST_ONLY;
-    }
-    switch (tif?.toUpperCase()) {
-      case 'IOC':
-        return TimeInForce.IOC;
-      case 'FOK':
-        return TimeInForce.FOK;
-      case 'PO':
-      case 'POST_ONLY':
-        return TimeInForce.POST_ONLY;
-      case 'GTC':
-      default:
-        return TimeInForce.GTC;
-    }
-  }
-
-  /**
-   * Convert unified order request to Lighter format (for HMAC mode)
-   */
-  private convertOrderRequest(
-    request: OrderRequest,
-    lighterSymbol: string
-  ): Record<string, unknown> {
-    const order: Record<string, unknown> = {
-      symbol: lighterSymbol,
-      side: request.side,
-      type: request.type,
-      quantity: request.amount,
-    };
-
-    if (request.price !== undefined) {
-      order.price = request.price;
-    }
-
-    if (request.clientOrderId) {
-      order.clientOrderId = request.clientOrderId;
-    }
-
-    if (request.reduceOnly) {
-      order.reduceOnly = true;
-    }
-
-    if (request.postOnly) {
-      order.timeInForce = 'PO';
-    } else if (request.timeInForce) {
-      order.timeInForce = request.timeInForce;
-    }
-
-    return order;
   }
 
   /**

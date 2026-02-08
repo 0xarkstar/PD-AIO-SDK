@@ -40,10 +40,6 @@ export declare class HyperliquidAdapter extends BaseAdapter {
      * @returns Array of OHLCV tuples [timestamp, open, high, low, close, volume]
      */
     fetchOHLCV(symbol: string, timeframe?: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]>;
-    /**
-     * Get default duration based on timeframe for initial data fetch
-     */
-    private getDefaultDuration;
     fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
     createOrder(request: OrderRequest): Promise<Order>;
@@ -54,54 +50,29 @@ export declare class HyperliquidAdapter extends BaseAdapter {
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
     setLeverage(symbol: string, leverage: number): Promise<void>;
+    /** Ensure authenticated and return auth instance */
+    private ensureAuth;
+    /** Make authenticated info request */
+    private authInfoRequest;
     fetchUserFees(): Promise<import('../../types/common.js').UserFees>;
     fetchPortfolio(): Promise<import('../../types/common.js').Portfolio>;
     fetchRateLimitStatus(): Promise<import('../../types/common.js').RateLimitStatus>;
+    private ensureWsHandler;
     watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook>;
     watchTrades(symbol: string): AsyncGenerator<Trade>;
     watchTicker(symbol: string): AsyncGenerator<Ticker>;
     watchPositions(): AsyncGenerator<Position[]>;
-    /**
-     * Watch open orders in real-time
-     *
-     * Subscribes to the USER_FILLS WebSocket channel and yields updated order lists
-     * whenever fills occur. Provides real-time updates of the open order book.
-     *
-     * @returns AsyncGenerator that yields arrays of open orders
-     * @throws {Error} If WebSocket handler is not initialized
-     */
     watchOrders(): AsyncGenerator<Order[]>;
-    /**
-     * Watch user trades (fills) in real-time
-     *
-     * Subscribes to the USER_FILLS WebSocket channel and yields each trade
-     * as it occurs. Provides real-time fill notifications for the authenticated user.
-     *
-     * @param symbol - Optional symbol to filter trades (e.g., "BTC/USDT:USDT")
-     * @returns AsyncGenerator that yields individual trades
-     * @throws {Error} If WebSocket handler is not initialized
-     */
     watchMyTrades(symbol?: string): AsyncGenerator<Trade>;
+    /** Get default duration for OHLCV timeframe */
+    protected getDefaultDuration(timeframe: OHLCVTimeframe): number;
     protected symbolToExchange(symbol: string): string;
     protected symbolFromExchange(exchangeSymbol: string): string;
     /**
      * Fetch open orders
      *
-     * Retrieves all open (unfilled) orders for the authenticated user.
-     * Can be filtered by symbol to get orders for a specific trading pair.
-     *
      * @param symbol - Optional symbol to filter orders (e.g., "BTC/USDT:USDT")
      * @returns Array of open orders
-     * @throws {Error} If authentication is required but not available
-     *
-     * @example
-     * ```typescript
-     * // Get all open orders
-     * const allOrders = await adapter.fetchOpenOrders();
-     *
-     * // Get open orders for specific symbol
-     * const ethOrders = await adapter.fetchOpenOrders('ETH/USDT:USDT');
-     * ```
      */
     fetchOpenOrders(symbol?: string): Promise<Order[]>;
 }

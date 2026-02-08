@@ -148,14 +148,13 @@ export class NadoAPIClient {
     async request(endpoint, body) {
         const controller = new AbortController();
         this.abortControllers.add(controller);
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
         try {
             const response = await fetch(`${this.apiUrl}${endpoint}`, {
                 method: 'POST',
                 headers: NADO_REQUEST_CONFIG.headers,
                 body: JSON.stringify(body),
                 signal: controller.signal,
-                // @ts-ignore - timeout not in standard fetch types
-                timeout: this.timeout,
             });
             // Check HTTP status
             if (!response.ok) {
@@ -175,6 +174,7 @@ export class NadoAPIClient {
             throw this.mapRequestError(error);
         }
         finally {
+            clearTimeout(timeoutId);
             this.abortControllers.delete(controller);
         }
     }

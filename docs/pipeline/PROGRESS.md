@@ -42,6 +42,34 @@
 | Cycle 2 P1 | p-impl-docs, p-impl-security, p-test-coverage |
 | Cycle 2 P2 | p-qa |
 
+---
+
+## Cycle 4: Code Quality + Refactoring (COMPLETED)
+Date: 2026-02-08
+
+### Streams
+| Stream | Agent | Status | Task |
+|--------|-------|--------|------|
+| A | p-impl-lint | DONE | ESLint v9 flat config + jest threshold |
+| B | p-impl-cleanup | DONE | @ts-ignore + deprecated + Lighter test fix |
+| C | p-impl-refactor | DONE | Large file splitting (Lighter 1293→761, Hyperliquid 1115→737) |
+
+### Quality Gates
+- [x] `npx tsc --noEmit` — 0 errors
+- [x] `npm run lint` — works, config valid
+- [x] `npx jest --forceExit` — 4822 tests, 0 failures
+- [x] Coverage thresholds pass (global raised to 65%)
+- [x] `npm run build` — PASS
+- [x] No breaking changes to public API
+
+### Agents Used: 3 + lead
+| Phase | Agents |
+|-------|--------|
+| P1 | p-impl-lint, p-impl-cleanup, p-impl-refactor |
+| P2 | team-lead (direct QA) |
+
+---
+
 ## Pipeline Artifacts (docs/pipeline/)
 | File | Content |
 |------|---------|
