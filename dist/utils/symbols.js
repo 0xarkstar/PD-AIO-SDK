@@ -25,7 +25,7 @@
  * const sol = createSymbol('backpack', 'SOL');  // "SOL/USDT:USDT"
  * ```
  */
-export function createSymbol(exchange, base, quote = 'USDT') {
+export function createSymbol(_exchange, base, quote = 'USDT') {
     // Normalize to uppercase
     const normalizedBase = base.toUpperCase().trim();
     const normalizedQuote = quote.toUpperCase().trim();

@@ -21,7 +21,7 @@ export declare class DriftNormalizer {
     /**
      * Normalize perp position to unified Position
      */
-    normalizePosition(position: DriftPerpPosition, markPrice: number, oraclePrice: number): Position;
+    normalizePosition(position: DriftPerpPosition, markPrice: number, _oraclePrice: number): Position;
     /**
      * Normalize order to unified Order
      */

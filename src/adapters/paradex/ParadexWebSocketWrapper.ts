@@ -87,7 +87,6 @@ export class ParadexWebSocketWrapper {
   private readonly wsUrl: string;
   private readonly timeout: number;
   private readonly maxReconnectAttempts: number;
-  private readonly apiKey?: string;
   private readonly normalizer: ParadexNormalizer;
   private readonly logger = new Logger('ParadexWebSocket');
   private isConnected = false;
@@ -113,7 +112,6 @@ export class ParadexWebSocketWrapper {
     this.wsUrl = config.wsUrl;
     this.timeout = config.timeout || 30000;
     this.maxReconnectAttempts = config.maxReconnectAttempts || 10;
-    this.apiKey = config.apiKey;
     this.normalizer = new ParadexNormalizer();
   }
 

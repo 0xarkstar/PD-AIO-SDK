@@ -321,7 +321,7 @@ export class GRVTAdapter extends BaseAdapter {
             throw mapAxiosError(error);
         }
     }
-    async cancelOrder(orderId, symbol) {
+    async cancelOrder(orderId, _symbol) {
         this.auth.requireAuth();
         await this.rateLimiter.acquire('cancelOrder');
         try {
@@ -343,7 +343,7 @@ export class GRVTAdapter extends BaseAdapter {
             if (symbol) {
                 params.instrument = this.normalizer.symbolFromCCXT(symbol);
             }
-            const response = await this.sdk.cancelAllOrders(params);
+            await this.sdk.cancelAllOrders(params);
             // SDK returns number of canceled orders, not the orders themselves
             // Return empty array since we don't have order details
             return [];
@@ -373,7 +373,7 @@ export class GRVTAdapter extends BaseAdapter {
     /**
      * Fetch order history - NOW IMPLEMENTED via SDK!
      */
-    async fetchOrderHistory(symbol, since, limit) {
+    async fetchOrderHistory(symbol, _since, limit) {
         this.auth.requireAuth();
         await this.rateLimiter.acquire('fetchClosedOrders');
         try {
@@ -394,7 +394,7 @@ export class GRVTAdapter extends BaseAdapter {
     /**
      * Fetch user trade history - NOW IMPLEMENTED via SDK!
      */
-    async fetchMyTrades(symbol, since, limit) {
+    async fetchMyTrades(symbol, _since, limit) {
         this.auth.requireAuth();
         await this.rateLimiter.acquire('fetchMyTrades');
         try {
@@ -468,7 +468,7 @@ export class GRVTAdapter extends BaseAdapter {
         return tifMap[tif] || 'GTC';
     }
     // ==================== Required BaseAdapter Methods ====================
-    async fetchFundingRateHistory(symbol, since, limit) {
+    async fetchFundingRateHistory(_symbol, _since, _limit) {
         throw new PerpDEXError('GRVT does not provide funding rate history via API', 'NOT_SUPPORTED', 'grvt');
     }
     async setLeverage(symbol, leverage) {

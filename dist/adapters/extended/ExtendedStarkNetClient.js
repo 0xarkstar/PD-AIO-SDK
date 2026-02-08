@@ -15,10 +15,8 @@ import { Logger } from '../../core/logger.js';
 export class ExtendedStarkNetClient {
     provider;
     account;
-    network;
     logger;
     constructor(config) {
-        this.network = config.network;
         this.logger = new Logger('ExtendedStarkNetClient');
         // Initialize StarkNet provider
         const nodeUrl = config.rpcUrl ||
@@ -164,7 +162,7 @@ export class ExtendedStarkNetClient {
     /**
      * Wait for transaction confirmation
      */
-    async waitForTransaction(txHash, confirmations = EXTENDED_STARKNET_CONFIG.confirmations, timeoutMs = 300000 // 5 minutes
+    async waitForTransaction(txHash, _confirmations = EXTENDED_STARKNET_CONFIG.confirmations, timeoutMs = 300000 // 5 minutes
     ) {
         const startTime = Date.now();
         while (Date.now() - startTime < timeoutMs) {

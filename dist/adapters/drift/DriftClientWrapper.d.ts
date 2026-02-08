@@ -67,7 +67,7 @@ export declare class DriftClientWrapper {
     private readonly config;
     private driftClient;
     private isInitialized;
-    private userAccountPublicKey?;
+    private readonly logger;
     constructor(config: DriftClientWrapperConfig);
     /**
      * Initialize the Drift client and subscribe to user account

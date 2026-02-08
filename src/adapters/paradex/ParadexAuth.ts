@@ -9,7 +9,7 @@
  * @see https://docs.paradex.trade/api/authentication
  */
 
-import { Account, ec, hash, encode } from 'starknet';
+import { ec, hash } from 'starknet';
 import type { IAuthStrategy, AuthenticatedRequest, RequestParams } from '../../types/adapter.js';
 import { PARADEX_JWT_EXPIRY_BUFFER } from './constants.js';
 import type { ParadexJWT } from './types.js';
@@ -41,19 +41,13 @@ interface JWTToken {
  */
 export class ParadexAuth implements IAuthStrategy {
   private readonly apiKey?: string;
-  private readonly apiSecret?: string;
-  private readonly privateKey?: string;
   private readonly starkPrivateKey?: string;
-  private readonly testnet: boolean;
   private jwtToken?: JWTToken;
   private readonly logger = new Logger('ParadexAuth');
 
   constructor(config: ParadexAuthConfig) {
     this.apiKey = config.apiKey;
-    this.apiSecret = config.apiSecret;
-    this.privateKey = config.privateKey;
     this.starkPrivateKey = config.starkPrivateKey;
-    this.testnet = config.testnet ?? false;
     // Note: Credentials are optional for public API access
   }
 
@@ -257,7 +251,7 @@ export class ParadexAuth implements IAuthStrategy {
    * @param path - API path
    * @returns true if signature required
    */
-  private requiresSignature(method: string, path: string): boolean {
+  private requiresSignature(_method: string, path: string): boolean {
     // Trading operations require signatures
     const tradingPaths = [
       '/orders',

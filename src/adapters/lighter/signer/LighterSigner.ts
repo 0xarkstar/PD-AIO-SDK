@@ -109,10 +109,6 @@ export class LighterSigner {
   private initialized = false;
   private apiPublicKey: string = '';
 
-  // Struct types for koffi
-  private SignedTxResponseType: any = null;
-  private StrOrErrType: any = null;
-
   constructor(config: LighterSignerConfig) {
     // Normalize private key (remove 0x prefix if present)
     const privateKey = config.apiPrivateKey.startsWith('0x')
@@ -154,7 +150,6 @@ export class LighterSigner {
           } else {
             // Try createRequire with a file URL
             const { createRequire } = await import('module');
-            const { fileURLToPath } = await import('url');
             // Use process.cwd() as base for require context
             const requireFn = createRequire(process.cwd() + '/package.json');
             this.koffi = requireFn('koffi');
@@ -177,7 +172,7 @@ export class LighterSigner {
       //   char* messageToSign;
       //   char* err;
       // } SignedTxResponse;
-      this.SignedTxResponseType = this.koffi.struct('SignedTxResponse', {
+      this.koffi.struct('SignedTxResponse', {
         txType: 'uint8',
         txInfo: 'char *',
         txHash: 'char *',
@@ -189,7 +184,7 @@ export class LighterSigner {
       //   char* str;
       //   char* err;
       // } StrOrErr;
-      this.StrOrErrType = this.koffi.struct('StrOrErr', {
+      this.koffi.struct('StrOrErr', {
         str: 'char *',
         err: 'char *',
       });

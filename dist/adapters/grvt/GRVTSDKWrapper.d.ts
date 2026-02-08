@@ -27,7 +27,6 @@ export declare class GRVTSDKWrapper {
     private mdg;
     private tdg;
     private sessionCookie?;
-    private readonly config;
     constructor(config: GRVTSDKWrapperConfig);
     /**
      * Get axios instance from MDG for direct access if needed

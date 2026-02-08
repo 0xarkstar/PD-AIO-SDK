@@ -38,26 +38,6 @@ export type ExchangeConfigMap = {
  * Type for adapter constructor function
  */
 export type AdapterConstructor<C extends ExchangeConfig = ExchangeConfig> = new (config?: C) => IExchangeAdapter;
-/**
- * Register a custom exchange adapter
- *
- * Use this to add support for new exchanges without modifying the SDK.
- *
- * @param id - Unique exchange identifier (lowercase)
- * @param constructor - Adapter class constructor
- *
- * @example
- * ```typescript
- * import { registerExchange } from 'pd-aio-sdk';
- * import { MyCustomAdapter } from './my-adapter';
- *
- * // Register custom adapter
- * registerExchange('myexchange', MyCustomAdapter);
- *
- * // Now you can use it with createExchange
- * const exchange = createExchange('myexchange' as any, { ... });
- * ```
- */
 export declare function registerExchange<C extends ExchangeConfig>(id: string, constructor: AdapterConstructor<C>): void;
 /**
  * Unregister an exchange adapter

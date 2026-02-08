@@ -92,20 +92,20 @@ export declare class GmxAdapter extends BaseAdapter {
     disconnect(): Promise<void>;
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
     fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    fetchOrderBook(_symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
+    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
     fetchFundingRate(symbol: string): Promise<FundingRate>;
-    fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
+    fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     fetchOHLCV(symbol: string, timeframe?: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
     fetchOpenOrders(symbol?: string): Promise<Order[]>;
     fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
-    fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
+    fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
     createOrder(request: OrderRequest): Promise<Order>;
     cancelOrder(orderId: string, symbol?: string): Promise<Order>;
     cancelAllOrders(symbol?: string): Promise<Order[]>;
-    setLeverage(symbol: string, leverage: number): Promise<void>;
+    setLeverage(_symbol: string, _leverage: number): Promise<void>;
     /**
      * Fetch markets info from API with caching
      */

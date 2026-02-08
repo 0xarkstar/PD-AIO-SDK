@@ -8,7 +8,6 @@ import {
   RateLimitError,
   ExchangeUnavailableError,
   WebSocketDisconnectedError,
-  type PerpDEXError,
 } from '../types/errors.js';
 
 /**

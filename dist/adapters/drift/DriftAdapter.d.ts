@@ -74,8 +74,6 @@ export declare class DriftAdapter extends BaseAdapter {
     private orderBuilder?;
     private dlobBaseUrl;
     private isTestnet;
-    private marketStatsCache;
-    private statsCacheTTL;
     constructor(config?: DriftConfig);
     initialize(): Promise<void>;
     /**
@@ -90,16 +88,16 @@ export declare class DriftAdapter extends BaseAdapter {
     fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
     fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
     fetchFundingRate(symbol: string): Promise<FundingRate>;
-    fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
+    fetchFundingRateHistory(symbol: string, _since?: number, limit?: number): Promise<FundingRate[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
     fetchOpenOrders(symbol?: string): Promise<Order[]>;
     createOrder(request: OrderRequest): Promise<Order>;
     cancelOrder(orderId: string, symbol?: string): Promise<Order>;
     cancelAllOrders(symbol?: string): Promise<Order[]>;
-    fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
-    fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
-    setLeverage(symbol: string, leverage: number): Promise<void>;
+    fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
+    fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
+    setLeverage(_symbol: string, _leverage: number): Promise<void>;
     protected performApiHealthCheck(): Promise<void>;
     /**
      * Filter markets by params

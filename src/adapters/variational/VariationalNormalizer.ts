@@ -26,7 +26,6 @@ import type {
   VariationalFundingRate,
   VariationalQuote,
   VariationalListing,
-  VariationalMetadataStats,
 } from './types.js';
 import { countDecimals, safeParseFloat } from './utils.js';
 
@@ -52,7 +51,7 @@ export class VariationalNormalizer {
    * "BTC/USDT:USDT" → "BTC-USDT-PERP"
    */
   symbolFromCCXT(ccxtSymbol: string): string {
-    const [pair, settle] = ccxtSymbol.split(':');
+    const [pair] = ccxtSymbol.split(':');
     if (!pair) {
       return ccxtSymbol;
     }

@@ -7,11 +7,9 @@
 
 // We'll import these dynamically to handle the ESM module properly
 type Connection = import('@solana/web3.js').Connection;
-type PublicKey = import('@solana/web3.js').PublicKey;
 type Transaction = import('@solana/web3.js').Transaction;
 type TransactionInstruction = import('@solana/web3.js').TransactionInstruction;
 type Keypair = import('@solana/web3.js').Keypair;
-type TransactionSignature = import('@solana/web3.js').TransactionSignature;
 type ConfirmOptions = import('@solana/web3.js').ConfirmOptions;
 type AccountInfo = import('@solana/web3.js').AccountInfo<Buffer>;
 

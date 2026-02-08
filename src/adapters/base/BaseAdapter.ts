@@ -598,7 +598,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   abstract fetchFundingRate(symbol: string): Promise<FundingRate>;
   abstract fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
 
-  async fetchOHLCV(symbol: string, timeframe: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]> {
+  async fetchOHLCV(_symbol: string, _timeframe: OHLCVTimeframe, _params?: OHLCVParams): Promise<OHLCV[]> {
     if (!this.has.fetchOHLCV) {
       throw new NotSupportedError(`${this.name} does not support OHLCV data`, 'NOT_SUPPORTED', this.id);
     }
@@ -653,38 +653,38 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   // ===========================================================================
 
   abstract createOrder(request: OrderRequest): Promise<Order>;
-  abstract cancelOrder(orderId: string, symbol?: string): Promise<Order>;
-  abstract cancelAllOrders(symbol?: string): Promise<Order[]>;
+  abstract cancelOrder(_orderId: string, _symbol?: string): Promise<Order>;
+  abstract cancelAllOrders(_symbol?: string): Promise<Order[]>;
 
   // ===========================================================================
   // Account History - must be implemented by subclasses
   // ===========================================================================
 
-  abstract fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
-  abstract fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
+  abstract fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
+  abstract fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
 
-  async fetchDeposits(currency?: string, since?: number, limit?: number): Promise<Transaction[]> {
+  async fetchDeposits(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
     if (!this.has.fetchDeposits) {
       throw new NotSupportedError(`${this.name} does not support fetching deposit history`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('fetchDeposits must be implemented by subclass');
   }
 
-  async fetchWithdrawals(currency?: string, since?: number, limit?: number): Promise<Transaction[]> {
+  async fetchWithdrawals(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
     if (!this.has.fetchWithdrawals) {
       throw new NotSupportedError(`${this.name} does not support fetching withdrawal history`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('fetchWithdrawals must be implemented by subclass');
   }
 
-  async fetchLedger(currency?: string, since?: number, limit?: number, params?: Record<string, unknown>): Promise<LedgerEntry[]> {
+  async fetchLedger(_currency?: string, _since?: number, _limit?: number, _params?: Record<string, unknown>): Promise<LedgerEntry[]> {
     if (!this.has.fetchLedger) {
       throw new NotSupportedError(`${this.name} does not support fetching ledger`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('fetchLedger must be implemented by subclass');
   }
 
-  async fetchFundingHistory(symbol?: string, since?: number, limit?: number): Promise<FundingPayment[]> {
+  async fetchFundingHistory(_symbol?: string, _since?: number, _limit?: number): Promise<FundingPayment[]> {
     if (!this.has.fetchFundingHistory) {
       throw new NotSupportedError(`${this.name} does not support fetching funding history`, 'NOT_SUPPORTED', this.id);
     }
@@ -772,13 +772,13 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   }
 
   async editOrder(
-    orderId: string,
-    symbol: string,
-    type: OrderType,
-    side: OrderSide,
-    amount?: number,
-    price?: number,
-    params?: Record<string, unknown>
+    _orderId: string,
+    _symbol: string,
+    _type: OrderType,
+    _side: OrderSide,
+    _amount?: number,
+    _price?: number,
+    _params?: Record<string, unknown>
   ): Promise<Order> {
     if (!this.has.editOrder) {
       throw new NotSupportedError(`${this.name} does not support editing orders`, 'NOT_SUPPORTED', this.id);
@@ -790,21 +790,21 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   // Order Query
   // ===========================================================================
 
-  async fetchOrder(orderId: string, symbol?: string): Promise<Order> {
+  async fetchOrder(_orderId: string, _symbol?: string): Promise<Order> {
     if (!this.has.fetchOrder) {
       throw new NotSupportedError(`${this.name} does not support fetching single orders`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('fetchOrder must be implemented by subclass');
   }
 
-  async fetchOpenOrders(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+  async fetchOpenOrders(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]> {
     if (!this.has.fetchOpenOrders) {
       throw new NotSupportedError(`${this.name} does not support fetching open orders`, 'NOT_SUPPORTED', this.id);
     }
     throw new Error('fetchOpenOrders must be implemented by subclass');
   }
 
-  async fetchClosedOrders(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+  async fetchClosedOrders(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]> {
     if (!this.has.fetchClosedOrders) {
       throw new NotSupportedError(`${this.name} does not support fetching closed orders`, 'NOT_SUPPORTED', this.id);
     }
@@ -847,7 +847,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   abstract fetchBalance(): Promise<Balance[]>;
   abstract setLeverage(symbol: string, leverage: number): Promise<void>;
 
-  async setMarginMode(symbol: string, marginMode: 'cross' | 'isolated'): Promise<void> {
+  async setMarginMode(_symbol: string, _marginMode: 'cross' | 'isolated'): Promise<void> {
     if (!this.has.setMarginMode || this.has.setMarginMode === 'emulated') {
       throw new NotSupportedError(`${this.name} does not support setting margin mode directly`, 'NOT_SUPPORTED', this.id);
     }
@@ -858,7 +858,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   // WebSocket Streams - default implementation throws if not supported
   // ===========================================================================
 
-  async *watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook> {
+  async *watchOrderBook(_symbol: string, _limit?: number): AsyncGenerator<OrderBook> {
     if (!this.has.watchOrderBook) {
       throw new NotSupportedError(`${this.name} does not support order book streaming`, 'NOT_SUPPORTED', this.id);
     }
@@ -866,7 +866,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     yield {} as OrderBook;
   }
 
-  async *watchTrades(symbol: string): AsyncGenerator<Trade> {
+  async *watchTrades(_symbol: string): AsyncGenerator<Trade> {
     if (!this.has.watchTrades) {
       throw new NotSupportedError(`${this.name} does not support trade streaming`, 'NOT_SUPPORTED', this.id);
     }
@@ -874,7 +874,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     yield {} as Trade;
   }
 
-  async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
+  async *watchTicker(_symbol: string): AsyncGenerator<Ticker> {
     if (!this.has.watchTicker) {
       throw new NotSupportedError(`${this.name} does not support ticker streaming`, 'NOT_SUPPORTED', this.id);
     }
@@ -882,7 +882,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     yield {} as Ticker;
   }
 
-  async *watchTickers(symbols?: string[]): AsyncGenerator<Ticker> {
+  async *watchTickers(_symbols?: string[]): AsyncGenerator<Ticker> {
     if (!this.has.watchTickers) {
       throw new NotSupportedError(`${this.name} does not support multiple ticker streaming`, 'NOT_SUPPORTED', this.id);
     }
@@ -914,7 +914,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     yield [] as Balance[];
   }
 
-  async *watchFundingRate(symbol: string): AsyncGenerator<FundingRate> {
+  async *watchFundingRate(_symbol: string): AsyncGenerator<FundingRate> {
     if (!this.has.watchFundingRate) {
       throw new NotSupportedError(`${this.name} does not support funding rate streaming`, 'NOT_SUPPORTED', this.id);
     }
@@ -922,7 +922,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     yield {} as FundingRate;
   }
 
-  async *watchOHLCV(symbol: string, timeframe: OHLCVTimeframe): AsyncGenerator<OHLCV> {
+  async *watchOHLCV(_symbol: string, _timeframe: OHLCVTimeframe): AsyncGenerator<OHLCV> {
     if (!this.has.watchOHLCV) {
       throw new NotSupportedError(`${this.name} does not support OHLCV streaming`, 'NOT_SUPPORTED', this.id);
     }
@@ -930,7 +930,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     yield [0, 0, 0, 0, 0, 0] as OHLCV;
   }
 
-  async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
+  async *watchMyTrades(_symbol?: string): AsyncGenerator<Trade> {
     if (!this.has.watchMyTrades) {
       throw new NotSupportedError(`${this.name} does not support user trade streaming`, 'NOT_SUPPORTED', this.id);
     }

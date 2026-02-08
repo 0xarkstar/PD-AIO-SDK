@@ -29,6 +29,7 @@ import type { Market, Order, Position, Balance, Trade, Ticker, OrderBook } from 
  * ```
  */
 export declare class NadoNormalizer {
+    private readonly logger;
     /**
      * Convert Nado symbol to CCXT format
      *
@@ -58,15 +59,6 @@ export declare class NadoNormalizer {
      * ```
      */
     symbolFromCCXT(ccxtSymbol: string): string;
-    /**
-     * Convert number to x18 format (18 decimals) with validation
-     *
-     * @param value - Number or string to convert
-     * @returns x18 formatted string
-     *
-     * @throws {PerpDEXError} If value is not finite
-     */
-    private toX18Safe;
     /**
      * Convert from x18 format to number with precision safety
      *

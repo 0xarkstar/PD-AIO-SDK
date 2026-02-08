@@ -96,17 +96,17 @@ export declare class ExtendedAdapter extends BaseAdapter {
      * Convert Extended symbol to unified format
      */
     protected symbolFromExchange(exchangeSymbol: string): string;
-    fetchMarkets(params?: MarketParams): Promise<Market[]>;
+    fetchMarkets(_params?: MarketParams): Promise<Market[]>;
     fetchTicker(symbol: string): Promise<Ticker>;
     fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
     fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
     fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
     createOrder(request: OrderRequest): Promise<Order>;
-    cancelOrder(orderId: string, symbol?: string): Promise<Order>;
+    cancelOrder(orderId: string, _symbol?: string): Promise<Order>;
     cancelAllOrders(symbol?: string): Promise<Order[]>;
     createBatchOrders(requests: OrderRequest[]): Promise<Order[]>;
-    cancelBatchOrders(orderIds: string[], symbol?: string): Promise<Order[]>;
+    cancelBatchOrders(orderIds: string[], _symbol?: string): Promise<Order[]>;
     editOrder(orderId: string, symbol: string, type: 'market' | 'limit', side: 'buy' | 'sell', amount?: number, price?: number): Promise<Order>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
@@ -114,8 +114,8 @@ export declare class ExtendedAdapter extends BaseAdapter {
     setMarginMode(symbol: string, marginMode: 'cross' | 'isolated'): Promise<void>;
     fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
     fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
-    fetchDeposits(currency?: string, since?: number, limit?: number): Promise<Transaction[]>;
-    fetchWithdrawals(currency?: string, since?: number, limit?: number): Promise<Transaction[]>;
+    fetchDeposits(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]>;
+    fetchWithdrawals(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]>;
     fetchUserFees(): Promise<UserFees>;
     fetchPortfolio(): Promise<Portfolio>;
     fetchRateLimitStatus(): Promise<RateLimitStatus>;

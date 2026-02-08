@@ -68,7 +68,6 @@
 import { Wallet, ethers } from 'ethers';
 import type {
   Balance,
-  ExchangeConfig,
   FeatureMap,
   FundingRate,
   Market,
@@ -99,8 +98,6 @@ import {
 } from './constants.js';
 import type {
   NadoConfig,
-  NadoResponse,
-  NadoProduct,
   NadoOrderBook,
   NadoOrder,
   NadoPosition,
@@ -113,13 +110,10 @@ import type {
   ProductMapping,
 } from './types.js';
 import {
-  NadoResponseSchema,
-  NadoProductSchema,
   NadoOrderBookSchema,
   NadoOrderSchema,
   NadoPositionSchema,
   NadoBalanceSchema,
-  NadoTradeSchema,
   NadoTickerSchema,
   NadoContractsSchema,
 } from './types.js';
@@ -376,23 +370,6 @@ export class NadoAdapter extends BaseAdapter {
 
 
   /**
-   * Track request metrics
-   */
-  private trackRequest(endpoint: string, latency: number, success: boolean): void {
-    this.metrics.totalRequests++;
-
-    if (success) {
-      this.metrics.successfulRequests++;
-    } else {
-      this.metrics.failedRequests++;
-    }
-
-    // Update average latency
-    const totalLatency = this.metrics.averageLatency * (this.metrics.totalRequests - 1) + latency;
-    this.metrics.averageLatency = totalLatency / this.metrics.totalRequests;
-  }
-
-  /**
    * Require authentication for private methods
    * @throws {PerpDEXError} if auth is not configured
    */
@@ -427,7 +404,7 @@ export class NadoAdapter extends BaseAdapter {
    *
    * Uses the /query?type=symbols endpoint which returns market metadata
    */
-  protected async fetchMarketsFromAPI(params?: MarketParams): Promise<Market[]> {
+  protected async fetchMarketsFromAPI(_params?: MarketParams): Promise<Market[]> {
     this.debug('Fetching markets from API...');
 
     // Nado returns { symbols: { "BTC-PERP": {...}, "ETH-PERP": {...}, ... } }
@@ -440,7 +417,7 @@ export class NadoAdapter extends BaseAdapter {
 
     const markets: Market[] = [];
 
-    for (const [symbolKey, symbolData] of Object.entries(response.symbols || {})) {
+    for (const [_symbolKey, symbolData] of Object.entries(response.symbols || {})) {
       const market = this.normalizer.normalizeSymbol(symbolData);
       markets.push(market);
 
@@ -490,7 +467,7 @@ export class NadoAdapter extends BaseAdapter {
     return this.normalizer.normalizeOrderBook(NadoOrderBookSchema.parse(orderBook), symbol);
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
     // Nado provides trades via WebSocket only, not REST API
     // Use watchTrades() for real-time trade streaming
     throw new PerpDEXError(
@@ -566,7 +543,7 @@ export class NadoAdapter extends BaseAdapter {
     return this.normalizer.normalizeOrder(NadoOrderSchema.parse(response), mapping);
   }
 
-  async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+  async cancelOrder(orderId: string, _symbol?: string): Promise<Order> {
     const auth = this.requireAuth();
     if (!this.contractsInfo) {
       throw new PerpDEXError('Contracts info not loaded', 'NO_CONTRACTS', this.id);
@@ -657,7 +634,7 @@ export class NadoAdapter extends BaseAdapter {
     });
   }
 
-  async fetchPositions(symbols?: string[]): Promise<Position[]> {
+  async fetchPositions(_symbols?: string[]): Promise<Position[]> {
     const auth = this.requireAuth();
     const positions = await this.apiClient.query<NadoPosition[]>(
       NADO_QUERY_TYPES.ISOLATED_POSITIONS,

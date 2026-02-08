@@ -20,6 +20,7 @@ export declare class HyperliquidAdapter extends BaseAdapter {
     private apiUrl;
     private wsUrl;
     private wsManager?;
+    private wsHandler?;
     private auth?;
     protected rateLimiter: RateLimiter;
     private normalizer;
@@ -28,8 +29,8 @@ export declare class HyperliquidAdapter extends BaseAdapter {
     disconnect(): Promise<void>;
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
     fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
+    fetchTrades(symbol: string, _params?: TradeParams): Promise<Trade[]>;
     /**
      * Fetch OHLCV (candlestick) data
      *
@@ -67,18 +68,7 @@ export declare class HyperliquidAdapter extends BaseAdapter {
      * whenever fills occur. Provides real-time updates of the open order book.
      *
      * @returns AsyncGenerator that yields arrays of open orders
-     * @throws {Error} If WebSocket manager or authentication is not initialized
-     *
-     * @example
-     * ```typescript
-     * // Watch for order updates
-     * for await (const orders of adapter.watchOrders()) {
-     *   console.log(`Current open orders: ${orders.length}`);
-     *   orders.forEach(order => {
-     *     console.log(`${order.symbol}: ${order.side} ${order.amount} @ ${order.price}`);
-     *   });
-     * }
-     * ```
+     * @throws {Error} If WebSocket handler is not initialized
      */
     watchOrders(): AsyncGenerator<Order[]>;
     /**
@@ -89,14 +79,7 @@ export declare class HyperliquidAdapter extends BaseAdapter {
      *
      * @param symbol - Optional symbol to filter trades (e.g., "BTC/USDT:USDT")
      * @returns AsyncGenerator that yields individual trades
-     * @throws {Error} If WebSocket manager or authentication is not initialized
-     *
-     * @example
-     * ```typescript
-     * for await (const trade of adapter.watchMyTrades()) {
-     *   console.log(`Filled: ${trade.side} ${trade.amount} ${trade.symbol} @ ${trade.price}`);
-     * }
-     * ```
+     * @throws {Error} If WebSocket handler is not initialized
      */
     watchMyTrades(symbol?: string): AsyncGenerator<Trade>;
     protected symbolToExchange(symbol: string): string;

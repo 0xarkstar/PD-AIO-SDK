@@ -20,7 +20,6 @@ import {
   PARADEX_ORDER_TYPES,
   PARADEX_ORDER_SIDES,
   PARADEX_TIME_IN_FORCE,
-  PARADEX_ORDER_STATUS,
 } from './constants.js';
 import type {
   ParadexMarket,

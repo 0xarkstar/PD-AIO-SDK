@@ -32,10 +32,8 @@ export class GRVTSDKWrapper {
   private mdg: MDG;
   private tdg: TDG;
   private sessionCookie?: string;
-  private readonly config: GRVTSDKWrapperConfig;
 
   constructor(config: GRVTSDKWrapperConfig) {
-    this.config = config;
 
     const sdkConfig: IConfig = {
       host: config.host,

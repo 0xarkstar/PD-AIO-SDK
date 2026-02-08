@@ -26,7 +26,7 @@ import type { SupportedExchange } from '../factory.js';
  * const sol = createSymbol('backpack', 'SOL');  // "SOL/USDT:USDT"
  * ```
  */
-export declare function createSymbol(exchange: SupportedExchange, base: string, quote?: string): string;
+export declare function createSymbol(_exchange: SupportedExchange, base: string, quote?: string): string;
 /**
  * Parse unified symbol into components
  *

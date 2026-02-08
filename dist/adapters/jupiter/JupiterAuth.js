@@ -5,6 +5,7 @@
  * Jupiter Perps requires on-chain transactions signed by the wallet.
  */
 import { SOLANA_DEFAULT_RPC } from './constants.js';
+import { Logger } from '../../core/logger.js';
 /**
  * Solana wallet authentication for Jupiter Perps
  *
@@ -21,6 +22,7 @@ export class JupiterAuth {
     rpcEndpoint;
     connection;
     isInitialized = false;
+    logger = new Logger('JupiterAuth');
     constructor(config) {
         this.rpcEndpoint = config.rpcEndpoint || SOLANA_DEFAULT_RPC;
         // Store config for lazy initialization
@@ -41,7 +43,7 @@ export class JupiterAuth {
             void this.initKeypairAsync(bytes);
         }
         catch (error) {
-            console.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**
@@ -49,7 +51,7 @@ export class JupiterAuth {
      */
     async initKeypairAsync(bytes) {
         try {
-            const { Keypair, Connection, PublicKey } = await import('@solana/web3.js');
+            const { Keypair, Connection } = await import('@solana/web3.js');
             this.keypair = Keypair.fromSecretKey(bytes);
             this.publicKey = this.keypair.publicKey;
             this.walletAddress = this.publicKey.toBase58();
@@ -57,7 +59,7 @@ export class JupiterAuth {
             this.isInitialized = true;
         }
         catch (error) {
-            console.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**

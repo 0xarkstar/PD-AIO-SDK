@@ -242,38 +242,7 @@ describe('NadoAdapter', () => {
     });
   });
 
-  describe('trackRequest', () => {
-    let adapter: NadoAdapter;
-
-    beforeEach(() => {
-      adapter = new NadoAdapter({ privateKey: testPrivateKey });
-    });
-
-    it('should update metrics on successful request', () => {
-      (adapter as any).trackRequest('test', 100, true);
-
-      expect((adapter as any).metrics.totalRequests).toBe(1);
-      expect((adapter as any).metrics.successfulRequests).toBe(1);
-      expect((adapter as any).metrics.failedRequests).toBe(0);
-      expect((adapter as any).metrics.averageLatency).toBe(100);
-    });
-
-    it('should update metrics on failed request', () => {
-      (adapter as any).trackRequest('test', 150, false);
-
-      expect((adapter as any).metrics.totalRequests).toBe(1);
-      expect((adapter as any).metrics.successfulRequests).toBe(0);
-      expect((adapter as any).metrics.failedRequests).toBe(1);
-    });
-
-    it('should calculate average latency correctly', () => {
-      (adapter as any).trackRequest('test1', 100, true);
-      (adapter as any).trackRequest('test2', 200, true);
-
-      expect((adapter as any).metrics.totalRequests).toBe(2);
-      expect((adapter as any).metrics.averageLatency).toBe(150);
-    });
-  });
+  // trackRequest tests removed - method was unused and removed during cleanup
 
   describe('getProductMapping', () => {
     let adapter: NadoAdapter;

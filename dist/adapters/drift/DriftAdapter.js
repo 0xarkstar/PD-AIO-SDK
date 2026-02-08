@@ -16,12 +16,12 @@
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import { DriftNormalizer } from './DriftNormalizer.js';
-import { DriftAuth } from './DriftAuth.js';
-import { DriftClientWrapper } from './DriftClientWrapper.js';
 import { DriftOrderBuilder } from './orderBuilder.js';
 import { DRIFT_API_URLS, DRIFT_PERP_MARKETS, DRIFT_PRECISION, unifiedToDrift, driftToUnified, getMarketIndex, } from './constants.js';
 import { mapDriftError } from './error-codes.js';
 import { isValidMarket, getMarketConfig, buildOrderbookUrl, buildTradesUrl, } from './utils.js';
+import { DriftAuth } from './DriftAuth.js';
+import { DriftClientWrapper } from './DriftClientWrapper.js';
 /**
  * Drift Protocol Exchange Adapter
  *
@@ -95,8 +95,6 @@ export class DriftAdapter extends BaseAdapter {
     orderBuilder;
     dlobBaseUrl;
     isTestnet;
-    marketStatsCache = new Map();
-    statsCacheTTL = 5000; // 5 seconds
     constructor(config = {}) {
         super({
             timeout: 30000,
@@ -324,7 +322,7 @@ export class DriftAdapter extends BaseAdapter {
             throw mapDriftError(error);
         }
     }
-    async fetchFundingRateHistory(symbol, since, limit) {
+    async fetchFundingRateHistory(symbol, _since, limit) {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(driftSymbol)) {
@@ -550,7 +548,7 @@ export class DriftAdapter extends BaseAdapter {
             if (symbol) {
                 const marketIndex = getMarketIndex(symbol);
                 const results = await this.driftClient.cancelOrdersForMarket(marketIndex);
-                return results.map(r => ({
+                return results.map((r) => ({
                     id: r.orderId.toString(),
                     symbol,
                     type: 'limit',
@@ -588,15 +586,15 @@ export class DriftAdapter extends BaseAdapter {
             throw mapDriftError(error);
         }
     }
-    async fetchOrderHistory(symbol, since, limit) {
+    async fetchOrderHistory(_symbol, _since, _limit) {
         this.warn('Order history requires indexing on-chain transactions');
         return [];
     }
-    async fetchMyTrades(symbol, since, limit) {
+    async fetchMyTrades(_symbol, _since, _limit) {
         this.warn('Trade history requires indexing on-chain transactions');
         return [];
     }
-    async setLeverage(symbol, leverage) {
+    async setLeverage(_symbol, _leverage) {
         throw new Error('Drift uses cross-margin. Leverage is determined by position size relative to collateral.');
     }
     // ==========================================================================

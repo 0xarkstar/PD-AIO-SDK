@@ -27,11 +27,9 @@ export interface ParadexAuthConfig {
  */
 export declare class ParadexAuth implements IAuthStrategy {
     private readonly apiKey?;
-    private readonly apiSecret?;
-    private readonly privateKey?;
     private readonly starkPrivateKey?;
-    private readonly testnet;
     private jwtToken?;
+    private readonly logger;
     constructor(config: ParadexAuthConfig);
     /**
      * Check if any credentials are configured

@@ -24,7 +24,7 @@ export interface IOrderHelpersMixinBase {
   readonly has: Partial<FeatureMap>;
   readonly _isReady: boolean;
   createOrder(request: OrderRequest): Promise<Order>;
-  cancelOrder(orderId: string, symbol?: string): Promise<Order>;
+  cancelOrder(_orderId: string, _symbol?: string): Promise<Order>;
   debug(message: string, meta?: Record<string, unknown>): void;
 }
 
@@ -233,13 +233,13 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
      * Default implementation throws if not supported
      */
     async editOrder(
-      orderId: string,
-      symbol: string,
-      type: OrderType,
-      side: OrderSide,
-      amount?: number,
-      price?: number,
-      params?: Record<string, unknown>
+      _orderId: string,
+      _symbol: string,
+      _type: OrderType,
+      _side: OrderSide,
+      _amount?: number,
+      _price?: number,
+      _params?: Record<string, unknown>
     ): Promise<Order> {
       if (!this.has.editOrder) {
         throw new NotSupportedError(`${this.name} does not support editing orders`, 'NOT_SUPPORTED', this.id);
@@ -255,7 +255,7 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
      * Fetch a single order by ID
      * Default implementation throws if not supported
      */
-    async fetchOrder(orderId: string, symbol?: string): Promise<Order> {
+    async fetchOrder(_orderId: string, _symbol?: string): Promise<Order> {
       if (!this.has.fetchOrder) {
         throw new NotSupportedError(`${this.name} does not support fetching single orders`, 'NOT_SUPPORTED', this.id);
       }
@@ -266,7 +266,7 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
      * Fetch all open/pending orders
      * Default implementation throws if not supported
      */
-    async fetchOpenOrders(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+    async fetchOpenOrders(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]> {
       if (!this.has.fetchOpenOrders) {
         throw new NotSupportedError(`${this.name} does not support fetching open orders`, 'NOT_SUPPORTED', this.id);
       }
@@ -277,7 +277,7 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
      * Fetch closed (filled/canceled) orders
      * Default implementation throws if not supported
      */
-    async fetchClosedOrders(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+    async fetchClosedOrders(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]> {
       if (!this.has.fetchClosedOrders) {
         throw new NotSupportedError(`${this.name} does not support fetching closed orders`, 'NOT_SUPPORTED', this.id);
       }

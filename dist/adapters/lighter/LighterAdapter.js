@@ -14,8 +14,9 @@ import { PerpDEXError, InvalidOrderError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { WebSocketManager } from '../../websocket/WebSocketManager.js';
-import { LIGHTER_API_URLS, LIGHTER_RATE_LIMITS, LIGHTER_ENDPOINT_WEIGHTS, LIGHTER_WS_CONFIG, LIGHTER_WS_CHANNELS } from './constants.js';
+import { LIGHTER_API_URLS, LIGHTER_RATE_LIMITS, LIGHTER_ENDPOINT_WEIGHTS, LIGHTER_WS_CONFIG } from './constants.js';
 import { LighterNormalizer } from './LighterNormalizer.js';
+import { LighterWebSocket } from './LighterWebSocket.js';
 import { mapError } from './utils.js';
 import { LighterWasmSigner, OrderType, TimeInForce } from './signer/index.js';
 import { NonceManager } from './NonceManager.js';
@@ -89,6 +90,7 @@ export class LighterAdapter extends BaseAdapter {
     httpClient;
     normalizer;
     wsManager = null;
+    wsHandler = null;
     // Cache for symbol -> market_id mapping (Lighter API requires market_id for orderbook)
     marketIdCache = new Map();
     // Cache for symbol -> market metadata (for unit conversions)
@@ -178,7 +180,7 @@ export class LighterAdapter extends BaseAdapter {
             }
             catch (error) {
                 // WASM initialization failed - fall back to HMAC or public-only mode
-                console.warn('WASM signer initialization failed, falling back to HMAC mode:', error);
+                this.logger.warn('WASM signer initialization failed, falling back to HMAC mode', { error: error instanceof Error ? error.message : String(error) });
                 this.signer = null;
                 this.nonceManager = null;
             }
@@ -202,10 +204,22 @@ export class LighterAdapter extends BaseAdapter {
                 },
             });
             await this.wsManager.connect();
+            // Initialize WebSocket handler
+            this.wsHandler = new LighterWebSocket({
+                wsManager: this.wsManager,
+                normalizer: this.normalizer,
+                signer: this.signer,
+                apiKey: this.apiKey,
+                accountIndex: this.accountIndex,
+                apiKeyIndex: this.apiKeyIndex,
+                hasAuthentication: this.hasAuthentication,
+                hasWasmSigning: this.hasWasmSigning,
+            });
         }
         catch (error) {
             // WebSocket initialization is optional - watch methods will throw if needed
             this.wsManager = null;
+            this.wsHandler = null;
         }
         this._isReady = true;
     }
@@ -214,6 +228,7 @@ export class LighterAdapter extends BaseAdapter {
         if (this.wsManager) {
             await this.wsManager.disconnect();
             this.wsManager = null;
+            this.wsHandler = null;
         }
         // Clean up rate limiter to prevent hanging timers
         this.rateLimiter.destroy();
@@ -223,7 +238,7 @@ export class LighterAdapter extends BaseAdapter {
         this._isReady = false;
     }
     // ==================== Market Data Methods ====================
-    async fetchMarkets(params) {
+    async fetchMarkets(_params) {
         await this.rateLimiter.acquire('fetchMarkets');
         try {
             const response = await this.request('GET', '/api/v1/orderBookDetails');
@@ -344,7 +359,7 @@ export class LighterAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchFundingRateHistory(symbol, since, limit) {
+    async fetchFundingRateHistory(_symbol, _since, _limit) {
         throw new Error('Lighter does not support funding rate history');
     }
     // ==================== Trading Methods ====================
@@ -622,7 +637,7 @@ export class LighterAdapter extends BaseAdapter {
             1003, // Invalid nonce
         ];
         if (nonceErrorCodes.includes(code)) {
-            console.warn(`Nonce error detected (code ${code}), resyncing...`);
+            this.logger.warn(`Nonce error detected (code ${code}), resyncing...`);
             await this.resyncNonce();
         }
     }
@@ -681,7 +696,7 @@ export class LighterAdapter extends BaseAdapter {
         }
     }
     // ==================== Required BaseAdapter Methods ====================
-    async setLeverage(symbol, leverage) {
+    async setLeverage(_symbol, _leverage) {
         throw new Error('Lighter does not support setLeverage');
     }
     /**
@@ -874,157 +889,54 @@ export class LighterAdapter extends BaseAdapter {
         headers['X-TIMESTAMP'] = timestamp;
         headers['X-SIGNATURE'] = signature;
     }
-    // ==================== WebSocket Streaming Methods ====================
+    // ==================== WebSocket Streaming Methods (delegated to LighterWebSocket) ====================
     async *watchOrderBook(symbol, limit) {
-        if (!this.wsManager) {
+        if (!this.wsHandler) {
             throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
         }
-        const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-        const subscription = {
-            type: 'subscribe',
-            channel: LIGHTER_WS_CHANNELS.ORDERBOOK,
-            symbol: lighterSymbol,
-            limit: limit || 50,
-        };
-        const channelId = `${LIGHTER_WS_CHANNELS.ORDERBOOK}:${lighterSymbol}`;
-        for await (const update of this.wsManager.watch(channelId, subscription)) {
-            yield this.normalizer.normalizeOrderBook(update);
-        }
+        yield* this.wsHandler.watchOrderBook(symbol, limit);
     }
     async *watchTrades(symbol) {
-        if (!this.wsManager) {
+        if (!this.wsHandler) {
             throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
         }
-        const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-        const subscription = {
-            type: 'subscribe',
-            channel: LIGHTER_WS_CHANNELS.TRADES,
-            symbol: lighterSymbol,
-        };
-        const channelId = `${LIGHTER_WS_CHANNELS.TRADES}:${lighterSymbol}`;
-        for await (const trade of this.wsManager.watch(channelId, subscription)) {
-            yield this.normalizer.normalizeTrade(trade);
-        }
+        yield* this.wsHandler.watchTrades(symbol);
     }
     async *watchPositions() {
-        if (!this.wsManager) {
+        if (!this.wsHandler) {
             throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
         }
-        if (!this.hasAuthentication) {
-            throw new PerpDEXError('API credentials required for position streaming', 'AUTH_REQUIRED', this.id);
-        }
-        // Build subscription with appropriate auth
-        const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.POSITIONS);
-        const channelId = `${LIGHTER_WS_CHANNELS.POSITIONS}:${this.getAuthIdentifier()}`;
-        for await (const positions of this.wsManager.watch(channelId, subscription)) {
-            yield positions.map(position => this.normalizer.normalizePosition(position));
-        }
+        yield* this.wsHandler.watchPositions();
     }
     async *watchOrders() {
-        if (!this.wsManager) {
+        if (!this.wsHandler) {
             throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
         }
-        if (!this.hasAuthentication) {
-            throw new PerpDEXError('API credentials required for order streaming', 'AUTH_REQUIRED', this.id);
-        }
-        const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.ORDERS);
-        const channelId = `${LIGHTER_WS_CHANNELS.ORDERS}:${this.getAuthIdentifier()}`;
-        for await (const orders of this.wsManager.watch(channelId, subscription)) {
-            yield orders.map(order => this.normalizer.normalizeOrder(order));
-        }
+        yield* this.wsHandler.watchOrders();
     }
     async *watchTicker(symbol) {
-        if (!this.wsManager) {
+        if (!this.wsHandler) {
             throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
         }
-        const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-        const subscription = {
-            type: 'subscribe',
-            channel: LIGHTER_WS_CHANNELS.TICKER,
-            symbol: lighterSymbol,
-        };
-        const channelId = `${LIGHTER_WS_CHANNELS.TICKER}:${lighterSymbol}`;
-        for await (const ticker of this.wsManager.watch(channelId, subscription)) {
-            yield this.normalizer.normalizeTicker(ticker);
-        }
+        yield* this.wsHandler.watchTicker(symbol);
     }
     async *watchBalance() {
-        if (!this.wsManager) {
+        if (!this.wsHandler) {
             throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
         }
-        if (!this.hasAuthentication) {
-            throw new PerpDEXError('API credentials required for balance streaming', 'AUTH_REQUIRED', this.id);
-        }
-        // Lighter doesn't have a dedicated balance channel, so we use positions channel
-        // and extract balance info, or poll periodically
-        const subscription = await this.buildAuthenticatedSubscription('balance');
-        const channelId = `balance:${this.getAuthIdentifier()}`;
-        for await (const balances of this.wsManager.watch(channelId, subscription)) {
-            yield balances.map(balance => this.normalizer.normalizeBalance(balance));
-        }
+        yield* this.wsHandler.watchBalance();
     }
     /**
      * Watch user trades (fills) in real-time
      *
      * @param symbol - Optional symbol filter
      * @returns AsyncGenerator yielding Trade updates
-     *
-     * @example
-     * ```typescript
-     * for await (const trade of adapter.watchMyTrades('BTC/USDT:USDT')) {
-     *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
-     * }
-     * ```
      */
     async *watchMyTrades(symbol) {
-        if (!this.wsManager) {
+        if (!this.wsHandler) {
             throw new PerpDEXError('WebSocket not initialized', 'NO_WEBSOCKET', this.id);
         }
-        if (!this.hasAuthentication) {
-            throw new PerpDEXError('API credentials required for trade streaming', 'AUTH_REQUIRED', this.id);
-        }
-        const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.FILLS);
-        if (symbol) {
-            const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-            subscription.symbol = lighterSymbol;
-        }
-        const channelId = `${LIGHTER_WS_CHANNELS.FILLS}:${this.getAuthIdentifier()}`;
-        for await (const trade of this.wsManager.watch(channelId, subscription)) {
-            yield this.normalizer.normalizeTrade(trade);
-        }
-    }
-    /**
-     * Build authenticated subscription object for WebSocket
-     */
-    async buildAuthenticatedSubscription(channel) {
-        const subscription = {
-            type: 'subscribe',
-            channel,
-        };
-        // Use auth token for FFI mode, apiKey for HMAC mode
-        if (this.hasWasmSigning) {
-            try {
-                const authToken = await this.signer.createAuthToken();
-                subscription.authToken = authToken;
-            }
-            catch {
-                // Fall back to apiKey
-                subscription.apiKey = this.apiKey;
-            }
-        }
-        else if (this.apiKey) {
-            subscription.apiKey = this.apiKey;
-        }
-        return subscription;
-    }
-    /**
-     * Get authentication identifier for channel naming
-     */
-    getAuthIdentifier() {
-        if (this.hasWasmSigning) {
-            return `account-${this.accountIndex}-${this.apiKeyIndex}`;
-        }
-        return this.apiKey || 'anonymous';
+        yield* this.wsHandler.watchMyTrades(symbol);
     }
     // ==================== Private Helper Methods ====================
     /**

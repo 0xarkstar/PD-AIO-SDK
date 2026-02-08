@@ -12,7 +12,7 @@ export class JupiterNormalizer {
     /**
      * Normalize market data from custody and pool accounts
      */
-    normalizeMarket(marketKey, custody, pool, stats) {
+    normalizeMarket(marketKey, custody, pool, _stats) {
         const marketConfig = JUPITER_MARKETS[marketKey];
         const symbol = jupiterToUnified(marketKey);
         const makerFee = pool.fees.openPositionFee / 10000;
@@ -272,7 +272,7 @@ export class JupiterNormalizer {
      * Calculate liquidation price
      * Simplified calculation - actual Jupiter calculation is more complex
      */
-    calculateLiquidationPrice(side, entryPrice, leverage, collateralUsd, sizeUsd) {
+    calculateLiquidationPrice(side, entryPrice, leverage, _collateralUsd, _sizeUsd) {
         // Maintenance margin ~1% of position size
         const maintenanceMargin = 0.01;
         const liquidationThreshold = 1 - maintenanceMargin;

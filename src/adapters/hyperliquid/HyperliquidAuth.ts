@@ -7,7 +7,6 @@
 import { ethers } from 'ethers';
 import type { AuthenticatedRequest, IAuthStrategy, RequestParams } from '../../types/index.js';
 import {
-  HYPERLIQUID_CHAIN_ID,
   HYPERLIQUID_EIP712_DOMAIN,
   HYPERLIQUID_ACTION_TYPES,
 } from './constants.js';

@@ -9,7 +9,6 @@
 import { OrderType, TimeInForce } from './types.js';
 // Dynamic import for the WASM signer
 let WasmSignerClient = null;
-let wasmSignerInstance = null;
 /**
  * Load the WASM signer module dynamically
  */

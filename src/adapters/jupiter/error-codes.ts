@@ -10,7 +10,6 @@ import {
   InsufficientBalanceError,
   InvalidOrderError,
   InvalidSignatureError,
-  OrderNotFoundError,
   PerpDEXError,
   PositionNotFoundError,
   RateLimitError,

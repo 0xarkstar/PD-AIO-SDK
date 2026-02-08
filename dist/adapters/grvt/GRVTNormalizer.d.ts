@@ -74,7 +74,6 @@ export declare class GRVTNormalizer {
      * @param decimals - Number of decimal places
      * @returns String representation
      */
-    private toStringSafe;
     /**
      * Normalize GRVT market to unified format
      *
@@ -86,22 +85,6 @@ export declare class GRVTNormalizer {
      * Batch normalize markets
      */
     normalizeMarkets(grvtMarkets: IInstrumentDisplay[]): Market[];
-    /**
-     * Map GRVT order type to unified
-     */
-    private mapOrderType;
-    /**
-     * Map GRVT order side to unified
-     */
-    private mapOrderSide;
-    /**
-     * Map GRVT order status to unified
-     */
-    private mapOrderStatus;
-    /**
-     * Map GRVT time in force to unified
-     */
-    private mapTimeInForce;
     /**
      * Normalize GRVT order to unified format
      */
@@ -118,10 +101,6 @@ export declare class GRVTNormalizer {
      * Batch normalize orders
      */
     normalizeOrders(grvtOrders: IOrder[]): Order[];
-    /**
-     * Map GRVT position side to unified
-     */
-    private mapPositionSide;
     /**
      * Normalize GRVT position to unified format
      */

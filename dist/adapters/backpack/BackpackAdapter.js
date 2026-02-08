@@ -7,7 +7,6 @@ import { BaseAdapter } from '../base/BaseAdapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
-import { WebSocketManager } from '../../websocket/WebSocketManager.js';
 import { BACKPACK_API_URLS, BACKPACK_RATE_LIMITS, BACKPACK_ENDPOINT_WEIGHTS, } from './constants.js';
 import { BackpackNormalizer } from './BackpackNormalizer.js';
 import { BackpackAuth } from './BackpackAuth.js';
@@ -42,9 +41,7 @@ export class BackpackAdapter extends BaseAdapter {
     };
     auth;
     baseUrl;
-    wsUrl;
     httpClient;
-    wsManager;
     rateLimiter;
     normalizer;
     constructor(config = {}) {
@@ -63,7 +60,6 @@ export class BackpackAdapter extends BaseAdapter {
         });
         const urls = config.testnet ? BACKPACK_API_URLS.testnet : BACKPACK_API_URLS.mainnet;
         this.baseUrl = urls.rest;
-        this.wsUrl = urls.websocket;
         // Initialize HTTP client
         this.httpClient = new HTTPClient({
             baseUrl: this.baseUrl,
@@ -83,7 +79,6 @@ export class BackpackAdapter extends BaseAdapter {
             },
             exchange: this.id,
         });
-        this.wsManager = new WebSocketManager({ url: this.wsUrl });
     }
     /**
      * Initialize the adapter
@@ -117,7 +112,7 @@ export class BackpackAdapter extends BaseAdapter {
     /**
      * Fetch all available markets
      */
-    async fetchMarkets() {
+    async fetchMarkets(_params) {
         const response = await this.makeRequest('GET', '/markets', 'fetchMarkets');
         // Backpack returns array directly, not { markets: [...] }
         if (!Array.isArray(response)) {
@@ -238,24 +233,24 @@ export class BackpackAdapter extends BaseAdapter {
     /**
      * Create a new order
      */
-    async createOrder(order) {
+    async createOrder(request) {
         // Validate order request
-        const validatedOrder = this.validateOrder(order);
+        const validatedRequest = this.validateOrder(request);
         this.requireAuth();
-        const market = this.normalizer.toBackpackSymbol(validatedOrder.symbol);
-        const orderType = toBackpackOrderType(validatedOrder.type, validatedOrder.postOnly);
-        const side = toBackpackOrderSide(validatedOrder.side);
-        const timeInForce = toBackpackTimeInForce(validatedOrder.timeInForce, validatedOrder.postOnly);
+        const market = this.normalizer.toBackpackSymbol(validatedRequest.symbol);
+        const orderType = toBackpackOrderType(validatedRequest.type, validatedRequest.postOnly);
+        const side = toBackpackOrderSide(validatedRequest.side);
+        const timeInForce = toBackpackTimeInForce(validatedRequest.timeInForce, validatedRequest.postOnly);
         const payload = {
             market,
             side,
             type: orderType,
-            size: validatedOrder.amount.toString(),
-            price: validatedOrder.price?.toString(),
+            size: validatedRequest.amount.toString(),
+            price: validatedRequest.price?.toString(),
             time_in_force: timeInForce,
-            reduce_only: validatedOrder.reduceOnly ?? false,
-            post_only: validatedOrder.postOnly ?? false,
-            client_order_id: validatedOrder.clientOrderId,
+            reduce_only: validatedRequest.reduceOnly ?? false,
+            post_only: validatedRequest.postOnly ?? false,
+            client_order_id: validatedRequest.clientOrderId,
         };
         const response = await this.makeRequest('POST', '/orders', 'createOrder', payload);
         return this.normalizer.normalizeOrder(response);
@@ -263,7 +258,7 @@ export class BackpackAdapter extends BaseAdapter {
     /**
      * Cancel an existing order
      */
-    async cancelOrder(orderId, symbol) {
+    async cancelOrder(orderId, _symbol) {
         this.requireAuth();
         const response = await this.makeRequest('DELETE', `/orders/${orderId}`, 'cancelOrder');
         return this.normalizer.normalizeOrder(response);
@@ -295,7 +290,7 @@ export class BackpackAdapter extends BaseAdapter {
     /**
      * Fetch a specific order
      */
-    async fetchOrder(orderId, symbol) {
+    async fetchOrder(orderId, _symbol) {
         this.requireAuth();
         const response = await this.makeRequest('GET', `/orders/${orderId}`, 'fetchOrder');
         return this.normalizer.normalizeOrder(response);
@@ -395,7 +390,7 @@ export class BackpackAdapter extends BaseAdapter {
             if (error instanceof PerpDEXError) {
                 throw error;
             }
-            const { code, message } = mapBackpackError(error);
+            const { code, } = mapBackpackError(error);
             throw new PerpDEXError('Request failed', code, 'backpack', error);
         }
     }

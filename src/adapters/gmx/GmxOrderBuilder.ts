@@ -11,7 +11,6 @@ import {
   GMX_PRECISION,
   GMX_ORDER_TYPES,
   GMX_DECREASE_POSITION_SWAP_TYPES,
-  GMX_CONTRACTS,
   unifiedToGmx,
   type GMXMarketKey,
 } from './constants.js';
@@ -47,18 +46,16 @@ export interface OrderBuilderConfig {
 export class GmxOrderBuilder {
   private readonly chain: GmxChain;
   private readonly auth: GmxAuth;
-  private readonly contracts: GmxContracts;
   private readonly config: Required<OrderBuilderConfig>;
 
   constructor(
     chain: GmxChain,
     auth: GmxAuth,
-    contracts: GmxContracts,
+    _contracts: GmxContracts,
     config: OrderBuilderConfig = {}
   ) {
     this.chain = chain;
     this.auth = auth;
-    this.contracts = contracts;
     this.config = {
       slippageTolerance: config.slippageTolerance ?? 0.003,
       callbackGasLimit: config.callbackGasLimit ?? 0n,
@@ -289,7 +286,7 @@ export class GmxOrderBuilder {
   /**
    * Calculate trigger price for limit/stop orders
    */
-  private calculateTriggerPrice(request: OrderRequest, isLong: boolean): number {
+  private calculateTriggerPrice(request: OrderRequest, _isLong: boolean): number {
     if (request.type === 'market') {
       return 0;
     }
@@ -361,7 +358,7 @@ export class GmxOrderBuilder {
   calculateRequiredCollateral(
     sizeUsd: number,
     leverage: number,
-    isLong: boolean
+    _isLong: boolean
   ): { collateralUsd: number; collateralToken: string } {
     const collateralUsd = sizeUsd / leverage;
 

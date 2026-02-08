@@ -6,7 +6,7 @@
 // =============================================================================
 // Order Types
 // =============================================================================
-export const ORDER_TYPES = ['market', 'limit', 'stopMarket', 'stopLimit'];
+export const ORDER_TYPES = ['market', 'limit', 'stopMarket', 'stopLimit', 'takeProfit', 'trailingStop'];
 export const ORDER_SIDES = ['buy', 'sell'];
 export const ORDER_STATUSES = [
     'open',

@@ -14,7 +14,7 @@
  */
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
-import { DYDX_MAINNET_API, DYDX_MAINNET_WS, DYDX_TESTNET_API, DYDX_TESTNET_WS, DYDX_RATE_LIMIT, DYDX_DEFAULT_SUBACCOUNT_NUMBER, unifiedToDydx, dydxToUnified, } from './constants.js';
+import { DYDX_MAINNET_API, DYDX_TESTNET_API, DYDX_RATE_LIMIT, DYDX_DEFAULT_SUBACCOUNT_NUMBER, unifiedToDydx, dydxToUnified, } from './constants.js';
 import { DydxAuth } from './DydxAuth.js';
 import { DydxNormalizer } from './DydxNormalizer.js';
 import { mapDydxError } from './error-codes.js';
@@ -93,7 +93,6 @@ export class DydxAdapter extends BaseAdapter {
         fetchRateLimitStatus: false,
     };
     apiUrl;
-    wsUrl;
     auth;
     rateLimiter;
     normalizer;
@@ -105,7 +104,6 @@ export class DydxAdapter extends BaseAdapter {
         super(config);
         // Set API URLs
         this.apiUrl = config.testnet ? DYDX_TESTNET_API : DYDX_MAINNET_API;
-        this.wsUrl = config.testnet ? DYDX_TESTNET_WS : DYDX_MAINNET_WS;
         // Initialize normalizer
         this.normalizer = new DydxNormalizer();
         // Initialize rate limiter
@@ -204,7 +202,7 @@ export class DydxAdapter extends BaseAdapter {
             throw mapDydxError(error);
         }
     }
-    async fetchOrderBook(symbol, params) {
+    async fetchOrderBook(symbol, _params) {
         await this.rateLimiter.acquire('fetchOrderBook');
         try {
             const exchangeSymbol = this.symbolToExchange(symbol);
@@ -309,7 +307,7 @@ export class DydxAdapter extends BaseAdapter {
     // ===========================================================================
     // Trading (Private)
     // ===========================================================================
-    async createOrder(request) {
+    async createOrder(_request) {
         this.ensureInitialized();
         if (!this.auth) {
             throw new Error('Authentication required for trading. Provide mnemonic or privateKey.');
@@ -337,7 +335,7 @@ export class DydxAdapter extends BaseAdapter {
             throw mapDydxError(error);
         }
     }
-    async cancelOrder(orderId, symbol) {
+    async cancelOrder(_orderId, _symbol) {
         this.ensureInitialized();
         if (!this.auth) {
             throw new Error('Authentication required for trading');
@@ -352,7 +350,7 @@ export class DydxAdapter extends BaseAdapter {
             throw mapDydxError(error);
         }
     }
-    async cancelAllOrders(symbol) {
+    async cancelAllOrders(_symbol) {
         this.ensureInitialized();
         if (!this.auth) {
             throw new Error('Authentication required for trading');
@@ -409,7 +407,7 @@ export class DydxAdapter extends BaseAdapter {
             throw mapDydxError(error);
         }
     }
-    async setLeverage(symbol, leverage) {
+    async setLeverage(_symbol, _leverage) {
         // dYdX v4 uses cross-margin and doesn't support per-symbol leverage setting
         this.debug('setLeverage: dYdX v4 uses cross-margin mode without per-symbol leverage');
         throw new Error('dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity.');
@@ -509,19 +507,19 @@ export class DydxAdapter extends BaseAdapter {
     // ===========================================================================
     // WebSocket Streams (Placeholder implementations)
     // ===========================================================================
-    async *watchOrderBook(symbol, limit) {
+    async *watchOrderBook(_symbol, _limit) {
         this.ensureInitialized();
         // WebSocket implementation would go here
         // For now, we provide a polling fallback
         throw new Error('WebSocket streams require additional implementation. Use fetchOrderBook for polling.');
         yield {}; // Type system requirement
     }
-    async *watchTrades(symbol) {
+    async *watchTrades(_symbol) {
         this.ensureInitialized();
         throw new Error('WebSocket streams require additional implementation. Use fetchTrades for polling.');
         yield {};
     }
-    async *watchTicker(symbol) {
+    async *watchTicker(_symbol) {
         this.ensureInitialized();
         throw new Error('WebSocket streams require additional implementation. Use fetchTicker for polling.');
         yield {};

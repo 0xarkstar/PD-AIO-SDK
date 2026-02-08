@@ -8,7 +8,6 @@ export class RateLimiter {
     windowMs;
     refillRate;
     weights;
-    exchange;
     bucket;
     queue = [];
     processingQueue = false;
@@ -19,7 +18,6 @@ export class RateLimiter {
         this.windowMs = config.windowMs;
         this.refillRate = config.refillRate ?? config.maxTokens;
         this.weights = config.weights ?? {};
-        this.exchange = config.exchange ?? 'unknown';
         this.bucket = {
             tokens: this.maxTokens,
             lastRefill: Date.now(),

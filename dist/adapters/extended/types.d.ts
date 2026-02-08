@@ -361,8 +361,8 @@ export declare const ExtendedTradeSchema: z.ZodObject<{
     id: string;
     timestamp: number;
     quantity: string;
-    isMaker?: boolean | undefined;
     tradeId?: string | undefined;
+    isMaker?: boolean | undefined;
 }, {
     symbol: string;
     side: "buy" | "sell";
@@ -370,8 +370,8 @@ export declare const ExtendedTradeSchema: z.ZodObject<{
     id: string;
     timestamp: number;
     quantity: string;
-    isMaker?: boolean | undefined;
     tradeId?: string | undefined;
+    isMaker?: boolean | undefined;
 }>;
 export declare const ExtendedOrderSchema: z.ZodObject<{
     orderId: z.ZodString;

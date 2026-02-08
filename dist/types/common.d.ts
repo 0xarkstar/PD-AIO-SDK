@@ -3,7 +3,7 @@
  *
  * Unified type definitions across all supported exchanges
  */
-export declare const ORDER_TYPES: readonly ["market", "limit", "stopMarket", "stopLimit"];
+export declare const ORDER_TYPES: readonly ["market", "limit", "stopMarket", "stopLimit", "takeProfit", "trailingStop"];
 export type OrderType = (typeof ORDER_TYPES)[number];
 export declare const ORDER_SIDES: readonly ["buy", "sell"];
 export type OrderSide = (typeof ORDER_SIDES)[number];

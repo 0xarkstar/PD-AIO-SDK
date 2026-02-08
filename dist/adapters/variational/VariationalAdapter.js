@@ -128,7 +128,6 @@ export class VariationalAdapter extends BaseAdapter {
         watchBalance: false,
     };
     apiUrl;
-    wsUrl;
     apiKey;
     apiSecret;
     rateLimiter;
@@ -140,7 +139,6 @@ export class VariationalAdapter extends BaseAdapter {
         const testnet = config.testnet ?? false;
         const urls = testnet ? VARIATIONAL_API_URLS.testnet : VARIATIONAL_API_URLS.mainnet;
         this.apiUrl = urls.rest;
-        this.wsUrl = urls.websocket;
         this.apiKey = config.apiKey;
         this.apiSecret = config.apiSecret;
         this.normalizer = new VariationalNormalizer();
@@ -199,7 +197,7 @@ export class VariationalAdapter extends BaseAdapter {
         return this.normalizer.symbolToCCXT(exchangeSymbol);
     }
     // ==================== Market Data Methods ====================
-    async fetchMarkets(params) {
+    async fetchMarkets(_params) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
         try {
             const response = await this.httpClient.get(VARIATIONAL_ENDPOINTS.METADATA_STATS, {});
@@ -230,7 +228,7 @@ export class VariationalAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchOrderBook(symbol, params) {
+    async fetchOrderBook(symbol, _params) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
         if (!symbol) {
             throw new PerpDEXError('Symbol is required', 'INVALID_SYMBOL', this.id);
@@ -251,7 +249,7 @@ export class VariationalAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchTrades(symbol, params) {
+    async fetchTrades(_symbol, _params) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.TRADES);
         throw new PerpDEXError('fetchTrades not implemented', 'NOT_IMPLEMENTED', this.id);
     }
@@ -275,7 +273,7 @@ export class VariationalAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchFundingRateHistory(symbol, since, limit) {
+    async fetchFundingRateHistory(_symbol, _since, _limit) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.FUNDING_HISTORY);
         throw new PerpDEXError('fetchFundingRateHistory not implemented', 'NOT_IMPLEMENTED', this.id);
     }
@@ -296,7 +294,7 @@ export class VariationalAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async cancelOrder(orderId, symbol) {
+    async cancelOrder(orderId, _symbol) {
         this.ensureAuthenticated();
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.CANCEL_ORDER);
         if (!orderId) {
@@ -323,12 +321,12 @@ export class VariationalAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async createBatchOrders(requests) {
+    async createBatchOrders(_requests) {
         // Variational doesn't support batch orders natively
         // Use sequential execution through BaseAdapter
         throw new PerpDEXError('createBatchOrders not supported', 'NOT_SUPPORTED', this.id);
     }
-    async cancelBatchOrders(orderIds, symbol) {
+    async cancelBatchOrders(_orderIds, _symbol) {
         // Variational doesn't support batch cancellations natively
         throw new PerpDEXError('cancelBatchOrders not supported', 'NOT_SUPPORTED', this.id);
     }
@@ -360,10 +358,10 @@ export class VariationalAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async setLeverage(symbol, leverage) {
+    async setLeverage(_symbol, _leverage) {
         throw new PerpDEXError('setLeverage not supported', 'NOT_SUPPORTED', this.id);
     }
-    async setMarginMode(symbol, marginMode) {
+    async setMarginMode(_symbol, _marginMode) {
         throw new PerpDEXError('setMarginMode not supported', 'NOT_SUPPORTED', this.id);
     }
     async fetchOrderHistory(symbol, since, limit) {
@@ -422,10 +420,10 @@ export class VariationalAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchDeposits(currency, since, limit) {
+    async fetchDeposits(_currency, _since, _limit) {
         throw new PerpDEXError('fetchDeposits not supported', 'NOT_SUPPORTED', this.id);
     }
-    async fetchWithdrawals(currency, since, limit) {
+    async fetchWithdrawals(_currency, _since, _limit) {
         throw new PerpDEXError('fetchWithdrawals not supported', 'NOT_SUPPORTED', this.id);
     }
     async fetchUserFees() {
@@ -440,13 +438,13 @@ export class VariationalAdapter extends BaseAdapter {
         throw new PerpDEXError('fetchRateLimitStatus not implemented', 'NOT_IMPLEMENTED', this.id);
     }
     // ==================== WebSocket Methods ====================
-    async *watchOrderBook(symbol, limit) {
+    async *watchOrderBook(_symbol, _limit) {
         throw new PerpDEXError('watchOrderBook not implemented', 'NOT_IMPLEMENTED', this.id);
     }
-    async *watchTrades(symbol) {
+    async *watchTrades(_symbol) {
         throw new PerpDEXError('watchTrades not implemented', 'NOT_IMPLEMENTED', this.id);
     }
-    async *watchTicker(symbol) {
+    async *watchTicker(_symbol) {
         throw new PerpDEXError('watchTicker not implemented', 'NOT_IMPLEMENTED', this.id);
     }
     async *watchPositions() {
@@ -458,7 +456,7 @@ export class VariationalAdapter extends BaseAdapter {
     async *watchBalance() {
         throw new PerpDEXError('watchBalance not implemented', 'NOT_IMPLEMENTED', this.id);
     }
-    async *watchFundingRate(symbol) {
+    async *watchFundingRate(_symbol) {
         throw new PerpDEXError('watchFundingRate not implemented', 'NOT_IMPLEMENTED', this.id);
     }
     // ==================== RFQ-Specific Methods ====================

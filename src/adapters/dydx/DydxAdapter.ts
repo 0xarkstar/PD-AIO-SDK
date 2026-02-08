@@ -36,15 +36,13 @@ import { RateLimiter } from '../../core/RateLimiter.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import {
   DYDX_MAINNET_API,
-  DYDX_MAINNET_WS,
   DYDX_TESTNET_API,
-  DYDX_TESTNET_WS,
   DYDX_RATE_LIMIT,
   DYDX_DEFAULT_SUBACCOUNT_NUMBER,
   unifiedToDydx,
   dydxToUnified,
 } from './constants.js';
-import { DydxAuth, type DydxAuthConfig } from './DydxAuth.js';
+import { DydxAuth } from './DydxAuth.js';
 import { DydxNormalizer } from './DydxNormalizer.js';
 import { mapDydxError } from './error-codes.js';
 import { mapTimeframeToDydx, getDefaultOHLCVDuration, buildUrl } from './utils.js';
@@ -52,7 +50,6 @@ import type {
   DydxPerpetualMarketsResponse,
   DydxOrderBookResponse,
   DydxTradesResponse,
-  DydxOrdersResponse,
   DydxFillsResponse,
   DydxSubaccountResponse,
   DydxHistoricalFundingResponse,
@@ -157,7 +154,6 @@ export class DydxAdapter extends BaseAdapter {
   };
 
   private apiUrl: string;
-  private wsUrl: string;
   private auth?: DydxAuth;
   protected rateLimiter: RateLimiter;
   private normalizer: DydxNormalizer;
@@ -172,8 +168,6 @@ export class DydxAdapter extends BaseAdapter {
 
     // Set API URLs
     this.apiUrl = config.testnet ? DYDX_TESTNET_API : DYDX_MAINNET_API;
-    this.wsUrl = config.testnet ? DYDX_TESTNET_WS : DYDX_MAINNET_WS;
-
     // Initialize normalizer
     this.normalizer = new DydxNormalizer();
 
@@ -299,7 +293,7 @@ export class DydxAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
+  async fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
     await this.rateLimiter.acquire('fetchOrderBook');
 
     try {
@@ -459,7 +453,7 @@ export class DydxAdapter extends BaseAdapter {
   // Trading (Private)
   // ===========================================================================
 
-  async createOrder(request: OrderRequest): Promise<Order> {
+  async createOrder(_request: OrderRequest): Promise<Order> {
     this.ensureInitialized();
 
     if (!this.auth) {
@@ -493,7 +487,7 @@ export class DydxAdapter extends BaseAdapter {
     }
   }
 
-  async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+  async cancelOrder(_orderId: string, _symbol?: string): Promise<Order> {
     this.ensureInitialized();
 
     if (!this.auth) {
@@ -513,7 +507,7 @@ export class DydxAdapter extends BaseAdapter {
     }
   }
 
-  async cancelAllOrders(symbol?: string): Promise<Order[]> {
+  async cancelAllOrders(_symbol?: string): Promise<Order[]> {
     this.ensureInitialized();
 
     if (!this.auth) {
@@ -598,7 +592,7 @@ export class DydxAdapter extends BaseAdapter {
     }
   }
 
-  async setLeverage(symbol: string, leverage: number): Promise<void> {
+  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
     // dYdX v4 uses cross-margin and doesn't support per-symbol leverage setting
     this.debug('setLeverage: dYdX v4 uses cross-margin mode without per-symbol leverage');
     throw new Error('dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity.');
@@ -743,7 +737,7 @@ export class DydxAdapter extends BaseAdapter {
   // WebSocket Streams (Placeholder implementations)
   // ===========================================================================
 
-  async *watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook> {
+  async *watchOrderBook(_symbol: string, _limit?: number): AsyncGenerator<OrderBook> {
     this.ensureInitialized();
 
     // WebSocket implementation would go here
@@ -752,13 +746,13 @@ export class DydxAdapter extends BaseAdapter {
     yield {} as OrderBook; // Type system requirement
   }
 
-  async *watchTrades(symbol: string): AsyncGenerator<Trade> {
+  async *watchTrades(_symbol: string): AsyncGenerator<Trade> {
     this.ensureInitialized();
     throw new Error('WebSocket streams require additional implementation. Use fetchTrades for polling.');
     yield {} as Trade;
   }
 
-  async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
+  async *watchTicker(_symbol: string): AsyncGenerator<Ticker> {
     this.ensureInitialized();
     throw new Error('WebSocket streams require additional implementation. Use fetchTicker for polling.');
     yield {} as Ticker;

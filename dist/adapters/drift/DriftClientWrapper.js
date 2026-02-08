@@ -4,6 +4,7 @@
  * Wraps the @drift-labs/sdk DriftClient for trading operations.
  * Provides a simplified interface for order management.
  */
+import { Logger } from '../../core/logger.js';
 /**
  * Wrapper around @drift-labs/sdk DriftClient
  *
@@ -14,7 +15,7 @@ export class DriftClientWrapper {
     config;
     driftClient; // Would be DriftClient type
     isInitialized = false;
-    userAccountPublicKey;
+    logger = new Logger('DriftClientWrapper');
     constructor(config) {
         this.config = config;
     }
@@ -28,7 +29,7 @@ export class DriftClientWrapper {
         try {
             // Dynamic import to handle ESM module loading
             const driftSdk = await import('@drift-labs/sdk');
-            const { DriftClient, Wallet, loadKeypair, initialize, BulkAccountLoader, getMarketsAndOraclesForSubscription, } = driftSdk;
+            const { DriftClient, Wallet, BulkAccountLoader, getMarketsAndOraclesForSubscription, } = driftSdk;
             // Create wallet from keypair (cast to any to handle different @solana/web3.js versions)
             const wallet = new Wallet(this.config.keypair);
             // Get markets and oracles to subscribe to
@@ -58,7 +59,7 @@ export class DriftClientWrapper {
             const userAccountExists = await this.driftClient.getUserAccountExists();
             if (!userAccountExists) {
                 // User account needs to be initialized first
-                console.warn('Drift user account does not exist. ' +
+                this.logger.warn('Drift user account does not exist. ' +
                     'Please deposit funds first to create an account.');
             }
             else {

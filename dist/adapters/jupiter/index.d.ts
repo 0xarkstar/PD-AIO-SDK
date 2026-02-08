@@ -5,7 +5,7 @@
  *
  * @packageDocumentation
  */
-export { JupiterAdapter, type JupiterAdapterConfig } from './JupiterAdapter.js';
+export { JupiterAdapter, type JupiterConfig, type JupiterAdapterConfig } from './JupiterAdapter.js';
 export { JupiterAuth, type JupiterAuthConfig, isValidSolanaAddress, isValidSolanaPrivateKey } from './JupiterAuth.js';
 export { SolanaClient, type SolanaClientConfig, type TransactionResult, type AccountFetchResult, createSolanaClient, } from './solana.js';
 export { JupiterInstructionBuilder, type OpenPositionParams, type ClosePositionParams, type IncreaseSizeParams, type DecreaseSizeParams, type AddCollateralParams, type RemoveCollateralParams, type PositionAccounts, createInstructionBuilder, } from './instructions.js';

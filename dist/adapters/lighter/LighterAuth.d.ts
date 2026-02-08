@@ -57,6 +57,7 @@ export declare class LighterAuth implements IAuthStrategy {
     private nonceManager;
     private authToken;
     private authTokenExpiry;
+    private readonly logger;
     private initialized;
     /** Token validity duration in seconds */
     private static readonly TOKEN_DURATION;

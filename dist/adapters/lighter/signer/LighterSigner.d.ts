@@ -17,8 +17,6 @@ export declare class LighterSigner {
     private readonly config;
     private initialized;
     private apiPublicKey;
-    private SignedTxResponseType;
-    private StrOrErrType;
     constructor(config: LighterSignerConfig);
     /**
      * Initialize the native library using koffi

@@ -9,7 +9,6 @@ import {
   DRIFT_PRECISION,
   DRIFT_MARKET_INDEX_MAP,
   unifiedToDrift,
-  getMarketIndex,
 } from './constants.js';
 import type { DriftOrderType, DriftDirection, DriftPostOnlyParams } from './types.js';
 
@@ -429,7 +428,6 @@ export function slotToTimestamp(slot: number, referenceSlot?: number, referenceT
     return referenceTime + (slot - referenceSlot) * slotDuration;
   }
   // Approximate based on mainnet genesis
-  const genesisSlot = 0;
   const genesisTime = 1584282000000; // March 15, 2020
   return genesisTime + slot * slotDuration;
 }

@@ -36,6 +36,7 @@ export declare class JupiterAuth implements IAuthStrategy {
     private readonly rpcEndpoint;
     private connection?;
     private isInitialized;
+    private readonly logger;
     constructor(config: JupiterAuthConfig);
     /**
      * Initialize keypair from private key

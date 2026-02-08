@@ -10,7 +10,6 @@ import type { GmxPosition, GmxOrder } from './types.js';
  */
 export declare class GmxSubgraph {
     private readonly subgraphUrl;
-    private readonly chain;
     constructor(chain: GmxChain);
     /**
      * Fetch all positions for an account

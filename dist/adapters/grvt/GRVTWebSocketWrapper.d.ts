@@ -25,6 +25,7 @@ export declare class GRVTWebSocketWrapper {
     private readonly ws;
     private readonly normalizer;
     private readonly subAccountId?;
+    private readonly logger;
     private isConnected;
     /**
      * Push to queue with bounded size (backpressure)

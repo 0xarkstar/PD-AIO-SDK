@@ -83,7 +83,6 @@ export declare class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
     private failureCount;
     private successCount;
     private totalRequests;
-    private lastFailureTime;
     private lastStateChangeTime;
     private resetTimer;
     private requestTimestamps;

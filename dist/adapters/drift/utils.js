@@ -325,7 +325,6 @@ export function slotToTimestamp(slot, referenceSlot, referenceTime) {
         return referenceTime + (slot - referenceSlot) * slotDuration;
     }
     // Approximate based on mainnet genesis
-    const genesisSlot = 0;
     const genesisTime = 1584282000000; // March 15, 2020
     return genesisTime + slot * slotDuration;
 }

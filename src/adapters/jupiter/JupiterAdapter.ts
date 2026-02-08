@@ -22,9 +22,6 @@ import type {
   FundingRate,
   Market,
   MarketParams,
-  OHLCV,
-  OHLCVParams,
-  OHLCVTimeframe,
   Order,
   OrderBook,
   OrderBookParams,
@@ -35,36 +32,28 @@ import type {
   TradeParams,
 } from '../../types/index.js';
 import { JupiterNormalizer } from './JupiterNormalizer.js';
-import { JupiterAuth, type JupiterAuthConfig } from './JupiterAuth.js';
-import { SolanaClient, type SolanaClientConfig } from './solana.js';
+import { JupiterAuth } from './JupiterAuth.js';
+import { SolanaClient } from './solana.js';
 import { JupiterInstructionBuilder } from './instructions.js';
 import {
-  JUPITER_MAINNET_PRICE_API,
   JUPITER_MARKETS,
   JUPITER_TOKEN_MINTS,
-  JUPITER_RATE_LIMIT,
   unifiedToJupiter,
   jupiterToUnified,
 } from './constants.js';
 import { mapJupiterError } from './error-codes.js';
 import {
   isValidMarket,
-  getTokenMint,
   buildPriceApiUrl,
   validateOrderParams,
   calculateLiquidationPrice,
-  parseOnChainValue,
   parseOnChainTimestamp,
 } from './utils.js';
 import type {
   JupiterPriceResponse,
   JupiterPriceData,
   JupiterCustodyAccount,
-  JupiterPoolAccount,
-  JupiterMarketStats,
-  JupiterPoolStats,
   JupiterPositionAccount,
-  JupiterNormalizedPosition,
 } from './types.js';
 
 /**
@@ -303,7 +292,7 @@ export class JupiterAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
+  async fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
     this.ensureInitialized();
 
     const jupiterSymbol = this.symbolToExchange(symbol);
@@ -330,7 +319,7 @@ export class JupiterAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
     // Jupiter doesn't have a public trade feed
     this.warn('Jupiter Perps does not provide a public trade feed');
     return [];
@@ -366,9 +355,9 @@ export class JupiterAdapter extends BaseAdapter {
   }
 
   async fetchFundingRateHistory(
-    symbol: string,
-    since?: number,
-    limit?: number
+    _symbol: string,
+    _since?: number,
+    _limit?: number
   ): Promise<FundingRate[]> {
     // Jupiter doesn't provide historical borrow fee data via API
     this.warn('Jupiter Perps does not provide historical funding rate data');
@@ -506,7 +495,7 @@ export class JupiterAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOpenOrders(symbol?: string): Promise<Order[]> {
+  async fetchOpenOrders(_symbol?: string): Promise<Order[]> {
     // Jupiter uses instant execution, no pending orders
     return [];
   }
@@ -629,11 +618,11 @@ export class JupiterAdapter extends BaseAdapter {
     }
   }
 
-  async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+  async cancelOrder(_orderId: string, _symbol?: string): Promise<Order> {
     throw new Error('Jupiter uses instant execution - no orders to cancel');
   }
 
-  async cancelAllOrders(symbol?: string): Promise<Order[]> {
+  async cancelAllOrders(_symbol?: string): Promise<Order[]> {
     throw new Error('Jupiter uses instant execution - no orders to cancel');
   }
 
@@ -730,19 +719,19 @@ export class JupiterAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+  async fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]> {
     // Jupiter doesn't have a traditional order history
     this.warn('Jupiter Perps does not maintain order history - trades are instant');
     return [];
   }
 
-  async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+  async fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]> {
     // Would require indexing on-chain transactions
     this.warn('Trade history requires indexing on-chain transactions');
     return [];
   }
 
-  async setLeverage(symbol: string, leverage: number): Promise<void> {
+  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
     throw new Error('Jupiter leverage is set per-trade, not globally');
   }
 
@@ -966,7 +955,7 @@ export class JupiterAdapter extends BaseAdapter {
   /**
    * Get symbol from custody address
    */
-  private getSymbolFromCustody(custody: string): string | undefined {
+  private getSymbolFromCustody(_custody: string): string | undefined {
     // In a real implementation, we would look up the custody to determine the market
     // For now, we'll return a default
     return 'SOL/USD:USD';

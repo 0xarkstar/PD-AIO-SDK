@@ -77,6 +77,7 @@ export declare class MetricsServer {
     private metrics;
     private startTime;
     private isRunning;
+    private readonly logger;
     constructor(config?: MetricsServerConfig);
     /**
      * Start the metrics server

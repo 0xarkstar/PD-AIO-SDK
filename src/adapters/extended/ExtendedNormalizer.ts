@@ -60,7 +60,7 @@ export class ExtendedNormalizer {
    * "BTC/USD:USD" → "BTC-USD-PERP"
    */
   symbolFromCCXT(ccxtSymbol: string): string {
-    const [pair, settle] = ccxtSymbol.split(':');
+    const [pair] = ccxtSymbol.split(':');
     if (!pair) {
       return ccxtSymbol;
     }

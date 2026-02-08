@@ -36,7 +36,7 @@ import type {
   TradeParams,
 } from '../../types/index.js';
 import { GmxNormalizer } from './GmxNormalizer.js';
-import { GmxAuth, type GmxAuthConfig } from './GmxAuth.js';
+import { GmxAuth } from './GmxAuth.js';
 import { GmxContracts } from './GmxContracts.js';
 import { GmxSubgraph } from './GmxSubgraph.js';
 import { GmxOrderBuilder, type GmxPriceData, type OrderBuilderConfig } from './GmxOrderBuilder.js';
@@ -46,14 +46,12 @@ import {
   GMX_PRECISION,
   unifiedToGmx,
   gmxToUnified,
-  getMarketsForChain,
   type GMXMarketKey,
 } from './constants.js';
 import { mapGmxError } from './error-codes.js';
 import type {
   GmxMarketInfo,
   GmxCandlestick,
-  GmxTokenInfo,
 } from './types.js';
 
 /**
@@ -314,12 +312,12 @@ export class GmxAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
+  async fetchOrderBook(_symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
     // GMX doesn't have a traditional orderbook - it's AMM-based with price impact
     throw new Error('GMX does not have a traditional orderbook. Use fetchTicker for price data.');
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
     // Would require subgraph query - not implemented for REST-only version
     throw new Error('fetchTrades requires subgraph integration. Not available via REST API.');
   }
@@ -392,9 +390,9 @@ export class GmxAdapter extends BaseAdapter {
   }
 
   async fetchFundingRateHistory(
-    symbol: string,
-    since?: number,
-    limit?: number
+    _symbol: string,
+    _since?: number,
+    _limit?: number
   ): Promise<FundingRate[]> {
     // Would require subgraph query - not implemented for REST-only version
     throw new Error('fetchFundingRateHistory requires subgraph integration. Not available via REST API.');
@@ -651,7 +649,7 @@ export class GmxAdapter extends BaseAdapter {
     }
   }
 
-  async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+  async fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]> {
     throw new Error('fetchMyTrades requires subgraph integration. Not available via REST API.');
   }
 
@@ -836,7 +834,7 @@ export class GmxAdapter extends BaseAdapter {
     }
   }
 
-  async setLeverage(symbol: string, leverage: number): Promise<void> {
+  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
     // GMX v2 leverage is per-position, not per-account or per-symbol
     // Leverage is determined at order creation time
     throw new Error(

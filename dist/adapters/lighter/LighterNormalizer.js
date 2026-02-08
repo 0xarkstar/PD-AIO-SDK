@@ -36,7 +36,6 @@ export class LighterNormalizer {
         const amountPrecision = lighterMarket.supported_size_decimals || lighterMarket.size_decimals || 4;
         // Parse min amounts from string values
         const minAmount = parseFloat(lighterMarket.min_base_amount || '0');
-        const minQuote = parseFloat(lighterMarket.min_quote_amount || '0');
         // Parse fees
         const makerFee = parseFloat(lighterMarket.maker_fee || '0');
         const takerFee = parseFloat(lighterMarket.taker_fee || '0');

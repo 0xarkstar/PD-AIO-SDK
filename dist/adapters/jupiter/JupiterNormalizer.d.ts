@@ -13,7 +13,7 @@ export declare class JupiterNormalizer {
     /**
      * Normalize market data from custody and pool accounts
      */
-    normalizeMarket(marketKey: string, custody: JupiterCustodyAccount, pool: JupiterPoolAccount, stats?: JupiterMarketStats): Market;
+    normalizeMarket(marketKey: string, custody: JupiterCustodyAccount, pool: JupiterPoolAccount, _stats?: JupiterMarketStats): Market;
     /**
      * Normalize multiple markets
      */

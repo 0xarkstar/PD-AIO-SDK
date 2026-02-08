@@ -18,7 +18,6 @@ export interface ExtendedStarkNetConfig {
 export declare class ExtendedStarkNetClient {
     private readonly provider;
     private account?;
-    private readonly network;
     private readonly logger;
     constructor(config: ExtendedStarkNetConfig);
     /**
@@ -53,7 +52,7 @@ export declare class ExtendedStarkNetClient {
     /**
      * Wait for transaction confirmation
      */
-    waitForTransaction(txHash: string, confirmations?: number, timeoutMs?: number): Promise<ExtendedStarkNetTransaction>;
+    waitForTransaction(txHash: string, _confirmations?: number, timeoutMs?: number): Promise<ExtendedStarkNetTransaction>;
     /**
      * Call contract view function (read-only)
      */

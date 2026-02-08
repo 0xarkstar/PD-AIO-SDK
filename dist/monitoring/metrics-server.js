@@ -6,6 +6,7 @@
  */
 import { createServer } from 'http';
 import { getMetrics, isMetricsInitialized } from './prometheus.js';
+import { Logger } from '../core/logger.js';
 /**
  * Metrics HTTP Server
  *
@@ -32,6 +33,7 @@ export class MetricsServer {
     metrics;
     startTime;
     isRunning = false;
+    logger = new Logger('MetricsServer');
     constructor(config = {}) {
         this.config = {
             port: config.port ?? 9090,
@@ -62,7 +64,7 @@ export class MetricsServer {
         return new Promise((resolve, reject) => {
             this.server = createServer((req, res) => {
                 this.handleRequest(req, res).catch((error) => {
-                    console.error('Error handling request:', error);
+                    this.logger.error('Error handling request', error instanceof Error ? error : undefined);
                     this.sendResponse(res, 500, 'Internal Server Error');
                 });
             });
@@ -71,7 +73,7 @@ export class MetricsServer {
             });
             this.server.listen(this.config.port, this.config.host, () => {
                 this.isRunning = true;
-                console.log(`Metrics server listening on http://${this.config.host}:${this.config.port}`);
+                this.logger.info(`Metrics server listening on http://${this.config.host}:${this.config.port}`);
                 resolve();
             });
         });
@@ -90,7 +92,7 @@ export class MetricsServer {
                 }
                 else {
                     this.isRunning = false;
-                    console.log('Metrics server stopped');
+                    this.logger.info('Metrics server stopped');
                     resolve();
                 }
             });
@@ -174,7 +176,7 @@ export class MetricsServer {
             this.sendResponse(res, 200, metricsText);
         }
         catch (error) {
-            console.error('Error generating metrics:', error);
+            this.logger.error('Error generating metrics', error instanceof Error ? error : undefined);
             this.sendResponse(res, 500, 'Error generating metrics');
         }
     }
@@ -202,7 +204,7 @@ export class MetricsServer {
             this.sendResponse(res, statusCode, JSON.stringify(healthResponse, null, 2));
         }
         catch (error) {
-            console.error('Error in health check:', error);
+            this.logger.error('Error in health check', error instanceof Error ? error : undefined);
             const errorResponse = {
                 status: 'unhealthy',
                 timestamp: new Date().toISOString(),

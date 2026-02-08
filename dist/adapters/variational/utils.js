@@ -48,7 +48,7 @@ export function countDecimals(value) {
  * Converts "BTC/USDT:USDT" to "BTC-USDT-PERP"
  */
 export function formatSymbolForAPI(unifiedSymbol) {
-    const [pair, settle] = unifiedSymbol.split(':');
+    const [pair] = unifiedSymbol.split(':');
     if (!pair) {
         return unifiedSymbol;
     }

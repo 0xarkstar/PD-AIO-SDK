@@ -7,7 +7,6 @@
  * @see https://docs.paradex.trade
  */
 import { PARADEX_ORDER_TYPES, PARADEX_ORDER_SIDES, PARADEX_TIME_IN_FORCE, } from './constants.js';
-import { PerpDEXError } from '../../types/errors.js';
 /**
  * Paradex Data Normalizer
  *
@@ -86,26 +85,6 @@ export class ParadexNormalizer {
     // ===========================================================================
     // Precision-Safe Numeric Conversions
     // ===========================================================================
-    /**
-     * Convert string to number with validation and precision control
-     *
-     * @param value - String value to convert
-     * @param decimals - Number of decimal places (default: 8)
-     * @returns Number
-     *
-     * @throws {PerpDEXError} If value is not a valid number
-     */
-    toNumberSafe(value, decimals = 8) {
-        if (!value || value === '0' || value === '') {
-            return 0;
-        }
-        const num = parseFloat(value);
-        if (!Number.isFinite(num)) {
-            throw new PerpDEXError(`Invalid number conversion: ${value}`, 'INVALID_NUMBER', 'paradex');
-        }
-        // Round to specified decimal places to avoid floating point errors
-        return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
-    }
     /**
      * Count decimal places in a string number
      *

@@ -169,9 +169,7 @@ const MARKET_TRADES_QUERY = `
  */
 export class GmxSubgraph {
     subgraphUrl;
-    chain;
     constructor(chain) {
-        this.chain = chain;
         this.subgraphUrl = GMX_API_URLS[chain].subgraph;
     }
     // ==========================================================================

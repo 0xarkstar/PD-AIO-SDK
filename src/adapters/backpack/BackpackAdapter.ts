@@ -23,7 +23,6 @@ import type { FeatureMap } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
-import { WebSocketManager } from '../../websocket/WebSocketManager.js';
 import {
   BACKPACK_API_URLS,
   BACKPACK_RATE_LIMITS,
@@ -71,9 +70,7 @@ export class BackpackAdapter extends BaseAdapter {
 
   private readonly auth?: BackpackAuth;
   private readonly baseUrl: string;
-  private readonly wsUrl: string;
   protected readonly httpClient: HTTPClient;
-  private wsManager: WebSocketManager;
   protected rateLimiter: RateLimiter;
   private normalizer: BackpackNormalizer;
 
@@ -97,7 +94,6 @@ export class BackpackAdapter extends BaseAdapter {
 
     const urls = config.testnet ? BACKPACK_API_URLS.testnet : BACKPACK_API_URLS.mainnet;
     this.baseUrl = urls.rest;
-    this.wsUrl = urls.websocket;
 
     // Initialize HTTP client
     this.httpClient = new HTTPClient({
@@ -118,8 +114,6 @@ export class BackpackAdapter extends BaseAdapter {
       },
       exchange: this.id,
     });
-
-    this.wsManager = new WebSocketManager({ url: this.wsUrl });
   }
 
   /**
@@ -162,7 +156,7 @@ export class BackpackAdapter extends BaseAdapter {
   /**
    * Fetch all available markets
    */
-  async fetchMarkets(params?: MarketParams): Promise<Market[]> {
+  async fetchMarkets(_params?: MarketParams): Promise<Market[]> {
     const response = await this.makeRequest('GET', '/markets', 'fetchMarkets');
 
     // Backpack returns array directly, not { markets: [...] }
@@ -349,7 +343,7 @@ export class BackpackAdapter extends BaseAdapter {
   /**
    * Cancel an existing order
    */
-  async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+  async cancelOrder(orderId: string, _symbol?: string): Promise<Order> {
     this.requireAuth();
     const response = await this.makeRequest('DELETE', `/orders/${orderId}`, 'cancelOrder');
 
@@ -390,7 +384,7 @@ export class BackpackAdapter extends BaseAdapter {
   /**
    * Fetch a specific order
    */
-  async fetchOrder(orderId: string, symbol?: string): Promise<Order> {
+  async fetchOrder(orderId: string, _symbol?: string): Promise<Order> {
     this.requireAuth();
     const response = await this.makeRequest('GET', `/orders/${orderId}`, 'fetchOrder');
 
@@ -514,7 +508,7 @@ export class BackpackAdapter extends BaseAdapter {
       if (error instanceof PerpDEXError) {
         throw error;
       }
-      const { code, message } = mapBackpackError(error);
+      const { code,  } = mapBackpackError(error);
       throw new PerpDEXError('Request failed', code, 'backpack', error);
     }
   }

@@ -31,9 +31,7 @@ export declare class ExtendedWebSocketWrapper {
     private readonly pingIntervalMs;
     private pongTimeout?;
     private readonly subscriptions;
-    private readonly messageQueue;
     private connectionPromise?;
-    private connectionResolver?;
     constructor(config: ExtendedWebSocketConfig);
     /**
      * Connect to WebSocket

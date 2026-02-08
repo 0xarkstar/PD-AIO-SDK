@@ -5,8 +5,7 @@
  * Handles on-chain position tracking and transaction submission
  */
 
-import { Account, RpcProvider, Contract, CallData, type AccountOptions, type GetTransactionReceiptResponse, type RawArgs } from 'starknet';
-import type { Position } from '../../types/common.js';
+import { Account, RpcProvider, CallData, type AccountOptions, type RawArgs } from 'starknet';
 import type { ExtendedStarkNetState, ExtendedStarkNetTransaction } from './types.js';
 import { EXTENDED_STARKNET_CONFIG } from './constants.js';
 import { mapStarkNetError } from './error-codes.js';
@@ -26,11 +25,9 @@ export interface ExtendedStarkNetConfig {
 export class ExtendedStarkNetClient {
   private readonly provider: RpcProvider;
   private account?: Account;
-  private readonly network: 'mainnet' | 'testnet';
   private readonly logger: Logger;
 
   constructor(config: ExtendedStarkNetConfig) {
-    this.network = config.network;
     this.logger = new Logger('ExtendedStarkNetClient');
 
     // Initialize StarkNet provider
@@ -196,7 +193,7 @@ export class ExtendedStarkNetClient {
    */
   async waitForTransaction(
     txHash: string,
-    confirmations: number = EXTENDED_STARKNET_CONFIG.confirmations,
+    _confirmations: number = EXTENDED_STARKNET_CONFIG.confirmations,
     timeoutMs: number = 300000 // 5 minutes
   ): Promise<ExtendedStarkNetTransaction> {
     const startTime = Date.now();

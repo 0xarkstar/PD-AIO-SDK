@@ -107,10 +107,6 @@ export declare class NadoAdapter extends BaseAdapter {
      */
     private getProductMapping;
     /**
-     * Track request metrics
-     */
-    private trackRequest;
-    /**
      * Require authentication for private methods
      * @throws {PerpDEXError} if auth is not configured
      */
@@ -121,15 +117,15 @@ export declare class NadoAdapter extends BaseAdapter {
      *
      * Uses the /query?type=symbols endpoint which returns market metadata
      */
-    protected fetchMarketsFromAPI(params?: MarketParams): Promise<Market[]>;
+    protected fetchMarketsFromAPI(_params?: MarketParams): Promise<Market[]>;
     fetchTicker(symbol: string): Promise<Ticker>;
     fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
     fetchFundingRate(symbol: string): Promise<FundingRate>;
     createOrder(request: OrderRequest): Promise<Order>;
-    cancelOrder(orderId: string, symbol?: string): Promise<Order>;
+    cancelOrder(orderId: string, _symbol?: string): Promise<Order>;
     cancelAllOrders(symbol?: string): Promise<Order[]>;
-    fetchPositions(symbols?: string[]): Promise<Position[]>;
+    fetchPositions(_symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
     /**
      * Fetch open orders

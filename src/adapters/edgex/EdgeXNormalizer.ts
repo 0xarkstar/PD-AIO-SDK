@@ -19,14 +19,10 @@ import type {
   TimeInForce,
 } from '../../types/common.js';
 import type {
-  EdgeXMarket,
   EdgeXOrder,
   EdgeXPosition,
   EdgeXBalance,
-  EdgeXOrderBook,
   EdgeXTrade,
-  EdgeXTicker,
-  EdgeXFundingRate,
 } from './types.js';
 
 export class EdgeXNormalizer {

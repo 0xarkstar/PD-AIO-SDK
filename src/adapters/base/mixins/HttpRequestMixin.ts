@@ -5,7 +5,6 @@
  */
 
 import type { ExchangeConfig } from '../../../types/index.js';
-import { PerpDEXError } from '../../../types/errors.js';
 import { generateCorrelationId } from '../../../core/logger.js';
 import type { CircuitBreaker } from '../../../core/CircuitBreaker.js';
 import type { PrometheusMetrics } from '../../../monitoring/prometheus.js';

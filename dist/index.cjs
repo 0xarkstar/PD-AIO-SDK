@@ -43,8 +43,7 @@ var require_eventemitter3 = __commonJS({
     }
     if (Object.create) {
       Events.prototype = /* @__PURE__ */ Object.create(null);
-      if (!new Events().__proto__)
-        prefix = false;
+      if (!new Events().__proto__) prefix = false;
     }
     function EE(fn, context, once) {
       this.fn = fn;
@@ -56,19 +55,14 @@ var require_eventemitter3 = __commonJS({
         throw new TypeError("The listener must be a function");
       }
       var listener = new EE(fn, context || emitter, once), evt = prefix ? prefix + event : event;
-      if (!emitter._events[evt])
-        emitter._events[evt] = listener, emitter._eventsCount++;
-      else if (!emitter._events[evt].fn)
-        emitter._events[evt].push(listener);
-      else
-        emitter._events[evt] = [emitter._events[evt], listener];
+      if (!emitter._events[evt]) emitter._events[evt] = listener, emitter._eventsCount++;
+      else if (!emitter._events[evt].fn) emitter._events[evt].push(listener);
+      else emitter._events[evt] = [emitter._events[evt], listener];
       return emitter;
     }
     function clearEvent(emitter, evt) {
-      if (--emitter._eventsCount === 0)
-        emitter._events = new Events();
-      else
-        delete emitter._events[evt];
+      if (--emitter._eventsCount === 0) emitter._events = new Events();
+      else delete emitter._events[evt];
     }
     function EventEmitter2() {
       this._events = new Events();
@@ -76,11 +70,9 @@ var require_eventemitter3 = __commonJS({
     }
     EventEmitter2.prototype.eventNames = function eventNames() {
       var names = [], events, name;
-      if (this._eventsCount === 0)
-        return names;
+      if (this._eventsCount === 0) return names;
       for (name in events = this._events) {
-        if (has.call(events, name))
-          names.push(prefix ? name.slice(1) : name);
+        if (has.call(events, name)) names.push(prefix ? name.slice(1) : name);
       }
       if (Object.getOwnPropertySymbols) {
         return names.concat(Object.getOwnPropertySymbols(events));
@@ -89,10 +81,8 @@ var require_eventemitter3 = __commonJS({
     };
     EventEmitter2.prototype.listeners = function listeners(event) {
       var evt = prefix ? prefix + event : event, handlers = this._events[evt];
-      if (!handlers)
-        return [];
-      if (handlers.fn)
-        return [handlers.fn];
+      if (!handlers) return [];
+      if (handlers.fn) return [handlers.fn];
       for (var i = 0, l = handlers.length, ee = new Array(l); i < l; i++) {
         ee[i] = handlers[i].fn;
       }
@@ -100,20 +90,16 @@ var require_eventemitter3 = __commonJS({
     };
     EventEmitter2.prototype.listenerCount = function listenerCount(event) {
       var evt = prefix ? prefix + event : event, listeners = this._events[evt];
-      if (!listeners)
-        return 0;
-      if (listeners.fn)
-        return 1;
+      if (!listeners) return 0;
+      if (listeners.fn) return 1;
       return listeners.length;
     };
     EventEmitter2.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
       var evt = prefix ? prefix + event : event;
-      if (!this._events[evt])
-        return false;
+      if (!this._events[evt]) return false;
       var listeners = this._events[evt], len = arguments.length, args, i;
       if (listeners.fn) {
-        if (listeners.once)
-          this.removeListener(event, listeners.fn, void 0, true);
+        if (listeners.once) this.removeListener(event, listeners.fn, void 0, true);
         switch (len) {
           case 1:
             return listeners.fn.call(listeners.context), true;
@@ -135,8 +121,7 @@ var require_eventemitter3 = __commonJS({
       } else {
         var length = listeners.length, j;
         for (i = 0; i < length; i++) {
-          if (listeners[i].once)
-            this.removeListener(event, listeners[i].fn, void 0, true);
+          if (listeners[i].once) this.removeListener(event, listeners[i].fn, void 0, true);
           switch (len) {
             case 1:
               listeners[i].fn.call(listeners[i].context);
@@ -151,10 +136,9 @@ var require_eventemitter3 = __commonJS({
               listeners[i].fn.call(listeners[i].context, a1, a2, a3);
               break;
             default:
-              if (!args)
-                for (j = 1, args = new Array(len - 1); j < len; j++) {
-                  args[j - 1] = arguments[j];
-                }
+              if (!args) for (j = 1, args = new Array(len - 1); j < len; j++) {
+                args[j - 1] = arguments[j];
+              }
               listeners[i].fn.apply(listeners[i].context, args);
           }
         }
@@ -169,8 +153,7 @@ var require_eventemitter3 = __commonJS({
     };
     EventEmitter2.prototype.removeListener = function removeListener(event, fn, context, once) {
       var evt = prefix ? prefix + event : event;
-      if (!this._events[evt])
-        return this;
+      if (!this._events[evt]) return this;
       if (!fn) {
         clearEvent(this, evt);
         return this;
@@ -186,10 +169,8 @@ var require_eventemitter3 = __commonJS({
             events.push(listeners[i]);
           }
         }
-        if (events.length)
-          this._events[evt] = events.length === 1 ? events[0] : events;
-        else
-          clearEvent(this, evt);
+        if (events.length) this._events[evt] = events.length === 1 ? events[0] : events;
+        else clearEvent(this, evt);
       }
       return this;
     };
@@ -197,8 +178,7 @@ var require_eventemitter3 = __commonJS({
       var evt;
       if (event) {
         evt = prefix ? prefix + event : event;
-        if (this._events[evt])
-          clearEvent(this, evt);
+        if (this._events[evt]) clearEvent(this, evt);
       } else {
         this._events = new Events();
         this._eventsCount = 0;
@@ -1427,7 +1407,7 @@ var require_cjs = __commonJS({
       const LEADER = ALPHABET.charAt(0);
       const FACTOR = Math.log(BASE) / Math.log(256);
       const iFACTOR = Math.log(256) / Math.log(BASE);
-      function encode2(source) {
+      function encode(source) {
         if (source instanceof Uint8Array) {
         } else if (ArrayBuffer.isView(source)) {
           source = new Uint8Array(source.buffer, source.byteOffset, source.byteLength);
@@ -1530,7 +1510,7 @@ var require_cjs = __commonJS({
         throw new Error("Non-base" + BASE + " character");
       }
       return {
-        encode: encode2,
+        encode,
         decodeUnsafe,
         decode
       };
@@ -1554,8 +1534,8 @@ var require_cjs2 = __commonJS({
 });
 
 // src/index.ts
-var src_exports = {};
-__export(src_exports, {
+var index_exports = {};
+__export(index_exports, {
   BackpackAdapter: () => BackpackAdapter,
   BalanceSchema: () => BalanceSchema,
   BaseAdapter: () => BaseAdapter,
@@ -1710,7 +1690,220 @@ __export(src_exports, {
   writeBigUInt64BE: () => writeBigUInt64BE,
   writeBigUInt64LE: () => writeBigUInt64LE
 });
-module.exports = __toCommonJS(src_exports);
+module.exports = __toCommonJS(index_exports);
+
+// src/core/logger.ts
+var LogLevel = /* @__PURE__ */ ((LogLevel2) => {
+  LogLevel2["DEBUG"] = "debug";
+  LogLevel2["INFO"] = "info";
+  LogLevel2["WARN"] = "warn";
+  LogLevel2["ERROR"] = "error";
+  return LogLevel2;
+})(LogLevel || {});
+var LOG_LEVEL_PRIORITY = {
+  ["debug" /* DEBUG */]: 0,
+  ["info" /* INFO */]: 1,
+  ["warn" /* WARN */]: 2,
+  ["error" /* ERROR */]: 3
+};
+function generateCorrelationId() {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 10);
+  return `${timestamp}-${random}`;
+}
+function createRequestContext(adapter, method, metadata) {
+  return {
+    correlationId: generateCorrelationId(),
+    adapter,
+    method,
+    timestamp: Date.now(),
+    metadata
+  };
+}
+var Logger = class _Logger {
+  context;
+  level;
+  enabled;
+  output;
+  maskSensitiveData;
+  correlationId;
+  constructor(context, config = {}) {
+    this.context = context;
+    this.level = config.level ?? "info" /* INFO */;
+    this.enabled = config.enabled ?? true;
+    this.output = config.output ?? this.defaultOutput;
+    this.maskSensitiveData = config.maskSensitiveData ?? true;
+    this.correlationId = config.correlationId;
+  }
+  /**
+   * Log a debug message
+   */
+  debug(message, meta) {
+    this.log("debug" /* DEBUG */, message, meta);
+  }
+  /**
+   * Log an info message
+   */
+  info(message, meta) {
+    this.log("info" /* INFO */, message, meta);
+  }
+  /**
+   * Log a warning message
+   */
+  warn(message, meta) {
+    this.log("warn" /* WARN */, message, meta);
+  }
+  /**
+   * Log an error message
+   *
+   * @param message - Error message
+   * @param error - Optional error object
+   * @param meta - Optional metadata
+   */
+  error(message, error, meta) {
+    const errorMeta = error ? { error: this.serializeError(error) } : {};
+    this.log("error" /* ERROR */, message, { ...meta, ...errorMeta });
+  }
+  /**
+   * Set the minimum log level
+   */
+  setLevel(level) {
+    this.level = level;
+  }
+  /**
+   * Enable or disable logging
+   */
+  setEnabled(enabled) {
+    this.enabled = enabled;
+  }
+  /**
+   * Set correlation ID for request tracing
+   */
+  setCorrelationId(correlationId) {
+    this.correlationId = correlationId;
+  }
+  /**
+   * Get current correlation ID
+   */
+  getCorrelationId() {
+    return this.correlationId;
+  }
+  /**
+   * Create a child logger with a specific correlation ID
+   */
+  withCorrelationId(correlationId) {
+    return new _Logger(this.context, {
+      level: this.level,
+      enabled: this.enabled,
+      output: this.output,
+      maskSensitiveData: this.maskSensitiveData,
+      correlationId
+    });
+  }
+  /**
+   * Internal log method
+   */
+  log(level, message, meta) {
+    if (!this.enabled) return;
+    if (LOG_LEVEL_PRIORITY[level] < LOG_LEVEL_PRIORITY[this.level]) {
+      return;
+    }
+    const entry = {
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      level,
+      context: this.context,
+      message
+    };
+    if (this.correlationId) {
+      entry.correlationId = this.correlationId;
+    }
+    if (meta && Object.keys(meta).length > 0) {
+      entry.meta = this.maskSensitiveData ? this.maskSensitive(meta) : meta;
+    }
+    this.output(entry);
+  }
+  /**
+   * Default log output (JSON to console)
+   */
+  defaultOutput(entry) {
+    console.log(JSON.stringify(entry));
+  }
+  /**
+   * Serialize error object for logging
+   */
+  serializeError(error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    };
+  }
+  /**
+   * Mask sensitive data in metadata
+   */
+  maskSensitive(data) {
+    const masked = {};
+    const sensitiveKeys = [
+      "privatekey",
+      "apikey",
+      "apisecret",
+      "password",
+      "secret",
+      "token",
+      "auth",
+      "authorization",
+      "signature"
+    ];
+    for (const key of Object.keys(data)) {
+      const value = data[key];
+      const lowerKey = key.toLowerCase();
+      const isSensitive = sensitiveKeys.some((sensitive) => lowerKey.includes(sensitive));
+      if (isSensitive && typeof value === "string") {
+        masked[key] = value.length > 4 ? "***" + value.slice(-4) : "***";
+      } else if (isSensitive) {
+        masked[key] = "***";
+      } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+        masked[key] = this.maskSensitive(value);
+      } else {
+        masked[key] = value;
+      }
+    }
+    return masked;
+  }
+};
+function createChildLogger(parent, childContext) {
+  const fullContext = `${parent.context}:${childContext}`;
+  return new Logger(fullContext, {
+    level: parent.level,
+    enabled: parent.enabled,
+    output: parent.output,
+    maskSensitiveData: parent.maskSensitiveData,
+    correlationId: parent.correlationId
+  });
+}
+function formatLogEntry(entry) {
+  const parts = [
+    `[${entry.timestamp}]`,
+    entry.level.toUpperCase(),
+    `[${entry.context}]`
+  ];
+  if (entry.correlationId) {
+    parts.push(`[${entry.correlationId}]`);
+  }
+  parts.push(entry.message);
+  if (entry.meta) {
+    parts.push(JSON.stringify(entry.meta));
+  }
+  if (entry.error) {
+    parts.push(`Error: ${entry.error.message}`);
+    if (entry.error.stack) {
+      parts.push(`
+Stack: ${entry.error.stack}`);
+    }
+  }
+  return parts.join(" ");
+}
 
 // src/adapters/hyperliquid/HyperliquidAdapter.ts
 var import_ethers2 = require("ethers");
@@ -1886,7 +2079,6 @@ var RateLimiter = class {
   windowMs;
   refillRate;
   weights;
-  exchange;
   bucket;
   queue = [];
   processingQueue = false;
@@ -1897,7 +2089,6 @@ var RateLimiter = class {
     this.windowMs = config.windowMs;
     this.refillRate = config.refillRate ?? config.maxTokens;
     this.weights = config.weights ?? {};
-    this.exchange = config.exchange ?? "unknown";
     this.bucket = {
       tokens: this.maxTokens,
       lastRefill: Date.now()
@@ -1974,8 +2165,7 @@ var RateLimiter = class {
     while (this.queue.length > 0 && !this.destroyed) {
       this.refillBucket();
       const request = this.queue[0];
-      if (!request)
-        break;
+      if (!request) break;
       if (this.bucket.tokens >= request.weight) {
         this.bucket.tokens -= request.weight;
         this.queue.shift();
@@ -2730,220 +2920,6 @@ function createMetricsSnapshot(metrics) {
   };
 }
 
-// src/core/logger.ts
-var LogLevel = /* @__PURE__ */ ((LogLevel2) => {
-  LogLevel2["DEBUG"] = "debug";
-  LogLevel2["INFO"] = "info";
-  LogLevel2["WARN"] = "warn";
-  LogLevel2["ERROR"] = "error";
-  return LogLevel2;
-})(LogLevel || {});
-var LOG_LEVEL_PRIORITY = {
-  ["debug" /* DEBUG */]: 0,
-  ["info" /* INFO */]: 1,
-  ["warn" /* WARN */]: 2,
-  ["error" /* ERROR */]: 3
-};
-function generateCorrelationId() {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 10);
-  return `${timestamp}-${random}`;
-}
-function createRequestContext(adapter, method, metadata) {
-  return {
-    correlationId: generateCorrelationId(),
-    adapter,
-    method,
-    timestamp: Date.now(),
-    metadata
-  };
-}
-var Logger = class _Logger {
-  context;
-  level;
-  enabled;
-  output;
-  maskSensitiveData;
-  correlationId;
-  constructor(context, config = {}) {
-    this.context = context;
-    this.level = config.level ?? "info" /* INFO */;
-    this.enabled = config.enabled ?? true;
-    this.output = config.output ?? this.defaultOutput;
-    this.maskSensitiveData = config.maskSensitiveData ?? true;
-    this.correlationId = config.correlationId;
-  }
-  /**
-   * Log a debug message
-   */
-  debug(message, meta) {
-    this.log("debug" /* DEBUG */, message, meta);
-  }
-  /**
-   * Log an info message
-   */
-  info(message, meta) {
-    this.log("info" /* INFO */, message, meta);
-  }
-  /**
-   * Log a warning message
-   */
-  warn(message, meta) {
-    this.log("warn" /* WARN */, message, meta);
-  }
-  /**
-   * Log an error message
-   *
-   * @param message - Error message
-   * @param error - Optional error object
-   * @param meta - Optional metadata
-   */
-  error(message, error, meta) {
-    const errorMeta = error ? { error: this.serializeError(error) } : {};
-    this.log("error" /* ERROR */, message, { ...meta, ...errorMeta });
-  }
-  /**
-   * Set the minimum log level
-   */
-  setLevel(level) {
-    this.level = level;
-  }
-  /**
-   * Enable or disable logging
-   */
-  setEnabled(enabled) {
-    this.enabled = enabled;
-  }
-  /**
-   * Set correlation ID for request tracing
-   */
-  setCorrelationId(correlationId) {
-    this.correlationId = correlationId;
-  }
-  /**
-   * Get current correlation ID
-   */
-  getCorrelationId() {
-    return this.correlationId;
-  }
-  /**
-   * Create a child logger with a specific correlation ID
-   */
-  withCorrelationId(correlationId) {
-    return new _Logger(this.context, {
-      level: this.level,
-      enabled: this.enabled,
-      output: this.output,
-      maskSensitiveData: this.maskSensitiveData,
-      correlationId
-    });
-  }
-  /**
-   * Internal log method
-   */
-  log(level, message, meta) {
-    if (!this.enabled)
-      return;
-    if (LOG_LEVEL_PRIORITY[level] < LOG_LEVEL_PRIORITY[this.level]) {
-      return;
-    }
-    const entry = {
-      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      level,
-      context: this.context,
-      message
-    };
-    if (this.correlationId) {
-      entry.correlationId = this.correlationId;
-    }
-    if (meta && Object.keys(meta).length > 0) {
-      entry.meta = this.maskSensitiveData ? this.maskSensitive(meta) : meta;
-    }
-    this.output(entry);
-  }
-  /**
-   * Default log output (JSON to console)
-   */
-  defaultOutput(entry) {
-    console.log(JSON.stringify(entry));
-  }
-  /**
-   * Serialize error object for logging
-   */
-  serializeError(error) {
-    return {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      code: error.code
-    };
-  }
-  /**
-   * Mask sensitive data in metadata
-   */
-  maskSensitive(data) {
-    const masked = {};
-    const sensitiveKeys = [
-      "privatekey",
-      "apikey",
-      "apisecret",
-      "password",
-      "secret",
-      "token",
-      "auth",
-      "authorization",
-      "signature"
-    ];
-    for (const key of Object.keys(data)) {
-      const value = data[key];
-      const lowerKey = key.toLowerCase();
-      const isSensitive = sensitiveKeys.some((sensitive) => lowerKey.includes(sensitive));
-      if (isSensitive && typeof value === "string") {
-        masked[key] = value.length > 4 ? "***" + value.slice(-4) : "***";
-      } else if (isSensitive) {
-        masked[key] = "***";
-      } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-        masked[key] = this.maskSensitive(value);
-      } else {
-        masked[key] = value;
-      }
-    }
-    return masked;
-  }
-};
-function createChildLogger(parent, childContext) {
-  const fullContext = `${parent.context}:${childContext}`;
-  return new Logger(fullContext, {
-    level: parent.level,
-    enabled: parent.enabled,
-    output: parent.output,
-    maskSensitiveData: parent.maskSensitiveData,
-    correlationId: parent.correlationId
-  });
-}
-function formatLogEntry(entry) {
-  const parts = [
-    `[${entry.timestamp}]`,
-    entry.level.toUpperCase(),
-    `[${entry.context}]`
-  ];
-  if (entry.correlationId) {
-    parts.push(`[${entry.correlationId}]`);
-  }
-  parts.push(entry.message);
-  if (entry.meta) {
-    parts.push(JSON.stringify(entry.meta));
-  }
-  if (entry.error) {
-    parts.push(`Error: ${entry.error.message}`);
-    if (entry.error.stack) {
-      parts.push(`
-Stack: ${entry.error.stack}`);
-    }
-  }
-  return parts.join(" ");
-}
-
 // src/core/CircuitBreaker.ts
 var DEFAULT_CONFIG = {
   failureThreshold: 5,
@@ -2961,7 +2937,6 @@ var CircuitBreaker = class extends import_index.default {
   failureCount = 0;
   successCount = 0;
   totalRequests = 0;
-  lastFailureTime = 0;
   lastStateChangeTime = Date.now();
   resetTimer = null;
   requestTimestamps = [];
@@ -3031,7 +3006,6 @@ var CircuitBreaker = class extends import_index.default {
   recordFailure(error) {
     this.totalRequests++;
     this.failureCount++;
-    this.lastFailureTime = Date.now();
     this.cleanupOldTimestamps();
     this.requestTimestamps.push(Date.now());
     this.emit("failure", error);
@@ -3157,7 +3131,7 @@ var CircuitBreaker = class extends import_index.default {
    * Get current metrics
    */
   getMetrics() {
-    const recentRequests = this.getRecentRequestCount();
+    this.getRecentRequestCount();
     const recentFailures = this.failureCount;
     const recentSuccesses = this.successCount;
     return {
@@ -7559,14 +7533,14 @@ var ostring = () => stringType().optional();
 var onumber = () => numberType().optional();
 var oboolean = () => booleanType().optional();
 var coerce = {
-  string: (arg) => ZodString.create({ ...arg, coerce: true }),
-  number: (arg) => ZodNumber.create({ ...arg, coerce: true }),
-  boolean: (arg) => ZodBoolean.create({
+  string: ((arg) => ZodString.create({ ...arg, coerce: true })),
+  number: ((arg) => ZodNumber.create({ ...arg, coerce: true })),
+  boolean: ((arg) => ZodBoolean.create({
     ...arg,
     coerce: true
-  }),
-  bigint: (arg) => ZodBigInt.create({ ...arg, coerce: true }),
-  date: (arg) => ZodDate.create({ ...arg, coerce: true })
+  })),
+  bigint: ((arg) => ZodBigInt.create({ ...arg, coerce: true })),
+  date: ((arg) => ZodDate.create({ ...arg, coerce: true }))
 };
 var NEVER = INVALID;
 
@@ -8054,9 +8028,9 @@ var BaseAdapter = class {
       }
     });
   }
-  /**
-   * Get logger instance (lazy initialization with adapter name as context)
-   */
+  // ===========================================================================
+  // Logger Methods (from LoggerMixin)
+  // ===========================================================================
   get logger() {
     if (!this._logger) {
       this._logger = new Logger(this.name, {
@@ -8067,20 +8041,27 @@ var BaseAdapter = class {
     }
     return this._logger;
   }
+  debug(message, meta) {
+    this.logger.debug(message, meta);
+  }
+  info(message, meta) {
+    this.logger.info(message, meta);
+  }
+  warn(message, meta) {
+    this.logger.warn(message, meta);
+  }
+  error(message, error, meta) {
+    this.logger.error(message, error, meta);
+  }
+  // ===========================================================================
+  // State Getters
+  // ===========================================================================
   get isReady() {
     return this._isReady;
   }
-  /**
-   * Check if adapter has been disconnected
-   */
   isDisconnected() {
     return this._isDisconnected;
   }
-  /**
-   * Disconnect and cleanup all resources
-   *
-   * Subclasses should override and call super.disconnect() at the end
-   */
   async disconnect() {
     if (this._isDisconnected) {
       this.debug("Already disconnected");
@@ -8105,29 +8086,13 @@ var BaseAdapter = class {
     this._isDisconnected = true;
     this.debug("Disconnected and cleanup complete");
   }
-  /**
-   * Clear all cached data
-   */
+  // ===========================================================================
+  // Cache Management (from CacheManagerMixin)
+  // ===========================================================================
   clearCache() {
     this.marketCache = null;
     this.marketCacheExpiry = 0;
   }
-  /**
-   * Preload market data with configurable TTL
-   *
-   * @param options - Configuration options
-   * @param options.ttl - Time-to-live for cache in milliseconds (default: 5 minutes)
-   * @param options.params - Additional parameters to pass to fetchMarkets()
-   *
-   * @example
-   * ```typescript
-   * // Preload markets with 10-minute cache
-   * await exchange.preloadMarkets({ ttl: 600000 });
-   *
-   * // Later calls to fetchMarkets() will use cached data
-   * const markets = await exchange.fetchMarkets(); // Uses cache
-   * ```
-   */
   async preloadMarkets(options) {
     const ttl = options?.ttl ?? this.marketCacheTTL;
     const params = options?.params;
@@ -8138,21 +8103,6 @@ var BaseAdapter = class {
     this.marketCacheTTL = ttl;
     this.debug("Preloaded markets", { count: markets.length, ttl });
   }
-  /**
-   * Get preloaded markets if cache is still valid
-   *
-   * @returns Cached markets if available and not expired, null otherwise
-   *
-   * @example
-   * ```typescript
-   * const cached = exchange.getPreloadedMarkets();
-   * if (cached) {
-   *   console.log('Using cached markets:', cached.length);
-   * } else {
-   *   console.log('Cache expired or empty, fetching fresh data');
-   * }
-   * ```
-   */
   getPreloadedMarkets() {
     if (!this.marketCache) {
       return null;
@@ -8166,16 +8116,12 @@ var BaseAdapter = class {
     }
     return this.marketCache;
   }
-  /**
-   * Fetch markets from API (bypasses cache)
-   * Subclasses should implement this instead of fetchMarkets()
-   */
   async fetchMarketsFromAPI(params) {
     return this.fetchMarkets(params);
   }
-  /**
-   * Perform health check on exchange adapter
-   */
+  // ===========================================================================
+  // Health Check (from HealthCheckMixin)
+  // ===========================================================================
   async healthCheck(config = {}) {
     const {
       timeout = 5e3,
@@ -8189,10 +8135,7 @@ var BaseAdapter = class {
       status: "unhealthy",
       latency: 0,
       exchange: this.id,
-      api: {
-        reachable: false,
-        latency: 0
-      },
+      api: { reachable: false, latency: 0 },
       timestamp
     };
     try {
@@ -8219,9 +8162,6 @@ var BaseAdapter = class {
       return result;
     }
   }
-  /**
-   * Check API health by making a lightweight request
-   */
   async checkApiHealth(timeout) {
     const startTime = Date.now();
     try {
@@ -8231,10 +8171,7 @@ var BaseAdapter = class {
           (_, reject) => setTimeout(() => reject(new Error("Health check timeout")), timeout)
         )
       ]);
-      return {
-        reachable: true,
-        latency: Date.now() - startTime
-      };
+      return { reachable: true, latency: Date.now() - startTime };
     } catch (error) {
       return {
         reachable: false,
@@ -8243,601 +8180,72 @@ var BaseAdapter = class {
       };
     }
   }
-  /**
-   * Perform exchange-specific API health check
-   * Subclasses should override this for optimal lightweight check
-   */
   async performApiHealthCheck() {
     await this.fetchMarkets({ active: true });
   }
-  /**
-   * Check WebSocket health
-   * Subclasses should override if they use WebSocket
-   */
   async checkWebSocketHealth() {
-    return {
-      connected: false,
-      reconnecting: false
-    };
+    return { connected: false, reconnecting: false };
   }
-  /**
-   * Check authentication health
-   * Subclasses should override for auth-specific checks
-   */
   async checkAuthHealth() {
-    return {
-      valid: !!this.authStrategy
-    };
+    return { valid: !!this.authStrategy };
   }
-  /**
-   * Get current rate limit status
-   */
   getRateLimitStatus() {
     return void 0;
   }
-  /**
-   * Fetch OHLCV (candlestick) data
-   * Default implementation throws if not supported by exchange
-   */
-  async fetchOHLCV(symbol, timeframe, params) {
-    if (!this.has.fetchOHLCV) {
-      throw new NotSupportedError(`${this.name} does not support OHLCV data`, "NOT_SUPPORTED", this.id);
+  // ===========================================================================
+  // Metrics (from MetricsTrackerMixin)
+  // ===========================================================================
+  updateEndpointMetrics(endpointKey, latency, isError) {
+    let stats = this.metrics.endpointStats.get(endpointKey);
+    if (!stats) {
+      stats = {
+        endpoint: endpointKey,
+        count: 0,
+        totalLatency: 0,
+        errors: 0,
+        minLatency: Infinity,
+        maxLatency: 0
+      };
+      this.metrics.endpointStats.set(endpointKey, stats);
     }
-    throw new Error("fetchOHLCV must be implemented by subclass");
+    stats.count++;
+    stats.totalLatency += latency;
+    stats.minLatency = Math.min(stats.minLatency, latency);
+    stats.maxLatency = Math.max(stats.maxLatency, latency);
+    stats.lastRequestAt = Date.now();
+    if (isError) {
+      stats.errors++;
+    }
   }
-  /**
-   * Fetch multiple tickers at once
-   * Default implementation fetches tickers sequentially
-   */
-  async fetchTickers(symbols) {
-    if (!this.has.fetchTickers) {
-      const result = {};
-      const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map((m) => m.symbol);
-      for (const symbol of symbolsToFetch) {
-        try {
-          result[symbol] = await this.fetchTicker(symbol);
-        } catch (error) {
-          this.debug(`Failed to fetch ticker for ${symbol}`, { error });
-        }
-      }
-      return result;
-    }
-    throw new Error("fetchTickers must be implemented by subclass");
+  updateAverageLatency(latency) {
+    const total = this.metrics.totalRequests;
+    const currentAvg = this.metrics.averageLatency;
+    this.metrics.averageLatency = (currentAvg * (total - 1) + latency) / total;
   }
-  /**
-   * Fetch available currencies
-   * Default implementation throws if not supported
-   */
-  async fetchCurrencies() {
-    if (!this.has.fetchCurrencies) {
-      throw new NotSupportedError(`${this.name} does not support fetching currencies`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchCurrencies must be implemented by subclass");
+  getMetrics() {
+    return createMetricsSnapshot(this.metrics);
   }
-  /**
-   * Fetch exchange status
-   * Default implementation returns 'ok' if fetchMarkets succeeds
-   */
-  async fetchStatus() {
-    if (!this.has.fetchStatus) {
-      try {
-        await this.fetchMarkets();
-        return {
-          status: "ok",
-          updated: Date.now()
-        };
-      } catch (error) {
-        return {
-          status: "error",
-          message: error instanceof Error ? error.message : "Unknown error",
-          updated: Date.now()
-        };
-      }
-    }
-    throw new Error("fetchStatus must be implemented by subclass");
+  getCircuitBreakerMetrics() {
+    return this.circuitBreaker.getMetrics();
   }
-  /**
-   * Fetch exchange server time
-   * Default implementation returns local time (not recommended)
-   */
-  async fetchTime() {
-    if (!this.has.fetchTime) {
-      throw new NotSupportedError(`${this.name} does not support fetching server time`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchTime must be implemented by subclass");
+  getCircuitBreakerState() {
+    return this.circuitBreaker.getState();
   }
-  /**
-   * Fetch deposit history
-   * Default implementation throws if not supported by exchange
-   */
-  async fetchDeposits(currency, since, limit) {
-    if (!this.has.fetchDeposits) {
-      throw new NotSupportedError(`${this.name} does not support fetching deposit history`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchDeposits must be implemented by subclass");
+  resetMetrics() {
+    this.metrics.lastResetAt = Date.now();
+    this.metrics.totalRequests = 0;
+    this.metrics.successfulRequests = 0;
+    this.metrics.failedRequests = 0;
+    this.metrics.rateLimitHits = 0;
+    this.metrics.averageLatency = 0;
+    this.metrics.endpointStats.clear();
   }
-  /**
-   * Fetch withdrawal history
-   * Default implementation throws if not supported by exchange
-   */
-  async fetchWithdrawals(currency, since, limit) {
-    if (!this.has.fetchWithdrawals) {
-      throw new NotSupportedError(`${this.name} does not support fetching withdrawal history`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchWithdrawals must be implemented by subclass");
-  }
-  /**
-   * Fetch account ledger (transaction history)
-   * Default implementation throws if not supported by exchange
-   */
-  async fetchLedger(currency, since, limit, params) {
-    if (!this.has.fetchLedger) {
-      throw new NotSupportedError(`${this.name} does not support fetching ledger`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchLedger must be implemented by subclass");
-  }
-  /**
-   * Fetch funding payment history
-   * Default implementation throws if not supported by exchange
-   */
-  async fetchFundingHistory(symbol, since, limit) {
-    if (!this.has.fetchFundingHistory) {
-      throw new NotSupportedError(`${this.name} does not support fetching funding history`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchFundingHistory must be implemented by subclass");
+  trackRateLimitHit() {
+    this.metrics.rateLimitHits++;
   }
   // ===========================================================================
-  // Batch Operations - with automatic fallback to sequential execution
+  // HTTP Request (from HttpRequestMixin)
   // ===========================================================================
-  /**
-   * Create multiple orders in batch
-   *
-   * If the exchange supports native batch creation (has.createBatchOrders === true),
-   * subclasses should override this method. Otherwise, falls back to sequential creation.
-   *
-   * @param requests - Array of order requests
-   * @returns Array of created orders
-   *
-   * @example
-   * ```typescript
-   * const orders = await exchange.createBatchOrders([
-   *   { symbol: 'BTC/USDT:USDT', side: 'buy', type: 'limit', amount: 0.1, price: 50000 },
-   *   { symbol: 'ETH/USDT:USDT', side: 'buy', type: 'limit', amount: 1.0, price: 3000 },
-   * ]);
-   * ```
-   */
-  async createBatchOrders(requests) {
-    if (this.has.createBatchOrders === true) {
-      throw new Error("createBatchOrders must be implemented by subclass when has.createBatchOrders is true");
-    }
-    this.debug("No native batch support, creating orders sequentially", { count: requests.length });
-    const orders = [];
-    const errors = [];
-    for (let i = 0; i < requests.length; i++) {
-      const request = requests[i];
-      if (!request)
-        continue;
-      try {
-        const order = await this.createOrder(request);
-        orders.push(order);
-      } catch (error) {
-        const err2 = error instanceof Error ? error : new Error(String(error));
-        errors.push({ index: i, error: err2 });
-        this.debug("Failed to create order", { index: i + 1, total: requests.length, error: err2.message });
-      }
-    }
-    if (orders.length === 0 && errors.length > 0) {
-      const firstError = errors[0];
-      if (firstError) {
-        throw new Error(
-          `All batch order creations failed. First error: ${firstError.error.message}`
-        );
-      }
-    }
-    if (errors.length > 0) {
-      this.debug("Batch order creation completed", { succeeded: orders.length, failed: errors.length });
-    }
-    return orders;
-  }
-  /**
-   * Cancel multiple orders in batch
-   *
-   * If the exchange supports native batch cancellation (has.cancelBatchOrders === true),
-   * subclasses should override this method. Otherwise, falls back to sequential cancellation.
-   *
-   * @param orderIds - Array of order IDs to cancel
-   * @param symbol - Optional symbol (required for some exchanges)
-   * @returns Array of canceled orders
-   *
-   * @example
-   * ```typescript
-   * const canceled = await exchange.cancelBatchOrders([
-   *   'order-123',
-   *   'order-456',
-   *   'order-789',
-   * ], 'BTC/USDT:USDT');
-   * ```
-   */
-  async cancelBatchOrders(orderIds, symbol) {
-    if (this.has.cancelBatchOrders === true) {
-      throw new Error("cancelBatchOrders must be implemented by subclass when has.cancelBatchOrders is true");
-    }
-    this.debug("No native batch support, canceling orders sequentially", { count: orderIds.length });
-    const orders = [];
-    const errors = [];
-    for (let i = 0; i < orderIds.length; i++) {
-      const orderId = orderIds[i];
-      if (!orderId)
-        continue;
-      try {
-        const order = await this.cancelOrder(orderId, symbol);
-        orders.push(order);
-      } catch (error) {
-        const err2 = error instanceof Error ? error : new Error(String(error));
-        errors.push({ index: i, orderId, error: err2 });
-        this.debug("Failed to cancel order", { orderId, error: err2.message });
-      }
-    }
-    if (orders.length === 0 && errors.length > 0) {
-      const firstError = errors[0];
-      if (firstError) {
-        throw new Error(
-          `All batch order cancellations failed. First error: ${firstError.error.message}`
-        );
-      }
-    }
-    if (errors.length > 0) {
-      this.debug("Batch order cancellation completed", { succeeded: orders.length, failed: errors.length });
-    }
-    return orders;
-  }
-  /**
-   * Edit/modify an existing order
-   * Default implementation throws if not supported
-   */
-  async editOrder(orderId, symbol, type, side, amount, price, params) {
-    if (!this.has.editOrder) {
-      throw new NotSupportedError(`${this.name} does not support editing orders`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("editOrder must be implemented by subclass");
-  }
-  // ===========================================================================
-  // Order Query
-  // ===========================================================================
-  /**
-   * Fetch a single order by ID
-   * Default implementation throws if not supported
-   */
-  async fetchOrder(orderId, symbol) {
-    if (!this.has.fetchOrder) {
-      throw new NotSupportedError(`${this.name} does not support fetching single orders`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchOrder must be implemented by subclass");
-  }
-  /**
-   * Fetch all open/pending orders
-   * Default implementation throws if not supported
-   */
-  async fetchOpenOrders(symbol, since, limit) {
-    if (!this.has.fetchOpenOrders) {
-      throw new NotSupportedError(`${this.name} does not support fetching open orders`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchOpenOrders must be implemented by subclass");
-  }
-  /**
-   * Fetch closed (filled/canceled) orders
-   * Default implementation throws if not supported
-   */
-  async fetchClosedOrders(symbol, since, limit) {
-    if (!this.has.fetchClosedOrders) {
-      throw new NotSupportedError(`${this.name} does not support fetching closed orders`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchClosedOrders must be implemented by subclass");
-  }
-  // ===========================================================================
-  // Convenience Order Methods (CCXT-compatible)
-  // ===========================================================================
-  /**
-   * Create a limit buy order
-   */
-  async createLimitBuyOrder(symbol, amount, price, params) {
-    return this.createOrder({
-      symbol,
-      type: "limit",
-      side: "buy",
-      amount,
-      price,
-      ...params
-    });
-  }
-  /**
-   * Create a limit sell order
-   */
-  async createLimitSellOrder(symbol, amount, price, params) {
-    return this.createOrder({
-      symbol,
-      type: "limit",
-      side: "sell",
-      amount,
-      price,
-      ...params
-    });
-  }
-  /**
-   * Create a market buy order
-   */
-  async createMarketBuyOrder(symbol, amount, params) {
-    return this.createOrder({
-      symbol,
-      type: "market",
-      side: "buy",
-      amount,
-      ...params
-    });
-  }
-  /**
-   * Create a market sell order
-   */
-  async createMarketSellOrder(symbol, amount, params) {
-    return this.createOrder({
-      symbol,
-      type: "market",
-      side: "sell",
-      amount,
-      ...params
-    });
-  }
-  /**
-   * Create a stop loss order
-   */
-  async createStopLossOrder(symbol, amount, stopPrice, params) {
-    return this.createOrder({
-      symbol,
-      type: "stopMarket",
-      side: "sell",
-      // Default to sell for stop loss
-      amount,
-      stopPrice,
-      reduceOnly: true,
-      ...params
-    });
-  }
-  /**
-   * Create a take profit order
-   */
-  async createTakeProfitOrder(symbol, amount, takeProfitPrice, params) {
-    return this.createOrder({
-      symbol,
-      type: "limit",
-      side: "sell",
-      // Default to sell for take profit
-      amount,
-      price: takeProfitPrice,
-      reduceOnly: true,
-      ...params
-    });
-  }
-  async setMarginMode(symbol, marginMode) {
-    if (!this.has.setMarginMode || this.has.setMarginMode === "emulated") {
-      throw new NotSupportedError(`${this.name} does not support setting margin mode directly`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("setMarginMode must be implemented by subclass");
-  }
-  // ===========================================================================
-  // WebSocket Streams - default implementation throws if not supported
-  // ===========================================================================
-  async *watchOrderBook(symbol, limit) {
-    if (!this.has.watchOrderBook) {
-      throw new NotSupportedError(`${this.name} does not support order book streaming`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("watchOrderBook must be implemented by subclass");
-    yield {};
-  }
-  async *watchTrades(symbol) {
-    if (!this.has.watchTrades) {
-      throw new NotSupportedError(`${this.name} does not support trade streaming`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("watchTrades must be implemented by subclass");
-    yield {};
-  }
-  async *watchTicker(symbol) {
-    if (!this.has.watchTicker) {
-      throw new NotSupportedError(`${this.name} does not support ticker streaming`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("watchTicker must be implemented by subclass");
-    yield {};
-  }
-  async *watchTickers(symbols) {
-    if (!this.has.watchTickers) {
-      throw new NotSupportedError(`${this.name} does not support multiple ticker streaming`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("watchTickers must be implemented by subclass");
-    yield {};
-  }
-  async *watchPositions() {
-    if (!this.has.watchPositions) {
-      throw new NotSupportedError(`${this.name} does not support position streaming`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("watchPositions must be implemented by subclass");
-    yield [];
-  }
-  async *watchOrders() {
-    if (!this.has.watchOrders) {
-      throw new NotSupportedError(`${this.name} does not support order streaming`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("watchOrders must be implemented by subclass");
-    yield [];
-  }
-  async *watchBalance() {
-    if (!this.has.watchBalance) {
-      throw new NotSupportedError(`${this.name} does not support balance streaming`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("watchBalance must be implemented by subclass");
-    yield [];
-  }
-  async *watchFundingRate(symbol) {
-    if (!this.has.watchFundingRate) {
-      throw new NotSupportedError(`${this.name} does not support funding rate streaming`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("watchFundingRate must be implemented by subclass");
-    yield {};
-  }
-  async *watchOHLCV(symbol, timeframe) {
-    if (!this.has.watchOHLCV) {
-      throw new NotSupportedError(`${this.name} does not support OHLCV streaming`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("watchOHLCV must be implemented by subclass");
-    yield [0, 0, 0, 0, 0, 0];
-  }
-  async *watchMyTrades(symbol) {
-    if (!this.has.watchMyTrades) {
-      throw new NotSupportedError(`${this.name} does not support user trade streaming`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("watchMyTrades must be implemented by subclass");
-    yield {};
-  }
-  // ===========================================================================
-  // Additional Info Methods
-  // ===========================================================================
-  /**
-   * Fetch user fee rates
-   * Default implementation throws if not supported by exchange
-   */
-  async fetchUserFees() {
-    if (!this.has.fetchUserFees) {
-      throw new NotSupportedError(`${this.name} does not support fetching user fees`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchUserFees must be implemented by subclass");
-  }
-  /**
-   * Fetch portfolio performance metrics
-   * Default implementation throws if not supported by exchange
-   */
-  async fetchPortfolio() {
-    if (!this.has.fetchPortfolio) {
-      throw new NotSupportedError(`${this.name} does not support fetching portfolio metrics`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchPortfolio must be implemented by subclass");
-  }
-  /**
-   * Fetch current rate limit status
-   * Default implementation throws if not supported by exchange
-   */
-  async fetchRateLimitStatus() {
-    if (!this.has.fetchRateLimitStatus) {
-      throw new NotSupportedError(`${this.name} does not support fetching rate limit status`, "NOT_SUPPORTED", this.id);
-    }
-    throw new Error("fetchRateLimitStatus must be implemented by subclass");
-  }
-  // ===========================================================================
-  // Utility Methods
-  // ===========================================================================
-  /**
-   * Check if a feature is supported
-   */
-  supportsFeature(feature) {
-    return this.has[feature] === true;
-  }
-  /**
-   * Assert that a feature is supported, throwing an error if not
-   *
-   * Use this at the beginning of methods that require specific features
-   * to provide clear error messages when unsupported features are called.
-   *
-   * @param feature - The feature to check
-   * @throws NotSupportedError if the feature is not supported
-   *
-   * @example
-   * ```typescript
-   * async fetchOHLCV(symbol: string, timeframe: OHLCVTimeframe): Promise<OHLCV[]> {
-   *   this.assertFeatureSupported('fetchOHLCV');
-   *   // ... implementation
-   * }
-   * ```
-   */
-  assertFeatureSupported(feature) {
-    if (!this.has[feature]) {
-      throw new NotSupportedError(
-        `Feature '${feature}' is not supported by ${this.name}`,
-        "NOT_SUPPORTED",
-        this.id
-      );
-    }
-  }
-  /**
-   * Ensure adapter is initialized
-   */
-  ensureInitialized() {
-    if (!this._isReady) {
-      throw new Error(`${this.name} adapter not initialized. Call initialize() first.`);
-    }
-  }
-  // ===========================================================================
-  // Input Validation
-  // ===========================================================================
-  /**
-   * Validate an order request using Zod schemas
-   *
-   * Validates that the order request has all required fields and
-   * enforces type-specific constraints (e.g., limit orders need price).
-   *
-   * @param request - Order request to validate
-   * @param correlationId - Optional correlation ID for error tracking
-   * @returns Validated order request
-   * @throws {InvalidOrderError} If validation fails
-   *
-   * @example
-   * ```typescript
-   * async createOrder(request: OrderRequest): Promise<Order> {
-   *   const validated = this.validateOrder(request);
-   *   // ... create order with validated data
-   * }
-   * ```
-   */
-  validateOrder(request, correlationId) {
-    return validateOrderRequest(request, {
-      exchange: this.id,
-      context: correlationId ? { correlationId } : void 0
-    });
-  }
-  /**
-   * Get a validator instance for this adapter
-   *
-   * Creates a validator bound to this adapter's exchange ID
-   * for use with custom validation needs.
-   *
-   * @returns Validator with methods for common validation tasks
-   *
-   * @example
-   * ```typescript
-   * const validator = this.getValidator();
-   * const params = validator.orderBookParams(rawParams);
-   * ```
-   */
-  getValidator() {
-    return createValidator(this.id);
-  }
-  /**
-   * Attach correlation ID to an error for request tracing
-   *
-   * If the error is a PerpDEXError, attaches the correlation ID directly.
-   * Otherwise, wraps the error in a PerpDEXError with the correlation ID.
-   *
-   * @param error - Error to attach correlation ID to
-   * @param correlationId - Correlation ID for request tracing
-   * @returns Error with correlation ID attached
-   */
-  attachCorrelationId(error, correlationId) {
-    if (error instanceof PerpDEXError) {
-      error.withCorrelationId(correlationId);
-      return error;
-    }
-    const message = error instanceof Error ? error.message : String(error);
-    return new PerpDEXError(message, "REQUEST_ERROR", this.id, error).withCorrelationId(correlationId);
-  }
-  /**
-   * Make HTTP request with timeout, circuit breaker, retry, and metrics tracking
-   */
   async request(method, url, body, headers) {
     const maxAttempts = 3;
     const initialDelay = 1e3;
@@ -8851,12 +8259,7 @@ var BaseAdapter = class {
         const startTime = Date.now();
         const endpoint = this.extractEndpoint(url);
         const endpointKey = `${method}:${endpoint}`;
-        this.debug(`Request ${correlationId}`, {
-          method,
-          endpoint,
-          attempt: attempt + 1,
-          correlationId
-        });
+        this.debug(`Request ${correlationId}`, { method, endpoint, attempt: attempt + 1, correlationId });
         this.metrics.totalRequests++;
         const controller = new AbortController();
         this.abortControllers.add(controller);
@@ -8865,11 +8268,7 @@ var BaseAdapter = class {
         try {
           const response = await fetch(url, {
             method,
-            headers: {
-              "Content-Type": "application/json",
-              "X-Correlation-ID": correlationId,
-              ...headers
-            },
+            headers: { "Content-Type": "application/json", "X-Correlation-ID": correlationId, ...headers },
             body: body ? JSON.stringify(body) : void 0,
             signal: controller.signal
           });
@@ -8896,11 +8295,7 @@ var BaseAdapter = class {
           this.metrics.successfulRequests++;
           this.updateEndpointMetrics(endpointKey, latency, false);
           this.updateAverageLatency(latency);
-          this.debug(`Request ${correlationId} completed`, {
-            correlationId,
-            latency,
-            status: response.status
-          });
+          this.debug(`Request ${correlationId} completed`, { correlationId, latency, status: response.status });
           if (this.prometheusMetrics) {
             this.prometheusMetrics.recordRequest(this.id, endpoint, "success", latency);
           }
@@ -8940,35 +8335,20 @@ var BaseAdapter = class {
       throw this.attachCorrelationId(lastError || new Error("Request failed after retries"), correlationId);
     });
   }
-  /**
-   * Register a timer for cleanup tracking
-   */
   registerTimer(timer) {
     this.timers.add(timer);
   }
-  /**
-   * Register an interval for cleanup tracking
-   */
   registerInterval(interval) {
     this.intervals.add(interval);
   }
-  /**
-   * Unregister and clear a timer
-   */
   unregisterTimer(timer) {
     clearTimeout(timer);
     this.timers.delete(timer);
   }
-  /**
-   * Unregister and clear an interval
-   */
   unregisterInterval(interval) {
     clearInterval(interval);
     this.intervals.delete(interval);
   }
-  /**
-   * Extract endpoint path from URL for metrics tracking
-   */
   extractEndpoint(url) {
     try {
       const urlObj = new URL(url);
@@ -8977,271 +8357,352 @@ var BaseAdapter = class {
       return url;
     }
   }
-  /**
-   * Update per-endpoint metrics
-   */
-  updateEndpointMetrics(endpointKey, latency, isError) {
-    let stats = this.metrics.endpointStats.get(endpointKey);
-    if (!stats) {
-      stats = {
-        endpoint: endpointKey,
-        count: 0,
-        totalLatency: 0,
-        errors: 0,
-        minLatency: Infinity,
-        maxLatency: 0
-      };
-      this.metrics.endpointStats.set(endpointKey, stats);
+  async fetchOHLCV(_symbol, _timeframe, _params) {
+    if (!this.has.fetchOHLCV) {
+      throw new NotSupportedError(`${this.name} does not support OHLCV data`, "NOT_SUPPORTED", this.id);
     }
-    stats.count++;
-    stats.totalLatency += latency;
-    stats.minLatency = Math.min(stats.minLatency, latency);
-    stats.maxLatency = Math.max(stats.maxLatency, latency);
-    stats.lastRequestAt = Date.now();
-    if (isError) {
-      stats.errors++;
+    throw new Error("fetchOHLCV must be implemented by subclass");
+  }
+  async fetchTickers(symbols) {
+    if (!this.has.fetchTickers) {
+      const result = {};
+      const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map((m) => m.symbol);
+      for (const symbol of symbolsToFetch) {
+        try {
+          result[symbol] = await this.fetchTicker(symbol);
+        } catch (error) {
+          this.debug(`Failed to fetch ticker for ${symbol}`, { error });
+        }
+      }
+      return result;
     }
+    throw new Error("fetchTickers must be implemented by subclass");
   }
-  /**
-   * Update rolling average latency
-   */
-  updateAverageLatency(latency) {
-    const total = this.metrics.totalRequests;
-    const currentAvg = this.metrics.averageLatency;
-    this.metrics.averageLatency = (currentAvg * (total - 1) + latency) / total;
+  async fetchCurrencies() {
+    if (!this.has.fetchCurrencies) {
+      throw new NotSupportedError(`${this.name} does not support fetching currencies`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchCurrencies must be implemented by subclass");
   }
-  /**
-   * Get current metrics snapshot
-   *
-   * @returns Metrics snapshot with aggregated statistics
-   *
-   * @example
-   * ```typescript
-   * const metrics = exchange.getMetrics();
-   * console.log(`Success rate: ${(metrics.successRate * 100).toFixed(2)}%`);
-   * console.log(`Average latency: ${metrics.averageLatency.toFixed(2)}ms`);
-   * ```
-   */
-  getMetrics() {
-    return createMetricsSnapshot(this.metrics);
+  async fetchStatus() {
+    if (!this.has.fetchStatus) {
+      try {
+        await this.fetchMarkets();
+        return { status: "ok", updated: Date.now() };
+      } catch (error) {
+        return { status: "error", message: error instanceof Error ? error.message : "Unknown error", updated: Date.now() };
+      }
+    }
+    throw new Error("fetchStatus must be implemented by subclass");
   }
-  /**
-   * Get circuit breaker metrics
-   *
-   * @returns Circuit breaker metrics including state and performance stats
-   *
-   * @example
-   * ```typescript
-   * const cbMetrics = exchange.getCircuitBreakerMetrics();
-   * console.log(`Circuit state: ${cbMetrics.state}`);
-   * console.log(`Error rate: ${(cbMetrics.errorRate * 100).toFixed(2)}%`);
-   * ```
-   */
-  getCircuitBreakerMetrics() {
-    return this.circuitBreaker.getMetrics();
+  async fetchTime() {
+    if (!this.has.fetchTime) {
+      throw new NotSupportedError(`${this.name} does not support fetching server time`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchTime must be implemented by subclass");
   }
-  /**
-   * Get circuit breaker state
-   *
-   * @returns Current circuit state: 'CLOSED', 'OPEN', or 'HALF_OPEN'
-   */
-  getCircuitBreakerState() {
-    return this.circuitBreaker.getState();
+  async fetchDeposits(_currency, _since, _limit) {
+    if (!this.has.fetchDeposits) {
+      throw new NotSupportedError(`${this.name} does not support fetching deposit history`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchDeposits must be implemented by subclass");
   }
-  /**
-   * Reset all metrics to initial state
-   *
-   * @example
-   * ```typescript
-   * exchange.resetMetrics();
-   * // All counters reset, collection starts fresh
-   * ```
-   */
-  resetMetrics() {
-    this.metrics.lastResetAt = Date.now();
-    this.metrics.totalRequests = 0;
-    this.metrics.successfulRequests = 0;
-    this.metrics.failedRequests = 0;
-    this.metrics.rateLimitHits = 0;
-    this.metrics.averageLatency = 0;
-    this.metrics.endpointStats.clear();
+  async fetchWithdrawals(_currency, _since, _limit) {
+    if (!this.has.fetchWithdrawals) {
+      throw new NotSupportedError(`${this.name} does not support fetching withdrawal history`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchWithdrawals must be implemented by subclass");
   }
-  /**
-   * Track rate limit hit (to be called by subclasses when rate limited)
-   */
-  trackRateLimitHit() {
-    this.metrics.rateLimitHits++;
+  async fetchLedger(_currency, _since, _limit, _params) {
+    if (!this.has.fetchLedger) {
+      throw new NotSupportedError(`${this.name} does not support fetching ledger`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchLedger must be implemented by subclass");
+  }
+  async fetchFundingHistory(_symbol, _since, _limit) {
+    if (!this.has.fetchFundingHistory) {
+      throw new NotSupportedError(`${this.name} does not support fetching funding history`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchFundingHistory must be implemented by subclass");
   }
   // ===========================================================================
-  // Logging Methods
+  // Batch Operations (from OrderHelpersMixin)
   // ===========================================================================
-  /**
-   * Log debug message
-   */
-  debug(message, meta) {
-    this.logger.debug(message, meta);
+  async createBatchOrders(requests) {
+    if (this.has.createBatchOrders === true) {
+      throw new Error("createBatchOrders must be implemented by subclass when has.createBatchOrders is true");
+    }
+    this.debug("No native batch support, creating orders sequentially", { count: requests.length });
+    const orders = [];
+    const errors = [];
+    for (let i = 0; i < requests.length; i++) {
+      const request = requests[i];
+      if (!request) continue;
+      try {
+        const order = await this.createOrder(request);
+        orders.push(order);
+      } catch (error) {
+        const err2 = error instanceof Error ? error : new Error(String(error));
+        errors.push({ index: i, error: err2 });
+        this.debug("Failed to create order", { index: i + 1, total: requests.length, error: err2.message });
+      }
+    }
+    if (orders.length === 0 && errors.length > 0) {
+      const firstError = errors[0];
+      if (firstError) {
+        throw new Error(`All batch order creations failed. First error: ${firstError.error.message}`);
+      }
+    }
+    if (errors.length > 0) {
+      this.debug("Batch order creation completed", { succeeded: orders.length, failed: errors.length });
+    }
+    return orders;
   }
-  /**
-   * Log info message
-   */
-  info(message, meta) {
-    this.logger.info(message, meta);
+  async cancelBatchOrders(orderIds, symbol) {
+    if (this.has.cancelBatchOrders === true) {
+      throw new Error("cancelBatchOrders must be implemented by subclass when has.cancelBatchOrders is true");
+    }
+    this.debug("No native batch support, canceling orders sequentially", { count: orderIds.length });
+    const orders = [];
+    const errors = [];
+    for (let i = 0; i < orderIds.length; i++) {
+      const orderId = orderIds[i];
+      if (!orderId) continue;
+      try {
+        const order = await this.cancelOrder(orderId, symbol);
+        orders.push(order);
+      } catch (error) {
+        const err2 = error instanceof Error ? error : new Error(String(error));
+        errors.push({ index: i, orderId, error: err2 });
+        this.debug("Failed to cancel order", { orderId, error: err2.message });
+      }
+    }
+    if (orders.length === 0 && errors.length > 0) {
+      const firstError = errors[0];
+      if (firstError) {
+        throw new Error(`All batch order cancellations failed. First error: ${firstError.error.message}`);
+      }
+    }
+    if (errors.length > 0) {
+      this.debug("Batch order cancellation completed", { succeeded: orders.length, failed: errors.length });
+    }
+    return orders;
   }
-  /**
-   * Log warning message
-   */
-  warn(message, meta) {
-    this.logger.warn(message, meta);
+  async editOrder(_orderId, _symbol, _type, _side, _amount, _price, _params) {
+    if (!this.has.editOrder) {
+      throw new NotSupportedError(`${this.name} does not support editing orders`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("editOrder must be implemented by subclass");
   }
-  /**
-   * Log error message
-   */
-  error(message, error, meta) {
-    this.logger.error(message, error, meta);
+  // ===========================================================================
+  // Order Query
+  // ===========================================================================
+  async fetchOrder(_orderId, _symbol) {
+    if (!this.has.fetchOrder) {
+      throw new NotSupportedError(`${this.name} does not support fetching single orders`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchOrder must be implemented by subclass");
+  }
+  async fetchOpenOrders(_symbol, _since, _limit) {
+    if (!this.has.fetchOpenOrders) {
+      throw new NotSupportedError(`${this.name} does not support fetching open orders`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchOpenOrders must be implemented by subclass");
+  }
+  async fetchClosedOrders(_symbol, _since, _limit) {
+    if (!this.has.fetchClosedOrders) {
+      throw new NotSupportedError(`${this.name} does not support fetching closed orders`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchClosedOrders must be implemented by subclass");
+  }
+  // ===========================================================================
+  // Convenience Order Methods (CCXT-compatible)
+  // ===========================================================================
+  async createLimitBuyOrder(symbol, amount, price, params) {
+    return this.createOrder({ symbol, type: "limit", side: "buy", amount, price, ...params });
+  }
+  async createLimitSellOrder(symbol, amount, price, params) {
+    return this.createOrder({ symbol, type: "limit", side: "sell", amount, price, ...params });
+  }
+  async createMarketBuyOrder(symbol, amount, params) {
+    return this.createOrder({ symbol, type: "market", side: "buy", amount, ...params });
+  }
+  async createMarketSellOrder(symbol, amount, params) {
+    return this.createOrder({ symbol, type: "market", side: "sell", amount, ...params });
+  }
+  async createStopLossOrder(symbol, amount, stopPrice, params) {
+    return this.createOrder({ symbol, type: "stopMarket", side: "sell", amount, stopPrice, reduceOnly: true, ...params });
+  }
+  async createTakeProfitOrder(symbol, amount, takeProfitPrice, params) {
+    return this.createOrder({ symbol, type: "limit", side: "sell", amount, price: takeProfitPrice, reduceOnly: true, ...params });
+  }
+  async setMarginMode(_symbol, _marginMode) {
+    if (!this.has.setMarginMode || this.has.setMarginMode === "emulated") {
+      throw new NotSupportedError(`${this.name} does not support setting margin mode directly`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("setMarginMode must be implemented by subclass");
+  }
+  // ===========================================================================
+  // WebSocket Streams - default implementation throws if not supported
+  // ===========================================================================
+  async *watchOrderBook(_symbol, _limit) {
+    if (!this.has.watchOrderBook) {
+      throw new NotSupportedError(`${this.name} does not support order book streaming`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("watchOrderBook must be implemented by subclass");
+    yield {};
+  }
+  async *watchTrades(_symbol) {
+    if (!this.has.watchTrades) {
+      throw new NotSupportedError(`${this.name} does not support trade streaming`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("watchTrades must be implemented by subclass");
+    yield {};
+  }
+  async *watchTicker(_symbol) {
+    if (!this.has.watchTicker) {
+      throw new NotSupportedError(`${this.name} does not support ticker streaming`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("watchTicker must be implemented by subclass");
+    yield {};
+  }
+  async *watchTickers(_symbols) {
+    if (!this.has.watchTickers) {
+      throw new NotSupportedError(`${this.name} does not support multiple ticker streaming`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("watchTickers must be implemented by subclass");
+    yield {};
+  }
+  async *watchPositions() {
+    if (!this.has.watchPositions) {
+      throw new NotSupportedError(`${this.name} does not support position streaming`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("watchPositions must be implemented by subclass");
+    yield [];
+  }
+  async *watchOrders() {
+    if (!this.has.watchOrders) {
+      throw new NotSupportedError(`${this.name} does not support order streaming`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("watchOrders must be implemented by subclass");
+    yield [];
+  }
+  async *watchBalance() {
+    if (!this.has.watchBalance) {
+      throw new NotSupportedError(`${this.name} does not support balance streaming`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("watchBalance must be implemented by subclass");
+    yield [];
+  }
+  async *watchFundingRate(_symbol) {
+    if (!this.has.watchFundingRate) {
+      throw new NotSupportedError(`${this.name} does not support funding rate streaming`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("watchFundingRate must be implemented by subclass");
+    yield {};
+  }
+  async *watchOHLCV(_symbol, _timeframe) {
+    if (!this.has.watchOHLCV) {
+      throw new NotSupportedError(`${this.name} does not support OHLCV streaming`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("watchOHLCV must be implemented by subclass");
+    yield [0, 0, 0, 0, 0, 0];
+  }
+  async *watchMyTrades(_symbol) {
+    if (!this.has.watchMyTrades) {
+      throw new NotSupportedError(`${this.name} does not support user trade streaming`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("watchMyTrades must be implemented by subclass");
+    yield {};
+  }
+  // ===========================================================================
+  // Additional Info Methods
+  // ===========================================================================
+  async fetchUserFees() {
+    if (!this.has.fetchUserFees) {
+      throw new NotSupportedError(`${this.name} does not support fetching user fees`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchUserFees must be implemented by subclass");
+  }
+  async fetchPortfolio() {
+    if (!this.has.fetchPortfolio) {
+      throw new NotSupportedError(`${this.name} does not support fetching portfolio metrics`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchPortfolio must be implemented by subclass");
+  }
+  async fetchRateLimitStatus() {
+    if (!this.has.fetchRateLimitStatus) {
+      throw new NotSupportedError(`${this.name} does not support fetching rate limit status`, "NOT_SUPPORTED", this.id);
+    }
+    throw new Error("fetchRateLimitStatus must be implemented by subclass");
+  }
+  // ===========================================================================
+  // Utility Methods
+  // ===========================================================================
+  supportsFeature(feature) {
+    return this.has[feature] === true;
+  }
+  assertFeatureSupported(feature) {
+    if (!this.has[feature]) {
+      throw new NotSupportedError(`Feature '${feature}' is not supported by ${this.name}`, "NOT_SUPPORTED", this.id);
+    }
+  }
+  ensureInitialized() {
+    if (!this._isReady) {
+      throw new Error(`${this.name} adapter not initialized. Call initialize() first.`);
+    }
+  }
+  // ===========================================================================
+  // Input Validation
+  // ===========================================================================
+  validateOrder(request, correlationId) {
+    return validateOrderRequest(request, {
+      exchange: this.id,
+      context: correlationId ? { correlationId } : void 0
+    });
+  }
+  getValidator() {
+    return createValidator(this.id);
+  }
+  attachCorrelationId(error, correlationId) {
+    if (error instanceof PerpDEXError) {
+      error.withCorrelationId(correlationId);
+      return error;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    return new PerpDEXError(message, "REQUEST_ERROR", this.id, error).withCorrelationId(correlationId);
   }
   // ===========================================================================
   // Python-style Method Aliases
   // ===========================================================================
-  // These aliases provide Python/snake_case naming conventions
-  // for developers who prefer that style
-  /**
-   * Alias for fetchMarkets() - Python-style naming
-   * @see fetchMarkets
-   */
   fetch_markets = this.fetchMarkets.bind(this);
-  /**
-   * Alias for fetchTicker() - Python-style naming
-   * @see fetchTicker
-   */
   fetch_ticker = this.fetchTicker.bind(this);
-  /**
-   * Alias for fetchOrderBook() - Python-style naming
-   * @see fetchOrderBook
-   */
   fetch_order_book = this.fetchOrderBook.bind(this);
-  /**
-   * Alias for fetchTrades() - Python-style naming
-   * @see fetchTrades
-   */
   fetch_trades = this.fetchTrades.bind(this);
-  /**
-   * Alias for fetchFundingRate() - Python-style naming
-   * @see fetchFundingRate
-   */
   fetch_funding_rate = this.fetchFundingRate.bind(this);
-  /**
-   * Alias for fetchFundingRateHistory() - Python-style naming
-   * @see fetchFundingRateHistory
-   */
   fetch_funding_rate_history = this.fetchFundingRateHistory.bind(this);
-  /**
-   * Alias for fetchOHLCV() - Python-style naming
-   * @see fetchOHLCV
-   */
   fetch_ohlcv = this.fetchOHLCV.bind(this);
-  /**
-   * Alias for createOrder() - Python-style naming
-   * @see createOrder
-   */
   create_order = this.createOrder.bind(this);
-  /**
-   * Alias for cancelOrder() - Python-style naming
-   * @see cancelOrder
-   */
   cancel_order = this.cancelOrder.bind(this);
-  /**
-   * Alias for cancelAllOrders() - Python-style naming
-   * @see cancelAllOrders
-   */
   cancel_all_orders = this.cancelAllOrders.bind(this);
-  /**
-   * Alias for createBatchOrders() - Python-style naming
-   * @see createBatchOrders
-   */
   create_batch_orders = this.createBatchOrders.bind(this);
-  /**
-   * Alias for cancelBatchOrders() - Python-style naming
-   * @see cancelBatchOrders
-   */
   cancel_batch_orders = this.cancelBatchOrders.bind(this);
-  /**
-   * Alias for fetchPositions() - Python-style naming
-   * @see fetchPositions
-   */
   fetch_positions = this.fetchPositions.bind(this);
-  /**
-   * Alias for fetchBalance() - Python-style naming
-   * @see fetchBalance
-   */
   fetch_balance = this.fetchBalance.bind(this);
-  /**
-   * Alias for setLeverage() - Python-style naming
-   * @see setLeverage
-   */
   set_leverage = this.setLeverage.bind(this);
-  /**
-   * Alias for setMarginMode() - Python-style naming
-   * @see setMarginMode
-   */
   set_margin_mode = this.setMarginMode.bind(this);
-  /**
-   * Alias for fetchOpenOrders() - Python-style naming
-   * @see fetchOpenOrders
-   */
   fetch_open_orders = this.fetchOpenOrders.bind(this);
-  /**
-   * Alias for healthCheck() - Python-style naming
-   * @see healthCheck
-   */
   health_check = this.healthCheck.bind(this);
-  /**
-   * Alias for getMetrics() - Python-style naming
-   * @see getMetrics
-   */
   get_metrics = this.getMetrics.bind(this);
-  /**
-   * Alias for resetMetrics() - Python-style naming
-   * @see resetMetrics
-   */
   reset_metrics = this.resetMetrics.bind(this);
-  /**
-   * Alias for preloadMarkets() - Python-style naming
-   * @see preloadMarkets
-   */
   preload_markets = this.preloadMarkets.bind(this);
-  /**
-   * Alias for getPreloadedMarkets() - Python-style naming
-   * @see getPreloadedMarkets
-   */
   get_preloaded_markets = this.getPreloadedMarkets.bind(this);
-  /**
-   * Alias for clearCache() - Python-style naming
-   * @see clearCache
-   */
   clear_cache = this.clearCache.bind(this);
-  /**
-   * Alias for fetchDeposits() - Python-style naming
-   * @see fetchDeposits
-   */
   fetch_deposits = this.fetchDeposits.bind(this);
-  /**
-   * Alias for fetchWithdrawals() - Python-style naming
-   * @see fetchWithdrawals
-   */
   fetch_withdrawals = this.fetchWithdrawals.bind(this);
-  /**
-   * Alias for fetchOrderHistory() - Python-style naming
-   * Note: Subclasses must implement fetchOrderHistory
-   * @see fetchOrderHistory
-   */
   get fetch_order_history() {
     return this.fetchOrderHistory.bind(this);
   }
-  /**
-   * Alias for fetchMyTrades() - Python-style naming
-   * Note: Subclasses must implement fetchMyTrades
-   * @see fetchMyTrades
-   */
   get fetch_my_trades() {
     return this.fetchMyTrades.bind(this);
   }
@@ -9454,7 +8915,7 @@ var HyperliquidNormalizer = class {
    * @param symbol - Exchange symbol (for reference)
    * @returns Unified order
    */
-  normalizeOrder(order, symbol) {
+  normalizeOrder(order, _symbol) {
     const unifiedSymbol = hyperliquidToUnified(order.coin);
     const isBuy = order.side === "B";
     return {
@@ -9794,6 +9255,177 @@ var HyperliquidNormalizer = class {
   }
 };
 
+// src/adapters/hyperliquid/HyperliquidWebSocket.ts
+var HyperliquidWebSocket = class {
+  wsManager;
+  normalizer;
+  auth;
+  symbolToExchange;
+  fetchOpenOrders;
+  constructor(deps) {
+    this.wsManager = deps.wsManager;
+    this.normalizer = deps.normalizer;
+    this.auth = deps.auth;
+    this.symbolToExchange = deps.symbolToExchange;
+    this.fetchOpenOrders = deps.fetchOpenOrders;
+  }
+  /**
+   * Watch order book updates in real-time
+   *
+   * @param symbol - Symbol in unified format (e.g., "BTC/USDT:USDT")
+   * @param _limit - Optional depth limit (not used by Hyperliquid)
+   */
+  async *watchOrderBook(symbol, _limit) {
+    const exchangeSymbol = this.symbolToExchange(symbol);
+    const subscription = {
+      method: "subscribe",
+      subscription: {
+        type: HYPERLIQUID_WS_CHANNELS.L2_BOOK,
+        coin: exchangeSymbol
+      }
+    };
+    const unsubscribe = {
+      method: "unsubscribe",
+      subscription: {
+        type: HYPERLIQUID_WS_CHANNELS.L2_BOOK,
+        coin: exchangeSymbol
+      }
+    };
+    for await (const data of this.wsManager.watch(
+      `${HYPERLIQUID_WS_CHANNELS.L2_BOOK}:${exchangeSymbol}`,
+      subscription,
+      unsubscribe
+    )) {
+      yield this.normalizer.normalizeOrderBook(data);
+    }
+  }
+  /**
+   * Watch trades in real-time
+   *
+   * @param symbol - Symbol in unified format (e.g., "BTC/USDT:USDT")
+   */
+  async *watchTrades(symbol) {
+    const exchangeSymbol = this.symbolToExchange(symbol);
+    const subscription = {
+      method: "subscribe",
+      subscription: {
+        type: HYPERLIQUID_WS_CHANNELS.TRADES,
+        coin: exchangeSymbol
+      }
+    };
+    for await (const data of this.wsManager.watch(
+      `${HYPERLIQUID_WS_CHANNELS.TRADES}:${exchangeSymbol}`,
+      subscription
+    )) {
+      yield this.normalizer.normalizeTrade(data);
+    }
+  }
+  /**
+   * Watch ticker updates in real-time
+   *
+   * Subscribes to allMids channel and filters for the requested symbol.
+   *
+   * @param symbol - Symbol in unified format (e.g., "BTC/USDT:USDT")
+   */
+  async *watchTicker(symbol) {
+    const subscription = {
+      method: "subscribe",
+      subscription: {
+        type: HYPERLIQUID_WS_CHANNELS.ALL_MIDS
+      }
+    };
+    const exchangeSymbol = this.symbolToExchange(symbol);
+    for await (const data of this.wsManager.watch(
+      HYPERLIQUID_WS_CHANNELS.ALL_MIDS,
+      subscription
+    )) {
+      const mid = data.mids?.[exchangeSymbol];
+      if (mid) {
+        yield this.normalizer.normalizeTicker(exchangeSymbol, { mid });
+      }
+    }
+  }
+  /**
+   * Watch position updates in real-time
+   *
+   * Requires authentication.
+   */
+  async *watchPositions() {
+    if (!this.auth) {
+      throw new Error("Authentication required for position streaming");
+    }
+    const subscription = {
+      method: "subscribe",
+      subscription: {
+        type: HYPERLIQUID_WS_CHANNELS.USER,
+        user: this.auth.getAddress()
+      }
+    };
+    for await (const data of this.wsManager.watch(
+      `${HYPERLIQUID_WS_CHANNELS.USER}:${this.auth.getAddress()}`,
+      subscription
+    )) {
+      const positions = data.assetPositions.filter((p) => parseFloat(p.position.szi) !== 0).map((p) => this.normalizer.normalizePosition(p));
+      yield positions;
+    }
+  }
+  /**
+   * Watch open orders in real-time
+   *
+   * Subscribes to user fills and yields updated order list when fills occur.
+   * Requires authentication.
+   */
+  async *watchOrders() {
+    if (!this.auth) {
+      throw new Error("Authentication required for order streaming");
+    }
+    const subscription = {
+      method: "subscribe",
+      subscription: {
+        type: HYPERLIQUID_WS_CHANNELS.USER_FILLS,
+        user: this.auth.getAddress()
+      }
+    };
+    yield await this.fetchOpenOrders();
+    for await (const _fillEvent of this.wsManager.watch(
+      `${HYPERLIQUID_WS_CHANNELS.USER_FILLS}:${this.auth.getAddress()}`,
+      subscription
+    )) {
+      const orders = await this.fetchOpenOrders();
+      yield orders;
+    }
+  }
+  /**
+   * Watch user trades (fills) in real-time
+   *
+   * Requires authentication.
+   *
+   * @param symbol - Optional symbol to filter trades
+   */
+  async *watchMyTrades(symbol) {
+    if (!this.auth) {
+      throw new Error("Authentication required for trade streaming");
+    }
+    const subscription = {
+      method: "subscribe",
+      subscription: {
+        type: HYPERLIQUID_WS_CHANNELS.USER_FILLS,
+        user: this.auth.getAddress()
+      }
+    };
+    const exchangeSymbol = symbol ? this.symbolToExchange(symbol) : void 0;
+    for await (const fill of this.wsManager.watch(
+      `${HYPERLIQUID_WS_CHANNELS.USER_FILLS}:${this.auth.getAddress()}`,
+      subscription
+    )) {
+      if (exchangeSymbol && fill.coin !== exchangeSymbol) {
+        continue;
+      }
+      yield this.normalizer.normalizeUserFill(fill);
+    }
+  }
+};
+
 // src/adapters/hyperliquid/utils.ts
 function convertOrderRequest(request, exchangeSymbol) {
   const isBuy = request.side === "buy";
@@ -9913,6 +9545,7 @@ var HyperliquidAdapter = class extends BaseAdapter {
   apiUrl;
   wsUrl;
   wsManager;
+  wsHandler;
   auth;
   rateLimiter;
   normalizer;
@@ -9946,6 +9579,13 @@ var HyperliquidAdapter = class extends BaseAdapter {
       reconnect: HYPERLIQUID_WS_RECONNECT
     });
     await this.wsManager.connect();
+    this.wsHandler = new HyperliquidWebSocket({
+      wsManager: this.wsManager,
+      normalizer: this.normalizer,
+      auth: this.auth,
+      symbolToExchange: this.symbolToExchange.bind(this),
+      fetchOpenOrders: this.fetchOpenOrders.bind(this)
+    });
     this._isReady = true;
     this.debug("Adapter initialized");
   }
@@ -9990,7 +9630,7 @@ var HyperliquidAdapter = class extends BaseAdapter {
       throw mapError(error);
     }
   }
-  async fetchOrderBook(symbol, params) {
+  async fetchOrderBook(symbol, _params) {
     await this.rateLimiter.acquire("fetchOrderBook");
     try {
       const exchangeSymbol = this.symbolToExchange(symbol);
@@ -10003,20 +9643,10 @@ var HyperliquidAdapter = class extends BaseAdapter {
       throw mapError(error);
     }
   }
-  async fetchTrades(symbol, params) {
+  async fetchTrades(symbol, _params) {
     await this.rateLimiter.acquire("fetchTrades");
     try {
-      const exchangeSymbol = this.symbolToExchange(symbol);
-      const response = await this.request("POST", `${this.apiUrl}/info`, {
-        type: "candleSnapshot",
-        req: {
-          coin: exchangeSymbol,
-          interval: "1m",
-          startTime: params?.since ?? Date.now() - 36e5,
-          // Default 1 hour
-          endTime: Date.now()
-        }
-      });
+      this.symbolToExchange(symbol);
       this.debug("fetchTrades: Hyperliquid REST API does not provide trade history");
       return [];
     } catch (error) {
@@ -10439,12 +10069,6 @@ var HyperliquidAdapter = class extends BaseAdapter {
     }
     await this.rateLimiter.acquire("setLeverage", 5);
     try {
-      const exchangeSymbol = this.symbolToExchange(symbol);
-      const action = {
-        type: "batchModify",
-        // Type assertion for extended type
-        orders: []
-      };
       this.debug(`setLeverage: Updating leverage for ${symbol} to ${leverage}x`);
       this.debug("Note: Hyperliquid leverage is managed per-position in cross-margin mode");
     } catch (error) {
@@ -10558,97 +10182,35 @@ var HyperliquidAdapter = class extends BaseAdapter {
     }
   }
   // ===========================================================================
-  // WebSocket Streams
+  // WebSocket Streams (delegated to HyperliquidWebSocket)
   // ===========================================================================
   async *watchOrderBook(symbol, limit) {
     this.ensureInitialized();
-    if (!this.wsManager) {
-      throw new Error("WebSocket manager not initialized");
+    if (!this.wsHandler) {
+      throw new Error("WebSocket handler not initialized");
     }
-    const exchangeSymbol = this.symbolToExchange(symbol);
-    const subscription = {
-      method: "subscribe",
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.L2_BOOK,
-        coin: exchangeSymbol
-      }
-    };
-    const unsubscribe = {
-      method: "unsubscribe",
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.L2_BOOK,
-        coin: exchangeSymbol
-      }
-    };
-    for await (const data of this.wsManager.watch(
-      `${HYPERLIQUID_WS_CHANNELS.L2_BOOK}:${exchangeSymbol}`,
-      subscription,
-      unsubscribe
-    )) {
-      yield this.normalizer.normalizeOrderBook(data);
-    }
+    yield* this.wsHandler.watchOrderBook(symbol, limit);
   }
   async *watchTrades(symbol) {
     this.ensureInitialized();
-    if (!this.wsManager) {
-      throw new Error("WebSocket manager not initialized");
+    if (!this.wsHandler) {
+      throw new Error("WebSocket handler not initialized");
     }
-    const exchangeSymbol = this.symbolToExchange(symbol);
-    const subscription = {
-      method: "subscribe",
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.TRADES,
-        coin: exchangeSymbol
-      }
-    };
-    for await (const data of this.wsManager.watch(
-      `${HYPERLIQUID_WS_CHANNELS.TRADES}:${exchangeSymbol}`,
-      subscription
-    )) {
-      yield this.normalizer.normalizeTrade(data);
-    }
+    yield* this.wsHandler.watchTrades(symbol);
   }
   async *watchTicker(symbol) {
     this.ensureInitialized();
-    if (!this.wsManager) {
-      throw new Error("WebSocket manager not initialized");
+    if (!this.wsHandler) {
+      throw new Error("WebSocket handler not initialized");
     }
-    const subscription = {
-      method: "subscribe",
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.ALL_MIDS
-      }
-    };
-    const exchangeSymbol = this.symbolToExchange(symbol);
-    for await (const data of this.wsManager.watch(
-      HYPERLIQUID_WS_CHANNELS.ALL_MIDS,
-      subscription
-    )) {
-      const mid = data.mids?.[exchangeSymbol];
-      if (mid) {
-        yield this.normalizer.normalizeTicker(exchangeSymbol, { mid });
-      }
-    }
+    yield* this.wsHandler.watchTicker(symbol);
   }
   async *watchPositions() {
     this.ensureInitialized();
-    if (!this.wsManager || !this.auth) {
-      throw new Error("WebSocket manager or auth not initialized");
+    if (!this.wsHandler) {
+      throw new Error("WebSocket handler not initialized");
     }
-    const subscription = {
-      method: "subscribe",
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.USER,
-        user: this.auth.getAddress()
-      }
-    };
-    for await (const data of this.wsManager.watch(
-      `${HYPERLIQUID_WS_CHANNELS.USER}:${this.auth.getAddress()}`,
-      subscription
-    )) {
-      const positions = data.assetPositions.filter((p) => parseFloat(p.position.szi) !== 0).map((p) => this.normalizer.normalizePosition(p));
-      yield positions;
-    }
+    yield* this.wsHandler.watchPositions();
   }
   /**
    * Watch open orders in real-time
@@ -10657,39 +10219,14 @@ var HyperliquidAdapter = class extends BaseAdapter {
    * whenever fills occur. Provides real-time updates of the open order book.
    *
    * @returns AsyncGenerator that yields arrays of open orders
-   * @throws {Error} If WebSocket manager or authentication is not initialized
-   *
-   * @example
-   * ```typescript
-   * // Watch for order updates
-   * for await (const orders of adapter.watchOrders()) {
-   *   console.log(`Current open orders: ${orders.length}`);
-   *   orders.forEach(order => {
-   *     console.log(`${order.symbol}: ${order.side} ${order.amount} @ ${order.price}`);
-   *   });
-   * }
-   * ```
+   * @throws {Error} If WebSocket handler is not initialized
    */
   async *watchOrders() {
     this.ensureInitialized();
-    if (!this.wsManager || !this.auth) {
-      throw new Error("WebSocket manager or auth not initialized");
+    if (!this.wsHandler) {
+      throw new Error("WebSocket handler not initialized");
     }
-    const subscription = {
-      method: "subscribe",
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.USER_FILLS,
-        user: this.auth.getAddress()
-      }
-    };
-    yield await this.fetchOpenOrders();
-    for await (const _fillEvent of this.wsManager.watch(
-      `${HYPERLIQUID_WS_CHANNELS.USER_FILLS}:${this.auth.getAddress()}`,
-      subscription
-    )) {
-      const orders = await this.fetchOpenOrders();
-      yield orders;
-    }
+    yield* this.wsHandler.watchOrders();
   }
   /**
    * Watch user trades (fills) in real-time
@@ -10699,37 +10236,14 @@ var HyperliquidAdapter = class extends BaseAdapter {
    *
    * @param symbol - Optional symbol to filter trades (e.g., "BTC/USDT:USDT")
    * @returns AsyncGenerator that yields individual trades
-   * @throws {Error} If WebSocket manager or authentication is not initialized
-   *
-   * @example
-   * ```typescript
-   * for await (const trade of adapter.watchMyTrades()) {
-   *   console.log(`Filled: ${trade.side} ${trade.amount} ${trade.symbol} @ ${trade.price}`);
-   * }
-   * ```
+   * @throws {Error} If WebSocket handler is not initialized
    */
   async *watchMyTrades(symbol) {
     this.ensureInitialized();
-    if (!this.wsManager || !this.auth) {
-      throw new Error("WebSocket manager or auth not initialized");
+    if (!this.wsHandler) {
+      throw new Error("WebSocket handler not initialized");
     }
-    const subscription = {
-      method: "subscribe",
-      subscription: {
-        type: HYPERLIQUID_WS_CHANNELS.USER_FILLS,
-        user: this.auth.getAddress()
-      }
-    };
-    const exchangeSymbol = symbol ? this.symbolToExchange(symbol) : void 0;
-    for await (const fill of this.wsManager.watch(
-      `${HYPERLIQUID_WS_CHANNELS.USER_FILLS}:${this.auth.getAddress()}`,
-      subscription
-    )) {
-      if (exchangeSymbol && fill.coin !== exchangeSymbol) {
-        continue;
-      }
-      yield this.normalizer.normalizeUserFill(fill);
-    }
+    yield* this.wsHandler.watchMyTrades(symbol);
   }
   // ===========================================================================
   // Helper Methods
@@ -11034,18 +10548,12 @@ var HTTPClient = class {
    * Map HTTP status to error code
    */
   mapStatusToCode(status) {
-    if (status === 400)
-      return "BAD_REQUEST";
-    if (status === 401)
-      return "UNAUTHORIZED";
-    if (status === 403)
-      return "FORBIDDEN";
-    if (status === 404)
-      return "NOT_FOUND";
-    if (status === 429)
-      return "RATE_LIMIT_EXCEEDED";
-    if (status >= 500)
-      return "SERVER_ERROR";
+    if (status === 400) return "BAD_REQUEST";
+    if (status === 401) return "UNAUTHORIZED";
+    if (status === 403) return "FORBIDDEN";
+    if (status === 404) return "NOT_FOUND";
+    if (status === 429) return "RATE_LIMIT_EXCEEDED";
+    if (status >= 500) return "SERVER_ERROR";
     return "HTTP_ERROR";
   }
   /**
@@ -11147,7 +10655,6 @@ var LighterNormalizer = class {
     const pricePrecision = lighterMarket.supported_price_decimals || lighterMarket.price_decimals || 2;
     const amountPrecision = lighterMarket.supported_size_decimals || lighterMarket.size_decimals || 4;
     const minAmount = parseFloat(lighterMarket.min_base_amount || "0");
-    const minQuote = parseFloat(lighterMarket.min_quote_amount || "0");
     const makerFee = parseFloat(lighterMarket.maker_fee || "0");
     const takerFee = parseFloat(lighterMarket.taker_fee || "0");
     return {
@@ -11318,6 +10825,176 @@ var LighterNormalizer = class {
       default:
         return "open";
     }
+  }
+};
+
+// src/adapters/lighter/LighterWebSocket.ts
+var LighterWebSocket = class {
+  wsManager;
+  normalizer;
+  signer;
+  apiKey;
+  accountIndex;
+  apiKeyIndex;
+  _hasAuthentication;
+  _hasWasmSigning;
+  constructor(deps) {
+    this.wsManager = deps.wsManager;
+    this.normalizer = deps.normalizer;
+    this.signer = deps.signer;
+    this.apiKey = deps.apiKey;
+    this.accountIndex = deps.accountIndex;
+    this.apiKeyIndex = deps.apiKeyIndex;
+    this._hasAuthentication = deps.hasAuthentication;
+    this._hasWasmSigning = deps.hasWasmSigning;
+  }
+  /**
+   * Watch order book updates in real-time
+   *
+   * @param symbol - Symbol in unified format (e.g., "BTC/USDC:USDC")
+   * @param limit - Optional depth limit (default: 50)
+   */
+  async *watchOrderBook(symbol, limit) {
+    const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
+    const subscription = {
+      type: "subscribe",
+      channel: LIGHTER_WS_CHANNELS.ORDERBOOK,
+      symbol: lighterSymbol,
+      limit: limit || 50
+    };
+    const channelId = `${LIGHTER_WS_CHANNELS.ORDERBOOK}:${lighterSymbol}`;
+    for await (const update of this.wsManager.watch(channelId, subscription)) {
+      yield this.normalizer.normalizeOrderBook(update);
+    }
+  }
+  /**
+   * Watch trades in real-time
+   *
+   * @param symbol - Symbol in unified format (e.g., "BTC/USDC:USDC")
+   */
+  async *watchTrades(symbol) {
+    const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
+    const subscription = {
+      type: "subscribe",
+      channel: LIGHTER_WS_CHANNELS.TRADES,
+      symbol: lighterSymbol
+    };
+    const channelId = `${LIGHTER_WS_CHANNELS.TRADES}:${lighterSymbol}`;
+    for await (const trade of this.wsManager.watch(channelId, subscription)) {
+      yield this.normalizer.normalizeTrade(trade);
+    }
+  }
+  /**
+   * Watch ticker updates in real-time
+   *
+   * @param symbol - Symbol in unified format (e.g., "BTC/USDC:USDC")
+   */
+  async *watchTicker(symbol) {
+    const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
+    const subscription = {
+      type: "subscribe",
+      channel: LIGHTER_WS_CHANNELS.TICKER,
+      symbol: lighterSymbol
+    };
+    const channelId = `${LIGHTER_WS_CHANNELS.TICKER}:${lighterSymbol}`;
+    for await (const ticker of this.wsManager.watch(channelId, subscription)) {
+      yield this.normalizer.normalizeTicker(ticker);
+    }
+  }
+  /**
+   * Watch position updates in real-time
+   *
+   * Requires authentication.
+   */
+  async *watchPositions() {
+    if (!this._hasAuthentication) {
+      throw new PerpDEXError("API credentials required for position streaming", "AUTH_REQUIRED", "lighter");
+    }
+    const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.POSITIONS);
+    const channelId = `${LIGHTER_WS_CHANNELS.POSITIONS}:${this.getAuthIdentifier()}`;
+    for await (const positions of this.wsManager.watch(channelId, subscription)) {
+      yield positions.map((position) => this.normalizer.normalizePosition(position));
+    }
+  }
+  /**
+   * Watch open orders in real-time
+   *
+   * Requires authentication.
+   */
+  async *watchOrders() {
+    if (!this._hasAuthentication) {
+      throw new PerpDEXError("API credentials required for order streaming", "AUTH_REQUIRED", "lighter");
+    }
+    const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.ORDERS);
+    const channelId = `${LIGHTER_WS_CHANNELS.ORDERS}:${this.getAuthIdentifier()}`;
+    for await (const orders of this.wsManager.watch(channelId, subscription)) {
+      yield orders.map((order) => this.normalizer.normalizeOrder(order));
+    }
+  }
+  /**
+   * Watch balance updates in real-time
+   *
+   * Requires authentication.
+   */
+  async *watchBalance() {
+    if (!this._hasAuthentication) {
+      throw new PerpDEXError("API credentials required for balance streaming", "AUTH_REQUIRED", "lighter");
+    }
+    const subscription = await this.buildAuthenticatedSubscription("balance");
+    const channelId = `balance:${this.getAuthIdentifier()}`;
+    for await (const balances of this.wsManager.watch(channelId, subscription)) {
+      yield balances.map((balance) => this.normalizer.normalizeBalance(balance));
+    }
+  }
+  /**
+   * Watch user trades (fills) in real-time
+   *
+   * Requires authentication.
+   *
+   * @param symbol - Optional symbol to filter trades
+   */
+  async *watchMyTrades(symbol) {
+    if (!this._hasAuthentication) {
+      throw new PerpDEXError("API credentials required for trade streaming", "AUTH_REQUIRED", "lighter");
+    }
+    const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.FILLS);
+    if (symbol) {
+      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
+      subscription.symbol = lighterSymbol;
+    }
+    const channelId = `${LIGHTER_WS_CHANNELS.FILLS}:${this.getAuthIdentifier()}`;
+    for await (const trade of this.wsManager.watch(channelId, subscription)) {
+      yield this.normalizer.normalizeTrade(trade);
+    }
+  }
+  /**
+   * Build authenticated subscription object for WebSocket
+   */
+  async buildAuthenticatedSubscription(channel) {
+    const subscription = {
+      type: "subscribe",
+      channel
+    };
+    if (this._hasWasmSigning && this.signer) {
+      try {
+        const authToken = await this.signer.createAuthToken();
+        subscription.authToken = authToken;
+      } catch {
+        subscription.apiKey = this.apiKey;
+      }
+    } else if (this.apiKey) {
+      subscription.apiKey = this.apiKey;
+    }
+    return subscription;
+  }
+  /**
+   * Get authentication identifier for channel naming
+   */
+  getAuthIdentifier() {
+    if (this._hasWasmSigning) {
+      return `account-${this.accountIndex}-${this.apiKeyIndex}`;
+    }
+    return this.apiKey || "anonymous";
   }
 };
 
@@ -11590,6 +11267,7 @@ var NonceManager = class _NonceManager {
   autoSync;
   syncPromise = null;
   lastSyncTime = 0;
+  logger = new Logger("NonceManager");
   /** Minimum time between forced syncs (ms) */
   static MIN_SYNC_INTERVAL = 1e3;
   constructor(config) {
@@ -11664,7 +11342,7 @@ var NonceManager = class _NonceManager {
       }
     } catch (error) {
       if (this.currentNonce !== BigInt(-1)) {
-        console.warn("Failed to sync nonce with server, using local value");
+        this.logger.warn("Failed to sync nonce with server, using local value");
         return;
       }
       throw error;
@@ -11776,6 +11454,7 @@ var LighterAdapter = class extends BaseAdapter {
   httpClient;
   normalizer;
   wsManager = null;
+  wsHandler = null;
   // Cache for symbol -> market_id mapping (Lighter API requires market_id for orderbook)
   marketIdCache = /* @__PURE__ */ new Map();
   // Cache for symbol -> market metadata (for unit conversions)
@@ -11857,7 +11536,7 @@ var LighterAdapter = class extends BaseAdapter {
       try {
         await this.signer.initialize();
       } catch (error) {
-        console.warn("WASM signer initialization failed, falling back to HMAC mode:", error);
+        this.logger.warn("WASM signer initialization failed, falling back to HMAC mode", { error: error instanceof Error ? error.message : String(error) });
         this.signer = null;
         this.nonceManager = null;
       }
@@ -11880,8 +11559,19 @@ var LighterAdapter = class extends BaseAdapter {
         }
       });
       await this.wsManager.connect();
+      this.wsHandler = new LighterWebSocket({
+        wsManager: this.wsManager,
+        normalizer: this.normalizer,
+        signer: this.signer,
+        apiKey: this.apiKey,
+        accountIndex: this.accountIndex,
+        apiKeyIndex: this.apiKeyIndex,
+        hasAuthentication: this.hasAuthentication,
+        hasWasmSigning: this.hasWasmSigning
+      });
     } catch (error) {
       this.wsManager = null;
+      this.wsHandler = null;
     }
     this._isReady = true;
   }
@@ -11889,6 +11579,7 @@ var LighterAdapter = class extends BaseAdapter {
     if (this.wsManager) {
       await this.wsManager.disconnect();
       this.wsManager = null;
+      this.wsHandler = null;
     }
     this.rateLimiter.destroy();
     this.signer = null;
@@ -11896,7 +11587,7 @@ var LighterAdapter = class extends BaseAdapter {
     this._isReady = false;
   }
   // ==================== Market Data Methods ====================
-  async fetchMarkets(params) {
+  async fetchMarkets(_params) {
     await this.rateLimiter.acquire("fetchMarkets");
     try {
       const response = await this.request(
@@ -12019,7 +11710,7 @@ var LighterAdapter = class extends BaseAdapter {
       throw mapError2(error);
     }
   }
-  async fetchFundingRateHistory(symbol, since, limit) {
+  async fetchFundingRateHistory(_symbol, _since, _limit) {
     throw new Error("Lighter does not support funding rate history");
   }
   // ==================== Trading Methods ====================
@@ -12299,7 +11990,7 @@ var LighterAdapter = class extends BaseAdapter {
       // Invalid nonce
     ];
     if (nonceErrorCodes.includes(code)) {
-      console.warn(`Nonce error detected (code ${code}), resyncing...`);
+      this.logger.warn(`Nonce error detected (code ${code}), resyncing...`);
       await this.resyncNonce();
     }
   }
@@ -12366,7 +12057,7 @@ var LighterAdapter = class extends BaseAdapter {
     }
   }
   // ==================== Required BaseAdapter Methods ====================
-  async setLeverage(symbol, leverage) {
+  async setLeverage(_symbol, _leverage) {
     throw new Error("Lighter does not support setLeverage");
   }
   /**
@@ -12383,12 +12074,9 @@ var LighterAdapter = class extends BaseAdapter {
     }
     try {
       const params = new URLSearchParams();
-      if (symbol)
-        params.append("symbol", this.normalizer.toLighterSymbol(symbol));
-      if (since)
-        params.append("startTime", since.toString());
-      if (limit)
-        params.append("limit", limit.toString());
+      if (symbol) params.append("symbol", this.normalizer.toLighterSymbol(symbol));
+      if (since) params.append("startTime", since.toString());
+      if (limit) params.append("limit", limit.toString());
       const queryString = params.toString();
       const response = await this.request(
         "GET",
@@ -12416,12 +12104,9 @@ var LighterAdapter = class extends BaseAdapter {
     }
     try {
       const params = new URLSearchParams();
-      if (symbol)
-        params.append("symbol", this.normalizer.toLighterSymbol(symbol));
-      if (since)
-        params.append("startTime", since.toString());
-      if (limit)
-        params.append("limit", limit.toString());
+      if (symbol) params.append("symbol", this.normalizer.toLighterSymbol(symbol));
+      if (since) params.append("startTime", since.toString());
+      if (limit) params.append("limit", limit.toString());
       const queryString = params.toString();
       const response = await this.request(
         "GET",
@@ -12563,150 +12248,54 @@ var LighterAdapter = class extends BaseAdapter {
     headers["X-TIMESTAMP"] = timestamp;
     headers["X-SIGNATURE"] = signature;
   }
-  // ==================== WebSocket Streaming Methods ====================
+  // ==================== WebSocket Streaming Methods (delegated to LighterWebSocket) ====================
   async *watchOrderBook(symbol, limit) {
-    if (!this.wsManager) {
+    if (!this.wsHandler) {
       throw new PerpDEXError("WebSocket not initialized", "NO_WEBSOCKET", this.id);
     }
-    const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-    const subscription = {
-      type: "subscribe",
-      channel: LIGHTER_WS_CHANNELS.ORDERBOOK,
-      symbol: lighterSymbol,
-      limit: limit || 50
-    };
-    const channelId = `${LIGHTER_WS_CHANNELS.ORDERBOOK}:${lighterSymbol}`;
-    for await (const update of this.wsManager.watch(channelId, subscription)) {
-      yield this.normalizer.normalizeOrderBook(update);
-    }
+    yield* this.wsHandler.watchOrderBook(symbol, limit);
   }
   async *watchTrades(symbol) {
-    if (!this.wsManager) {
+    if (!this.wsHandler) {
       throw new PerpDEXError("WebSocket not initialized", "NO_WEBSOCKET", this.id);
     }
-    const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-    const subscription = {
-      type: "subscribe",
-      channel: LIGHTER_WS_CHANNELS.TRADES,
-      symbol: lighterSymbol
-    };
-    const channelId = `${LIGHTER_WS_CHANNELS.TRADES}:${lighterSymbol}`;
-    for await (const trade of this.wsManager.watch(channelId, subscription)) {
-      yield this.normalizer.normalizeTrade(trade);
-    }
+    yield* this.wsHandler.watchTrades(symbol);
   }
   async *watchPositions() {
-    if (!this.wsManager) {
+    if (!this.wsHandler) {
       throw new PerpDEXError("WebSocket not initialized", "NO_WEBSOCKET", this.id);
     }
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError("API credentials required for position streaming", "AUTH_REQUIRED", this.id);
-    }
-    const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.POSITIONS);
-    const channelId = `${LIGHTER_WS_CHANNELS.POSITIONS}:${this.getAuthIdentifier()}`;
-    for await (const positions of this.wsManager.watch(channelId, subscription)) {
-      yield positions.map((position) => this.normalizer.normalizePosition(position));
-    }
+    yield* this.wsHandler.watchPositions();
   }
   async *watchOrders() {
-    if (!this.wsManager) {
+    if (!this.wsHandler) {
       throw new PerpDEXError("WebSocket not initialized", "NO_WEBSOCKET", this.id);
     }
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError("API credentials required for order streaming", "AUTH_REQUIRED", this.id);
-    }
-    const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.ORDERS);
-    const channelId = `${LIGHTER_WS_CHANNELS.ORDERS}:${this.getAuthIdentifier()}`;
-    for await (const orders of this.wsManager.watch(channelId, subscription)) {
-      yield orders.map((order) => this.normalizer.normalizeOrder(order));
-    }
+    yield* this.wsHandler.watchOrders();
   }
   async *watchTicker(symbol) {
-    if (!this.wsManager) {
+    if (!this.wsHandler) {
       throw new PerpDEXError("WebSocket not initialized", "NO_WEBSOCKET", this.id);
     }
-    const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-    const subscription = {
-      type: "subscribe",
-      channel: LIGHTER_WS_CHANNELS.TICKER,
-      symbol: lighterSymbol
-    };
-    const channelId = `${LIGHTER_WS_CHANNELS.TICKER}:${lighterSymbol}`;
-    for await (const ticker of this.wsManager.watch(channelId, subscription)) {
-      yield this.normalizer.normalizeTicker(ticker);
-    }
+    yield* this.wsHandler.watchTicker(symbol);
   }
   async *watchBalance() {
-    if (!this.wsManager) {
+    if (!this.wsHandler) {
       throw new PerpDEXError("WebSocket not initialized", "NO_WEBSOCKET", this.id);
     }
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError("API credentials required for balance streaming", "AUTH_REQUIRED", this.id);
-    }
-    const subscription = await this.buildAuthenticatedSubscription("balance");
-    const channelId = `balance:${this.getAuthIdentifier()}`;
-    for await (const balances of this.wsManager.watch(channelId, subscription)) {
-      yield balances.map((balance) => this.normalizer.normalizeBalance(balance));
-    }
+    yield* this.wsHandler.watchBalance();
   }
   /**
    * Watch user trades (fills) in real-time
    *
    * @param symbol - Optional symbol filter
    * @returns AsyncGenerator yielding Trade updates
-   *
-   * @example
-   * ```typescript
-   * for await (const trade of adapter.watchMyTrades('BTC/USDT:USDT')) {
-   *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
-   * }
-   * ```
    */
   async *watchMyTrades(symbol) {
-    if (!this.wsManager) {
+    if (!this.wsHandler) {
       throw new PerpDEXError("WebSocket not initialized", "NO_WEBSOCKET", this.id);
     }
-    if (!this.hasAuthentication) {
-      throw new PerpDEXError("API credentials required for trade streaming", "AUTH_REQUIRED", this.id);
-    }
-    const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.FILLS);
-    if (symbol) {
-      const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      subscription.symbol = lighterSymbol;
-    }
-    const channelId = `${LIGHTER_WS_CHANNELS.FILLS}:${this.getAuthIdentifier()}`;
-    for await (const trade of this.wsManager.watch(channelId, subscription)) {
-      yield this.normalizer.normalizeTrade(trade);
-    }
-  }
-  /**
-   * Build authenticated subscription object for WebSocket
-   */
-  async buildAuthenticatedSubscription(channel) {
-    const subscription = {
-      type: "subscribe",
-      channel
-    };
-    if (this.hasWasmSigning) {
-      try {
-        const authToken = await this.signer.createAuthToken();
-        subscription.authToken = authToken;
-      } catch {
-        subscription.apiKey = this.apiKey;
-      }
-    } else if (this.apiKey) {
-      subscription.apiKey = this.apiKey;
-    }
-    return subscription;
-  }
-  /**
-   * Get authentication identifier for channel naming
-   */
-  getAuthIdentifier() {
-    if (this.hasWasmSigning) {
-      return `account-${this.accountIndex}-${this.apiKeyIndex}`;
-    }
-    return this.apiKey || "anonymous";
+    yield* this.wsHandler.watchMyTrades(symbol);
   }
   // ==================== Private Helper Methods ====================
   /**
@@ -12767,8 +12356,7 @@ var LighterAdapter = class extends BaseAdapter {
    * Check if the adapter is healthy and ready for trading
    */
   async isHealthy() {
-    if (!this._isReady)
-      return false;
+    if (!this._isReady) return false;
     try {
       const latency = await this.ping();
       return latency < 5e3;
@@ -12784,9 +12372,7 @@ var GRVTSDKWrapper = class {
   mdg;
   tdg;
   sessionCookie;
-  config;
   constructor(config) {
-    this.config = config;
     const sdkConfig = {
       host: config.host
     };
@@ -13065,14 +12651,11 @@ var GRVTSDKWrapper = class {
    * Extract session cookie from axios response
    */
   extractSessionCookieFromResponse(response) {
-    if (!response)
-      return;
+    if (!response) return;
     const headers = response.headers || response.config?.headers;
-    if (!headers)
-      return;
+    if (!headers) return;
     const setCookie = headers["set-cookie"] || headers["Set-Cookie"];
-    if (!setCookie)
-      return;
+    if (!setCookie) return;
     const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
     const sessionCookie = cookies.find(
       (cookie) => cookie.toLowerCase().includes("session")
@@ -13302,7 +12885,7 @@ var GRVTAuth = class {
   /**
    * Check if request requires signature
    */
-  requiresSignature(method, path) {
+  requiresSignature(_method, path) {
     const tradingPaths = [
       "/orders",
       "/orders/batch",
@@ -13509,16 +13092,6 @@ var GRVTNormalizer = class {
    * @param decimals - Number of decimal places
    * @returns String representation
    */
-  toStringSafe(value, decimals = GRVT_PRECISION.price) {
-    if (!Number.isFinite(value)) {
-      throw new PerpDEXError(
-        `Invalid number for string conversion: ${value}`,
-        "INVALID_NUMBER",
-        "grvt"
-      );
-    }
-    return value.toFixed(decimals);
-  }
   // ===========================================================================
   // Market Normalization
   // ===========================================================================
@@ -13563,49 +13136,6 @@ var GRVTNormalizer = class {
   // ===========================================================================
   // Order Normalization
   // ===========================================================================
-  /**
-   * Map GRVT order type to unified
-   */
-  mapOrderType(grvtType) {
-    const typeMap = {
-      MARKET: "market",
-      LIMIT: "limit",
-      LIMIT_MAKER: "limit"
-    };
-    return typeMap[grvtType] || "limit";
-  }
-  /**
-   * Map GRVT order side to unified
-   */
-  mapOrderSide(grvtSide) {
-    return grvtSide === "BUY" ? "buy" : "sell";
-  }
-  /**
-   * Map GRVT order status to unified
-   */
-  mapOrderStatus(grvtStatus) {
-    const statusMap = {
-      PENDING: "open",
-      OPEN: "open",
-      PARTIALLY_FILLED: "partiallyFilled",
-      FILLED: "filled",
-      CANCELLED: "canceled",
-      REJECTED: "rejected"
-    };
-    return statusMap[grvtStatus] || "open";
-  }
-  /**
-   * Map GRVT time in force to unified
-   */
-  mapTimeInForce(grvtTif) {
-    const tifMap = {
-      GTC: "GTC",
-      IOC: "IOC",
-      FOK: "FOK",
-      POST_ONLY: "PO"
-    };
-    return tifMap[grvtTif] || "GTC";
-  }
   /**
    * Normalize GRVT order to unified format
    */
@@ -13668,12 +13198,6 @@ var GRVTNormalizer = class {
   // ===========================================================================
   // Position Normalization
   // ===========================================================================
-  /**
-   * Map GRVT position side to unified
-   */
-  mapPositionSide(grvtSide) {
-    return grvtSide === "LONG" ? "long" : "short";
-  }
   /**
    * Normalize GRVT position to unified format
    */
@@ -14043,8 +13567,7 @@ function mapAxiosError(error) {
   );
 }
 function extractRetryAfter(error) {
-  if (!error)
-    return void 0;
+  if (!error) return void 0;
   if (error.headers && error.headers["retry-after"]) {
     const value = parseInt(error.headers["retry-after"], 10);
     return isNaN(value) ? void 0 : value;
@@ -14068,6 +13591,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
   ws;
   normalizer;
   subAccountId;
+  logger = new Logger("GRVTWebSocket");
   isConnected = false;
   /**
    * Push to queue with bounded size (backpressure)
@@ -14076,7 +13600,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
     if (queue.length >= _GRVTWebSocketWrapper.MAX_QUEUE_SIZE) {
       queue.shift();
       if (channel) {
-        console.warn(`[GRVT WebSocket] Queue overflow on ${channel}, dropping oldest message`);
+        this.logger.warn(`Queue overflow on ${channel}, dropping oldest message`);
       }
     }
     queue.push(item);
@@ -14100,7 +13624,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
       this.isConnected = false;
     });
     this.ws.onError((error) => {
-      console.error("[GRVT WebSocket] Error:", error);
+      this.logger.error("WebSocket error", error instanceof Error ? error : void 0, { error });
     });
   }
   /**
@@ -14238,8 +13762,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
     try {
       subscriptionKey = this.ws.subscribe(request);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let tradeData;
         if (queue.length > 0) {
           tradeData = queue.shift();
@@ -14249,8 +13772,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
             rejecter = reject;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const normalized = this.normalizer.normalizeTrade(tradeData);
         yield normalized;
       }
@@ -14310,8 +13832,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
     try {
       subscriptionKey = this.ws.subscribe(request);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let positionData;
         if (queue.length > 0) {
           positionData = queue.shift();
@@ -14321,8 +13842,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
             rejecter = reject;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const normalized = this.normalizer.normalizePosition(positionData);
         yield normalized;
       }
@@ -14382,8 +13902,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
     try {
       subscriptionKey = this.ws.subscribe(request);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let orderData;
         if (queue.length > 0) {
           orderData = queue.shift();
@@ -14393,8 +13912,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
             rejecter = reject;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const normalized = this.normalizer.normalizeOrder(orderData);
         yield normalized;
       }
@@ -14481,8 +13999,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
     try {
       subscriptionKey = this.ws.subscribe(request);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let tradeData;
         if (queue.length > 0) {
           tradeData = queue.shift();
@@ -14492,8 +14009,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
             rejecter = reject;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const lastPrice = parseFloat(tradeData.price || "0");
         const lastSize = parseFloat(tradeData.size || "0");
         const ticker = {
@@ -14577,8 +14093,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
     try {
       subscriptionKey = this.ws.subscribe(request);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let data;
         if (queue.length > 0) {
           data = queue.shift();
@@ -14588,8 +14103,7 @@ var GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
             rejecter = reject;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const trade = {
           id: data.fill_id || data.id || String(Date.now()),
           symbol: this.normalizer.symbolToCCXT(data.instrument || data.symbol),
@@ -14918,7 +14432,7 @@ var GRVTAdapter = class extends BaseAdapter {
       throw mapAxiosError(error);
     }
   }
-  async cancelOrder(orderId, symbol) {
+  async cancelOrder(orderId, _symbol) {
     this.auth.requireAuth();
     await this.rateLimiter.acquire("cancelOrder");
     try {
@@ -14939,7 +14453,7 @@ var GRVTAdapter = class extends BaseAdapter {
       if (symbol) {
         params.instrument = this.normalizer.symbolFromCCXT(symbol);
       }
-      const response = await this.sdk.cancelAllOrders(params);
+      await this.sdk.cancelAllOrders(params);
       return [];
     } catch (error) {
       throw mapAxiosError(error);
@@ -14965,7 +14479,7 @@ var GRVTAdapter = class extends BaseAdapter {
   /**
    * Fetch order history - NOW IMPLEMENTED via SDK!
    */
-  async fetchOrderHistory(symbol, since, limit) {
+  async fetchOrderHistory(symbol, _since, limit) {
     this.auth.requireAuth();
     await this.rateLimiter.acquire("fetchClosedOrders");
     try {
@@ -14985,7 +14499,7 @@ var GRVTAdapter = class extends BaseAdapter {
   /**
    * Fetch user trade history - NOW IMPLEMENTED via SDK!
    */
-  async fetchMyTrades(symbol, since, limit) {
+  async fetchMyTrades(symbol, _since, limit) {
     this.auth.requireAuth();
     await this.rateLimiter.acquire("fetchMyTrades");
     try {
@@ -15044,8 +14558,7 @@ var GRVTAdapter = class extends BaseAdapter {
     return typeMap[type] || "LIMIT";
   }
   mapTimeInForce(tif) {
-    if (!tif)
-      return "GTC";
+    if (!tif) return "GTC";
     const tifMap = {
       GTC: "GTC",
       IOC: "IOC",
@@ -15055,7 +14568,7 @@ var GRVTAdapter = class extends BaseAdapter {
     return tifMap[tif] || "GTC";
   }
   // ==================== Required BaseAdapter Methods ====================
-  async fetchFundingRateHistory(symbol, since, limit) {
+  async fetchFundingRateHistory(_symbol, _since, _limit) {
     throw new PerpDEXError(
       "GRVT does not provide funding rate history via API",
       "NOT_SUPPORTED",
@@ -15388,17 +14901,12 @@ var PARADEX_JWT_EXPIRY_BUFFER = 60;
 var import_starknet = require("starknet");
 var ParadexAuth = class {
   apiKey;
-  apiSecret;
-  privateKey;
   starkPrivateKey;
-  testnet;
   jwtToken;
+  logger = new Logger("ParadexAuth");
   constructor(config) {
     this.apiKey = config.apiKey;
-    this.apiSecret = config.apiSecret;
-    this.privateKey = config.privateKey;
     this.starkPrivateKey = config.starkPrivateKey;
-    this.testnet = config.testnet ?? false;
   }
   /**
    * Check if any credentials are configured
@@ -15563,7 +15071,7 @@ var ParadexAuth = class {
    * @param path - API path
    * @returns true if signature required
    */
-  requiresSignature(method, path) {
+  requiresSignature(_method, path) {
     const tradingPaths = [
       "/orders",
       "/orders/batch",
@@ -15620,7 +15128,7 @@ var ParadexAuth = class {
       const publicKey = import_starknet.ec.starkCurve.getStarkKey(this.starkPrivateKey);
       return publicKey;
     } catch (error) {
-      console.error("Failed to derive StarkNet address:", error);
+      this.logger.error("Failed to derive StarkNet address", error instanceof Error ? error : void 0);
       return void 0;
     }
   }
@@ -15691,8 +15199,7 @@ var PARADEX_NETWORK_ERRORS = {
 };
 function isServerError2(code) {
   const numericCode = typeof code === "string" ? parseInt(code, 10) : code;
-  if (isNaN(numericCode))
-    return false;
+  if (isNaN(numericCode)) return false;
   return Object.values(PARADEX_SERVER_ERRORS).includes(numericCode) || numericCode >= 5e3 && numericCode < 6e3 || numericCode >= 500 && numericCode < 600;
 }
 function isNetworkError2(code) {
@@ -15830,8 +15337,7 @@ function mapAxiosError2(error) {
   );
 }
 function extractRetryAfter2(error) {
-  if (!error)
-    return void 0;
+  if (!error) return void 0;
   if (error.headers && error.headers["retry-after"]) {
     const value = parseInt(error.headers["retry-after"], 10);
     return isNaN(value) ? void 0 : value;
@@ -15853,6 +15359,7 @@ var ParadexHTTPClient = class {
   auth;
   timeout;
   enableLogging;
+  logger = new Logger("ParadexHTTPClient");
   constructor(config) {
     this.baseUrl = config.baseUrl;
     this.auth = config.auth;
@@ -15902,18 +15409,19 @@ var ParadexHTTPClient = class {
    * Make DELETE request
    *
    * @param path - API endpoint path
-   * @param params - Query parameters
+   * @param params - Query parameters or body
    * @returns Response data
    */
   async delete(path, params) {
     let fullPath = path;
-    if (params) {
+    if (params && Object.values(params).every((v) => typeof v === "string" || typeof v === "number")) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
-        searchParams.append(key, value.toString());
+        searchParams.append(key, String(value));
       });
       const queryString = searchParams.toString();
       fullPath = `${path}${queryString ? `?${queryString}` : ""}`;
+      return this.request("DELETE", fullPath);
     }
     return this.request("DELETE", fullPath);
   }
@@ -15941,13 +15449,13 @@ var ParadexHTTPClient = class {
       signal: this.createTimeoutSignal(this.timeout)
     };
     if (this.enableLogging) {
-      console.log(`[Paradex HTTP] ${method} ${path}`, body || "");
+      this.logger.debug(`${method} ${path}`, { body: body || void 0 });
     }
     try {
       const response = await fetch(url, requestInit);
       return await this.handleResponse(response);
     } catch (error) {
-      if (error.name === "AbortError") {
+      if (error instanceof Error && error.name === "AbortError") {
         throw new PerpDEXError(
           `Request timeout after ${this.timeout}ms`,
           "ETIMEDOUT",
@@ -15955,14 +15463,15 @@ var ParadexHTTPClient = class {
           error
         );
       }
-      if (error.code && typeof error.code === "string") {
+      if (error instanceof Error && "code" in error && typeof error.code === "string") {
         throw mapAxiosError2(error);
       }
       if (error instanceof PerpDEXError) {
         throw error;
       }
+      const message = error instanceof Error ? error.message : "Request failed";
       throw new PerpDEXError(
-        error.message || "Request failed",
+        message,
         "UNKNOWN_ERROR",
         "paradex",
         error
@@ -15981,20 +15490,21 @@ var ParadexHTTPClient = class {
     let data;
     try {
       data = await response.json();
-    } catch (error) {
+    } catch {
       data = null;
     }
     if (!response.ok) {
       if (this.enableLogging) {
-        console.error(
-          `[Paradex HTTP] Error ${response.status}: ${response.statusText}`,
-          data
+        this.logger.error(
+          `Error ${response.status}: ${response.statusText}`,
+          void 0,
+          { data }
         );
       }
       throw mapHttpError2(response.status, response.statusText, data);
     }
     if (this.enableLogging) {
-      console.log(`[Paradex HTTP] Response:`, data);
+      this.logger.debug("Response", { data });
     }
     return data;
   }
@@ -16075,29 +15585,6 @@ var ParadexNormalizer = class {
   // ===========================================================================
   // Precision-Safe Numeric Conversions
   // ===========================================================================
-  /**
-   * Convert string to number with validation and precision control
-   *
-   * @param value - String value to convert
-   * @param decimals - Number of decimal places (default: 8)
-   * @returns Number
-   *
-   * @throws {PerpDEXError} If value is not a valid number
-   */
-  toNumberSafe(value, decimals = 8) {
-    if (!value || value === "0" || value === "") {
-      return 0;
-    }
-    const num = parseFloat(value);
-    if (!Number.isFinite(num)) {
-      throw new PerpDEXError(
-        `Invalid number conversion: ${value}`,
-        "INVALID_NUMBER",
-        "paradex"
-      );
-    }
-    return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
-  }
   /**
    * Count decimal places in a string number
    *
@@ -16774,8 +16261,8 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
   wsUrl;
   timeout;
   maxReconnectAttempts;
-  apiKey;
   normalizer;
+  logger = new Logger("ParadexWebSocket");
   isConnected = false;
   reconnectAttempts = 0;
   subscriptionId = 0;
@@ -16788,7 +16275,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     if (queue.length >= _ParadexWebSocketWrapper.MAX_QUEUE_SIZE) {
       queue.shift();
       if (channel) {
-        console.warn(`[Paradex WS] Queue overflow on ${channel}, dropping oldest message`);
+        this.logger.warn(`Queue overflow on ${channel}, dropping oldest message`);
       }
     }
     queue.push(item);
@@ -16797,7 +16284,6 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     this.wsUrl = config.wsUrl;
     this.timeout = config.timeout || 3e4;
     this.maxReconnectAttempts = config.maxReconnectAttempts || 10;
-    this.apiKey = config.apiKey;
     this.normalizer = new ParadexNormalizer();
   }
   /**
@@ -16818,7 +16304,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
           this.handleMessage(event.data);
         };
         this.ws.onerror = (error) => {
-          console.error("[Paradex WS] Error:", error);
+          this.logger.error("WebSocket error", void 0, { error });
         };
         this.ws.onclose = () => {
           this.isConnected = false;
@@ -16883,8 +16369,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     try {
       await this.subscribe(channel, { market, depth }, callback);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let data;
         if (queue.length > 0) {
           data = queue.shift();
@@ -16893,8 +16378,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
             resolver = resolve;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const normalized = this.normalizer.normalizeOrderBook({
           market: data.market || market,
           bids: data.bids || [],
@@ -16934,8 +16418,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     try {
       await this.subscribe(channel, { market }, callback);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let data;
         if (queue.length > 0) {
           data = queue.shift();
@@ -16944,8 +16427,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
             resolver = resolve;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const normalized = this.normalizer.normalizeTrade({
           id: data.id || data.trade_id || String(Date.now()),
           market: data.market || market,
@@ -16983,8 +16465,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     try {
       await this.subscribe(channel, { market }, callback);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let data;
         if (queue.length > 0) {
           data = queue.shift();
@@ -16993,8 +16474,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
             resolver = resolve;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const normalized = this.normalizer.normalizeTicker({
           market: data.market || market,
           last_price: data.last_price || data.last,
@@ -17038,8 +16518,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     try {
       await this.subscribe(channel, symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {}, callback);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let data;
         if (queue.length > 0) {
           data = queue.shift();
@@ -17048,8 +16527,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
             resolver = resolve;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const normalized = this.normalizer.normalizePosition({
           market: data.market,
           side: data.side,
@@ -17094,8 +16572,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     try {
       await this.subscribe(channel, symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {}, callback);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let data;
         if (queue.length > 0) {
           data = queue.shift();
@@ -17104,8 +16581,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
             resolver = resolve;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const normalized = this.normalizer.normalizeOrder({
           id: data.id || data.order_id,
           client_id: data.client_id || data.clientOrderId,
@@ -17150,8 +16626,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     try {
       await this.subscribe(channel, {}, callback);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let data;
         if (queue.length > 0) {
           data = queue.shift();
@@ -17160,8 +16635,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
             resolver = resolve;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const balances = Array.isArray(data) ? data : [data];
         const normalized = balances.map(
           (bal) => this.normalizer.normalizeBalance({
@@ -17202,8 +16676,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     try {
       await this.subscribe(channel, symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {}, callback);
       while (true) {
-        if (error)
-          throw error;
+        if (error) throw error;
         let data;
         if (queue.length > 0) {
           data = queue.shift();
@@ -17212,8 +16685,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
             resolver = resolve;
           });
         }
-        if (error)
-          throw error;
+        if (error) throw error;
         const trade = this.normalizer.normalizeTrade({
           id: data.id || data.fill_id || String(Date.now()),
           market: data.market,
@@ -17277,7 +16749,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     try {
       const message = JSON.parse(rawData);
       if (message.error) {
-        console.error("[Paradex WS] Error:", message.error);
+        this.logger.error("WebSocket error", void 0, { error: message.error });
         return;
       }
       if (message.type === "subscribed") {
@@ -17290,7 +16762,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
         }
       }
     } catch (error) {
-      console.error("[Paradex WS] Failed to parse message:", error);
+      this.logger.error("Failed to parse message", error instanceof Error ? error : void 0);
     }
   }
   /**
@@ -17298,12 +16770,12 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
    */
   async handleDisconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error("[Paradex WS] Max reconnect attempts reached");
+      this.logger.error("Max reconnect attempts reached");
       return;
     }
     this.reconnectAttempts++;
     const delay = Math.min(1e3 * Math.pow(2, this.reconnectAttempts), 3e4);
-    console.log(`[Paradex WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})...`);
+    this.logger.info(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})...`);
     await new Promise((resolve) => setTimeout(resolve, delay));
     try {
       await this.connect();
@@ -17318,7 +16790,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
         );
       }
     } catch (error) {
-      console.error("[Paradex WS] Reconnect failed:", error);
+      this.logger.error("Reconnect failed", error instanceof Error ? error : void 0);
       this.handleDisconnect();
     }
   }
@@ -17429,7 +16901,7 @@ var ParadexAdapter = class extends BaseAdapter {
   /**
    * Fetch all available markets
    */
-  async fetchMarkets() {
+  async fetchMarkets(_params) {
     await this.rateLimiter.acquire("fetchMarkets");
     try {
       const response = await this.client.get("/markets");
@@ -17508,10 +16980,8 @@ var ParadexAdapter = class extends BaseAdapter {
     try {
       const market = this.normalizer.symbolFromCCXT(symbol);
       const params = new URLSearchParams();
-      if (since)
-        params.append("start_time", since.toString());
-      if (limit)
-        params.append("limit", limit.toString());
+      if (since) params.append("start_time", since.toString());
+      if (limit) params.append("limit", limit.toString());
       const queryString = params.toString();
       const path = `/markets/${market}/funding/history${queryString ? `?${queryString}` : ""}`;
       const response = await this.client.get(path);
@@ -17568,25 +17038,25 @@ var ParadexAdapter = class extends BaseAdapter {
   /**
    * Create a new order
    */
-  async createOrder(order) {
-    const validatedOrder = this.validateOrder(order);
+  async createOrder(request) {
+    const validatedRequest = this.validateOrder(request);
     this.requireAuth();
     await this.rateLimiter.acquire("createOrder");
     try {
-      const market = this.normalizer.symbolFromCCXT(validatedOrder.symbol);
-      const orderType = this.normalizer.toParadexOrderType(validatedOrder.type, validatedOrder.postOnly);
-      const side = this.normalizer.toParadexOrderSide(validatedOrder.side);
-      const timeInForce = this.normalizer.toParadexTimeInForce(validatedOrder.timeInForce, validatedOrder.postOnly);
+      const market = this.normalizer.symbolFromCCXT(validatedRequest.symbol);
+      const orderType = this.normalizer.toParadexOrderType(validatedRequest.type, validatedRequest.postOnly);
+      const side = this.normalizer.toParadexOrderSide(validatedRequest.side);
+      const timeInForce = this.normalizer.toParadexTimeInForce(validatedRequest.timeInForce, validatedRequest.postOnly);
       const payload = {
         market,
         side,
         type: orderType,
-        size: validatedOrder.amount.toString(),
-        price: validatedOrder.price?.toString(),
+        size: validatedRequest.amount.toString(),
+        price: validatedRequest.price?.toString(),
         time_in_force: timeInForce,
-        reduce_only: validatedOrder.reduceOnly ?? false,
-        post_only: validatedOrder.postOnly ?? false,
-        client_id: validatedOrder.clientOrderId
+        reduce_only: validatedRequest.reduceOnly ?? false,
+        post_only: validatedRequest.postOnly ?? false,
+        client_id: validatedRequest.clientOrderId
       };
       const response = await this.client.post("/orders", payload);
       return this.normalizer.normalizeOrder(response);
@@ -17597,7 +17067,7 @@ var ParadexAdapter = class extends BaseAdapter {
   /**
    * Cancel an existing order
    */
-  async cancelOrder(orderId, symbol) {
+  async cancelOrder(orderId, _symbol) {
     this.requireAuth();
     await this.rateLimiter.acquire("cancelOrder");
     try {
@@ -17644,7 +17114,7 @@ var ParadexAdapter = class extends BaseAdapter {
   /**
    * Fetch a specific order
    */
-  async fetchOrder(orderId, symbol) {
+  async fetchOrder(orderId, _symbol) {
     this.requireAuth();
     await this.rateLimiter.acquire("fetchOrder");
     try {
@@ -17678,12 +17148,9 @@ var ParadexAdapter = class extends BaseAdapter {
     await this.rateLimiter.acquire("fetchOrderHistory");
     try {
       const params = new URLSearchParams();
-      if (symbol)
-        params.append("market", this.normalizer.symbolFromCCXT(symbol));
-      if (since)
-        params.append("start_at", since.toString());
-      if (limit)
-        params.append("page_size", limit.toString());
+      if (symbol) params.append("market", this.normalizer.symbolFromCCXT(symbol));
+      if (since) params.append("start_at", since.toString());
+      if (limit) params.append("page_size", limit.toString());
       const queryString = params.toString();
       const response = await this.client.get(`/orders/history${queryString ? `?${queryString}` : ""}`);
       if (!Array.isArray(response.results)) {
@@ -17702,12 +17169,9 @@ var ParadexAdapter = class extends BaseAdapter {
     await this.rateLimiter.acquire("fetchMyTrades");
     try {
       const params = new URLSearchParams();
-      if (symbol)
-        params.append("market", this.normalizer.symbolFromCCXT(symbol));
-      if (since)
-        params.append("start_at", since.toString());
-      if (limit)
-        params.append("page_size", limit.toString());
+      if (symbol) params.append("market", this.normalizer.symbolFromCCXT(symbol));
+      if (since) params.append("start_at", since.toString());
+      if (limit) params.append("page_size", limit.toString());
       const queryString = params.toString();
       const response = await this.client.get(`/fills${queryString ? `?${queryString}` : ""}`);
       if (!Array.isArray(response.results)) {
@@ -18440,8 +17904,6 @@ var EdgeXAdapter = class extends BaseAdapter {
   };
   auth;
   baseUrl;
-  wsUrl;
-  wsManager;
   rateLimiter;
   normalizer;
   constructor(config = {}) {
@@ -18458,8 +17920,6 @@ var EdgeXAdapter = class extends BaseAdapter {
     });
     const urls = config.testnet ? EDGEX_API_URLS.testnet : EDGEX_API_URLS.mainnet;
     this.baseUrl = urls.rest;
-    this.wsUrl = urls.websocket;
-    this.wsManager = new WebSocketManager({ url: this.wsUrl });
   }
   /**
    * Initialize the adapter
@@ -18488,7 +17948,7 @@ var EdgeXAdapter = class extends BaseAdapter {
   /**
    * Fetch all available markets
    */
-  async fetchMarkets() {
+  async fetchMarkets(_params) {
     const response = await this.makeRequest("GET", "/api/v1/public/meta/getMetaData", "fetchMarkets");
     if (response.code === "SUCCESS" && response.data?.contractList) {
       return response.data.contractList.map((market) => this.normalizer.normalizeMarket(market));
@@ -18535,7 +17995,7 @@ var EdgeXAdapter = class extends BaseAdapter {
    * Note: EdgeX does not expose public trades via REST API.
    * Use WebSocket (watchTrades) for real-time trade data.
    */
-  async fetchTrades(symbol, _params) {
+  async fetchTrades(_symbol, _params) {
     throw new PerpDEXError(
       "EdgeX does not support fetchTrades via REST API. Use watchTrades() for WebSocket streaming.",
       "NOT_IMPLEMENTED",
@@ -18560,8 +18020,12 @@ var EdgeXAdapter = class extends BaseAdapter {
   /**
    * Fetch funding rate history
    */
-  async fetchFundingRateHistory(symbol, since, limit) {
-    throw new PerpDEXError("EdgeX does not support funding rate history", "NOT_SUPPORTED", "edgex");
+  async fetchFundingRateHistory(_symbol, _since, _limit) {
+    throw new PerpDEXError(
+      "EdgeX does not support funding rate history",
+      "NOT_SUPPORTED",
+      "edgex"
+    );
   }
   /**
    * Fetch all open positions
@@ -18592,23 +18056,23 @@ var EdgeXAdapter = class extends BaseAdapter {
   /**
    * Create a new order
    */
-  async createOrder(order) {
-    const validatedOrder = this.validateOrder(order);
+  async createOrder(request) {
+    const validatedRequest = this.validateOrder(request);
     this.requireAuth();
-    const market = this.normalizer.toEdgeXSymbol(validatedOrder.symbol);
-    const orderType = toEdgeXOrderType(validatedOrder.type);
-    const side = toEdgeXOrderSide(validatedOrder.side);
-    const timeInForce = toEdgeXTimeInForce(validatedOrder.timeInForce);
+    const market = this.normalizer.toEdgeXSymbol(validatedRequest.symbol);
+    const orderType = toEdgeXOrderType(validatedRequest.type);
+    const side = toEdgeXOrderSide(validatedRequest.side);
+    const timeInForce = toEdgeXTimeInForce(validatedRequest.timeInForce);
     const payload = {
       market,
       side,
       type: orderType,
-      size: validatedOrder.amount.toString(),
-      price: validatedOrder.price?.toString(),
+      size: validatedRequest.amount.toString(),
+      price: validatedRequest.price?.toString(),
       time_in_force: timeInForce,
-      reduce_only: validatedOrder.reduceOnly ?? false,
-      post_only: validatedOrder.postOnly ?? false,
-      client_order_id: validatedOrder.clientOrderId
+      reduce_only: validatedRequest.reduceOnly ?? false,
+      post_only: validatedRequest.postOnly ?? false,
+      client_order_id: validatedRequest.clientOrderId
     };
     const response = await this.makeRequest("POST", "/api/v1/private/order/createOrder", "createOrder", payload);
     return this.normalizer.normalizeOrder(response);
@@ -18684,7 +18148,7 @@ var EdgeXAdapter = class extends BaseAdapter {
    * @param price - New order price (optional)
    * @returns Modified order
    */
-  async modifyOrder(orderId, symbol, type, side, amount, price) {
+  async modifyOrder(orderId, _symbol, _type, _side, amount, price) {
     this.requireAuth();
     const payload = {
       orderId
@@ -19202,8 +18666,7 @@ var BackpackNormalizer = class {
    * Count decimal places in a string number
    */
   countDecimals(value) {
-    if (!value)
-      return 0;
+    if (!value) return 0;
     const parts = value.split(".");
     return parts.length === 2 && parts[1] ? parts[1].length : 0;
   }
@@ -19487,9 +18950,7 @@ var BackpackAdapter = class extends BaseAdapter {
   };
   auth;
   baseUrl;
-  wsUrl;
   httpClient;
-  wsManager;
   rateLimiter;
   normalizer;
   constructor(config = {}) {
@@ -19506,7 +18967,6 @@ var BackpackAdapter = class extends BaseAdapter {
     });
     const urls = config.testnet ? BACKPACK_API_URLS.testnet : BACKPACK_API_URLS.mainnet;
     this.baseUrl = urls.rest;
-    this.wsUrl = urls.websocket;
     this.httpClient = new HTTPClient({
       baseUrl: this.baseUrl,
       timeout: config.timeout || 3e4,
@@ -19525,7 +18985,6 @@ var BackpackAdapter = class extends BaseAdapter {
       },
       exchange: this.id
     });
-    this.wsManager = new WebSocketManager({ url: this.wsUrl });
   }
   /**
    * Initialize the adapter
@@ -19560,7 +19019,7 @@ var BackpackAdapter = class extends BaseAdapter {
   /**
    * Fetch all available markets
    */
-  async fetchMarkets() {
+  async fetchMarkets(_params) {
     const response = await this.makeRequest("GET", "/markets", "fetchMarkets");
     if (!Array.isArray(response)) {
       throw new PerpDEXError("Invalid markets response", "INVALID_RESPONSE", "backpack");
@@ -19680,23 +19139,23 @@ var BackpackAdapter = class extends BaseAdapter {
   /**
    * Create a new order
    */
-  async createOrder(order) {
-    const validatedOrder = this.validateOrder(order);
+  async createOrder(request) {
+    const validatedRequest = this.validateOrder(request);
     this.requireAuth();
-    const market = this.normalizer.toBackpackSymbol(validatedOrder.symbol);
-    const orderType = toBackpackOrderType(validatedOrder.type, validatedOrder.postOnly);
-    const side = toBackpackOrderSide(validatedOrder.side);
-    const timeInForce = toBackpackTimeInForce(validatedOrder.timeInForce, validatedOrder.postOnly);
+    const market = this.normalizer.toBackpackSymbol(validatedRequest.symbol);
+    const orderType = toBackpackOrderType(validatedRequest.type, validatedRequest.postOnly);
+    const side = toBackpackOrderSide(validatedRequest.side);
+    const timeInForce = toBackpackTimeInForce(validatedRequest.timeInForce, validatedRequest.postOnly);
     const payload = {
       market,
       side,
       type: orderType,
-      size: validatedOrder.amount.toString(),
-      price: validatedOrder.price?.toString(),
+      size: validatedRequest.amount.toString(),
+      price: validatedRequest.price?.toString(),
       time_in_force: timeInForce,
-      reduce_only: validatedOrder.reduceOnly ?? false,
-      post_only: validatedOrder.postOnly ?? false,
-      client_order_id: validatedOrder.clientOrderId
+      reduce_only: validatedRequest.reduceOnly ?? false,
+      post_only: validatedRequest.postOnly ?? false,
+      client_order_id: validatedRequest.clientOrderId
     };
     const response = await this.makeRequest("POST", "/orders", "createOrder", payload);
     return this.normalizer.normalizeOrder(response);
@@ -19704,7 +19163,7 @@ var BackpackAdapter = class extends BaseAdapter {
   /**
    * Cancel an existing order
    */
-  async cancelOrder(orderId, symbol) {
+  async cancelOrder(orderId, _symbol) {
     this.requireAuth();
     const response = await this.makeRequest("DELETE", `/orders/${orderId}`, "cancelOrder");
     return this.normalizer.normalizeOrder(response);
@@ -19736,7 +19195,7 @@ var BackpackAdapter = class extends BaseAdapter {
   /**
    * Fetch a specific order
    */
-  async fetchOrder(orderId, symbol) {
+  async fetchOrder(orderId, _symbol) {
     this.requireAuth();
     const response = await this.makeRequest("GET", `/orders/${orderId}`, "fetchOrder");
     return this.normalizer.normalizeOrder(response);
@@ -19758,12 +19217,9 @@ var BackpackAdapter = class extends BaseAdapter {
   async fetchOrderHistory(symbol, since, limit) {
     this.requireAuth();
     const params = new URLSearchParams();
-    if (symbol)
-      params.append("symbol", this.normalizer.toBackpackSymbol(symbol));
-    if (since)
-      params.append("startTime", since.toString());
-    if (limit)
-      params.append("limit", limit.toString());
+    if (symbol) params.append("symbol", this.normalizer.toBackpackSymbol(symbol));
+    if (since) params.append("startTime", since.toString());
+    if (limit) params.append("limit", limit.toString());
     const queryString = params.toString();
     const response = await this.makeRequest(
       "GET",
@@ -19781,12 +19237,9 @@ var BackpackAdapter = class extends BaseAdapter {
   async fetchMyTrades(symbol, since, limit) {
     this.requireAuth();
     const params = new URLSearchParams();
-    if (symbol)
-      params.append("symbol", this.normalizer.toBackpackSymbol(symbol));
-    if (since)
-      params.append("startTime", since.toString());
-    if (limit)
-      params.append("limit", limit.toString());
+    if (symbol) params.append("symbol", this.normalizer.toBackpackSymbol(symbol));
+    if (since) params.append("startTime", since.toString());
+    if (limit) params.append("limit", limit.toString());
     const queryString = params.toString();
     const response = await this.makeRequest(
       "GET",
@@ -19842,7 +19295,7 @@ var BackpackAdapter = class extends BaseAdapter {
       if (error instanceof PerpDEXError) {
         throw error;
       }
-      const { code, message } = mapBackpackError(error);
+      const { code } = mapBackpackError(error);
       throw new PerpDEXError("Request failed", code, "backpack", error);
     }
   }
@@ -20657,8 +20110,7 @@ var NadoAPIClient = class {
    * @returns true if retryable
    */
   isRetryableNetworkError(err2) {
-    if (!err2)
-      return false;
+    if (!err2) return false;
     if (err2.name === "AbortError" || err2.name === "TimeoutError") {
       return true;
     }
@@ -20722,6 +20174,7 @@ var NadoAPIClient = class {
 // src/adapters/nado/NadoNormalizer.ts
 var import_ethers4 = require("ethers");
 var NadoNormalizer = class {
+  logger = new Logger("NadoNormalizer");
   // ===========================================================================
   // Symbol Conversion
   // ===========================================================================
@@ -20775,33 +20228,6 @@ var NadoNormalizer = class {
   // Precision-Safe Numeric Conversions
   // ===========================================================================
   /**
-   * Convert number to x18 format (18 decimals) with validation
-   *
-   * @param value - Number or string to convert
-   * @returns x18 formatted string
-   *
-   * @throws {PerpDEXError} If value is not finite
-   */
-  toX18Safe(value) {
-    if (typeof value === "number" && !Number.isFinite(value)) {
-      throw new PerpDEXError(
-        `Invalid number for x18 conversion: ${value}`,
-        "INVALID_NUMBER",
-        "nado"
-      );
-    }
-    try {
-      return import_ethers4.ethers.parseUnits(value.toString(), 18).toString();
-    } catch (error) {
-      throw new PerpDEXError(
-        `Failed to convert to x18: ${value}`,
-        "CONVERSION_ERROR",
-        "nado",
-        error
-      );
-    }
-  }
-  /**
    * Convert from x18 format to number with precision safety
    *
    * @param value - x18 formatted string
@@ -20821,7 +20247,7 @@ var NadoNormalizer = class {
         );
       }
       if (Math.abs(parsed) > Number.MAX_SAFE_INTEGER) {
-        console.warn(`[Nado] Precision loss detected for value: ${value}`);
+        this.logger.warn("Precision loss detected for value", { value });
       }
       return parsed;
     } catch (error) {
@@ -20889,8 +20315,7 @@ var NadoNormalizer = class {
    * Calculate decimal precision from increment value
    */
   getPrecisionFromIncrement(increment) {
-    if (increment >= 1)
-      return 0;
+    if (increment >= 1) return 0;
     const str = increment.toString();
     const decimalPart = str.split(".")[1];
     return decimalPart ? decimalPart.replace(/0+$/, "").length : 0;
@@ -21117,13 +20542,13 @@ var NadoNormalizer = class {
     return orders.map((order) => {
       const mapping = mappings.get(order.product_id.toString());
       if (!mapping) {
-        console.warn(`[Nado] No mapping found for product ID: ${order.product_id}`);
+        this.logger.warn("No mapping found for product ID", { productId: order.product_id });
         return null;
       }
       try {
         return this.normalizeOrder(order, mapping);
       } catch (error) {
-        console.error(`[Nado] Failed to normalize order ${order.order_id}:`, error);
+        this.logger.error("Failed to normalize order", error instanceof Error ? error : void 0, { orderId: order.order_id });
         return null;
       }
     }).filter((o) => o !== null);
@@ -21148,13 +20573,13 @@ var NadoNormalizer = class {
     return positions.map((position) => {
       const mapping = mappings.get(position.product_id.toString());
       if (!mapping) {
-        console.warn(`[Nado] No mapping found for product ID: ${position.product_id}`);
+        this.logger.warn("No mapping found for product ID", { productId: position.product_id });
         return null;
       }
       try {
         return this.normalizePosition(position, mapping);
       } catch (error) {
-        console.error(`[Nado] Failed to normalize position for product ${position.product_id}:`, error);
+        this.logger.error("Failed to normalize position", error instanceof Error ? error : void 0, { productId: position.product_id });
         return null;
       }
     }).filter((p) => p !== null);
@@ -21170,13 +20595,13 @@ var NadoNormalizer = class {
     return trades.map((trade) => {
       const mapping = mappings.get(trade.product_id.toString());
       if (!mapping) {
-        console.warn(`[Nado] No mapping found for product ID: ${trade.product_id}`);
+        this.logger.warn("No mapping found for product ID", { productId: trade.product_id });
         return null;
       }
       try {
         return this.normalizeTrade(trade, mapping);
       } catch (error) {
-        console.error(`[Nado] Failed to normalize trade ${trade.trade_id}:`, error);
+        this.logger.error("Failed to normalize trade", error instanceof Error ? error : void 0, { tradeId: trade.trade_id });
         return null;
       }
     }).filter((t) => t !== null);
@@ -21198,6 +20623,7 @@ var NadoNormalizer = class {
         return "closed";
       case "cancelled":
         return "canceled";
+      // Note: CCXT uses 'canceled' not 'cancelled'
       case "expired":
         return "expired";
       case "rejected":
@@ -21523,8 +20949,7 @@ var NadoAdapter = class extends BaseAdapter {
    * - order_nonce: For place_order executions
    */
   async fetchCurrentNonce() {
-    if (!this.auth)
-      return;
+    if (!this.auth) return;
     const data = await this.apiClient.query(
       NADO_QUERY_TYPES.NONCES,
       {
@@ -21546,19 +20971,6 @@ var NadoAdapter = class extends BaseAdapter {
       );
     }
     return mapping;
-  }
-  /**
-   * Track request metrics
-   */
-  trackRequest(endpoint, latency, success) {
-    this.metrics.totalRequests++;
-    if (success) {
-      this.metrics.successfulRequests++;
-    } else {
-      this.metrics.failedRequests++;
-    }
-    const totalLatency = this.metrics.averageLatency * (this.metrics.totalRequests - 1) + latency;
-    this.metrics.averageLatency = totalLatency / this.metrics.totalRequests;
   }
   /**
    * Require authentication for private methods
@@ -21590,12 +21002,12 @@ var NadoAdapter = class extends BaseAdapter {
    *
    * Uses the /query?type=symbols endpoint which returns market metadata
    */
-  async fetchMarketsFromAPI(params) {
+  async fetchMarketsFromAPI(_params) {
     this.debug("Fetching markets from API...");
     const response = await this.apiClient.query(NADO_QUERY_TYPES.SYMBOLS);
     this.productMappings.clear();
     const markets = [];
-    for (const [symbolKey, symbolData] of Object.entries(response.symbols || {})) {
+    for (const [_symbolKey, symbolData] of Object.entries(response.symbols || {})) {
       const market = this.normalizer.normalizeSymbol(symbolData);
       markets.push(market);
       const mapping = {
@@ -21631,7 +21043,7 @@ var NadoAdapter = class extends BaseAdapter {
     });
     return this.normalizer.normalizeOrderBook(NadoOrderBookSchema.parse(orderBook), symbol);
   }
-  async fetchTrades(symbol, params) {
+  async fetchTrades(_symbol, _params) {
     throw new PerpDEXError(
       "fetchTrades not supported via REST API on Nado. Use watchTrades() for WebSocket streaming.",
       "NOT_SUPPORTED",
@@ -21692,7 +21104,7 @@ var NadoAdapter = class extends BaseAdapter {
     );
     return this.normalizer.normalizeOrder(NadoOrderSchema.parse(response), mapping);
   }
-  async cancelOrder(orderId, symbol) {
+  async cancelOrder(orderId, _symbol) {
     const auth = this.requireAuth();
     if (!this.contractsInfo) {
       throw new PerpDEXError("Contracts info not loaded", "NO_CONTRACTS", this.id);
@@ -21761,7 +21173,7 @@ var NadoAdapter = class extends BaseAdapter {
       return this.normalizer.normalizeOrder(order, mapping);
     });
   }
-  async fetchPositions(symbols) {
+  async fetchPositions(_symbols) {
     const auth = this.requireAuth();
     const positions = await this.apiClient.query(
       NADO_QUERY_TYPES.ISOLATED_POSITIONS,
@@ -21830,8 +21242,7 @@ var NadoAdapter = class extends BaseAdapter {
     const mappingsArray = Array.from(this.productMappings.values());
     return filteredOrders.map((order) => {
       const mapping = mappingsArray.find((m) => m.productId === order.product_id);
-      if (!mapping)
-        return null;
+      if (!mapping) return null;
       return this.normalizer.normalizeOrder(order, mapping);
     }).filter((o) => o !== null);
   }
@@ -21862,11 +21273,9 @@ var NadoAdapter = class extends BaseAdapter {
       const normalized = [];
       for (const position of positions) {
         const mapping = mappingsArray.find((m) => m.productId === position.product_id);
-        if (!mapping)
-          continue;
+        if (!mapping) continue;
         const normalizedPos = this.normalizer.normalizePosition(position, mapping);
-        if (normalizedPos)
-          normalized.push(normalizedPos);
+        if (normalizedPos) normalized.push(normalizedPos);
       }
       yield normalized;
     }
@@ -21884,8 +21293,7 @@ var NadoAdapter = class extends BaseAdapter {
       const normalized = [];
       for (const order of orders) {
         const mapping = mappingsArray.find((m) => m.productId === order.product_id);
-        if (!mapping)
-          continue;
+        if (!mapping) continue;
         normalized.push(this.normalizer.normalizeOrder(order, mapping));
       }
       yield normalized;
@@ -21958,8 +21366,7 @@ var NadoAdapter = class extends BaseAdapter {
     const mappingsArray = Array.from(this.productMappings.values());
     return orders.map((order) => {
       const mapping = mappingsArray.find((m) => m.productId === order.product_id);
-      if (!mapping)
-        return null;
+      if (!mapping) return null;
       return this.normalizer.normalizeOrder(order, mapping);
     }).filter((o) => o !== null);
   }
@@ -22154,7 +21561,7 @@ function mapVariationalError(code, message, context) {
 }
 
 // src/adapters/variational/utils.ts
-function convertOrderRequest2(request) {
+function convertOrderRequest3(request) {
   return {
     symbol: request.symbol,
     type: request.type,
@@ -22230,7 +21637,7 @@ var VariationalNormalizer = class {
    * "BTC/USDT:USDT" → "BTC-USDT-PERP"
    */
   symbolFromCCXT(ccxtSymbol) {
-    const [pair, settle] = ccxtSymbol.split(":");
+    const [pair] = ccxtSymbol.split(":");
     if (!pair) {
       return ccxtSymbol;
     }
@@ -22581,25 +21988,19 @@ var VariationalNormalizer = class {
     const bid1k = safeParseFloat(quotes.size_1k.bid);
     const ask1k = safeParseFloat(quotes.size_1k.ask);
     const size1k = 1e3 / markPrice;
-    if (bid1k > 0)
-      bids.push([bid1k, size1k]);
-    if (ask1k > 0)
-      asks.push([ask1k, size1k]);
+    if (bid1k > 0) bids.push([bid1k, size1k]);
+    if (ask1k > 0) asks.push([ask1k, size1k]);
     const bid100k = safeParseFloat(quotes.size_100k.bid);
     const ask100k = safeParseFloat(quotes.size_100k.ask);
     const size100k = 1e5 / markPrice;
-    if (bid100k > 0)
-      bids.push([bid100k, size100k]);
-    if (ask100k > 0)
-      asks.push([ask100k, size100k]);
+    if (bid100k > 0) bids.push([bid100k, size100k]);
+    if (ask100k > 0) asks.push([ask100k, size100k]);
     if (quotes.size_1m) {
       const bid1m = safeParseFloat(quotes.size_1m.bid);
       const ask1m = safeParseFloat(quotes.size_1m.ask);
       const size1m = 1e6 / markPrice;
-      if (bid1m > 0)
-        bids.push([bid1m, size1m]);
-      if (ask1m > 0)
-        asks.push([ask1m, size1m]);
+      if (bid1m > 0) bids.push([bid1m, size1m]);
+      if (ask1m > 0) asks.push([ask1m, size1m]);
     }
     bids.sort((a, b) => b[0] - a[0]);
     asks.sort((a, b) => a[0] - b[0]);
@@ -22665,7 +22066,6 @@ var VariationalAdapter = class extends BaseAdapter {
     watchBalance: false
   };
   apiUrl;
-  wsUrl;
   apiKey;
   apiSecret;
   rateLimiter;
@@ -22677,7 +22077,6 @@ var VariationalAdapter = class extends BaseAdapter {
     const testnet = config.testnet ?? false;
     const urls = testnet ? VARIATIONAL_API_URLS.testnet : VARIATIONAL_API_URLS.mainnet;
     this.apiUrl = urls.rest;
-    this.wsUrl = urls.websocket;
     this.apiKey = config.apiKey;
     this.apiSecret = config.apiSecret;
     this.normalizer = new VariationalNormalizer();
@@ -22736,7 +22135,7 @@ var VariationalAdapter = class extends BaseAdapter {
     return this.normalizer.symbolToCCXT(exchangeSymbol);
   }
   // ==================== Market Data Methods ====================
-  async fetchMarkets(params) {
+  async fetchMarkets(_params) {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
     try {
       const response = await this.httpClient.get(
@@ -22770,7 +22169,7 @@ var VariationalAdapter = class extends BaseAdapter {
       throw mapError3(error);
     }
   }
-  async fetchOrderBook(symbol, params) {
+  async fetchOrderBook(symbol, _params) {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
     if (!symbol) {
       throw new PerpDEXError("Symbol is required", "INVALID_SYMBOL", this.id);
@@ -22791,7 +22190,7 @@ var VariationalAdapter = class extends BaseAdapter {
       throw mapError3(error);
     }
   }
-  async fetchTrades(symbol, params) {
+  async fetchTrades(_symbol, _params) {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.TRADES);
     throw new PerpDEXError("fetchTrades not implemented", "NOT_IMPLEMENTED", this.id);
   }
@@ -22816,7 +22215,7 @@ var VariationalAdapter = class extends BaseAdapter {
       throw mapError3(error);
     }
   }
-  async fetchFundingRateHistory(symbol, since, limit) {
+  async fetchFundingRateHistory(_symbol, _since, _limit) {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.FUNDING_HISTORY);
     throw new PerpDEXError("fetchFundingRateHistory not implemented", "NOT_IMPLEMENTED", this.id);
   }
@@ -22826,7 +22225,7 @@ var VariationalAdapter = class extends BaseAdapter {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.CREATE_ORDER);
     validateOrderRequest2(request);
     try {
-      const orderRequest = convertOrderRequest2(request);
+      const orderRequest = convertOrderRequest3(request);
       orderRequest.clientOrderId = orderRequest.clientOrderId || generateClientOrderId();
       orderRequest.symbol = this.symbolToExchange(request.symbol);
       const response = await this.authenticatedRequest(
@@ -22839,7 +22238,7 @@ var VariationalAdapter = class extends BaseAdapter {
       throw mapError3(error);
     }
   }
-  async cancelOrder(orderId, symbol) {
+  async cancelOrder(orderId, _symbol) {
     this.ensureAuthenticated();
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.CANCEL_ORDER);
     if (!orderId) {
@@ -22871,10 +22270,10 @@ var VariationalAdapter = class extends BaseAdapter {
       throw mapError3(error);
     }
   }
-  async createBatchOrders(requests) {
+  async createBatchOrders(_requests) {
     throw new PerpDEXError("createBatchOrders not supported", "NOT_SUPPORTED", this.id);
   }
-  async cancelBatchOrders(orderIds, symbol) {
+  async cancelBatchOrders(_orderIds, _symbol) {
     throw new PerpDEXError("cancelBatchOrders not supported", "NOT_SUPPORTED", this.id);
   }
   // ==================== Account Methods ====================
@@ -22908,10 +22307,10 @@ var VariationalAdapter = class extends BaseAdapter {
       throw mapError3(error);
     }
   }
-  async setLeverage(symbol, leverage) {
+  async setLeverage(_symbol, _leverage) {
     throw new PerpDEXError("setLeverage not supported", "NOT_SUPPORTED", this.id);
   }
-  async setMarginMode(symbol, marginMode) {
+  async setMarginMode(_symbol, _marginMode) {
     throw new PerpDEXError("setMarginMode not supported", "NOT_SUPPORTED", this.id);
   }
   async fetchOrderHistory(symbol, since, limit) {
@@ -22964,10 +22363,10 @@ var VariationalAdapter = class extends BaseAdapter {
       throw mapError3(error);
     }
   }
-  async fetchDeposits(currency, since, limit) {
+  async fetchDeposits(_currency, _since, _limit) {
     throw new PerpDEXError("fetchDeposits not supported", "NOT_SUPPORTED", this.id);
   }
-  async fetchWithdrawals(currency, since, limit) {
+  async fetchWithdrawals(_currency, _since, _limit) {
     throw new PerpDEXError("fetchWithdrawals not supported", "NOT_SUPPORTED", this.id);
   }
   async fetchUserFees() {
@@ -22982,13 +22381,13 @@ var VariationalAdapter = class extends BaseAdapter {
     throw new PerpDEXError("fetchRateLimitStatus not implemented", "NOT_IMPLEMENTED", this.id);
   }
   // ==================== WebSocket Methods ====================
-  async *watchOrderBook(symbol, limit) {
+  async *watchOrderBook(_symbol, _limit) {
     throw new PerpDEXError("watchOrderBook not implemented", "NOT_IMPLEMENTED", this.id);
   }
-  async *watchTrades(symbol) {
+  async *watchTrades(_symbol) {
     throw new PerpDEXError("watchTrades not implemented", "NOT_IMPLEMENTED", this.id);
   }
-  async *watchTicker(symbol) {
+  async *watchTicker(_symbol) {
     throw new PerpDEXError("watchTicker not implemented", "NOT_IMPLEMENTED", this.id);
   }
   async *watchPositions() {
@@ -23000,7 +22399,7 @@ var VariationalAdapter = class extends BaseAdapter {
   async *watchBalance() {
     throw new PerpDEXError("watchBalance not implemented", "NOT_IMPLEMENTED", this.id);
   }
-  async *watchFundingRate(symbol) {
+  async *watchFundingRate(_symbol) {
     throw new PerpDEXError("watchFundingRate not implemented", "NOT_IMPLEMENTED", this.id);
   }
   // ==================== RFQ-Specific Methods ====================
@@ -23402,7 +22801,7 @@ function mapStarkNetError(error) {
 }
 
 // src/adapters/extended/utils.ts
-function convertOrderRequest3(request) {
+function convertOrderRequest4(request) {
   return {
     symbol: request.symbol,
     type: request.type,
@@ -23513,7 +22912,7 @@ var ExtendedNormalizer = class {
    * "BTC/USD:USD" → "BTC-USD-PERP"
    */
   symbolFromCCXT(ccxtSymbol) {
-    const [pair, settle] = ccxtSymbol.split(":");
+    const [pair] = ccxtSymbol.split(":");
     if (!pair) {
       return ccxtSymbol;
     }
@@ -23766,10 +23165,8 @@ var import_starknet3 = require("starknet");
 var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
   provider;
   account;
-  network;
   logger;
   constructor(config) {
-    this.network = config.network;
     this.logger = new Logger("ExtendedStarkNetClient");
     const nodeUrl = config.rpcUrl || (config.network === "mainnet" ? "https://starknet-mainnet.public.blastapi.io" : "https://starknet-testnet.public.blastapi.io");
     this.provider = new import_starknet3.RpcProvider({ nodeUrl });
@@ -23900,7 +23297,7 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
   /**
    * Wait for transaction confirmation
    */
-  async waitForTransaction(txHash, confirmations = EXTENDED_STARKNET_CONFIG.confirmations, timeoutMs = 3e5) {
+  async waitForTransaction(txHash, _confirmations = EXTENDED_STARKNET_CONFIG.confirmations, timeoutMs = 3e5) {
     const startTime = Date.now();
     while (Date.now() - startTime < timeoutMs) {
       try {
@@ -24068,9 +23465,7 @@ var ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
   pingIntervalMs;
   pongTimeout;
   subscriptions = /* @__PURE__ */ new Map();
-  messageQueue = [];
   connectionPromise;
-  connectionResolver;
   constructor(config) {
     this.wsUrl = config.wsUrl;
     this.apiKey = config.apiKey;
@@ -24092,7 +23487,6 @@ var ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
     }
     this.isConnecting = true;
     this.connectionPromise = new Promise((resolve, reject) => {
-      this.connectionResolver = resolve;
       try {
         this.ws = new WebSocket(this.wsUrl);
         this.ws.onopen = () => {
@@ -24374,8 +23768,7 @@ var ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
    * Authenticate the WebSocket connection
    */
   authenticate() {
-    if (!this.apiKey)
-      return;
+    if (!this.apiKey) return;
     const authMessage = {
       action: "auth",
       apiKey: this.apiKey,
@@ -24609,7 +24002,7 @@ var ExtendedAdapter = class extends BaseAdapter {
     super(config);
     const testnet = config.testnet ?? false;
     if (testnet) {
-      console.warn("[ExtendedAdapter] Warning: Extended testnet (Sepolia) is not operational. Using mainnet instead.");
+      this.logger.warn("Extended testnet (Sepolia) is not operational. Using mainnet instead.");
     }
     const urls = EXTENDED_API_URLS.mainnet;
     this.apiUrl = urls.rest;
@@ -24685,7 +24078,7 @@ var ExtendedAdapter = class extends BaseAdapter {
     return this.normalizer.symbolToCCXT(exchangeSymbol);
   }
   // ==================== Market Data Methods ====================
-  async fetchMarkets(params) {
+  async fetchMarkets(_params) {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.MARKETS);
     try {
       const response = await this.httpClient.get(
@@ -24784,7 +24177,7 @@ var ExtendedAdapter = class extends BaseAdapter {
       throw new PerpDEXError("API key required for trading", "AUTHENTICATION_ERROR", this.id);
     }
     try {
-      const extendedOrder = convertOrderRequest3(request);
+      const extendedOrder = convertOrderRequest4(request);
       const order = await this.httpClient.post(
         EXTENDED_ENDPOINTS.CREATE_ORDER,
         {
@@ -24800,7 +24193,7 @@ var ExtendedAdapter = class extends BaseAdapter {
       throw mapError4(error);
     }
   }
-  async cancelOrder(orderId, symbol) {
+  async cancelOrder(orderId, _symbol) {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.CANCEL_ORDER);
     if (!this.apiKey) {
       throw new PerpDEXError("API key required for trading", "AUTHENTICATION_ERROR", this.id);
@@ -24850,7 +24243,7 @@ var ExtendedAdapter = class extends BaseAdapter {
     }
     try {
       requests.forEach((req) => validateOrderRequest3(req));
-      const extendedOrders = requests.map((req) => convertOrderRequest3(req));
+      const extendedOrders = requests.map((req) => convertOrderRequest4(req));
       const response = await this.httpClient.post(
         EXTENDED_ENDPOINTS.BATCH_ORDERS,
         {
@@ -24867,7 +24260,7 @@ var ExtendedAdapter = class extends BaseAdapter {
       throw mapError4(error);
     }
   }
-  async cancelBatchOrders(orderIds, symbol) {
+  async cancelBatchOrders(orderIds, _symbol) {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.CANCEL_ALL_ORDERS);
     if (!this.apiKey) {
       throw new PerpDEXError("API key required for trading", "AUTHENTICATION_ERROR", this.id);
@@ -25080,10 +24473,10 @@ var ExtendedAdapter = class extends BaseAdapter {
       throw mapError4(error);
     }
   }
-  async fetchDeposits(currency, since, limit) {
+  async fetchDeposits(_currency, _since, _limit) {
     throw new PerpDEXError("fetchDeposits not supported", "NOT_SUPPORTED", this.id);
   }
-  async fetchWithdrawals(currency, since, limit) {
+  async fetchWithdrawals(_currency, _since, _limit) {
     throw new PerpDEXError("fetchWithdrawals not supported", "NOT_SUPPORTED", this.id);
   }
   async fetchUserFees() {
@@ -26080,7 +25473,6 @@ var DydxAdapter = class extends BaseAdapter {
     fetchRateLimitStatus: false
   };
   apiUrl;
-  wsUrl;
   auth;
   rateLimiter;
   normalizer;
@@ -26092,7 +25484,6 @@ var DydxAdapter = class extends BaseAdapter {
   constructor(config = {}) {
     super(config);
     this.apiUrl = config.testnet ? DYDX_TESTNET_API : DYDX_MAINNET_API;
-    this.wsUrl = config.testnet ? DYDX_TESTNET_WS : DYDX_MAINNET_WS;
     this.normalizer = new DydxNormalizer();
     this.rateLimiter = new RateLimiter({
       maxTokens: config.rateLimit?.maxRequests ?? DYDX_RATE_LIMIT.maxRequests,
@@ -26184,7 +25575,7 @@ var DydxAdapter = class extends BaseAdapter {
       throw mapDydxError(error);
     }
   }
-  async fetchOrderBook(symbol, params) {
+  async fetchOrderBook(symbol, _params) {
     await this.rateLimiter.acquire("fetchOrderBook");
     try {
       const exchangeSymbol = this.symbolToExchange(symbol);
@@ -26300,7 +25691,7 @@ var DydxAdapter = class extends BaseAdapter {
   // ===========================================================================
   // Trading (Private)
   // ===========================================================================
-  async createOrder(request) {
+  async createOrder(_request) {
     this.ensureInitialized();
     if (!this.auth) {
       throw new Error("Authentication required for trading. Provide mnemonic or privateKey.");
@@ -26314,7 +25705,7 @@ var DydxAdapter = class extends BaseAdapter {
       throw mapDydxError(error);
     }
   }
-  async cancelOrder(orderId, symbol) {
+  async cancelOrder(_orderId, _symbol) {
     this.ensureInitialized();
     if (!this.auth) {
       throw new Error("Authentication required for trading");
@@ -26328,7 +25719,7 @@ var DydxAdapter = class extends BaseAdapter {
       throw mapDydxError(error);
     }
   }
-  async cancelAllOrders(symbol) {
+  async cancelAllOrders(_symbol) {
     this.ensureInitialized();
     if (!this.auth) {
       throw new Error("Authentication required for trading");
@@ -26390,7 +25781,7 @@ var DydxAdapter = class extends BaseAdapter {
       throw mapDydxError(error);
     }
   }
-  async setLeverage(symbol, leverage) {
+  async setLeverage(_symbol, _leverage) {
     this.debug("setLeverage: dYdX v4 uses cross-margin mode without per-symbol leverage");
     throw new Error("dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity.");
   }
@@ -26494,17 +25885,17 @@ var DydxAdapter = class extends BaseAdapter {
   // ===========================================================================
   // WebSocket Streams (Placeholder implementations)
   // ===========================================================================
-  async *watchOrderBook(symbol, limit) {
+  async *watchOrderBook(_symbol, _limit) {
     this.ensureInitialized();
     throw new Error("WebSocket streams require additional implementation. Use fetchOrderBook for polling.");
     yield {};
   }
-  async *watchTrades(symbol) {
+  async *watchTrades(_symbol) {
     this.ensureInitialized();
     throw new Error("WebSocket streams require additional implementation. Use fetchTrades for polling.");
     yield {};
   }
-  async *watchTicker(symbol) {
+  async *watchTicker(_symbol) {
     this.ensureInitialized();
     throw new Error("WebSocket streams require additional implementation. Use fetchTicker for polling.");
     yield {};
@@ -26654,7 +26045,7 @@ var JupiterNormalizer = class {
   /**
    * Normalize market data from custody and pool accounts
    */
-  normalizeMarket(marketKey, custody, pool, stats) {
+  normalizeMarket(marketKey, custody, pool, _stats) {
     const marketConfig = JUPITER_MARKETS[marketKey];
     const symbol = jupiterToUnified(marketKey);
     const makerFee = pool.fees.openPositionFee / 1e4;
@@ -26937,7 +26328,7 @@ var JupiterNormalizer = class {
    * Calculate liquidation price
    * Simplified calculation - actual Jupiter calculation is more complex
    */
-  calculateLiquidationPrice(side, entryPrice, leverage, collateralUsd, sizeUsd) {
+  calculateLiquidationPrice(side, entryPrice, leverage, _collateralUsd, _sizeUsd) {
     const maintenanceMargin = 0.01;
     const liquidationThreshold = 1 - maintenanceMargin;
     if (side === "long") {
@@ -26951,8 +26342,7 @@ var JupiterNormalizer = class {
    */
   getPricePrecision(marketKey) {
     const config = JUPITER_MARKETS[marketKey];
-    if (!config)
-      return 6;
+    if (!config) return 6;
     const tickSize = config.tickSize;
     return Math.max(0, -Math.floor(Math.log10(tickSize)));
   }
@@ -26961,8 +26351,7 @@ var JupiterNormalizer = class {
    */
   getAmountPrecision(marketKey) {
     const config = JUPITER_MARKETS[marketKey];
-    if (!config)
-      return 4;
+    if (!config) return 4;
     const stepSize = config.stepSize;
     return Math.max(0, -Math.floor(Math.log10(stepSize)));
   }
@@ -26976,6 +26365,7 @@ var JupiterAuth = class {
   rpcEndpoint;
   connection;
   isInitialized = false;
+  logger = new Logger("JupiterAuth");
   constructor(config) {
     this.rpcEndpoint = config.rpcEndpoint || SOLANA_DEFAULT_RPC;
     if (config.privateKey) {
@@ -26992,7 +26382,7 @@ var JupiterAuth = class {
       const bytes = this.parsePrivateKey(privateKey);
       void this.initKeypairAsync(bytes);
     } catch (error) {
-      console.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   /**
@@ -27000,14 +26390,14 @@ var JupiterAuth = class {
    */
   async initKeypairAsync(bytes) {
     try {
-      const { Keypair, Connection, PublicKey } = await import("@solana/web3.js");
+      const { Keypair, Connection } = await import("@solana/web3.js");
       this.keypair = Keypair.fromSecretKey(bytes);
       this.publicKey = this.keypair.publicKey;
       this.walletAddress = this.publicKey.toBase58();
       this.connection = new Connection(this.rpcEndpoint, "confirmed");
       this.isInitialized = true;
     } catch (error) {
-      console.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   /**
@@ -28106,7 +27496,6 @@ function buildPriceApiUrl(tokenIds) {
   return `${baseUrl}?${params.toString()}`;
 }
 function calculateLiquidationPrice(side, entryPrice, collateralUsd, sizeUsd, maintenanceMarginRate = 0.01) {
-  const leverage = sizeUsd / collateralUsd;
   const maintenanceMargin = sizeUsd * maintenanceMarginRate;
   const availableMargin = collateralUsd - maintenanceMargin;
   const priceMovement = availableMargin / sizeUsd * entryPrice;
@@ -28123,9 +27512,7 @@ function parseOnChainTimestamp(timestamp) {
   }
   return ts;
 }
-function validatePositionSize(sizeUsd, symbol) {
-  const config = getMarketConfig(symbol);
-  const minSize = config?.minPositionSize || 1e-3;
+function validatePositionSize(sizeUsd, _symbol) {
   if (sizeUsd < 10) {
     return { valid: false, reason: "Minimum position size is $10 USD" };
   }
@@ -28317,7 +27704,7 @@ var JupiterAdapter = class extends BaseAdapter {
       throw mapJupiterError(error);
     }
   }
-  async fetchOrderBook(symbol, params) {
+  async fetchOrderBook(symbol, _params) {
     this.ensureInitialized();
     const jupiterSymbol = this.symbolToExchange(symbol);
     if (!isValidMarket(jupiterSymbol)) {
@@ -28336,7 +27723,7 @@ var JupiterAdapter = class extends BaseAdapter {
       throw mapJupiterError(error);
     }
   }
-  async fetchTrades(symbol, params) {
+  async fetchTrades(_symbol, _params) {
     this.warn("Jupiter Perps does not provide a public trade feed");
     return [];
   }
@@ -28360,7 +27747,7 @@ var JupiterAdapter = class extends BaseAdapter {
       throw mapJupiterError(error);
     }
   }
-  async fetchFundingRateHistory(symbol, since, limit) {
+  async fetchFundingRateHistory(_symbol, _since, _limit) {
     this.warn("Jupiter Perps does not provide historical funding rate data");
     return [];
   }
@@ -28386,13 +27773,11 @@ var JupiterAdapter = class extends BaseAdapter {
         try {
           const positionData = this.parsePositionAccount(account.data);
           const symbol = this.getSymbolFromCustody(positionData.custody);
-          if (!symbol)
-            continue;
+          if (!symbol) continue;
           const jupiterSymbol = unifiedToJupiter(symbol);
           const baseToken = jupiterSymbol.replace("-PERP", "");
           const mint = JUPITER_TOKEN_MINTS[baseToken];
-          if (!mint)
-            continue;
+          if (!mint) continue;
           const priceData = await this.fetchPrice(mint);
           const markPrice = parseFloat(priceData.price);
           positions.push(this.normalizePosition(pubkey, positionData, markPrice, symbol));
@@ -28465,7 +27850,7 @@ var JupiterAdapter = class extends BaseAdapter {
       throw mapJupiterError(error);
     }
   }
-  async fetchOpenOrders(symbol) {
+  async fetchOpenOrders(_symbol) {
     return [];
   }
   // ==========================================================================
@@ -28562,10 +27947,10 @@ var JupiterAdapter = class extends BaseAdapter {
       throw mapJupiterError(error);
     }
   }
-  async cancelOrder(orderId, symbol) {
+  async cancelOrder(_orderId, _symbol) {
     throw new Error("Jupiter uses instant execution - no orders to cancel");
   }
-  async cancelAllOrders(symbol) {
+  async cancelAllOrders(_symbol) {
     throw new Error("Jupiter uses instant execution - no orders to cancel");
   }
   /**
@@ -28644,15 +28029,15 @@ var JupiterAdapter = class extends BaseAdapter {
       throw mapJupiterError(error);
     }
   }
-  async fetchOrderHistory(symbol, since, limit) {
+  async fetchOrderHistory(_symbol, _since, _limit) {
     this.warn("Jupiter Perps does not maintain order history - trades are instant");
     return [];
   }
-  async fetchMyTrades(symbol, since, limit) {
+  async fetchMyTrades(_symbol, _since, _limit) {
     this.warn("Trade history requires indexing on-chain transactions");
     return [];
   }
-  async setLeverage(symbol, leverage) {
+  async setLeverage(_symbol, _leverage) {
     throw new Error("Jupiter leverage is set per-trade, not globally");
   }
   // ==========================================================================
@@ -28713,8 +28098,7 @@ var JupiterAdapter = class extends BaseAdapter {
    * Filter markets by params
    */
   filterMarkets(markets, params) {
-    if (!params)
-      return markets;
+    if (!params) return markets;
     let filtered = markets;
     if (params.active !== void 0) {
       filtered = filtered.filter((m) => m.active === params.active);
@@ -28835,7 +28219,7 @@ var JupiterAdapter = class extends BaseAdapter {
   /**
    * Get symbol from custody address
    */
-  getSymbolFromCustody(custody) {
+  getSymbolFromCustody(_custody) {
     return "SOL/USD:USD";
   }
   /**
@@ -29154,7 +28538,7 @@ var DriftNormalizer = class {
   /**
    * Normalize perp position to unified Position
    */
-  normalizePosition(position, markPrice, oraclePrice) {
+  normalizePosition(position, markPrice, _oraclePrice) {
     const marketKey = DRIFT_MARKET_INDEX_MAP[position.marketIndex];
     const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : void 0;
     const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${position.marketIndex}`);
@@ -29213,19 +28597,13 @@ var DriftNormalizer = class {
     const filledAmount = parseFloat(order.baseAssetAmountFilled) / DRIFT_PRECISION.BASE;
     const price = parseFloat(order.price) / DRIFT_PRECISION.PRICE;
     let type = "limit";
-    if (order.orderType === "market")
-      type = "market";
-    else if (order.orderType === "triggerMarket")
-      type = "stopMarket";
-    else if (order.orderType === "triggerLimit")
-      type = "stopLimit";
+    if (order.orderType === "market") type = "market";
+    else if (order.orderType === "triggerMarket") type = "stopMarket";
+    else if (order.orderType === "triggerLimit") type = "stopLimit";
     let status = "open";
-    if (order.status === "filled")
-      status = filledAmount >= baseAmount ? "filled" : "partiallyFilled";
-    else if (order.status === "canceled")
-      status = "canceled";
-    else if (order.status === "expired")
-      status = "expired";
+    if (order.status === "filled") status = filledAmount >= baseAmount ? "filled" : "partiallyFilled";
+    else if (order.status === "canceled") status = "canceled";
+    else if (order.status === "expired") status = "expired";
     return {
       id: order.orderId.toString(),
       symbol,
@@ -29420,8 +28798,7 @@ var DriftNormalizer = class {
    * Calculate liquidation price
    */
   calculateLiquidationPrice(side, entryPrice, leverage, maintenanceMargin) {
-    if (leverage <= 0)
-      return 0;
+    if (leverage <= 0) return 0;
     const liquidationThreshold = 1 - maintenanceMargin;
     if (side === "long") {
       return entryPrice * (1 - liquidationThreshold / leverage);
@@ -29433,8 +28810,7 @@ var DriftNormalizer = class {
    * Calculate margin ratio (percentage until liquidation)
    */
   calculateMarginRatio(side, entryPrice, currentPrice, leverage, maintenanceMargin) {
-    if (leverage <= 0 || entryPrice <= 0)
-      return 100;
+    if (leverage <= 0 || entryPrice <= 0) return 100;
     const pnlPercent = side === "long" ? (currentPrice - entryPrice) / entryPrice : (entryPrice - currentPrice) / entryPrice;
     const marginUsed = 1 / leverage;
     const currentMargin = marginUsed + pnlPercent;
@@ -29444,11 +28820,401 @@ var DriftNormalizer = class {
    * Get precision from tick size
    */
   getPrecisionFromTickSize(tickSize) {
-    if (tickSize >= 1)
-      return 0;
+    if (tickSize >= 1) return 0;
     return Math.max(0, -Math.floor(Math.log10(tickSize)));
   }
 };
+
+// src/adapters/drift/orderBuilder.ts
+var DriftOrderBuilder = class {
+  config;
+  constructor(config = {}) {
+    this.config = {
+      subAccountId: config.subAccountId ?? 0,
+      slippageTolerance: config.slippageTolerance ?? 0.01,
+      auctionDuration: config.auctionDuration ?? 60
+    };
+  }
+  /**
+   * Build order parameters from a unified OrderRequest
+   */
+  buildOrderParams(request, oraclePrice) {
+    const marketKey = unifiedToDrift(request.symbol);
+    const marketConfig = DRIFT_PERP_MARKETS[marketKey];
+    if (!marketConfig) {
+      throw new Error(`Unknown market: ${request.symbol}`);
+    }
+    this.validateOrder(request, marketConfig);
+    const baseAssetAmount = BigInt(
+      Math.floor(request.amount * DRIFT_PRECISION.BASE)
+    );
+    const orderType = this.mapOrderType(request.type);
+    const direction = this.getDirection(request.side, request.reduceOnly);
+    let price;
+    if (request.price) {
+      price = BigInt(Math.floor(request.price * DRIFT_PRECISION.PRICE));
+    } else if (request.type === "market" && oraclePrice) {
+      const slippageMultiplier = direction === "long" ? 1 + this.config.slippageTolerance : 1 - this.config.slippageTolerance;
+      price = BigInt(Math.floor(oraclePrice * slippageMultiplier * DRIFT_PRECISION.PRICE));
+    }
+    let triggerPrice;
+    let triggerCondition;
+    if (request.stopPrice) {
+      triggerPrice = BigInt(Math.floor(request.stopPrice * DRIFT_PRECISION.PRICE));
+      triggerCondition = direction === "long" ? "below" : "above";
+    }
+    const orderParams = {
+      orderType,
+      marketIndex: marketConfig.marketIndex,
+      marketType: "perp",
+      direction,
+      baseAssetAmount,
+      price,
+      triggerPrice,
+      triggerCondition,
+      reduceOnly: request.reduceOnly ?? false,
+      postOnly: request.postOnly ?? false,
+      immediateOrCancel: request.timeInForce === "IOC",
+      userOrderId: request.clientOrderId ? parseInt(request.clientOrderId) : void 0
+    };
+    if (orderType === "limit") {
+      orderParams.auctionDuration = this.config.auctionDuration;
+      if (oraclePrice && price) {
+        const auctionStartMultiplier = direction === "long" ? 0.995 : 1.005;
+        orderParams.auctionStartPrice = BigInt(
+          Math.floor(oraclePrice * auctionStartMultiplier * DRIFT_PRECISION.PRICE)
+        );
+        orderParams.auctionEndPrice = price;
+      }
+    }
+    return orderParams;
+  }
+  /**
+   * Build parameters for closing a position
+   */
+  buildClosePositionParams(symbol, size, isLong, oraclePrice) {
+    const marketKey = unifiedToDrift(symbol);
+    const marketConfig = DRIFT_PERP_MARKETS[marketKey];
+    if (!marketConfig) {
+      throw new Error(`Unknown market: ${symbol}`);
+    }
+    const baseAssetAmount = BigInt(Math.floor(Math.abs(size) * DRIFT_PRECISION.BASE));
+    const direction = isLong ? "short" : "long";
+    let price;
+    if (oraclePrice) {
+      const slippageMultiplier = direction === "long" ? 1 + this.config.slippageTolerance : 1 - this.config.slippageTolerance;
+      price = BigInt(Math.floor(oraclePrice * slippageMultiplier * DRIFT_PRECISION.PRICE));
+    }
+    return {
+      orderType: "market",
+      marketIndex: marketConfig.marketIndex,
+      marketType: "perp",
+      direction,
+      baseAssetAmount,
+      price,
+      reduceOnly: true
+      // Always reduce-only for closing
+    };
+  }
+  /**
+   * Validate order parameters
+   */
+  validateOrder(request, marketConfig) {
+    if (request.amount < marketConfig.minOrderSize) {
+      throw new Error(
+        `Order size ${request.amount} is below minimum ${marketConfig.minOrderSize} for ${request.symbol}`
+      );
+    }
+    if (request.leverage && request.leverage > marketConfig.maxLeverage) {
+      throw new Error(
+        `Leverage ${request.leverage}x exceeds maximum ${marketConfig.maxLeverage}x for ${request.symbol}`
+      );
+    }
+    if (request.type === "limit" && !request.price) {
+      throw new Error("Price is required for limit orders");
+    }
+    if ((request.type === "stopMarket" || request.type === "stopLimit") && !request.stopPrice) {
+      throw new Error("Stop price is required for trigger orders");
+    }
+    const stepSize = marketConfig.stepSize;
+    const remainder = request.amount % stepSize;
+    if (remainder !== 0 && remainder / stepSize > 1e-3) {
+      throw new Error(
+        `Order amount ${request.amount} does not conform to step size ${stepSize}`
+      );
+    }
+    if (request.price) {
+      const tickSize = marketConfig.tickSize;
+      const priceRemainder = request.price % tickSize;
+      if (priceRemainder !== 0 && priceRemainder / tickSize > 1e-3) {
+        throw new Error(
+          `Order price ${request.price} does not conform to tick size ${tickSize}`
+        );
+      }
+    }
+  }
+  /**
+   * Map unified order type to Drift order type
+   */
+  mapOrderType(type) {
+    switch (type) {
+      case "market":
+        return "market";
+      case "limit":
+        return "limit";
+      case "stopMarket":
+        return "triggerMarket";
+      case "stopLimit":
+        return "triggerLimit";
+      default:
+        return "market";
+    }
+  }
+  /**
+   * Get direction based on side and reduce-only flag
+   */
+  getDirection(side, _reduceOnly) {
+    return side === "buy" ? "long" : "short";
+  }
+  /**
+   * Calculate required margin for an order
+   */
+  calculateRequiredMargin(symbol, amount, price, leverage) {
+    const marketKey = unifiedToDrift(symbol);
+    const marketConfig = DRIFT_PERP_MARKETS[marketKey];
+    if (!marketConfig) {
+      throw new Error(`Unknown market: ${symbol}`);
+    }
+    const notional = amount * price;
+    const effectiveLeverage = leverage || 1 / marketConfig.initialMarginRatio;
+    const actualLeverage = Math.min(effectiveLeverage, marketConfig.maxLeverage);
+    const margin = notional / actualLeverage;
+    return {
+      margin,
+      leverage: actualLeverage
+    };
+  }
+  /**
+   * Calculate liquidation price for a position
+   */
+  calculateLiquidationPrice(symbol, entryPrice, leverage, isLong) {
+    const marketKey = unifiedToDrift(symbol);
+    const marketConfig = DRIFT_PERP_MARKETS[marketKey];
+    if (!marketConfig) {
+      throw new Error(`Unknown market: ${symbol}`);
+    }
+    const maintenanceMargin = marketConfig.maintenanceMarginRatio;
+    const liquidationThreshold = 1 - maintenanceMargin;
+    if (isLong) {
+      return entryPrice * (1 - liquidationThreshold / leverage);
+    } else {
+      return entryPrice * (1 + liquidationThreshold / leverage);
+    }
+  }
+  /**
+   * Get market configuration
+   */
+  getMarketConfig(symbol) {
+    const marketKey = unifiedToDrift(symbol);
+    return DRIFT_PERP_MARKETS[marketKey];
+  }
+  /**
+   * Get market index from symbol
+   */
+  getMarketIndex(symbol) {
+    return getMarketIndex(symbol);
+  }
+  /**
+   * Round amount to step size
+   */
+  roundToStepSize(amount, symbol) {
+    const config = this.getMarketConfig(symbol);
+    if (!config) {
+      return amount;
+    }
+    const stepSize = config.stepSize;
+    return Math.floor(amount / stepSize) * stepSize;
+  }
+  /**
+   * Round price to tick size
+   */
+  roundToTickSize(price, symbol) {
+    const config = this.getMarketConfig(symbol);
+    if (!config) {
+      return price;
+    }
+    const tickSize = config.tickSize;
+    return Math.round(price / tickSize) * tickSize;
+  }
+};
+
+// src/adapters/drift/error-codes.ts
+function mapDriftError(error) {
+  if (error instanceof PerpDEXError) {
+    return error;
+  }
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    for (const [pattern, code] of Object.entries(DRIFT_ERROR_MESSAGES)) {
+      if (message.includes(pattern)) {
+        switch (code) {
+          case "INSUFFICIENT_MARGIN":
+            return new InsufficientMarginError(error.message, code, "drift", error);
+          case "INSUFFICIENT_BALANCE":
+            return new InsufficientBalanceError(error.message, code, "drift", void 0, void 0, error);
+          case "POSITION_NOT_FOUND":
+            return new PositionNotFoundError(error.message, code, "drift", error);
+          case "ORDER_NOT_FOUND":
+            return new OrderNotFoundError(error.message, code, "drift", error);
+          case "MAX_LEVERAGE_EXCEEDED":
+          case "MIN_ORDER_SIZE":
+          case "REDUCE_ONLY_VIOLATION":
+          case "POST_ONLY_VIOLATION":
+            return new InvalidOrderError(error.message, code, "drift", error);
+          case "ORACLE_ERROR":
+          case "MARKET_PAUSED":
+            return new ExchangeUnavailableError(error.message, code, "drift", error);
+          case "RATE_LIMIT_EXCEEDED":
+            return new RateLimitError(error.message, code, "drift", void 0, error);
+          case "TRANSACTION_FAILED":
+            return new TransactionFailedError(error.message, code, "drift", void 0, error);
+          case "LIQUIDATION":
+            return new LiquidationError(error.message, code, "drift", error);
+        }
+      }
+    }
+    if (message.includes("blockhash") || message.includes("expired")) {
+      return new TransactionFailedError(
+        "Transaction expired",
+        "TRANSACTION_EXPIRED",
+        "drift",
+        void 0,
+        error
+      );
+    }
+    if (message.includes("signature verification")) {
+      return new InvalidSignatureError(
+        "Invalid transaction signature",
+        "INVALID_SIGNATURE",
+        "drift",
+        error
+      );
+    }
+    if (message.includes("insufficient lamports") || message.includes("insufficient sol")) {
+      return new InsufficientBalanceError(
+        "Insufficient SOL for transaction fees",
+        "INSUFFICIENT_SOL",
+        "drift",
+        void 0,
+        void 0,
+        error
+      );
+    }
+    if (message.includes("user account not found")) {
+      return new PerpDEXError(
+        "Drift user account not initialized",
+        "USER_NOT_INITIALIZED",
+        "drift",
+        error
+      );
+    }
+    if (message.includes("account not found") || message.includes("account does not exist")) {
+      return new PerpDEXError(
+        "Account not found on chain",
+        "ACCOUNT_NOT_FOUND",
+        "drift",
+        error
+      );
+    }
+    if (message.includes("429") || message.includes("too many requests")) {
+      return new RateLimitError("RPC rate limit exceeded", "RATE_LIMIT", "drift", void 0, error);
+    }
+    if (message.includes("503") || message.includes("502") || message.includes("504")) {
+      return new ExchangeUnavailableError(
+        "Solana RPC temporarily unavailable",
+        "RPC_UNAVAILABLE",
+        "drift",
+        error
+      );
+    }
+    if (message.includes("timeout") || message.includes("timed out")) {
+      return new ExchangeUnavailableError(
+        "Request timeout",
+        "TIMEOUT",
+        "drift",
+        error
+      );
+    }
+    if (message.includes("max number of positions")) {
+      return new InvalidOrderError(
+        "Maximum number of positions reached",
+        "MAX_POSITIONS",
+        "drift",
+        error
+      );
+    }
+    if (message.includes("market not active")) {
+      return new ExchangeUnavailableError(
+        "Market is not active",
+        "MARKET_NOT_ACTIVE",
+        "drift",
+        error
+      );
+    }
+    if (message.includes("price bands")) {
+      return new InvalidOrderError(
+        "Order price outside allowed bands",
+        "PRICE_BANDS_BREACHED",
+        "drift",
+        error
+      );
+    }
+    if (message.includes("order would be filled at worse price")) {
+      return new InvalidOrderError(
+        "Order would be filled at worse price than limit",
+        "SLIPPAGE_EXCEEDED",
+        "drift",
+        error
+      );
+    }
+  }
+  return new ExchangeUnavailableError(
+    "Unknown exchange error",
+    "UNKNOWN_ERROR",
+    "drift",
+    error
+  );
+}
+
+// src/adapters/drift/utils.ts
+function getMarketConfig2(symbol) {
+  const driftSymbol = symbol.includes("-PERP") ? symbol : unifiedToDrift(symbol);
+  return DRIFT_PERP_MARKETS[driftSymbol];
+}
+function isValidMarket2(symbol) {
+  const driftSymbol = symbol.includes("-PERP") ? symbol : unifiedToDrift(symbol);
+  return driftSymbol in DRIFT_PERP_MARKETS;
+}
+function buildOrderbookUrl(baseUrl, marketIndex, marketType = "perp", depth) {
+  const params = new URLSearchParams({
+    marketIndex: marketIndex.toString(),
+    marketType
+  });
+  if (depth) {
+    params.set("depth", depth.toString());
+  }
+  return `${baseUrl}/l2?${params.toString()}`;
+}
+function buildTradesUrl(baseUrl, marketIndex, marketType = "perp", limit) {
+  const params = new URLSearchParams({
+    marketIndex: marketIndex.toString(),
+    marketType
+  });
+  if (limit) {
+    params.set("limit", limit.toString());
+  }
+  return `${baseUrl}/trades?${params.toString()}`;
+}
 
 // src/adapters/drift/DriftAuth.ts
 var DriftAuth = class {
@@ -29460,6 +29226,7 @@ var DriftAuth = class {
   isDevnet;
   connection;
   isInitialized = false;
+  logger = new Logger("DriftAuth");
   constructor(config) {
     const apiUrls = config.isDevnet ? DRIFT_API_URLS.devnet : DRIFT_API_URLS.mainnet;
     this.rpcEndpoint = config.rpcEndpoint || apiUrls.rpc;
@@ -29479,7 +29246,7 @@ var DriftAuth = class {
       const bytes = this.parsePrivateKey(privateKey);
       void this.initKeypairAsync(bytes);
     } catch (error) {
-      console.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   /**
@@ -29487,14 +29254,14 @@ var DriftAuth = class {
    */
   async initKeypairAsync(bytes) {
     try {
-      const { Keypair, Connection, PublicKey } = await import("@solana/web3.js");
+      const { Keypair, Connection } = await import("@solana/web3.js");
       this.keypair = Keypair.fromSecretKey(bytes);
       this.publicKey = this.keypair.publicKey;
       this.walletAddress = this.publicKey.toBase58();
       this.connection = new Connection(this.rpcEndpoint, "confirmed");
       this.isInitialized = true;
     } catch (error) {
-      console.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   /**
@@ -29651,8 +29418,7 @@ var DriftAuth = class {
    * Create user account PDA info
    */
   getUserAccountInfo() {
-    if (!this.walletAddress)
-      return void 0;
+    if (!this.walletAddress) return void 0;
     return {
       authority: this.walletAddress,
       subAccountId: this.subAccountId
@@ -29702,7 +29468,7 @@ var DriftClientWrapper = class {
   driftClient;
   // Would be DriftClient type
   isInitialized = false;
-  userAccountPublicKey;
+  logger = new Logger("DriftClientWrapper");
   constructor(config) {
     this.config = config;
   }
@@ -29718,8 +29484,6 @@ var DriftClientWrapper = class {
       const {
         DriftClient,
         Wallet: Wallet4,
-        loadKeypair,
-        initialize,
         BulkAccountLoader,
         getMarketsAndOraclesForSubscription
       } = driftSdk;
@@ -29751,7 +29515,7 @@ var DriftClientWrapper = class {
       await this.driftClient.subscribe();
       const userAccountExists = await this.driftClient.getUserAccountExists();
       if (!userAccountExists) {
-        console.warn(
+        this.logger.warn(
           "Drift user account does not exist. Please deposit funds first to create an account."
         );
       } else {
@@ -30035,397 +29799,6 @@ var DriftClientWrapper = class {
   }
 };
 
-// src/adapters/drift/orderBuilder.ts
-var DriftOrderBuilder = class {
-  config;
-  constructor(config = {}) {
-    this.config = {
-      subAccountId: config.subAccountId ?? 0,
-      slippageTolerance: config.slippageTolerance ?? 0.01,
-      auctionDuration: config.auctionDuration ?? 60
-    };
-  }
-  /**
-   * Build order parameters from a unified OrderRequest
-   */
-  buildOrderParams(request, oraclePrice) {
-    const marketKey = unifiedToDrift(request.symbol);
-    const marketConfig = DRIFT_PERP_MARKETS[marketKey];
-    if (!marketConfig) {
-      throw new Error(`Unknown market: ${request.symbol}`);
-    }
-    this.validateOrder(request, marketConfig);
-    const baseAssetAmount = BigInt(
-      Math.floor(request.amount * DRIFT_PRECISION.BASE)
-    );
-    const orderType = this.mapOrderType(request.type);
-    const direction = this.getDirection(request.side, request.reduceOnly);
-    let price;
-    if (request.price) {
-      price = BigInt(Math.floor(request.price * DRIFT_PRECISION.PRICE));
-    } else if (request.type === "market" && oraclePrice) {
-      const slippageMultiplier = direction === "long" ? 1 + this.config.slippageTolerance : 1 - this.config.slippageTolerance;
-      price = BigInt(Math.floor(oraclePrice * slippageMultiplier * DRIFT_PRECISION.PRICE));
-    }
-    let triggerPrice;
-    let triggerCondition;
-    if (request.stopPrice) {
-      triggerPrice = BigInt(Math.floor(request.stopPrice * DRIFT_PRECISION.PRICE));
-      triggerCondition = direction === "long" ? "below" : "above";
-    }
-    const orderParams = {
-      orderType,
-      marketIndex: marketConfig.marketIndex,
-      marketType: "perp",
-      direction,
-      baseAssetAmount,
-      price,
-      triggerPrice,
-      triggerCondition,
-      reduceOnly: request.reduceOnly ?? false,
-      postOnly: request.postOnly ?? false,
-      immediateOrCancel: request.timeInForce === "IOC",
-      userOrderId: request.clientOrderId ? parseInt(request.clientOrderId) : void 0
-    };
-    if (orderType === "limit") {
-      orderParams.auctionDuration = this.config.auctionDuration;
-      if (oraclePrice && price) {
-        const auctionStartMultiplier = direction === "long" ? 0.995 : 1.005;
-        orderParams.auctionStartPrice = BigInt(
-          Math.floor(oraclePrice * auctionStartMultiplier * DRIFT_PRECISION.PRICE)
-        );
-        orderParams.auctionEndPrice = price;
-      }
-    }
-    return orderParams;
-  }
-  /**
-   * Build parameters for closing a position
-   */
-  buildClosePositionParams(symbol, size, isLong, oraclePrice) {
-    const marketKey = unifiedToDrift(symbol);
-    const marketConfig = DRIFT_PERP_MARKETS[marketKey];
-    if (!marketConfig) {
-      throw new Error(`Unknown market: ${symbol}`);
-    }
-    const baseAssetAmount = BigInt(Math.floor(Math.abs(size) * DRIFT_PRECISION.BASE));
-    const direction = isLong ? "short" : "long";
-    let price;
-    if (oraclePrice) {
-      const slippageMultiplier = direction === "long" ? 1 + this.config.slippageTolerance : 1 - this.config.slippageTolerance;
-      price = BigInt(Math.floor(oraclePrice * slippageMultiplier * DRIFT_PRECISION.PRICE));
-    }
-    return {
-      orderType: "market",
-      marketIndex: marketConfig.marketIndex,
-      marketType: "perp",
-      direction,
-      baseAssetAmount,
-      price,
-      reduceOnly: true
-      // Always reduce-only for closing
-    };
-  }
-  /**
-   * Validate order parameters
-   */
-  validateOrder(request, marketConfig) {
-    if (request.amount < marketConfig.minOrderSize) {
-      throw new Error(
-        `Order size ${request.amount} is below minimum ${marketConfig.minOrderSize} for ${request.symbol}`
-      );
-    }
-    if (request.leverage && request.leverage > marketConfig.maxLeverage) {
-      throw new Error(
-        `Leverage ${request.leverage}x exceeds maximum ${marketConfig.maxLeverage}x for ${request.symbol}`
-      );
-    }
-    if (request.type === "limit" && !request.price) {
-      throw new Error("Price is required for limit orders");
-    }
-    if ((request.type === "stopMarket" || request.type === "stopLimit") && !request.stopPrice) {
-      throw new Error("Stop price is required for trigger orders");
-    }
-    const stepSize = marketConfig.stepSize;
-    const remainder = request.amount % stepSize;
-    if (remainder !== 0 && remainder / stepSize > 1e-3) {
-      throw new Error(
-        `Order amount ${request.amount} does not conform to step size ${stepSize}`
-      );
-    }
-    if (request.price) {
-      const tickSize = marketConfig.tickSize;
-      const priceRemainder = request.price % tickSize;
-      if (priceRemainder !== 0 && priceRemainder / tickSize > 1e-3) {
-        throw new Error(
-          `Order price ${request.price} does not conform to tick size ${tickSize}`
-        );
-      }
-    }
-  }
-  /**
-   * Map unified order type to Drift order type
-   */
-  mapOrderType(type) {
-    switch (type) {
-      case "market":
-        return "market";
-      case "limit":
-        return "limit";
-      case "stopMarket":
-        return "triggerMarket";
-      case "stopLimit":
-        return "triggerLimit";
-      default:
-        return "market";
-    }
-  }
-  /**
-   * Get direction based on side and reduce-only flag
-   */
-  getDirection(side, reduceOnly) {
-    return side === "buy" ? "long" : "short";
-  }
-  /**
-   * Calculate required margin for an order
-   */
-  calculateRequiredMargin(symbol, amount, price, leverage) {
-    const marketKey = unifiedToDrift(symbol);
-    const marketConfig = DRIFT_PERP_MARKETS[marketKey];
-    if (!marketConfig) {
-      throw new Error(`Unknown market: ${symbol}`);
-    }
-    const notional = amount * price;
-    const effectiveLeverage = leverage || 1 / marketConfig.initialMarginRatio;
-    const actualLeverage = Math.min(effectiveLeverage, marketConfig.maxLeverage);
-    const margin = notional / actualLeverage;
-    return {
-      margin,
-      leverage: actualLeverage
-    };
-  }
-  /**
-   * Calculate liquidation price for a position
-   */
-  calculateLiquidationPrice(symbol, entryPrice, leverage, isLong) {
-    const marketKey = unifiedToDrift(symbol);
-    const marketConfig = DRIFT_PERP_MARKETS[marketKey];
-    if (!marketConfig) {
-      throw new Error(`Unknown market: ${symbol}`);
-    }
-    const maintenanceMargin = marketConfig.maintenanceMarginRatio;
-    const liquidationThreshold = 1 - maintenanceMargin;
-    if (isLong) {
-      return entryPrice * (1 - liquidationThreshold / leverage);
-    } else {
-      return entryPrice * (1 + liquidationThreshold / leverage);
-    }
-  }
-  /**
-   * Get market configuration
-   */
-  getMarketConfig(symbol) {
-    const marketKey = unifiedToDrift(symbol);
-    return DRIFT_PERP_MARKETS[marketKey];
-  }
-  /**
-   * Get market index from symbol
-   */
-  getMarketIndex(symbol) {
-    return getMarketIndex(symbol);
-  }
-  /**
-   * Round amount to step size
-   */
-  roundToStepSize(amount, symbol) {
-    const config = this.getMarketConfig(symbol);
-    if (!config) {
-      return amount;
-    }
-    const stepSize = config.stepSize;
-    return Math.floor(amount / stepSize) * stepSize;
-  }
-  /**
-   * Round price to tick size
-   */
-  roundToTickSize(price, symbol) {
-    const config = this.getMarketConfig(symbol);
-    if (!config) {
-      return price;
-    }
-    const tickSize = config.tickSize;
-    return Math.round(price / tickSize) * tickSize;
-  }
-};
-
-// src/adapters/drift/error-codes.ts
-function mapDriftError(error) {
-  if (error instanceof PerpDEXError) {
-    return error;
-  }
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    for (const [pattern, code] of Object.entries(DRIFT_ERROR_MESSAGES)) {
-      if (message.includes(pattern)) {
-        switch (code) {
-          case "INSUFFICIENT_MARGIN":
-            return new InsufficientMarginError(error.message, code, "drift", error);
-          case "INSUFFICIENT_BALANCE":
-            return new InsufficientBalanceError(error.message, code, "drift", void 0, void 0, error);
-          case "POSITION_NOT_FOUND":
-            return new PositionNotFoundError(error.message, code, "drift", error);
-          case "ORDER_NOT_FOUND":
-            return new OrderNotFoundError(error.message, code, "drift", error);
-          case "MAX_LEVERAGE_EXCEEDED":
-          case "MIN_ORDER_SIZE":
-          case "REDUCE_ONLY_VIOLATION":
-          case "POST_ONLY_VIOLATION":
-            return new InvalidOrderError(error.message, code, "drift", error);
-          case "ORACLE_ERROR":
-          case "MARKET_PAUSED":
-            return new ExchangeUnavailableError(error.message, code, "drift", error);
-          case "RATE_LIMIT_EXCEEDED":
-            return new RateLimitError(error.message, code, "drift", void 0, error);
-          case "TRANSACTION_FAILED":
-            return new TransactionFailedError(error.message, code, "drift", void 0, error);
-          case "LIQUIDATION":
-            return new LiquidationError(error.message, code, "drift", error);
-        }
-      }
-    }
-    if (message.includes("blockhash") || message.includes("expired")) {
-      return new TransactionFailedError(
-        "Transaction expired",
-        "TRANSACTION_EXPIRED",
-        "drift",
-        void 0,
-        error
-      );
-    }
-    if (message.includes("signature verification")) {
-      return new InvalidSignatureError(
-        "Invalid transaction signature",
-        "INVALID_SIGNATURE",
-        "drift",
-        error
-      );
-    }
-    if (message.includes("insufficient lamports") || message.includes("insufficient sol")) {
-      return new InsufficientBalanceError(
-        "Insufficient SOL for transaction fees",
-        "INSUFFICIENT_SOL",
-        "drift",
-        void 0,
-        void 0,
-        error
-      );
-    }
-    if (message.includes("user account not found")) {
-      return new PerpDEXError(
-        "Drift user account not initialized",
-        "USER_NOT_INITIALIZED",
-        "drift",
-        error
-      );
-    }
-    if (message.includes("account not found") || message.includes("account does not exist")) {
-      return new PerpDEXError(
-        "Account not found on chain",
-        "ACCOUNT_NOT_FOUND",
-        "drift",
-        error
-      );
-    }
-    if (message.includes("429") || message.includes("too many requests")) {
-      return new RateLimitError("RPC rate limit exceeded", "RATE_LIMIT", "drift", void 0, error);
-    }
-    if (message.includes("503") || message.includes("502") || message.includes("504")) {
-      return new ExchangeUnavailableError(
-        "Solana RPC temporarily unavailable",
-        "RPC_UNAVAILABLE",
-        "drift",
-        error
-      );
-    }
-    if (message.includes("timeout") || message.includes("timed out")) {
-      return new ExchangeUnavailableError(
-        "Request timeout",
-        "TIMEOUT",
-        "drift",
-        error
-      );
-    }
-    if (message.includes("max number of positions")) {
-      return new InvalidOrderError(
-        "Maximum number of positions reached",
-        "MAX_POSITIONS",
-        "drift",
-        error
-      );
-    }
-    if (message.includes("market not active")) {
-      return new ExchangeUnavailableError(
-        "Market is not active",
-        "MARKET_NOT_ACTIVE",
-        "drift",
-        error
-      );
-    }
-    if (message.includes("price bands")) {
-      return new InvalidOrderError(
-        "Order price outside allowed bands",
-        "PRICE_BANDS_BREACHED",
-        "drift",
-        error
-      );
-    }
-    if (message.includes("order would be filled at worse price")) {
-      return new InvalidOrderError(
-        "Order would be filled at worse price than limit",
-        "SLIPPAGE_EXCEEDED",
-        "drift",
-        error
-      );
-    }
-  }
-  return new ExchangeUnavailableError(
-    "Unknown exchange error",
-    "UNKNOWN_ERROR",
-    "drift",
-    error
-  );
-}
-
-// src/adapters/drift/utils.ts
-function getMarketConfig2(symbol) {
-  const driftSymbol = symbol.includes("-PERP") ? symbol : unifiedToDrift(symbol);
-  return DRIFT_PERP_MARKETS[driftSymbol];
-}
-function isValidMarket2(symbol) {
-  const driftSymbol = symbol.includes("-PERP") ? symbol : unifiedToDrift(symbol);
-  return driftSymbol in DRIFT_PERP_MARKETS;
-}
-function buildOrderbookUrl(baseUrl, marketIndex, marketType = "perp", depth) {
-  const params = new URLSearchParams({
-    marketIndex: marketIndex.toString(),
-    marketType
-  });
-  if (depth) {
-    params.set("depth", depth.toString());
-  }
-  return `${baseUrl}/l2?${params.toString()}`;
-}
-function buildTradesUrl(baseUrl, marketIndex, marketType = "perp", limit) {
-  const params = new URLSearchParams({
-    marketIndex: marketIndex.toString(),
-    marketType
-  });
-  if (limit) {
-    params.set("limit", limit.toString());
-  }
-  return `${baseUrl}/trades?${params.toString()}`;
-}
-
 // src/adapters/drift/DriftAdapter.ts
 var DriftAdapter = class extends BaseAdapter {
   id = "drift";
@@ -30471,9 +29844,6 @@ var DriftAdapter = class extends BaseAdapter {
   orderBuilder;
   dlobBaseUrl;
   isTestnet;
-  marketStatsCache = /* @__PURE__ */ new Map();
-  statsCacheTTL = 5e3;
-  // 5 seconds
   constructor(config = {}) {
     super({
       timeout: 3e4,
@@ -30695,7 +30065,7 @@ var DriftAdapter = class extends BaseAdapter {
       throw mapDriftError(error);
     }
   }
-  async fetchFundingRateHistory(symbol, since, limit) {
+  async fetchFundingRateHistory(symbol, _since, limit) {
     this.ensureInitialized();
     const driftSymbol = this.symbolToExchange(symbol);
     if (!isValidMarket2(driftSymbol)) {
@@ -30706,8 +30076,7 @@ var DriftAdapter = class extends BaseAdapter {
       const params = new URLSearchParams({
         marketIndex: marketIndex.toString()
       });
-      if (limit)
-        params.set("limit", limit.toString());
+      if (limit) params.set("limit", limit.toString());
       const url = `${this.dlobBaseUrl}/fundingRateHistory?${params.toString()}`;
       const history = await this.request("GET", url);
       return history.map((f) => this.normalizer.normalizeFundingRate(f));
@@ -30733,8 +30102,7 @@ var DriftAdapter = class extends BaseAdapter {
       const userData = await this.request("GET", url);
       const positions = [];
       for (const pos of userData.perpPositions) {
-        if (parseFloat(pos.baseAssetAmount) === 0)
-          continue;
+        if (parseFloat(pos.baseAssetAmount) === 0) continue;
         const orderbook = await this.request(
           "GET",
           buildOrderbookUrl(this.dlobBaseUrl, pos.marketIndex, "perp", 1)
@@ -30947,15 +30315,15 @@ var DriftAdapter = class extends BaseAdapter {
       throw mapDriftError(error);
     }
   }
-  async fetchOrderHistory(symbol, since, limit) {
+  async fetchOrderHistory(_symbol, _since, _limit) {
     this.warn("Order history requires indexing on-chain transactions");
     return [];
   }
-  async fetchMyTrades(symbol, since, limit) {
+  async fetchMyTrades(_symbol, _since, _limit) {
     this.warn("Trade history requires indexing on-chain transactions");
     return [];
   }
-  async setLeverage(symbol, leverage) {
+  async setLeverage(_symbol, _leverage) {
     throw new Error("Drift uses cross-margin. Leverage is determined by position size relative to collateral.");
   }
   // ==========================================================================
@@ -30974,8 +30342,7 @@ var DriftAdapter = class extends BaseAdapter {
    * Filter markets by params
    */
   filterMarkets(markets, params) {
-    if (!params)
-      return markets;
+    if (!params) return markets;
     let filtered = markets;
     if (params.active !== void 0) {
       filtered = filtered.filter((m) => m.active === params.active);
@@ -31283,8 +30650,7 @@ function unifiedToGmx(symbol) {
     return symbol;
   }
   const base = symbol.split("/")[0]?.toUpperCase();
-  if (!base)
-    return void 0;
+  if (!base) return void 0;
   for (const [key, market] of Object.entries(GMX_MARKETS)) {
     if (market.baseAsset === base) {
       return key;
@@ -31342,8 +30708,7 @@ var GmxNormalizer = class {
    * @example "ETH/USD" -> "ETH"
    */
   extractBaseFromName(name) {
-    if (!name)
-      return "UNKNOWN";
+    if (!name) return "UNKNOWN";
     const match = name.match(/^([A-Z0-9]+)\//);
     return match?.[1] ?? "UNKNOWN";
   }
@@ -31465,14 +30830,10 @@ var GmxNormalizer = class {
     const isIncrease = order.orderType === 0 || order.orderType === 2;
     const side = isIncrease && order.isLong || !isIncrease && !order.isLong ? "buy" : "sell";
     let status = "open";
-    if (order.status === "Executed")
-      status = "filled";
-    else if (order.status === "Cancelled")
-      status = "canceled";
-    else if (order.status === "Expired")
-      status = "expired";
-    else if (order.isFrozen)
-      status = "rejected";
+    if (order.status === "Executed") status = "filled";
+    else if (order.status === "Cancelled") status = "canceled";
+    else if (order.status === "Expired") status = "expired";
+    else if (order.isFrozen) status = "rejected";
     const price = triggerPrice > 0 ? triggerPrice : marketPrice || acceptablePrice;
     const amount = price > 0 ? sizeDeltaUsd / price : 0;
     return {
@@ -31642,8 +31003,7 @@ var GmxNormalizer = class {
    * Calculate liquidation price
    */
   calculateLiquidationPrice(side, entryPrice, leverage, maintenanceMargin) {
-    if (leverage <= 0)
-      return 0;
+    if (leverage <= 0) return 0;
     const liquidationThreshold = 1 - maintenanceMargin;
     if (side === "long") {
       return entryPrice * (1 - liquidationThreshold / leverage);
@@ -31655,8 +31015,7 @@ var GmxNormalizer = class {
    * Calculate margin ratio (percentage until liquidation)
    */
   calculateMarginRatio(side, entryPrice, currentPrice, leverage, maintenanceMargin) {
-    if (leverage <= 0 || entryPrice <= 0)
-      return 100;
+    if (leverage <= 0 || entryPrice <= 0) return 100;
     const pnlPercent = side === "long" ? (currentPrice - entryPrice) / entryPrice : (entryPrice - currentPrice) / entryPrice;
     const marginUsed = 1 / leverage;
     const currentMargin = marginUsed + pnlPercent;
@@ -31666,8 +31025,7 @@ var GmxNormalizer = class {
    * Get precision from tick size
    */
   getPrecisionFromTickSize(tickSize) {
-    if (tickSize >= 1)
-      return 0;
+    if (tickSize >= 1) return 0;
     return Math.max(0, -Math.floor(Math.log10(tickSize)));
   }
 };
@@ -32298,9 +31656,7 @@ var MARKET_TRADES_QUERY = `
 `;
 var GmxSubgraph = class {
   subgraphUrl;
-  chain;
   constructor(chain) {
-    this.chain = chain;
     this.subgraphUrl = GMX_API_URLS[chain].subgraph;
   }
   // ==========================================================================
@@ -32521,12 +31877,10 @@ var import_ethers8 = require("ethers");
 var GmxOrderBuilder = class {
   chain;
   auth;
-  contracts;
   config;
-  constructor(chain, auth, contracts, config = {}) {
+  constructor(chain, auth, _contracts, config = {}) {
     this.chain = chain;
     this.auth = auth;
-    this.contracts = contracts;
     this.config = {
       slippageTolerance: config.slippageTolerance ?? 3e-3,
       callbackGasLimit: config.callbackGasLimit ?? 0n,
@@ -32689,7 +32043,7 @@ var GmxOrderBuilder = class {
   /**
    * Calculate trigger price for limit/stop orders
    */
-  calculateTriggerPrice(request, isLong) {
+  calculateTriggerPrice(request, _isLong) {
     if (request.type === "market") {
       return 0;
     }
@@ -32741,7 +32095,7 @@ var GmxOrderBuilder = class {
   /**
    * Calculate required collateral for a position
    */
-  calculateRequiredCollateral(sizeUsd, leverage, isLong) {
+  calculateRequiredCollateral(sizeUsd, leverage, _isLong) {
     const collateralUsd = sizeUsd / leverage;
     return {
       collateralUsd,
@@ -33078,10 +32432,10 @@ var GmxAdapter = class extends BaseAdapter {
       throw mapGmxError(error);
     }
   }
-  async fetchOrderBook(symbol, params) {
+  async fetchOrderBook(_symbol, _params) {
     throw new Error("GMX does not have a traditional orderbook. Use fetchTicker for price data.");
   }
-  async fetchTrades(symbol, params) {
+  async fetchTrades(_symbol, _params) {
     throw new Error("fetchTrades requires subgraph integration. Not available via REST API.");
   }
   async fetchFundingRate(symbol) {
@@ -33139,7 +32493,7 @@ var GmxAdapter = class extends BaseAdapter {
       throw mapGmxError(error);
     }
   }
-  async fetchFundingRateHistory(symbol, since, limit) {
+  async fetchFundingRateHistory(_symbol, _since, _limit) {
     throw new Error("fetchFundingRateHistory requires subgraph integration. Not available via REST API.");
   }
   async fetchOHLCV(symbol, timeframe = "1h", params) {
@@ -33187,8 +32541,7 @@ var GmxAdapter = class extends BaseAdapter {
         const marketConfig = Object.values(GMX_MARKETS).find(
           (m) => m.marketAddress.toLowerCase() === pos.market.toLowerCase()
         );
-        if (!marketConfig)
-          continue;
+        if (!marketConfig) continue;
         const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
         let markPrice = 0;
         if (indexTokenPrice) {
@@ -33320,7 +32673,7 @@ var GmxAdapter = class extends BaseAdapter {
       throw mapGmxError(error);
     }
   }
-  async fetchMyTrades(symbol, since, limit) {
+  async fetchMyTrades(_symbol, _since, _limit) {
     throw new Error("fetchMyTrades requires subgraph integration. Not available via REST API.");
   }
   // ==========================================================================
@@ -33464,7 +32817,7 @@ var GmxAdapter = class extends BaseAdapter {
       throw mapGmxError(error);
     }
   }
-  async setLeverage(symbol, leverage) {
+  async setLeverage(_symbol, _leverage) {
     throw new Error(
       "GMX v2 does not have account-level leverage settings. Leverage is determined per-position at order creation time."
     );
@@ -33592,6 +32945,7 @@ var adapterRegistry = /* @__PURE__ */ new Map([
   ["drift", DriftAdapter],
   ["gmx", GmxAdapter]
 ]);
+var factoryLogger = new Logger("ExchangeFactory");
 function createExchange(exchange, config) {
   const normalizedId = exchange.toLowerCase();
   const Constructor = adapterRegistry.get(normalizedId);
@@ -33610,7 +32964,7 @@ function isExchangeSupported(exchange) {
 }
 
 // src/types/common.ts
-var ORDER_TYPES = ["market", "limit", "stopMarket", "stopLimit"];
+var ORDER_TYPES = ["market", "limit", "stopMarket", "stopLimit", "takeProfit", "trailingStop"];
 var ORDER_SIDES = ["buy", "sell"];
 var ORDER_STATUSES = [
   "open",
@@ -33888,6 +33242,7 @@ var MetricsServer = class {
   metrics;
   startTime;
   isRunning = false;
+  logger = new Logger("MetricsServer");
   constructor(config = {}) {
     this.config = {
       port: config.port ?? 9090,
@@ -33920,7 +33275,7 @@ var MetricsServer = class {
     return new Promise((resolve, reject) => {
       this.server = (0, import_http.createServer)((req, res) => {
         this.handleRequest(req, res).catch((error) => {
-          console.error("Error handling request:", error);
+          this.logger.error("Error handling request", error instanceof Error ? error : void 0);
           this.sendResponse(res, 500, "Internal Server Error");
         });
       });
@@ -33929,7 +33284,7 @@ var MetricsServer = class {
       });
       this.server.listen(this.config.port, this.config.host, () => {
         this.isRunning = true;
-        console.log(
+        this.logger.info(
           `Metrics server listening on http://${this.config.host}:${this.config.port}`
         );
         resolve();
@@ -33949,7 +33304,7 @@ var MetricsServer = class {
           reject(error);
         } else {
           this.isRunning = false;
-          console.log("Metrics server stopped");
+          this.logger.info("Metrics server stopped");
           resolve();
         }
       });
@@ -34024,7 +33379,7 @@ var MetricsServer = class {
       res.setHeader("Content-Type", contentType);
       this.sendResponse(res, 200, metricsText);
     } catch (error) {
-      console.error("Error generating metrics:", error);
+      this.logger.error("Error generating metrics", error instanceof Error ? error : void 0);
       this.sendResponse(res, 500, "Error generating metrics");
     }
   }
@@ -34050,7 +33405,7 @@ var MetricsServer = class {
       res.setHeader("Content-Type", "application/json");
       this.sendResponse(res, statusCode, JSON.stringify(healthResponse, null, 2));
     } catch (error) {
-      console.error("Error in health check:", error);
+      this.logger.error("Error in health check", error instanceof Error ? error : void 0);
       const errorResponse = {
         status: "unhealthy",
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
@@ -34159,18 +33514,15 @@ function calculatePositionValue(price, size) {
   return price * size;
 }
 function calculateROE(pnl, margin) {
-  if (margin === 0)
-    return 0;
+  if (margin === 0) return 0;
   return pnl / margin;
 }
 function calculateMarginRatio(usedMargin, totalMargin) {
-  if (totalMargin === 0)
-    return 1;
+  if (totalMargin === 0) return 1;
   return Math.min(1, usedMargin / totalMargin);
 }
 function calculateEffectiveLeverage(positionValue, margin) {
-  if (margin === 0)
-    return 0;
+  if (margin === 0) return 0;
   return positionValue / margin;
 }
 function calculateFundingPayment2(positionValue, fundingRate, isLong) {
@@ -34192,8 +33544,7 @@ function calculateMaxPositionSize(availableMargin, leverage, price) {
 function calculateAverageEntryPrice(currentSize, currentEntryPrice, addedSize, addedPrice) {
   const totalValue = currentSize * currentEntryPrice + addedSize * addedPrice;
   const totalSize = currentSize + addedSize;
-  if (totalSize === 0)
-    return 0;
+  if (totalSize === 0) return 0;
   return totalValue / totalSize;
 }
 function calculateMarkToMarket(size, entryPrice, markPrice, side) {
@@ -34203,7 +33554,7 @@ function calculateMarkToMarket(size, entryPrice, markPrice, side) {
 }
 
 // src/utils/symbols.ts
-function createSymbol(exchange, base, quote = "USDT") {
+function createSymbol(_exchange, base, quote = "USDT") {
   const normalizedBase = base.toUpperCase().trim();
   const normalizedQuote = quote.toUpperCase().trim();
   if (!normalizedBase) {
@@ -34390,8 +33741,7 @@ function validateConfig(exchange) {
   }
 }
 function isValidPrivateKey(key, allowPrefix = true) {
-  if (!key)
-    return false;
+  if (!key) return false;
   const trimmed = key.trim();
   if (allowPrefix && trimmed.startsWith("0x")) {
     return /^0x[a-fA-F0-9]{64}$/.test(trimmed);
@@ -34399,8 +33749,7 @@ function isValidPrivateKey(key, allowPrefix = true) {
   return /^[a-fA-F0-9]{64}$/.test(trimmed);
 }
 function isValidApiKey(key) {
-  if (!key)
-    return false;
+  if (!key) return false;
   const trimmed = key.trim();
   return trimmed.length >= 16 && trimmed !== "your_api_key_here" && trimmed !== "your_api_secret_here" && !/^x+$/i.test(trimmed);
 }

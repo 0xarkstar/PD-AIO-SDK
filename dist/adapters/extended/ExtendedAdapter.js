@@ -101,7 +101,7 @@ export class ExtendedAdapter extends BaseAdapter {
         // Always use mainnet URLs - testnet flag is ignored with a warning
         const testnet = config.testnet ?? false;
         if (testnet) {
-            console.warn('[ExtendedAdapter] Warning: Extended testnet (Sepolia) is not operational. Using mainnet instead.');
+            this.logger.warn('Extended testnet (Sepolia) is not operational. Using mainnet instead.');
         }
         // Always use mainnet URLs since testnet returns 404
         const urls = EXTENDED_API_URLS.mainnet;
@@ -180,7 +180,7 @@ export class ExtendedAdapter extends BaseAdapter {
         return this.normalizer.symbolToCCXT(exchangeSymbol);
     }
     // ==================== Market Data Methods ====================
-    async fetchMarkets(params) {
+    async fetchMarkets(_params) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.MARKETS);
         try {
             const response = await this.httpClient.get(EXTENDED_ENDPOINTS.MARKETS, {});
@@ -296,7 +296,7 @@ export class ExtendedAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async cancelOrder(orderId, symbol) {
+    async cancelOrder(orderId, _symbol) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.CANCEL_ORDER);
         if (!this.apiKey) {
             throw new PerpDEXError('API key required for trading', 'AUTHENTICATION_ERROR', this.id);
@@ -360,7 +360,7 @@ export class ExtendedAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async cancelBatchOrders(orderIds, symbol) {
+    async cancelBatchOrders(orderIds, _symbol) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.CANCEL_ALL_ORDERS);
         if (!this.apiKey) {
             throw new PerpDEXError('API key required for trading', 'AUTHENTICATION_ERROR', this.id);
@@ -560,10 +560,10 @@ export class ExtendedAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchDeposits(currency, since, limit) {
+    async fetchDeposits(_currency, _since, _limit) {
         throw new PerpDEXError('fetchDeposits not supported', 'NOT_SUPPORTED', this.id);
     }
-    async fetchWithdrawals(currency, since, limit) {
+    async fetchWithdrawals(_currency, _since, _limit) {
         throw new PerpDEXError('fetchWithdrawals not supported', 'NOT_SUPPORTED', this.id);
     }
     async fetchUserFees() {

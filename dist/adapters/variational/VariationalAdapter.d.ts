@@ -101,7 +101,6 @@ export declare class VariationalAdapter extends BaseAdapter {
     readonly name = "Variational";
     readonly has: Partial<FeatureMap>;
     private readonly apiUrl;
-    private readonly wsUrl;
     private readonly apiKey?;
     private readonly apiSecret?;
     protected readonly rateLimiter: RateLimiter;
@@ -119,35 +118,35 @@ export declare class VariationalAdapter extends BaseAdapter {
      * Convert Variational symbol to unified format
      */
     protected symbolFromExchange(exchangeSymbol: string): string;
-    fetchMarkets(params?: MarketParams): Promise<Market[]>;
+    fetchMarkets(_params?: MarketParams): Promise<Market[]>;
     fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
+    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
     fetchFundingRate(symbol: string): Promise<FundingRate>;
-    fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
+    fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     createOrder(request: OrderRequest): Promise<Order>;
-    cancelOrder(orderId: string, symbol?: string): Promise<Order>;
+    cancelOrder(orderId: string, _symbol?: string): Promise<Order>;
     cancelAllOrders(symbol?: string): Promise<Order[]>;
-    createBatchOrders(requests: OrderRequest[]): Promise<Order[]>;
-    cancelBatchOrders(orderIds: string[], symbol?: string): Promise<Order[]>;
+    createBatchOrders(_requests: OrderRequest[]): Promise<Order[]>;
+    cancelBatchOrders(_orderIds: string[], _symbol?: string): Promise<Order[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
-    setLeverage(symbol: string, leverage: number): Promise<void>;
-    setMarginMode(symbol: string, marginMode: 'cross' | 'isolated'): Promise<void>;
+    setLeverage(_symbol: string, _leverage: number): Promise<void>;
+    setMarginMode(_symbol: string, _marginMode: 'cross' | 'isolated'): Promise<void>;
     fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
     fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
-    fetchDeposits(currency?: string, since?: number, limit?: number): Promise<Transaction[]>;
-    fetchWithdrawals(currency?: string, since?: number, limit?: number): Promise<Transaction[]>;
+    fetchDeposits(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]>;
+    fetchWithdrawals(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]>;
     fetchUserFees(): Promise<UserFees>;
     fetchPortfolio(): Promise<Portfolio>;
     fetchRateLimitStatus(): Promise<RateLimitStatus>;
-    watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook>;
-    watchTrades(symbol: string): AsyncGenerator<Trade>;
-    watchTicker(symbol: string): AsyncGenerator<Ticker>;
+    watchOrderBook(_symbol: string, _limit?: number): AsyncGenerator<OrderBook>;
+    watchTrades(_symbol: string): AsyncGenerator<Trade>;
+    watchTicker(_symbol: string): AsyncGenerator<Ticker>;
     watchPositions(): AsyncGenerator<Position[]>;
     watchOrders(): AsyncGenerator<Order[]>;
     watchBalance(): AsyncGenerator<Balance[]>;
-    watchFundingRate(symbol: string): AsyncGenerator<FundingRate>;
+    watchFundingRate(_symbol: string): AsyncGenerator<FundingRate>;
     /**
      * Request quotes from market makers (RFQ-specific)
      *

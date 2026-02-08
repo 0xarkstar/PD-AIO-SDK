@@ -18,9 +18,7 @@ export class GRVTSDKWrapper {
     mdg;
     tdg;
     sessionCookie;
-    config;
     constructor(config) {
-        this.config = config;
         const sdkConfig = {
             host: config.host,
         };

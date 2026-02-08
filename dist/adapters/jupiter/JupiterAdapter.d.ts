@@ -18,7 +18,7 @@ import type { Balance, ExchangeConfig, FeatureMap, FundingRate, Market, MarketPa
 /**
  * Jupiter adapter configuration
  */
-export interface JupiterAdapterConfig extends ExchangeConfig {
+export interface JupiterConfig extends ExchangeConfig {
     /** Solana private key for trading (optional for read-only) */
     privateKey?: string | Uint8Array;
     /** Wallet address for fetching positions/balances */
@@ -26,6 +26,10 @@ export interface JupiterAdapterConfig extends ExchangeConfig {
     /** Custom Solana RPC endpoint */
     rpcEndpoint?: string;
 }
+/**
+ * @deprecated Use JupiterConfig instead
+ */
+export type JupiterAdapterConfig = JupiterConfig;
 /**
  * Jupiter Perpetuals Exchange Adapter
  *
@@ -72,16 +76,16 @@ export declare class JupiterAdapter extends BaseAdapter {
     protected symbolFromExchange(exchangeSymbol: string): string;
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
     fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
+    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
     fetchFundingRate(symbol: string): Promise<FundingRate>;
-    fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
+    fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
-    fetchOpenOrders(symbol?: string): Promise<Order[]>;
+    fetchOpenOrders(_symbol?: string): Promise<Order[]>;
     createOrder(request: OrderRequest): Promise<Order>;
-    cancelOrder(orderId: string, symbol?: string): Promise<Order>;
-    cancelAllOrders(symbol?: string): Promise<Order[]>;
+    cancelOrder(_orderId: string, _symbol?: string): Promise<Order>;
+    cancelAllOrders(_symbol?: string): Promise<Order[]>;
     /**
      * Close a position
      */
@@ -89,9 +93,9 @@ export declare class JupiterAdapter extends BaseAdapter {
         sizeUsd?: number;
         priceLimit?: number;
     }): Promise<Order>;
-    fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
-    fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
-    setLeverage(symbol: string, leverage: number): Promise<void>;
+    fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
+    fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
+    setLeverage(_symbol: string, _leverage: number): Promise<void>;
     protected performApiHealthCheck(): Promise<void>;
     /**
      * Get current price for a symbol

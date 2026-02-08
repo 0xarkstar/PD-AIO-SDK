@@ -62,9 +62,7 @@ export class ExtendedWebSocketWrapper {
   private pongTimeout?: ReturnType<typeof setTimeout>;
 
   private readonly subscriptions: Map<string, Set<MessageHandler>> = new Map();
-  private readonly messageQueue: ExtendedWsMessage[] = [];
   private connectionPromise?: Promise<void>;
-  private connectionResolver?: () => void;
 
   constructor(config: ExtendedWebSocketConfig) {
     this.wsUrl = config.wsUrl;
@@ -90,8 +88,6 @@ export class ExtendedWebSocketWrapper {
 
     this.isConnecting = true;
     this.connectionPromise = new Promise<void>((resolve, reject) => {
-      this.connectionResolver = resolve;
-
       try {
         this.ws = new WebSocket(this.wsUrl);
 

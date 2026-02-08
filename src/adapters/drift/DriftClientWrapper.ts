@@ -8,7 +8,6 @@
 import type {
   Connection,
   PublicKey,
-  TransactionSignature,
   Keypair,
 } from '@solana/web3.js';
 import { Logger } from '../../core/logger.js';
@@ -82,7 +81,6 @@ export class DriftClientWrapper {
   private readonly config: DriftClientWrapperConfig;
   private driftClient: any; // Would be DriftClient type
   private isInitialized = false;
-  private userAccountPublicKey?: PublicKey;
   private readonly logger = new Logger('DriftClientWrapper');
 
   constructor(config: DriftClientWrapperConfig) {
@@ -103,8 +101,6 @@ export class DriftClientWrapper {
       const {
         DriftClient,
         Wallet,
-        loadKeypair,
-        initialize,
         BulkAccountLoader,
         getMarketsAndOraclesForSubscription,
       } = driftSdk;

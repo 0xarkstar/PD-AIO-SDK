@@ -24,7 +24,7 @@ export class VariationalNormalizer {
      * "BTC/USDT:USDT" → "BTC-USDT-PERP"
      */
     symbolFromCCXT(ccxtSymbol) {
-        const [pair, settle] = ccxtSymbol.split(':');
+        const [pair] = ccxtSymbol.split(':');
         if (!pair) {
             return ccxtSymbol;
         }

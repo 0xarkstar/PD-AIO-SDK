@@ -34,7 +34,6 @@ import {
   HYPERLIQUID_RATE_LIMIT,
   HYPERLIQUID_TESTNET_API,
   HYPERLIQUID_TESTNET_WS,
-  HYPERLIQUID_WS_CHANNELS,
   HYPERLIQUID_WS_RECONNECT,
   hyperliquidToUnified,
   unifiedToHyperliquid,
@@ -237,7 +236,7 @@ export class HyperliquidAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
+  async fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
     await this.rateLimiter.acquire('fetchOrderBook');
 
     try {
@@ -254,24 +253,13 @@ export class HyperliquidAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+  async fetchTrades(symbol: string, _params?: TradeParams): Promise<Trade[]> {
     await this.rateLimiter.acquire('fetchTrades');
 
     try {
-      const exchangeSymbol = this.symbolToExchange(symbol);
+      this.symbolToExchange(symbol);
 
       // Hyperliquid provides trade history via candlestick endpoint
-      // We'll fetch 1-minute candles and extract trades
-      const response = await this.request<unknown>('POST', `${this.apiUrl}/info`, {
-        type: 'candleSnapshot',
-        req: {
-          coin: exchangeSymbol,
-          interval: '1m',
-          startTime: params?.since ?? Date.now() - 3600000, // Default 1 hour
-          endTime: Date.now(),
-        },
-      });
-
       // Note: Hyperliquid doesn't provide individual trades via REST
       // This is a limitation - real trade data requires WebSocket
       // Return empty array for now
@@ -827,14 +815,6 @@ export class HyperliquidAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('setLeverage', 5);
 
     try {
-      const exchangeSymbol = this.symbolToExchange(symbol);
-
-      // Create updateLeverage action
-      const action: HyperliquidAction = {
-        type: 'batchModify' as 'order', // Type assertion for extended type
-        orders: [],
-      };
-
       // Note: Actual implementation needs the updateLeverage action format
       // For now, we'll log and acknowledge the limitation
       this.debug(`setLeverage: Updating leverage for ${symbol} to ${leverage}x`);

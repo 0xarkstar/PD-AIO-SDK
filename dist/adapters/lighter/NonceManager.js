@@ -4,6 +4,7 @@
  * Manages nonce values for Lighter transaction signing.
  * Uses optimistic nonce incrementing with server synchronization.
  */
+import { Logger } from '../../core/logger.js';
 /**
  * NonceManager handles nonce management for Lighter transactions
  *
@@ -19,6 +20,7 @@ export class NonceManager {
     autoSync;
     syncPromise = null;
     lastSyncTime = 0;
+    logger = new Logger('NonceManager');
     /** Minimum time between forced syncs (ms) */
     static MIN_SYNC_INTERVAL = 1000;
     constructor(config) {
@@ -100,7 +102,7 @@ export class NonceManager {
         catch (error) {
             // If we have a local nonce, keep using it
             if (this.currentNonce !== BigInt(-1)) {
-                console.warn('Failed to sync nonce with server, using local value');
+                this.logger.warn('Failed to sync nonce with server, using local value');
                 return;
             }
             throw error;

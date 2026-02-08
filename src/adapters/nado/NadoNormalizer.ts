@@ -130,35 +130,6 @@ export class NadoNormalizer {
   // ===========================================================================
 
   /**
-   * Convert number to x18 format (18 decimals) with validation
-   *
-   * @param value - Number or string to convert
-   * @returns x18 formatted string
-   *
-   * @throws {PerpDEXError} If value is not finite
-   */
-  private toX18Safe(value: number | string): string {
-    if (typeof value === 'number' && !Number.isFinite(value)) {
-      throw new PerpDEXError(
-        `Invalid number for x18 conversion: ${value}`,
-        'INVALID_NUMBER',
-        'nado'
-      );
-    }
-
-    try {
-      return ethers.parseUnits(value.toString(), 18).toString();
-    } catch (error) {
-      throw new PerpDEXError(
-        `Failed to convert to x18: ${value}`,
-        'CONVERSION_ERROR',
-        'nado',
-        error
-      );
-    }
-  }
-
-  /**
    * Convert from x18 format to number with precision safety
    *
    * @param value - x18 formatted string

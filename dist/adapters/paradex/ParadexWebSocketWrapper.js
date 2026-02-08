@@ -14,6 +14,7 @@
  */
 import { ParadexNormalizer } from './ParadexNormalizer.js';
 import { PerpDEXError } from '../../types/errors.js';
+import { Logger } from '../../core/logger.js';
 /**
  * Paradex WebSocket Wrapper
  *
@@ -42,8 +43,8 @@ export class ParadexWebSocketWrapper {
     wsUrl;
     timeout;
     maxReconnectAttempts;
-    apiKey;
     normalizer;
+    logger = new Logger('ParadexWebSocket');
     isConnected = false;
     reconnectAttempts = 0;
     subscriptionId = 0;
@@ -56,7 +57,7 @@ export class ParadexWebSocketWrapper {
         if (queue.length >= ParadexWebSocketWrapper.MAX_QUEUE_SIZE) {
             queue.shift(); // Drop oldest message
             if (channel) {
-                console.warn(`[Paradex WS] Queue overflow on ${channel}, dropping oldest message`);
+                this.logger.warn(`Queue overflow on ${channel}, dropping oldest message`);
             }
         }
         queue.push(item);
@@ -65,7 +66,6 @@ export class ParadexWebSocketWrapper {
         this.wsUrl = config.wsUrl;
         this.timeout = config.timeout || 30000;
         this.maxReconnectAttempts = config.maxReconnectAttempts || 10;
-        this.apiKey = config.apiKey;
         this.normalizer = new ParadexNormalizer();
     }
     /**
@@ -86,7 +86,7 @@ export class ParadexWebSocketWrapper {
                     this.handleMessage(event.data);
                 };
                 this.ws.onerror = (error) => {
-                    console.error('[Paradex WS] Error:', error);
+                    this.logger.error('WebSocket error', undefined, { error });
                 };
                 this.ws.onclose = () => {
                     this.isConnected = false;
@@ -560,7 +560,7 @@ export class ParadexWebSocketWrapper {
             const message = JSON.parse(rawData);
             // Handle errors
             if (message.error) {
-                console.error('[Paradex WS] Error:', message.error);
+                this.logger.error('WebSocket error', undefined, { error: message.error });
                 return;
             }
             // Handle subscription confirmations
@@ -576,7 +576,7 @@ export class ParadexWebSocketWrapper {
             }
         }
         catch (error) {
-            console.error('[Paradex WS] Failed to parse message:', error);
+            this.logger.error('Failed to parse message', error instanceof Error ? error : undefined);
         }
     }
     /**
@@ -584,12 +584,12 @@ export class ParadexWebSocketWrapper {
      */
     async handleDisconnect() {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.error('[Paradex WS] Max reconnect attempts reached');
+            this.logger.error('Max reconnect attempts reached');
             return;
         }
         this.reconnectAttempts++;
         const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-        console.log(`[Paradex WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})...`);
+        this.logger.info(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
         try {
             await this.connect();
@@ -605,7 +605,7 @@ export class ParadexWebSocketWrapper {
             }
         }
         catch (error) {
-            console.error('[Paradex WS] Reconnect failed:', error);
+            this.logger.error('Reconnect failed', error instanceof Error ? error : undefined);
             this.handleDisconnect(); // Retry
         }
     }

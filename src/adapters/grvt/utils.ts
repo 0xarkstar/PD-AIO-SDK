@@ -10,7 +10,6 @@ import type {
   OrderBook,
   Trade,
   Ticker,
-  FundingRate,
   OrderSide,
   OrderType,
   OrderStatus,
@@ -20,7 +19,6 @@ import {
   GRVT_ORDER_TYPES,
   GRVT_ORDER_SIDES,
   GRVT_TIME_IN_FORCE,
-  GRVT_ORDER_STATUS,
 } from './constants.js';
 import type {
   GRVTMarket,

@@ -677,28 +677,5 @@ describe('ParadexNormalizer', () => {
     });
   });
 
-  describe('Error Handling', () => {
-    it('should handle invalid number conversion', () => {
-      expect(() => {
-        normalizer['toNumberSafe']('invalid');
-      }).toThrow('Invalid number conversion');
-    });
-
-    it('should handle zero values correctly', () => {
-      expect(normalizer['toNumberSafe']('0')).toBe(0);
-      expect(normalizer['toNumberSafe']('')).toBe(0);
-    });
-
-    it('should handle precision correctly', () => {
-      const value = normalizer['toNumberSafe']('123.456789', 4);
-      expect(value).toBe(123.4568); // Rounded to 4 decimals
-    });
-
-    it('should count decimals correctly', () => {
-      expect(normalizer['countDecimals']('1')).toBe(0);
-      expect(normalizer['countDecimals']('1.0')).toBe(1);
-      expect(normalizer['countDecimals']('0.001')).toBe(3);
-      expect(normalizer['countDecimals']('123.456789')).toBe(6);
-    });
-  });
+  // Error Handling tests removed - toNumberSafe and countDecimals were unused private methods removed during cleanup
 });

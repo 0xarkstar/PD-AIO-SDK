@@ -13,6 +13,7 @@
 import { WS, EStream } from '@grvt/client/ws/index.js';
 import { GRVTNormalizer } from './GRVTNormalizer.js';
 import { GRVT_API_URLS } from './constants.js';
+import { Logger } from '../../core/logger.js';
 /**
  * WebSocket wrapper for GRVT real-time data streams
  */
@@ -22,6 +23,7 @@ export class GRVTWebSocketWrapper {
     ws;
     normalizer;
     subAccountId;
+    logger = new Logger('GRVTWebSocket');
     isConnected = false;
     /**
      * Push to queue with bounded size (backpressure)
@@ -30,7 +32,7 @@ export class GRVTWebSocketWrapper {
         if (queue.length >= GRVTWebSocketWrapper.MAX_QUEUE_SIZE) {
             queue.shift(); // Drop oldest message
             if (channel) {
-                console.warn(`[GRVT WebSocket] Queue overflow on ${channel}, dropping oldest message`);
+                this.logger.warn(`Queue overflow on ${channel}, dropping oldest message`);
             }
         }
         queue.push(item);
@@ -57,7 +59,7 @@ export class GRVTWebSocketWrapper {
             this.isConnected = false;
         });
         this.ws.onError((error) => {
-            console.error('[GRVT WebSocket] Error:', error);
+            this.logger.error('WebSocket error', error instanceof Error ? error : undefined, { error });
         });
     }
     /**

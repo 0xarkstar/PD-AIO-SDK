@@ -12,10 +12,8 @@ type TransactionInstruction = import('@solana/web3.js').TransactionInstruction;
 import {
   JUPITER_PERPS_PROGRAM_ID,
   JUPITER_TOKEN_MINTS,
-  JUPITER_MARKETS,
   unifiedToJupiter,
 } from './constants.js';
-import type { JupiterPositionSide } from './types.js';
 
 // =============================================================================
 // Instruction Discriminators (from Anchor IDL)

@@ -10,9 +10,7 @@ import type {
   Position,
   Trade,
   FundingRate,
-  Balance,
   Ticker,
-  OrderBook,
   OHLCV,
 } from '../../types/common.js';
 import type {
@@ -22,7 +20,6 @@ import type {
   GmxTrade,
   GmxFundingRate,
   GmxCandlestick,
-  GmxMarketStats,
 } from './types.js';
 import {
   GMX_MARKETS,

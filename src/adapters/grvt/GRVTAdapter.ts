@@ -38,7 +38,7 @@ import { InvalidSignatureError, PerpDEXError } from '../../types/errors.js';
 import { GRVTSDKWrapper } from './GRVTSDKWrapper.js';
 import { GRVTAuth, type GRVTAuthConfig } from './GRVTAuth.js';
 import { GRVTNormalizer } from './GRVTNormalizer.js';
-import { mapAxiosError, mapGRVTError } from './GRVTErrorMapper.js';
+import { mapAxiosError } from './GRVTErrorMapper.js';
 import { GRVTWebSocketWrapper } from './GRVTWebSocketWrapper.js';
 
 import {
@@ -417,7 +417,7 @@ export class GRVTAdapter extends BaseAdapter {
     }
   }
 
-  async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+  async cancelOrder(orderId: string, _symbol?: string): Promise<Order> {
     this.auth.requireAuth();
     await this.rateLimiter.acquire('cancelOrder');
 
@@ -444,7 +444,7 @@ export class GRVTAdapter extends BaseAdapter {
         params.instrument = this.normalizer.symbolFromCCXT(symbol);
       }
 
-      const response = await this.sdk.cancelAllOrders(params);
+      await this.sdk.cancelAllOrders(params);
 
       // SDK returns number of canceled orders, not the orders themselves
       // Return empty array since we don't have order details
@@ -479,7 +479,7 @@ export class GRVTAdapter extends BaseAdapter {
   /**
    * Fetch order history - NOW IMPLEMENTED via SDK!
    */
-  async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+  async fetchOrderHistory(symbol?: string, _since?: number, limit?: number): Promise<Order[]> {
     this.auth.requireAuth();
     await this.rateLimiter.acquire('fetchClosedOrders');
 
@@ -504,7 +504,7 @@ export class GRVTAdapter extends BaseAdapter {
   /**
    * Fetch user trade history - NOW IMPLEMENTED via SDK!
    */
-  async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+  async fetchMyTrades(symbol?: string, _since?: number, limit?: number): Promise<Trade[]> {
     this.auth.requireAuth();
     await this.rateLimiter.acquire('fetchMyTrades');
 
@@ -596,9 +596,9 @@ export class GRVTAdapter extends BaseAdapter {
   // ==================== Required BaseAdapter Methods ====================
 
   async fetchFundingRateHistory(
-    symbol: string,
-    since?: number,
-    limit?: number
+    _symbol: string,
+    _since?: number,
+    _limit?: number
   ): Promise<FundingRate[]> {
     throw new PerpDEXError(
       'GRVT does not provide funding rate history via API',

@@ -441,6 +441,27 @@ GMX_WALLET_ADDRESS=0x...                  # 포지션 데이터용 선택사항
 
 ## 📖 고급 예제
 
+### OHLCV (캔들스틱) 데이터
+
+```typescript
+import { createExchange } from 'pd-aio-sdk';
+
+const exchange = createExchange('hyperliquid', { testnet: true });
+await exchange.initialize();
+
+// 지난 24시간 동안의 1시간 캔들 조회
+const candles = await exchange.fetchOHLCV('BTC/USDT:USDT', '1h', {
+  limit: 24
+});
+
+for (const [timestamp, open, high, low, close, volume] of candles) {
+  console.log(`${new Date(timestamp).toISOString()}: O=${open} H=${high} L=${low} C=${close} V=${volume}`);
+}
+
+// 지원되는 타임프레임: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
+// 현재 사용 가능한 거래소: Hyperliquid, GRVT, dYdX, Drift, GMX
+```
+
 ### WebSocket 스트리밍
 
 ```typescript
@@ -464,9 +485,9 @@ for await (const positions of exchange.watchPositions()) {
   console.log('포지션 업데이트:', positions);
 }
 
-// 거래 스트리밍
-for await (const trade of exchange.watchTrades('BTC/USDT:USDT')) {
-  console.log('새로운 거래:', trade);
+// 내 거래 스트리밍 (인증 필요)
+for await (const trade of exchange.watchMyTrades('BTC/USDT:USDT')) {
+  console.log('내 거래:', trade.side, trade.amount, '@', trade.price);
 }
 ```
 

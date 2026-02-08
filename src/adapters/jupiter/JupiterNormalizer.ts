@@ -7,14 +7,11 @@
 
 import type {
   Market,
-  Order,
   Position,
-  Trade,
   FundingRate,
   Balance,
   Ticker,
   OrderBook,
-  OHLCV,
 } from '../../types/common.js';
 import type {
   JupiterPositionAccount,
@@ -38,7 +35,7 @@ export class JupiterNormalizer {
     marketKey: string,
     custody: JupiterCustodyAccount,
     pool: JupiterPoolAccount,
-    stats?: JupiterMarketStats
+    _stats?: JupiterMarketStats
   ): Market {
     const marketConfig = JUPITER_MARKETS[marketKey as keyof typeof JUPITER_MARKETS];
     const symbol = jupiterToUnified(marketKey);
@@ -395,8 +392,8 @@ export class JupiterNormalizer {
     side: 'long' | 'short',
     entryPrice: number,
     leverage: number,
-    collateralUsd: number,
-    sizeUsd: number
+    _collateralUsd: number,
+    _sizeUsd: number
   ): number {
     // Maintenance margin ~1% of position size
     const maintenanceMargin = 0.01;

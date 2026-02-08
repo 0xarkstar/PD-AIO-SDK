@@ -4,6 +4,7 @@
  * Factory function for creating exchange adapter instances.
  * Supports both built-in adapters and custom adapters via plugin registration.
  */
+import { Logger } from './core/logger.js';
 import { HyperliquidAdapter } from './adapters/hyperliquid/index.js';
 import { LighterAdapter } from './adapters/lighter/index.js';
 import { GRVTAdapter } from './adapters/grvt/index.js';
@@ -58,10 +59,11 @@ const adapterRegistry = new Map([
  * const exchange = createExchange('myexchange' as any, { ... });
  * ```
  */
+const factoryLogger = new Logger('ExchangeFactory');
 export function registerExchange(id, constructor) {
     const normalizedId = id.toLowerCase();
     if (adapterRegistry.has(normalizedId)) {
-        console.warn(`Exchange '${normalizedId}' already registered. Overwriting.`);
+        factoryLogger.warn(`Exchange '${normalizedId}' already registered. Overwriting.`);
     }
     adapterRegistry.set(normalizedId, constructor);
 }

@@ -56,7 +56,7 @@ export class DriftNormalizer {
     /**
      * Normalize perp position to unified Position
      */
-    normalizePosition(position, markPrice, oraclePrice) {
+    normalizePosition(position, markPrice, _oraclePrice) {
         const marketKey = DRIFT_MARKET_INDEX_MAP[position.marketIndex];
         const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : undefined;
         const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${position.marketIndex}`);

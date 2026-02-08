@@ -6,7 +6,7 @@
 
 import { GMX_API_URLS, GMX_PRECISION, getMarketByAddress } from './constants.js';
 import type { GmxChain } from './GmxAdapter.js';
-import type { GmxPosition, GmxOrder, GmxTrade } from './types.js';
+import type { GmxPosition, GmxOrder } from './types.js';
 
 // =============================================================================
 // GraphQL Queries
@@ -180,10 +180,8 @@ const MARKET_TRADES_QUERY = `
  */
 export class GmxSubgraph {
   private readonly subgraphUrl: string;
-  private readonly chain: GmxChain;
 
   constructor(chain: GmxChain) {
-    this.chain = chain;
     this.subgraphUrl = GMX_API_URLS[chain].subgraph;
   }
 

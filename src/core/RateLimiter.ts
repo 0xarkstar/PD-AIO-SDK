@@ -4,7 +4,7 @@
  * Implements rate limiting using token bucket algorithm
  */
 
-import { RateLimitError } from '../types/errors.js';
+// Rate limiting using token bucket algorithm - errors thrown by caller
 
 export interface RateLimiterConfig {
   /** Maximum tokens (requests) available */
@@ -33,7 +33,6 @@ export class RateLimiter {
   private readonly windowMs: number;
   private readonly refillRate: number;
   private readonly weights: Record<string, number>;
-  private readonly exchange: string;
   private bucket: TokenBucket;
   private readonly queue: Array<{
     weight: number;
@@ -49,8 +48,6 @@ export class RateLimiter {
     this.windowMs = config.windowMs;
     this.refillRate = config.refillRate ?? config.maxTokens;
     this.weights = config.weights ?? {};
-    this.exchange = config.exchange ?? 'unknown';
-
     this.bucket = {
       tokens: this.maxTokens,
       lastRefill: Date.now(),

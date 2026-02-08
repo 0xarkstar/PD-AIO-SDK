@@ -238,7 +238,7 @@ export class DriftOrderBuilder {
   /**
    * Get direction based on side and reduce-only flag
    */
-  private getDirection(side: 'buy' | 'sell', reduceOnly?: boolean): 'long' | 'short' {
+  private getDirection(side: 'buy' | 'sell', _reduceOnly?: boolean): 'long' | 'short' {
     // For regular orders: buy = long, sell = short
     // For reduce-only: logic is the same, but the order will reduce the position
     return side === 'buy' ? 'long' : 'short';

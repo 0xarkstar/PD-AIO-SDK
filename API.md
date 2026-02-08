@@ -17,6 +17,12 @@ Complete API documentation for PD AIO SDK.
    - [Backpack](#backpack-adapter)
    - [Lighter](#lighter-adapter)
    - [Nado](#nado-adapter)
+   - [Variational](#variational-adapter)
+   - [Extended](#extended-adapter)
+   - [dYdX v4](#dydx-v4-adapter)
+   - [Jupiter Perps](#jupiter-perps-adapter)
+   - [Drift Protocol](#drift-protocol-adapter)
+   - [GMX v2](#gmx-v2-adapter)
 3. [Normalizers](#normalizers)
 4. [Types](#types)
    - [Market Data Types](#market-data-types)
@@ -98,7 +104,7 @@ function createExchange(
 ```
 
 **Parameters:**
-- `exchangeId`: Exchange identifier (`'hyperliquid'` | `'grvt'` | `'paradex'` | `'edgex'` | `'backpack'` | `'lighter'` | `'nado'`)
+- `exchangeId`: Exchange identifier (`'hyperliquid'` | `'grvt'` | `'paradex'` | `'edgex'` | `'backpack'` | `'lighter'` | `'nado'` | `'variational'` | `'extended'` | `'dydx'` | `'jupiter'` | `'drift'` | `'gmx'`)
 - `config`: Exchange-specific configuration
 
 **Returns:** Exchange adapter instance
@@ -106,11 +112,9 @@ function createExchange(
 **Example:**
 ```typescript
 import { createExchange } from 'pd-aio-sdk';
-import { Wallet } from 'ethers';
 
-const wallet = new Wallet(process.env.PRIVATE_KEY);
 const exchange = createExchange('hyperliquid', {
-  wallet,
+  privateKey: process.env.HYPERLIQUID_PRIVATE_KEY,
   testnet: true
 });
 
@@ -156,7 +160,7 @@ Production-ready adapter for Hyperliquid and HIP-3 ecosystem.
 **Configuration:**
 ```typescript
 interface HyperliquidConfig {
-  wallet: Wallet;              // ethers.js Wallet
+  privateKey?: string;         // EVM private key (0x...)
   testnet?: boolean;           // Default: false
   vaultAddress?: string;       // For vault trading
   rateLimitPerMinute?: number; // Default: 1200
@@ -174,10 +178,9 @@ interface HyperliquidConfig {
 **Example:**
 ```typescript
 import { createExchange } from 'pd-aio-sdk';
-import { Wallet } from 'ethers';
 
 const exchange = createExchange('hyperliquid', {
-  wallet: new Wallet(process.env.PRIVATE_KEY),
+  privateKey: process.env.HYPERLIQUID_PRIVATE_KEY,
   testnet: true
 });
 
@@ -225,8 +228,8 @@ Hybrid CEX/DEX adapter with portfolio margin.
 **Configuration:**
 ```typescript
 interface GRVTConfig {
-  wallet: Wallet;              // ethers.js Wallet
-  apiKey: string;              // API key
+  privateKey?: string;         // EVM private key (0x...)
+  apiKey?: string;             // API key
   testnet?: boolean;           // Default: false
   rateLimitPerMinute?: number; // Default: 600
 }
@@ -243,7 +246,7 @@ interface GRVTConfig {
 **Example:**
 ```typescript
 const exchange = createExchange('grvt', {
-  wallet: new Wallet(process.env.PRIVATE_KEY),
+  privateKey: process.env.GRVT_PRIVATE_KEY,
   apiKey: process.env.GRVT_API_KEY,
   testnet: true
 });
@@ -271,8 +274,8 @@ StarkNet L2 perpetual DEX adapter.
 **Configuration:**
 ```typescript
 interface ParadexConfig {
-  privateKey: string;          // StarkNet private key
-  accountAddress: string;      // StarkNet account address
+  starkPrivateKey?: string;    // StarkNet private key
+  accountAddress?: string;     // StarkNet account address
   testnet?: boolean;           // Default: false (Sepolia testnet)
   rateLimitPerMinute?: number; // Default: 1500
 }
@@ -289,7 +292,7 @@ interface ParadexConfig {
 **Example:**
 ```typescript
 const exchange = createExchange('paradex', {
-  privateKey: process.env.PARADEX_PRIVATE_KEY,
+  starkPrivateKey: process.env.PARADEX_STARK_PRIVATE_KEY,
   accountAddress: process.env.PARADEX_ACCOUNT_ADDRESS,
   testnet: true
 });
@@ -315,14 +318,14 @@ High-performance StarkEx-based DEX.
 **Configuration:**
 ```typescript
 interface EdgeXConfig {
-  apiKey: string;              // API key
-  privateKey: string;          // Private key for signing
+  apiKey?: string;             // API key
+  starkPrivateKey?: string;    // StarkNet private key for signing
   testnet?: boolean;           // V1 mainnet only currently
   rateLimitPerMinute?: number; // Default: 300
 }
 ```
 
-**Authentication:** ECDSA + Pedersen hash (StarkEx)
+**Authentication:** StarkNet ECDSA + Pedersen hash (StarkEx)
 
 **Special Features:**
 - Sub-10ms matching engine
@@ -333,7 +336,7 @@ interface EdgeXConfig {
 ```typescript
 const exchange = createExchange('edgex', {
   apiKey: process.env.EDGEX_API_KEY,
-  privateKey: process.env.EDGEX_PRIVATE_KEY,
+  starkPrivateKey: process.env.EDGEX_STARK_PRIVATE_KEY,
   testnet: false  // V1 mainnet only
 });
 
@@ -447,7 +450,7 @@ Ink L2 (by Kraken) perpetual DEX.
 **Configuration:**
 ```typescript
 interface NadoConfig {
-  wallet: Wallet;              // ethers.js Wallet
+  privateKey?: string;         // EVM private key (0x...)
   testnet?: boolean;           // Default: false
   rateLimitPerMinute?: number; // Default: 600
 }
@@ -464,7 +467,7 @@ interface NadoConfig {
 **Example:**
 ```typescript
 const exchange = createExchange('nado', {
-  wallet: new Wallet(process.env.PRIVATE_KEY),
+  privateKey: process.env.NADO_PRIVATE_KEY,
   testnet: true
 });
 
@@ -478,6 +481,309 @@ await exchange.initialize();
 **Supported Methods:**
 - ✅ All core methods
 - ✅ WebSocket streaming (orderbook, trades, positions)
+
+---
+
+### Variational Adapter
+
+Arbitrum-based RFQ perpetual DEX.
+
+**Configuration:**
+```typescript
+interface VariationalConfig {
+  apiKey?: string;             // API key
+  apiSecret?: string;          // API secret
+  testnet?: boolean;           // Default: false
+  rateLimitPerMinute?: number; // Default: 600
+}
+```
+
+**Authentication:** HMAC-SHA256 API signatures
+
+**Special Features:**
+- RFQ (Request for Quote) model
+- Synthetic order book from quotes
+- Quote-based liquidity
+- Multiple market makers
+
+**Example:**
+```typescript
+const exchange = createExchange('variational', {
+  apiKey: process.env.VARIATIONAL_API_KEY,
+  apiSecret: process.env.VARIATIONAL_API_SECRET,
+  testnet: true
+});
+
+await exchange.initialize();
+
+// Request quotes
+const quotes = await exchange.requestQuote('BTC/USDC:USDC', 'buy', 0.1);
+
+// Accept a quote
+const order = await exchange.acceptQuote(quotes[0].quoteId);
+```
+
+**Symbol Format:**
+- Exchange: `BTC-USDC-PERP`, `ETH-USDC-PERP`
+- Unified: `BTC/USDC:USDC`, `ETH/USDC:USDC`
+
+**Supported Methods:**
+- ✅ Core market data methods
+- ✅ Core trading methods
+- ✅ Account methods
+- ✅ RFQ-specific methods
+- ❌ WebSocket streaming (not available)
+
+---
+
+### Extended Adapter
+
+StarkNet-based hybrid CLOB perpetual DEX.
+
+**Configuration:**
+```typescript
+interface ExtendedConfig {
+  apiKey?: string;                 // API key
+  starknetPrivateKey?: string;     // StarkNet private key
+  starknetAccountAddress?: string; // StarkNet account address
+  testnet?: boolean;               // Default: false (testnet offline)
+  rateLimitPerMinute?: number;     // Default: 600
+}
+```
+
+**Authentication:** API key + StarkNet ECDSA
+
+**Special Features:**
+- Up to 100x leverage
+- Hybrid CLOB/AMM model
+- Sub-millisecond latency
+- Mainnet only (testnet offline)
+
+**Example:**
+```typescript
+const exchange = createExchange('extended', {
+  apiKey: process.env.EXTENDED_API_KEY,
+  starknetPrivateKey: process.env.EXTENDED_STARK_PRIVATE_KEY,
+  starknetAccountAddress: process.env.EXTENDED_ACCOUNT_ADDRESS
+});
+
+await exchange.initialize();
+```
+
+**Symbol Format:**
+- Exchange: `BTC-USD`, `ETH-USD`
+- Unified: `BTC/USD:USD`, `ETH/USD:USD`
+
+**Supported Methods:**
+- ✅ All core methods
+- ✅ `fetchOHLCV`
+- ✅ `fetchFundingRateHistory`
+- ✅ `cancelAllOrders`
+- ✅ `fetchClosedOrders`
+- ✅ `fetchMyTrades`
+- ✅ `setLeverage`
+- ✅ `setMarginMode`
+- ✅ WebSocket streaming (all channels)
+
+---
+
+### dYdX v4 Adapter
+
+Cosmos SDK-based L1 blockchain for perpetual futures.
+
+**Configuration:**
+```typescript
+interface DydxConfig {
+  mnemonic?: string;           // 24-word Cosmos mnemonic
+  privateKey?: string;         // Alternative to mnemonic
+  subaccountNumber?: number;   // Default: 0
+  testnet?: boolean;           // Default: false
+  rateLimitPerMinute?: number; // Default: 600
+}
+```
+
+**Authentication:** Cosmos SDK signing (secp256k1)
+
+**Special Features:**
+- 220+ perpetual markets
+- Native L1 blockchain
+- Hourly funding rates
+- Cross-margin trading
+- Full decentralization
+
+**Example:**
+```typescript
+const exchange = createExchange('dydx', {
+  mnemonic: process.env.DYDX_MNEMONIC,  // 24 words
+  subaccountNumber: 0,
+  testnet: true
+});
+
+await exchange.initialize();
+```
+
+**Symbol Format:**
+- Exchange: `BTC-USD`, `ETH-USD`
+- Unified: `BTC/USD:USD`, `ETH/USD:USD`
+
+**Supported Methods:**
+- ✅ All core methods
+- ✅ `fetchOHLCV`
+- ✅ `fetchFundingRateHistory`
+- ✅ `cancelAllOrders`
+- ✅ `fetchClosedOrders`
+- ✅ `fetchMyTrades`
+- ✅ WebSocket streaming (orderbook, trades, ticker, positions, orders, balance, myTrades)
+
+---
+
+### Jupiter Perps Adapter
+
+Solana-based perpetuals using JLP liquidity pool.
+
+**Configuration:**
+```typescript
+interface JupiterConfig {
+  privateKey?: string | Uint8Array; // Solana private key (optional for read-only)
+  walletAddress?: string;           // Solana wallet address
+  rpcEndpoint?: string;             // Custom Solana RPC (optional)
+  testnet?: boolean;                // Default: false
+}
+```
+
+**Authentication:** Solana wallet (ed25519)
+
+**Special Features:**
+- SOL, ETH, BTC perpetuals
+- Up to 250x leverage
+- Borrow fees (instead of funding rates)
+- JLP liquidity pool
+- On-chain positions
+
+**Example:**
+```typescript
+const exchange = createExchange('jupiter', {
+  privateKey: process.env.JUPITER_PRIVATE_KEY,  // Base58 or Uint8Array
+  walletAddress: process.env.JUPITER_WALLET_ADDRESS,
+  rpcEndpoint: 'https://your-rpc.com'
+});
+
+await exchange.initialize();
+```
+
+**Symbol Format:**
+- Exchange: `SOL`, `ETH`, `BTC`
+- Unified: `SOL/USD:USD`, `ETH/USD:USD`, `BTC/USD:USD`
+
+**Supported Methods:**
+- ✅ Core market data methods
+- ✅ Core trading methods
+- ✅ Position and balance methods
+- ✅ `fetchFundingRate` (borrow fee)
+- ❌ WebSocket streaming (not available)
+- ❌ `fetchOHLCV`, `fetchTrades`
+
+---
+
+### Drift Protocol Adapter
+
+Solana-based perpetual DEX with DLOB (Decentralized Limit Order Book).
+
+**Configuration:**
+```typescript
+interface DriftConfig {
+  privateKey?: string | Uint8Array; // Solana private key (optional for read-only)
+  walletAddress?: string;           // Solana wallet address
+  subAccountId?: number;            // Default: 0
+  rpcEndpoint?: string;             // Custom Solana RPC (optional)
+  testnet?: boolean;                // Default: false
+}
+```
+
+**Authentication:** Solana wallet (ed25519)
+
+**Special Features:**
+- 30+ perpetual markets
+- Up to 20x leverage
+- Hourly funding rates
+- Cross-margin by default
+- DLOB order book
+- JIT (Just-In-Time) auctions
+
+**Example:**
+```typescript
+const exchange = createExchange('drift', {
+  privateKey: process.env.DRIFT_PRIVATE_KEY,  // Base58 or Uint8Array
+  walletAddress: process.env.DRIFT_WALLET_ADDRESS,
+  subAccountId: 0
+});
+
+await exchange.initialize();
+```
+
+**Symbol Format:**
+- Exchange: `SOL-PERP`, `BTC-PERP`, `ETH-PERP`
+- Unified: `SOL/USD:USD`, `BTC/USD:USD`, `ETH/USD:USD`
+
+**Supported Methods:**
+- ✅ Most core methods
+- ✅ `fetchOHLCV`
+- ✅ `fetchClosedOrders`
+- ✅ `fetchMyTrades`
+- ✅ WebSocket streaming (orderbook, trades, ticker, positions, orders, balance, myTrades)
+- ❌ `setLeverage` (per-position at order time)
+
+---
+
+### GMX v2 Adapter
+
+Arbitrum/Avalanche-based synthetics perpetual DEX.
+
+**Configuration:**
+```typescript
+interface GmxConfig {
+  chain?: 'arbitrum' | 'avalanche'; // Default: arbitrum
+  walletAddress?: string;           // Wallet address for positions
+  privateKey?: string;              // EVM private key (for trading)
+  rpcEndpoint?: string;             // Custom RPC endpoint
+  testnet?: boolean;                // Default: false
+}
+```
+
+**Authentication:** EVM wallet (read-only via REST, trading via SDK)
+
+**Special Features:**
+- Up to 100x leverage
+- Cross-margin
+- Continuous funding rate
+- On-chain keeper execution
+- Multi-collateral support
+- AMM-based (no traditional orderbook)
+
+**Example:**
+```typescript
+const exchange = createExchange('gmx', {
+  chain: 'arbitrum',
+  walletAddress: process.env.GMX_WALLET_ADDRESS,
+  privateKey: process.env.GMX_PRIVATE_KEY  // For trading
+});
+
+await exchange.initialize();
+```
+
+**Symbol Format:**
+- Exchange: `BTC/USD`, `ETH/USD`
+- Unified: `BTC/USD:ETH`, `ETH/USD:ETH` (settled in collateral)
+
+**Supported Methods:**
+- ✅ `fetchMarkets`, `fetchTicker`, `fetchFundingRate`
+- ✅ `fetchOHLCV`
+- ⚠️ Read-only REST API
+- ❌ Trading requires `@gmx-io/sdk` and on-chain transactions
+- ❌ WebSocket streaming (not available)
+- ❌ `fetchOrderBook` (AMM-based, no orderbook)
+
+**Note:** GMX v2 trading requires on-chain transactions via the ExchangeRouter contract. This adapter provides read-only market data access. For trading, use the official `@gmx-io/sdk` package.
 
 ---
 
@@ -534,6 +840,12 @@ const market = normalizer.normalizeMarket(rawMarketData);
 - `BackpackNormalizer`
 - `LighterNormalizer`
 - `NadoNormalizer`
+- `VariationalNormalizer`
+- `ExtendedNormalizer`
+- `DydxNormalizer`
+- `JupiterNormalizer`
+- `DriftNormalizer`
+- `GmxNormalizer`
 
 ---
 
@@ -819,49 +1131,6 @@ try {
 
 ---
 
-## Python-Style Aliases
-
-All methods support snake_case aliases for Python developers.
-
-```typescript
-// TypeScript style
-await exchange.fetchOrderBook('BTC/USDT:USDT');
-await exchange.createOrder({ ... });
-await exchange.fetchPositions();
-
-// Python style (identical functionality)
-await exchange.fetch_order_book('BTC/USDT:USDT');
-await exchange.create_order({ ... });
-await exchange.fetch_positions();
-```
-
-**Available aliases:**
-- `fetch_markets` → `fetchMarkets`
-- `fetch_ticker` → `fetchTicker`
-- `fetch_order_book` → `fetchOrderBook`
-- `fetch_trades` → `fetchTrades`
-- `fetch_funding_rate` → `fetchFundingRate`
-- `create_order` → `createOrder`
-- `cancel_order` → `cancelOrder`
-- `cancel_all_orders` → `cancelAllOrders`
-- `fetch_order` → `fetchOrder`
-- `fetch_open_orders` → `fetchOpenOrders`
-- `fetch_closed_orders` → `fetchClosedOrders`
-- `fetch_my_trades` → `fetchMyTrades`
-- `fetch_positions` → `fetchPositions`
-- `fetch_position` → `fetchPosition`
-- `fetch_balance` → `fetchBalance`
-- `set_leverage` → `setLeverage`
-- `set_margin_mode` → `setMarginMode`
-- `watch_order_book` → `watchOrderBook`
-- `watch_trades` → `watchTrades`
-- `watch_ticker` → `watchTicker`
-- `watch_orders` → `watchOrders`
-- `watch_positions` → `watchPositions`
-- `watch_balance` → `watchBalance`
-
----
-
 ## Error Handling Best Practices
 
 ```typescript
@@ -924,7 +1193,7 @@ type OrderType = 'market' | 'limit';
 type OrderSide = 'buy' | 'sell';
 type OrderStatus = 'open' | 'closed' | 'canceled' | 'rejected' | 'expired';
 type TimeInForce = 'GTC' | 'IOC' | 'FOK' | 'PO';
-type ExchangeId = 'hyperliquid' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'lighter' | 'nado';
+type ExchangeId = 'hyperliquid' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'lighter' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx';
 ```
 
 ---

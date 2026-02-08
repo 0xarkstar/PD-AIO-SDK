@@ -23,7 +23,6 @@ import type {
 import type { FeatureMap } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
-import { WebSocketManager } from '../../websocket/WebSocketManager.js';
 import {
   EDGEX_API_URLS,
   EDGEX_RATE_LIMITS,
@@ -75,8 +74,6 @@ export class EdgeXAdapter extends BaseAdapter {
 
   private readonly auth?: EdgeXAuth;
   private readonly baseUrl: string;
-  private readonly wsUrl: string;
-  private wsManager: WebSocketManager;
   protected rateLimiter: RateLimiter;
   private normalizer: EdgeXNormalizer;
 
@@ -100,9 +97,6 @@ export class EdgeXAdapter extends BaseAdapter {
 
     const urls = config.testnet ? EDGEX_API_URLS.testnet : EDGEX_API_URLS.mainnet;
     this.baseUrl = urls.rest;
-    this.wsUrl = urls.websocket;
-
-    this.wsManager = new WebSocketManager({ url: this.wsUrl });
   }
 
   /**
@@ -137,7 +131,7 @@ export class EdgeXAdapter extends BaseAdapter {
   /**
    * Fetch all available markets
    */
-  async fetchMarkets(params?: MarketParams): Promise<Market[]> {
+  async fetchMarkets(_params?: MarketParams): Promise<Market[]> {
     const response = await this.makeRequest('GET', '/api/v1/public/meta/getMetaData', 'fetchMarkets');
 
     // Handle new API format: { code: 'SUCCESS', data: { contractList: [...] } }
@@ -198,7 +192,7 @@ export class EdgeXAdapter extends BaseAdapter {
    * Note: EdgeX does not expose public trades via REST API.
    * Use WebSocket (watchTrades) for real-time trade data.
    */
-  async fetchTrades(symbol: string, _params?: TradeParams): Promise<Trade[]> {
+  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
     throw new PerpDEXError(
       'EdgeX does not support fetchTrades via REST API. Use watchTrades() for WebSocket streaming.',
       'NOT_IMPLEMENTED',
@@ -228,11 +222,15 @@ export class EdgeXAdapter extends BaseAdapter {
    * Fetch funding rate history
    */
   async fetchFundingRateHistory(
-    symbol: string,
-    since?: number,
-    limit?: number
+    _symbol: string,
+    _since?: number,
+    _limit?: number,
   ): Promise<FundingRate[]> {
-    throw new PerpDEXError('EdgeX does not support funding rate history', 'NOT_SUPPORTED', 'edgex');
+    throw new PerpDEXError(
+      'EdgeX does not support funding rate history',
+      'NOT_SUPPORTED',
+      'edgex',
+    );
   }
 
   /**
@@ -384,9 +382,9 @@ export class EdgeXAdapter extends BaseAdapter {
    */
   async modifyOrder(
     orderId: string,
-    symbol: string,
-    type: 'market' | 'limit',
-    side: 'buy' | 'sell',
+    _symbol: string,
+    _type: 'market' | 'limit',
+    _side: 'buy' | 'sell',
     amount?: number,
     price?: number
   ): Promise<Order> {

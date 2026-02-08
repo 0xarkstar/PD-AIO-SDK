@@ -19,11 +19,15 @@ import { type GRVTAuthConfig } from './GRVTAuth.js';
 /**
  * GRVT adapter configuration
  */
-export interface GRVTAdapterConfig extends GRVTAuthConfig {
+export interface GRVTConfig extends GRVTAuthConfig {
     testnet?: boolean;
     timeout?: number;
     debug?: boolean;
 }
+/**
+ * @deprecated Use GRVTConfig instead
+ */
+export type GRVTAdapterConfig = GRVTConfig;
 /**
  * GRVT Exchange Adapter
  */
@@ -58,22 +62,22 @@ export declare class GRVTAdapter extends BaseAdapter {
     private getDefaultDuration;
     fetchFundingRate(symbol: string): Promise<FundingRate>;
     createOrder(request: OrderRequest): Promise<Order>;
-    cancelOrder(orderId: string, symbol?: string): Promise<Order>;
+    cancelOrder(orderId: string, _symbol?: string): Promise<Order>;
     cancelAllOrders(symbol?: string): Promise<Order[]>;
     fetchOpenOrders(symbol?: string): Promise<Order[]>;
     /**
      * Fetch order history - NOW IMPLEMENTED via SDK!
      */
-    fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
+    fetchOrderHistory(symbol?: string, _since?: number, limit?: number): Promise<Order[]>;
     /**
      * Fetch user trade history - NOW IMPLEMENTED via SDK!
      */
-    fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
+    fetchMyTrades(symbol?: string, _since?: number, limit?: number): Promise<Trade[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
     private mapOrderType;
     private mapTimeInForce;
-    fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
+    fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     setLeverage(symbol: string, leverage: number): Promise<void>;
     symbolToExchange(symbol: string): string;
     symbolFromExchange(exchangeSymbol: string): string;

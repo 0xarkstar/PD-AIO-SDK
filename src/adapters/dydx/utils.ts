@@ -5,7 +5,7 @@
  */
 
 import type { OrderRequest, OHLCVTimeframe } from '../../types/index.js';
-import { DYDX_ORDER_TYPES, DYDX_ORDER_SIDES, DYDX_TIME_IN_FORCE, unifiedToDydx } from './constants.js';
+import { unifiedToDydx } from './constants.js';
 import type { DydxPlaceOrderParams } from './types.js';
 
 // =============================================================================

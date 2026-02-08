@@ -29,7 +29,7 @@ import type { SupportedExchange } from '../factory.js';
  * ```
  */
 export function createSymbol(
-  exchange: SupportedExchange,
+  _exchange: SupportedExchange,
   base: string,
   quote: string = 'USDT'
 ): string {

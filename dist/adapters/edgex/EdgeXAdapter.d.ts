@@ -5,7 +5,7 @@
  * API Docs: https://edgex-1.gitbook.io/edgeX-documentation/api
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
-import type { Market, Order, OrderRequest, Position, Balance, OrderBook, Trade, Ticker, FundingRate, OrderBookParams, TradeParams } from '../../types/common.js';
+import type { Market, Order, OrderRequest, Position, Balance, OrderBook, Trade, Ticker, FundingRate, MarketParams, OrderBookParams, TradeParams } from '../../types/common.js';
 import type { FeatureMap } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import type { EdgeXConfig } from './types.js';
@@ -18,8 +18,6 @@ export declare class EdgeXAdapter extends BaseAdapter {
     readonly has: Partial<FeatureMap>;
     private readonly auth?;
     private readonly baseUrl;
-    private readonly wsUrl;
-    private wsManager;
     protected rateLimiter: RateLimiter;
     private normalizer;
     constructor(config?: EdgeXConfig);
@@ -39,7 +37,7 @@ export declare class EdgeXAdapter extends BaseAdapter {
     /**
      * Fetch all available markets
      */
-    fetchMarkets(): Promise<Market[]>;
+    fetchMarkets(_params?: MarketParams): Promise<Market[]>;
     /**
      * Fetch ticker for a symbol
      */
@@ -54,7 +52,7 @@ export declare class EdgeXAdapter extends BaseAdapter {
      * Note: EdgeX does not expose public trades via REST API.
      * Use WebSocket (watchTrades) for real-time trade data.
      */
-    fetchTrades(symbol: string, _params?: TradeParams): Promise<Trade[]>;
+    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
     /**
      * Fetch current funding rate
      */
@@ -62,7 +60,7 @@ export declare class EdgeXAdapter extends BaseAdapter {
     /**
      * Fetch funding rate history
      */
-    fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
+    fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     /**
      * Fetch all open positions
      */
@@ -74,7 +72,7 @@ export declare class EdgeXAdapter extends BaseAdapter {
     /**
      * Create a new order
      */
-    createOrder(order: OrderRequest): Promise<Order>;
+    createOrder(request: OrderRequest): Promise<Order>;
     /**
      * Cancel an existing order
      */
@@ -101,7 +99,7 @@ export declare class EdgeXAdapter extends BaseAdapter {
      * @param price - New order price (optional)
      * @returns Modified order
      */
-    modifyOrder(orderId: string, symbol: string, type: 'market' | 'limit', side: 'buy' | 'sell', amount?: number, price?: number): Promise<Order>;
+    modifyOrder(orderId: string, _symbol: string, _type: 'market' | 'limit', _side: 'buy' | 'sell', amount?: number, price?: number): Promise<Order>;
     /**
      * Fetch open orders
      */

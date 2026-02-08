@@ -41,6 +41,7 @@ export declare class DriftAuth implements IAuthStrategy {
     private readonly isDevnet;
     private connection?;
     private isInitialized;
+    private readonly logger;
     constructor(config: DriftAuthConfig);
     /**
      * Initialize keypair from private key

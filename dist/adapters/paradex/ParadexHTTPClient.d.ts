@@ -51,6 +51,7 @@ export declare class ParadexHTTPClient {
     private readonly auth;
     private readonly timeout;
     private readonly enableLogging;
+    private readonly logger;
     constructor(config: ParadexHTTPClientConfig);
     /**
      * Make GET request
@@ -59,7 +60,7 @@ export declare class ParadexHTTPClient {
      * @param params - Query parameters
      * @returns Response data
      */
-    get(path: string, params?: Record<string, string | number>): Promise<any>;
+    get<T = unknown>(path: string, params?: Record<string, string | number>): Promise<T>;
     /**
      * Make POST request
      *
@@ -67,7 +68,7 @@ export declare class ParadexHTTPClient {
      * @param body - Request body
      * @returns Response data
      */
-    post(path: string, body: any): Promise<any>;
+    post<T = unknown>(path: string, body: Record<string, unknown>): Promise<T>;
     /**
      * Make PUT request
      *
@@ -75,15 +76,15 @@ export declare class ParadexHTTPClient {
      * @param body - Request body
      * @returns Response data
      */
-    put(path: string, body: any): Promise<any>;
+    put<T = unknown>(path: string, body: Record<string, unknown>): Promise<T>;
     /**
      * Make DELETE request
      *
      * @param path - API endpoint path
-     * @param params - Query parameters
+     * @param params - Query parameters or body
      * @returns Response data
      */
-    delete(path: string, params?: Record<string, string | number>): Promise<any>;
+    delete<T = unknown>(path: string, params?: Record<string, unknown>): Promise<T>;
     /**
      * Make HTTP request
      *
@@ -94,7 +95,7 @@ export declare class ParadexHTTPClient {
      *
      * @throws {PerpDEXError} On network or API errors
      */
-    request(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: any): Promise<any>;
+    request<T = unknown>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: Record<string, unknown>): Promise<T>;
     /**
      * Handle HTTP response
      *

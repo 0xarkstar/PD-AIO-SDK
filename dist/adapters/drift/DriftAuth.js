@@ -5,6 +5,7 @@
  * Drift uses on-chain transactions signed by the wallet.
  */
 import { DRIFT_API_URLS } from './constants.js';
+import { Logger } from '../../core/logger.js';
 /**
  * Solana wallet authentication for Drift Protocol
  *
@@ -23,6 +24,7 @@ export class DriftAuth {
     isDevnet;
     connection;
     isInitialized = false;
+    logger = new Logger('DriftAuth');
     constructor(config) {
         const apiUrls = config.isDevnet ? DRIFT_API_URLS.devnet : DRIFT_API_URLS.mainnet;
         this.rpcEndpoint = config.rpcEndpoint || apiUrls.rpc;
@@ -46,7 +48,7 @@ export class DriftAuth {
             void this.initKeypairAsync(bytes);
         }
         catch (error) {
-            console.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**
@@ -54,7 +56,7 @@ export class DriftAuth {
      */
     async initKeypairAsync(bytes) {
         try {
-            const { Keypair, Connection, PublicKey } = await import('@solana/web3.js');
+            const { Keypair, Connection } = await import('@solana/web3.js');
             this.keypair = Keypair.fromSecretKey(bytes);
             this.publicKey = this.keypair.publicKey;
             this.walletAddress = this.publicKey.toBase58();
@@ -62,7 +64,7 @@ export class DriftAuth {
             this.isInitialized = true;
         }
         catch (error) {
-            console.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**

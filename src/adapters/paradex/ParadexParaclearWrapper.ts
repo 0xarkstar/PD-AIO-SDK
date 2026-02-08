@@ -16,7 +16,6 @@
 import { Config, Account, Signer, ParaclearProvider, Paraclear } from '@paradex/sdk';
 import type { ParadexConfig as SDKParadexConfig } from '@paradex/sdk/dist/config.js';
 import type { Account as SDKAccount } from '@paradex/sdk/dist/account.js';
-import type { EthereumSigner } from '@paradex/sdk/dist/ethereum-signer.js';
 import type { ParaclearProvider as SDKParaclearProvider } from '@paradex/sdk/dist/paraclear-provider.js';
 import { PerpDEXError } from '../../types/errors.js';
 

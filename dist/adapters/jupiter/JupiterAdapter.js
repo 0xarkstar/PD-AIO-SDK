@@ -212,7 +212,7 @@ export class JupiterAdapter extends BaseAdapter {
             throw mapJupiterError(error);
         }
     }
-    async fetchOrderBook(symbol, params) {
+    async fetchOrderBook(symbol, _params) {
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
@@ -234,7 +234,7 @@ export class JupiterAdapter extends BaseAdapter {
             throw mapJupiterError(error);
         }
     }
-    async fetchTrades(symbol, params) {
+    async fetchTrades(_symbol, _params) {
         // Jupiter doesn't have a public trade feed
         this.warn('Jupiter Perps does not provide a public trade feed');
         return [];
@@ -262,7 +262,7 @@ export class JupiterAdapter extends BaseAdapter {
             throw mapJupiterError(error);
         }
     }
-    async fetchFundingRateHistory(symbol, since, limit) {
+    async fetchFundingRateHistory(_symbol, _since, _limit) {
         // Jupiter doesn't provide historical borrow fee data via API
         this.warn('Jupiter Perps does not provide historical funding rate data');
         return [];
@@ -383,7 +383,7 @@ export class JupiterAdapter extends BaseAdapter {
             throw mapJupiterError(error);
         }
     }
-    async fetchOpenOrders(symbol) {
+    async fetchOpenOrders(_symbol) {
         // Jupiter uses instant execution, no pending orders
         return [];
     }
@@ -481,10 +481,10 @@ export class JupiterAdapter extends BaseAdapter {
             throw mapJupiterError(error);
         }
     }
-    async cancelOrder(orderId, symbol) {
+    async cancelOrder(_orderId, _symbol) {
         throw new Error('Jupiter uses instant execution - no orders to cancel');
     }
-    async cancelAllOrders(symbol) {
+    async cancelAllOrders(_symbol) {
         throw new Error('Jupiter uses instant execution - no orders to cancel');
     }
     /**
@@ -561,17 +561,17 @@ export class JupiterAdapter extends BaseAdapter {
             throw mapJupiterError(error);
         }
     }
-    async fetchOrderHistory(symbol, since, limit) {
+    async fetchOrderHistory(_symbol, _since, _limit) {
         // Jupiter doesn't have a traditional order history
         this.warn('Jupiter Perps does not maintain order history - trades are instant');
         return [];
     }
-    async fetchMyTrades(symbol, since, limit) {
+    async fetchMyTrades(_symbol, _since, _limit) {
         // Would require indexing on-chain transactions
         this.warn('Trade history requires indexing on-chain transactions');
         return [];
     }
-    async setLeverage(symbol, leverage) {
+    async setLeverage(_symbol, _leverage) {
         throw new Error('Jupiter leverage is set per-trade, not globally');
     }
     // ==========================================================================
@@ -759,7 +759,7 @@ export class JupiterAdapter extends BaseAdapter {
     /**
      * Get symbol from custody address
      */
-    getSymbolFromCustody(custody) {
+    getSymbolFromCustody(_custody) {
         // In a real implementation, we would look up the custody to determine the market
         // For now, we'll return a default
         return 'SOL/USD:USD';

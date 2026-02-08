@@ -136,7 +136,7 @@ export class GRVTAuth {
     /**
      * Check if request requires signature
      */
-    requiresSignature(method, path) {
+    requiresSignature(_method, path) {
         // Trading operations require signatures
         const tradingPaths = [
             '/orders',

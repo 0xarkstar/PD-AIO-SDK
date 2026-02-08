@@ -20,7 +20,6 @@ export declare class RateLimiter {
     private readonly windowMs;
     private readonly refillRate;
     private readonly weights;
-    private readonly exchange;
     private bucket;
     private readonly queue;
     private processingQueue;

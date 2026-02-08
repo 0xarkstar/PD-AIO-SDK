@@ -370,38 +370,7 @@ describe('GRVTNormalizer', () => {
     });
   });
 
-  describe('Error Handling', () => {
-    it('should handle invalid number conversion', () => {
-      expect(() => {
-        normalizer['toNumberSafe']('invalid');
-      }).toThrow();
-    });
-
-    it('should handle zero values correctly', () => {
-      expect(normalizer['toNumberSafe']('0')).toBe(0);
-      expect(normalizer['toNumberSafe']('')).toBe(0);
-    });
-
-    it('should handle precision correctly', () => {
-      const value = normalizer['toNumberSafe']('123.456789', 4);
-      expect(value).toBe(123.4568); // Rounded to 4 decimals
-    });
-
-    it('should handle toStringSafe conversion', () => {
-      const value = normalizer['toStringSafe'](123.456, 2);
-      expect(value).toBe('123.46');
-    });
-
-    it('should throw on invalid number in toStringSafe', () => {
-      expect(() => {
-        normalizer['toStringSafe'](NaN, 2);
-      }).toThrow();
-
-      expect(() => {
-        normalizer['toStringSafe'](Infinity, 2);
-      }).toThrow();
-    });
-  });
+  // Error Handling tests removed - toNumberSafe and toStringSafe were unused private methods removed during cleanup
 
   describe('Symbol Conversion - Additional Cases', () => {
     it('should convert old format BTC-PERP to CCXT', () => {
@@ -420,81 +389,9 @@ describe('GRVTNormalizer', () => {
     });
   });
 
-  describe('Private Mapping Methods', () => {
-    describe('mapOrderType', () => {
-      it('should map MARKET to market', () => {
-        expect(normalizer['mapOrderType']('MARKET')).toBe('market');
-      });
-
-      it('should map LIMIT to limit', () => {
-        expect(normalizer['mapOrderType']('LIMIT')).toBe('limit');
-      });
-
-      it('should map LIMIT_MAKER to limit', () => {
-        expect(normalizer['mapOrderType']('LIMIT_MAKER')).toBe('limit');
-      });
-
-      it('should default to limit for unknown types', () => {
-        expect(normalizer['mapOrderType']('UNKNOWN')).toBe('limit');
-      });
-    });
-
-    describe('mapOrderSide', () => {
-      it('should map BUY to buy', () => {
-        expect(normalizer['mapOrderSide']('BUY')).toBe('buy');
-      });
-
-      it('should map SELL to sell', () => {
-        expect(normalizer['mapOrderSide']('SELL')).toBe('sell');
-      });
-
-      it('should default to sell for other values', () => {
-        expect(normalizer['mapOrderSide']('UNKNOWN')).toBe('sell');
-      });
-    });
-
-    describe('mapOrderStatus', () => {
-      it('should map all status values correctly', () => {
-        expect(normalizer['mapOrderStatus']('PENDING')).toBe('open');
-        expect(normalizer['mapOrderStatus']('OPEN')).toBe('open');
-        expect(normalizer['mapOrderStatus']('PARTIALLY_FILLED')).toBe('partiallyFilled');
-        expect(normalizer['mapOrderStatus']('FILLED')).toBe('filled');
-        expect(normalizer['mapOrderStatus']('CANCELLED')).toBe('canceled');
-        expect(normalizer['mapOrderStatus']('REJECTED')).toBe('rejected');
-      });
-
-      it('should default to open for unknown status', () => {
-        expect(normalizer['mapOrderStatus']('UNKNOWN')).toBe('open');
-      });
-    });
-
-    describe('mapTimeInForce', () => {
-      it('should map all TIF values correctly', () => {
-        expect(normalizer['mapTimeInForce']('GTC')).toBe('GTC');
-        expect(normalizer['mapTimeInForce']('IOC')).toBe('IOC');
-        expect(normalizer['mapTimeInForce']('FOK')).toBe('FOK');
-        expect(normalizer['mapTimeInForce']('POST_ONLY')).toBe('PO');
-      });
-
-      it('should default to GTC for unknown TIF', () => {
-        expect(normalizer['mapTimeInForce']('UNKNOWN')).toBe('GTC');
-      });
-    });
-
-    describe('mapPositionSide', () => {
-      it('should map LONG to long', () => {
-        expect(normalizer['mapPositionSide']('LONG')).toBe('long');
-      });
-
-      it('should map SHORT to short', () => {
-        expect(normalizer['mapPositionSide']('SHORT')).toBe('short');
-      });
-
-      it('should default to short for unknown values', () => {
-        expect(normalizer['mapPositionSide']('UNKNOWN')).toBe('short');
-      });
-    });
-  });
+  // Private Mapping Methods tests removed - these unused private methods (mapOrderType, mapOrderSide,
+  // mapOrderStatus, mapTimeInForce, mapPositionSide) were removed during cleanup.
+  // Public behavior is tested through normalizeOrder/normalizeOrders/etc.
 
   describe('Batch Normalization Methods', () => {
     it('should batch normalize orders', () => {

@@ -302,7 +302,7 @@ export class LighterAdapter extends BaseAdapter {
 
   // ==================== Market Data Methods ====================
 
-  async fetchMarkets(params?: MarketParams): Promise<Market[]> {
+  async fetchMarkets(_params?: MarketParams): Promise<Market[]> {
     await this.rateLimiter.acquire('fetchMarkets');
 
     try {
@@ -460,9 +460,9 @@ export class LighterAdapter extends BaseAdapter {
   }
 
   async fetchFundingRateHistory(
-    symbol: string,
-    since?: number,
-    limit?: number
+    _symbol: string,
+    _since?: number,
+    _limit?: number
   ): Promise<FundingRate[]> {
     throw new Error('Lighter does not support funding rate history');
   }
@@ -903,7 +903,7 @@ export class LighterAdapter extends BaseAdapter {
 
   // ==================== Required BaseAdapter Methods ====================
 
-  async setLeverage(symbol: string, leverage: number): Promise<void> {
+  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
     throw new Error('Lighter does not support setLeverage');
   }
 

@@ -75,7 +75,7 @@ export class HyperliquidNormalizer {
      * @param symbol - Exchange symbol (for reference)
      * @returns Unified order
      */
-    normalizeOrder(order, symbol) {
+    normalizeOrder(order, _symbol) {
         const unifiedSymbol = hyperliquidToUnified(order.coin);
         const isBuy = order.side === 'B';
         return {

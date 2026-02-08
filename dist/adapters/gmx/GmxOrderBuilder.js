@@ -11,12 +11,10 @@ import { GMX_MARKETS, GMX_PRECISION, GMX_ORDER_TYPES, GMX_DECREASE_POSITION_SWAP
 export class GmxOrderBuilder {
     chain;
     auth;
-    contracts;
     config;
-    constructor(chain, auth, contracts, config = {}) {
+    constructor(chain, auth, _contracts, config = {}) {
         this.chain = chain;
         this.auth = auth;
-        this.contracts = contracts;
         this.config = {
             slippageTolerance: config.slippageTolerance ?? 0.003,
             callbackGasLimit: config.callbackGasLimit ?? 0n,
@@ -196,7 +194,7 @@ export class GmxOrderBuilder {
     /**
      * Calculate trigger price for limit/stop orders
      */
-    calculateTriggerPrice(request, isLong) {
+    calculateTriggerPrice(request, _isLong) {
         if (request.type === 'market') {
             return 0;
         }
@@ -250,7 +248,7 @@ export class GmxOrderBuilder {
     /**
      * Calculate required collateral for a position
      */
-    calculateRequiredCollateral(sizeUsd, leverage, isLong) {
+    calculateRequiredCollateral(sizeUsd, leverage, _isLong) {
         const collateralUsd = sizeUsd / leverage;
         // Use USDC as default collateral for both long and short
         // In production, could allow user to choose collateral token

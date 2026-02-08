@@ -26,9 +26,7 @@ export class ExtendedWebSocketWrapper {
     pingIntervalMs;
     pongTimeout;
     subscriptions = new Map();
-    messageQueue = [];
     connectionPromise;
-    connectionResolver;
     constructor(config) {
         this.wsUrl = config.wsUrl;
         this.apiKey = config.apiKey;
@@ -50,7 +48,6 @@ export class ExtendedWebSocketWrapper {
         }
         this.isConnecting = true;
         this.connectionPromise = new Promise((resolve, reject) => {
-            this.connectionResolver = resolve;
             try {
                 this.ws = new WebSocket(this.wsUrl);
                 this.ws.onopen = () => {

@@ -121,7 +121,7 @@ export class ParadexAdapter extends BaseAdapter {
     /**
      * Fetch all available markets
      */
-    async fetchMarkets() {
+    async fetchMarkets(_params) {
         await this.rateLimiter.acquire('fetchMarkets');
         try {
             const response = await this.client.get('/markets');
@@ -269,26 +269,26 @@ export class ParadexAdapter extends BaseAdapter {
     /**
      * Create a new order
      */
-    async createOrder(order) {
+    async createOrder(request) {
         // Validate order request
-        const validatedOrder = this.validateOrder(order);
+        const validatedRequest = this.validateOrder(request);
         this.requireAuth();
         await this.rateLimiter.acquire('createOrder');
         try {
-            const market = this.normalizer.symbolFromCCXT(validatedOrder.symbol);
-            const orderType = this.normalizer.toParadexOrderType(validatedOrder.type, validatedOrder.postOnly);
-            const side = this.normalizer.toParadexOrderSide(validatedOrder.side);
-            const timeInForce = this.normalizer.toParadexTimeInForce(validatedOrder.timeInForce, validatedOrder.postOnly);
+            const market = this.normalizer.symbolFromCCXT(validatedRequest.symbol);
+            const orderType = this.normalizer.toParadexOrderType(validatedRequest.type, validatedRequest.postOnly);
+            const side = this.normalizer.toParadexOrderSide(validatedRequest.side);
+            const timeInForce = this.normalizer.toParadexTimeInForce(validatedRequest.timeInForce, validatedRequest.postOnly);
             const payload = {
                 market,
                 side,
                 type: orderType,
-                size: validatedOrder.amount.toString(),
-                price: validatedOrder.price?.toString(),
+                size: validatedRequest.amount.toString(),
+                price: validatedRequest.price?.toString(),
                 time_in_force: timeInForce,
-                reduce_only: validatedOrder.reduceOnly ?? false,
-                post_only: validatedOrder.postOnly ?? false,
-                client_id: validatedOrder.clientOrderId,
+                reduce_only: validatedRequest.reduceOnly ?? false,
+                post_only: validatedRequest.postOnly ?? false,
+                client_id: validatedRequest.clientOrderId,
             };
             const response = await this.client.post('/orders', payload);
             return this.normalizer.normalizeOrder(response);
@@ -300,7 +300,7 @@ export class ParadexAdapter extends BaseAdapter {
     /**
      * Cancel an existing order
      */
-    async cancelOrder(orderId, symbol) {
+    async cancelOrder(orderId, _symbol) {
         this.requireAuth();
         await this.rateLimiter.acquire('cancelOrder');
         try {
@@ -350,7 +350,7 @@ export class ParadexAdapter extends BaseAdapter {
     /**
      * Fetch a specific order
      */
-    async fetchOrder(orderId, symbol) {
+    async fetchOrder(orderId, _symbol) {
         this.requireAuth();
         await this.rateLimiter.acquire('fetchOrder');
         try {

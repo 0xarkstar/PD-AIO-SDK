@@ -15,13 +15,11 @@ import type {
   FundingRate,
 } from '../../types/common.js';
 import type {
-  LighterMarket,
   LighterOrder,
   LighterPosition,
   LighterBalance,
   LighterOrderBook,
   LighterTrade,
-  LighterTicker,
   LighterFundingRate,
 } from './types.js';
 
@@ -62,7 +60,6 @@ export class LighterNormalizer {
 
     // Parse min amounts from string values
     const minAmount = parseFloat(lighterMarket.min_base_amount || '0');
-    const minQuote = parseFloat(lighterMarket.min_quote_amount || '0');
 
     // Parse fees
     const makerFee = parseFloat(lighterMarket.maker_fee || '0');

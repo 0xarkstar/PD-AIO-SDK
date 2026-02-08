@@ -208,7 +208,7 @@ export class ParadexAdapter extends BaseAdapter {
   /**
    * Fetch all available markets
    */
-  async fetchMarkets(params?: MarketParams): Promise<Market[]> {
+  async fetchMarkets(_params?: MarketParams): Promise<Market[]> {
     await this.rateLimiter.acquire('fetchMarkets');
 
     try {
@@ -424,7 +424,7 @@ export class ParadexAdapter extends BaseAdapter {
   /**
    * Cancel an existing order
    */
-  async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+  async cancelOrder(orderId: string, _symbol?: string): Promise<Order> {
     this.requireAuth();
     await this.rateLimiter.acquire('cancelOrder');
 
@@ -483,7 +483,7 @@ export class ParadexAdapter extends BaseAdapter {
   /**
    * Fetch a specific order
    */
-  async fetchOrder(orderId: string, symbol?: string): Promise<Order> {
+  async fetchOrder(orderId: string, _symbol?: string): Promise<Order> {
     this.requireAuth();
     await this.rateLimiter.acquire('fetchOrder');
 

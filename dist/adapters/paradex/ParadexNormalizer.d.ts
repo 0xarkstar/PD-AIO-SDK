@@ -61,16 +61,6 @@ export declare class ParadexNormalizer {
      */
     symbolFromCCXT(ccxtSymbol: string): string;
     /**
-     * Convert string to number with validation and precision control
-     *
-     * @param value - String value to convert
-     * @param decimals - Number of decimal places (default: 8)
-     * @returns Number
-     *
-     * @throws {PerpDEXError} If value is not a valid number
-     */
-    private toNumberSafe;
-    /**
      * Count decimal places in a string number
      *
      * @param value - String number (e.g., "0.001")

@@ -65,7 +65,7 @@ export declare class HyperliquidNormalizer {
      * @param symbol - Exchange symbol (for reference)
      * @returns Unified order
      */
-    normalizeOrder(order: HyperliquidOpenOrder, symbol: string): Order;
+    normalizeOrder(order: HyperliquidOpenOrder, _symbol: string): Order;
     /**
      * Normalize multiple orders
      *

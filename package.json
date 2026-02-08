@@ -85,7 +85,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@drift-labs/sdk": "^2.155.0",
+    "@drift-labs/sdk": "^2.156.0",
     "@grvt/client": "^1.6.11",
     "@noble/ed25519": "^3.0.0",
     "@oraichain/lighter-ts-sdk": "^1.1.5",
@@ -111,7 +111,7 @@
     "@types/ws": "^8.5.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "esbuild": "^0.20.2",
+    "esbuild": "^0.25.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.0",
@@ -124,5 +124,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "overrides": {
+    "nanoid": "^3.3.8"
   }
 }

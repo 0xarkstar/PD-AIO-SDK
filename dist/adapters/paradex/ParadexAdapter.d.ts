@@ -11,7 +11,7 @@
  * - ParadexWebSocketWrapper: Real-time streams
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
-import type { Market, Order, OrderRequest, Position, Balance, OrderBook, Trade, Ticker, FundingRate, OrderBookParams, TradeParams } from '../../types/common.js';
+import type { Market, Order, OrderRequest, Position, Balance, OrderBook, Trade, Ticker, FundingRate, MarketParams, OrderBookParams, TradeParams } from '../../types/common.js';
 import type { FeatureMap } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import type { ParadexConfig } from './types.js';
@@ -46,7 +46,7 @@ export declare class ParadexAdapter extends BaseAdapter {
     /**
      * Fetch all available markets
      */
-    fetchMarkets(): Promise<Market[]>;
+    fetchMarkets(_params?: MarketParams): Promise<Market[]>;
     /**
      * Fetch ticker for a symbol
      */
@@ -78,11 +78,11 @@ export declare class ParadexAdapter extends BaseAdapter {
     /**
      * Create a new order
      */
-    createOrder(order: OrderRequest): Promise<Order>;
+    createOrder(request: OrderRequest): Promise<Order>;
     /**
      * Cancel an existing order
      */
-    cancelOrder(orderId: string, symbol?: string): Promise<Order>;
+    cancelOrder(orderId: string, _symbol?: string): Promise<Order>;
     /**
      * Cancel all orders
      */
@@ -94,7 +94,7 @@ export declare class ParadexAdapter extends BaseAdapter {
     /**
      * Fetch a specific order
      */
-    fetchOrder(orderId: string, symbol?: string): Promise<Order>;
+    fetchOrder(orderId: string, _symbol?: string): Promise<Order>;
     /**
      * Set leverage for a symbol
      */

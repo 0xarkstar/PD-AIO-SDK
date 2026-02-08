@@ -272,21 +272,6 @@ export class NadoAdapter extends BaseAdapter {
         return mapping;
     }
     /**
-     * Track request metrics
-     */
-    trackRequest(endpoint, latency, success) {
-        this.metrics.totalRequests++;
-        if (success) {
-            this.metrics.successfulRequests++;
-        }
-        else {
-            this.metrics.failedRequests++;
-        }
-        // Update average latency
-        const totalLatency = this.metrics.averageLatency * (this.metrics.totalRequests - 1) + latency;
-        this.metrics.averageLatency = totalLatency / this.metrics.totalRequests;
-    }
-    /**
      * Require authentication for private methods
      * @throws {PerpDEXError} if auth is not configured
      */
@@ -313,14 +298,14 @@ export class NadoAdapter extends BaseAdapter {
      *
      * Uses the /query?type=symbols endpoint which returns market metadata
      */
-    async fetchMarketsFromAPI(params) {
+    async fetchMarketsFromAPI(_params) {
         this.debug('Fetching markets from API...');
         // Nado returns { symbols: { "BTC-PERP": {...}, "ETH-PERP": {...}, ... } }
         const response = await this.apiClient.query(NADO_QUERY_TYPES.SYMBOLS);
         // Build product mappings
         this.productMappings.clear();
         const markets = [];
-        for (const [symbolKey, symbolData] of Object.entries(response.symbols || {})) {
+        for (const [_symbolKey, symbolData] of Object.entries(response.symbols || {})) {
             const market = this.normalizer.normalizeSymbol(symbolData);
             markets.push(market);
             // Store mappings (key: ccxtSymbol for direct lookup)
@@ -356,7 +341,7 @@ export class NadoAdapter extends BaseAdapter {
         });
         return this.normalizer.normalizeOrderBook(NadoOrderBookSchema.parse(orderBook), symbol);
     }
-    async fetchTrades(symbol, params) {
+    async fetchTrades(_symbol, _params) {
         // Nado provides trades via WebSocket only, not REST API
         // Use watchTrades() for real-time trade streaming
         throw new PerpDEXError('fetchTrades not supported via REST API on Nado. Use watchTrades() for WebSocket streaming.', 'NOT_SUPPORTED', this.id);
@@ -409,7 +394,7 @@ export class NadoAdapter extends BaseAdapter {
         const response = await this.apiClient.execute(NADO_EXECUTE_TYPES.PLACE_ORDER, orderData, signature);
         return this.normalizer.normalizeOrder(NadoOrderSchema.parse(response), mapping);
     }
-    async cancelOrder(orderId, symbol) {
+    async cancelOrder(orderId, _symbol) {
         const auth = this.requireAuth();
         if (!this.contractsInfo) {
             throw new PerpDEXError('Contracts info not loaded', 'NO_CONTRACTS', this.id);
@@ -469,7 +454,7 @@ export class NadoAdapter extends BaseAdapter {
             return this.normalizer.normalizeOrder(order, mapping);
         });
     }
-    async fetchPositions(symbols) {
+    async fetchPositions(_symbols) {
         const auth = this.requireAuth();
         const positions = await this.apiClient.query(NADO_QUERY_TYPES.ISOLATED_POSITIONS, {
             subaccount: auth.getAddress(),

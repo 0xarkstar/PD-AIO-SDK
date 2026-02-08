@@ -54,6 +54,7 @@ export declare class LighterAdapter extends BaseAdapter {
     protected readonly httpClient: HTTPClient;
     private normalizer;
     private wsManager;
+    private wsHandler;
     private marketIdCache;
     private marketMetadataCache;
     constructor(config?: LighterConfig);
@@ -72,12 +73,12 @@ export declare class LighterAdapter extends BaseAdapter {
     get hasAuthentication(): boolean;
     initialize(): Promise<void>;
     disconnect(): Promise<void>;
-    fetchMarkets(params?: MarketParams): Promise<Market[]>;
+    fetchMarkets(_params?: MarketParams): Promise<Market[]>;
     fetchTicker(symbol: string): Promise<Ticker>;
     fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
     fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
     fetchFundingRate(symbol: string): Promise<FundingRate>;
-    fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
+    fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     createOrder(request: OrderRequest): Promise<Order>;
     /**
      * Create order using WASM signing
@@ -133,7 +134,7 @@ export declare class LighterAdapter extends BaseAdapter {
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
     fetchOpenOrders(symbol?: string): Promise<Order[]>;
-    setLeverage(symbol: string, leverage: number): Promise<void>;
+    setLeverage(_symbol: string, _leverage: number): Promise<void>;
     /**
      * Fetch order history
      */
@@ -184,23 +185,8 @@ export declare class LighterAdapter extends BaseAdapter {
      *
      * @param symbol - Optional symbol filter
      * @returns AsyncGenerator yielding Trade updates
-     *
-     * @example
-     * ```typescript
-     * for await (const trade of adapter.watchMyTrades('BTC/USDT:USDT')) {
-     *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
-     * }
-     * ```
      */
     watchMyTrades(symbol?: string): AsyncGenerator<Trade>;
-    /**
-     * Build authenticated subscription object for WebSocket
-     */
-    private buildAuthenticatedSubscription;
-    /**
-     * Get authentication identifier for channel naming
-     */
-    private getAuthIdentifier;
     /**
      * Generate HMAC signature for authenticated requests
      * Note: This is now async to support browser Web Crypto API

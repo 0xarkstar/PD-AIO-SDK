@@ -106,7 +106,6 @@ export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
   private failureCount = 0;
   private successCount = 0;
   private totalRequests = 0;
-  private lastFailureTime = 0;
   private lastStateChangeTime = Date.now();
   private resetTimer: NodeJS.Timeout | null = null;
   private requestTimestamps: number[] = [];
@@ -192,7 +191,6 @@ export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
   private recordFailure(error: Error): void {
     this.totalRequests++;
     this.failureCount++;
-    this.lastFailureTime = Date.now();
     this.cleanupOldTimestamps();
     this.requestTimestamps.push(Date.now());
 
@@ -349,7 +347,7 @@ export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
    * Get current metrics
    */
   getMetrics(): CircuitBreakerMetrics {
-    const recentRequests = this.getRecentRequestCount();
+    this.getRecentRequestCount();
     const recentFailures = this.failureCount;
     const recentSuccesses = this.successCount;
 

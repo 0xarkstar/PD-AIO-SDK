@@ -67,7 +67,7 @@ export function countDecimals(value) {
  * Handles multiple possible formats
  */
 export function formatSymbolForAPI(unifiedSymbol) {
-    const [pair, settle] = unifiedSymbol.split(':');
+    const [pair] = unifiedSymbol.split(':');
     if (!pair) {
         return unifiedSymbol;
     }

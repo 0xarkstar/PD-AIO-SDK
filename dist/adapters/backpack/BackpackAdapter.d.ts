@@ -4,7 +4,7 @@
  * Centralized exchange with perpetual futures using ED25519 signatures
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
-import type { Market, Order, OrderRequest, Position, Balance, OrderBook, Trade, Ticker, FundingRate, OrderBookParams, TradeParams } from '../../types/common.js';
+import type { Market, Order, OrderRequest, Position, Balance, OrderBook, Trade, Ticker, FundingRate, MarketParams, OrderBookParams, TradeParams } from '../../types/common.js';
 import type { FeatureMap } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
@@ -18,9 +18,7 @@ export declare class BackpackAdapter extends BaseAdapter {
     readonly has: Partial<FeatureMap>;
     private readonly auth?;
     private readonly baseUrl;
-    private readonly wsUrl;
     protected readonly httpClient: HTTPClient;
-    private wsManager;
     protected rateLimiter: RateLimiter;
     private normalizer;
     constructor(config?: BackpackConfig);
@@ -44,7 +42,7 @@ export declare class BackpackAdapter extends BaseAdapter {
     /**
      * Fetch all available markets
      */
-    fetchMarkets(): Promise<Market[]>;
+    fetchMarkets(_params?: MarketParams): Promise<Market[]>;
     /**
      * Fetch ticker for a symbol
      */
@@ -80,11 +78,11 @@ export declare class BackpackAdapter extends BaseAdapter {
     /**
      * Create a new order
      */
-    createOrder(order: OrderRequest): Promise<Order>;
+    createOrder(request: OrderRequest): Promise<Order>;
     /**
      * Cancel an existing order
      */
-    cancelOrder(orderId: string, symbol?: string): Promise<Order>;
+    cancelOrder(orderId: string, _symbol?: string): Promise<Order>;
     /**
      * Cancel all orders
      */
@@ -96,7 +94,7 @@ export declare class BackpackAdapter extends BaseAdapter {
     /**
      * Fetch a specific order
      */
-    fetchOrder(orderId: string, symbol?: string): Promise<Order>;
+    fetchOrder(orderId: string, _symbol?: string): Promise<Order>;
     /**
      * Set leverage for a symbol
      */

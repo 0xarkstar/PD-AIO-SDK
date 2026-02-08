@@ -23,9 +23,6 @@ import type {
   FundingRate,
   Market,
   MarketParams,
-  OHLCV,
-  OHLCVParams,
-  OHLCVTimeframe,
   Order,
   OrderBook,
   OrderBookParams,
@@ -36,13 +33,10 @@ import type {
   TradeParams,
 } from '../../types/index.js';
 import { DriftNormalizer } from './DriftNormalizer.js';
-import { DriftAuth, type DriftAuthConfig } from './DriftAuth.js';
-import { DriftClientWrapper, type DriftClientWrapperConfig } from './DriftClientWrapper.js';
 import { DriftOrderBuilder, type DriftOrderBuilderConfig } from './orderBuilder.js';
 import {
   DRIFT_API_URLS,
   DRIFT_PERP_MARKETS,
-  DRIFT_MARKET_INDEX_MAP,
   DRIFT_PRECISION,
   unifiedToDrift,
   driftToUnified,
@@ -54,15 +48,14 @@ import {
   getMarketConfig,
   buildOrderbookUrl,
   buildTradesUrl,
-  validateOrderParams,
 } from './utils.js';
 import type {
   DriftL2OrderBook,
   DriftTrade,
   DriftFundingRate,
-  DriftMarketStats,
-  DriftPerpMarketAccount,
 } from './types.js';
+import { DriftAuth } from './DriftAuth.js';
+import { DriftClientWrapper } from './DriftClientWrapper.js';
 
 /**
  * Drift adapter configuration
@@ -159,9 +152,6 @@ export class DriftAdapter extends BaseAdapter {
   private orderBuilder?: DriftOrderBuilder;
   private dlobBaseUrl: string;
   private isTestnet: boolean;
-  private marketStatsCache: Map<number, { stats: DriftMarketStats; timestamp: number }> = new Map();
-  private statsCacheTTL = 5000; // 5 seconds
-
   constructor(config: DriftConfig = {}) {
     super({
       timeout: 30000,
@@ -439,7 +429,7 @@ export class DriftAdapter extends BaseAdapter {
 
   async fetchFundingRateHistory(
     symbol: string,
-    since?: number,
+    _since?: number,
     limit?: number
   ): Promise<FundingRate[]> {
     this.ensureInitialized();
@@ -767,7 +757,7 @@ export class DriftAdapter extends BaseAdapter {
       if (symbol) {
         const marketIndex = getMarketIndex(symbol);
         const results = await this.driftClient.cancelOrdersForMarket(marketIndex);
-        return results.map(r => ({
+        return results.map((r: { orderId: number | bigint; txSig: string }) => ({
           id: r.orderId.toString(),
           symbol,
           type: 'limit' as const,
@@ -804,17 +794,17 @@ export class DriftAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
+  async fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]> {
     this.warn('Order history requires indexing on-chain transactions');
     return [];
   }
 
-  async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+  async fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]> {
     this.warn('Trade history requires indexing on-chain transactions');
     return [];
   }
 
-  async setLeverage(symbol: string, leverage: number): Promise<void> {
+  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
     throw new Error('Drift uses cross-margin. Leverage is determined by position size relative to collateral.');
   }
 

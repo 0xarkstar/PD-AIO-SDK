@@ -7,7 +7,6 @@
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
-import { WebSocketManager } from '../../websocket/WebSocketManager.js';
 import { EDGEX_API_URLS, EDGEX_RATE_LIMITS, EDGEX_ENDPOINT_WEIGHTS, } from './constants.js';
 import { EdgeXNormalizer } from './EdgeXNormalizer.js';
 import { EdgeXAuth } from './EdgeXAuth.js';
@@ -46,8 +45,6 @@ export class EdgeXAdapter extends BaseAdapter {
     };
     auth;
     baseUrl;
-    wsUrl;
-    wsManager;
     rateLimiter;
     normalizer;
     constructor(config = {}) {
@@ -66,8 +63,6 @@ export class EdgeXAdapter extends BaseAdapter {
         });
         const urls = config.testnet ? EDGEX_API_URLS.testnet : EDGEX_API_URLS.mainnet;
         this.baseUrl = urls.rest;
-        this.wsUrl = urls.websocket;
-        this.wsManager = new WebSocketManager({ url: this.wsUrl });
     }
     /**
      * Initialize the adapter
@@ -94,7 +89,7 @@ export class EdgeXAdapter extends BaseAdapter {
     /**
      * Fetch all available markets
      */
-    async fetchMarkets() {
+    async fetchMarkets(_params) {
         const response = await this.makeRequest('GET', '/api/v1/public/meta/getMetaData', 'fetchMarkets');
         // Handle new API format: { code: 'SUCCESS', data: { contractList: [...] } }
         if (response.code === 'SUCCESS' && response.data?.contractList) {
@@ -136,7 +131,7 @@ export class EdgeXAdapter extends BaseAdapter {
      * Note: EdgeX does not expose public trades via REST API.
      * Use WebSocket (watchTrades) for real-time trade data.
      */
-    async fetchTrades(symbol, _params) {
+    async fetchTrades(_symbol, _params) {
         throw new PerpDEXError('EdgeX does not support fetchTrades via REST API. Use watchTrades() for WebSocket streaming.', 'NOT_IMPLEMENTED', 'edgex');
     }
     /**
@@ -153,7 +148,7 @@ export class EdgeXAdapter extends BaseAdapter {
     /**
      * Fetch funding rate history
      */
-    async fetchFundingRateHistory(symbol, since, limit) {
+    async fetchFundingRateHistory(_symbol, _since, _limit) {
         throw new PerpDEXError('EdgeX does not support funding rate history', 'NOT_SUPPORTED', 'edgex');
     }
     /**
@@ -185,24 +180,24 @@ export class EdgeXAdapter extends BaseAdapter {
     /**
      * Create a new order
      */
-    async createOrder(order) {
+    async createOrder(request) {
         // Validate order request
-        const validatedOrder = this.validateOrder(order);
+        const validatedRequest = this.validateOrder(request);
         this.requireAuth();
-        const market = this.normalizer.toEdgeXSymbol(validatedOrder.symbol);
-        const orderType = toEdgeXOrderType(validatedOrder.type);
-        const side = toEdgeXOrderSide(validatedOrder.side);
-        const timeInForce = toEdgeXTimeInForce(validatedOrder.timeInForce);
+        const market = this.normalizer.toEdgeXSymbol(validatedRequest.symbol);
+        const orderType = toEdgeXOrderType(validatedRequest.type);
+        const side = toEdgeXOrderSide(validatedRequest.side);
+        const timeInForce = toEdgeXTimeInForce(validatedRequest.timeInForce);
         const payload = {
             market,
             side,
             type: orderType,
-            size: validatedOrder.amount.toString(),
-            price: validatedOrder.price?.toString(),
+            size: validatedRequest.amount.toString(),
+            price: validatedRequest.price?.toString(),
             time_in_force: timeInForce,
-            reduce_only: validatedOrder.reduceOnly ?? false,
-            post_only: validatedOrder.postOnly ?? false,
-            client_order_id: validatedOrder.clientOrderId,
+            reduce_only: validatedRequest.reduceOnly ?? false,
+            post_only: validatedRequest.postOnly ?? false,
+            client_order_id: validatedRequest.clientOrderId,
         };
         const response = await this.makeRequest('POST', '/api/v1/private/order/createOrder', 'createOrder', payload);
         return this.normalizer.normalizeOrder(response);
@@ -273,7 +268,7 @@ export class EdgeXAdapter extends BaseAdapter {
      * @param price - New order price (optional)
      * @returns Modified order
      */
-    async modifyOrder(orderId, symbol, type, side, amount, price) {
+    async modifyOrder(orderId, _symbol, _type, _side, amount, price) {
         this.requireAuth();
         const payload = {
             orderId,

@@ -69,7 +69,6 @@ import {
   EXTENDED_ENDPOINT_WEIGHTS,
   EXTENDED_WS_CONFIG,
   EXTENDED_DEFAULTS,
-  EXTENDED_LEVERAGE_TIERS,
 } from './constants.js';
 import { ExtendedNormalizer } from './ExtendedNormalizer.js';
 import { ExtendedStarkNetClient } from './ExtendedStarkNetClient.js';
@@ -78,7 +77,6 @@ import {
   mapError,
   validateOrderRequest,
   validateLeverage,
-  generateClientOrderId,
 } from './utils.js';
 import { ExtendedWebSocketWrapper } from './ExtendedWebSocketWrapper.js';
 import type {
@@ -269,7 +267,7 @@ export class ExtendedAdapter extends BaseAdapter {
 
   // ==================== Market Data Methods ====================
 
-  async fetchMarkets(params?: MarketParams): Promise<Market[]> {
+  async fetchMarkets(_params?: MarketParams): Promise<Market[]> {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.MARKETS);
 
     try {
@@ -414,7 +412,7 @@ export class ExtendedAdapter extends BaseAdapter {
     }
   }
 
-  async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+  async cancelOrder(orderId: string, _symbol?: string): Promise<Order> {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.CANCEL_ORDER);
 
     if (!this.apiKey) {
@@ -498,7 +496,7 @@ export class ExtendedAdapter extends BaseAdapter {
     }
   }
 
-  async cancelBatchOrders(orderIds: string[], symbol?: string): Promise<Order[]> {
+  async cancelBatchOrders(orderIds: string[], _symbol?: string): Promise<Order[]> {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.CANCEL_ALL_ORDERS);
 
     if (!this.apiKey) {
@@ -760,11 +758,11 @@ export class ExtendedAdapter extends BaseAdapter {
     }
   }
 
-  async fetchDeposits(currency?: string, since?: number, limit?: number): Promise<Transaction[]> {
+  async fetchDeposits(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
     throw new PerpDEXError('fetchDeposits not supported', 'NOT_SUPPORTED', this.id);
   }
 
-  async fetchWithdrawals(currency?: string, since?: number, limit?: number): Promise<Transaction[]> {
+  async fetchWithdrawals(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
     throw new PerpDEXError('fetchWithdrawals not supported', 'NOT_SUPPORTED', this.id);
   }
 

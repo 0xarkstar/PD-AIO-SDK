@@ -50,8 +50,8 @@ export declare class ParadexWebSocketWrapper {
     private readonly wsUrl;
     private readonly timeout;
     private readonly maxReconnectAttempts;
-    private readonly apiKey?;
     private readonly normalizer;
+    private readonly logger;
     private isConnected;
     private reconnectAttempts;
     private subscriptionId;

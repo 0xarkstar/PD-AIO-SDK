@@ -120,7 +120,7 @@ export declare function parseOnChainTimestamp(timestamp: number | string): numbe
 /**
  * Validate position size meets minimum requirements
  */
-export declare function validatePositionSize(sizeUsd: number, symbol: string): {
+export declare function validatePositionSize(sizeUsd: number, _symbol: string): {
     valid: boolean;
     reason?: string;
 };

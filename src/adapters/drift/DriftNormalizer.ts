@@ -27,8 +27,6 @@ import type {
   DriftFundingRateRecord,
   DriftMarketStats,
   DriftCandle,
-  DriftNormalizedPosition,
-  DriftNormalizedOrder,
 } from './types.js';
 import {
   driftToUnified,
@@ -95,7 +93,7 @@ export class DriftNormalizer {
   normalizePosition(
     position: DriftPerpPosition,
     markPrice: number,
-    oraclePrice: number
+    _oraclePrice: number
   ): Position {
     const marketKey = DRIFT_MARKET_INDEX_MAP[position.marketIndex];
     const config = marketKey ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS] : undefined;

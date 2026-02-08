@@ -82,7 +82,7 @@ export class DriftAuth implements IAuthStrategy {
    */
   private async initKeypairAsync(bytes: Uint8Array): Promise<void> {
     try {
-      const { Keypair, Connection, PublicKey } = await import('@solana/web3.js');
+      const { Keypair, Connection } = await import('@solana/web3.js');
       this.keypair = Keypair.fromSecretKey(bytes);
       this.publicKey = this.keypair.publicKey;
       this.walletAddress = this.publicKey.toBase58();

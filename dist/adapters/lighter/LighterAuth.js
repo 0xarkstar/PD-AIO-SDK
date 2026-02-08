@@ -9,6 +9,7 @@
 import { createHmacSha256 } from '../../utils/crypto.js';
 import { LighterSigner, LighterWasmSigner } from './signer/index.js';
 import { NonceManager } from './NonceManager.js';
+import { Logger } from '../../core/logger.js';
 /**
  * Lighter Authentication Strategy
  *
@@ -38,6 +39,7 @@ export class LighterAuth {
     nonceManager = null;
     authToken = null;
     authTokenExpiry = 0;
+    logger = new Logger('LighterAuth');
     initialized = false;
     /** Token validity duration in seconds */
     static TOKEN_DURATION = 3600;
@@ -108,14 +110,14 @@ export class LighterAuth {
             }
             catch (nativeError) {
                 // Native signer failed, try WASM fallback
-                console.warn('Native FFI signer unavailable, falling back to WASM:', nativeError instanceof Error ? nativeError.message : nativeError);
+                this.logger.warn('Native FFI signer unavailable, falling back to WASM', { error: nativeError instanceof Error ? nativeError.message : String(nativeError) });
                 try {
                     this.signer = new LighterWasmSigner(signerConfig);
                     await this.signer.initialize();
                 }
                 catch (wasmError) {
                     // Both signers failed
-                    console.warn('WASM signer initialization also failed:', wasmError instanceof Error ? wasmError.message : wasmError);
+                    this.logger.warn('WASM signer initialization also failed', { error: wasmError instanceof Error ? wasmError.message : String(wasmError) });
                     this.signer = null;
                 }
             }
@@ -206,7 +208,7 @@ export class LighterAuth {
             this.authTokenExpiry = Date.now() / 1000 + LighterAuth.TOKEN_DURATION;
         }
         catch (error) {
-            console.warn('Failed to refresh auth token:', error);
+            this.logger.warn('Failed to refresh auth token', { error: error instanceof Error ? error.message : String(error) });
             this.authToken = null;
             this.authTokenExpiry = 0;
         }

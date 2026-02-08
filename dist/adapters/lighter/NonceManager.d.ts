@@ -31,6 +31,7 @@ export declare class NonceManager {
     private readonly autoSync;
     private syncPromise;
     private lastSyncTime;
+    private readonly logger;
     /** Minimum time between forced syncs (ms) */
     private static readonly MIN_SYNC_INTERVAL;
     constructor(config: NonceManagerConfig);

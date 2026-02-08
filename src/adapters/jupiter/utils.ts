@@ -7,7 +7,6 @@
 import {
   JUPITER_MARKETS,
   JUPITER_TOKEN_MINTS,
-  JUPITER_DEFAULT_PRECISION,
   unifiedToJupiter,
   getBaseToken,
 } from './constants.js';
@@ -250,7 +249,6 @@ export function calculateLiquidationPrice(
   sizeUsd: number,
   maintenanceMarginRate = 0.01
 ): number {
-  const leverage = sizeUsd / collateralUsd;
   const maintenanceMargin = sizeUsd * maintenanceMarginRate;
   const availableMargin = collateralUsd - maintenanceMargin;
   const priceMovement = (availableMargin / sizeUsd) * entryPrice;
@@ -336,11 +334,8 @@ export function parseOnChainTimestamp(timestamp: number | string): number {
  */
 export function validatePositionSize(
   sizeUsd: number,
-  symbol: string
+  _symbol: string
 ): { valid: boolean; reason?: string } {
-  const config = getMarketConfig(symbol);
-  const minSize = config?.minPositionSize || 0.001;
-
   if (sizeUsd < 10) {
     return { valid: false, reason: 'Minimum position size is $10 USD' };
   }

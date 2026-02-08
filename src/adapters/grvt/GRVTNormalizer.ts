@@ -166,18 +166,6 @@ export class GRVTNormalizer {
    * @param decimals - Number of decimal places
    * @returns String representation
    */
-  private toStringSafe(value: number, decimals: number = GRVT_PRECISION.price): string {
-    if (!Number.isFinite(value)) {
-      throw new PerpDEXError(
-        `Invalid number for string conversion: ${value}`,
-        'INVALID_NUMBER',
-        'grvt'
-      );
-    }
-
-    return value.toFixed(decimals);
-  }
-
   // ===========================================================================
   // Market Normalization
   // ===========================================================================
@@ -221,56 +209,6 @@ export class GRVTNormalizer {
   // ===========================================================================
   // Order Normalization
   // ===========================================================================
-
-  /**
-   * Map GRVT order type to unified
-   */
-  private mapOrderType(grvtType: string): string {
-    const typeMap: Record<string, string> = {
-      MARKET: 'market',
-      LIMIT: 'limit',
-      LIMIT_MAKER: 'limit',
-    };
-
-    return typeMap[grvtType] || 'limit';
-  }
-
-  /**
-   * Map GRVT order side to unified
-   */
-  private mapOrderSide(grvtSide: string): 'buy' | 'sell' {
-    return grvtSide === 'BUY' ? 'buy' : 'sell';
-  }
-
-  /**
-   * Map GRVT order status to unified
-   */
-  private mapOrderStatus(grvtStatus: string): string {
-    const statusMap: Record<string, string> = {
-      PENDING: 'open',
-      OPEN: 'open',
-      PARTIALLY_FILLED: 'partiallyFilled',
-      FILLED: 'filled',
-      CANCELLED: 'canceled',
-      REJECTED: 'rejected',
-    };
-
-    return statusMap[grvtStatus] || 'open';
-  }
-
-  /**
-   * Map GRVT time in force to unified
-   */
-  private mapTimeInForce(grvtTif: string): 'GTC' | 'IOC' | 'FOK' | 'PO' {
-    const tifMap: Record<string, 'GTC' | 'IOC' | 'FOK' | 'PO'> = {
-      GTC: 'GTC',
-      IOC: 'IOC',
-      FOK: 'FOK',
-      POST_ONLY: 'PO',
-    };
-
-    return tifMap[grvtTif] || 'GTC';
-  }
 
   /**
    * Normalize GRVT order to unified format
@@ -342,13 +280,6 @@ export class GRVTNormalizer {
   // ===========================================================================
   // Position Normalization
   // ===========================================================================
-
-  /**
-   * Map GRVT position side to unified
-   */
-  private mapPositionSide(grvtSide: string): 'long' | 'short' {
-    return grvtSide === 'LONG' ? 'long' : 'short';
-  }
 
   /**
    * Normalize GRVT position to unified format

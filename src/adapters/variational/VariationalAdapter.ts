@@ -106,20 +106,15 @@ import {
   VARIATIONAL_ENDPOINTS,
   VARIATIONAL_RATE_LIMITS,
   VARIATIONAL_ENDPOINT_WEIGHTS,
-  VARIATIONAL_WS_CONFIG,
   VARIATIONAL_DEFAULTS,
 } from './constants.js';
 import { VariationalNormalizer } from './VariationalNormalizer.js';
 import { convertOrderRequest, mapError, validateOrderRequest, generateClientOrderId } from './utils.js';
 import type {
-  VariationalMarket,
   VariationalOrder,
   VariationalPosition,
   VariationalBalance,
-  VariationalOrderBook,
   VariationalTrade,
-  VariationalTicker,
-  VariationalFundingRate,
   VariationalQuote,
 } from './types.js';
 
@@ -185,7 +180,6 @@ export class VariationalAdapter extends BaseAdapter {
   };
 
   private readonly apiUrl: string;
-  private readonly wsUrl: string;
   private readonly apiKey?: string;
   private readonly apiSecret?: string;
   protected readonly rateLimiter: RateLimiter;
@@ -200,7 +194,6 @@ export class VariationalAdapter extends BaseAdapter {
     const urls = testnet ? VARIATIONAL_API_URLS.testnet : VARIATIONAL_API_URLS.mainnet;
 
     this.apiUrl = urls.rest;
-    this.wsUrl = urls.websocket;
     this.apiKey = config.apiKey;
     this.apiSecret = config.apiSecret;
 
@@ -270,7 +263,7 @@ export class VariationalAdapter extends BaseAdapter {
 
   // ==================== Market Data Methods ====================
 
-  async fetchMarkets(params?: MarketParams): Promise<Market[]> {
+  async fetchMarkets(_params?: MarketParams): Promise<Market[]> {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
 
     try {
@@ -315,7 +308,7 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
+  async fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
 
     if (!symbol) {
@@ -345,7 +338,7 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.TRADES);
     throw new PerpDEXError('fetchTrades not implemented', 'NOT_IMPLEMENTED', this.id);
   }
@@ -379,7 +372,7 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]> {
+  async fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]> {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.FUNDING_HISTORY);
     throw new PerpDEXError('fetchFundingRateHistory not implemented', 'NOT_IMPLEMENTED', this.id);
   }
@@ -411,7 +404,7 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async cancelOrder(orderId: string, symbol?: string): Promise<Order> {
+  async cancelOrder(orderId: string, _symbol?: string): Promise<Order> {
     this.ensureAuthenticated();
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.CANCEL_ORDER);
 
@@ -450,13 +443,13 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async createBatchOrders(requests: OrderRequest[]): Promise<Order[]> {
+  async createBatchOrders(_requests: OrderRequest[]): Promise<Order[]> {
     // Variational doesn't support batch orders natively
     // Use sequential execution through BaseAdapter
     throw new PerpDEXError('createBatchOrders not supported', 'NOT_SUPPORTED', this.id);
   }
 
-  async cancelBatchOrders(orderIds: string[], symbol?: string): Promise<Order[]> {
+  async cancelBatchOrders(_orderIds: string[], _symbol?: string): Promise<Order[]> {
     // Variational doesn't support batch cancellations natively
     throw new PerpDEXError('cancelBatchOrders not supported', 'NOT_SUPPORTED', this.id);
   }
@@ -502,11 +495,11 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async setLeverage(symbol: string, leverage: number): Promise<void> {
+  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
     throw new PerpDEXError('setLeverage not supported', 'NOT_SUPPORTED', this.id);
   }
 
-  async setMarginMode(symbol: string, marginMode: 'cross' | 'isolated'): Promise<void> {
+  async setMarginMode(_symbol: string, _marginMode: 'cross' | 'isolated'): Promise<void> {
     throw new PerpDEXError('setMarginMode not supported', 'NOT_SUPPORTED', this.id);
   }
 
@@ -580,11 +573,11 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async fetchDeposits(currency?: string, since?: number, limit?: number): Promise<Transaction[]> {
+  async fetchDeposits(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
     throw new PerpDEXError('fetchDeposits not supported', 'NOT_SUPPORTED', this.id);
   }
 
-  async fetchWithdrawals(currency?: string, since?: number, limit?: number): Promise<Transaction[]> {
+  async fetchWithdrawals(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
     throw new PerpDEXError('fetchWithdrawals not supported', 'NOT_SUPPORTED', this.id);
   }
 
@@ -604,15 +597,15 @@ export class VariationalAdapter extends BaseAdapter {
 
   // ==================== WebSocket Methods ====================
 
-  async *watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook> {
+  async *watchOrderBook(_symbol: string, _limit?: number): AsyncGenerator<OrderBook> {
     throw new PerpDEXError('watchOrderBook not implemented', 'NOT_IMPLEMENTED', this.id);
   }
 
-  async *watchTrades(symbol: string): AsyncGenerator<Trade> {
+  async *watchTrades(_symbol: string): AsyncGenerator<Trade> {
     throw new PerpDEXError('watchTrades not implemented', 'NOT_IMPLEMENTED', this.id);
   }
 
-  async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
+  async *watchTicker(_symbol: string): AsyncGenerator<Ticker> {
     throw new PerpDEXError('watchTicker not implemented', 'NOT_IMPLEMENTED', this.id);
   }
 
@@ -628,7 +621,7 @@ export class VariationalAdapter extends BaseAdapter {
     throw new PerpDEXError('watchBalance not implemented', 'NOT_IMPLEMENTED', this.id);
   }
 
-  async *watchFundingRate(symbol: string): AsyncGenerator<FundingRate> {
+  async *watchFundingRate(_symbol: string): AsyncGenerator<FundingRate> {
     throw new PerpDEXError('watchFundingRate not implemented', 'NOT_IMPLEMENTED', this.id);
   }
 

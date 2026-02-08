@@ -10,6 +10,7 @@
  */
 import { ec, hash } from 'starknet';
 import { PARADEX_JWT_EXPIRY_BUFFER } from './constants.js';
+import { Logger } from '../../core/logger.js';
 /**
  * Paradex authentication strategy implementation
  *
@@ -17,17 +18,12 @@ import { PARADEX_JWT_EXPIRY_BUFFER } from './constants.js';
  */
 export class ParadexAuth {
     apiKey;
-    apiSecret;
-    privateKey;
     starkPrivateKey;
-    testnet;
     jwtToken;
+    logger = new Logger('ParadexAuth');
     constructor(config) {
         this.apiKey = config.apiKey;
-        this.apiSecret = config.apiSecret;
-        this.privateKey = config.privateKey;
         this.starkPrivateKey = config.starkPrivateKey;
-        this.testnet = config.testnet ?? false;
         // Note: Credentials are optional for public API access
     }
     /**
@@ -198,7 +194,7 @@ export class ParadexAuth {
      * @param path - API path
      * @returns true if signature required
      */
-    requiresSignature(method, path) {
+    requiresSignature(_method, path) {
         // Trading operations require signatures
         const tradingPaths = [
             '/orders',
@@ -264,7 +260,7 @@ export class ParadexAuth {
             return publicKey;
         }
         catch (error) {
-            console.error('Failed to derive StarkNet address:', error);
+            this.logger.error('Failed to derive StarkNet address', error instanceof Error ? error : undefined);
             return undefined;
         }
     }

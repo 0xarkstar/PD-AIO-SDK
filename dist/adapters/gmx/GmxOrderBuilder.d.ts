@@ -34,9 +34,8 @@ export interface OrderBuilderConfig {
 export declare class GmxOrderBuilder {
     private readonly chain;
     private readonly auth;
-    private readonly contracts;
     private readonly config;
-    constructor(chain: GmxChain, auth: GmxAuth, contracts: GmxContracts, config?: OrderBuilderConfig);
+    constructor(chain: GmxChain, auth: GmxAuth, _contracts: GmxContracts, config?: OrderBuilderConfig);
     /**
      * Build create order parameters for a new position or position increase
      */
@@ -76,7 +75,7 @@ export declare class GmxOrderBuilder {
     /**
      * Calculate required collateral for a position
      */
-    calculateRequiredCollateral(sizeUsd: number, leverage: number, isLong: boolean): {
+    calculateRequiredCollateral(sizeUsd: number, leverage: number, _isLong: boolean): {
         collateralUsd: number;
         collateralToken: string;
     };

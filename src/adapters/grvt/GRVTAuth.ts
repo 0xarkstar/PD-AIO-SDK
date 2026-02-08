@@ -179,7 +179,7 @@ export class GRVTAuth implements IAuthStrategy {
   /**
    * Check if request requires signature
    */
-  private requiresSignature(method: string, path: string): boolean {
+  private requiresSignature(_method: string, path: string): boolean {
     // Trading operations require signatures
     const tradingPaths = [
       '/orders',
