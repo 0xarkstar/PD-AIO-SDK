@@ -36,46 +36,46 @@ export default {
   ],
   coverageThreshold: {
     // ==========================================================================
-    // Global Thresholds - Current: ~78%, Target: 80%
-    // Roadmap: 51% -> 65% -> 72% -> 80%
+    // Global Thresholds — Cycle 8: 81.31% stmts, 74.56% branch, 86.51% funcs
+    // Roadmap: 51% → 65% → 72% → 78% → 81%
     // ==========================================================================
     global: {
-      branches: 65,
-      functions: 78,
-      lines: 72,
-      statements: 72
+      branches: 72,
+      functions: 84,
+      lines: 79,
+      statements: 79
     },
 
     // ==========================================================================
     // High-Quality Core Modules (maintain high standards)
     // ==========================================================================
     './src/utils/**/*.ts': {
-      branches: 75,
-      functions: 90,
-      lines: 85,
-      statements: 85
+      branches: 93,
+      functions: 100,
+      lines: 100,
+      statements: 100
     },
     './src/core/calculations/**/*.ts': {
-      branches: 75,
-      functions: 95,
-      lines: 95,
-      statements: 95
+      branches: 83,
+      functions: 100,
+      lines: 100,
+      statements: 100
     },
 
     // ==========================================================================
     // Established Adapter Utils
     // ==========================================================================
     './src/adapters/hyperliquid/utils.ts': {
-      branches: 60,
-      functions: 65,
-      lines: 70,
-      statements: 70
+      branches: 88,
+      functions: 100,
+      lines: 91,
+      statements: 91
     },
     './src/adapters/grvt/utils.ts': {
-      branches: 50,
-      functions: 90,
-      lines: 75,
-      statements: 75
+      branches: 73,
+      functions: 100,
+      lines: 93,
+      statements: 93
     },
     './src/adapters/paradex/utils.ts': {
       branches: 50,
@@ -84,24 +84,24 @@ export default {
       statements: 75
     },
     './src/adapters/edgex/utils.ts': {
-      branches: 30,
-      functions: 40,
-      lines: 40,
-      statements: 40
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100
     },
     './src/adapters/backpack/utils.ts': {
-      branches: 35,
-      functions: 50,
-      lines: 50,
-      statements: 50
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100
     },
 
     // ==========================================================================
-    // Newer Adapters - Per-file thresholds (Cycle 7, 2026-02-09)
+    // Per-Adapter Thresholds (Cycle 8, 2026-02-09)
     // Note: **/*.ts globs apply per-file, so thresholds must fit weakest file
     // ==========================================================================
 
-    // dydx: DydxAdapter.ts is weakest (63% stmts, 58% branch, 83% funcs)
+    // dydx: DydxAdapter.ts weakest (63% stmts, 58% branch, 83% funcs)
     './src/adapters/dydx/**/*.ts': {
       branches: 55,
       functions: 80,
@@ -109,36 +109,44 @@ export default {
       statements: 60
     },
 
-    // drift: DriftAdapter.ts at 11%, DriftClientWrapper at 56% — keep low
+    // drift: DriftAdapter.ts at 11% stmts, 15% branch, 22% funcs
     './src/adapters/drift/**/*.ts': {
-      branches: 10,
+      branches: 13,
       functions: 20,
       lines: 10,
       statements: 10
     },
 
-    // gmx: GmxAdapter.ts at 33%, GmxAuth funcs at 83% — keep conservative
+    // gmx: GmxAdapter.ts at 33% stmts, 25% branch, 81% funcs
     './src/adapters/gmx/**/*.ts': {
-      branches: 20,
-      functions: 30,
+      branches: 23,
+      functions: 80,
       lines: 30,
       statements: 30
     },
 
-    // jupiter: JupiterAdapter.ts at 56%, solana.ts at 46% — keep conservative
+    // jupiter: solana.ts weakest (46% stmts, 37% branch, 77% funcs)
     './src/adapters/jupiter/**/*.ts': {
       branches: 35,
-      functions: 40,
+      functions: 70,
       lines: 45,
       statements: 45
     },
 
-    // extended: types.ts at 0%, WebSocketWrapper at 50%, Adapter branches 47%
+    // extended: types.ts at 0% stmts, WebSocketWrapper at 50%
     './src/adapters/extended/**/*.ts': {
       branches: 0,
       functions: 0,
       lines: 0,
       statements: 0
+    },
+
+    // lighter/signer: LighterWasmSigner.ts weakest (40% stmts, 22% branch, 22% funcs)
+    './src/adapters/lighter/signer/**/*.ts': {
+      branches: 20,
+      functions: 20,
+      lines: 38,
+      statements: 38
     }
   },
   moduleDirectories: ['node_modules', 'src'],
