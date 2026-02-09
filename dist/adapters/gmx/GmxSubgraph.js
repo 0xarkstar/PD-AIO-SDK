@@ -179,8 +179,10 @@ export class GmxSubgraph {
      * Fetch all positions for an account
      */
     async fetchPositions(account) {
-        const response = await this.query(POSITIONS_QUERY, { account: account.toLowerCase() });
-        return response.positions.filter(p => 
+        const response = await this.query(POSITIONS_QUERY, {
+            account: account.toLowerCase(),
+        });
+        return response.positions.filter((p) => 
         // Filter out closed positions (size = 0)
         parseFloat(p.sizeInUsd) > 0);
     }
@@ -193,7 +195,7 @@ export class GmxSubgraph {
     async fetchOpenOrders(account) {
         const response = await this.query(ORDERS_QUERY, {
             account: account.toLowerCase(),
-            status: 'Created'
+            status: 'Created',
         });
         return response.orders;
     }
@@ -204,7 +206,7 @@ export class GmxSubgraph {
         const sinceBlock = since ? Math.floor(since / 1000) : 0;
         const response = await this.query(ORDER_HISTORY_QUERY, {
             account: account.toLowerCase(),
-            since: sinceBlock.toString()
+            since: sinceBlock.toString(),
         });
         return response.orders;
     }
@@ -219,7 +221,7 @@ export class GmxSubgraph {
         const response = await this.query(TRADES_QUERY, {
             account: account.toLowerCase(),
             since: sinceTimestamp.toString(),
-            limit
+            limit,
         });
         return response.tradeActions;
     }
@@ -231,7 +233,7 @@ export class GmxSubgraph {
         const response = await this.query(MARKET_TRADES_QUERY, {
             market: marketAddress.toLowerCase(),
             since: sinceTimestamp.toString(),
-            limit
+            limit,
         });
         return response.tradeActions;
     }
@@ -255,7 +257,7 @@ export class GmxSubgraph {
         if (!response.ok) {
             throw new Error(`Subgraph request failed: ${response.status} ${response.statusText}`);
         }
-        const json = await response.json();
+        const json = (await response.json());
         if (json.errors && json.errors.length > 0) {
             throw new Error(`Subgraph query error: ${json.errors[0]?.message || 'Unknown error'}`);
         }
@@ -276,9 +278,7 @@ export class GmxSubgraph {
         // Calculate unrealized PnL
         const priceDiff = position.isLong ? markPrice - entryPrice : entryPrice - markPrice;
         const unrealizedPnl = sizeInTokens * priceDiff;
-        const unrealizedPnlPercent = collateralAmount > 0
-            ? (unrealizedPnl / collateralAmount) * 100
-            : 0;
+        const unrealizedPnlPercent = collateralAmount > 0 ? (unrealizedPnl / collateralAmount) * 100 : 0;
         // Get market config
         const marketConfig = getMarketByAddress(position.market);
         return {
@@ -317,19 +317,17 @@ export class GmxSubgraph {
         };
         // Map status
         const statusMap = {
-            'Created': 'open',
-            'Executed': 'filled',
-            'Cancelled': 'cancelled',
-            'Frozen': 'open',
-            'Expired': 'expired',
+            Created: 'open',
+            Executed: 'filled',
+            Cancelled: 'cancelled',
+            Frozen: 'open',
+            Expired: 'expired',
         };
         // Determine side based on order type and position direction
         // For increase orders: buy = going long, sell = going short
         // For decrease orders: buy = closing short, sell = closing long
         const isIncrease = order.orderType === 0 || order.orderType === 2;
-        const side = isIncrease
-            ? (order.isLong ? 'buy' : 'sell')
-            : (order.isLong ? 'sell' : 'buy');
+        const side = isIncrease ? (order.isLong ? 'buy' : 'sell') : order.isLong ? 'sell' : 'buy';
         return {
             id: order.key,
             symbol: marketConfig?.symbol || order.market,
@@ -358,9 +356,7 @@ export class GmxSubgraph {
         const marketConfig = getMarketByAddress(trade.marketAddress);
         // Determine side
         const isIncrease = trade.orderType === 0 || trade.orderType === 2;
-        const side = isIncrease
-            ? (trade.isLong ? 'buy' : 'sell')
-            : (trade.isLong ? 'sell' : 'buy');
+        const side = isIncrease ? (trade.isLong ? 'buy' : 'sell') : trade.isLong ? 'sell' : 'buy';
         return {
             id: trade.id,
             symbol: marketConfig?.symbol || trade.marketAddress,

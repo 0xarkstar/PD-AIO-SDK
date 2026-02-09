@@ -15,7 +15,7 @@
 export const JUPITER_API_URLS = {
   mainnet: {
     price: 'https://api.jup.ag/price/v3',
-    stats: 'https://perp-api.jup.ag',  // Stats API (unofficial, may change)
+    stats: 'https://perp-api.jup.ag', // Stats API (unofficial, may change)
   },
   // Jupiter Perps only operates on mainnet
 } as const;
@@ -183,10 +183,7 @@ export const JUPITER_BORROW_FEE = {
 // =============================================================================
 
 export const SOLANA_RPC_ENDPOINTS = {
-  mainnet: [
-    'https://api.mainnet-beta.solana.com',
-    'https://solana-api.projectserum.com',
-  ],
+  mainnet: ['https://api.mainnet-beta.solana.com', 'https://solana-api.projectserum.com'],
 } as const;
 
 export const SOLANA_DEFAULT_RPC = SOLANA_RPC_ENDPOINTS.mainnet[0];

@@ -326,7 +326,7 @@ export function getBaseToken(symbol) {
  * Get markets for a specific chain
  */
 export function getMarketsForChain(chain) {
-    return Object.values(GMX_MARKETS).filter(m => m.chain === chain);
+    return Object.values(GMX_MARKETS).filter((m) => m.chain === chain);
 }
 // =============================================================================
 // Funding Rate Constants
@@ -371,9 +371,9 @@ export const GMX_ERROR_MESSAGES = {
     'oracle error': 'ORACLE_ERROR',
     'market disabled': 'MARKET_PAUSED',
     'execution failed': 'TRANSACTION_FAILED',
-    'slippage': 'SLIPPAGE_EXCEEDED',
-    'liquidation': 'LIQUIDATION',
+    slippage: 'SLIPPAGE_EXCEEDED',
+    liquidation: 'LIQUIDATION',
     'invalid price': 'INVALID_PRICE',
-    'keeper': 'KEEPER_ERROR',
+    keeper: 'KEEPER_ERROR',
 };
 //# sourceMappingURL=constants.js.map

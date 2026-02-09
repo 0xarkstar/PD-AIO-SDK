@@ -159,7 +159,7 @@ export class MetricsServer {
             await this.handleHealthRequest(res);
         }
         else if (url === '/') {
-            this.handleRootRequest(res);
+            await this.handleRootRequest(res);
         }
         else {
             this.sendResponse(res, 404, 'Not Found');

@@ -9,11 +9,7 @@
 type PublicKey = import('@solana/web3.js').PublicKey;
 type TransactionInstruction = import('@solana/web3.js').TransactionInstruction;
 
-import {
-  JUPITER_PERPS_PROGRAM_ID,
-  JUPITER_TOKEN_MINTS,
-  unifiedToJupiter,
-} from './constants.js';
+import { JUPITER_PERPS_PROGRAM_ID, JUPITER_TOKEN_MINTS, unifiedToJupiter } from './constants.js';
 
 // =============================================================================
 // Instruction Discriminators (from Anchor IDL)
@@ -28,8 +24,12 @@ import {
  */
 const INSTRUCTION_DISCRIMINATORS = {
   // Position creation/modification (market orders)
-  createIncreasePositionMarketRequest: Buffer.from([0xb7, 0xc6, 0x61, 0xa9, 0x23, 0x01, 0xe1, 0x39]),
-  createDecreasePositionMarketRequest: Buffer.from([0x93, 0xee, 0x4c, 0x5b, 0x30, 0x56, 0xa7, 0xfd]),
+  createIncreasePositionMarketRequest: Buffer.from([
+    0xb7, 0xc6, 0x61, 0xa9, 0x23, 0x01, 0xe1, 0x39,
+  ]),
+  createDecreasePositionMarketRequest: Buffer.from([
+    0x93, 0xee, 0x4c, 0x5b, 0x30, 0x56, 0xa7, 0xfd,
+  ]),
   createDecreasePositionRequest2: Buffer.from([0x37, 0x27, 0x0c, 0x16, 0xd8, 0x73, 0x35, 0x65]),
 
   // Request management
@@ -229,8 +229,16 @@ export class JupiterInstructionBuilder {
       { pubkey: new PublicKey(accounts.oracle), isSigner: false, isWritable: false },
       { pubkey: new PublicKey(accounts.ownerTokenAccount), isSigner: false, isWritable: true },
       // System accounts
-      { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false }, // Token Program
-      { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System Program
+      {
+        pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+        isSigner: false,
+        isWritable: false,
+      }, // Token Program
+      {
+        pubkey: new PublicKey('11111111111111111111111111111111'),
+        isSigner: false,
+        isWritable: false,
+      }, // System Program
     ];
 
     return new TransactionInstruction({
@@ -265,7 +273,11 @@ export class JupiterInstructionBuilder {
       { pubkey: new PublicKey(accounts.oracle), isSigner: false, isWritable: false },
       { pubkey: new PublicKey(accounts.ownerTokenAccount), isSigner: false, isWritable: true },
       // System accounts
-      { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
+      {
+        pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+        isSigner: false,
+        isWritable: false,
+      },
     ];
 
     return new TransactionInstruction({
@@ -324,7 +336,11 @@ export class JupiterInstructionBuilder {
       { pubkey: new PublicKey(accounts.oracle), isSigner: false, isWritable: false },
       { pubkey: new PublicKey(accounts.ownerTokenAccount), isSigner: false, isWritable: true },
       // System accounts
-      { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
+      {
+        pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+        isSigner: false,
+        isWritable: false,
+      },
     ];
 
     return new TransactionInstruction({
@@ -354,7 +370,11 @@ export class JupiterInstructionBuilder {
       { pubkey: new PublicKey(accounts.collateralTokenAccount), isSigner: false, isWritable: true },
       { pubkey: new PublicKey(accounts.ownerTokenAccount), isSigner: false, isWritable: true },
       // System accounts
-      { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
+      {
+        pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+        isSigner: false,
+        isWritable: false,
+      },
     ];
 
     return new TransactionInstruction({
@@ -385,7 +405,11 @@ export class JupiterInstructionBuilder {
       { pubkey: new PublicKey(accounts.oracle), isSigner: false, isWritable: false },
       { pubkey: new PublicKey(accounts.ownerTokenAccount), isSigner: false, isWritable: true },
       // System accounts
-      { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
+      {
+        pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+        isSigner: false,
+        isWritable: false,
+      },
     ];
 
     return new TransactionInstruction({
@@ -626,10 +650,7 @@ export class JupiterInstructionBuilder {
     const programId = this.programId!;
 
     // Pool PDA
-    const [poolPda] = await PublicKey.findProgramAddress(
-      [Buffer.from('pool')],
-      programId
-    );
+    const [poolPda] = await PublicKey.findProgramAddress([Buffer.from('pool')], programId);
 
     // Custody PDA for the trading asset
     const [custodyPda] = await PublicKey.findProgramAddress(
@@ -697,7 +718,9 @@ export class JupiterInstructionBuilder {
     const ownerPubkey = new PublicKey(owner);
     const mintPubkey = new PublicKey(mint);
     const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-    const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+    const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
+      'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'
+    );
 
     const [address] = await PublicKey.findProgramAddress(
       [ownerPubkey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintPubkey.toBuffer()],

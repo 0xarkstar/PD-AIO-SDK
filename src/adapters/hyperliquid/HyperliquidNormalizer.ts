@@ -13,6 +13,7 @@ import type {
   Position,
   Balance,
   OrderBook,
+  PriceLevel,
   Trade,
   Ticker,
   FundingRate,
@@ -299,15 +300,13 @@ export class HyperliquidNormalizer {
 
     // book.levels[0] = bids, book.levels[1] = asks
     // Each level is { px: string, sz: string, n: number }
-    const bids = book.levels[0]?.map((level) => [
-      parseFloat(level.px),
-      parseFloat(level.sz),
-    ]) as [number, number][] || [];
+    const bids: PriceLevel[] =
+      book.levels[0]?.map((level): PriceLevel => [parseFloat(level.px), parseFloat(level.sz)]) ||
+      [];
 
-    const asks = book.levels[1]?.map((level) => [
-      parseFloat(level.px),
-      parseFloat(level.sz),
-    ]) as [number, number][] || [];
+    const asks: PriceLevel[] =
+      book.levels[1]?.map((level): PriceLevel => [parseFloat(level.px), parseFloat(level.sz)]) ||
+      [];
 
     return {
       symbol: unifiedSymbol,

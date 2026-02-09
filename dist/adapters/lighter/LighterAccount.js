@@ -18,7 +18,7 @@ export async function fetchPositionsData(deps, symbols) {
         let positions = response.map((position) => deps.normalizer.normalizePosition(position));
         // Filter by symbols if provided
         if (symbols && symbols.length > 0) {
-            positions = positions.filter(p => symbols.includes(p.symbol));
+            positions = positions.filter((p) => symbols.includes(p.symbol));
         }
         return positions;
     }
@@ -46,7 +46,9 @@ export async function fetchBalanceData(deps) {
  */
 export async function fetchOpenOrdersData(deps, symbol) {
     try {
-        const path = symbol ? `/api/v1/accountActiveOrders?symbol=${deps.normalizer.toLighterSymbol(symbol)}` : '/api/v1/accountActiveOrders';
+        const path = symbol
+            ? `/api/v1/accountActiveOrders?symbol=${deps.normalizer.toLighterSymbol(symbol)}`
+            : '/api/v1/accountActiveOrders';
         const response = await deps.request('GET', path);
         if (!Array.isArray(response)) {
             throw new PerpDEXError('Invalid open orders response', 'INVALID_RESPONSE', 'lighter');

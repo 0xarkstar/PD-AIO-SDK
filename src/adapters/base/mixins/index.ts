@@ -8,11 +8,7 @@
 export type { Constructor } from './LoggerMixin.js';
 
 // Logger
-export {
-  LoggerMixin,
-  type ILoggerMixinBase,
-  type ILoggerCapable,
-} from './LoggerMixin.js';
+export { LoggerMixin, type ILoggerMixinBase, type ILoggerCapable } from './LoggerMixin.js';
 
 // Metrics
 export {

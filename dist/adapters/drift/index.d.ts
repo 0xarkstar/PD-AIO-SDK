@@ -6,7 +6,7 @@
  * @packageDocumentation
  */
 export { DriftAdapter, type DriftConfig } from './DriftAdapter.js';
-export { DriftAuth, type DriftAuthConfig, isValidSolanaAddress, isValidSolanaPrivateKey } from './DriftAuth.js';
+export { DriftAuth, type DriftAuthConfig, isValidSolanaAddress, isValidSolanaPrivateKey, } from './DriftAuth.js';
 export { DriftClientWrapper, type DriftClientWrapperConfig, type DriftOrderParams, type PlaceOrderResult, type CancelOrderResult, } from './DriftClientWrapper.js';
 export { DriftOrderBuilder, type DriftOrderBuilderConfig, createOrderBuilder, } from './orderBuilder.js';
 export { DriftNormalizer } from './DriftNormalizer.js';

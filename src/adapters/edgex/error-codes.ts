@@ -7,6 +7,7 @@
  * @see https://docs.edgex.exchange/api/errors
  */
 
+import { includesValue } from '../../utils/type-guards.js';
 import {
   PerpDEXError,
   InvalidOrderError,
@@ -70,7 +71,7 @@ export function mapEdgeXError(
       return new RateLimitError(message, errorCode, 'edgex', undefined, originalError);
 
     default:
-      if (Object.values(EDGEX_SERVER_ERRORS).includes(errorCode as any)) {
+      if (includesValue(Object.values(EDGEX_SERVER_ERRORS), errorCode)) {
         return new ExchangeUnavailableError(message, errorCode, 'edgex', originalError);
       }
       return new PerpDEXError(message, errorCode, 'edgex', originalError);
@@ -110,7 +111,7 @@ export function mapError(error: unknown): PerpDEXError {
  */
 export function isRetryableError(errorCode: string): boolean {
   return (
-    Object.values(EDGEX_SERVER_ERRORS).includes(errorCode as any) ||
+    includesValue(Object.values(EDGEX_SERVER_ERRORS), errorCode) ||
     errorCode === EDGEX_RATE_LIMIT_ERROR
   );
 }

@@ -84,7 +84,15 @@ export interface MetricsSnapshot {
  * Convert APIMetrics to snapshot for reporting
  */
 export function createMetricsSnapshot(metrics: APIMetrics): MetricsSnapshot {
-  const { totalRequests, successfulRequests, failedRequests, rateLimitHits, averageLatency, endpointStats, startedAt } = metrics;
+  const {
+    totalRequests,
+    successfulRequests,
+    failedRequests,
+    rateLimitHits,
+    averageLatency,
+    endpointStats,
+    startedAt,
+  } = metrics;
 
   const successRate = totalRequests > 0 ? successfulRequests / totalRequests : 0;
   const errorRate = totalRequests > 0 ? failedRequests / totalRequests : 0;
@@ -125,7 +133,10 @@ export function getTopEndpoints(metrics: APIMetrics, limit = 10): EndpointMetric
 /**
  * Get slowest endpoints by average latency
  */
-export function getSlowestEndpoints(metrics: APIMetrics, limit = 10): Array<{
+export function getSlowestEndpoints(
+  metrics: APIMetrics,
+  limit = 10
+): Array<{
   endpoint: string;
   averageLatency: number;
   count: number;
@@ -143,7 +154,10 @@ export function getSlowestEndpoints(metrics: APIMetrics, limit = 10): Array<{
 /**
  * Get endpoints with highest error rates
  */
-export function getMostErrorProneEndpoints(metrics: APIMetrics, limit = 10): Array<{
+export function getMostErrorProneEndpoints(
+  metrics: APIMetrics,
+  limit = 10
+): Array<{
   endpoint: string;
   errorRate: number;
   errors: number;

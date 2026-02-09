@@ -86,7 +86,7 @@ export function HttpRequestMixin(Base) {
                             this.timers.delete(timeout);
                             this.abortControllers.delete(controller);
                             // Wait before retry
-                            await new Promise(resolve => setTimeout(resolve, delay));
+                            await new Promise((resolve) => setTimeout(resolve, delay));
                             continue;
                         }
                         const result = (await response.json());
@@ -136,13 +136,15 @@ export function HttpRequestMixin(Base) {
                         this.abortControllers.delete(controller);
                         // Check if should retry
                         const isNetworkError = error instanceof Error &&
-                            (error.name === 'AbortError' || error.message.includes('fetch') || error.message.includes('network'));
+                            (error.name === 'AbortError' ||
+                                error.message.includes('fetch') ||
+                                error.message.includes('network'));
                         if (attempt < maxAttempts - 1 && isNetworkError) {
                             lastError = error;
                             // Calculate delay with exponential backoff
                             const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
                             // Wait before retry
-                            await new Promise(resolve => setTimeout(resolve, delay));
+                            await new Promise((resolve) => setTimeout(resolve, delay));
                             continue;
                         }
                         // Attach correlation ID to PerpDEXError instances

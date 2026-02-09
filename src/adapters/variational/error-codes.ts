@@ -4,6 +4,7 @@
  * Error code definitions and mapping functions for Variational exchange
  */
 
+import { includesValue } from '../../utils/type-guards.js';
 import {
   PerpDEXError,
   InsufficientMarginError,
@@ -83,7 +84,7 @@ export const VARIATIONAL_ERROR_MESSAGES: Record<string, string> = {
   'too many requests': VARIATIONAL_RATE_LIMIT_ERROR,
   'internal server error': VARIATIONAL_SERVER_ERRORS.INTERNAL_ERROR,
   'service unavailable': VARIATIONAL_SERVER_ERRORS.SERVICE_UNAVAILABLE,
-  'timeout': VARIATIONAL_SERVER_ERRORS.TIMEOUT,
+  timeout: VARIATIONAL_SERVER_ERRORS.TIMEOUT,
   'matching engine error': VARIATIONAL_SERVER_ERRORS.MATCHING_ENGINE_ERROR,
 };
 
@@ -91,14 +92,14 @@ export const VARIATIONAL_ERROR_MESSAGES: Record<string, string> = {
  * Check if error code is a client error
  */
 export function isClientError(code: string): boolean {
-  return Object.values(VARIATIONAL_CLIENT_ERRORS).includes(code as any);
+  return includesValue(Object.values(VARIATIONAL_CLIENT_ERRORS), code);
 }
 
 /**
  * Check if error code is a server error
  */
 export function isServerError(code: string): boolean {
-  return Object.values(VARIATIONAL_SERVER_ERRORS).includes(code as any);
+  return includesValue(Object.values(VARIATIONAL_SERVER_ERRORS), code);
 }
 
 /**

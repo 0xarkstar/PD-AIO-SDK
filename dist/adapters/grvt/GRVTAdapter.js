@@ -20,7 +20,7 @@ import { GRVTAuth } from './GRVTAuth.js';
 import { GRVTNormalizer } from './GRVTNormalizer.js';
 import { mapAxiosError } from './GRVTErrorMapper.js';
 import { GRVTWebSocketWrapper } from './GRVTWebSocketWrapper.js';
-import { GRVT_API_URLS, GRVT_RATE_LIMITS, GRVT_ENDPOINT_WEIGHTS, } from './constants.js';
+import { GRVT_API_URLS, GRVT_RATE_LIMITS, GRVT_ENDPOINT_WEIGHTS } from './constants.js';
 /**
  * GRVT Exchange Adapter
  */

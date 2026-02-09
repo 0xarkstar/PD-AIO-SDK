@@ -6,6 +6,7 @@
  * additional error mapping for completeness.
  */
 
+import { includesValue } from '../../utils/type-guards.js';
 import {
   PerpDEXError,
   InvalidOrderError,
@@ -63,7 +64,7 @@ export function mapGRVTError(
       return new RateLimitError(message, errorCode, 'grvt', undefined, originalError);
 
     default:
-      if (Object.values(GRVT_SERVER_ERRORS).includes(errorCode as any)) {
+      if (includesValue(Object.values(GRVT_SERVER_ERRORS), errorCode)) {
         return new ExchangeUnavailableError(message, errorCode, 'grvt', originalError);
       }
       return new PerpDEXError(message, errorCode, 'grvt', originalError);
@@ -90,7 +91,7 @@ export function mapError(error: unknown): PerpDEXError {
  */
 export function isRetryableError(errorCode: string): boolean {
   return (
-    Object.values(GRVT_SERVER_ERRORS).includes(errorCode as any) ||
+    includesValue(Object.values(GRVT_SERVER_ERRORS), errorCode) ||
     errorCode === GRVT_RATE_LIMIT_ERROR
   );
 }

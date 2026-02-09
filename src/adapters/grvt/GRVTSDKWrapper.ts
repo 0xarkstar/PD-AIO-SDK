@@ -7,7 +7,7 @@
 
 import { MDG, TDG } from '@grvt/client';
 import type { IConfig } from '@grvt/client/interfaces';
-import type { AxiosRequestConfig, AxiosResponse } from 'axios';
+import type { AxiosRequestConfig } from 'axios';
 
 /**
  * GRVT SDK Wrapper configuration
@@ -34,7 +34,6 @@ export class GRVTSDKWrapper {
   private sessionCookie?: string;
 
   constructor(config: GRVTSDKWrapperConfig) {
-
     const sdkConfig: IConfig = {
       host: config.host,
     };
@@ -166,10 +165,13 @@ export class GRVTSDKWrapper {
   /**
    * Cancel single order
    */
-  async cancelOrder(params: {
-    order_id?: string;
-    client_order_id?: string;
-  }, config?: AxiosRequestConfig) {
+  async cancelOrder(
+    params: {
+      order_id?: string;
+      client_order_id?: string;
+    },
+    config?: AxiosRequestConfig
+  ) {
     const response = await this.tdg.cancelOrder(params, config);
     this.extractSessionCookieFromResponse(response);
     return response;
@@ -187,10 +189,13 @@ export class GRVTSDKWrapper {
   /**
    * Get single order
    */
-  async getOrder(params: {
-    order_id?: string;
-    client_order_id?: string;
-  }, config?: AxiosRequestConfig) {
+  async getOrder(
+    params: {
+      order_id?: string;
+      client_order_id?: string;
+    },
+    config?: AxiosRequestConfig
+  ) {
     return this.tdg.order(params, config);
   }
 
@@ -367,11 +372,14 @@ export class GRVTSDKWrapper {
   /**
    * Extract session cookie from axios response
    */
-  private extractSessionCookieFromResponse(response: AxiosResponse | any): void {
-    if (!response) return;
+  private extractSessionCookieFromResponse(response: unknown): void {
+    if (!response || typeof response !== 'object') return;
 
     // Check if it's an axios response with headers
-    const headers = response.headers || response.config?.headers;
+    const resp = response as Record<string, unknown>;
+    const config = resp.config as Record<string, unknown> | undefined;
+    const headers =
+      (resp.headers as Record<string, unknown>) || (config?.headers as Record<string, unknown>);
     if (!headers) return;
 
     // Look for Set-Cookie header

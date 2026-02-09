@@ -5,11 +5,7 @@
  * Provides a simplified interface for order management.
  */
 
-import type {
-  Connection,
-  PublicKey,
-  Keypair,
-} from '@solana/web3.js';
+import type { Connection, PublicKey, Keypair } from '@solana/web3.js';
 import { Logger } from '../../core/logger.js';
 
 // Types for @drift-labs/sdk - actual import would be:
@@ -79,7 +75,7 @@ export interface DriftClientWrapperConfig {
  */
 export class DriftClientWrapper {
   private readonly config: DriftClientWrapperConfig;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DriftClient type from @drift-labs/sdk
+
   // is only available after dynamic import() at runtime. Cannot use static type because the SDK uses
   // ESM-only distribution with native Node addons requiring dynamic loading.
   private driftClient: any;
@@ -101,12 +97,8 @@ export class DriftClientWrapper {
     try {
       // Dynamic import to handle ESM module loading
       const driftSdk = await import('@drift-labs/sdk');
-      const {
-        DriftClient,
-        Wallet,
-        BulkAccountLoader,
-        getMarketsAndOraclesForSubscription,
-      } = driftSdk;
+      const { DriftClient, Wallet, BulkAccountLoader, getMarketsAndOraclesForSubscription } =
+        driftSdk;
 
       // Create wallet from keypair (cast to any to handle different @solana/web3.js versions)
       const wallet = new Wallet(this.config.keypair as any);
@@ -149,8 +141,7 @@ export class DriftClientWrapper {
       if (!userAccountExists) {
         // User account needs to be initialized first
         this.logger.warn(
-          'Drift user account does not exist. ' +
-          'Please deposit funds first to create an account.'
+          'Drift user account does not exist. ' + 'Please deposit funds first to create an account.'
         );
       } else {
         // Subscribe to user account updates
@@ -159,7 +150,9 @@ export class DriftClientWrapper {
 
       this.isInitialized = true;
     } catch (error) {
-      throw new Error(`Failed to initialize Drift client: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to initialize Drift client: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -183,13 +176,8 @@ export class DriftClientWrapper {
     this.ensureInitialized();
 
     const driftSdk = await import('@drift-labs/sdk');
-    const {
-      OrderType,
-      PositionDirection,
-      MarketType,
-      OrderTriggerCondition,
-      PostOnlyParams,
-    } = driftSdk;
+    const { OrderType, PositionDirection, MarketType, OrderTriggerCondition, PostOnlyParams } =
+      driftSdk;
 
     // Map order type
     const orderTypeMap: Record<string, any> = {
@@ -215,9 +203,10 @@ export class DriftClientWrapper {
       baseAssetAmount: params.baseAssetAmount,
       price: params.price,
       triggerPrice: params.triggerPrice,
-      triggerCondition: params.triggerCondition === 'above'
-        ? OrderTriggerCondition.ABOVE
-        : OrderTriggerCondition.BELOW,
+      triggerCondition:
+        params.triggerCondition === 'above'
+          ? OrderTriggerCondition.ABOVE
+          : OrderTriggerCondition.BELOW,
       reduceOnly: params.reduceOnly ?? false,
       postOnly: params.postOnly ? PostOnlyParams.MUST_POST_ONLY : PostOnlyParams.NONE,
       immediateOrCancel: params.immediateOrCancel ?? false,
@@ -266,10 +255,7 @@ export class DriftClientWrapper {
     const driftSdk = await import('@drift-labs/sdk');
     const { MarketType } = driftSdk;
 
-    const txSig = await this.driftClient.cancelOrders(
-      MarketType.PERP,
-      marketIndex
-    );
+    const txSig = await this.driftClient.cancelOrders(MarketType.PERP, marketIndex);
 
     await this.config.connection.confirmTransaction(txSig, 'confirmed');
 
@@ -333,7 +319,7 @@ export class DriftClientWrapper {
       price: newParams.price ?? originalOrder.price,
       triggerPrice: newParams.triggerPrice ?? originalOrder.triggerPrice,
       reduceOnly: newParams.reduceOnly ?? originalOrder.reduceOnly,
-      postOnly: newParams.postOnly ?? (originalOrder.postOnly !== 'none'),
+      postOnly: newParams.postOnly ?? originalOrder.postOnly !== 'none',
     };
 
     return this.placePerpOrder(mergedParams);
@@ -446,7 +432,10 @@ export class DriftClientWrapper {
       throw new Error(`Perp market ${marketIndex} not found`);
     }
 
-    const price = calculateReservePrice(perpMarket, this.driftClient.getOracleDataForPerpMarket(marketIndex));
+    const price = calculateReservePrice(
+      perpMarket,
+      this.driftClient.getOracleDataForPerpMarket(marketIndex)
+    );
     // Convert BN to bigint
     return BigInt(price.toString());
   }
@@ -465,11 +454,7 @@ export class DriftClientWrapper {
   ): Promise<string> {
     this.ensureInitialized();
 
-    const txSig = await this.driftClient.deposit(
-      amount,
-      spotMarketIndex,
-      userTokenAccount
-    );
+    const txSig = await this.driftClient.deposit(amount, spotMarketIndex, userTokenAccount);
 
     await this.config.connection.confirmTransaction(txSig, 'confirmed');
 
@@ -486,11 +471,7 @@ export class DriftClientWrapper {
   ): Promise<string> {
     this.ensureInitialized();
 
-    const txSig = await this.driftClient.withdraw(
-      amount,
-      spotMarketIndex,
-      userTokenAccount
-    );
+    const txSig = await this.driftClient.withdraw(amount, spotMarketIndex, userTokenAccount);
 
     await this.config.connection.confirmTransaction(txSig, 'confirmed');
 

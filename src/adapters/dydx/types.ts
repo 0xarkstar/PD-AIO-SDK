@@ -105,7 +105,14 @@ export interface DydxOrder {
   goodTilBlock?: string;
   goodTilBlockTime?: string;
   status: 'OPEN' | 'FILLED' | 'CANCELED' | 'BEST_EFFORT_CANCELED' | 'UNTRIGGERED' | 'PENDING';
-  type: 'LIMIT' | 'MARKET' | 'STOP_LIMIT' | 'STOP_MARKET' | 'TRAILING_STOP' | 'TAKE_PROFIT' | 'TAKE_PROFIT_MARKET';
+  type:
+    | 'LIMIT'
+    | 'MARKET'
+    | 'STOP_LIMIT'
+    | 'STOP_MARKET'
+    | 'TRAILING_STOP'
+    | 'TAKE_PROFIT'
+    | 'TAKE_PROFIT_MARKET';
   timeInForce: 'GTT' | 'FOK' | 'IOC';
   postOnly: boolean;
   reduceOnly: boolean;
@@ -259,7 +266,13 @@ export interface DydxWsSubscription {
 }
 
 export interface DydxWsMessage {
-  type: 'connected' | 'subscribed' | 'unsubscribed' | 'channel_data' | 'channel_batch_data' | 'error';
+  type:
+    | 'connected'
+    | 'subscribed'
+    | 'unsubscribed'
+    | 'channel_data'
+    | 'channel_batch_data'
+    | 'error';
   connection_id?: string;
   message_id?: number;
   channel?: string;

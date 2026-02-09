@@ -1731,7 +1731,7 @@ var Logger = class _Logger {
     this.context = context;
     this.level = config.level ?? "info" /* INFO */;
     this.enabled = config.enabled ?? true;
-    this.output = config.output ?? this.defaultOutput;
+    this.output = config.output ?? this.defaultOutput.bind(this);
     this.maskSensitiveData = config.maskSensitiveData ?? true;
     this.correlationId = config.correlationId;
   }
@@ -1787,6 +1787,19 @@ var Logger = class _Logger {
    */
   getCorrelationId() {
     return this.correlationId;
+  }
+  /**
+   * Get logger configuration (used by createChildLogger)
+   */
+  getConfig() {
+    return {
+      context: this.context,
+      level: this.level,
+      enabled: this.enabled,
+      output: this.output,
+      maskSensitiveData: this.maskSensitiveData,
+      correlationId: this.correlationId
+    };
   }
   /**
    * Create a child logger with a specific correlation ID
@@ -1873,21 +1886,18 @@ var Logger = class _Logger {
   }
 };
 function createChildLogger(parent, childContext) {
-  const fullContext = `${parent.context}:${childContext}`;
+  const config = parent.getConfig();
+  const fullContext = `${config.context}:${childContext}`;
   return new Logger(fullContext, {
-    level: parent.level,
-    enabled: parent.enabled,
-    output: parent.output,
-    maskSensitiveData: parent.maskSensitiveData,
-    correlationId: parent.correlationId
+    level: config.level,
+    enabled: config.enabled,
+    output: config.output,
+    maskSensitiveData: config.maskSensitiveData,
+    correlationId: config.correlationId
   });
 }
 function formatLogEntry(entry) {
-  const parts = [
-    `[${entry.timestamp}]`,
-    entry.level.toUpperCase(),
-    `[${entry.context}]`
-  ];
+  const parts = [`[${entry.timestamp}]`, entry.level.toUpperCase(), `[${entry.context}]`];
   if (entry.correlationId) {
     parts.push(`[${entry.correlationId}]`);
   }
@@ -2423,8 +2433,9 @@ var WebSocketClient = class extends import_index.default {
           });
         }
       } catch (error) {
-        this.handleError(error instanceof Error ? error : new Error(String(error)));
-        reject(error);
+        const err2 = error instanceof Error ? error : new Error(String(error));
+        this.handleError(err2);
+        reject(err2);
       }
     });
   }
@@ -2465,7 +2476,7 @@ var WebSocketClient = class extends import_index.default {
         this.emit("message", message);
       }
     } catch (error) {
-      this.emit("error", new Error(`Failed to handle message: ${error}`));
+      this.emit("error", new Error(`Failed to handle message: ${String(error)}`));
     }
   }
   /**
@@ -2554,7 +2565,7 @@ var WebSocketClient = class extends import_index.default {
             }, this.heartbeatConfig.timeout);
           }
         } catch (error) {
-          this.emit("error", new Error(`Heartbeat failed: ${error}`));
+          this.emit("error", new Error(`Heartbeat failed: ${String(error)}`));
         }
       }
     }, this.heartbeatConfig.interval);
@@ -2732,7 +2743,7 @@ var WebSocketManager = class extends import_index.default {
       try {
         this.client.send(unsubscribeMessage);
       } catch (error) {
-        this.emit("error", new Error(`Failed to unsubscribe: ${error}`));
+        this.emit("error", new Error(`Failed to unsubscribe: ${String(error)}`));
       }
     }
     this.subscriptions.delete(subscriptionId);
@@ -2808,7 +2819,7 @@ var WebSocketManager = class extends import_index.default {
           try {
             subscription.handler(message.data);
           } catch (error) {
-            this.emit("error", new Error(`Subscription handler error: ${error}`));
+            this.emit("error", new Error(`Subscription handler error: ${String(error)}`));
           }
         }
       }
@@ -2816,7 +2827,7 @@ var WebSocketManager = class extends import_index.default {
         this.emit("message", message.channel, message.data);
       }
     } catch (error) {
-      this.emit("error", new Error(`Failed to handle message: ${error}`));
+      this.emit("error", new Error(`Failed to handle message: ${String(error)}`));
     }
   }
   /**
@@ -2851,7 +2862,7 @@ var WebSocketManager = class extends import_index.default {
         try {
           this.client.send(data);
         } catch (error) {
-          this.emit("error", new Error(`Failed to send queued message: ${error}`));
+          this.emit("error", new Error(`Failed to send queued message: ${String(error)}`));
         }
       }
       this.messageQueue = [];
@@ -2862,7 +2873,7 @@ var WebSocketManager = class extends import_index.default {
           } catch (error) {
             this.emit(
               "error",
-              new Error(`Failed to resubscribe to ${subscription.channel}: ${error}`)
+              new Error(`Failed to resubscribe to ${subscription.channel}: ${String(error)}`)
             );
           }
         }
@@ -2896,7 +2907,15 @@ function isCriticallyUnhealthy(result) {
 
 // src/types/metrics.ts
 function createMetricsSnapshot(metrics) {
-  const { totalRequests, successfulRequests, failedRequests, rateLimitHits, averageLatency, endpointStats, startedAt } = metrics;
+  const {
+    totalRequests,
+    successfulRequests,
+    failedRequests,
+    rateLimitHits,
+    averageLatency,
+    endpointStats,
+    startedAt
+  } = metrics;
   const successRate = totalRequests > 0 ? successfulRequests / totalRequests : 0;
   const errorRate = totalRequests > 0 ? failedRequests / totalRequests : 0;
   const endpoints = Array.from(endpointStats.values()).map((stats) => ({
@@ -2951,11 +2970,7 @@ var CircuitBreaker = class extends import_index.default {
   async execute(fn) {
     if (!this.canExecute()) {
       this.recordRejection();
-      throw new CircuitBreakerError(
-        "Circuit breaker is OPEN",
-        "CIRCUIT_OPEN",
-        this.state
-      );
+      throw new CircuitBreakerError("Circuit breaker is OPEN", "CIRCUIT_OPEN", this.state);
     }
     try {
       const result = await fn();
@@ -3372,7 +3387,11 @@ var PrometheusMetrics = class {
    * Record circuit breaker state transition
    */
   recordCircuitBreakerTransition(exchange, fromState, toState) {
-    this.circuitBreakerTransitionCounter.inc({ exchange, from_state: fromState, to_state: toState });
+    this.circuitBreakerTransitionCounter.inc({
+      exchange,
+      from_state: fromState,
+      to_state: toState
+    });
   }
   /**
    * Record circuit breaker failure
@@ -7765,9 +7784,7 @@ function validateData(schema, data, context) {
   const result = schema.safeParse(data);
   if (!result.success) {
     const errors = result.error.errors.map((err2) => `${err2.path.join(".")}: ${err2.message}`);
-    throw new Error(
-      `Validation failed${context ? ` for ${context}` : ""}: ${errors.join(", ")}`
-    );
+    throw new Error(`Validation failed${context ? ` for ${context}` : ""}: ${errors.join(", ")}`);
   }
   return result.data;
 }
@@ -7779,11 +7796,7 @@ function validate(schema, data, options) {
     const errors = mapZodErrors(result.error);
     const errorMessage = formatValidationErrors(errors, options.errorPrefix);
     if (options.throwOnError !== false) {
-      const error = new PerpDEXError(
-        errorMessage,
-        "VALIDATION_ERROR",
-        options.exchange
-      );
+      const error = new PerpDEXError(errorMessage, "VALIDATION_ERROR", options.exchange);
       if (options.context?.correlationId) {
         error.withCorrelationId(options.context.correlationId);
       }
@@ -7807,11 +7820,7 @@ function validateOrderRequest(data, options) {
   if (!result.success) {
     const errors = mapZodErrors(result.error);
     const errorMessage = formatValidationErrors(errors, "Invalid order");
-    const error = new InvalidOrderError(
-      errorMessage,
-      "INVALID_ORDER_REQUEST",
-      options.exchange
-    );
+    const error = new InvalidOrderError(errorMessage, "INVALID_ORDER_REQUEST", options.exchange);
     if (options.context?.correlationId) {
       error.withCorrelationId(options.context.correlationId);
     }
@@ -7880,11 +7889,7 @@ function validateArray(schema, data, options) {
   }
   if (errors.length > 0 && options.throwOnError !== false) {
     const errorMessage = formatValidationErrors(errors, options.errorPrefix);
-    const error = new PerpDEXError(
-      errorMessage,
-      "VALIDATION_ERROR",
-      options.exchange
-    );
+    const error = new PerpDEXError(errorMessage, "VALIDATION_ERROR", options.exchange);
     if (options.context?.correlationId) {
       error.withCorrelationId(options.context.correlationId);
     }
@@ -8259,7 +8264,12 @@ var BaseAdapter = class {
         const startTime = Date.now();
         const endpoint = this.extractEndpoint(url);
         const endpointKey = `${method}:${endpoint}`;
-        this.debug(`Request ${correlationId}`, { method, endpoint, attempt: attempt + 1, correlationId });
+        this.debug(`Request ${correlationId}`, {
+          method,
+          endpoint,
+          attempt: attempt + 1,
+          correlationId
+        });
         this.metrics.totalRequests++;
         const controller = new AbortController();
         this.abortControllers.add(controller);
@@ -8268,7 +8278,11 @@ var BaseAdapter = class {
         try {
           const response = await fetch(url, {
             method,
-            headers: { "Content-Type": "application/json", "X-Correlation-ID": correlationId, ...headers },
+            headers: {
+              "Content-Type": "application/json",
+              "X-Correlation-ID": correlationId,
+              ...headers
+            },
             body: body ? JSON.stringify(body) : void 0,
             signal: controller.signal
           });
@@ -8295,7 +8309,11 @@ var BaseAdapter = class {
           this.metrics.successfulRequests++;
           this.updateEndpointMetrics(endpointKey, latency, false);
           this.updateAverageLatency(latency);
-          this.debug(`Request ${correlationId} completed`, { correlationId, latency, status: response.status });
+          this.debug(`Request ${correlationId} completed`, {
+            correlationId,
+            latency,
+            status: response.status
+          });
           if (this.prometheusMetrics) {
             this.prometheusMetrics.recordRequest(this.id, endpoint, "success", latency);
           }
@@ -8332,7 +8350,10 @@ var BaseAdapter = class {
           throw this.attachCorrelationId(error, correlationId);
         }
       }
-      throw this.attachCorrelationId(lastError || new Error("Request failed after retries"), correlationId);
+      throw this.attachCorrelationId(
+        lastError || new Error("Request failed after retries"),
+        correlationId
+      );
     });
   }
   registerTimer(timer) {
@@ -8359,9 +8380,17 @@ var BaseAdapter = class {
   }
   async fetchOHLCV(_symbol, _timeframe, _params) {
     if (!this.has.fetchOHLCV) {
-      throw new NotSupportedError(`${this.name} does not support OHLCV data`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support OHLCV data`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchOHLCV must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchOHLCV must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchTickers(symbols) {
     if (!this.has.fetchTickers) {
@@ -8376,13 +8405,25 @@ var BaseAdapter = class {
       }
       return result;
     }
-    throw new NotSupportedError("fetchTickers must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchTickers must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchCurrencies() {
     if (!this.has.fetchCurrencies) {
-      throw new NotSupportedError(`${this.name} does not support fetching currencies`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching currencies`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchCurrencies must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchCurrencies must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchStatus() {
     if (!this.has.fetchStatus) {
@@ -8390,47 +8431,99 @@ var BaseAdapter = class {
         await this.fetchMarkets();
         return { status: "ok", updated: Date.now() };
       } catch (error) {
-        return { status: "error", message: error instanceof Error ? error.message : "Unknown error", updated: Date.now() };
+        return {
+          status: "error",
+          message: error instanceof Error ? error.message : "Unknown error",
+          updated: Date.now()
+        };
       }
     }
-    throw new NotSupportedError("fetchStatus must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchStatus must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchTime() {
     if (!this.has.fetchTime) {
-      throw new NotSupportedError(`${this.name} does not support fetching server time`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching server time`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchTime must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchTime must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchDeposits(_currency, _since, _limit) {
     if (!this.has.fetchDeposits) {
-      throw new NotSupportedError(`${this.name} does not support fetching deposit history`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching deposit history`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchDeposits must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchDeposits must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchWithdrawals(_currency, _since, _limit) {
     if (!this.has.fetchWithdrawals) {
-      throw new NotSupportedError(`${this.name} does not support fetching withdrawal history`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching withdrawal history`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchWithdrawals must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchWithdrawals must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchLedger(_currency, _since, _limit, _params) {
     if (!this.has.fetchLedger) {
-      throw new NotSupportedError(`${this.name} does not support fetching ledger`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching ledger`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchLedger must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchLedger must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchFundingHistory(_symbol, _since, _limit) {
     if (!this.has.fetchFundingHistory) {
-      throw new NotSupportedError(`${this.name} does not support fetching funding history`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching funding history`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchFundingHistory must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchFundingHistory must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   // ===========================================================================
   // Batch Operations (from OrderHelpersMixin)
   // ===========================================================================
   async createBatchOrders(requests) {
     if (this.has.createBatchOrders === true) {
-      throw new NotSupportedError("createBatchOrders must be implemented by subclass when has.createBatchOrders is true", "NOT_IMPLEMENTED", this.id);
+      throw new NotSupportedError(
+        "createBatchOrders must be implemented by subclass when has.createBatchOrders is true",
+        "NOT_IMPLEMENTED",
+        this.id
+      );
     }
     this.debug("No native batch support, creating orders sequentially", { count: requests.length });
     const orders = [];
@@ -8444,25 +8537,43 @@ var BaseAdapter = class {
       } catch (error) {
         const err2 = error instanceof Error ? error : new Error(String(error));
         errors.push({ index: i, error: err2 });
-        this.debug("Failed to create order", { index: i + 1, total: requests.length, error: err2.message });
+        this.debug("Failed to create order", {
+          index: i + 1,
+          total: requests.length,
+          error: err2.message
+        });
       }
     }
     if (orders.length === 0 && errors.length > 0) {
       const firstError = errors[0];
       if (firstError) {
-        throw new PerpDEXError(`All batch order creations failed. First error: ${firstError.error.message}`, "BATCH_FAILED", this.id, firstError.error);
+        throw new PerpDEXError(
+          `All batch order creations failed. First error: ${firstError.error.message}`,
+          "BATCH_FAILED",
+          this.id,
+          firstError.error
+        );
       }
     }
     if (errors.length > 0) {
-      this.debug("Batch order creation completed", { succeeded: orders.length, failed: errors.length });
+      this.debug("Batch order creation completed", {
+        succeeded: orders.length,
+        failed: errors.length
+      });
     }
     return orders;
   }
   async cancelBatchOrders(orderIds, symbol) {
     if (this.has.cancelBatchOrders === true) {
-      throw new NotSupportedError("cancelBatchOrders must be implemented by subclass when has.cancelBatchOrders is true", "NOT_IMPLEMENTED", this.id);
+      throw new NotSupportedError(
+        "cancelBatchOrders must be implemented by subclass when has.cancelBatchOrders is true",
+        "NOT_IMPLEMENTED",
+        this.id
+      );
     }
-    this.debug("No native batch support, canceling orders sequentially", { count: orderIds.length });
+    this.debug("No native batch support, canceling orders sequentially", {
+      count: orderIds.length
+    });
     const orders = [];
     const errors = [];
     for (let i = 0; i < orderIds.length; i++) {
@@ -8480,40 +8591,80 @@ var BaseAdapter = class {
     if (orders.length === 0 && errors.length > 0) {
       const firstError = errors[0];
       if (firstError) {
-        throw new PerpDEXError(`All batch order cancellations failed. First error: ${firstError.error.message}`, "BATCH_FAILED", this.id, firstError.error);
+        throw new PerpDEXError(
+          `All batch order cancellations failed. First error: ${firstError.error.message}`,
+          "BATCH_FAILED",
+          this.id,
+          firstError.error
+        );
       }
     }
     if (errors.length > 0) {
-      this.debug("Batch order cancellation completed", { succeeded: orders.length, failed: errors.length });
+      this.debug("Batch order cancellation completed", {
+        succeeded: orders.length,
+        failed: errors.length
+      });
     }
     return orders;
   }
   async editOrder(_orderId, _symbol, _type, _side, _amount, _price, _params) {
     if (!this.has.editOrder) {
-      throw new NotSupportedError(`${this.name} does not support editing orders`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support editing orders`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("editOrder must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "editOrder must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   // ===========================================================================
   // Order Query
   // ===========================================================================
   async fetchOrder(_orderId, _symbol) {
     if (!this.has.fetchOrder) {
-      throw new NotSupportedError(`${this.name} does not support fetching single orders`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching single orders`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchOrder must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchOrder must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchOpenOrders(_symbol, _since, _limit) {
     if (!this.has.fetchOpenOrders) {
-      throw new NotSupportedError(`${this.name} does not support fetching open orders`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching open orders`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchOpenOrders must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchOpenOrders must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchClosedOrders(_symbol, _since, _limit) {
     if (!this.has.fetchClosedOrders) {
-      throw new NotSupportedError(`${this.name} does not support fetching closed orders`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching closed orders`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchClosedOrders must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchClosedOrders must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   // ===========================================================================
   // Convenience Order Methods (CCXT-compatible)
@@ -8531,88 +8682,192 @@ var BaseAdapter = class {
     return this.createOrder({ symbol, type: "market", side: "sell", amount, ...params });
   }
   async createStopLossOrder(symbol, amount, stopPrice, params) {
-    return this.createOrder({ symbol, type: "stopMarket", side: "sell", amount, stopPrice, reduceOnly: true, ...params });
+    return this.createOrder({
+      symbol,
+      type: "stopMarket",
+      side: "sell",
+      amount,
+      stopPrice,
+      reduceOnly: true,
+      ...params
+    });
   }
   async createTakeProfitOrder(symbol, amount, takeProfitPrice, params) {
-    return this.createOrder({ symbol, type: "limit", side: "sell", amount, price: takeProfitPrice, reduceOnly: true, ...params });
+    return this.createOrder({
+      symbol,
+      type: "limit",
+      side: "sell",
+      amount,
+      price: takeProfitPrice,
+      reduceOnly: true,
+      ...params
+    });
   }
   async setMarginMode(_symbol, _marginMode) {
     if (!this.has.setMarginMode || this.has.setMarginMode === "emulated") {
-      throw new NotSupportedError(`${this.name} does not support setting margin mode directly`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support setting margin mode directly`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("setMarginMode must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "setMarginMode must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   // ===========================================================================
   // WebSocket Streams - default implementation throws if not supported
   // ===========================================================================
   async *watchOrderBook(_symbol, _limit) {
     if (!this.has.watchOrderBook) {
-      throw new NotSupportedError(`${this.name} does not support order book streaming`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support order book streaming`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("watchOrderBook must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "watchOrderBook must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
     yield {};
   }
   async *watchTrades(_symbol) {
     if (!this.has.watchTrades) {
-      throw new NotSupportedError(`${this.name} does not support trade streaming`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support trade streaming`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("watchTrades must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "watchTrades must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
     yield {};
   }
   async *watchTicker(_symbol) {
     if (!this.has.watchTicker) {
-      throw new NotSupportedError(`${this.name} does not support ticker streaming`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support ticker streaming`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("watchTicker must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "watchTicker must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
     yield {};
   }
   async *watchTickers(_symbols) {
     if (!this.has.watchTickers) {
-      throw new NotSupportedError(`${this.name} does not support multiple ticker streaming`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support multiple ticker streaming`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("watchTickers must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "watchTickers must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
     yield {};
   }
   async *watchPositions() {
     if (!this.has.watchPositions) {
-      throw new NotSupportedError(`${this.name} does not support position streaming`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support position streaming`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("watchPositions must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "watchPositions must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
     yield [];
   }
   async *watchOrders() {
     if (!this.has.watchOrders) {
-      throw new NotSupportedError(`${this.name} does not support order streaming`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support order streaming`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("watchOrders must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "watchOrders must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
     yield [];
   }
   async *watchBalance() {
     if (!this.has.watchBalance) {
-      throw new NotSupportedError(`${this.name} does not support balance streaming`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support balance streaming`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("watchBalance must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "watchBalance must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
     yield [];
   }
   async *watchFundingRate(_symbol) {
     if (!this.has.watchFundingRate) {
-      throw new NotSupportedError(`${this.name} does not support funding rate streaming`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support funding rate streaming`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("watchFundingRate must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "watchFundingRate must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
     yield {};
   }
   async *watchOHLCV(_symbol, _timeframe) {
     if (!this.has.watchOHLCV) {
-      throw new NotSupportedError(`${this.name} does not support OHLCV streaming`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support OHLCV streaming`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("watchOHLCV must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "watchOHLCV must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
     yield [0, 0, 0, 0, 0, 0];
   }
   async *watchMyTrades(_symbol) {
     if (!this.has.watchMyTrades) {
-      throw new NotSupportedError(`${this.name} does not support user trade streaming`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support user trade streaming`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("watchMyTrades must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "watchMyTrades must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
     yield {};
   }
   // ===========================================================================
@@ -8620,21 +8875,45 @@ var BaseAdapter = class {
   // ===========================================================================
   async fetchUserFees() {
     if (!this.has.fetchUserFees) {
-      throw new NotSupportedError(`${this.name} does not support fetching user fees`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching user fees`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchUserFees must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchUserFees must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchPortfolio() {
     if (!this.has.fetchPortfolio) {
-      throw new NotSupportedError(`${this.name} does not support fetching portfolio metrics`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching portfolio metrics`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchPortfolio must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchPortfolio must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   async fetchRateLimitStatus() {
     if (!this.has.fetchRateLimitStatus) {
-      throw new NotSupportedError(`${this.name} does not support fetching rate limit status`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching rate limit status`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
-    throw new NotSupportedError("fetchRateLimitStatus must be implemented by subclass", "NOT_IMPLEMENTED", this.id);
+    throw new NotSupportedError(
+      "fetchRateLimitStatus must be implemented by subclass",
+      "NOT_IMPLEMENTED",
+      this.id
+    );
   }
   // ===========================================================================
   // Utility Methods
@@ -8644,12 +8923,20 @@ var BaseAdapter = class {
   }
   assertFeatureSupported(feature) {
     if (!this.has[feature]) {
-      throw new NotSupportedError(`Feature '${feature}' is not supported by ${this.name}`, "NOT_SUPPORTED", this.id);
+      throw new NotSupportedError(
+        `Feature '${feature}' is not supported by ${this.name}`,
+        "NOT_SUPPORTED",
+        this.id
+      );
     }
   }
   ensureInitialized() {
     if (!this._isReady) {
-      throw new PerpDEXError(`${this.name} adapter not initialized. Call initialize() first.`, "NOT_INITIALIZED", this.id);
+      throw new PerpDEXError(
+        `${this.name} adapter not initialized. Call initialize() first.`,
+        "NOT_INITIALIZED",
+        this.id
+      );
     }
   }
   // ===========================================================================
@@ -8670,7 +8957,9 @@ var BaseAdapter = class {
       return error;
     }
     const message = error instanceof Error ? error.message : String(error);
-    return new PerpDEXError(message, "REQUEST_ERROR", this.id, error).withCorrelationId(correlationId);
+    return new PerpDEXError(message, "REQUEST_ERROR", this.id, error).withCorrelationId(
+      correlationId
+    );
   }
   // ===========================================================================
   // Python-style Method Aliases
@@ -9096,14 +9385,8 @@ var HyperliquidNormalizer = class {
    */
   normalizeOrderBook(book) {
     const unifiedSymbol = hyperliquidToUnified(book.coin);
-    const bids = book.levels[0]?.map((level) => [
-      parseFloat(level.px),
-      parseFloat(level.sz)
-    ]) || [];
-    const asks = book.levels[1]?.map((level) => [
-      parseFloat(level.px),
-      parseFloat(level.sz)
-    ]) || [];
+    const bids = book.levels[0]?.map((level) => [parseFloat(level.px), parseFloat(level.sz)]) || [];
+    const asks = book.levels[1]?.map((level) => [parseFloat(level.px), parseFloat(level.sz)]) || [];
     return {
       symbol: unifiedSymbol,
       timestamp: book.time,
@@ -9387,7 +9670,7 @@ var HyperliquidWebSocket = class {
       }
     };
     yield await this.fetchOpenOrders();
-    for await (const _fillEvent of this.wsManager.watch(
+    for await (const _unused of this.wsManager.watch(
       `${HYPERLIQUID_WS_CHANNELS.USER_FILLS}:${this.auth.getAddress()}`,
       subscription
     )) {
@@ -9476,7 +9759,13 @@ function mapError(error) {
       }
     }
     if (message.includes("429")) {
-      return new RateLimitError("Rate limit exceeded", "RATE_LIMIT", "hyperliquid", void 0, error);
+      return new RateLimitError(
+        "Rate limit exceeded",
+        "RATE_LIMIT",
+        "hyperliquid",
+        void 0,
+        error
+      );
     }
     if (message.includes("503") || message.includes("502")) {
       return new ExchangeUnavailableError(
@@ -9566,14 +9855,16 @@ function parseCandles(response, limit) {
     return [];
   }
   const candles = limit ? response.slice(-limit) : response;
-  return candles.map((candle) => [
-    candle.t,
-    parseFloat(candle.o),
-    parseFloat(candle.h),
-    parseFloat(candle.l),
-    parseFloat(candle.c),
-    parseFloat(candle.v)
-  ]);
+  return candles.map(
+    (candle) => [
+      candle.t,
+      parseFloat(candle.o),
+      parseFloat(candle.h),
+      parseFloat(candle.l),
+      parseFloat(candle.c),
+      parseFloat(candle.v)
+    ]
+  );
 }
 function parseFundingRates(response, symbol, markPrice, limit) {
   let fundingRates = response.map((rate) => ({
@@ -9806,7 +10097,9 @@ var HyperliquidAdapter = class extends BaseAdapter {
       const response = await this.request("POST", `${this.apiUrl}/info`, {
         type: "meta"
       });
-      const markets = response.universe.map((asset, index) => this.normalizer.normalizeMarket(asset, index));
+      const markets = response.universe.map(
+        (asset, index) => this.normalizer.normalizeMarket(asset, index)
+      );
       if (params?.active !== void 0) {
         return markets.filter((m) => m.active === params.active);
       }
@@ -9904,15 +10197,11 @@ var HyperliquidAdapter = class extends BaseAdapter {
     try {
       const exchangeSymbol = this.symbolToExchange(symbol);
       const startTime = since ?? Date.now() - 7 * 24 * 3600 * 1e3;
-      const response = await this.request(
-        "POST",
-        `${this.apiUrl}/info`,
-        {
-          type: "fundingHistory",
-          coin: exchangeSymbol,
-          startTime
-        }
-      );
+      const response = await this.request("POST", `${this.apiUrl}/info`, {
+        type: "fundingHistory",
+        coin: exchangeSymbol,
+        startTime
+      });
       if (!response || response.length === 0) {
         return [];
       }
@@ -10053,7 +10342,10 @@ var HyperliquidAdapter = class extends BaseAdapter {
   // ===========================================================================
   async fetchOrderHistory(symbol, since, limit) {
     try {
-      const response = await this.authInfoRequest("fetchOrderHistory", "historicalOrders");
+      const response = await this.authInfoRequest(
+        "fetchOrderHistory",
+        "historicalOrders"
+      );
       return processOrderHistory(response, this.normalizer, symbol, since, limit);
     } catch (error) {
       throw mapError(error);
@@ -10061,7 +10353,10 @@ var HyperliquidAdapter = class extends BaseAdapter {
   }
   async fetchMyTrades(symbol, since, limit) {
     try {
-      const response = await this.authInfoRequest("fetchMyTrades", "userFills");
+      const response = await this.authInfoRequest(
+        "fetchMyTrades",
+        "userFills"
+      );
       return processUserFills(response, this.normalizer, symbol, since, limit);
     } catch (error) {
       throw mapError(error);
@@ -10072,7 +10367,10 @@ var HyperliquidAdapter = class extends BaseAdapter {
   // ===========================================================================
   async fetchPositions(symbols) {
     try {
-      const response = await this.authInfoRequest("fetchPositions", "clearinghouseState");
+      const response = await this.authInfoRequest(
+        "fetchPositions",
+        "clearinghouseState"
+      );
       const positions = response.assetPositions.filter((p) => parseFloat(p.position.szi) !== 0).map((p) => this.normalizer.normalizePosition(p));
       if (symbols && symbols.length > 0) {
         return positions.filter((p) => symbols.includes(p.symbol));
@@ -10084,7 +10382,10 @@ var HyperliquidAdapter = class extends BaseAdapter {
   }
   async fetchBalance() {
     try {
-      const response = await this.authInfoRequest("fetchBalance", "clearinghouseState");
+      const response = await this.authInfoRequest(
+        "fetchBalance",
+        "clearinghouseState"
+      );
       return this.normalizer.normalizeBalance(response);
     } catch (error) {
       throw mapError(error);
@@ -10117,7 +10418,10 @@ var HyperliquidAdapter = class extends BaseAdapter {
   }
   async fetchUserFees() {
     try {
-      const response = await this.authInfoRequest("fetchUserFees", "userFees");
+      const response = await this.authInfoRequest(
+        "fetchUserFees",
+        "userFees"
+      );
       return parseUserFees(response);
     } catch (error) {
       throw mapError(error);
@@ -10125,7 +10429,10 @@ var HyperliquidAdapter = class extends BaseAdapter {
   }
   async fetchPortfolio() {
     try {
-      const response = await this.authInfoRequest("fetchPortfolio", "portfolio");
+      const response = await this.authInfoRequest(
+        "fetchPortfolio",
+        "portfolio"
+      );
       return parsePortfolio(response);
     } catch (error) {
       throw mapError(error);
@@ -10133,7 +10440,10 @@ var HyperliquidAdapter = class extends BaseAdapter {
   }
   async fetchRateLimitStatus() {
     try {
-      const response = await this.authInfoRequest("fetchRateLimitStatus", "userRateLimit");
+      const response = await this.authInfoRequest(
+        "fetchRateLimitStatus",
+        "userRateLimit"
+      );
       return parseRateLimitStatus(response);
     } catch (error) {
       throw mapError(error);
@@ -10191,14 +10501,10 @@ var HyperliquidAdapter = class extends BaseAdapter {
       throw new Error("Authentication required");
     }
     try {
-      const response = await this.request(
-        "POST",
-        `${this.apiUrl}/info`,
-        {
-          type: "openOrders",
-          user: this.auth.getAddress()
-        }
-      );
+      const response = await this.request("POST", `${this.apiUrl}/info`, {
+        type: "openOrders",
+        user: this.auth.getAddress()
+      });
       return processOpenOrders(response, this.normalizer, symbol);
     } catch (error) {
       throw mapError(error);
@@ -10416,12 +10722,7 @@ var HTTPClient = class {
           );
         }
         if (error.message.includes("fetch") || error.message.includes("network")) {
-          throw new NetworkError(
-            "Network request failed",
-            "NETWORK_ERROR",
-            this.exchange,
-            error
-          );
+          throw new NetworkError("Network request failed", "NETWORK_ERROR", this.exchange, error);
         }
       }
       throw error;
@@ -10817,11 +11118,18 @@ var LighterWebSocket = class {
    */
   async *watchPositions() {
     if (!this._hasAuthentication) {
-      throw new PerpDEXError("API credentials required for position streaming", "AUTH_REQUIRED", "lighter");
+      throw new PerpDEXError(
+        "API credentials required for position streaming",
+        "AUTH_REQUIRED",
+        "lighter"
+      );
     }
     const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.POSITIONS);
     const channelId = `${LIGHTER_WS_CHANNELS.POSITIONS}:${this.getAuthIdentifier()}`;
-    for await (const positions of this.wsManager.watch(channelId, subscription)) {
+    for await (const positions of this.wsManager.watch(
+      channelId,
+      subscription
+    )) {
       yield positions.map((position) => this.normalizer.normalizePosition(position));
     }
   }
@@ -10832,7 +11140,11 @@ var LighterWebSocket = class {
    */
   async *watchOrders() {
     if (!this._hasAuthentication) {
-      throw new PerpDEXError("API credentials required for order streaming", "AUTH_REQUIRED", "lighter");
+      throw new PerpDEXError(
+        "API credentials required for order streaming",
+        "AUTH_REQUIRED",
+        "lighter"
+      );
     }
     const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.ORDERS);
     const channelId = `${LIGHTER_WS_CHANNELS.ORDERS}:${this.getAuthIdentifier()}`;
@@ -10847,7 +11159,11 @@ var LighterWebSocket = class {
    */
   async *watchBalance() {
     if (!this._hasAuthentication) {
-      throw new PerpDEXError("API credentials required for balance streaming", "AUTH_REQUIRED", "lighter");
+      throw new PerpDEXError(
+        "API credentials required for balance streaming",
+        "AUTH_REQUIRED",
+        "lighter"
+      );
     }
     const subscription = await this.buildAuthenticatedSubscription("balance");
     const channelId = `balance:${this.getAuthIdentifier()}`;
@@ -10864,7 +11180,11 @@ var LighterWebSocket = class {
    */
   async *watchMyTrades(symbol) {
     if (!this._hasAuthentication) {
-      throw new PerpDEXError("API credentials required for trade streaming", "AUTH_REQUIRED", "lighter");
+      throw new PerpDEXError(
+        "API credentials required for trade streaming",
+        "AUTH_REQUIRED",
+        "lighter"
+      );
     }
     const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.FILLS);
     if (symbol) {
@@ -10916,7 +11236,13 @@ function mapError2(error) {
   const errorLower = errorMessage.toLowerCase();
   const originalError = error instanceof Error ? error : void 0;
   if (errorLower.includes("rate limit") || errorLower.includes("too many requests")) {
-    return new RateLimitError("Rate limit exceeded", "RATE_LIMIT_EXCEEDED", "lighter", void 0, originalError);
+    return new RateLimitError(
+      "Rate limit exceeded",
+      "RATE_LIMIT_EXCEEDED",
+      "lighter",
+      void 0,
+      originalError
+    );
   }
   if (errorLower.includes("insufficient") && (errorLower.includes("margin") || errorLower.includes("balance"))) {
     return new InsufficientMarginError(
@@ -10927,13 +11253,23 @@ function mapError2(error) {
     );
   }
   if (errorLower.includes("invalid order") || errorLower.includes("order size") || errorLower.includes("price")) {
-    return new InvalidOrderError("Invalid order parameters", "INVALID_ORDER", "lighter", originalError);
+    return new InvalidOrderError(
+      "Invalid order parameters",
+      "INVALID_ORDER",
+      "lighter",
+      originalError
+    );
   }
   if (errorLower.includes("not found") && errorLower.includes("order")) {
     return new OrderNotFoundError("Order not found", "ORDER_NOT_FOUND", "lighter", originalError);
   }
   if (errorLower.includes("unauthorized") || errorLower.includes("authentication") || errorLower.includes("invalid signature")) {
-    return new InvalidSignatureError("Authentication failed", "INVALID_SIGNATURE", "lighter", originalError);
+    return new InvalidSignatureError(
+      "Authentication failed",
+      "INVALID_SIGNATURE",
+      "lighter",
+      originalError
+    );
   }
   if (errorLower.includes("unavailable") || errorLower.includes("maintenance") || errorLower.includes("offline")) {
     return new ExchangeUnavailableError(
@@ -10956,7 +11292,7 @@ async function loadWasmSigner() {
     const module2 = await import("@oraichain/lighter-ts-sdk");
     WasmSignerClient = module2.WasmSignerClient;
     return WasmSignerClient;
-  } catch (error) {
+  } catch {
     throw new Error(
       "Failed to load @oraichain/lighter-ts-sdk. Please install it: npm install @oraichain/lighter-ts-sdk"
     );
@@ -11389,12 +11725,20 @@ async function createOrderWasm(deps, request) {
     await deps.fetchMarkets();
     marketId = deps.marketIdCache.get(lighterSymbol);
     if (marketId === void 0) {
-      throw new InvalidOrderError(`Market not found: ${request.symbol}`, "INVALID_SYMBOL", "lighter");
+      throw new InvalidOrderError(
+        `Market not found: ${request.symbol}`,
+        "INVALID_SYMBOL",
+        "lighter"
+      );
     }
   }
   const metadata = deps.marketMetadataCache.get(lighterSymbol);
   if (!metadata) {
-    throw new InvalidOrderError(`Market metadata not found: ${request.symbol}`, "INVALID_SYMBOL", "lighter");
+    throw new InvalidOrderError(
+      `Market metadata not found: ${request.symbol}`,
+      "INVALID_SYMBOL",
+      "lighter"
+    );
   }
   const nonce = await deps.nonceManager.getNextNonce();
   try {
@@ -11422,7 +11766,11 @@ async function createOrderWasm(deps, request) {
     });
     if (response.code !== 0) {
       await deps.handleTransactionError(response.code);
-      throw new InvalidOrderError(`Order creation failed: code ${response.code}`, "ORDER_REJECTED", "lighter");
+      throw new InvalidOrderError(
+        `Order creation failed: code ${response.code}`,
+        "ORDER_REJECTED",
+        "lighter"
+      );
     }
     return deps.normalizer.normalizeOrder(response.order);
   } catch (error) {
@@ -11464,7 +11812,11 @@ async function cancelOrderWasm(deps, orderId, symbol) {
     });
     if (response.code !== 0) {
       await deps.handleTransactionError(response.code);
-      throw new InvalidOrderError(`Cancel failed: code ${response.code}`, "CANCEL_REJECTED", "lighter");
+      throw new InvalidOrderError(
+        `Cancel failed: code ${response.code}`,
+        "CANCEL_REJECTED",
+        "lighter"
+      );
     }
     return deps.normalizer.normalizeOrder(response.order);
   } catch (error) {
@@ -11503,7 +11855,11 @@ async function cancelAllOrdersWasm(deps, symbol) {
     });
     if (response.code !== 0) {
       await deps.handleTransactionError(response.code);
-      throw new InvalidOrderError(`Cancel all failed: code ${response.code}`, "CANCEL_REJECTED", "lighter");
+      throw new InvalidOrderError(
+        `Cancel all failed: code ${response.code}`,
+        "CANCEL_REJECTED",
+        "lighter"
+      );
     }
     return (response.orders || []).map((order) => deps.normalizer.normalizeOrder(order));
   } catch (error) {
@@ -11531,11 +11887,7 @@ async function withdrawCollateral(deps, collateralIndex, amount, destinationAddr
     );
   }
   if (!destinationAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-    throw new InvalidOrderError(
-      "Invalid destination address format",
-      "INVALID_ADDRESS",
-      "lighter"
-    );
+    throw new InvalidOrderError("Invalid destination address format", "INVALID_ADDRESS", "lighter");
   }
   const nonce = await deps.nonceManager.getNextNonce();
   try {
@@ -11545,10 +11897,14 @@ async function withdrawCollateral(deps, collateralIndex, amount, destinationAddr
       destinationAddress,
       nonce
     });
-    const response = await deps.request("POST", "/api/v1/sendTx", {
-      tx_type: signedTx.txType,
-      tx_info: signedTx.txInfo
-    });
+    const response = await deps.request(
+      "POST",
+      "/api/v1/sendTx",
+      {
+        tx_type: signedTx.txType,
+        tx_info: signedTx.txInfo
+      }
+    );
     if (response.code !== 0) {
       await deps.handleTransactionError(response.code);
       throw new PerpDEXError(
@@ -11574,9 +11930,7 @@ async function fetchMarketsData(deps) {
     if (!response.order_book_details || !Array.isArray(response.order_book_details)) {
       throw new PerpDEXError("Invalid markets response", "INVALID_RESPONSE", "lighter");
     }
-    const perpMarkets = response.order_book_details.filter(
-      (m) => m.market_type === "perp"
-    );
+    const perpMarkets = response.order_book_details.filter((m) => m.market_type === "perp");
     for (const market of perpMarkets) {
       if (market.symbol && market.market_id !== void 0) {
         deps.marketIdCache.set(market.symbol, market.market_id);
@@ -11675,7 +12029,10 @@ async function fetchTradesData(deps, symbol, limit) {
 async function fetchFundingRateData(deps, symbol) {
   try {
     const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
-    const response = await deps.request("GET", `/api/v1/funding-rates?symbol=${lighterSymbol}`);
+    const response = await deps.request(
+      "GET",
+      `/api/v1/funding-rates?symbol=${lighterSymbol}`
+    );
     return deps.normalizer.normalizeFundingRate(response);
   } catch (error) {
     throw mapError2(error);
@@ -11892,7 +12249,9 @@ var LighterAdapter = class extends BaseAdapter {
       try {
         await this.signer.initialize();
       } catch (error) {
-        this.logger.warn("WASM signer initialization failed, falling back to HMAC mode", { error: error instanceof Error ? error.message : String(error) });
+        this.logger.warn("WASM signer initialization failed, falling back to HMAC mode", {
+          error: error instanceof Error ? error.message : String(error)
+        });
         this.signer = null;
         this.nonceManager = null;
       }
@@ -11925,7 +12284,7 @@ var LighterAdapter = class extends BaseAdapter {
         hasAuthentication: this.hasAuthentication,
         hasWasmSigning: this.hasWasmSigning
       });
-    } catch (error) {
+    } catch {
       this.wsManager = null;
       this.wsHandler = null;
     }
@@ -11962,7 +12321,12 @@ var LighterAdapter = class extends BaseAdapter {
   }
   async fetchOrderBook(symbol, params) {
     await this.rateLimiter.acquire("fetchOrderBook");
-    return fetchOrderBookData(this.getMarketDataDeps(), symbol, params?.limit || 50, () => this.fetchMarkets());
+    return fetchOrderBookData(
+      this.getMarketDataDeps(),
+      symbol,
+      params?.limit || 50,
+      () => this.fetchMarkets()
+    );
   }
   async fetchTrades(symbol, params) {
     await this.rateLimiter.acquire("fetchTrades");
@@ -12016,11 +12380,7 @@ var LighterAdapter = class extends BaseAdapter {
     if (this.apiKey && this.apiSecret) {
       return cancelOrderHMAC(deps, orderId);
     }
-    throw new InvalidOrderError(
-      "API credentials required for trading",
-      "AUTH_REQUIRED",
-      "lighter"
-    );
+    throw new InvalidOrderError("API credentials required for trading", "AUTH_REQUIRED", "lighter");
   }
   async cancelAllOrders(symbol) {
     await this.rateLimiter.acquire("cancelAllOrders");
@@ -12031,11 +12391,7 @@ var LighterAdapter = class extends BaseAdapter {
     if (this.apiKey && this.apiSecret) {
       return cancelAllOrdersHMAC(deps, symbol);
     }
-    throw new InvalidOrderError(
-      "API credentials required for trading",
-      "AUTH_REQUIRED",
-      "lighter"
-    );
+    throw new InvalidOrderError("API credentials required for trading", "AUTH_REQUIRED", "lighter");
   }
   // ==================== Collateral Management ====================
   /**
@@ -12049,7 +12405,12 @@ var LighterAdapter = class extends BaseAdapter {
    * @returns Transaction hash
    */
   async withdrawCollateral(collateralIndex, amount, destinationAddress) {
-    return withdrawCollateral(this.getTradingDeps(), collateralIndex, amount, destinationAddress);
+    return withdrawCollateral(
+      this.getTradingDeps(),
+      collateralIndex,
+      amount,
+      destinationAddress
+    );
   }
   /**
    * Handle transaction errors and auto-resync nonce if needed
@@ -12141,7 +12502,7 @@ var LighterAdapter = class extends BaseAdapter {
         case "DELETE":
           return await this.httpClient.delete(path, { headers, body });
         default:
-          throw new Error(`Unsupported HTTP method: ${method}`);
+          throw new Error(`Unsupported HTTP method: ${String(method)}`);
       }
     } catch (error) {
       throw mapError2(error);
@@ -12561,8 +12922,10 @@ var GRVTSDKWrapper = class {
    * Extract session cookie from axios response
    */
   extractSessionCookieFromResponse(response) {
-    if (!response) return;
-    const headers = response.headers || response.config?.headers;
+    if (!response || typeof response !== "object") return;
+    const resp = response;
+    const config = resp.config;
+    const headers = resp.headers || config?.headers;
     if (!headers) return;
     const setCookie = headers["set-cookie"] || headers["Set-Cookie"];
     if (!setCookie) return;
@@ -12987,11 +13350,7 @@ var GRVTNormalizer = class {
     }
     const num = parseFloat(value);
     if (!Number.isFinite(num)) {
-      throw new PerpDEXError(
-        `Invalid number conversion: ${value}`,
-        "INVALID_NUMBER",
-        "grvt"
-      );
+      throw new PerpDEXError(`Invalid number conversion: ${value}`, "INVALID_NUMBER", "grvt");
     }
     return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
   }
@@ -13282,6 +13641,11 @@ var GRVTNormalizer = class {
   }
 };
 
+// src/utils/type-guards.ts
+function includesValue(values, code) {
+  return values.includes(code);
+}
+
 // src/adapters/grvt/GRVTErrorMapper.ts
 var GRVT_CLIENT_ERRORS = {
   // Authentication & Signature
@@ -13340,10 +13704,10 @@ var GRVT_NETWORK_ERRORS = {
   WEBSOCKET_ERROR: "WEBSOCKET_ERROR"
 };
 function isServerError(errorCode) {
-  return Object.values(GRVT_SERVER_ERRORS).includes(errorCode);
+  return includesValue(Object.values(GRVT_SERVER_ERRORS), errorCode);
 }
 function isNetworkError(errorCode) {
-  return Object.values(GRVT_NETWORK_ERRORS).includes(errorCode);
+  return includesValue(Object.values(GRVT_NETWORK_ERRORS), errorCode);
 }
 function mapGRVTError(errorCode, message, originalError) {
   const code = errorCode.toString();
@@ -13392,25 +13756,13 @@ function mapHttpError(status, statusText, responseData) {
     return mapGRVTError(code, message, responseData);
   }
   if (status === 401) {
-    return new InvalidSignatureError(
-      `Unauthorized: ${statusText}`,
-      "UNAUTHORIZED",
-      "grvt"
-    );
+    return new InvalidSignatureError(`Unauthorized: ${statusText}`, "UNAUTHORIZED", "grvt");
   }
   if (status === 403) {
-    return new InsufficientPermissionsError(
-      `Forbidden: ${statusText}`,
-      "FORBIDDEN",
-      "grvt"
-    );
+    return new InsufficientPermissionsError(`Forbidden: ${statusText}`, "FORBIDDEN", "grvt");
   }
   if (status === 404) {
-    return new OrderNotFoundError(
-      `Not found: ${statusText}`,
-      "NOT_FOUND",
-      "grvt"
-    );
+    return new OrderNotFoundError(`Not found: ${statusText}`, "NOT_FOUND", "grvt");
   }
   if (status === 429) {
     const retryAfter = extractRetryAfter(responseData);
@@ -13442,11 +13794,7 @@ function mapHttpError(status, statusText, responseData) {
       "grvt"
     );
   }
-  return new PerpDEXError(
-    `HTTP error (${status}): ${statusText}`,
-    `HTTP_${status}`,
-    "grvt"
-  );
+  return new PerpDEXError(`HTTP error (${status}): ${statusText}`, `HTTP_${status}`, "grvt");
 }
 function mapAxiosError(error) {
   if (error.response) {
@@ -13462,12 +13810,7 @@ function mapAxiosError(error) {
     );
   }
   if (error.code === "ECONNABORTED") {
-    return new ExchangeUnavailableError(
-      "Request timeout",
-      "ETIMEDOUT",
-      "grvt",
-      error
-    );
+    return new ExchangeUnavailableError("Request timeout", "ETIMEDOUT", "grvt", error);
   }
   return new PerpDEXError(
     error.message || "Unknown error occurred",
@@ -14214,14 +14557,16 @@ var GRVTAdapter = class extends BaseAdapter {
       if (!response.result || !Array.isArray(response.result)) {
         return [];
       }
-      return response.result.map((candle) => [
-        candle.time || candle.t,
-        parseFloat(candle.open || candle.o || "0"),
-        parseFloat(candle.high || candle.h || "0"),
-        parseFloat(candle.low || candle.l || "0"),
-        parseFloat(candle.close || candle.c || "0"),
-        parseFloat(candle.volume || candle.v || "0")
-      ]);
+      return response.result.map(
+        (candle) => [
+          candle.time || candle.t,
+          parseFloat(candle.open || candle.o || "0"),
+          parseFloat(candle.high || candle.h || "0"),
+          parseFloat(candle.low || candle.l || "0"),
+          parseFloat(candle.close || candle.c || "0"),
+          parseFloat(candle.volume || candle.v || "0")
+        ]
+      );
     } catch (error) {
       throw mapAxiosError(error);
     }
@@ -14743,9 +15088,7 @@ var ParadexAuth = class {
    */
   requireAuth() {
     if (!this.hasCredentials()) {
-      throw new Error(
-        "Authentication required. Provide apiKey or starkPrivateKey in config."
-      );
+      throw new Error("Authentication required. Provide apiKey or starkPrivateKey in config.");
     }
   }
   // ===========================================================================
@@ -14924,7 +15267,9 @@ var ParadexAuth = class {
       const signature = import_starknet.ec.starkCurve.sign(messageHash, this.starkPrivateKey);
       return `0x${signature.r.toString(16)},0x${signature.s.toString(16)}`;
     } catch (error) {
-      throw new Error(`Failed to sign StarkNet request: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to sign StarkNet request: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
   /**
@@ -14951,7 +15296,10 @@ var ParadexAuth = class {
       const publicKey = import_starknet.ec.starkCurve.getStarkKey(this.starkPrivateKey);
       return publicKey;
     } catch (error) {
-      this.logger.error("Failed to derive StarkNet address", error instanceof Error ? error : void 0);
+      this.logger.error(
+        "Failed to derive StarkNet address",
+        error instanceof Error ? error : void 0
+      );
       return void 0;
     }
   }
@@ -15026,7 +15374,7 @@ function isServerError2(code) {
   return Object.values(PARADEX_SERVER_ERRORS).includes(numericCode) || numericCode >= 5e3 && numericCode < 6e3 || numericCode >= 500 && numericCode < 600;
 }
 function isNetworkError2(code) {
-  return Object.values(PARADEX_NETWORK_ERRORS).includes(code);
+  return includesValue(Object.values(PARADEX_NETWORK_ERRORS), code);
 }
 function mapParadexError(errorCode, message, originalError) {
   const numericCode = typeof errorCode === "string" ? parseInt(errorCode, 10) : errorCode;
@@ -15079,18 +15427,10 @@ function mapHttpError2(status, statusText, responseData) {
     return mapParadexError(code, message, responseData);
   }
   if (status === 401) {
-    return new InvalidSignatureError(
-      `Unauthorized: ${statusText}`,
-      "UNAUTHORIZED",
-      "paradex"
-    );
+    return new InvalidSignatureError(`Unauthorized: ${statusText}`, "UNAUTHORIZED", "paradex");
   }
   if (status === 403) {
-    return new InsufficientPermissionsError(
-      `Forbidden: ${statusText}`,
-      "FORBIDDEN",
-      "paradex"
-    );
+    return new InsufficientPermissionsError(`Forbidden: ${statusText}`, "FORBIDDEN", "paradex");
   }
   if (status === 404) {
     return new OrderNotFoundError(`Not found: ${statusText}`, "NOT_FOUND", "paradex");
@@ -15125,11 +15465,7 @@ function mapHttpError2(status, statusText, responseData) {
       "paradex"
     );
   }
-  return new PerpDEXError(
-    `HTTP error (${status}): ${statusText}`,
-    `HTTP_${status}`,
-    "paradex"
-  );
+  return new PerpDEXError(`HTTP error (${status}): ${statusText}`, `HTTP_${status}`, "paradex");
 }
 function mapAxiosError2(error) {
   if (error.response) {
@@ -15145,12 +15481,7 @@ function mapAxiosError2(error) {
     );
   }
   if (error.code === "ECONNABORTED") {
-    return new ExchangeUnavailableError(
-      "Request timeout",
-      "ETIMEDOUT",
-      "paradex",
-      error
-    );
+    return new ExchangeUnavailableError("Request timeout", "ETIMEDOUT", "paradex", error);
   }
   return new PerpDEXError(
     error.message || "Unknown error occurred",
@@ -15293,12 +15624,7 @@ var ParadexHTTPClient = class {
         throw error;
       }
       const message = error instanceof Error ? error.message : "Request failed";
-      throw new PerpDEXError(
-        message,
-        "UNKNOWN_ERROR",
-        "paradex",
-        error
-      );
+      throw new PerpDEXError(message, "UNKNOWN_ERROR", "paradex", error);
     }
   }
   /**
@@ -15318,11 +15644,7 @@ var ParadexHTTPClient = class {
     }
     if (!response.ok) {
       if (this.enableLogging) {
-        this.logger.error(
-          `Error ${response.status}: ${response.statusText}`,
-          void 0,
-          { data }
-        );
+        this.logger.error(`Error ${response.status}: ${response.statusText}`, void 0, { data });
       }
       throw mapHttpError2(response.status, response.statusText, data);
     }
@@ -15633,14 +15955,8 @@ var ParadexNormalizer = class {
     return {
       symbol: this.symbolToCCXT(paradexOrderBook.market),
       exchange: "paradex",
-      bids: paradexOrderBook.bids.map(([price, size]) => [
-        parseFloat(price),
-        parseFloat(size)
-      ]),
-      asks: paradexOrderBook.asks.map(([price, size]) => [
-        parseFloat(price),
-        parseFloat(size)
-      ]),
+      bids: paradexOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+      asks: paradexOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
       timestamp: paradexOrderBook.timestamp
     };
   }
@@ -16131,17 +16447,11 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
         };
         this.ws.onclose = () => {
           this.isConnected = false;
-          this.handleDisconnect();
+          void this.handleDisconnect();
         };
         setTimeout(() => {
           if (!this.isConnected) {
-            reject(
-              new PerpDEXError(
-                "WebSocket connection timeout",
-                "WS_TIMEOUT",
-                "paradex"
-              )
-            );
+            reject(new PerpDEXError("WebSocket connection timeout", "WS_TIMEOUT", "paradex"));
           }
         }, this.timeout);
       } catch (error) {
@@ -16179,7 +16489,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     const market = this.normalizer.symbolFromCCXT(symbol);
     const channel = `orderbook.${market}`;
     const queue = [];
-    let error = null;
+    const error = null;
     let resolver = null;
     const callback = (data) => {
       if (resolver) {
@@ -16225,7 +16535,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     const market = this.normalizer.symbolFromCCXT(symbol);
     const channel = `trades.${market}`;
     const queue = [];
-    let error = null;
+    const error = null;
     let resolver = null;
     const callback = (data) => {
       const trades = Array.isArray(data) ? data : [data];
@@ -16275,7 +16585,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
     const market = this.normalizer.symbolFromCCXT(symbol);
     const channel = `ticker.${market}`;
     const queue = [];
-    let error = null;
+    const error = null;
     let resolver = null;
     const callback = (data) => {
       if (resolver) {
@@ -16325,7 +16635,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
   async *watchPositions(symbol) {
     const channel = symbol ? `positions.${this.normalizer.symbolFromCCXT(symbol)}` : "positions";
     const queue = [];
-    let error = null;
+    const error = null;
     let resolver = null;
     const callback = (data) => {
       const positions = Array.isArray(data) ? data : [data];
@@ -16339,7 +16649,11 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
       }
     };
     try {
-      await this.subscribe(channel, symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {}, callback);
+      await this.subscribe(
+        channel,
+        symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {},
+        callback
+      );
       while (true) {
         if (error) throw error;
         let data;
@@ -16379,7 +16693,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
   async *watchOrders(symbol) {
     const channel = symbol ? `orders.${this.normalizer.symbolFromCCXT(symbol)}` : "orders";
     const queue = [];
-    let error = null;
+    const error = null;
     let resolver = null;
     const callback = (data) => {
       const orders = Array.isArray(data) ? data : [data];
@@ -16393,7 +16707,11 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
       }
     };
     try {
-      await this.subscribe(channel, symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {}, callback);
+      await this.subscribe(
+        channel,
+        symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {},
+        callback
+      );
       while (true) {
         if (error) throw error;
         let data;
@@ -16436,7 +16754,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
   async *watchBalance() {
     const channel = "balances";
     const queue = [];
-    let error = null;
+    const error = null;
     let resolver = null;
     const callback = (data) => {
       if (resolver) {
@@ -16483,7 +16801,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
   async *watchMyTrades(symbol) {
     const channel = symbol ? `fills.${this.normalizer.symbolFromCCXT(symbol)}` : "fills";
     const queue = [];
-    let error = null;
+    const error = null;
     let resolver = null;
     const callback = (data) => {
       const fills = Array.isArray(data) ? data : [data];
@@ -16497,7 +16815,11 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
       }
     };
     try {
-      await this.subscribe(channel, symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {}, callback);
+      await this.subscribe(
+        channel,
+        symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {},
+        callback
+      );
       while (true) {
         if (error) throw error;
         let data;
@@ -16614,7 +16936,7 @@ var ParadexWebSocketWrapper = class _ParadexWebSocketWrapper {
       }
     } catch (error) {
       this.logger.error("Reconnect failed", error instanceof Error ? error : void 0);
-      this.handleDisconnect();
+      void this.handleDisconnect();
     }
   }
   /**
@@ -16759,7 +17081,9 @@ var ParadexAdapter = class extends BaseAdapter {
       const market = this.normalizer.symbolFromCCXT(symbol);
       const limit = params?.limit;
       const queryParams = limit ? `?depth=${limit}` : "";
-      const response = await this.client.get(`/orderbook/${market}${queryParams}`);
+      const response = await this.client.get(
+        `/orderbook/${market}${queryParams}`
+      );
       return this.normalizer.normalizeOrderBook(response);
     } catch (error) {
       throw mapAxiosError2(error);
@@ -16809,7 +17133,11 @@ var ParadexAdapter = class extends BaseAdapter {
       const path = `/markets/${market}/funding/history${queryString ? `?${queryString}` : ""}`;
       const response = await this.client.get(path);
       if (!Array.isArray(response.history)) {
-        throw new PerpDEXError("Invalid funding rate history response", "INVALID_RESPONSE", "paradex");
+        throw new PerpDEXError(
+          "Invalid funding rate history response",
+          "INVALID_RESPONSE",
+          "paradex"
+        );
       }
       return this.normalizer.normalizeFundingRates(response.history);
     } catch (error) {
@@ -16867,9 +17195,15 @@ var ParadexAdapter = class extends BaseAdapter {
     await this.rateLimiter.acquire("createOrder");
     try {
       const market = this.normalizer.symbolFromCCXT(validatedRequest.symbol);
-      const orderType = this.normalizer.toParadexOrderType(validatedRequest.type, validatedRequest.postOnly);
+      const orderType = this.normalizer.toParadexOrderType(
+        validatedRequest.type,
+        validatedRequest.postOnly
+      );
       const side = this.normalizer.toParadexOrderSide(validatedRequest.side);
-      const timeInForce = this.normalizer.toParadexTimeInForce(validatedRequest.timeInForce, validatedRequest.postOnly);
+      const timeInForce = this.normalizer.toParadexTimeInForce(
+        validatedRequest.timeInForce,
+        validatedRequest.postOnly
+      );
       const payload = {
         market,
         side,
@@ -16975,7 +17309,9 @@ var ParadexAdapter = class extends BaseAdapter {
       if (since) params.append("start_at", since.toString());
       if (limit) params.append("page_size", limit.toString());
       const queryString = params.toString();
-      const response = await this.client.get(`/orders/history${queryString ? `?${queryString}` : ""}`);
+      const response = await this.client.get(
+        `/orders/history${queryString ? `?${queryString}` : ""}`
+      );
       if (!Array.isArray(response.results)) {
         throw new PerpDEXError("Invalid order history response", "INVALID_RESPONSE", "paradex");
       }
@@ -16996,7 +17332,9 @@ var ParadexAdapter = class extends BaseAdapter {
       if (since) params.append("start_at", since.toString());
       if (limit) params.append("page_size", limit.toString());
       const queryString = params.toString();
-      const response = await this.client.get(`/fills${queryString ? `?${queryString}` : ""}`);
+      const response = await this.client.get(
+        `/fills${queryString ? `?${queryString}` : ""}`
+      );
       if (!Array.isArray(response.results)) {
         throw new PerpDEXError("Invalid fills response", "INVALID_RESPONSE", "paradex");
       }
@@ -17501,7 +17839,10 @@ var EdgeXNormalizer = class {
     return {
       symbol,
       fundingRate: parseFloat(fundingData.fundingRate || "0"),
-      fundingTimestamp: parseInt(fundingData.fundingTime || fundingData.fundingTimestamp || "0", 10),
+      fundingTimestamp: parseInt(
+        fundingData.fundingTime || fundingData.fundingTimestamp || "0",
+        10
+      ),
       markPrice: parseFloat(fundingData.markPrice || "0"),
       indexPrice: parseFloat(fundingData.indexPrice || "0"),
       nextFundingTimestamp: parseInt(fundingData.nextFundingTime || "0", 10),
@@ -17622,7 +17963,7 @@ var EdgeXAuth = class {
         sortedParams = sortedKeys.map((k) => `${k}=${params.get(k)}`).join("&");
       } else if (body) {
         const sortedKeys = Object.keys(body).sort();
-        sortedParams = sortedKeys.map((k) => `${k}=${body[k]}`).join("&");
+        sortedParams = sortedKeys.map((k) => `${k}=${String(body[k])}`).join("&");
       }
       const message = `${timestamp}${method.toUpperCase()}${basePath}${sortedParams}`;
       const messageHash = await createSha3HashBuffer(message);
@@ -17772,9 +18113,15 @@ var EdgeXAdapter = class extends BaseAdapter {
    * Fetch all available markets
    */
   async fetchMarkets(_params) {
-    const response = await this.makeRequest("GET", "/api/v1/public/meta/getMetaData", "fetchMarkets");
+    const response = await this.makeRequest(
+      "GET",
+      "/api/v1/public/meta/getMetaData",
+      "fetchMarkets"
+    );
     if (response.code === "SUCCESS" && response.data?.contractList) {
-      return response.data.contractList.map((market) => this.normalizer.normalizeMarket(market));
+      return response.data.contractList.map(
+        (market) => this.normalizer.normalizeMarket(market)
+      );
     }
     if (Array.isArray(response.markets)) {
       return response.markets.map((market) => this.normalizer.normalizeMarket(market));
@@ -17844,22 +18191,24 @@ var EdgeXAdapter = class extends BaseAdapter {
    * Fetch funding rate history
    */
   async fetchFundingRateHistory(_symbol, _since, _limit) {
-    throw new PerpDEXError(
-      "EdgeX does not support funding rate history",
-      "NOT_SUPPORTED",
-      "edgex"
-    );
+    throw new PerpDEXError("EdgeX does not support funding rate history", "NOT_SUPPORTED", "edgex");
   }
   /**
    * Fetch all open positions
    */
   async fetchPositions(symbols) {
     this.requireAuth();
-    const response = await this.makeRequest("GET", "/api/v1/private/account/getPositionList", "fetchPositions");
+    const response = await this.makeRequest(
+      "GET",
+      "/api/v1/private/account/getPositionList",
+      "fetchPositions"
+    );
     if (!Array.isArray(response.positions)) {
       throw new PerpDEXError("Invalid positions response", "INVALID_RESPONSE", "edgex");
     }
-    let positions = response.positions.map((position) => this.normalizer.normalizePosition(position));
+    let positions = response.positions.map(
+      (position) => this.normalizer.normalizePosition(position)
+    );
     if (symbols && symbols.length > 0) {
       positions = positions.filter((p) => symbols.includes(p.symbol));
     }
@@ -17870,7 +18219,11 @@ var EdgeXAdapter = class extends BaseAdapter {
    */
   async fetchBalance() {
     this.requireAuth();
-    const response = await this.makeRequest("GET", "/api/v1/private/account/getCollateralBalance", "fetchBalance");
+    const response = await this.makeRequest(
+      "GET",
+      "/api/v1/private/account/getCollateralBalance",
+      "fetchBalance"
+    );
     if (!Array.isArray(response.balances)) {
       throw new PerpDEXError("Invalid balance response", "INVALID_RESPONSE", "edgex");
     }
@@ -17897,7 +18250,12 @@ var EdgeXAdapter = class extends BaseAdapter {
       post_only: validatedRequest.postOnly ?? false,
       client_order_id: validatedRequest.clientOrderId
     };
-    const response = await this.makeRequest("POST", "/api/v1/private/order/createOrder", "createOrder", payload);
+    const response = await this.makeRequest(
+      "POST",
+      "/api/v1/private/order/createOrder",
+      "createOrder",
+      payload
+    );
     return this.normalizer.normalizeOrder(response);
   }
   /**
@@ -17905,7 +18263,12 @@ var EdgeXAdapter = class extends BaseAdapter {
    */
   async cancelOrder(orderId, _symbol) {
     this.requireAuth();
-    const response = await this.makeRequest("POST", "/api/v1/private/order/cancelOrder", "cancelOrder", { orderId });
+    const response = await this.makeRequest(
+      "POST",
+      "/api/v1/private/order/cancelOrder",
+      "cancelOrder",
+      { orderId }
+    );
     return this.normalizer.normalizeOrder(response);
   }
   /**
@@ -17915,7 +18278,11 @@ var EdgeXAdapter = class extends BaseAdapter {
     this.requireAuth();
     const contractId = symbol ? this.normalizer.toEdgeXContractId(symbol) : void 0;
     const params = contractId ? `?contractId=${contractId}` : "";
-    const response = await this.makeRequest("DELETE", `/api/v1/private/order/cancelAllOrder${params}`, "cancelAllOrders");
+    const response = await this.makeRequest(
+      "DELETE",
+      `/api/v1/private/order/cancelAllOrder${params}`,
+      "cancelAllOrders"
+    );
     if (!Array.isArray(response.orders)) {
       throw new PerpDEXError("Invalid cancel all orders response", "INVALID_RESPONSE", "edgex");
     }
@@ -18003,7 +18370,11 @@ var EdgeXAdapter = class extends BaseAdapter {
     this.requireAuth();
     const contractId = symbol ? this.normalizer.toEdgeXContractId(symbol) : void 0;
     const params = contractId ? `?contractId=${contractId}` : "";
-    const response = await this.makeRequest("GET", `/api/v1/private/order/getOpenOrderList${params}`, "fetchOpenOrders");
+    const response = await this.makeRequest(
+      "GET",
+      `/api/v1/private/order/getOpenOrderList${params}`,
+      "fetchOpenOrders"
+    );
     if (!Array.isArray(response.orders)) {
       throw new PerpDEXError("Invalid open orders response", "INVALID_RESPONSE", "edgex");
     }
@@ -18014,7 +18385,11 @@ var EdgeXAdapter = class extends BaseAdapter {
    */
   async fetchOrder(orderId, _symbol) {
     this.requireAuth();
-    const response = await this.makeRequest("GET", `/api/v1/private/order/getOrder?orderId=${orderId}`, "fetchOrder");
+    const response = await this.makeRequest(
+      "GET",
+      `/api/v1/private/order/getOrder?orderId=${orderId}`,
+      "fetchOrder"
+    );
     return this.normalizer.normalizeOrder(response);
   }
   /**
@@ -18277,7 +18652,10 @@ var BackpackNormalizer = class {
     const symbol = this.normalizeSymbol(backpackMarket.symbol);
     const isPerpetual2 = backpackMarket.marketType === "PERP" || backpackMarket.symbol.endsWith("_PERP");
     const priceFilters = backpackMarket.filters?.price ?? { tickSize: "0.01" };
-    const quantityFilters = backpackMarket.filters?.quantity ?? { stepSize: "0.001", minQuantity: "0.001" };
+    const quantityFilters = backpackMarket.filters?.quantity ?? {
+      stepSize: "0.001",
+      minQuantity: "0.001"
+    };
     return {
       id: backpackMarket.symbol,
       symbol,
@@ -18679,7 +19057,7 @@ var BackpackAuth = class {
       if (body) {
         for (const [key, value] of Object.entries(body)) {
           if (value !== void 0 && value !== null) {
-            params[key] = String(value);
+            params[key] = typeof value === "object" ? JSON.stringify(value) : String(value);
           }
         }
       }
@@ -18902,7 +19280,11 @@ var BackpackAdapter = class _BackpackAdapter extends BaseAdapter {
     if (params?.limit) {
       queryParts.push(`depth=${params.limit}`);
     }
-    const response = await this.makeRequest("GET", `/depth?${queryParts.join("&")}`, "fetchOrderBook");
+    const response = await this.makeRequest(
+      "GET",
+      `/depth?${queryParts.join("&")}`,
+      "fetchOrderBook"
+    );
     return this.normalizer.normalizeOrderBook(response, symbol);
   }
   /**
@@ -18927,7 +19309,11 @@ var BackpackAdapter = class _BackpackAdapter extends BaseAdapter {
    */
   async fetchFundingRate(symbol) {
     const market = this.normalizer.toBackpackSymbol(symbol);
-    const response = await this.makeRequest("GET", `/fundingRates?symbol=${market}`, "fetchFundingRate");
+    const response = await this.makeRequest(
+      "GET",
+      `/fundingRates?symbol=${market}`,
+      "fetchFundingRate"
+    );
     if (!Array.isArray(response) || response.length === 0) {
       throw new PerpDEXError("No funding rate data available", "INVALID_RESPONSE", "backpack");
     }
@@ -18938,7 +19324,11 @@ var BackpackAdapter = class _BackpackAdapter extends BaseAdapter {
    */
   async fetchFundingRateHistory(symbol, since, limit) {
     const market = this.normalizer.toBackpackSymbol(symbol);
-    const response = await this.makeRequest("GET", `/fundingRates?symbol=${market}`, "fetchFundingRate");
+    const response = await this.makeRequest(
+      "GET",
+      `/fundingRates?symbol=${market}`,
+      "fetchFundingRate"
+    );
     if (!Array.isArray(response)) {
       throw new PerpDEXError("Invalid funding rate response", "INVALID_RESPONSE", "backpack");
     }
@@ -18960,7 +19350,9 @@ var BackpackAdapter = class _BackpackAdapter extends BaseAdapter {
     if (!Array.isArray(response.positions)) {
       throw new PerpDEXError("Invalid positions response", "INVALID_RESPONSE", "backpack");
     }
-    let positions = response.positions.map((position) => this.normalizer.normalizePosition(position));
+    let positions = response.positions.map(
+      (position) => this.normalizer.normalizePosition(position)
+    );
     if (symbols && symbols.length > 0) {
       positions = positions.filter((p) => symbols.includes(p.symbol));
     }
@@ -19004,7 +19396,10 @@ var BackpackAdapter = class _BackpackAdapter extends BaseAdapter {
     const market = this.normalizer.toBackpackSymbol(validatedRequest.symbol);
     const orderType = toBackpackOrderType(validatedRequest.type, validatedRequest.postOnly);
     const side = toBackpackOrderSide(validatedRequest.side);
-    const timeInForce = toBackpackTimeInForce(validatedRequest.timeInForce, validatedRequest.postOnly);
+    const timeInForce = toBackpackTimeInForce(
+      validatedRequest.timeInForce,
+      validatedRequest.postOnly
+    );
     const payload = {
       market,
       side,
@@ -19166,7 +19561,7 @@ var BackpackAdapter = class _BackpackAdapter extends BaseAdapter {
         case "DELETE":
           return await this.httpClient.delete(fullPath, { headers, body });
         default:
-          throw new Error(`Unsupported HTTP method: ${method}`);
+          throw new Error(`Unsupported HTTP method: ${String(method)}`);
       }
     } catch (error) {
       if (error instanceof PerpDEXError) {
@@ -19665,11 +20060,7 @@ var NadoAuth = class {
    */
   productIdToVerifyingContract(productId) {
     if (productId < 0 || !Number.isInteger(productId)) {
-      throw new PerpDEXError(
-        `Invalid product ID: ${productId}`,
-        "INVALID_PRODUCT_ID",
-        "nado"
-      );
+      throw new PerpDEXError(`Invalid product ID: ${productId}`, "INVALID_PRODUCT_ID", "nado");
     }
     return import_ethers3.ethers.zeroPadValue(import_ethers3.ethers.toBeHex(productId), 20);
   }
@@ -19717,10 +20108,10 @@ var NADO_NETWORK_ERRORS = {
   NETWORK_ERROR: "NETWORK_ERROR"
 };
 function isServerError3(errorCode) {
-  return Object.values(NADO_SERVER_ERRORS).includes(errorCode);
+  return includesValue(Object.values(NADO_SERVER_ERRORS), errorCode);
 }
 function isNetworkError3(errorCode) {
-  return Object.values(NADO_NETWORK_ERRORS).includes(errorCode);
+  return includesValue(Object.values(NADO_NETWORK_ERRORS), errorCode);
 }
 function isRetryableError(errorCode) {
   return isServerError3(errorCode) || isNetworkError3(errorCode) || errorCode === NADO_RATE_LIMIT_ERROR;
@@ -19776,11 +20167,7 @@ function mapHttpError3(status, statusText) {
       "nado"
     );
   }
-  return new PerpDEXError(
-    `HTTP error (${status}): ${statusText}`,
-    `HTTP_${status}`,
-    "nado"
-  );
+  return new PerpDEXError(`HTTP error (${status}): ${statusText}`, `HTTP_${status}`, "nado");
 }
 
 // src/adapters/nado/NadoAPIClient.ts
@@ -20028,12 +20415,7 @@ var NadoAPIClient = class {
         error
       );
     }
-    return new PerpDEXError(
-      error.message || "Unknown error",
-      "UNKNOWN_ERROR",
-      "nado",
-      error
-    );
+    return new PerpDEXError(error.message || "Unknown error", "UNKNOWN_ERROR", "nado", error);
   }
   // ===========================================================================
   // Utilities
@@ -20425,7 +20807,11 @@ var NadoNormalizer = class {
       try {
         return this.normalizeOrder(order, mapping);
       } catch (error) {
-        this.logger.error("Failed to normalize order", error instanceof Error ? error : void 0, { orderId: order.order_id });
+        this.logger.error(
+          "Failed to normalize order",
+          error instanceof Error ? error : void 0,
+          { orderId: order.order_id }
+        );
         return null;
       }
     }).filter((o) => o !== null);
@@ -20456,7 +20842,11 @@ var NadoNormalizer = class {
       try {
         return this.normalizePosition(position, mapping);
       } catch (error) {
-        this.logger.error("Failed to normalize position", error instanceof Error ? error : void 0, { productId: position.product_id });
+        this.logger.error(
+          "Failed to normalize position",
+          error instanceof Error ? error : void 0,
+          { productId: position.product_id }
+        );
         return null;
       }
     }).filter((p) => p !== null);
@@ -20478,7 +20868,11 @@ var NadoNormalizer = class {
       try {
         return this.normalizeTrade(trade, mapping);
       } catch (error) {
-        this.logger.error("Failed to normalize trade", error instanceof Error ? error : void 0, { tradeId: trade.trade_id });
+        this.logger.error(
+          "Failed to normalize trade",
+          error instanceof Error ? error : void 0,
+          { tradeId: trade.trade_id }
+        );
         return null;
       }
     }).filter((t) => t !== null);
@@ -20884,7 +21278,7 @@ var NadoAdapter = class extends BaseAdapter {
     const response = await this.apiClient.query(NADO_QUERY_TYPES.SYMBOLS);
     this.productMappings.clear();
     const markets = [];
-    for (const [_symbolKey, symbolData] of Object.entries(response.symbols || {})) {
+    for (const [, symbolData] of Object.entries(response.symbols || {})) {
       const market = this.normalizer.normalizeSymbol(symbolData);
       markets.push(market);
       const mapping = {
@@ -21005,11 +21399,7 @@ var NadoAdapter = class extends BaseAdapter {
       cancellationData,
       this.contractsInfo.endpoint_addr
     );
-    await this.apiClient.execute(
-      NADO_EXECUTE_TYPES.CANCEL_ORDERS,
-      cancellationData,
-      signature
-    );
+    await this.apiClient.execute(NADO_EXECUTE_TYPES.CANCEL_ORDERS, cancellationData, signature);
     return this.normalizer.normalizeOrder(NadoOrderSchema.parse(order), mapping);
   }
   async cancelAllOrders(symbol) {
@@ -21039,11 +21429,7 @@ var NadoAdapter = class extends BaseAdapter {
       cancellationData,
       this.contractsInfo.endpoint_addr
     );
-    await this.apiClient.execute(
-      NADO_EXECUTE_TYPES.CANCEL_ORDERS,
-      cancellationData,
-      signature
-    );
+    await this.apiClient.execute(NADO_EXECUTE_TYPES.CANCEL_ORDERS, cancellationData, signature);
     const mappingsArray = Array.from(this.productMappings.values());
     return ordersToCancel.map((order) => {
       const mapping = mappingsArray.find((m) => m.productId === order.product_id);
@@ -21132,7 +21518,10 @@ var NadoAdapter = class extends BaseAdapter {
     }
     const mapping = this.getProductMapping(symbol);
     const subscription = NadoSubscriptionBuilder.orderBook(mapping.productId);
-    const channelId = NadoSubscriptionBuilder.channelId(NADO_WS_CHANNELS.ORDERBOOK, mapping.productId);
+    const channelId = NadoSubscriptionBuilder.channelId(
+      NADO_WS_CHANNELS.ORDERBOOK,
+      mapping.productId
+    );
     for await (const update of this.wsManager.watch(channelId, subscription)) {
       yield this.normalizer.normalizeOrderBook(update, symbol);
     }
@@ -21400,7 +21789,7 @@ var VARIATIONAL_ERROR_MESSAGES = {
   "too many requests": VARIATIONAL_RATE_LIMIT_ERROR,
   "internal server error": VARIATIONAL_SERVER_ERRORS.INTERNAL_ERROR,
   "service unavailable": VARIATIONAL_SERVER_ERRORS.SERVICE_UNAVAILABLE,
-  "timeout": VARIATIONAL_SERVER_ERRORS.TIMEOUT,
+  timeout: VARIATIONAL_SERVER_ERRORS.TIMEOUT,
   "matching engine error": VARIATIONAL_SERVER_ERRORS.MATCHING_ENGINE_ERROR
 };
 function extractErrorCodeFromStatus(status) {
@@ -22123,10 +22512,7 @@ var VariationalAdapter = class extends BaseAdapter {
     }
     try {
       const endpoint = VARIATIONAL_ENDPOINTS.CANCEL_ORDER.replace("{orderId}", orderId);
-      const response = await this.authenticatedRequest(
-        "DELETE",
-        endpoint
-      );
+      const response = await this.authenticatedRequest("DELETE", endpoint);
       return this.normalizer.normalizeOrder(response);
     } catch (error) {
       throw mapError3(error);
@@ -22336,10 +22722,7 @@ var VariationalAdapter = class extends BaseAdapter {
     }
     try {
       const endpoint = VARIATIONAL_ENDPOINTS.ACCEPT_QUOTE.replace("{quoteId}", quoteId);
-      const response = await this.authenticatedRequest(
-        "POST",
-        endpoint
-      );
+      const response = await this.authenticatedRequest("POST", endpoint);
       return this.normalizer.normalizeOrder(response);
     } catch (error) {
       throw mapError3(error);
@@ -22364,7 +22747,11 @@ var VariationalAdapter = class extends BaseAdapter {
    */
   async generateSignature(method, path, timestamp, body) {
     if (!this.apiSecret) {
-      throw new PerpDEXError("API secret required for authentication", "MISSING_API_SECRET", this.id);
+      throw new PerpDEXError(
+        "API secret required for authentication",
+        "MISSING_API_SECRET",
+        this.id
+      );
     }
     const message = `${timestamp}${method}${path}${body ? JSON.stringify(body) : ""}`;
     return createHmacSha256(this.apiSecret, message);
@@ -22405,7 +22792,11 @@ var VariationalAdapter = class extends BaseAdapter {
           response = await this.httpClient.put(path, options);
           break;
         default:
-          throw new PerpDEXError(`Unsupported HTTP method: ${method}`, "INVALID_REQUEST", this.id);
+          throw new PerpDEXError(
+            `Unsupported HTTP method: ${String(method)}`,
+            "INVALID_REQUEST",
+            this.id
+          );
       }
       return response;
     } catch (error) {
@@ -22596,7 +22987,7 @@ var EXTENDED_ERROR_MESSAGES = {
   "too many requests": EXTENDED_RATE_LIMIT_ERROR,
   "internal server error": EXTENDED_SERVER_ERRORS.INTERNAL_ERROR,
   "service unavailable": EXTENDED_SERVER_ERRORS.SERVICE_UNAVAILABLE,
-  "timeout": EXTENDED_SERVER_ERRORS.TIMEOUT,
+  timeout: EXTENDED_SERVER_ERRORS.TIMEOUT,
   "matching engine error": EXTENDED_SERVER_ERRORS.MATCHING_ENGINE_ERROR,
   "starknet error": EXTENDED_SERVER_ERRORS.STARKNET_ERROR,
   "transaction failed": EXTENDED_STARKNET_ERRORS.TRANSACTION_FAILED,
@@ -22730,7 +23121,11 @@ function validateOrderRequest3(request) {
     throw new PerpDEXError("Price is required for limit orders", "INVALID_PRICE", "extended");
   }
   if ((request.type === "stopMarket" || request.type === "stopLimit") && (!request.stopPrice || request.stopPrice <= 0)) {
-    throw new PerpDEXError("Stop price is required for stop orders", "INVALID_STOP_PRICE", "extended");
+    throw new PerpDEXError(
+      "Stop price is required for stop orders",
+      "INVALID_STOP_PRICE",
+      "extended"
+    );
   }
 }
 function validateLeverage(leverage) {
@@ -23069,7 +23464,10 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
       this.account = new import_starknet3.Account(accountOptions);
       this.logger.info("StarkNet account initialized", { address: formattedAddress });
     } catch (error) {
-      this.logger.error("Failed to initialize StarkNet account", error instanceof Error ? error : void 0);
+      this.logger.error(
+        "Failed to initialize StarkNet account",
+        error instanceof Error ? error : void 0
+      );
       throw mapStarkNetError(error);
     }
   }
@@ -23123,7 +23521,9 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
           }
         }
       } catch (balanceError) {
-        this.logger.warn("Failed to fetch balance, using 0", { error: balanceError instanceof Error ? balanceError.message : String(balanceError) });
+        this.logger.warn("Failed to fetch balance, using 0", {
+          error: balanceError instanceof Error ? balanceError.message : String(balanceError)
+        });
       }
       const nonce = await this.provider.getNonceForAddress(formattedAddress);
       return {
@@ -23154,7 +23554,9 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
         // StarkNet doesn't provide timestamp in receipt
       };
     } catch (error) {
-      this.logger.error("Failed to get transaction", error instanceof Error ? error : void 0, { txHash });
+      this.logger.error("Failed to get transaction", error instanceof Error ? error : void 0, {
+        txHash
+      });
       throw mapStarkNetError(error);
     }
   }
@@ -23183,7 +23585,7 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
           return tx;
         }
         await new Promise((resolve) => setTimeout(resolve, 5e3));
-      } catch (error) {
+      } catch {
         await new Promise((resolve) => setTimeout(resolve, 5e3));
       }
     }
@@ -23250,12 +23652,13 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
       if (!targetAddress) {
         throw new Error("No account address provided");
       }
-      const result = await this.callContract(contractAddress, "get_positions", [
-        targetAddress
-      ]);
+      const result = await this.callContract(contractAddress, "get_positions", [targetAddress]);
       return result;
     } catch (error) {
-      this.logger.error("Failed to get positions from contract", error instanceof Error ? error : void 0);
+      this.logger.error(
+        "Failed to get positions from contract",
+        error instanceof Error ? error : void 0
+      );
       throw mapStarkNetError(error);
     }
   }
@@ -23276,7 +23679,10 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
       );
       return txHash;
     } catch (error) {
-      this.logger.error("Failed to submit order to contract", error instanceof Error ? error : void 0);
+      this.logger.error(
+        "Failed to submit order to contract",
+        error instanceof Error ? error : void 0
+      );
       throw mapStarkNetError(error);
     }
   }
@@ -23292,7 +23698,9 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
         classHash
       };
     } catch (error) {
-      this.logger.error("Failed to get contract info", error instanceof Error ? error : void 0, { contractAddress });
+      this.logger.error("Failed to get contract info", error instanceof Error ? error : void 0, {
+        contractAddress
+      });
       throw mapStarkNetError(error);
     }
   }
@@ -23313,7 +23721,10 @@ var ExtendedStarkNetClient = class _ExtendedStarkNetClient {
       });
       return BigInt(feeEstimate.overall_fee.toString());
     } catch (error) {
-      this.logger.error("Failed to estimate fee", error instanceof Error ? error : void 0, { contractAddress, entrypoint });
+      this.logger.error("Failed to estimate fee", error instanceof Error ? error : void 0, {
+        contractAddress,
+        entrypoint
+      });
       throw mapStarkNetError(error);
     }
   }
@@ -23382,7 +23793,10 @@ var ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
           this.handleMessage(event.data);
         };
         this.ws.onerror = (error) => {
-          this.logger.error("WebSocket error", error instanceof Error ? error : new Error("WebSocket error"));
+          this.logger.error(
+            "WebSocket error",
+            error instanceof Error ? error : new Error("WebSocket error")
+          );
           if (this.isConnecting) {
             this.isConnecting = false;
             reject(new Error("WebSocket connection failed"));
@@ -23399,7 +23813,7 @@ var ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
         };
       } catch (error) {
         this.isConnecting = false;
-        reject(error);
+        reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
     return this.connectionPromise;
@@ -23408,7 +23822,9 @@ var ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
    * Disconnect from WebSocket
    */
   disconnect() {
-    this.reconnect && (this.reconnectAttempts = this.maxReconnectAttempts);
+    if (this.reconnect) {
+      this.reconnectAttempts = this.maxReconnectAttempts;
+    }
     this.stopHeartbeat();
     if (this.ws) {
       this.ws.close(1e3, "Client disconnect");
@@ -23432,14 +23848,8 @@ var ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
           const orderbook = {
             exchange: "extended",
             symbol: this.normalizer.symbolToCCXT(message.symbol),
-            bids: message.bids.slice(0, limit).map(([price, amount]) => [
-              parseFloat(price),
-              parseFloat(amount)
-            ]),
-            asks: message.asks.slice(0, limit).map(([price, amount]) => [
-              parseFloat(price),
-              parseFloat(amount)
-            ]),
+            bids: message.bids.slice(0, limit).map(([price, amount]) => [parseFloat(price), parseFloat(amount)]),
+            asks: message.asks.slice(0, limit).map(([price, amount]) => [parseFloat(price), parseFloat(amount)]),
             timestamp: message.timestamp,
             sequenceId: message.sequence,
             checksum: message.checksum
@@ -23547,9 +23957,7 @@ var ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
     try {
       for await (const message of this.createMessageIterator(channel)) {
         if (message.channel === "orders") {
-          const orders = message.orders.map(
-            (ord) => this.normalizer.normalizeOrder(ord)
-          );
+          const orders = message.orders.map((ord) => this.normalizer.normalizeOrder(ord));
           yield orders;
         }
       }
@@ -23587,7 +23995,9 @@ var ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
     const exchangeSymbol = this.normalizer.symbolFromCCXT(symbol);
     await this.subscribe(EXTENDED_WS_CHANNELS.FUNDING, exchangeSymbol);
     try {
-      for await (const message of this.createMessageIterator(channel)) {
+      for await (const message of this.createMessageIterator(
+        channel
+      )) {
         if (message.channel === "funding" && message.symbol === exchangeSymbol) {
           const fundingRate = {
             symbol: this.normalizer.symbolToCCXT(message.symbol),
@@ -23684,7 +24094,10 @@ var ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
         handlers.forEach((handler) => handler(message));
       }
     } catch (error) {
-      this.logger.error("Failed to parse WebSocket message", error instanceof Error ? error : new Error(String(error)));
+      this.logger.error(
+        "Failed to parse WebSocket message",
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }
   /**
@@ -23797,10 +24210,15 @@ var ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
       EXTENDED_WS_CONFIG.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
       EXTENDED_WS_CONFIG.maxReconnectDelay
     );
-    this.logger.info(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    this.logger.info(
+      `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+    );
     setTimeout(() => {
       this.connect().catch((error) => {
-        this.logger.error("Reconnection failed", error instanceof Error ? error : new Error(String(error)));
+        this.logger.error(
+          "Reconnection failed",
+          error instanceof Error ? error : new Error(String(error))
+        );
       });
     }, delay);
   }
@@ -24055,16 +24473,13 @@ var ExtendedAdapter = class extends BaseAdapter {
     }
     try {
       const extendedOrder = convertOrderRequest4(request);
-      const order = await this.httpClient.post(
-        EXTENDED_ENDPOINTS.CREATE_ORDER,
-        {
-          headers: {
-            "X-Api-Key": this.apiKey,
-            "Content-Type": "application/json"
-          },
-          body: extendedOrder
-        }
-      );
+      const order = await this.httpClient.post(EXTENDED_ENDPOINTS.CREATE_ORDER, {
+        headers: {
+          "X-Api-Key": this.apiKey,
+          "Content-Type": "application/json"
+        },
+        body: extendedOrder
+      });
       return this.normalizer.normalizeOrder(order);
     } catch (error) {
       throw mapError4(error);
@@ -24099,14 +24514,11 @@ var ExtendedAdapter = class extends BaseAdapter {
       }
       let endpoint = EXTENDED_ENDPOINTS.CANCEL_ALL_ORDERS;
       endpoint += this.buildQueryString(queryParams);
-      const response = await this.httpClient.delete(
-        endpoint,
-        {
-          headers: {
-            "X-Api-Key": this.apiKey
-          }
+      const response = await this.httpClient.delete(endpoint, {
+        headers: {
+          "X-Api-Key": this.apiKey
         }
-      );
+      });
       const orders = response.orders || [];
       return this.normalizer.normalizeOrders(orders);
     } catch (error) {
@@ -24203,14 +24615,11 @@ var ExtendedAdapter = class extends BaseAdapter {
       }
       let endpoint = EXTENDED_ENDPOINTS.POSITIONS;
       endpoint += this.buildQueryString(queryParams);
-      const response = await this.httpClient.get(
-        endpoint,
-        {
-          headers: {
-            "X-Api-Key": this.apiKey
-          }
+      const response = await this.httpClient.get(endpoint, {
+        headers: {
+          "X-Api-Key": this.apiKey
         }
-      );
+      });
       const positions = response.positions || [];
       return this.normalizer.normalizePositions(positions);
     } catch (error) {
@@ -24241,23 +24650,24 @@ var ExtendedAdapter = class extends BaseAdapter {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.LEVERAGE);
     validateLeverage(leverage);
     if (!this.apiKey) {
-      throw new PerpDEXError("API key required for leverage changes", "AUTHENTICATION_ERROR", this.id);
+      throw new PerpDEXError(
+        "API key required for leverage changes",
+        "AUTHENTICATION_ERROR",
+        this.id
+      );
     }
     try {
       const market = this.symbolToExchange(symbol);
-      await this.httpClient.post(
-        EXTENDED_ENDPOINTS.LEVERAGE,
-        {
-          headers: {
-            "X-Api-Key": this.apiKey,
-            "Content-Type": "application/json"
-          },
-          body: {
-            market,
-            leverage
-          }
+      await this.httpClient.post(EXTENDED_ENDPOINTS.LEVERAGE, {
+        headers: {
+          "X-Api-Key": this.apiKey,
+          "Content-Type": "application/json"
+        },
+        body: {
+          market,
+          leverage
         }
-      );
+      });
     } catch (error) {
       throw mapError4(error);
     }
@@ -24265,23 +24675,24 @@ var ExtendedAdapter = class extends BaseAdapter {
   async setMarginMode(symbol, marginMode) {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.MARGIN_MODE);
     if (!this.apiKey) {
-      throw new PerpDEXError("API key required for margin mode changes", "AUTHENTICATION_ERROR", this.id);
+      throw new PerpDEXError(
+        "API key required for margin mode changes",
+        "AUTHENTICATION_ERROR",
+        this.id
+      );
     }
     try {
       const market = this.symbolToExchange(symbol);
-      await this.httpClient.post(
-        EXTENDED_ENDPOINTS.MARGIN_MODE,
-        {
-          headers: {
-            "X-Api-Key": this.apiKey,
-            "Content-Type": "application/json"
-          },
-          body: {
-            market,
-            marginMode
-          }
+      await this.httpClient.post(EXTENDED_ENDPOINTS.MARGIN_MODE, {
+        headers: {
+          "X-Api-Key": this.apiKey,
+          "Content-Type": "application/json"
+        },
+        body: {
+          market,
+          marginMode
         }
-      );
+      });
     } catch (error) {
       throw mapError4(error);
     }
@@ -24304,14 +24715,11 @@ var ExtendedAdapter = class extends BaseAdapter {
       }
       let endpoint = EXTENDED_ENDPOINTS.ORDER_HISTORY;
       endpoint += this.buildQueryString(queryParams);
-      const response = await this.httpClient.get(
-        endpoint,
-        {
-          headers: {
-            "X-Api-Key": this.apiKey
-          }
+      const response = await this.httpClient.get(endpoint, {
+        headers: {
+          "X-Api-Key": this.apiKey
         }
-      );
+      });
       const orders = response.orders || [];
       return this.normalizer.normalizeOrders(orders);
     } catch (error) {
@@ -24336,14 +24744,11 @@ var ExtendedAdapter = class extends BaseAdapter {
       }
       let endpoint = EXTENDED_ENDPOINTS.USER_TRADES;
       endpoint += this.buildQueryString(queryParams);
-      const response = await this.httpClient.get(
-        endpoint,
-        {
-          headers: {
-            "X-Api-Key": this.apiKey
-          }
+      const response = await this.httpClient.get(endpoint, {
+        headers: {
+          "X-Api-Key": this.apiKey
         }
-      );
+      });
       const trades = response.trades || [];
       return this.normalizer.normalizeTrades(trades);
     } catch (error) {
@@ -24359,7 +24764,11 @@ var ExtendedAdapter = class extends BaseAdapter {
   async fetchUserFees() {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.USER_FEES);
     if (!this.apiKey) {
-      throw new PerpDEXError("API key required for fee information", "AUTHENTICATION_ERROR", this.id);
+      throw new PerpDEXError(
+        "API key required for fee information",
+        "AUTHENTICATION_ERROR",
+        this.id
+      );
     }
     try {
       const response = await this.httpClient.get(EXTENDED_ENDPOINTS.USER_FEES, {
@@ -24379,7 +24788,11 @@ var ExtendedAdapter = class extends BaseAdapter {
   async fetchPortfolio() {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.PORTFOLIO);
     if (!this.apiKey) {
-      throw new PerpDEXError("API key required for portfolio data", "AUTHENTICATION_ERROR", this.id);
+      throw new PerpDEXError(
+        "API key required for portfolio data",
+        "AUTHENTICATION_ERROR",
+        this.id
+      );
     }
     try {
       const response = await this.httpClient.get(EXTENDED_ENDPOINTS.PORTFOLIO, {
@@ -24445,7 +24858,11 @@ var ExtendedAdapter = class extends BaseAdapter {
    */
   async *watchPositions() {
     if (!this.apiKey) {
-      throw new PerpDEXError("API key required for watching positions", "AUTHENTICATION_ERROR", this.id);
+      throw new PerpDEXError(
+        "API key required for watching positions",
+        "AUTHENTICATION_ERROR",
+        this.id
+      );
     }
     const ws = await this.ensureWebSocketConnected();
     yield* ws.watchPositions();
@@ -24455,7 +24872,11 @@ var ExtendedAdapter = class extends BaseAdapter {
    */
   async *watchOrders() {
     if (!this.apiKey) {
-      throw new PerpDEXError("API key required for watching orders", "AUTHENTICATION_ERROR", this.id);
+      throw new PerpDEXError(
+        "API key required for watching orders",
+        "AUTHENTICATION_ERROR",
+        this.id
+      );
     }
     const ws = await this.ensureWebSocketConnected();
     yield* ws.watchOrders();
@@ -24465,7 +24886,11 @@ var ExtendedAdapter = class extends BaseAdapter {
    */
   async *watchBalance() {
     if (!this.apiKey) {
-      throw new PerpDEXError("API key required for watching balance", "AUTHENTICATION_ERROR", this.id);
+      throw new PerpDEXError(
+        "API key required for watching balance",
+        "AUTHENTICATION_ERROR",
+        this.id
+      );
     }
     const ws = await this.ensureWebSocketConnected();
     yield* ws.watchBalance();
@@ -24560,7 +24985,7 @@ var DYDX_ERROR_MESSAGES = {
   "price out of bounds": "PRICE_OUT_OF_BOUNDS",
   "market not found": "MARKET_NOT_FOUND",
   "subaccount not found": "SUBACCOUNT_NOT_FOUND",
-  "unauthorized": "UNAUTHORIZED"
+  unauthorized: "UNAUTHORIZED"
 };
 
 // src/adapters/dydx/DydxAuth.ts
@@ -24598,7 +25023,9 @@ var DydxAuth = class {
       }
       this.initialized = true;
     } catch (error) {
-      throw new Error(`Failed to initialize dYdX auth: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw new Error(
+        `Failed to initialize dYdX auth: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
   }
   /**
@@ -25231,12 +25658,7 @@ function mapDydxError(error) {
       );
     }
     if (message.includes("401") || message.includes("403")) {
-      return new InvalidSignatureError(
-        "Authentication failed",
-        "UNAUTHORIZED",
-        "dydx",
-        error
-      );
+      return new InvalidSignatureError("Authentication failed", "UNAUTHORIZED", "dydx", error);
     }
     if (message.includes("404")) {
       return new PerpDEXError("Resource not found", "NOT_FOUND", "dydx", error);
@@ -25245,12 +25667,7 @@ function mapDydxError(error) {
       return new InvalidOrderError("Bad request", "BAD_REQUEST", "dydx", error);
     }
   }
-  return new ExchangeUnavailableError(
-    "Unknown exchange error",
-    "UNKNOWN_ERROR",
-    "dydx",
-    error
-  );
+  return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "dydx", error);
 }
 
 // src/adapters/dydx/utils.ts
@@ -25475,11 +25892,7 @@ var DydxAdapter = class extends BaseAdapter {
       if (params?.since) {
         queryParams.createdBeforeOrAtHeight = void 0;
       }
-      const url = buildUrl(
-        this.apiUrl,
-        "/trades",
-        { market: exchangeSymbol, ...queryParams }
-      );
+      const url = buildUrl(this.apiUrl, "/trades", { market: exchangeSymbol, ...queryParams });
       const response = await this.request("GET", url);
       return this.normalizer.normalizeTrades(response.trades, exchangeSymbol);
     } catch (error) {
@@ -25527,11 +25940,10 @@ var DydxAdapter = class extends BaseAdapter {
       if (since) {
         queryParams.effectiveBeforeOrAt = new Date(since).toISOString();
       }
-      const url = buildUrl(
-        this.apiUrl,
-        "/historicalFunding",
-        { market: exchangeSymbol, ...queryParams }
-      );
+      const url = buildUrl(this.apiUrl, "/historicalFunding", {
+        market: exchangeSymbol,
+        ...queryParams
+      });
       const response = await this.request("GET", url);
       const oraclePrice = await this.getOraclePrice(exchangeSymbol);
       return this.normalizer.normalizeFundingHistory(response.historicalFunding, oraclePrice);
@@ -25554,11 +25966,7 @@ var DydxAdapter = class extends BaseAdapter {
         toISO,
         limit: params?.limit ?? 100
       };
-      const url = buildUrl(
-        this.apiUrl,
-        "/candles",
-        { market: exchangeSymbol, ...queryParams }
-      );
+      const url = buildUrl(this.apiUrl, "/candles", { market: exchangeSymbol, ...queryParams });
       const response = await this.request("GET", url);
       return this.normalizer.normalizeCandles(response.candles);
     } catch (error) {
@@ -25660,7 +26068,9 @@ var DydxAdapter = class extends BaseAdapter {
   }
   async setLeverage(_symbol, _leverage) {
     this.debug("setLeverage: dYdX v4 uses cross-margin mode without per-symbol leverage");
-    throw new Error("dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity.");
+    throw new Error(
+      "dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity."
+    );
   }
   // ===========================================================================
   // Order History
@@ -25761,32 +26171,44 @@ var DydxAdapter = class extends BaseAdapter {
   // ===========================================================================
   async *watchOrderBook(_symbol, _limit) {
     this.ensureInitialized();
-    throw new Error("WebSocket streams require additional implementation. Use fetchOrderBook for polling.");
+    throw new Error(
+      "WebSocket streams require additional implementation. Use fetchOrderBook for polling."
+    );
     yield {};
   }
   async *watchTrades(_symbol) {
     this.ensureInitialized();
-    throw new Error("WebSocket streams require additional implementation. Use fetchTrades for polling.");
+    throw new Error(
+      "WebSocket streams require additional implementation. Use fetchTrades for polling."
+    );
     yield {};
   }
   async *watchTicker(_symbol) {
     this.ensureInitialized();
-    throw new Error("WebSocket streams require additional implementation. Use fetchTicker for polling.");
+    throw new Error(
+      "WebSocket streams require additional implementation. Use fetchTicker for polling."
+    );
     yield {};
   }
   async *watchPositions() {
     this.ensureInitialized();
-    throw new Error("WebSocket streams require additional implementation. Use fetchPositions for polling.");
+    throw new Error(
+      "WebSocket streams require additional implementation. Use fetchPositions for polling."
+    );
     yield [];
   }
   async *watchOrders() {
     this.ensureInitialized();
-    throw new Error("WebSocket streams require additional implementation. Use fetchOpenOrders for polling.");
+    throw new Error(
+      "WebSocket streams require additional implementation. Use fetchOpenOrders for polling."
+    );
     yield [];
   }
   async *watchBalance() {
     this.ensureInitialized();
-    throw new Error("WebSocket streams require additional implementation. Use fetchBalance for polling.");
+    throw new Error(
+      "WebSocket streams require additional implementation. Use fetchBalance for polling."
+    );
     yield [];
   }
   // ===========================================================================
@@ -25895,10 +26317,7 @@ function jupiterToUnified(exchangeSymbol) {
   return `${base}/USD:USD`;
 }
 var SOLANA_RPC_ENDPOINTS = {
-  mainnet: [
-    "https://api.mainnet-beta.solana.com",
-    "https://solana-api.projectserum.com"
-  ]
+  mainnet: ["https://api.mainnet-beta.solana.com", "https://solana-api.projectserum.com"]
 };
 var SOLANA_DEFAULT_RPC = SOLANA_RPC_ENDPOINTS.mainnet[0];
 var JUPITER_ERROR_MESSAGES = {
@@ -25964,14 +26383,7 @@ var JupiterNormalizer = class {
     for (const [marketKey] of Object.entries(JUPITER_MARKETS)) {
       const custody = custodies.get(marketKey);
       if (custody) {
-        markets.push(
-          this.normalizeMarket(
-            marketKey,
-            custody,
-            pool,
-            stats?.get(marketKey)
-          )
-        );
+        markets.push(this.normalizeMarket(marketKey, custody, pool, stats?.get(marketKey)));
       }
     }
     return markets;
@@ -25987,12 +26399,7 @@ var JupiterNormalizer = class {
     const entryPrice = parseFloat(position.price);
     const size = parseFloat(position.sizeTokens);
     const leverage = sizeUsd / collateralUsd;
-    const unrealizedPnl = this.calculateUnrealizedPnl(
-      side,
-      size,
-      entryPrice,
-      currentPrice
-    );
+    const unrealizedPnl = this.calculateUnrealizedPnl(side, size, entryPrice, currentPrice);
     const liquidationPrice = this.calculateLiquidationPrice(
       side,
       entryPrice,
@@ -26039,12 +26446,7 @@ var JupiterNormalizer = class {
     const entryPrice = parseFloat(position.price);
     const size = parseFloat(position.sizeTokens);
     const leverage = sizeUsd / collateralUsd;
-    const unrealizedPnl = this.calculateUnrealizedPnl(
-      side,
-      size,
-      entryPrice,
-      currentPrice
-    );
+    const unrealizedPnl = this.calculateUnrealizedPnl(side, size, entryPrice, currentPrice);
     const liquidationPrice = this.calculateLiquidationPrice(
       side,
       entryPrice,
@@ -26256,7 +26658,9 @@ var JupiterAuth = class {
       const bytes = this.parsePrivateKey(privateKey);
       void this.initKeypairAsync(bytes);
     } catch (error) {
-      this.logger.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
   /**
@@ -26271,7 +26675,9 @@ var JupiterAuth = class {
       this.connection = new Connection(this.rpcEndpoint, "confirmed");
       this.isInitialized = true;
     } catch (error) {
-      this.logger.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
   /**
@@ -26287,7 +26693,9 @@ var JupiterAuth = class {
         }
         this.isInitialized = true;
       } catch (error) {
-        throw new Error(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   }
@@ -26418,10 +26826,9 @@ var JupiterAuth = class {
     }
     const { PublicKey } = await import("@solana/web3.js");
     const tokenMintPubkey = new PublicKey(tokenMint);
-    const tokenAccounts = await this.connection.getTokenAccountsByOwner(
-      this.publicKey,
-      { mint: tokenMintPubkey }
-    );
+    const tokenAccounts = await this.connection.getTokenAccountsByOwner(this.publicKey, {
+      mint: tokenMintPubkey
+    });
     if (tokenAccounts.value.length === 0) {
       return 0;
     }
@@ -26444,7 +26851,9 @@ var JupiterAuth = class {
     const { PublicKey } = await import("@solana/web3.js");
     const mintPubkey = new PublicKey(tokenMint);
     const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
-    const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+    const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
+      "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+    );
     const [address] = await PublicKey.findProgramAddress(
       [this.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintPubkey.toBuffer()],
       ASSOCIATED_TOKEN_PROGRAM_ID
@@ -26514,13 +26923,12 @@ var SolanaClient = class {
     }
     try {
       const { Connection } = await import("@solana/web3.js");
-      this.connection = new Connection(
-        this.config.rpcEndpoint,
-        this.config.commitment
-      );
+      this.connection = new Connection(this.config.rpcEndpoint, this.config.commitment);
       this.isInitialized = true;
     } catch (error) {
-      throw new Error(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
   /**
@@ -26589,18 +26997,20 @@ var SolanaClient = class {
     const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
     const filter = mint ? { mint: new PublicKey(mint) } : { programId: TOKEN_PROGRAM_ID };
     const accounts = await connection.getTokenAccountsByOwner(ownerPubkey, filter);
-    return accounts.value.map((account) => {
-      const data = account.account.data;
-      const mintBytes = data.slice(0, 32);
-      const amountBytes = data.slice(64, 72);
-      const mintPubkey = new PublicKey(mintBytes);
-      const amount = Buffer.from(amountBytes).readBigUInt64LE();
-      return {
-        pubkey: account.pubkey.toBase58(),
-        balance: Number(amount),
-        mint: mintPubkey.toBase58()
-      };
-    });
+    return accounts.value.map(
+      (account) => {
+        const data = account.account.data;
+        const mintBytes = data.slice(0, 32);
+        const amountBytes = data.slice(64, 72);
+        const mintPubkey = new PublicKey(mintBytes);
+        const amount = Buffer.from(amountBytes).readBigUInt64LE();
+        return {
+          pubkey: account.pubkey.toBase58(),
+          balance: Number(amount),
+          mint: mintPubkey.toBase58()
+        };
+      }
+    );
   }
   /**
    * Fetch program accounts with filters
@@ -26618,12 +27028,16 @@ var SolanaClient = class {
           return { dataSize: f.dataSize };
         }
         return void 0;
-      }).filter(Boolean)
+      }).filter(
+        (f) => f !== void 0
+      )
     });
-    return accounts.map((account) => ({
-      pubkey: account.pubkey.toBase58(),
-      account: account.account
-    }));
+    return accounts.map(
+      (account) => ({
+        pubkey: account.pubkey.toBase58(),
+        account: account.account
+      })
+    );
   }
   // ==========================================================================
   // Transaction Operations
@@ -26657,14 +27071,11 @@ var SolanaClient = class {
     if (signers.length > 0) {
       transaction.sign(...signers);
     }
-    const signature = await connection.sendRawTransaction(
-      transaction.serialize(),
-      {
-        skipPreflight: false,
-        preflightCommitment: this.config.commitment,
-        maxRetries: 3
-      }
-    );
+    const signature = await connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: this.config.commitment,
+      maxRetries: 3
+    });
     const confirmation = await connection.confirmTransaction(
       {
         signature,
@@ -26854,8 +27265,26 @@ var SolanaClient = class {
 // src/adapters/jupiter/instructions.ts
 var INSTRUCTION_DISCRIMINATORS = {
   // Position creation/modification (market orders)
-  createIncreasePositionMarketRequest: Buffer.from([183, 198, 97, 169, 35, 1, 225, 57]),
-  createDecreasePositionMarketRequest: Buffer.from([147, 238, 76, 91, 48, 86, 167, 253]),
+  createIncreasePositionMarketRequest: Buffer.from([
+    183,
+    198,
+    97,
+    169,
+    35,
+    1,
+    225,
+    57
+  ]),
+  createDecreasePositionMarketRequest: Buffer.from([
+    147,
+    238,
+    76,
+    91,
+    48,
+    86,
+    167,
+    253
+  ]),
   createDecreasePositionRequest2: Buffer.from([55, 39, 12, 22, 216, 115, 53, 101]),
   // Request management
   closePositionRequest: Buffer.from([75, 207, 70, 173, 118, 124, 218, 179]),
@@ -26914,9 +27343,17 @@ var JupiterInstructionBuilder = class {
       { pubkey: new PublicKey(accounts.oracle), isSigner: false, isWritable: false },
       { pubkey: new PublicKey(accounts.ownerTokenAccount), isSigner: false, isWritable: true },
       // System accounts
-      { pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), isSigner: false, isWritable: false },
+      {
+        pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+        isSigner: false,
+        isWritable: false
+      },
       // Token Program
-      { pubkey: new PublicKey("11111111111111111111111111111111"), isSigner: false, isWritable: false }
+      {
+        pubkey: new PublicKey("11111111111111111111111111111111"),
+        isSigner: false,
+        isWritable: false
+      }
       // System Program
     ];
     return new TransactionInstruction({
@@ -26943,7 +27380,11 @@ var JupiterInstructionBuilder = class {
       { pubkey: new PublicKey(accounts.oracle), isSigner: false, isWritable: false },
       { pubkey: new PublicKey(accounts.ownerTokenAccount), isSigner: false, isWritable: true },
       // System accounts
-      { pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), isSigner: false, isWritable: false }
+      {
+        pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+        isSigner: false,
+        isWritable: false
+      }
     ];
     return new TransactionInstruction({
       keys,
@@ -26988,7 +27429,11 @@ var JupiterInstructionBuilder = class {
       { pubkey: new PublicKey(accounts.oracle), isSigner: false, isWritable: false },
       { pubkey: new PublicKey(accounts.ownerTokenAccount), isSigner: false, isWritable: true },
       // System accounts
-      { pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), isSigner: false, isWritable: false }
+      {
+        pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+        isSigner: false,
+        isWritable: false
+      }
     ];
     return new TransactionInstruction({
       keys,
@@ -27011,7 +27456,11 @@ var JupiterInstructionBuilder = class {
       { pubkey: new PublicKey(accounts.collateralTokenAccount), isSigner: false, isWritable: true },
       { pubkey: new PublicKey(accounts.ownerTokenAccount), isSigner: false, isWritable: true },
       // System accounts
-      { pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), isSigner: false, isWritable: false }
+      {
+        pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+        isSigner: false,
+        isWritable: false
+      }
     ];
     return new TransactionInstruction({
       keys,
@@ -27035,7 +27484,11 @@ var JupiterInstructionBuilder = class {
       { pubkey: new PublicKey(accounts.oracle), isSigner: false, isWritable: false },
       { pubkey: new PublicKey(accounts.ownerTokenAccount), isSigner: false, isWritable: true },
       // System accounts
-      { pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), isSigner: false, isWritable: false }
+      {
+        pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+        isSigner: false,
+        isWritable: false
+      }
     ];
     return new TransactionInstruction({
       keys,
@@ -27182,10 +27635,7 @@ var JupiterInstructionBuilder = class {
       throw new Error(`Unknown token for market: ${symbol}`);
     }
     const programId = this.programId;
-    const [poolPda] = await PublicKey.findProgramAddress(
-      [Buffer.from("pool")],
-      programId
-    );
+    const [poolPda] = await PublicKey.findProgramAddress([Buffer.from("pool")], programId);
     const [custodyPda] = await PublicKey.findProgramAddress(
       [Buffer.from("custody"), new PublicKey(tokenMint).toBuffer()],
       programId
@@ -27239,7 +27689,9 @@ var JupiterInstructionBuilder = class {
     const ownerPubkey = new PublicKey(owner);
     const mintPubkey = new PublicKey(mint);
     const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
-    const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+    const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
+      "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+    );
     const [address] = await PublicKey.findProgramAddress(
       [ownerPubkey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintPubkey.toBuffer()],
       ASSOCIATED_TOKEN_PROGRAM_ID
@@ -27261,7 +27713,14 @@ function mapJupiterError(error) {
           case "INSUFFICIENT_MARGIN":
             return new InsufficientMarginError(error.message, code, "jupiter", error);
           case "INSUFFICIENT_BALANCE":
-            return new InsufficientBalanceError(error.message, code, "jupiter", void 0, void 0, error);
+            return new InsufficientBalanceError(
+              error.message,
+              code,
+              "jupiter",
+              void 0,
+              void 0,
+              error
+            );
           case "POSITION_NOT_FOUND":
             return new PositionNotFoundError(error.message, code, "jupiter", error);
           case "INVALID_LEVERAGE":
@@ -27307,15 +27766,16 @@ function mapJupiterError(error) {
       );
     }
     if (message.includes("account not found") || message.includes("account does not exist")) {
-      return new PerpDEXError(
-        "Account not found on chain",
-        "ACCOUNT_NOT_FOUND",
-        "jupiter",
-        error
-      );
+      return new PerpDEXError("Account not found on chain", "ACCOUNT_NOT_FOUND", "jupiter", error);
     }
     if (message.includes("429") || message.includes("too many requests")) {
-      return new RateLimitError("RPC rate limit exceeded", "RATE_LIMIT", "jupiter", void 0, error);
+      return new RateLimitError(
+        "RPC rate limit exceeded",
+        "RATE_LIMIT",
+        "jupiter",
+        void 0,
+        error
+      );
     }
     if (message.includes("503") || message.includes("502") || message.includes("504")) {
       return new ExchangeUnavailableError(
@@ -27326,20 +27786,10 @@ function mapJupiterError(error) {
       );
     }
     if (message.includes("timeout") || message.includes("timed out")) {
-      return new ExchangeUnavailableError(
-        "Request timeout",
-        "TIMEOUT",
-        "jupiter",
-        error
-      );
+      return new ExchangeUnavailableError("Request timeout", "TIMEOUT", "jupiter", error);
     }
   }
-  return new ExchangeUnavailableError(
-    "Unknown exchange error",
-    "UNKNOWN_ERROR",
-    "jupiter",
-    error
-  );
+  return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "jupiter", error);
 }
 
 // src/adapters/jupiter/utils.ts
@@ -27659,7 +28109,7 @@ var JupiterAdapter = class extends BaseAdapter {
           const markPrice = parseFloat(priceData.price);
           positions.push(this.normalizePosition(pubkey, positionData, markPrice, symbol));
         } catch (error) {
-          this.warn(`Failed to parse position ${pubkey}: ${error}`);
+          this.warn(`Failed to parse position ${pubkey}: ${String(error)}`);
         }
       }
       if (symbols && symbols.length > 0) {
@@ -27769,7 +28219,9 @@ var JupiterAdapter = class extends BaseAdapter {
         request.symbol,
         side
       );
-      accounts.ownerTokenAccount = await this.auth.getAssociatedTokenAddress(JUPITER_TOKEN_MINTS.USDC);
+      accounts.ownerTokenAccount = await this.auth.getAssociatedTokenAddress(
+        JUPITER_TOKEN_MINTS.USDC
+      );
       const instruction = await this.instructionBuilder.buildOpenPositionInstruction(
         {
           owner: walletAddress,
@@ -27857,7 +28309,9 @@ var JupiterAdapter = class extends BaseAdapter {
         position.symbol,
         side
       );
-      accounts.ownerTokenAccount = await this.auth.getAssociatedTokenAddress(JUPITER_TOKEN_MINTS.USDC);
+      accounts.ownerTokenAccount = await this.auth.getAssociatedTokenAddress(
+        JUPITER_TOKEN_MINTS.USDC
+      );
       const instruction = await this.instructionBuilder.buildClosePositionInstruction(
         {
           owner: walletAddress,
@@ -28110,12 +28564,7 @@ var JupiterAdapter = class extends BaseAdapter {
     const collateralUsd = parseFloat(data.collateralUsd);
     const unrealizedPnl = parseFloat(data.unrealizedPnl);
     const leverage = sizeUsd / collateralUsd;
-    const liquidationPrice = calculateLiquidationPrice(
-      side,
-      entryPrice,
-      collateralUsd,
-      sizeUsd
-    );
+    const liquidationPrice = calculateLiquidationPrice(side, entryPrice, collateralUsd, sizeUsd);
     return {
       symbol,
       side,
@@ -28361,7 +28810,7 @@ var DRIFT_ERROR_MESSAGES = {
   "post only": "POST_ONLY_VIOLATION",
   "rate limit": "RATE_LIMIT_EXCEEDED",
   "transaction failed": "TRANSACTION_FAILED",
-  "liquidation": "LIQUIDATION"
+  liquidation: "LIQUIDATION"
 };
 
 // src/adapters/drift/DriftNormalizer.ts
@@ -28437,7 +28886,13 @@ var DriftNormalizer = class {
       leverage,
       maintenanceMargin
     );
-    const marginRatio = this.calculateMarginRatio(side, entryPrice, markPrice, leverage, maintenanceMargin);
+    const marginRatio = this.calculateMarginRatio(
+      side,
+      entryPrice,
+      markPrice,
+      leverage,
+      maintenanceMargin
+    );
     return {
       symbol,
       side,
@@ -28478,7 +28933,8 @@ var DriftNormalizer = class {
     else if (order.orderType === "triggerMarket") type = "stopMarket";
     else if (order.orderType === "triggerLimit") type = "stopLimit";
     let status = "open";
-    if (order.status === "filled") status = filledAmount >= baseAmount ? "filled" : "partiallyFilled";
+    if (order.status === "filled")
+      status = filledAmount >= baseAmount ? "filled" : "partiallyFilled";
     else if (order.status === "canceled") status = "canceled";
     else if (order.status === "expired") status = "expired";
     return {
@@ -28722,9 +29178,7 @@ var DriftOrderBuilder = class {
       throw new Error(`Unknown market: ${request.symbol}`);
     }
     this.validateOrder(request, marketConfig);
-    const baseAssetAmount = BigInt(
-      Math.floor(request.amount * DRIFT_PRECISION.BASE)
-    );
+    const baseAssetAmount = BigInt(Math.floor(request.amount * DRIFT_PRECISION.BASE));
     const orderType = this.mapOrderType(request.type);
     const direction = this.getDirection(request.side, request.reduceOnly);
     let price;
@@ -28816,17 +29270,13 @@ var DriftOrderBuilder = class {
     const stepSize = marketConfig.stepSize;
     const remainder = request.amount % stepSize;
     if (remainder !== 0 && remainder / stepSize > 1e-3) {
-      throw new Error(
-        `Order amount ${request.amount} does not conform to step size ${stepSize}`
-      );
+      throw new Error(`Order amount ${request.amount} does not conform to step size ${stepSize}`);
     }
     if (request.price) {
       const tickSize = marketConfig.tickSize;
       const priceRemainder = request.price % tickSize;
       if (priceRemainder !== 0 && priceRemainder / tickSize > 1e-3) {
-        throw new Error(
-          `Order price ${request.price} does not conform to tick size ${tickSize}`
-        );
+        throw new Error(`Order price ${request.price} does not conform to tick size ${tickSize}`);
       }
     }
   }
@@ -28938,7 +29388,14 @@ function mapDriftError(error) {
           case "INSUFFICIENT_MARGIN":
             return new InsufficientMarginError(error.message, code, "drift", error);
           case "INSUFFICIENT_BALANCE":
-            return new InsufficientBalanceError(error.message, code, "drift", void 0, void 0, error);
+            return new InsufficientBalanceError(
+              error.message,
+              code,
+              "drift",
+              void 0,
+              void 0,
+              error
+            );
           case "POSITION_NOT_FOUND":
             return new PositionNotFoundError(error.message, code, "drift", error);
           case "ORDER_NOT_FOUND":
@@ -28996,12 +29453,7 @@ function mapDriftError(error) {
       );
     }
     if (message.includes("account not found") || message.includes("account does not exist")) {
-      return new PerpDEXError(
-        "Account not found on chain",
-        "ACCOUNT_NOT_FOUND",
-        "drift",
-        error
-      );
+      return new PerpDEXError("Account not found on chain", "ACCOUNT_NOT_FOUND", "drift", error);
     }
     if (message.includes("429") || message.includes("too many requests")) {
       return new RateLimitError("RPC rate limit exceeded", "RATE_LIMIT", "drift", void 0, error);
@@ -29015,12 +29467,7 @@ function mapDriftError(error) {
       );
     }
     if (message.includes("timeout") || message.includes("timed out")) {
-      return new ExchangeUnavailableError(
-        "Request timeout",
-        "TIMEOUT",
-        "drift",
-        error
-      );
+      return new ExchangeUnavailableError("Request timeout", "TIMEOUT", "drift", error);
     }
     if (message.includes("max number of positions")) {
       return new InvalidOrderError(
@@ -29055,12 +29502,7 @@ function mapDriftError(error) {
       );
     }
   }
-  return new ExchangeUnavailableError(
-    "Unknown exchange error",
-    "UNKNOWN_ERROR",
-    "drift",
-    error
-  );
+  return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "drift", error);
 }
 
 // src/adapters/drift/utils.ts
@@ -29123,7 +29565,9 @@ var DriftAuth = class {
       const bytes = this.parsePrivateKey(privateKey);
       void this.initKeypairAsync(bytes);
     } catch (error) {
-      this.logger.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
   /**
@@ -29138,7 +29582,9 @@ var DriftAuth = class {
       this.connection = new Connection(this.rpcEndpoint, "confirmed");
       this.isInitialized = true;
     } catch (error) {
-      this.logger.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
   /**
@@ -29154,7 +29600,9 @@ var DriftAuth = class {
         }
         this.isInitialized = true;
       } catch (error) {
-        throw new Error(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   }
@@ -29275,10 +29723,9 @@ var DriftAuth = class {
     }
     const { PublicKey } = await import("@solana/web3.js");
     const tokenMintPubkey = new PublicKey(tokenMint);
-    const tokenAccounts = await this.connection.getTokenAccountsByOwner(
-      this.publicKey,
-      { mint: tokenMintPubkey }
-    );
+    const tokenAccounts = await this.connection.getTokenAccountsByOwner(this.publicKey, {
+      mint: tokenMintPubkey
+    });
     if (tokenAccounts.value.length === 0) {
       return 0;
     }
@@ -29342,7 +29789,6 @@ var DriftAuth = class {
 // src/adapters/drift/DriftClientWrapper.ts
 var DriftClientWrapper = class {
   config;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DriftClient type from @drift-labs/sdk
   // is only available after dynamic import() at runtime. Cannot use static type because the SDK uses
   // ESM-only distribution with native Node addons requiring dynamic loading.
   driftClient;
@@ -29360,12 +29806,7 @@ var DriftClientWrapper = class {
     }
     try {
       const driftSdk = await import("@drift-labs/sdk");
-      const {
-        DriftClient,
-        Wallet: Wallet4,
-        BulkAccountLoader,
-        getMarketsAndOraclesForSubscription
-      } = driftSdk;
+      const { DriftClient, Wallet: Wallet4, BulkAccountLoader, getMarketsAndOraclesForSubscription } = driftSdk;
       const wallet = new Wallet4(this.config.keypair);
       const { perpMarketIndexes, spotMarketIndexes, oracleInfos } = getMarketsAndOraclesForSubscription(this.config.isDevnet ? "devnet" : "mainnet-beta");
       const bulkAccountLoader = new BulkAccountLoader(
@@ -29402,7 +29843,9 @@ var DriftClientWrapper = class {
       }
       this.isInitialized = true;
     } catch (error) {
-      throw new Error(`Failed to initialize Drift client: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to initialize Drift client: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
   /**
@@ -29422,13 +29865,7 @@ var DriftClientWrapper = class {
   async placePerpOrder(params) {
     this.ensureInitialized();
     const driftSdk = await import("@drift-labs/sdk");
-    const {
-      OrderType: OrderType2,
-      PositionDirection,
-      MarketType,
-      OrderTriggerCondition,
-      PostOnlyParams
-    } = driftSdk;
+    const { OrderType: OrderType2, PositionDirection, MarketType, OrderTriggerCondition, PostOnlyParams } = driftSdk;
     const orderTypeMap = {
       market: OrderType2.MARKET,
       limit: OrderType2.LIMIT,
@@ -29485,10 +29922,7 @@ var DriftClientWrapper = class {
     this.ensureInitialized();
     const driftSdk = await import("@drift-labs/sdk");
     const { MarketType } = driftSdk;
-    const txSig = await this.driftClient.cancelOrders(
-      MarketType.PERP,
-      marketIndex
-    );
+    const txSig = await this.driftClient.cancelOrders(MarketType.PERP, marketIndex);
     await this.config.connection.confirmTransaction(txSig, "confirmed");
     const user = this.driftClient.getUser();
     const orders = user.getOpenOrders();
@@ -29619,7 +30053,10 @@ var DriftClientWrapper = class {
     if (!perpMarket) {
       throw new Error(`Perp market ${marketIndex} not found`);
     }
-    const price = calculateReservePrice(perpMarket, this.driftClient.getOracleDataForPerpMarket(marketIndex));
+    const price = calculateReservePrice(
+      perpMarket,
+      this.driftClient.getOracleDataForPerpMarket(marketIndex)
+    );
     return BigInt(price.toString());
   }
   // ==========================================================================
@@ -29630,11 +30067,7 @@ var DriftClientWrapper = class {
    */
   async deposit(amount, spotMarketIndex, userTokenAccount) {
     this.ensureInitialized();
-    const txSig = await this.driftClient.deposit(
-      amount,
-      spotMarketIndex,
-      userTokenAccount
-    );
+    const txSig = await this.driftClient.deposit(amount, spotMarketIndex, userTokenAccount);
     await this.config.connection.confirmTransaction(txSig, "confirmed");
     return txSig;
   }
@@ -29643,11 +30076,7 @@ var DriftClientWrapper = class {
    */
   async withdraw(amount, spotMarketIndex, userTokenAccount) {
     this.ensureInitialized();
-    const txSig = await this.driftClient.withdraw(
-      amount,
-      spotMarketIndex,
-      userTokenAccount
-    );
+    const txSig = await this.driftClient.withdraw(amount, spotMarketIndex, userTokenAccount);
     await this.config.connection.confirmTransaction(txSig, "confirmed");
     return txSig;
   }
@@ -29790,7 +30219,9 @@ var DriftAdapter = class extends BaseAdapter {
       await this.driftClient.initialize();
       this.debug("Drift SDK client initialized");
     } catch (error) {
-      this.warn(`Failed to initialize Drift SDK client: ${error instanceof Error ? error.message : String(error)}`);
+      this.warn(
+        `Failed to initialize Drift SDK client: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
   async disconnect() {
@@ -30050,15 +30481,17 @@ var DriftAdapter = class extends BaseAdapter {
     try {
       const url = `${this.dlobBaseUrl}/orders?userAccount=${walletAddress}&subAccountId=${subAccountId}`;
       const ordersData = await this.request("GET", url);
-      const orders = ordersData.orders.filter((o) => o.marketType === "perp").map((o) => this.normalizer.normalizeOrder({
-        ...o,
-        orderType: o.orderType,
-        direction: o.direction,
-        status: o.status,
-        triggerCondition: o.triggerCondition,
-        postOnly: o.postOnly,
-        existingPositionDirection: o.existingPositionDirection
-      }));
+      const orders = ordersData.orders.filter((o) => o.marketType === "perp").map(
+        (o) => this.normalizer.normalizeOrder({
+          ...o,
+          orderType: o.orderType,
+          direction: o.direction,
+          status: o.status,
+          triggerCondition: o.triggerCondition,
+          postOnly: o.postOnly,
+          existingPositionDirection: o.existingPositionDirection
+        })
+      );
       if (symbol) {
         const marketIndex = getMarketIndex(symbol);
         return orders.filter((o) => o.info?.marketIndex === marketIndex);
@@ -30175,20 +30608,22 @@ var DriftAdapter = class extends BaseAdapter {
         }));
       } else {
         txSig = await this.driftClient.cancelAllPerpOrders();
-        return [{
-          id: "all",
-          symbol: "ALL",
-          type: "limit",
-          side: "buy",
-          amount: 0,
-          status: "canceled",
-          filled: 0,
-          remaining: 0,
-          reduceOnly: false,
-          postOnly: false,
-          timestamp: Date.now(),
-          info: { txSig }
-        }];
+        return [
+          {
+            id: "all",
+            symbol: "ALL",
+            type: "limit",
+            side: "buy",
+            amount: 0,
+            status: "canceled",
+            filled: 0,
+            remaining: 0,
+            reduceOnly: false,
+            postOnly: false,
+            timestamp: Date.now(),
+            info: { txSig }
+          }
+        ];
       }
     } catch (error) {
       throw mapDriftError(error);
@@ -30203,16 +30638,15 @@ var DriftAdapter = class extends BaseAdapter {
     return [];
   }
   async setLeverage(_symbol, _leverage) {
-    throw new Error("Drift uses cross-margin. Leverage is determined by position size relative to collateral.");
+    throw new Error(
+      "Drift uses cross-margin. Leverage is determined by position size relative to collateral."
+    );
   }
   // ==========================================================================
   // Health Check
   // ==========================================================================
   async performApiHealthCheck() {
-    await this.request(
-      "GET",
-      buildOrderbookUrl(this.dlobBaseUrl, 0, "perp", 1)
-    );
+    await this.request("GET", buildOrderbookUrl(this.dlobBaseUrl, 0, "perp", 1));
   }
   // ==========================================================================
   // Helper Methods
@@ -30573,10 +31007,10 @@ var GMX_ERROR_MESSAGES = {
   "oracle error": "ORACLE_ERROR",
   "market disabled": "MARKET_PAUSED",
   "execution failed": "TRANSACTION_FAILED",
-  "slippage": "SLIPPAGE_EXCEEDED",
-  "liquidation": "LIQUIDATION",
+  slippage: "SLIPPAGE_EXCEEDED",
+  liquidation: "LIQUIDATION",
   "invalid price": "INVALID_PRICE",
-  "keeper": "KEEPER_ERROR"
+  keeper: "KEEPER_ERROR"
 };
 
 // src/adapters/gmx/GmxNormalizer.ts
@@ -30661,7 +31095,12 @@ var GmxNormalizer = class {
     const collateralUsd = collateral * markPrice;
     const leverage = collateralUsd > 0 ? notional / collateralUsd : 0;
     const maintenanceMargin = 0.01;
-    const liquidationPrice = this.calculateLiquidationPrice(side, entryPrice, leverage, maintenanceMargin);
+    const liquidationPrice = this.calculateLiquidationPrice(
+      side,
+      entryPrice,
+      leverage,
+      maintenanceMargin
+    );
     return {
       symbol,
       side,
@@ -30674,7 +31113,13 @@ var GmxNormalizer = class {
       // GMX uses cross-margin
       margin: collateralUsd,
       maintenanceMargin: notional * maintenanceMargin,
-      marginRatio: this.calculateMarginRatio(side, entryPrice, markPrice, leverage, maintenanceMargin),
+      marginRatio: this.calculateMarginRatio(
+        side,
+        entryPrice,
+        markPrice,
+        leverage,
+        maintenanceMargin
+      ),
       unrealizedPnl,
       realizedPnl: 0,
       // Would need historical data
@@ -31124,9 +31569,7 @@ var DATA_STORE_ABI = [
   "function getBytes32Count(bytes32 setKey) external view returns (uint256)",
   "function getBytes32ValuesAt(bytes32 setKey, uint256 start, uint256 end) external view returns (bytes32[])"
 ];
-var ORDER_VAULT_ABI = [
-  "function recordTransferIn(address token) external returns (uint256)"
-];
+var ORDER_VAULT_ABI = ["function recordTransferIn(address token) external returns (uint256)"];
 var GmxContracts = class {
   chain;
   provider;
@@ -31163,11 +31606,7 @@ var GmxContracts = class {
    */
   getReader() {
     if (!this.reader) {
-      this.reader = new import_ethers7.ethers.Contract(
-        this.addresses.reader,
-        READER_ABI,
-        this.provider
-      );
+      this.reader = new import_ethers7.ethers.Contract(this.addresses.reader, READER_ABI, this.provider);
     }
     return this.reader;
   }
@@ -31176,11 +31615,7 @@ var GmxContracts = class {
    */
   getDataStore() {
     if (!this.dataStore) {
-      this.dataStore = new import_ethers7.ethers.Contract(
-        this.addresses.dataStore,
-        DATA_STORE_ABI,
-        this.provider
-      );
+      this.dataStore = new import_ethers7.ethers.Contract(this.addresses.dataStore, DATA_STORE_ABI, this.provider);
     }
     return this.dataStore;
   }
@@ -31232,7 +31667,9 @@ var GmxContracts = class {
       shouldUnwrapNativeToken: params.shouldUnwrapNativeToken,
       referralCode: params.referralCode || import_ethers7.ethers.ZeroHash
     };
-    return exchangeRouter.createOrder(orderParams, { value: executionFee });
+    return exchangeRouter.createOrder(orderParams, {
+      value: executionFee
+    });
   }
   /**
    * Cancel an existing order
@@ -31252,7 +31689,9 @@ var GmxContracts = class {
       throw new Error("Signer required for trading operations");
     }
     const exchangeRouter = this.getExchangeRouter();
-    return exchangeRouter.sendWnt(receiver, amount, { value: amount });
+    return exchangeRouter.sendWnt(receiver, amount, {
+      value: amount
+    });
   }
   /**
    * Send tokens to a receiver
@@ -31299,7 +31738,10 @@ var GmxContracts = class {
   async getPosition(positionKey) {
     const reader = this.getReader();
     try {
-      const position = await reader.getPosition(this.addresses.dataStore, positionKey);
+      const position = await reader.getPosition(
+        this.addresses.dataStore,
+        positionKey
+      );
       return position;
     } catch {
       return null;
@@ -31545,10 +31987,9 @@ var GmxSubgraph = class {
    * Fetch all positions for an account
    */
   async fetchPositions(account) {
-    const response = await this.query(
-      POSITIONS_QUERY,
-      { account: account.toLowerCase() }
-    );
+    const response = await this.query(POSITIONS_QUERY, {
+      account: account.toLowerCase()
+    });
     return response.positions.filter(
       (p) => (
         // Filter out closed positions (size = 0)
@@ -31563,13 +32004,10 @@ var GmxSubgraph = class {
    * Fetch open orders for an account
    */
   async fetchOpenOrders(account) {
-    const response = await this.query(
-      ORDERS_QUERY,
-      {
-        account: account.toLowerCase(),
-        status: "Created"
-      }
-    );
+    const response = await this.query(ORDERS_QUERY, {
+      account: account.toLowerCase(),
+      status: "Created"
+    });
     return response.orders;
   }
   /**
@@ -31577,13 +32015,10 @@ var GmxSubgraph = class {
    */
   async fetchOrderHistory(account, since) {
     const sinceBlock = since ? Math.floor(since / 1e3) : 0;
-    const response = await this.query(
-      ORDER_HISTORY_QUERY,
-      {
-        account: account.toLowerCase(),
-        since: sinceBlock.toString()
-      }
-    );
+    const response = await this.query(ORDER_HISTORY_QUERY, {
+      account: account.toLowerCase(),
+      since: sinceBlock.toString()
+    });
     return response.orders;
   }
   // ==========================================================================
@@ -31594,14 +32029,11 @@ var GmxSubgraph = class {
    */
   async fetchAccountTrades(account, since, limit = 50) {
     const sinceTimestamp = since ? Math.floor(since / 1e3) : 0;
-    const response = await this.query(
-      TRADES_QUERY,
-      {
-        account: account.toLowerCase(),
-        since: sinceTimestamp.toString(),
-        limit
-      }
-    );
+    const response = await this.query(TRADES_QUERY, {
+      account: account.toLowerCase(),
+      since: sinceTimestamp.toString(),
+      limit
+    });
     return response.tradeActions;
   }
   /**
@@ -31699,11 +32131,11 @@ var GmxSubgraph = class {
       // Liquidation
     };
     const statusMap = {
-      "Created": "open",
-      "Executed": "filled",
-      "Cancelled": "cancelled",
-      "Frozen": "open",
-      "Expired": "expired"
+      Created: "open",
+      Executed: "filled",
+      Cancelled: "cancelled",
+      Frozen: "open",
+      Expired: "expired"
     };
     const isIncrease = order.orderType === 0 || order.orderType === 2;
     const side = isIncrease ? order.isLong ? "buy" : "sell" : order.isLong ? "sell" : "buy";
@@ -32003,7 +32435,14 @@ function mapGmxError(error) {
           case "INSUFFICIENT_MARGIN":
             return new InsufficientMarginError(error.message, code, "gmx", error);
           case "INSUFFICIENT_BALANCE":
-            return new InsufficientBalanceError(error.message, code, "gmx", void 0, void 0, error);
+            return new InsufficientBalanceError(
+              error.message,
+              code,
+              "gmx",
+              void 0,
+              void 0,
+              error
+            );
           case "POSITION_NOT_FOUND":
             return new PositionNotFoundError(error.message, code, "gmx", error);
           case "ORDER_NOT_FOUND":
@@ -32063,12 +32502,7 @@ function mapGmxError(error) {
       );
     }
     if (message.includes("timeout") || message.includes("timed out")) {
-      return new ExchangeUnavailableError(
-        "Request timeout",
-        "TIMEOUT",
-        "gmx",
-        error
-      );
+      return new ExchangeUnavailableError("Request timeout", "TIMEOUT", "gmx", error);
     }
     if (message.includes("network") || message.includes("connection")) {
       return new ExchangeUnavailableError(
@@ -32079,12 +32513,7 @@ function mapGmxError(error) {
       );
     }
     if (message.includes("graphql") || message.includes("query")) {
-      return new ExchangeUnavailableError(
-        "Subgraph query error",
-        "SUBGRAPH_ERROR",
-        "gmx",
-        error
-      );
+      return new ExchangeUnavailableError("Subgraph query error", "SUBGRAPH_ERROR", "gmx", error);
     }
     if (message.includes("reverted") || message.includes("revert")) {
       return new TransactionFailedError(
@@ -32105,12 +32534,7 @@ function mapGmxError(error) {
       );
     }
     if (message.includes("market not found") || message.includes("invalid market")) {
-      return new InvalidOrderError(
-        "Invalid or unsupported market",
-        "INVALID_MARKET",
-        "gmx",
-        error
-      );
+      return new InvalidOrderError("Invalid or unsupported market", "INVALID_MARKET", "gmx", error);
     }
     if (message.includes("disabled") || message.includes("paused")) {
       return new ExchangeUnavailableError(
@@ -32137,12 +32561,7 @@ function mapGmxError(error) {
       );
     }
   }
-  return new ExchangeUnavailableError(
-    "Unknown exchange error",
-    "UNKNOWN_ERROR",
-    "gmx",
-    error
-  );
+  return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "gmx", error);
 }
 
 // src/adapters/gmx/GmxAdapter.ts
@@ -32373,7 +32792,9 @@ var GmxAdapter = class extends BaseAdapter {
     }
   }
   async fetchFundingRateHistory(_symbol, _since, _limit) {
-    throw new Error("fetchFundingRateHistory requires subgraph integration. Not available via REST API.");
+    throw new Error(
+      "fetchFundingRateHistory requires subgraph integration. Not available via REST API."
+    );
   }
   async fetchOHLCV(symbol, timeframe = "1h", params) {
     this.ensureInitialized();
@@ -32688,7 +33109,9 @@ var GmxAdapter = class extends BaseAdapter {
           const canceled = await this.cancelOrder(order.id, order.symbol);
           canceledOrders.push(canceled);
         } catch (error) {
-          this.warn(`Failed to cancel order ${order.id}: ${error instanceof Error ? error.message : String(error)}`);
+          this.warn(
+            `Failed to cancel order ${order.id}: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
       }
       return canceledOrders;
@@ -32738,7 +33161,9 @@ var GmxAdapter = class extends BaseAdapter {
       }
       this.pricesCacheTimestamp = now;
     } catch (error) {
-      this.debug(`Failed to fetch prices: ${error instanceof Error ? error.message : String(error)}`);
+      this.debug(
+        `Failed to fetch prices: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
     return this.pricesCache;
   }
@@ -32843,7 +33268,14 @@ function isExchangeSupported(exchange) {
 }
 
 // src/types/common.ts
-var ORDER_TYPES = ["market", "limit", "stopMarket", "stopLimit", "takeProfit", "trailingStop"];
+var ORDER_TYPES = [
+  "market",
+  "limit",
+  "stopMarket",
+  "stopLimit",
+  "takeProfit",
+  "trailingStop"
+];
 var ORDER_SIDES = ["buy", "sell"];
 var ORDER_STATUSES = [
   "open",
@@ -33047,7 +33479,10 @@ function Resilient(config = {}) {
     }
     const executor = createResilientExecutor(config);
     descriptor.value = async function(...args) {
-      return executor(() => originalMethod.apply(this, args), `${target.constructor.name}.${propertyKey}`);
+      return executor(
+        () => originalMethod.apply(this, args),
+        `${target.constructor.name}.${propertyKey}`
+      );
     };
     return descriptor;
   };
@@ -33094,9 +33529,7 @@ var Bulkhead = class {
 async function withTimeout(promise, timeoutMs, errorMessage = "Operation timed out") {
   return Promise.race([
     promise,
-    new Promise(
-      (_, reject) => setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
-    )
+    new Promise((_, reject) => setTimeout(() => reject(new Error(errorMessage)), timeoutMs))
   ]);
 }
 function withCache(fn, ttlMs) {
@@ -33243,7 +33676,7 @@ var MetricsServer = class {
     } else if (url === "/health") {
       await this.handleHealthRequest(res);
     } else if (url === "/") {
-      this.handleRootRequest(res);
+      await this.handleRootRequest(res);
     } else {
       this.sendResponse(res, 404, "Not Found");
     }

@@ -121,7 +121,10 @@ export class ParadexHTTPClient {
     let fullPath = path;
 
     // Handle as query params if it's simple key-value pairs
-    if (params && Object.values(params).every(v => typeof v === 'string' || typeof v === 'number')) {
+    if (
+      params &&
+      Object.values(params).every((v) => typeof v === 'string' || typeof v === 'number')
+    ) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
         searchParams.append(key, String(value));
@@ -185,7 +188,11 @@ export class ParadexHTTPClient {
       }
 
       // Handle network errors
-      if (error instanceof Error && 'code' in error && typeof (error as { code?: string }).code === 'string') {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        typeof (error as { code?: string }).code === 'string'
+      ) {
         throw mapAxiosError(error);
       }
 
@@ -196,12 +203,7 @@ export class ParadexHTTPClient {
 
       // Generic error
       const message = error instanceof Error ? error.message : 'Request failed';
-      throw new PerpDEXError(
-        message,
-        'UNKNOWN_ERROR',
-        'paradex',
-        error
-      );
+      throw new PerpDEXError(message, 'UNKNOWN_ERROR', 'paradex', error);
     }
   }
 
@@ -217,7 +219,7 @@ export class ParadexHTTPClient {
     // Parse response body
     let data: T | null;
     try {
-      data = await response.json() as T;
+      data = (await response.json()) as T;
     } catch {
       // Empty or non-JSON response
       data = null;
@@ -226,11 +228,7 @@ export class ParadexHTTPClient {
     // Handle HTTP errors
     if (!response.ok) {
       if (this.enableLogging) {
-        this.logger.error(
-          `Error ${response.status}: ${response.statusText}`,
-          undefined,
-          { data }
-        );
+        this.logger.error(`Error ${response.status}: ${response.statusText}`, undefined, { data });
       }
 
       throw mapHttpError(response.status, response.statusText, data);

@@ -44,5 +44,5 @@ export declare const DriftErrorCodes: {
     readonly LIQUIDATION: "LIQUIDATION";
     readonly UNKNOWN_ERROR: "UNKNOWN_ERROR";
 };
-export type DriftErrorCode = typeof DriftErrorCodes[keyof typeof DriftErrorCodes];
+export type DriftErrorCode = (typeof DriftErrorCodes)[keyof typeof DriftErrorCodes];
 //# sourceMappingURL=error-codes.d.ts.map

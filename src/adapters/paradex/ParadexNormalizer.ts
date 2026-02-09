@@ -21,11 +21,7 @@ import type {
   OrderStatus,
   TimeInForce,
 } from '../../types/common.js';
-import {
-  PARADEX_ORDER_TYPES,
-  PARADEX_ORDER_SIDES,
-  PARADEX_TIME_IN_FORCE,
-} from './constants.js';
+import { PARADEX_ORDER_TYPES, PARADEX_ORDER_SIDES, PARADEX_TIME_IN_FORCE } from './constants.js';
 import type {
   ParadexMarket,
   ParadexOrder,
@@ -123,8 +119,6 @@ export class ParadexNormalizer {
   // Precision-Safe Numeric Conversions
   // ===========================================================================
 
-
-
   /**
    * Count decimal places in a string number
    *
@@ -160,7 +154,7 @@ export class ParadexNormalizer {
 
     // Extract maker/taker fees from fee_config or legacy fields
     let makerFee = 0.00003; // Default
-    let takerFee = 0.0002;  // Default
+    let takerFee = 0.0002; // Default
     if (paradexMarket.fee_config?.api_fee) {
       makerFee = parseFloat(paradexMarket.fee_config.api_fee.maker_fee?.fee || '0.00003');
       takerFee = parseFloat(paradexMarket.fee_config.api_fee.taker_fee?.fee || '0.0002');
@@ -181,7 +175,8 @@ export class ParadexNormalizer {
     }
 
     // Determine if market is active
-    const isActive = paradexMarket.is_active ??
+    const isActive =
+      paradexMarket.is_active ??
       (paradexMarket.open_at ? paradexMarket.open_at <= Date.now() : true);
 
     return {
@@ -296,7 +291,7 @@ export class ParadexNormalizer {
       reduceOnly: paradexOrder.reduce_only,
       timestamp: paradexOrder.created_at,
       lastUpdateTimestamp: paradexOrder.updated_at,
-      info: paradexOrder as any,
+      info: paradexOrder as unknown as Record<string, unknown>,
     };
   }
 
@@ -336,7 +331,7 @@ export class ParadexNormalizer {
       maintenanceMargin: parseFloat(paradexPosition.margin) * 0.025, // Estimate 2.5%
       marginRatio: 0, // Not provided by Paradex
       timestamp: paradexPosition.last_updated,
-      info: paradexPosition as any,
+      info: paradexPosition as unknown as Record<string, unknown>,
     };
   }
 
@@ -360,7 +355,7 @@ export class ParadexNormalizer {
       total: parseFloat(paradexBalance.total),
       free: parseFloat(paradexBalance.available),
       used: parseFloat(paradexBalance.locked),
-      info: paradexBalance as any,
+      info: paradexBalance as unknown as Record<string, unknown>,
     };
   }
 
@@ -382,14 +377,8 @@ export class ParadexNormalizer {
     return {
       symbol: this.symbolToCCXT(paradexOrderBook.market),
       exchange: 'paradex',
-      bids: paradexOrderBook.bids.map(([price, size]) => [
-        parseFloat(price),
-        parseFloat(size),
-      ]),
-      asks: paradexOrderBook.asks.map(([price, size]) => [
-        parseFloat(price),
-        parseFloat(size),
-      ]),
+      bids: paradexOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+      asks: paradexOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
       timestamp: paradexOrderBook.timestamp,
     };
   }
@@ -413,7 +402,7 @@ export class ParadexNormalizer {
       amount,
       cost: price * amount,
       timestamp: paradexTrade.timestamp,
-      info: paradexTrade as any,
+      info: paradexTrade as unknown as Record<string, unknown>,
     };
   }
 
@@ -450,7 +439,7 @@ export class ParadexNormalizer {
       baseVolume: parseFloat(paradexTicker.volume_24h),
       quoteVolume: 0, // Not provided by Paradex
       timestamp: paradexTicker.timestamp,
-      info: paradexTicker as any,
+      info: paradexTicker as unknown as Record<string, unknown>,
     };
   }
 
@@ -477,7 +466,7 @@ export class ParadexNormalizer {
       indexPrice: parseFloat(paradexFunding.index_price),
       nextFundingTimestamp: paradexFunding.next_funding_time,
       fundingIntervalHours: 8,
-      info: paradexFunding as any,
+      info: paradexFunding as unknown as Record<string, unknown>,
     };
   }
 

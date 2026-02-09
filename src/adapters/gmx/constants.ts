@@ -337,7 +337,9 @@ export function gmxToUnified(marketKey: GMXMarketKey): string {
 /**
  * Get market config by address
  */
-export function getMarketByAddress(address: string): (typeof GMX_MARKETS)[GMXMarketKey] | undefined {
+export function getMarketByAddress(
+  address: string
+): (typeof GMX_MARKETS)[GMXMarketKey] | undefined {
   const key = GMX_MARKET_ADDRESS_MAP[address.toLowerCase()];
   return key ? GMX_MARKETS[key] : undefined;
 }
@@ -353,8 +355,10 @@ export function getBaseToken(symbol: string): string {
 /**
  * Get markets for a specific chain
  */
-export function getMarketsForChain(chain: 'arbitrum' | 'avalanche'): (typeof GMX_MARKETS)[GMXMarketKey][] {
-  return Object.values(GMX_MARKETS).filter(m => m.chain === chain);
+export function getMarketsForChain(
+  chain: 'arbitrum' | 'avalanche'
+): (typeof GMX_MARKETS)[GMXMarketKey][] {
+  return Object.values(GMX_MARKETS).filter((m) => m.chain === chain);
 }
 
 // =============================================================================
@@ -405,8 +409,8 @@ export const GMX_ERROR_MESSAGES: Record<string, string> = {
   'oracle error': 'ORACLE_ERROR',
   'market disabled': 'MARKET_PAUSED',
   'execution failed': 'TRANSACTION_FAILED',
-  'slippage': 'SLIPPAGE_EXCEEDED',
-  'liquidation': 'LIQUIDATION',
+  slippage: 'SLIPPAGE_EXCEEDED',
+  liquidation: 'LIQUIDATION',
   'invalid price': 'INVALID_PRICE',
-  'keeper': 'KEEPER_ERROR',
+  keeper: 'KEEPER_ERROR',
 } as const;

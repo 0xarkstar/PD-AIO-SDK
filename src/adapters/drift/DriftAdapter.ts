@@ -43,17 +43,8 @@ import {
   getMarketIndex,
 } from './constants.js';
 import { mapDriftError } from './error-codes.js';
-import {
-  isValidMarket,
-  getMarketConfig,
-  buildOrderbookUrl,
-  buildTradesUrl,
-} from './utils.js';
-import type {
-  DriftL2OrderBook,
-  DriftTrade,
-  DriftFundingRate,
-} from './types.js';
+import { isValidMarket, getMarketConfig, buildOrderbookUrl, buildTradesUrl } from './utils.js';
+import type { DriftL2OrderBook, DriftTrade, DriftFundingRate } from './types.js';
 import { DriftAuth } from './DriftAuth.js';
 import { DriftClientWrapper } from './DriftClientWrapper.js';
 
@@ -159,9 +150,7 @@ export class DriftAdapter extends BaseAdapter {
     });
 
     this.isTestnet = config.testnet || false;
-    this.dlobBaseUrl = this.isTestnet
-      ? DRIFT_API_URLS.devnet.dlob
-      : DRIFT_API_URLS.mainnet.dlob;
+    this.dlobBaseUrl = this.isTestnet ? DRIFT_API_URLS.devnet.dlob : DRIFT_API_URLS.mainnet.dlob;
 
     this.normalizer = new DriftNormalizer();
 
@@ -171,9 +160,9 @@ export class DriftAdapter extends BaseAdapter {
         privateKey: config.privateKey,
         walletAddress: config.walletAddress,
         subAccountId: config.subAccountId,
-        rpcEndpoint: config.rpcEndpoint || (this.isTestnet
-          ? DRIFT_API_URLS.devnet.rpc
-          : DRIFT_API_URLS.mainnet.rpc),
+        rpcEndpoint:
+          config.rpcEndpoint ||
+          (this.isTestnet ? DRIFT_API_URLS.devnet.rpc : DRIFT_API_URLS.mainnet.rpc),
         isDevnet: this.isTestnet,
       });
     }
@@ -242,7 +231,9 @@ export class DriftAdapter extends BaseAdapter {
       await this.driftClient.initialize();
       this.debug('Drift SDK client initialized');
     } catch (error) {
-      this.warn(`Failed to initialize Drift SDK client: ${error instanceof Error ? error.message : String(error)}`);
+      this.warn(
+        `Failed to initialize Drift SDK client: ${error instanceof Error ? error.message : String(error)}`
+      );
       // Don't throw - allow adapter to work in read-only mode
     }
   }
@@ -331,8 +322,12 @@ export class DriftAdapter extends BaseAdapter {
 
       // Build ticker from orderbook data
       const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
-      const bestBid = orderbook.bids[0] ? parseFloat(orderbook.bids[0].price) / DRIFT_PRECISION.PRICE : oraclePrice * 0.999;
-      const bestAsk = orderbook.asks[0] ? parseFloat(orderbook.asks[0].price) / DRIFT_PRECISION.PRICE : oraclePrice * 1.001;
+      const bestBid = orderbook.bids[0]
+        ? parseFloat(orderbook.bids[0].price) / DRIFT_PRECISION.PRICE
+        : oraclePrice * 0.999;
+      const bestAsk = orderbook.asks[0]
+        ? parseFloat(orderbook.asks[0].price) / DRIFT_PRECISION.PRICE
+        : oraclePrice * 1.001;
       const markPrice = (bestBid + bestAsk) / 2;
 
       const config = getMarketConfig(symbol);
@@ -400,7 +395,7 @@ export class DriftAdapter extends BaseAdapter {
       const url = buildTradesUrl(this.dlobBaseUrl, marketIndex, 'perp', limit);
       const trades = await this.request<DriftTrade[]>('GET', url);
 
-      return trades.map(t => this.normalizer.normalizeTrade(t));
+      return trades.map((t) => this.normalizer.normalizeTrade(t));
     } catch (error) {
       throw mapDriftError(error);
     }
@@ -449,7 +444,7 @@ export class DriftAdapter extends BaseAdapter {
       const url = `${this.dlobBaseUrl}/fundingRateHistory?${params.toString()}`;
       const history = await this.request<DriftFundingRate[]>('GET', url);
 
-      return history.map(f => this.normalizer.normalizeFundingRate(f));
+      return history.map((f) => this.normalizer.normalizeFundingRate(f));
     } catch (error) {
       throw mapDriftError(error);
     }
@@ -558,15 +553,16 @@ export class DriftAdapter extends BaseAdapter {
       const balances: Balance[] = [];
 
       // Add USDC balance (market index 0 for spot)
-      const usdcPosition = userData.spotPositions.find(p => p.marketIndex === 0);
+      const usdcPosition = userData.spotPositions.find((p) => p.marketIndex === 0);
       if (usdcPosition) {
         const total = parseFloat(usdcPosition.scaledBalance) / DRIFT_PRECISION.QUOTE;
         balances.push({
           currency: 'USDC',
           total: usdcPosition.balanceType === 'deposit' ? total : -total,
           free: parseFloat(userData.freeCollateral) / DRIFT_PRECISION.QUOTE,
-          used: parseFloat(userData.totalCollateral) / DRIFT_PRECISION.QUOTE -
-                parseFloat(userData.freeCollateral) / DRIFT_PRECISION.QUOTE,
+          used:
+            parseFloat(userData.totalCollateral) / DRIFT_PRECISION.QUOTE -
+            parseFloat(userData.freeCollateral) / DRIFT_PRECISION.QUOTE,
           usdValue: usdcPosition.balanceType === 'deposit' ? total : -total,
         });
       }
@@ -622,20 +618,22 @@ export class DriftAdapter extends BaseAdapter {
       }>('GET', url);
 
       const orders = ordersData.orders
-        .filter(o => o.marketType === 'perp')
-        .map(o => this.normalizer.normalizeOrder({
-          ...o,
-          orderType: o.orderType as any,
-          direction: o.direction,
-          status: o.status as any,
-          triggerCondition: o.triggerCondition as any,
-          postOnly: o.postOnly as any,
-          existingPositionDirection: o.existingPositionDirection as any,
-        }));
+        .filter((o) => o.marketType === 'perp')
+        .map((o) =>
+          this.normalizer.normalizeOrder({
+            ...o,
+            orderType: o.orderType as any,
+            direction: o.direction,
+            status: o.status as any,
+            triggerCondition: o.triggerCondition as any,
+            postOnly: o.postOnly as any,
+            existingPositionDirection: o.existingPositionDirection as any,
+          })
+        );
 
       if (symbol) {
         const marketIndex = getMarketIndex(symbol);
-        return orders.filter(o => o.info?.marketIndex === marketIndex);
+        return orders.filter((o) => o.info?.marketIndex === marketIndex);
       }
 
       return orders;
@@ -774,20 +772,22 @@ export class DriftAdapter extends BaseAdapter {
       } else {
         txSig = await this.driftClient.cancelAllPerpOrders();
         // Return a single order representing all cancellations
-        return [{
-          id: 'all',
-          symbol: 'ALL',
-          type: 'limit',
-          side: 'buy',
-          amount: 0,
-          status: 'canceled',
-          filled: 0,
-          remaining: 0,
-          reduceOnly: false,
-          postOnly: false,
-          timestamp: Date.now(),
-          info: { txSig },
-        }];
+        return [
+          {
+            id: 'all',
+            symbol: 'ALL',
+            type: 'limit',
+            side: 'buy',
+            amount: 0,
+            status: 'canceled',
+            filled: 0,
+            remaining: 0,
+            reduceOnly: false,
+            postOnly: false,
+            timestamp: Date.now(),
+            info: { txSig },
+          },
+        ];
       }
     } catch (error) {
       throw mapDriftError(error);
@@ -805,7 +805,9 @@ export class DriftAdapter extends BaseAdapter {
   }
 
   async setLeverage(_symbol: string, _leverage: number): Promise<void> {
-    throw new Error('Drift uses cross-margin. Leverage is determined by position size relative to collateral.');
+    throw new Error(
+      'Drift uses cross-margin. Leverage is determined by position size relative to collateral.'
+    );
   }
 
   // ==========================================================================
@@ -814,10 +816,7 @@ export class DriftAdapter extends BaseAdapter {
 
   protected async performApiHealthCheck(): Promise<void> {
     // Check DLOB API connectivity
-    await this.request<DriftL2OrderBook>(
-      'GET',
-      buildOrderbookUrl(this.dlobBaseUrl, 0, 'perp', 1)
-    );
+    await this.request<DriftL2OrderBook>('GET', buildOrderbookUrl(this.dlobBaseUrl, 0, 'perp', 1));
   }
 
   // ==========================================================================
@@ -833,11 +832,11 @@ export class DriftAdapter extends BaseAdapter {
     let filtered = markets;
 
     if (params.active !== undefined) {
-      filtered = filtered.filter(m => m.active === params.active);
+      filtered = filtered.filter((m) => m.active === params.active);
     }
 
     if (params.ids && params.ids.length > 0) {
-      filtered = filtered.filter(m => params.ids!.includes(m.id));
+      filtered = filtered.filter((m) => params.ids!.includes(m.id));
     }
 
     return filtered;

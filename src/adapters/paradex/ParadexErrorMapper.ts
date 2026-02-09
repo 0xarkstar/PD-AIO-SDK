@@ -7,6 +7,7 @@
  * @see https://docs.paradex.trade/api/errors
  */
 
+import { includesValue } from '../../utils/type-guards.js';
 import {
   PerpDEXError,
   InvalidOrderError,
@@ -145,7 +146,7 @@ export function isServerError(code: string | number): boolean {
  * @returns true if network error
  */
 export function isNetworkError(code: string): boolean {
-  return Object.values(PARADEX_NETWORK_ERRORS).includes(code as any);
+  return includesValue(Object.values(PARADEX_NETWORK_ERRORS), code);
 }
 
 /**
@@ -315,11 +316,7 @@ export function extractParadexError(response: any): {
  * @param responseData - Optional response data
  * @returns Mapped error
  */
-export function mapHttpError(
-  status: number,
-  statusText: string,
-  responseData?: any
-): PerpDEXError {
+export function mapHttpError(status: number, statusText: string, responseData?: any): PerpDEXError {
   // Try to extract Paradex error from response
   if (responseData && (responseData.error || responseData.code)) {
     const { code, message } = extractParadexError(responseData);
@@ -328,20 +325,12 @@ export function mapHttpError(
 
   // 401 Unauthorized
   if (status === 401) {
-    return new InvalidSignatureError(
-      `Unauthorized: ${statusText}`,
-      'UNAUTHORIZED',
-      'paradex'
-    );
+    return new InvalidSignatureError(`Unauthorized: ${statusText}`, 'UNAUTHORIZED', 'paradex');
   }
 
   // 403 Forbidden
   if (status === 403) {
-    return new InsufficientPermissionsError(
-      `Forbidden: ${statusText}`,
-      'FORBIDDEN',
-      'paradex'
-    );
+    return new InsufficientPermissionsError(`Forbidden: ${statusText}`, 'FORBIDDEN', 'paradex');
   }
 
   // 404 Not Found
@@ -388,11 +377,7 @@ export function mapHttpError(
   }
 
   // Other
-  return new PerpDEXError(
-    `HTTP error (${status}): ${statusText}`,
-    `HTTP_${status}`,
-    'paradex'
-  );
+  return new PerpDEXError(`HTTP error (${status}): ${statusText}`, `HTTP_${status}`, 'paradex');
 }
 
 /**
@@ -420,12 +405,7 @@ export function mapAxiosError(error: any): PerpDEXError {
 
   // Request timeout
   if (error.code === 'ECONNABORTED') {
-    return new ExchangeUnavailableError(
-      'Request timeout',
-      'ETIMEDOUT',
-      'paradex',
-      error
-    );
+    return new ExchangeUnavailableError('Request timeout', 'ETIMEDOUT', 'paradex', error);
   }
 
   // Generic error

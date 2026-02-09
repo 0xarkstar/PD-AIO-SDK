@@ -141,7 +141,7 @@ export class Logger {
     this.context = context;
     this.level = config.level ?? LogLevel.INFO;
     this.enabled = config.enabled ?? true;
-    this.output = config.output ?? this.defaultOutput;
+    this.output = config.output ?? this.defaultOutput.bind(this);
     this.maskSensitiveData = config.maskSensitiveData ?? true;
     this.correlationId = config.correlationId;
   }
@@ -208,6 +208,21 @@ export class Logger {
   }
 
   /**
+   * Get logger configuration (used by createChildLogger)
+   */
+  getConfig(): { context: string } & Required<Omit<LoggerConfig, 'correlationId'>> &
+    Pick<LoggerConfig, 'correlationId'> {
+    return {
+      context: this.context,
+      level: this.level,
+      enabled: this.enabled,
+      output: this.output,
+      maskSensitiveData: this.maskSensitiveData,
+      correlationId: this.correlationId,
+    };
+  }
+
+  /**
    * Create a child logger with a specific correlation ID
    */
   withCorrelationId(correlationId: string): Logger {
@@ -265,7 +280,7 @@ export class Logger {
       name: error.name,
       message: error.message,
       stack: error.stack,
-      code: (error as any).code,
+      code: (error as Error & { code?: string }).code,
     };
   }
 
@@ -327,13 +342,14 @@ export class Logger {
  * ```
  */
 export function createChildLogger(parent: Logger, childContext: string): Logger {
-  const fullContext = `${(parent as any).context}:${childContext}`;
+  const config = parent.getConfig();
+  const fullContext = `${config.context}:${childContext}`;
   return new Logger(fullContext, {
-    level: (parent as any).level,
-    enabled: (parent as any).enabled,
-    output: (parent as any).output,
-    maskSensitiveData: (parent as any).maskSensitiveData,
-    correlationId: (parent as any).correlationId,
+    level: config.level,
+    enabled: config.enabled,
+    output: config.output,
+    maskSensitiveData: config.maskSensitiveData,
+    correlationId: config.correlationId,
   });
 }
 
@@ -358,11 +374,7 @@ export function createChildLogger(parent: Logger, childContext: string): Logger 
  * ```
  */
 export function formatLogEntry(entry: LogEntry): string {
-  const parts = [
-    `[${entry.timestamp}]`,
-    entry.level.toUpperCase(),
-    `[${entry.context}]`,
-  ];
+  const parts = [`[${entry.timestamp}]`, entry.level.toUpperCase(), `[${entry.context}]`];
 
   // Add correlation ID if present
   if (entry.correlationId) {

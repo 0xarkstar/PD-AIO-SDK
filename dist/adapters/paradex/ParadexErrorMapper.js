@@ -6,6 +6,7 @@
  *
  * @see https://docs.paradex.trade/api/errors
  */
+import { includesValue } from '../../utils/type-guards.js';
 import { PerpDEXError, InvalidOrderError, InsufficientMarginError, OrderNotFoundError, InvalidSignatureError, RateLimitError, ExchangeUnavailableError, ExpiredAuthError, InsufficientPermissionsError, PositionNotFoundError, } from '../../types/errors.js';
 /**
  * Paradex Client Error Codes (1xxx, 2xxx)
@@ -118,7 +119,7 @@ export function isServerError(code) {
  * @returns true if network error
  */
 export function isNetworkError(code) {
-    return Object.values(PARADEX_NETWORK_ERRORS).includes(code);
+    return includesValue(Object.values(PARADEX_NETWORK_ERRORS), code);
 }
 /**
  * Check if an error should be retried

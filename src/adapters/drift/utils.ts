@@ -19,7 +19,9 @@ import type { DriftOrderType, DriftDirection, DriftPostOnlyParams } from './type
 /**
  * Get market configuration by symbol
  */
-export function getMarketConfig(symbol: string): (typeof DRIFT_PERP_MARKETS)[keyof typeof DRIFT_PERP_MARKETS] | undefined {
+export function getMarketConfig(
+  symbol: string
+): (typeof DRIFT_PERP_MARKETS)[keyof typeof DRIFT_PERP_MARKETS] | undefined {
   const driftSymbol = symbol.includes('-PERP') ? symbol : unifiedToDrift(symbol);
   return DRIFT_PERP_MARKETS[driftSymbol as keyof typeof DRIFT_PERP_MARKETS];
 }
@@ -27,7 +29,9 @@ export function getMarketConfig(symbol: string): (typeof DRIFT_PERP_MARKETS)[key
 /**
  * Get market configuration by index
  */
-export function getMarketConfigByIndex(marketIndex: number): (typeof DRIFT_PERP_MARKETS)[keyof typeof DRIFT_PERP_MARKETS] | undefined {
+export function getMarketConfigByIndex(
+  marketIndex: number
+): (typeof DRIFT_PERP_MARKETS)[keyof typeof DRIFT_PERP_MARKETS] | undefined {
   const marketKey = DRIFT_MARKET_INDEX_MAP[marketIndex];
   if (!marketKey) return undefined;
   return DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS];
@@ -45,7 +49,7 @@ export function isValidMarket(symbol: string): boolean {
  * Get all market indices
  */
 export function getAllMarketIndices(): number[] {
-  return Object.values(DRIFT_PERP_MARKETS).map(m => m.marketIndex);
+  return Object.values(DRIFT_PERP_MARKETS).map((m) => m.marketIndex);
 }
 
 // =============================================================================
@@ -142,7 +146,10 @@ export function roundToStepSize(size: number, symbol: string): number {
 /**
  * Validate leverage for market
  */
-export function validateLeverage(leverage: number, symbol: string): { valid: boolean; reason?: string } {
+export function validateLeverage(
+  leverage: number,
+  symbol: string
+): { valid: boolean; reason?: string } {
   const config = getMarketConfig(symbol);
   const maxLeverage = config?.maxLeverage || 20;
 
@@ -160,11 +167,7 @@ export function validateLeverage(leverage: number, symbol: string): { valid: boo
 /**
  * Calculate position size from collateral and leverage
  */
-export function calculatePositionSize(
-  collateral: number,
-  leverage: number,
-  price: number
-): number {
+export function calculatePositionSize(collateral: number, leverage: number, price: number): number {
   return (collateral * leverage) / price;
 }
 
@@ -186,13 +189,20 @@ export function calculateRequiredCollateral(
 /**
  * Convert SDK order type to Drift order type
  */
-export function toDriftOrderType(type: 'market' | 'limit' | 'stopMarket' | 'stopLimit'): DriftOrderType {
+export function toDriftOrderType(
+  type: 'market' | 'limit' | 'stopMarket' | 'stopLimit'
+): DriftOrderType {
   switch (type) {
-    case 'market': return 'market';
-    case 'limit': return 'limit';
-    case 'stopMarket': return 'triggerMarket';
-    case 'stopLimit': return 'triggerLimit';
-    default: return 'limit';
+    case 'market':
+      return 'market';
+    case 'limit':
+      return 'limit';
+    case 'stopMarket':
+      return 'triggerMarket';
+    case 'stopLimit':
+      return 'triggerLimit';
+    default:
+      return 'limit';
   }
 }
 
@@ -422,7 +432,11 @@ export function getTimeUntilFunding(): number {
  * Convert Solana slot to approximate timestamp
  * (slots are ~400ms each)
  */
-export function slotToTimestamp(slot: number, referenceSlot?: number, referenceTime?: number): number {
+export function slotToTimestamp(
+  slot: number,
+  referenceSlot?: number,
+  referenceTime?: number
+): number {
   const slotDuration = 400; // ms
   if (referenceSlot && referenceTime) {
     return referenceTime + (slot - referenceSlot) * slotDuration;

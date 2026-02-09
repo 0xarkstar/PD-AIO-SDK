@@ -6,7 +6,15 @@
  */
 
 import type { OrderRequest } from '../../types/common.js';
-import { PerpDEXError, RateLimitError, InsufficientMarginError, InvalidOrderError, OrderNotFoundError, InvalidSignatureError, ExchangeUnavailableError } from '../../types/errors.js';
+import {
+  PerpDEXError,
+  RateLimitError,
+  InsufficientMarginError,
+  InvalidOrderError,
+  OrderNotFoundError,
+  InvalidSignatureError,
+  ExchangeUnavailableError,
+} from '../../types/errors.js';
 
 /**
  * Convert unified order request to Lighter format
@@ -57,7 +65,13 @@ export function mapError(error: unknown): PerpDEXError {
 
   // Rate limit errors
   if (errorLower.includes('rate limit') || errorLower.includes('too many requests')) {
-    return new RateLimitError('Rate limit exceeded', 'RATE_LIMIT_EXCEEDED', 'lighter', undefined, originalError);
+    return new RateLimitError(
+      'Rate limit exceeded',
+      'RATE_LIMIT_EXCEEDED',
+      'lighter',
+      undefined,
+      originalError
+    );
   }
 
   // Insufficient margin
@@ -79,7 +93,12 @@ export function mapError(error: unknown): PerpDEXError {
     errorLower.includes('order size') ||
     errorLower.includes('price')
   ) {
-    return new InvalidOrderError('Invalid order parameters', 'INVALID_ORDER', 'lighter', originalError);
+    return new InvalidOrderError(
+      'Invalid order parameters',
+      'INVALID_ORDER',
+      'lighter',
+      originalError
+    );
   }
 
   // Order not found
@@ -93,7 +112,12 @@ export function mapError(error: unknown): PerpDEXError {
     errorLower.includes('authentication') ||
     errorLower.includes('invalid signature')
   ) {
-    return new InvalidSignatureError('Authentication failed', 'INVALID_SIGNATURE', 'lighter', originalError);
+    return new InvalidSignatureError(
+      'Authentication failed',
+      'INVALID_SIGNATURE',
+      'lighter',
+      originalError
+    );
   }
 
   // Exchange unavailable

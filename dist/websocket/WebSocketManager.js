@@ -127,7 +127,7 @@ export class WebSocketManager extends EventEmitter {
                 this.client.send(unsubscribeMessage);
             }
             catch (error) {
-                this.emit('error', new Error(`Failed to unsubscribe: ${error}`));
+                this.emit('error', new Error(`Failed to unsubscribe: ${String(error)}`));
             }
         }
         // Remove subscription
@@ -215,7 +215,7 @@ export class WebSocketManager extends EventEmitter {
                         subscription.handler(message.data);
                     }
                     catch (error) {
-                        this.emit('error', new Error(`Subscription handler error: ${error}`));
+                        this.emit('error', new Error(`Subscription handler error: ${String(error)}`));
                     }
                 }
             }
@@ -225,7 +225,7 @@ export class WebSocketManager extends EventEmitter {
             }
         }
         catch (error) {
-            this.emit('error', new Error(`Failed to handle message: ${error}`));
+            this.emit('error', new Error(`Failed to handle message: ${String(error)}`));
         }
     }
     /**
@@ -264,7 +264,7 @@ export class WebSocketManager extends EventEmitter {
                     this.client.send(data);
                 }
                 catch (error) {
-                    this.emit('error', new Error(`Failed to send queued message: ${error}`));
+                    this.emit('error', new Error(`Failed to send queued message: ${String(error)}`));
                 }
             }
             this.messageQueue = [];
@@ -275,7 +275,7 @@ export class WebSocketManager extends EventEmitter {
                         this.client.send(subscription.params);
                     }
                     catch (error) {
-                        this.emit('error', new Error(`Failed to resubscribe to ${subscription.channel}: ${error}`));
+                        this.emit('error', new Error(`Failed to resubscribe to ${subscription.channel}: ${String(error)}`));
                     }
                 }
             }

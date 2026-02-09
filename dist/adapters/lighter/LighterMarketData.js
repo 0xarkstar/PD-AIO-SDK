@@ -78,11 +78,11 @@ export async function fetchOrderBookData(deps, symbol, limit, fetchMarkets) {
             symbol: lighterSymbol,
             bids: response.bids?.map((b) => [
                 parseFloat(b.price || '0'),
-                parseFloat(b.remaining_base_amount || b.size || '0')
+                parseFloat(b.remaining_base_amount || b.size || '0'),
             ]) || [],
             asks: response.asks?.map((a) => [
                 parseFloat(a.price || '0'),
-                parseFloat(a.remaining_base_amount || a.size || '0')
+                parseFloat(a.remaining_base_amount || a.size || '0'),
             ]) || [],
             timestamp: Date.now(),
         };

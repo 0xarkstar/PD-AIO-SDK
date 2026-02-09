@@ -106,9 +106,11 @@ export const NadoTickerSchema = z.object({
 export const NadoContractsSchema = z.object({
     chain_id: z.string(),
     endpoint_addr: z.string(),
-    products: z.record(z.string(), z.object({
+    products: z
+        .record(z.string(), z.object({
         address: z.string(),
         symbol: z.string(),
-    })).optional(),
+    }))
+        .optional(),
 });
 //# sourceMappingURL=types.js.map

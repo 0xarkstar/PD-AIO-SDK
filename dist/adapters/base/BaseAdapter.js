@@ -9,7 +9,7 @@ import { determineHealthStatus } from '../../types/health.js';
 import { createMetricsSnapshot } from '../../types/metrics.js';
 import { Logger, LogLevel, generateCorrelationId } from '../../core/logger.js';
 import { CircuitBreaker } from '../../core/CircuitBreaker.js';
-import { isMetricsInitialized, getMetrics } from '../../monitoring/prometheus.js';
+import { isMetricsInitialized, getMetrics, } from '../../monitoring/prometheus.js';
 import { validateOrderRequest, createValidator } from '../../core/validation/middleware.js';
 export class BaseAdapter {
     _isReady = false;
@@ -309,7 +309,12 @@ export class BaseAdapter {
                 const startTime = Date.now();
                 const endpoint = this.extractEndpoint(url);
                 const endpointKey = `${method}:${endpoint}`;
-                this.debug(`Request ${correlationId}`, { method, endpoint, attempt: attempt + 1, correlationId });
+                this.debug(`Request ${correlationId}`, {
+                    method,
+                    endpoint,
+                    attempt: attempt + 1,
+                    correlationId,
+                });
                 this.metrics.totalRequests++;
                 const controller = new AbortController();
                 this.abortControllers.add(controller);
@@ -318,7 +323,11 @@ export class BaseAdapter {
                 try {
                     const response = await fetch(url, {
                         method,
-                        headers: { 'Content-Type': 'application/json', 'X-Correlation-ID': correlationId, ...headers },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Correlation-ID': correlationId,
+                            ...headers,
+                        },
                         body: body ? JSON.stringify(body) : undefined,
                         signal: controller.signal,
                     });
@@ -337,7 +346,7 @@ export class BaseAdapter {
                         clearTimeout(timeout);
                         this.timers.delete(timeout);
                         this.abortControllers.delete(controller);
-                        await new Promise(resolve => setTimeout(resolve, delay));
+                        await new Promise((resolve) => setTimeout(resolve, delay));
                         continue;
                     }
                     const result = (await response.json());
@@ -345,7 +354,11 @@ export class BaseAdapter {
                     this.metrics.successfulRequests++;
                     this.updateEndpointMetrics(endpointKey, latency, false);
                     this.updateAverageLatency(latency);
-                    this.debug(`Request ${correlationId} completed`, { correlationId, latency, status: response.status });
+                    this.debug(`Request ${correlationId} completed`, {
+                        correlationId,
+                        latency,
+                        status: response.status,
+                    });
                     if (this.prometheusMetrics) {
                         this.prometheusMetrics.recordRequest(this.id, endpoint, 'success', latency);
                     }
@@ -374,11 +387,13 @@ export class BaseAdapter {
                     this.timers.delete(timeout);
                     this.abortControllers.delete(controller);
                     const isNetworkError = error instanceof Error &&
-                        (error.name === 'AbortError' || error.message.includes('fetch') || error.message.includes('network'));
+                        (error.name === 'AbortError' ||
+                            error.message.includes('fetch') ||
+                            error.message.includes('network'));
                     if (attempt < maxAttempts - 1 && isNetworkError) {
                         lastError = error;
                         const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
-                        await new Promise(resolve => setTimeout(resolve, delay));
+                        await new Promise((resolve) => setTimeout(resolve, delay));
                         continue;
                     }
                     throw this.attachCorrelationId(error, correlationId);
@@ -419,7 +434,7 @@ export class BaseAdapter {
     async fetchTickers(symbols) {
         if (!this.has.fetchTickers) {
             const result = {};
-            const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map(m => m.symbol);
+            const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map((m) => m.symbol);
             for (const symbol of symbolsToFetch) {
                 try {
                     result[symbol] = await this.fetchTicker(symbol);
@@ -445,7 +460,11 @@ export class BaseAdapter {
                 return { status: 'ok', updated: Date.now() };
             }
             catch (error) {
-                return { status: 'error', message: error instanceof Error ? error.message : 'Unknown error', updated: Date.now() };
+                return {
+                    status: 'error',
+                    message: error instanceof Error ? error.message : 'Unknown error',
+                    updated: Date.now(),
+                };
             }
         }
         throw new NotSupportedError('fetchStatus must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
@@ -501,7 +520,11 @@ export class BaseAdapter {
             catch (error) {
                 const err = error instanceof Error ? error : new Error(String(error));
                 errors.push({ index: i, error: err });
-                this.debug('Failed to create order', { index: i + 1, total: requests.length, error: err.message });
+                this.debug('Failed to create order', {
+                    index: i + 1,
+                    total: requests.length,
+                    error: err.message,
+                });
             }
         }
         if (orders.length === 0 && errors.length > 0) {
@@ -511,7 +534,10 @@ export class BaseAdapter {
             }
         }
         if (errors.length > 0) {
-            this.debug('Batch order creation completed', { succeeded: orders.length, failed: errors.length });
+            this.debug('Batch order creation completed', {
+                succeeded: orders.length,
+                failed: errors.length,
+            });
         }
         return orders;
     }
@@ -519,7 +545,9 @@ export class BaseAdapter {
         if (this.has.cancelBatchOrders === true) {
             throw new NotSupportedError('cancelBatchOrders must be implemented by subclass when has.cancelBatchOrders is true', 'NOT_IMPLEMENTED', this.id);
         }
-        this.debug('No native batch support, canceling orders sequentially', { count: orderIds.length });
+        this.debug('No native batch support, canceling orders sequentially', {
+            count: orderIds.length,
+        });
         const orders = [];
         const errors = [];
         for (let i = 0; i < orderIds.length; i++) {
@@ -543,7 +571,10 @@ export class BaseAdapter {
             }
         }
         if (errors.length > 0) {
-            this.debug('Batch order cancellation completed', { succeeded: orders.length, failed: errors.length });
+            this.debug('Batch order cancellation completed', {
+                succeeded: orders.length,
+                failed: errors.length,
+            });
         }
         return orders;
     }
@@ -590,10 +621,26 @@ export class BaseAdapter {
         return this.createOrder({ symbol, type: 'market', side: 'sell', amount, ...params });
     }
     async createStopLossOrder(symbol, amount, stopPrice, params) {
-        return this.createOrder({ symbol, type: 'stopMarket', side: 'sell', amount, stopPrice, reduceOnly: true, ...params });
+        return this.createOrder({
+            symbol,
+            type: 'stopMarket',
+            side: 'sell',
+            amount,
+            stopPrice,
+            reduceOnly: true,
+            ...params,
+        });
     }
     async createTakeProfitOrder(symbol, amount, takeProfitPrice, params) {
-        return this.createOrder({ symbol, type: 'limit', side: 'sell', amount, price: takeProfitPrice, reduceOnly: true, ...params });
+        return this.createOrder({
+            symbol,
+            type: 'limit',
+            side: 'sell',
+            amount,
+            price: takeProfitPrice,
+            reduceOnly: true,
+            ...params,
+        });
     }
     async setMarginMode(_symbol, _marginMode) {
         if (!this.has.setMarginMode || this.has.setMarginMode === 'emulated') {

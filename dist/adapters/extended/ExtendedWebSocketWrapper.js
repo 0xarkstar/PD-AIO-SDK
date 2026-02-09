@@ -86,7 +86,7 @@ export class ExtendedWebSocketWrapper {
             }
             catch (error) {
                 this.isConnecting = false;
-                reject(error);
+                reject(error instanceof Error ? error : new Error(String(error)));
             }
         });
         return this.connectionPromise;
@@ -95,7 +95,9 @@ export class ExtendedWebSocketWrapper {
      * Disconnect from WebSocket
      */
     disconnect() {
-        this.reconnect && (this.reconnectAttempts = this.maxReconnectAttempts); // Prevent reconnection
+        if (this.reconnect) {
+            this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnection
+        }
         this.stopHeartbeat();
         if (this.ws) {
             this.ws.close(1000, 'Client disconnect');
@@ -119,14 +121,12 @@ export class ExtendedWebSocketWrapper {
                     const orderbook = {
                         exchange: 'extended',
                         symbol: this.normalizer.symbolToCCXT(message.symbol),
-                        bids: message.bids.slice(0, limit).map(([price, amount]) => [
-                            parseFloat(price),
-                            parseFloat(amount),
-                        ]),
-                        asks: message.asks.slice(0, limit).map(([price, amount]) => [
-                            parseFloat(price),
-                            parseFloat(amount),
-                        ]),
+                        bids: message.bids
+                            .slice(0, limit)
+                            .map(([price, amount]) => [parseFloat(price), parseFloat(amount)]),
+                        asks: message.asks
+                            .slice(0, limit)
+                            .map(([price, amount]) => [parseFloat(price), parseFloat(amount)]),
                         timestamp: message.timestamp,
                         sequenceId: message.sequence,
                         checksum: message.checksum,

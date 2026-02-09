@@ -49,10 +49,7 @@ import {
   type GMXMarketKey,
 } from './constants.js';
 import { mapGmxError } from './error-codes.js';
-import type {
-  GmxMarketInfo,
-  GmxCandlestick,
-} from './types.js';
+import type { GmxMarketInfo, GmxCandlestick } from './types.js';
 
 /**
  * Ticker price data from GMX API
@@ -268,7 +265,7 @@ export class GmxAdapter extends BaseAdapter {
 
       // Filter if requested
       if (params?.active !== undefined) {
-        markets = markets.filter(m => m.active === params.active);
+        markets = markets.filter((m) => m.active === params.active);
       }
 
       return markets;
@@ -292,7 +289,7 @@ export class GmxAdapter extends BaseAdapter {
       ]);
       const config = GMX_MARKETS[marketKey];
       const marketInfo = marketsInfo.find(
-        m => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase()
+        (m) => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase()
       );
 
       if (!marketInfo) {
@@ -301,10 +298,12 @@ export class GmxAdapter extends BaseAdapter {
 
       // Get price for the index token
       const indexTokenPrice = prices.get(config.indexToken.toLowerCase());
-      const priceData = indexTokenPrice ? {
-        minPrice: parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE,
-        maxPrice: parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE,
-      } : undefined;
+      const priceData = indexTokenPrice
+        ? {
+            minPrice: parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE,
+            maxPrice: parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE,
+          }
+        : undefined;
 
       return this.normalizer.normalizeTicker(marketInfo, priceData);
     } catch (error) {
@@ -337,7 +336,7 @@ export class GmxAdapter extends BaseAdapter {
       ]);
       const config = GMX_MARKETS[marketKey];
       const marketInfo = marketsInfo.find(
-        m => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase()
+        (m) => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase()
       );
 
       if (!marketInfo) {
@@ -395,7 +394,9 @@ export class GmxAdapter extends BaseAdapter {
     _limit?: number
   ): Promise<FundingRate[]> {
     // Would require subgraph query - not implemented for REST-only version
-    throw new Error('fetchFundingRateHistory requires subgraph integration. Not available via REST API.');
+    throw new Error(
+      'fetchFundingRateHistory requires subgraph integration. Not available via REST API.'
+    );
   }
 
   async fetchOHLCV(
@@ -465,7 +466,7 @@ export class GmxAdapter extends BaseAdapter {
       for (const pos of rawPositions) {
         // Get mark price for this position's market
         const marketConfig = Object.values(GMX_MARKETS).find(
-          m => m.marketAddress.toLowerCase() === pos.market.toLowerCase()
+          (m) => m.marketAddress.toLowerCase() === pos.market.toLowerCase()
         );
 
         if (!marketConfig) continue;
@@ -506,9 +507,10 @@ export class GmxAdapter extends BaseAdapter {
 
       // Get ETH price
       const prices = await this.fetchPrices();
-      const wethAddress = this.chain === 'arbitrum'
-        ? '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'
-        : '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7';
+      const wethAddress =
+        this.chain === 'arbitrum'
+          ? '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'
+          : '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7';
 
       const ethPriceData = prices.get(wethAddress.toLowerCase());
       let ethPrice = 0;
@@ -529,9 +531,10 @@ export class GmxAdapter extends BaseAdapter {
       ];
 
       // Fetch USDC balance
-      const usdcAddress = this.chain === 'arbitrum'
-        ? '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'
-        : '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E';
+      const usdcAddress =
+        this.chain === 'arbitrum'
+          ? '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'
+          : '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E';
 
       const usdcBalance = await this.auth.getTokenBalance(usdcAddress);
       const usdcBalanceNum = Number(usdcBalance) / 1e6;
@@ -570,7 +573,7 @@ export class GmxAdapter extends BaseAdapter {
       const normalizedOrders: Order[] = [];
       for (const order of orders) {
         const marketConfig = Object.values(GMX_MARKETS).find(
-          m => m.marketAddress.toLowerCase() === order.market.toLowerCase()
+          (m) => m.marketAddress.toLowerCase() === order.market.toLowerCase()
         );
 
         let marketPrice: number | undefined;
@@ -617,7 +620,7 @@ export class GmxAdapter extends BaseAdapter {
       const normalizedOrders: Order[] = [];
       for (const order of orders) {
         const marketConfig = Object.values(GMX_MARKETS).find(
-          m => m.marketAddress.toLowerCase() === order.market.toLowerCase()
+          (m) => m.marketAddress.toLowerCase() === order.market.toLowerCase()
         );
 
         let marketPrice: number | undefined;
@@ -824,7 +827,9 @@ export class GmxAdapter extends BaseAdapter {
           const canceled = await this.cancelOrder(order.id, order.symbol);
           canceledOrders.push(canceled);
         } catch (error) {
-          this.warn(`Failed to cancel order ${order.id}: ${error instanceof Error ? error.message : String(error)}`);
+          this.warn(
+            `Failed to cancel order ${order.id}: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
       }
 
@@ -839,7 +844,7 @@ export class GmxAdapter extends BaseAdapter {
     // Leverage is determined at order creation time
     throw new Error(
       'GMX v2 does not have account-level leverage settings. ' +
-      'Leverage is determined per-position at order creation time.'
+        'Leverage is determined per-position at order creation time.'
     );
   }
 
@@ -894,7 +899,9 @@ export class GmxAdapter extends BaseAdapter {
       this.pricesCacheTimestamp = now;
     } catch (error) {
       // Log but don't fail - prices are optional for some operations
-      this.debug(`Failed to fetch prices: ${error instanceof Error ? error.message : String(error)}`);
+      this.debug(
+        `Failed to fetch prices: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
 
     return this.pricesCache;

@@ -73,7 +73,9 @@ export class DriftAuth implements IAuthStrategy {
       // Lazy import to handle ESM module - void prefix for intentional fire-and-forget
       void this.initKeypairAsync(bytes);
     } catch (error) {
-      this.logger.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -89,7 +91,9 @@ export class DriftAuth implements IAuthStrategy {
       this.connection = new Connection(this.rpcEndpoint, 'confirmed');
       this.isInitialized = true;
     } catch (error) {
-      this.logger.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -106,7 +110,9 @@ export class DriftAuth implements IAuthStrategy {
         }
         this.isInitialized = true;
       } catch (error) {
-        throw new Error(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   }
@@ -251,10 +257,9 @@ export class DriftAuth implements IAuthStrategy {
     const tokenMintPubkey = new PublicKey(tokenMint);
 
     // Get associated token account
-    const tokenAccounts = await this.connection.getTokenAccountsByOwner(
-      this.publicKey,
-      { mint: tokenMintPubkey }
-    );
+    const tokenAccounts = await this.connection.getTokenAccountsByOwner(this.publicKey, {
+      mint: tokenMintPubkey,
+    });
 
     if (tokenAccounts.value.length === 0) {
       return 0;
@@ -313,6 +318,7 @@ export class DriftAuth implements IAuthStrategy {
     if (/^[1-9A-HJ-NP-Za-km-z]+$/.test(key)) {
       try {
         // Use bs58 for base58 decoding
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const bs58 = require('bs58') as { decode: (str: string) => Uint8Array };
         return bs58.decode(key);
       } catch {

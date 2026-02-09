@@ -20,8 +20,4 @@ export {
 } from './HyperliquidMarketData.js';
 
 // Info method helpers
-export {
-  parseUserFees,
-  parsePortfolio,
-  parseRateLimitStatus,
-} from './HyperliquidInfoMethods.js';
+export { parseUserFees, parsePortfolio, parseRateLimitStatus } from './HyperliquidInfoMethods.js';

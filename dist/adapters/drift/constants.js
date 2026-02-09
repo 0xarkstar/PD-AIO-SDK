@@ -320,6 +320,6 @@ export const DRIFT_ERROR_MESSAGES = {
     'post only': 'POST_ONLY_VIOLATION',
     'rate limit': 'RATE_LIMIT_EXCEEDED',
     'transaction failed': 'TRANSACTION_FAILED',
-    'liquidation': 'LIQUIDATION',
+    liquidation: 'LIQUIDATION',
 };
 //# sourceMappingURL=constants.js.map

@@ -80,10 +80,7 @@ export function CacheManagerMixin<T extends Constructor<ICacheMixinBase>>(Base: 
      * const markets = await exchange.fetchMarkets(); // Uses cache
      * ```
      */
-    async preloadMarkets(options?: {
-      ttl?: number;
-      params?: MarketParams;
-    }): Promise<void> {
+    async preloadMarkets(options?: { ttl?: number; params?: MarketParams }): Promise<void> {
       const ttl = options?.ttl ?? this.marketCacheTTL;
       const params = options?.params;
 

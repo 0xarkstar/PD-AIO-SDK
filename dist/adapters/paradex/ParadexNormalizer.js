@@ -6,7 +6,7 @@
  *
  * @see https://docs.paradex.trade
  */
-import { PARADEX_ORDER_TYPES, PARADEX_ORDER_SIDES, PARADEX_TIME_IN_FORCE, } from './constants.js';
+import { PARADEX_ORDER_TYPES, PARADEX_ORDER_SIDES, PARADEX_TIME_IN_FORCE } from './constants.js';
 /**
  * Paradex Data Normalizer
  *
@@ -318,14 +318,8 @@ export class ParadexNormalizer {
         return {
             symbol: this.symbolToCCXT(paradexOrderBook.market),
             exchange: 'paradex',
-            bids: paradexOrderBook.bids.map(([price, size]) => [
-                parseFloat(price),
-                parseFloat(size),
-            ]),
-            asks: paradexOrderBook.asks.map(([price, size]) => [
-                parseFloat(price),
-                parseFloat(size),
-            ]),
+            bids: paradexOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+            asks: paradexOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
             timestamp: paradexOrderBook.timestamp,
         };
     }

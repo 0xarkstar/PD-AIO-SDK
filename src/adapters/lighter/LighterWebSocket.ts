@@ -127,14 +127,21 @@ export class LighterWebSocket {
    */
   async *watchPositions(): AsyncGenerator<Position[]> {
     if (!this._hasAuthentication) {
-      throw new PerpDEXError('API credentials required for position streaming', 'AUTH_REQUIRED', 'lighter');
+      throw new PerpDEXError(
+        'API credentials required for position streaming',
+        'AUTH_REQUIRED',
+        'lighter'
+      );
     }
 
     const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.POSITIONS);
     const channelId = `${LIGHTER_WS_CHANNELS.POSITIONS}:${this.getAuthIdentifier()}`;
 
-    for await (const positions of this.wsManager.watch<LighterPosition[]>(channelId, subscription)) {
-      yield positions.map(position => this.normalizer.normalizePosition(position));
+    for await (const positions of this.wsManager.watch<LighterPosition[]>(
+      channelId,
+      subscription
+    )) {
+      yield positions.map((position) => this.normalizer.normalizePosition(position));
     }
   }
 
@@ -145,14 +152,18 @@ export class LighterWebSocket {
    */
   async *watchOrders(): AsyncGenerator<Order[]> {
     if (!this._hasAuthentication) {
-      throw new PerpDEXError('API credentials required for order streaming', 'AUTH_REQUIRED', 'lighter');
+      throw new PerpDEXError(
+        'API credentials required for order streaming',
+        'AUTH_REQUIRED',
+        'lighter'
+      );
     }
 
     const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.ORDERS);
     const channelId = `${LIGHTER_WS_CHANNELS.ORDERS}:${this.getAuthIdentifier()}`;
 
     for await (const orders of this.wsManager.watch<LighterOrder[]>(channelId, subscription)) {
-      yield orders.map(order => this.normalizer.normalizeOrder(order));
+      yield orders.map((order) => this.normalizer.normalizeOrder(order));
     }
   }
 
@@ -163,14 +174,18 @@ export class LighterWebSocket {
    */
   async *watchBalance(): AsyncGenerator<Balance[]> {
     if (!this._hasAuthentication) {
-      throw new PerpDEXError('API credentials required for balance streaming', 'AUTH_REQUIRED', 'lighter');
+      throw new PerpDEXError(
+        'API credentials required for balance streaming',
+        'AUTH_REQUIRED',
+        'lighter'
+      );
     }
 
     const subscription = await this.buildAuthenticatedSubscription('balance');
     const channelId = `balance:${this.getAuthIdentifier()}`;
 
     for await (const balances of this.wsManager.watch<LighterBalance[]>(channelId, subscription)) {
-      yield balances.map(balance => this.normalizer.normalizeBalance(balance));
+      yield balances.map((balance) => this.normalizer.normalizeBalance(balance));
     }
   }
 
@@ -183,14 +198,18 @@ export class LighterWebSocket {
    */
   async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
     if (!this._hasAuthentication) {
-      throw new PerpDEXError('API credentials required for trade streaming', 'AUTH_REQUIRED', 'lighter');
+      throw new PerpDEXError(
+        'API credentials required for trade streaming',
+        'AUTH_REQUIRED',
+        'lighter'
+      );
     }
 
     const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.FILLS);
 
     if (symbol) {
       const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
-      (subscription as Record<string, unknown>).symbol = lighterSymbol;
+      subscription.symbol = lighterSymbol;
     }
 
     const channelId = `${LIGHTER_WS_CHANNELS.FILLS}:${this.getAuthIdentifier()}`;

@@ -71,10 +71,8 @@ export function parsePortfolio(response: HyperliquidPortfolio): Portfolio {
   // Calculate percentage changes (use account value as base)
   const dailyPnlPercentage =
     latestAccountValue > 0 ? (latestDailyPnl / latestAccountValue) * 100 : 0;
-  const weeklyPnlPercentage =
-    latestAccountValue > 0 ? (weeklyPnl / latestAccountValue) * 100 : 0;
-  const monthlyPnlPercentage =
-    latestAccountValue > 0 ? (monthlyPnl / latestAccountValue) * 100 : 0;
+  const weeklyPnlPercentage = latestAccountValue > 0 ? (weeklyPnl / latestAccountValue) * 100 : 0;
+  const monthlyPnlPercentage = latestAccountValue > 0 ? (monthlyPnl / latestAccountValue) * 100 : 0;
 
   return {
     totalValue: latestAccountValue,

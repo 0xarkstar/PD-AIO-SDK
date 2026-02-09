@@ -1,35 +1,32 @@
-# PD-AIO-SDK Review & Improvement Pipeline
+# PD-AIO-SDK Cycle 7: Type Safety + ESLint + Coverage Sweep
 
-## Objective
-Comprehensive review and improvement of the PD-AIO-SDK project — a unified TypeScript SDK for 13 decentralized perpetual exchanges.
+## Active Phase: P1 (Implementation)
 
-## Baseline
-- Version: 0.2.0
-- Source files: 169 (.ts)
-- Test files: 147 (.ts)
-- Tests: 4538 passed, 1 failed (Lighter integration), 78 skipped
-- TypeScript: Clean (0 errors)
-- Test Suites: 126/130 passed
+## Baseline (post-Cycle 6)
+- Tests: 5017 passed, 0 failures
+- Coverage: 73.43% stmts, 78.28% functions
+- ESLint errors: 2,934
+- `as any` count: 75+ in production code
+- Build: PASS, tsc: 0 errors
 
-## Pipeline Phases
+## Streams
 
-### [P-1] Research (Active)
-- p-research-code: Deep codebase analysis — architecture, patterns, dead code, consistency
-- p-research-docs: Documentation completeness — README, API.md, ARCHITECTURE.md accuracy
-- p-research-best: Best practices audit — TypeScript, SDK design, testing patterns
+| Stream | Agent | Task |
+|--------|-------|------|
+| A | p-impl-lint | ESLint auto-fix + `as any` type safety refactor |
+| B | p-impl-mixin-tests | Mixin unit tests (7 files at 0%) + jest thresholds |
+| C | p-impl-coverage | Adapter coverage expansion (Jupiter, GMX, Extended) |
 
-### [P0] Design
-- p-architect: Improvement plan with File Ownership Map
-- p-critic: Design critique
-- p-strategist: Test strategy for improvements
+## File Ownership Map
 
-### [P0.5] Review (existing code)
-- p-sec-reviewer: Security review
-- p-perf-reviewer: Performance review
-- p-cov-reviewer: Coverage analysis
+- p-impl-lint: `src/core/logger.ts`, `src/websocket/WebSocketClient.ts`, `src/utils/type-guards.ts` (new), `src/adapters/*/error-codes.ts`, `src/adapters/*/normalizer files`, `src/types/common.ts` (info field only)
+- p-impl-mixin-tests: `tests/unit/mixin-*.test.ts` (new), `jest.config.js`
+- p-impl-coverage: `tests/unit/jupiter-*.test.ts`, `tests/unit/gmx-*.test.ts`, `tests/unit/extended-*.test.ts`
 
-### [P1] Implementation
-- Based on P0 design
+## Quality Gates
 
-### [P2] Verification
-- Hypothesis testing + QA
+- `npx tsc --noEmit` — 0 errors
+- `npx jest --forceExit` — 5017+ tests, 0 failures
+- `npm run build` — PASS
+- ESLint errors: 2,934 → <500
+- `as any` count: 75+ → <30

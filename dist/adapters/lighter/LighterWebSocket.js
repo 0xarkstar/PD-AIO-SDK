@@ -96,7 +96,7 @@ export class LighterWebSocket {
         const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.POSITIONS);
         const channelId = `${LIGHTER_WS_CHANNELS.POSITIONS}:${this.getAuthIdentifier()}`;
         for await (const positions of this.wsManager.watch(channelId, subscription)) {
-            yield positions.map(position => this.normalizer.normalizePosition(position));
+            yield positions.map((position) => this.normalizer.normalizePosition(position));
         }
     }
     /**
@@ -111,7 +111,7 @@ export class LighterWebSocket {
         const subscription = await this.buildAuthenticatedSubscription(LIGHTER_WS_CHANNELS.ORDERS);
         const channelId = `${LIGHTER_WS_CHANNELS.ORDERS}:${this.getAuthIdentifier()}`;
         for await (const orders of this.wsManager.watch(channelId, subscription)) {
-            yield orders.map(order => this.normalizer.normalizeOrder(order));
+            yield orders.map((order) => this.normalizer.normalizeOrder(order));
         }
     }
     /**
@@ -126,7 +126,7 @@ export class LighterWebSocket {
         const subscription = await this.buildAuthenticatedSubscription('balance');
         const channelId = `balance:${this.getAuthIdentifier()}`;
         for await (const balances of this.wsManager.watch(channelId, subscription)) {
-            yield balances.map(balance => this.normalizer.normalizeBalance(balance));
+            yield balances.map((balance) => this.normalizer.normalizeBalance(balance));
         }
     }
     /**

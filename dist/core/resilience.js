@@ -5,7 +5,7 @@
  * for building production-grade fault-tolerant applications.
  */
 import { withRetry } from './retry.js';
-import { CircuitBreaker, CircuitBreakerError } from './CircuitBreaker.js';
+import { CircuitBreaker, CircuitBreakerError, } from './CircuitBreaker.js';
 /**
  * Create a resilient executor that combines circuit breaker + retry + fallback
  *

@@ -8,7 +8,7 @@
 // Main adapter
 export { DriftAdapter } from './DriftAdapter.js';
 // Authentication
-export { DriftAuth, isValidSolanaAddress, isValidSolanaPrivateKey } from './DriftAuth.js';
+export { DriftAuth, isValidSolanaAddress, isValidSolanaPrivateKey, } from './DriftAuth.js';
 // Client Wrapper
 export { DriftClientWrapper, } from './DriftClientWrapper.js';
 // Order Builder

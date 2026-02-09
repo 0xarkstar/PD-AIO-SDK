@@ -131,6 +131,12 @@ export declare class Logger {
      */
     getCorrelationId(): string | undefined;
     /**
+     * Get logger configuration (used by createChildLogger)
+     */
+    getConfig(): {
+        context: string;
+    } & Required<Omit<LoggerConfig, 'correlationId'>> & Pick<LoggerConfig, 'correlationId'>;
+    /**
      * Create a child logger with a specific correlation ID
      */
     withCorrelationId(correlationId: string): Logger;

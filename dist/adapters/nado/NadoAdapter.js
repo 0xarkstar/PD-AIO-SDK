@@ -305,7 +305,7 @@ export class NadoAdapter extends BaseAdapter {
         // Build product mappings
         this.productMappings.clear();
         const markets = [];
-        for (const [_symbolKey, symbolData] of Object.entries(response.symbols || {})) {
+        for (const [, symbolData] of Object.entries(response.symbols || {})) {
             const market = this.normalizer.normalizeSymbol(symbolData);
             markets.push(market);
             // Store mappings (key: ccxtSymbol for direct lookup)
@@ -404,7 +404,7 @@ export class NadoAdapter extends BaseAdapter {
             order_id: orderId,
         });
         // Find product mapping by productId
-        const mapping = Array.from(this.productMappings.values()).find(m => m.productId === order.product_id);
+        const mapping = Array.from(this.productMappings.values()).find((m) => m.productId === order.product_id);
         if (!mapping) {
             throw new InvalidOrderError('Product mapping not found', 'MAPPING_NOT_FOUND', this.id);
         }
@@ -450,7 +450,7 @@ export class NadoAdapter extends BaseAdapter {
         // Return cancelled orders
         const mappingsArray = Array.from(this.productMappings.values());
         return ordersToCancel.map((order) => {
-            const mapping = mappingsArray.find(m => m.productId === order.product_id);
+            const mapping = mappingsArray.find((m) => m.productId === order.product_id);
             return this.normalizer.normalizeOrder(order, mapping);
         });
     }
@@ -462,7 +462,7 @@ export class NadoAdapter extends BaseAdapter {
         const mappingsArray = Array.from(this.productMappings.values());
         const normalized = [];
         for (const position of positions) {
-            const mapping = mappingsArray.find(m => m.productId === position.product_id);
+            const mapping = mappingsArray.find((m) => m.productId === position.product_id);
             if (!mapping) {
                 this.warn(`Product mapping not found for product ID ${position.product_id}`);
                 continue;
@@ -519,7 +519,7 @@ export class NadoAdapter extends BaseAdapter {
         const mappingsArray = Array.from(this.productMappings.values());
         return filteredOrders
             .map((order) => {
-            const mapping = mappingsArray.find(m => m.productId === order.product_id);
+            const mapping = mappingsArray.find((m) => m.productId === order.product_id);
             if (!mapping)
                 return null;
             return this.normalizer.normalizeOrder(order, mapping);
@@ -552,7 +552,7 @@ export class NadoAdapter extends BaseAdapter {
             const mappingsArray = Array.from(this.productMappings.values());
             const normalized = [];
             for (const position of positions) {
-                const mapping = mappingsArray.find(m => m.productId === position.product_id);
+                const mapping = mappingsArray.find((m) => m.productId === position.product_id);
                 if (!mapping)
                     continue;
                 const normalizedPos = this.normalizer.normalizePosition(position, mapping);
@@ -574,7 +574,7 @@ export class NadoAdapter extends BaseAdapter {
             const mappingsArray = Array.from(this.productMappings.values());
             const normalized = [];
             for (const order of orders) {
-                const mapping = mappingsArray.find(m => m.productId === order.product_id);
+                const mapping = mappingsArray.find((m) => m.productId === order.product_id);
                 if (!mapping)
                     continue;
                 normalized.push(this.normalizer.normalizeOrder(order, mapping));
@@ -645,7 +645,7 @@ export class NadoAdapter extends BaseAdapter {
         const mappingsArray = Array.from(this.productMappings.values());
         return orders
             .map((order) => {
-            const mapping = mappingsArray.find(m => m.productId === order.product_id);
+            const mapping = mappingsArray.find((m) => m.productId === order.product_id);
             if (!mapping)
                 return null;
             return this.normalizer.normalizeOrder(order, mapping);

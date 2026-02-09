@@ -137,12 +137,22 @@ export function validateOrderRequest(request: OrderRequest): void {
     throw new PerpDEXError('Quantity must be greater than 0', 'INVALID_QUANTITY', 'extended');
   }
 
-  if ((request.type === 'limit' || request.type === 'stopLimit') && (!request.price || request.price <= 0)) {
+  if (
+    (request.type === 'limit' || request.type === 'stopLimit') &&
+    (!request.price || request.price <= 0)
+  ) {
     throw new PerpDEXError('Price is required for limit orders', 'INVALID_PRICE', 'extended');
   }
 
-  if ((request.type === 'stopMarket' || request.type === 'stopLimit') && (!request.stopPrice || request.stopPrice <= 0)) {
-    throw new PerpDEXError('Stop price is required for stop orders', 'INVALID_STOP_PRICE', 'extended');
+  if (
+    (request.type === 'stopMarket' || request.type === 'stopLimit') &&
+    (!request.stopPrice || request.stopPrice <= 0)
+  ) {
+    throw new PerpDEXError(
+      'Stop price is required for stop orders',
+      'INVALID_STOP_PRICE',
+      'extended'
+    );
   }
 }
 
@@ -219,11 +229,7 @@ export function calculateLiquidationPrice(
 /**
  * Calculate margin required for a position
  */
-export function calculateRequiredMargin(
-  quantity: number,
-  price: number,
-  leverage: number
-): number {
+export function calculateRequiredMargin(quantity: number, price: number, leverage: number): number {
   const positionValue = quantity * price;
   return positionValue / leverage;
 }

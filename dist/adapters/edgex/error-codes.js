@@ -6,6 +6,7 @@
  *
  * @see https://docs.edgex.exchange/api/errors
  */
+import { includesValue } from '../../utils/type-guards.js';
 import { PerpDEXError, InvalidOrderError, InsufficientMarginError, OrderNotFoundError, InvalidSignatureError, RateLimitError, ExchangeUnavailableError, } from '../../types/errors.js';
 /**
  * EdgeX Client Error Codes
@@ -48,7 +49,7 @@ export function mapEdgeXError(errorCode, message, originalError) {
         case EDGEX_RATE_LIMIT_ERROR:
             return new RateLimitError(message, errorCode, 'edgex', undefined, originalError);
         default:
-            if (Object.values(EDGEX_SERVER_ERRORS).includes(errorCode)) {
+            if (includesValue(Object.values(EDGEX_SERVER_ERRORS), errorCode)) {
                 return new ExchangeUnavailableError(message, errorCode, 'edgex', originalError);
             }
             return new PerpDEXError(message, errorCode, 'edgex', originalError);
@@ -84,7 +85,7 @@ export function mapError(error) {
  * Check if error is retryable
  */
 export function isRetryableError(errorCode) {
-    return (Object.values(EDGEX_SERVER_ERRORS).includes(errorCode) ||
+    return (includesValue(Object.values(EDGEX_SERVER_ERRORS), errorCode) ||
         errorCode === EDGEX_RATE_LIMIT_ERROR);
 }
 //# sourceMappingURL=error-codes.js.map

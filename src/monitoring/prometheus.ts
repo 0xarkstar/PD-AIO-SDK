@@ -290,12 +290,12 @@ export class PrometheusMetrics {
   /**
    * Record circuit breaker state transition
    */
-  recordCircuitBreakerTransition(
-    exchange: string,
-    fromState: string,
-    toState: string
-  ): void {
-    this.circuitBreakerTransitionCounter.inc({ exchange, from_state: fromState, to_state: toState });
+  recordCircuitBreakerTransition(exchange: string, fromState: string, toState: string): void {
+    this.circuitBreakerTransitionCounter.inc({
+      exchange,
+      from_state: fromState,
+      to_state: toState,
+    });
   }
 
   /**
@@ -367,7 +367,11 @@ export class PrometheusMetrics {
   /**
    * Record market data update
    */
-  recordMarketDataUpdate(exchange: string, type: 'orderbook' | 'trades' | 'ticker', latencyMs: number): void {
+  recordMarketDataUpdate(
+    exchange: string,
+    type: 'orderbook' | 'trades' | 'ticker',
+    latencyMs: number
+  ): void {
     this.marketDataUpdateCounter.inc({ exchange, type });
     this.marketDataLatency.observe({ exchange, type }, latencyMs);
   }

@@ -31,9 +31,10 @@ let WS: any = null;
 // Works in both CommonJS (Jest) and ESM (runtime) contexts
 async function loadWsModule(): Promise<unknown> {
   // Check if we're in a CommonJS context where require is globally available
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+
   if (typeof require === 'function') {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       return require('ws');
     } catch {
       // Fall through to ESM approach
@@ -270,8 +271,9 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
           });
         }
       } catch (error) {
-        this.handleError(error instanceof Error ? error : new Error(String(error)));
-        reject(error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.handleError(err);
+        reject(err);
       }
     });
   }
@@ -323,7 +325,7 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
         this.emit('message', message);
       }
     } catch (error) {
-      this.emit('error', new Error(`Failed to handle message: ${error}`));
+      this.emit('error', new Error(`Failed to handle message: ${String(error)}`));
     }
   }
 
@@ -441,7 +443,7 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
             }, this.heartbeatConfig.timeout);
           }
         } catch (error) {
-          this.emit('error', new Error(`Heartbeat failed: ${error}`));
+          this.emit('error', new Error(`Heartbeat failed: ${String(error)}`));
         }
       }
     }, this.heartbeatConfig.interval);
@@ -451,8 +453,12 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
    * Send WebSocket ping frame (Node.js only)
    */
   private sendPing(): void {
-    if (this.ws && 'ping' in this.ws && typeof (this.ws as any).ping === 'function') {
-      (this.ws as any).ping();
+    if (
+      this.ws &&
+      'ping' in this.ws &&
+      typeof (this.ws as { ping?: () => void }).ping === 'function'
+    ) {
+      (this.ws as { ping: () => void }).ping();
     }
   }
 
@@ -462,9 +468,12 @@ export class WebSocketClient extends EventEmitter<WebSocketEvents> {
    */
   private terminateConnection(): void {
     if (this.ws) {
-      if ('terminate' in this.ws && typeof (this.ws as any).terminate === 'function') {
+      if (
+        'terminate' in this.ws &&
+        typeof (this.ws as { terminate?: () => void }).terminate === 'function'
+      ) {
         // Node.js ws package has terminate()
-        (this.ws as any).terminate();
+        (this.ws as { terminate: () => void }).terminate();
       } else {
         // Browser WebSocket only has close()
         this.ws.close();

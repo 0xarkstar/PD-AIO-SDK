@@ -28,7 +28,9 @@ export function getTokenMint(marketKey: string): string | undefined {
 /**
  * Get market configuration
  */
-export function getMarketConfig(symbol: string): (typeof JUPITER_MARKETS)[keyof typeof JUPITER_MARKETS] | undefined {
+export function getMarketConfig(
+  symbol: string
+): (typeof JUPITER_MARKETS)[keyof typeof JUPITER_MARKETS] | undefined {
   const jupiterSymbol = symbol.includes('-PERP') ? symbol : unifiedToJupiter(symbol);
   return JUPITER_MARKETS[jupiterSymbol as keyof typeof JUPITER_MARKETS];
 }
@@ -90,7 +92,10 @@ export function roundToStepSize(size: number, symbol: string): number {
 /**
  * Validate leverage for market
  */
-export function validateLeverage(leverage: number, symbol: string): { valid: boolean; reason?: string } {
+export function validateLeverage(
+  leverage: number,
+  symbol: string
+): { valid: boolean; reason?: string } {
   const config = getMarketConfig(symbol);
   const maxLeverage = config?.maxLeverage || 100;
 
@@ -119,10 +124,7 @@ export function calculateSizeFromCollateral(
 /**
  * Calculate collateral from size and leverage
  */
-export function calculateCollateralFromSize(
-  sizeUsd: number,
-  leverage: number
-): number {
+export function calculateCollateralFromSize(sizeUsd: number, leverage: number): number {
   return sizeUsd / leverage;
 }
 
@@ -178,10 +180,7 @@ export function buildPriceApiUrl(tokenIds: string[]): string {
 /**
  * Build Solana RPC request body
  */
-export function buildRpcRequestBody(
-  method: string,
-  params: unknown[]
-): Record<string, unknown> {
+export function buildRpcRequestBody(method: string, params: unknown[]): Record<string, unknown> {
   return {
     jsonrpc: '2.0',
     id: Date.now(),
@@ -294,10 +293,7 @@ export function isLiquidatable(
  * Parse on-chain BN (big number) string to number
  * Jupiter stores values as scaled integers
  */
-export function parseOnChainValue(
-  value: string | number,
-  decimals: number
-): number {
+export function parseOnChainValue(value: string | number, decimals: number): number {
   const num = typeof value === 'string' ? BigInt(value) : BigInt(Math.floor(value));
   const divisor = BigInt(10 ** decimals);
   const intPart = num / divisor;

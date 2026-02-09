@@ -8,7 +8,14 @@
 // Order Types
 // =============================================================================
 
-export const ORDER_TYPES = ['market', 'limit', 'stopMarket', 'stopLimit', 'takeProfit', 'trailingStop'] as const;
+export const ORDER_TYPES = [
+  'market',
+  'limit',
+  'stopMarket',
+  'stopLimit',
+  'takeProfit',
+  'trailingStop',
+] as const;
 export type OrderType = (typeof ORDER_TYPES)[number];
 
 export const ORDER_SIDES = ['buy', 'sell'] as const;
@@ -478,7 +485,13 @@ export interface Ticker {
 export const TRANSACTION_TYPES = ['deposit', 'withdrawal'] as const;
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
-export const TRANSACTION_STATUSES = ['pending', 'processing', 'completed', 'failed', 'canceled'] as const;
+export const TRANSACTION_STATUSES = [
+  'pending',
+  'processing',
+  'completed',
+  'failed',
+  'canceled',
+] as const;
 export type TransactionStatus = (typeof TRANSACTION_STATUSES)[number];
 
 /**
@@ -533,9 +546,21 @@ export interface Transaction {
  * Timeframe for OHLCV data
  */
 export const OHLCV_TIMEFRAMES = [
-  '1m', '3m', '5m', '15m', '30m',
-  '1h', '2h', '4h', '6h', '8h', '12h',
-  '1d', '3d', '1w', '1M'
+  '1m',
+  '3m',
+  '5m',
+  '15m',
+  '30m',
+  '1h',
+  '2h',
+  '4h',
+  '6h',
+  '8h',
+  '12h',
+  '1d',
+  '3d',
+  '1w',
+  '1M',
 ] as const;
 export type OHLCVTimeframe = (typeof OHLCV_TIMEFRAMES)[number];
 
@@ -544,12 +569,12 @@ export type OHLCVTimeframe = (typeof OHLCV_TIMEFRAMES)[number];
  * Represented as a tuple: [timestamp, open, high, low, close, volume]
  */
 export type OHLCV = [
-  timestamp: number,   // Opening time in milliseconds
-  open: number,        // Open price
-  high: number,        // High price
-  low: number,         // Low price
-  close: number,       // Close price
-  volume: number       // Volume in base currency
+  timestamp: number, // Opening time in milliseconds
+  open: number, // Open price
+  high: number, // High price
+  low: number, // Low price
+  close: number, // Close price
+  volume: number, // Volume in base currency
 ];
 
 /**

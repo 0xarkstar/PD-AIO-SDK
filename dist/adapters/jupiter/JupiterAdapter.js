@@ -304,12 +304,12 @@ export class JupiterAdapter extends BaseAdapter {
                     positions.push(this.normalizePosition(pubkey, positionData, markPrice, symbol));
                 }
                 catch (error) {
-                    this.warn(`Failed to parse position ${pubkey}: ${error}`);
+                    this.warn(`Failed to parse position ${pubkey}: ${String(error)}`);
                 }
             }
             // Filter by symbols if specified
             if (symbols && symbols.length > 0) {
-                return positions.filter(p => symbols.includes(p.symbol));
+                return positions.filter((p) => symbols.includes(p.symbol));
             }
             return positions;
         }
@@ -410,7 +410,7 @@ export class JupiterAdapter extends BaseAdapter {
         const validation = validateOrderParams({
             symbol: request.symbol,
             side: request.side === 'buy' ? 'long' : 'short',
-            sizeUsd: request.amount * (request.price || await this.getCurrentPrice(request.symbol)),
+            sizeUsd: request.amount * (request.price || (await this.getCurrentPrice(request.symbol))),
             leverage,
         });
         if (!validation.valid) {
@@ -418,7 +418,7 @@ export class JupiterAdapter extends BaseAdapter {
         }
         try {
             // Get current price
-            const currentPrice = request.price || await this.getCurrentPrice(request.symbol);
+            const currentPrice = request.price || (await this.getCurrentPrice(request.symbol));
             const sizeUsd = request.amount * currentPrice;
             const collateralUsd = sizeUsd / leverage;
             // Resolve accounts
@@ -504,7 +504,7 @@ export class JupiterAdapter extends BaseAdapter {
         try {
             // Fetch position to get details
             const positions = await this.fetchPositions();
-            const position = positions.find(p => p.info?.id === positionId);
+            const position = positions.find((p) => p.info?.id === positionId);
             if (!position) {
                 throw new Error(`Position not found: ${positionId}`);
             }
@@ -617,7 +617,7 @@ export class JupiterAdapter extends BaseAdapter {
      */
     async fetchPrices(tokenMints) {
         // Map token symbols to mints if needed
-        const mints = tokenMints.map(t => {
+        const mints = tokenMints.map((t) => {
             if (t in JUPITER_TOKEN_MINTS) {
                 return JUPITER_TOKEN_MINTS[t];
             }
@@ -639,10 +639,10 @@ export class JupiterAdapter extends BaseAdapter {
             return markets;
         let filtered = markets;
         if (params.active !== undefined) {
-            filtered = filtered.filter(m => m.active === params.active);
+            filtered = filtered.filter((m) => m.active === params.active);
         }
         if (params.ids && params.ids.length > 0) {
-            filtered = filtered.filter(m => params.ids.includes(m.id));
+            filtered = filtered.filter((m) => params.ids.includes(m.id));
         }
         return filtered;
     }

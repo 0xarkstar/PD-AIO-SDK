@@ -312,13 +312,15 @@ export interface NadoContracts {
 export const NadoContractsSchema = z.object({
   chain_id: z.string(),
   endpoint_addr: z.string(),
-  products: z.record(
-    z.string(),
-    z.object({
-      address: z.string(),
-      symbol: z.string(),
-    })
-  ).optional(),
+  products: z
+    .record(
+      z.string(),
+      z.object({
+        address: z.string(),
+        symbol: z.string(),
+      })
+    )
+    .optional(),
 });
 
 /**

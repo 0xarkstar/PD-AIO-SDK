@@ -37,7 +37,11 @@ import { NotSupportedError } from '../../types/errors.js';
 import type { APIMetrics } from '../../types/metrics.js';
 import { CircuitBreaker } from '../../core/CircuitBreaker.js';
 import type { HTTPClient } from '../../core/http/HTTPClient.js';
-import { PrometheusMetrics, isMetricsInitialized, getMetrics } from '../../monitoring/prometheus.js';
+import {
+  PrometheusMetrics,
+  isMetricsInitialized,
+  getMetrics,
+} from '../../monitoring/prometheus.js';
 import type { RateLimiter } from '../../core/RateLimiter.js';
 
 /**
@@ -194,7 +198,11 @@ export abstract class BaseAdapterCore {
     _params?: OHLCVParams
   ): Promise<OHLCV[]> {
     if (!this.has.fetchOHLCV) {
-      throw new NotSupportedError(`${this.name} does not support OHLCV data`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support OHLCV data`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('fetchOHLCV must be implemented by subclass');
   }
@@ -207,7 +215,7 @@ export abstract class BaseAdapterCore {
     if (!this.has.fetchTickers) {
       // Fallback: fetch tickers one by one
       const result: Record<string, Ticker> = {};
-      const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map(m => m.symbol);
+      const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map((m) => m.symbol);
 
       for (const symbol of symbolsToFetch) {
         try {
@@ -227,7 +235,11 @@ export abstract class BaseAdapterCore {
    */
   async fetchCurrencies(): Promise<Record<string, Currency>> {
     if (!this.has.fetchCurrencies) {
-      throw new NotSupportedError(`${this.name} does not support fetching currencies`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching currencies`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('fetchCurrencies must be implemented by subclass');
   }
@@ -262,7 +274,11 @@ export abstract class BaseAdapterCore {
    */
   async fetchTime(): Promise<number> {
     if (!this.has.fetchTime) {
-      throw new NotSupportedError(`${this.name} does not support fetching server time`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching server time`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('fetchTime must be implemented by subclass');
   }
@@ -271,9 +287,17 @@ export abstract class BaseAdapterCore {
    * Fetch deposit history
    * Default implementation throws if not supported by exchange
    */
-  async fetchDeposits(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
+  async fetchDeposits(
+    _currency?: string,
+    _since?: number,
+    _limit?: number
+  ): Promise<Transaction[]> {
     if (!this.has.fetchDeposits) {
-      throw new NotSupportedError(`${this.name} does not support fetching deposit history`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching deposit history`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('fetchDeposits must be implemented by subclass');
   }
@@ -282,9 +306,17 @@ export abstract class BaseAdapterCore {
    * Fetch withdrawal history
    * Default implementation throws if not supported by exchange
    */
-  async fetchWithdrawals(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
+  async fetchWithdrawals(
+    _currency?: string,
+    _since?: number,
+    _limit?: number
+  ): Promise<Transaction[]> {
     if (!this.has.fetchWithdrawals) {
-      throw new NotSupportedError(`${this.name} does not support fetching withdrawal history`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching withdrawal history`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('fetchWithdrawals must be implemented by subclass');
   }
@@ -300,7 +332,11 @@ export abstract class BaseAdapterCore {
     _params?: Record<string, unknown>
   ): Promise<LedgerEntry[]> {
     if (!this.has.fetchLedger) {
-      throw new NotSupportedError(`${this.name} does not support fetching ledger`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching ledger`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('fetchLedger must be implemented by subclass');
   }
@@ -309,9 +345,17 @@ export abstract class BaseAdapterCore {
    * Fetch funding payment history
    * Default implementation throws if not supported by exchange
    */
-  async fetchFundingHistory(_symbol?: string, _since?: number, _limit?: number): Promise<FundingPayment[]> {
+  async fetchFundingHistory(
+    _symbol?: string,
+    _since?: number,
+    _limit?: number
+  ): Promise<FundingPayment[]> {
     if (!this.has.fetchFundingHistory) {
-      throw new NotSupportedError(`${this.name} does not support fetching funding history`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching funding history`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('fetchFundingHistory must be implemented by subclass');
   }
@@ -322,7 +366,11 @@ export abstract class BaseAdapterCore {
    */
   async setMarginMode(_symbol: string, _marginMode: 'cross' | 'isolated'): Promise<void> {
     if (!this.has.setMarginMode || this.has.setMarginMode === 'emulated') {
-      throw new NotSupportedError(`${this.name} does not support setting margin mode directly`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support setting margin mode directly`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('setMarginMode must be implemented by subclass');
   }
@@ -333,7 +381,11 @@ export abstract class BaseAdapterCore {
 
   async *watchOrderBook(_symbol: string, _limit?: number): AsyncGenerator<OrderBook> {
     if (!this.has.watchOrderBook) {
-      throw new NotSupportedError(`${this.name} does not support order book streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support order book streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('watchOrderBook must be implemented by subclass');
     yield {} as OrderBook; // Type system requirement
@@ -341,7 +393,11 @@ export abstract class BaseAdapterCore {
 
   async *watchTrades(_symbol: string): AsyncGenerator<Trade> {
     if (!this.has.watchTrades) {
-      throw new NotSupportedError(`${this.name} does not support trade streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support trade streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('watchTrades must be implemented by subclass');
     yield {} as Trade; // Type system requirement
@@ -349,7 +405,11 @@ export abstract class BaseAdapterCore {
 
   async *watchTicker(_symbol: string): AsyncGenerator<Ticker> {
     if (!this.has.watchTicker) {
-      throw new NotSupportedError(`${this.name} does not support ticker streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support ticker streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('watchTicker must be implemented by subclass');
     yield {} as Ticker; // Type system requirement
@@ -357,7 +417,11 @@ export abstract class BaseAdapterCore {
 
   async *watchTickers(_symbols?: string[]): AsyncGenerator<Ticker> {
     if (!this.has.watchTickers) {
-      throw new NotSupportedError(`${this.name} does not support multiple ticker streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support multiple ticker streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('watchTickers must be implemented by subclass');
     yield {} as Ticker; // Type system requirement
@@ -365,7 +429,11 @@ export abstract class BaseAdapterCore {
 
   async *watchPositions(): AsyncGenerator<Position[]> {
     if (!this.has.watchPositions) {
-      throw new NotSupportedError(`${this.name} does not support position streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support position streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('watchPositions must be implemented by subclass');
     yield [] as Position[]; // Type system requirement
@@ -373,7 +441,11 @@ export abstract class BaseAdapterCore {
 
   async *watchOrders(): AsyncGenerator<Order[]> {
     if (!this.has.watchOrders) {
-      throw new NotSupportedError(`${this.name} does not support order streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support order streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('watchOrders must be implemented by subclass');
     yield [] as Order[]; // Type system requirement
@@ -381,7 +453,11 @@ export abstract class BaseAdapterCore {
 
   async *watchBalance(): AsyncGenerator<Balance[]> {
     if (!this.has.watchBalance) {
-      throw new NotSupportedError(`${this.name} does not support balance streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support balance streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('watchBalance must be implemented by subclass');
     yield [] as Balance[]; // Type system requirement
@@ -389,7 +465,11 @@ export abstract class BaseAdapterCore {
 
   async *watchFundingRate(_symbol: string): AsyncGenerator<FundingRate> {
     if (!this.has.watchFundingRate) {
-      throw new NotSupportedError(`${this.name} does not support funding rate streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support funding rate streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('watchFundingRate must be implemented by subclass');
     yield {} as FundingRate; // Type system requirement
@@ -397,7 +477,11 @@ export abstract class BaseAdapterCore {
 
   async *watchOHLCV(_symbol: string, _timeframe: OHLCVTimeframe): AsyncGenerator<OHLCV> {
     if (!this.has.watchOHLCV) {
-      throw new NotSupportedError(`${this.name} does not support OHLCV streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support OHLCV streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('watchOHLCV must be implemented by subclass');
     yield [0, 0, 0, 0, 0, 0] as OHLCV; // Type system requirement
@@ -405,7 +489,11 @@ export abstract class BaseAdapterCore {
 
   async *watchMyTrades(_symbol?: string): AsyncGenerator<Trade> {
     if (!this.has.watchMyTrades) {
-      throw new NotSupportedError(`${this.name} does not support user trade streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support user trade streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('watchMyTrades must be implemented by subclass');
     yield {} as Trade; // Type system requirement
@@ -421,7 +509,11 @@ export abstract class BaseAdapterCore {
    */
   async fetchUserFees(): Promise<UserFees> {
     if (!this.has.fetchUserFees) {
-      throw new NotSupportedError(`${this.name} does not support fetching user fees`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching user fees`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('fetchUserFees must be implemented by subclass');
   }
@@ -432,7 +524,11 @@ export abstract class BaseAdapterCore {
    */
   async fetchPortfolio(): Promise<Portfolio> {
     if (!this.has.fetchPortfolio) {
-      throw new NotSupportedError(`${this.name} does not support fetching portfolio metrics`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching portfolio metrics`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('fetchPortfolio must be implemented by subclass');
   }
@@ -443,7 +539,11 @@ export abstract class BaseAdapterCore {
    */
   async fetchRateLimitStatus(): Promise<RateLimitStatus> {
     if (!this.has.fetchRateLimitStatus) {
-      throw new NotSupportedError(`${this.name} does not support fetching rate limit status`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching rate limit status`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
     throw new Error('fetchRateLimitStatus must be implemented by subclass');
   }

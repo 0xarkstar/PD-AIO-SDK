@@ -71,10 +71,7 @@ export function parseBigInt(
  * @param decimals - Number of decimal places (default: 18)
  * @returns Parsed number
  */
-export function parseX18(
-  value: string | number | null | undefined,
-  decimals: number = 18
-): number {
+export function parseX18(value: string | number | null | undefined, decimals: number = 18): number {
   if (value === null || value === undefined || value === '') {
     return 0;
   }
@@ -157,10 +154,10 @@ export function parseUnifiedSymbol(symbol: string): {
 export function extractBaseFromPerpSymbol(symbol: string): string {
   // Common patterns: BTC-PERP, BTCUSD_PERP, BTC_USDT_Perp, BTC-USD-PERP
   const patterns = [
-    /^([A-Z0-9]+)-(?:USD-)?PERP$/i,      // BTC-PERP, BTC-USD-PERP
-    /^([A-Z0-9]+)USD_PERP$/i,            // BTCUSD_PERP
-    /^([A-Z0-9]+)_USDT?_Perp$/i,         // BTC_USDT_Perp
-    /^([A-Z0-9]+)USDT?$/i,               // BTCUSDT
+    /^([A-Z0-9]+)-(?:USD-)?PERP$/i, // BTC-PERP, BTC-USD-PERP
+    /^([A-Z0-9]+)USD_PERP$/i, // BTCUSD_PERP
+    /^([A-Z0-9]+)_USDT?_Perp$/i, // BTC_USDT_Perp
+    /^([A-Z0-9]+)USDT?$/i, // BTCUSDT
   ];
 
   for (const pattern of patterns) {
@@ -184,33 +181,33 @@ export function extractBaseFromPerpSymbol(symbol: string): string {
  */
 export const ORDER_STATUS_MAP: Record<string, OrderStatus> = {
   // Common statuses
-  'open': 'open',
-  'new': 'open',
-  'pending': 'open',
-  'active': 'open',
+  open: 'open',
+  new: 'open',
+  pending: 'open',
+  active: 'open',
 
   // Partial fills
-  'partial': 'open',
-  'partially_filled': 'open',
-  'partiallyFilled': 'open',
+  partial: 'open',
+  partially_filled: 'open',
+  partiallyFilled: 'open',
 
   // Filled
-  'filled': 'closed',
-  'closed': 'closed',
-  'done': 'closed',
-  'executed': 'closed',
+  filled: 'closed',
+  closed: 'closed',
+  done: 'closed',
+  executed: 'closed',
 
   // Canceled
-  'canceled': 'canceled',
-  'cancelled': 'canceled',
-  'cancel': 'canceled',
+  canceled: 'canceled',
+  cancelled: 'canceled',
+  cancel: 'canceled',
 
   // Expired
-  'expired': 'expired',
+  expired: 'expired',
 
   // Rejected
-  'rejected': 'rejected',
-  'failed': 'rejected',
+  rejected: 'rejected',
+  failed: 'rejected',
 };
 
 /**
@@ -220,10 +217,7 @@ export const ORDER_STATUS_MAP: Record<string, OrderStatus> = {
  * @param defaultStatus - Default status if not found
  * @returns Unified order status
  */
-export function mapOrderStatus(
-  status: string,
-  defaultStatus: OrderStatus = 'open'
-): OrderStatus {
+export function mapOrderStatus(status: string, defaultStatus: OrderStatus = 'open'): OrderStatus {
   const normalized = status.toLowerCase().replace(/[^a-z_]/g, '');
   return ORDER_STATUS_MAP[normalized] || defaultStatus;
 }
@@ -232,19 +226,19 @@ export function mapOrderStatus(
  * Common order type mappings
  */
 export const ORDER_TYPE_MAP: Record<string, OrderType> = {
-  'limit': 'limit',
-  'market': 'market',
-  'stop': 'stopMarket',
-  'stop_market': 'stopMarket',
-  'stopmarket': 'stopMarket',
-  'stop_loss': 'stopMarket',
-  'stoploss': 'stopMarket',
-  'stop_limit': 'stopLimit',
-  'stoplimit': 'stopLimit',
-  'take_profit': 'takeProfit',
-  'takeprofit': 'takeProfit',
-  'trailing_stop': 'trailingStop',
-  'trailingstop': 'trailingStop',
+  limit: 'limit',
+  market: 'market',
+  stop: 'stopMarket',
+  stop_market: 'stopMarket',
+  stopmarket: 'stopMarket',
+  stop_loss: 'stopMarket',
+  stoploss: 'stopMarket',
+  stop_limit: 'stopLimit',
+  stoplimit: 'stopLimit',
+  take_profit: 'takeProfit',
+  takeprofit: 'takeProfit',
+  trailing_stop: 'trailingStop',
+  trailingstop: 'trailingStop',
 };
 
 /**
@@ -302,9 +296,7 @@ export function mapTimeInForce(tif: string | undefined): TimeInForce {
  * @param timestamp - Timestamp in various formats (seconds, milliseconds, ISO string)
  * @returns Timestamp in milliseconds
  */
-export function normalizeTimestamp(
-  timestamp: number | string | Date | null | undefined
-): number {
+export function normalizeTimestamp(timestamp: number | string | Date | null | undefined): number {
   if (timestamp === null || timestamp === undefined) {
     return Date.now();
   }

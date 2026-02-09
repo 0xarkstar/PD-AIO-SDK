@@ -6,7 +6,7 @@
  */
 import { NotSupportedError } from '../../types/errors.js';
 import { CircuitBreaker } from '../../core/CircuitBreaker.js';
-import { isMetricsInitialized, getMetrics } from '../../monitoring/prometheus.js';
+import { isMetricsInitialized, getMetrics, } from '../../monitoring/prometheus.js';
 /**
  * Base Adapter Core
  *
@@ -95,7 +95,7 @@ export class BaseAdapterCore {
         if (!this.has.fetchTickers) {
             // Fallback: fetch tickers one by one
             const result = {};
-            const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map(m => m.symbol);
+            const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map((m) => m.symbol);
             for (const symbol of symbolsToFetch) {
                 try {
                     result[symbol] = await this.fetchTicker(symbol);

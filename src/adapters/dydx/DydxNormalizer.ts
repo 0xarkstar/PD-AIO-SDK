@@ -18,11 +18,7 @@ import type {
   FundingRate,
   OHLCV,
 } from '../../types/common.js';
-import {
-  DYDX_DEFAULT_PRECISION,
-  DYDX_FUNDING_INTERVAL_HOURS,
-  dydxToUnified,
-} from './constants.js';
+import { DYDX_DEFAULT_PRECISION, DYDX_FUNDING_INTERVAL_HOURS, dydxToUnified } from './constants.js';
 import type {
   DydxPerpetualMarket,
   DydxOrder,
@@ -73,11 +69,13 @@ export class DydxNormalizer {
 
     // Parse step size for amount precision
     const stepSize = parseFloat(market.stepSize);
-    const amountPrecision = stepSize > 0 ? Math.abs(Math.log10(stepSize)) : DYDX_DEFAULT_PRECISION.amount;
+    const amountPrecision =
+      stepSize > 0 ? Math.abs(Math.log10(stepSize)) : DYDX_DEFAULT_PRECISION.amount;
 
     // Parse tick size for price precision
     const tickSize = parseFloat(market.tickSize);
-    const pricePrecision = tickSize > 0 ? Math.abs(Math.log10(tickSize)) : DYDX_DEFAULT_PRECISION.price;
+    const pricePrecision =
+      tickSize > 0 ? Math.abs(Math.log10(tickSize)) : DYDX_DEFAULT_PRECISION.price;
 
     return {
       id: market.ticker,

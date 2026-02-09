@@ -242,7 +242,7 @@ export class MetricsServer {
     } else if (url === '/health') {
       await this.handleHealthRequest(res);
     } else if (url === '/') {
-      this.handleRootRequest(res);
+      await this.handleRootRequest(res);
     } else {
       this.sendResponse(res, 404, 'Not Found');
     }
@@ -379,9 +379,7 @@ export class MetricsServer {
  * @param config - Server configuration
  * @returns Running metrics server instance
  */
-export async function startMetricsServer(
-  config?: MetricsServerConfig
-): Promise<MetricsServer> {
+export async function startMetricsServer(config?: MetricsServerConfig): Promise<MetricsServer> {
   const server = new MetricsServer(config);
   await server.start();
   return server;

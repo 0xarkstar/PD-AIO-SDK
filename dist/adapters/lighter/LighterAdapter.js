@@ -14,7 +14,7 @@ import { PerpDEXError, InvalidOrderError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { WebSocketManager } from '../../websocket/WebSocketManager.js';
-import { LIGHTER_API_URLS, LIGHTER_RATE_LIMITS, LIGHTER_ENDPOINT_WEIGHTS, LIGHTER_WS_CONFIG } from './constants.js';
+import { LIGHTER_API_URLS, LIGHTER_RATE_LIMITS, LIGHTER_ENDPOINT_WEIGHTS, LIGHTER_WS_CONFIG, } from './constants.js';
 import { LighterNormalizer } from './LighterNormalizer.js';
 import { LighterWebSocket } from './LighterWebSocket.js';
 import { mapError } from './utils.js';
@@ -104,7 +104,8 @@ export class LighterAdapter extends BaseAdapter {
         const urls = this.testnet ? LIGHTER_API_URLS.testnet : LIGHTER_API_URLS.mainnet;
         this.apiUrl = urls.rest;
         this.wsUrl = urls.websocket;
-        this.chainId = config.chainId ?? (this.testnet ? LIGHTER_CHAIN_IDS.testnet : LIGHTER_CHAIN_IDS.mainnet);
+        this.chainId =
+            config.chainId ?? (this.testnet ? LIGHTER_CHAIN_IDS.testnet : LIGHTER_CHAIN_IDS.mainnet);
         // HMAC auth
         this.apiKey = config.apiKey;
         this.apiSecret = config.apiSecret;
@@ -183,7 +184,9 @@ export class LighterAdapter extends BaseAdapter {
             }
             catch (error) {
                 // WASM initialization failed - fall back to HMAC or public-only mode
-                this.logger.warn('WASM signer initialization failed, falling back to HMAC mode', { error: error instanceof Error ? error.message : String(error) });
+                this.logger.warn('WASM signer initialization failed, falling back to HMAC mode', {
+                    error: error instanceof Error ? error.message : String(error),
+                });
                 this.signer = null;
                 this.nonceManager = null;
             }
@@ -219,7 +222,7 @@ export class LighterAdapter extends BaseAdapter {
                 hasWasmSigning: this.hasWasmSigning,
             });
         }
-        catch (error) {
+        catch {
             // WebSocket initialization is optional - watch methods will throw if needed
             this.wsManager = null;
             this.wsHandler = null;
@@ -438,7 +441,7 @@ export class LighterAdapter extends BaseAdapter {
                 case 'DELETE':
                     return await this.httpClient.delete(path, { headers, body });
                 default:
-                    throw new Error(`Unsupported HTTP method: ${method}`);
+                    throw new Error(`Unsupported HTTP method: ${String(method)}`);
             }
         }
         catch (error) {
@@ -553,7 +556,7 @@ export class LighterAdapter extends BaseAdapter {
         return {
             ready: this._isReady,
             authenticated: this.hasAuthentication,
-            authMode: this.hasWasmSigning ? 'wasm' : (this.apiKey && this.apiSecret ? 'hmac' : 'none'),
+            authMode: this.hasWasmSigning ? 'wasm' : this.apiKey && this.apiSecret ? 'hmac' : 'none',
             wsConnected: this.wsManager !== null,
             network: this.testnet ? 'testnet' : 'mainnet',
             latencyMs,

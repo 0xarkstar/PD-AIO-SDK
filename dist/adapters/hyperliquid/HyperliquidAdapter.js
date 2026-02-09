@@ -14,8 +14,8 @@ import { HyperliquidNormalizer } from './HyperliquidNormalizer.js';
 import { HyperliquidWebSocket } from './HyperliquidWebSocket.js';
 import { convertOrderRequest, mapError } from './utils.js';
 import { buildOHLCVRequest, parseCandles, parseFundingRates, buildCurrentFundingRate, getDefaultDuration as getDefaultOHLCVDuration, } from './HyperliquidMarketData.js';
-import { parseUserFees, parsePortfolio, parseRateLimitStatus, } from './HyperliquidInfoMethods.js';
-import { processOrderHistory, processUserFills, processOpenOrders, } from './HyperliquidAccount.js';
+import { parseUserFees, parsePortfolio, parseRateLimitStatus } from './HyperliquidInfoMethods.js';
+import { processOrderHistory, processUserFills, processOpenOrders } from './HyperliquidAccount.js';
 export class HyperliquidAdapter extends BaseAdapter {
     id = 'hyperliquid';
     name = 'Hyperliquid';

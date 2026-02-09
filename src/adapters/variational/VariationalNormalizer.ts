@@ -89,7 +89,7 @@ export class VariationalNormalizer {
       takerFee: 0,
       maxLeverage: 50, // Default leverage
       fundingIntervalHours: listing.funding_interval_s / 3600,
-      info: listing as any,
+      info: listing as unknown as Record<string, unknown>,
     };
   }
 
@@ -117,7 +117,7 @@ export class VariationalNormalizer {
       takerFee: 0.0005,
       maxLeverage: market.maxLeverage ? safeParseFloat(market.maxLeverage) : 50,
       fundingIntervalHours: 8,
-      info: market as any,
+      info: market as unknown as Record<string, unknown>,
     };
   }
 
@@ -143,7 +143,7 @@ export class VariationalNormalizer {
       quoteVolume: safeParseFloat(listing.volume_24h),
       change: 0, // Not available from /metadata/stats
       percentage: 0, // Not available from /metadata/stats
-      info: listing as any,
+      info: listing as unknown as Record<string, unknown>,
     };
   }
 
@@ -167,7 +167,7 @@ export class VariationalNormalizer {
       quoteVolume: 0,
       change: safeParseFloat(ticker.priceChange24h),
       percentage: safeParseFloat(ticker.priceChangePercent24h),
-      info: ticker as any,
+      info: ticker as unknown as Record<string, unknown>,
     };
   }
 
@@ -207,7 +207,7 @@ export class VariationalNormalizer {
       amount: safeParseFloat(trade.amount),
       cost: safeParseFloat(trade.price) * safeParseFloat(trade.amount),
       timestamp: trade.timestamp,
-      info: trade as any,
+      info: trade as unknown as Record<string, unknown>,
     };
   }
 
@@ -225,7 +225,7 @@ export class VariationalNormalizer {
       markPrice: fundingRate.markPrice ? safeParseFloat(fundingRate.markPrice) : 0,
       indexPrice: fundingRate.indexPrice ? safeParseFloat(fundingRate.indexPrice) : 0,
       fundingIntervalHours: 8,
-      info: fundingRate as any,
+      info: fundingRate as unknown as Record<string, unknown>,
     };
   }
 
@@ -253,7 +253,7 @@ export class VariationalNormalizer {
       status: this.normalizeOrderStatus(order.status),
       timestamp: order.timestamp,
       lastUpdateTimestamp: order.updateTime,
-      info: order as any,
+      info: order as unknown as Record<string, unknown>,
     };
   }
 
@@ -297,9 +297,7 @@ export class VariationalNormalizer {
       entryPrice: entryPrice,
       markPrice: safeParseFloat(position.markPrice),
       leverage: safeParseFloat(position.leverage),
-      liquidationPrice: position.liquidationPrice
-        ? safeParseFloat(position.liquidationPrice)
-        : 0,
+      liquidationPrice: position.liquidationPrice ? safeParseFloat(position.liquidationPrice) : 0,
       unrealizedPnl: safeParseFloat(position.unrealizedPnl),
       realizedPnl: 0,
       margin: safeParseFloat(position.margin),
@@ -307,7 +305,7 @@ export class VariationalNormalizer {
       marginRatio: 0,
       marginMode: 'cross',
       timestamp: position.timestamp,
-      info: position as any,
+      info: position as unknown as Record<string, unknown>,
     };
   }
 
@@ -424,7 +422,7 @@ export class VariationalNormalizer {
       markPrice,
       indexPrice: markPrice, // Variational uses mark price as index
       fundingIntervalHours,
-      info: listing as any,
+      info: listing as unknown as Record<string, unknown>,
     };
   }
 

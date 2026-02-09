@@ -62,9 +62,7 @@ const DATA_STORE_ABI = [
 /**
  * OrderVault ABI
  */
-const ORDER_VAULT_ABI = [
-  'function recordTransferIn(address token) external returns (uint256)',
-];
+const ORDER_VAULT_ABI = ['function recordTransferIn(address token) external returns (uint256)'];
 
 // =============================================================================
 // GMX Contract Manager
@@ -114,11 +112,7 @@ export class GmxContracts {
    */
   getReader(): ethers.Contract {
     if (!this.reader) {
-      this.reader = new ethers.Contract(
-        this.addresses.reader,
-        READER_ABI,
-        this.provider
-      );
+      this.reader = new ethers.Contract(this.addresses.reader, READER_ABI, this.provider);
     }
     return this.reader;
   }
@@ -128,11 +122,7 @@ export class GmxContracts {
    */
   getDataStore(): ethers.Contract {
     if (!this.dataStore) {
-      this.dataStore = new ethers.Contract(
-        this.addresses.dataStore,
-        DATA_STORE_ABI,
-        this.provider
-      );
+      this.dataStore = new ethers.Contract(this.addresses.dataStore, DATA_STORE_ABI, this.provider);
     }
     return this.dataStore;
   }
@@ -194,7 +184,9 @@ export class GmxContracts {
       referralCode: params.referralCode || ethers.ZeroHash,
     };
 
-    return exchangeRouter.createOrder!(orderParams, { value: executionFee }) as Promise<TransactionResponse>;
+    return exchangeRouter.createOrder!(orderParams, {
+      value: executionFee,
+    }) as Promise<TransactionResponse>;
   }
 
   /**
@@ -218,7 +210,9 @@ export class GmxContracts {
     }
 
     const exchangeRouter = this.getExchangeRouter();
-    return exchangeRouter.sendWnt!(receiver, amount, { value: amount }) as Promise<TransactionResponse>;
+    return exchangeRouter.sendWnt!(receiver, amount, {
+      value: amount,
+    }) as Promise<TransactionResponse>;
   }
 
   /**
@@ -242,12 +236,12 @@ export class GmxContracts {
    */
   async getAccountPositions(account: string, start = 0, end = 100): Promise<GmxPositionData[]> {
     const reader = this.getReader();
-    const positions = await reader.getAccountPositions!(
+    const positions = (await reader.getAccountPositions!(
       this.addresses.dataStore,
       account,
       start,
       end
-    ) as GmxPositionData[];
+    )) as GmxPositionData[];
     return positions;
   }
 
@@ -256,12 +250,12 @@ export class GmxContracts {
    */
   async getAccountOrders(account: string, start = 0, end = 100): Promise<GmxOrderData[]> {
     const reader = this.getReader();
-    const orders = await reader.getAccountOrders!(
+    const orders = (await reader.getAccountOrders!(
       this.addresses.dataStore,
       account,
       start,
       end
-    ) as GmxOrderData[];
+    )) as GmxOrderData[];
     return orders;
   }
 
@@ -271,7 +265,10 @@ export class GmxContracts {
   async getPosition(positionKey: string): Promise<GmxPositionData | null> {
     const reader = this.getReader();
     try {
-      const position = await reader.getPosition!(this.addresses.dataStore, positionKey) as GmxPositionData;
+      const position = (await reader.getPosition!(
+        this.addresses.dataStore,
+        positionKey
+      )) as GmxPositionData;
       return position;
     } catch {
       return null;
@@ -281,7 +278,12 @@ export class GmxContracts {
   /**
    * Calculate position key
    */
-  getPositionKey(account: string, market: string, collateralToken: string, isLong: boolean): string {
+  getPositionKey(
+    account: string,
+    market: string,
+    collateralToken: string,
+    isLong: boolean
+  ): string {
     return ethers.keccak256(
       ethers.solidityPacked(
         ['address', 'address', 'address', 'bool'],

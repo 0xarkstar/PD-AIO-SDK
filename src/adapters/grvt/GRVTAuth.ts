@@ -302,9 +302,7 @@ export class GRVTAuth implements IAuthStrategy {
   /**
    * Create ISignature object for API requests
    */
-  async createSignature(
-    payload: GRVTOrderSignPayload
-  ): Promise<{
+  async createSignature(payload: GRVTOrderSignPayload): Promise<{
     signer: string;
     r: string;
     s: string;

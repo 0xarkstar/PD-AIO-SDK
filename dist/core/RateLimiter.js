@@ -32,7 +32,7 @@ export class RateLimiter {
      * @throws {RateLimitError} If rate limit exceeded
      */
     async acquire(endpoint, weight) {
-        const requestWeight = weight ?? (endpoint ? this.weights[endpoint] ?? 1 : 1);
+        const requestWeight = weight ?? (endpoint ? (this.weights[endpoint] ?? 1) : 1);
         return new Promise((resolve, reject) => {
             this.queue.push({
                 weight: requestWeight,
@@ -50,7 +50,7 @@ export class RateLimiter {
      * @returns true if tokens acquired, false otherwise
      */
     tryAcquire(endpoint, weight) {
-        const requestWeight = weight ?? (endpoint ? this.weights[endpoint] ?? 1 : 1);
+        const requestWeight = weight ?? (endpoint ? (this.weights[endpoint] ?? 1) : 1);
         this.refillBucket();
         if (this.bucket.tokens >= requestWeight) {
             this.bucket.tokens -= requestWeight;

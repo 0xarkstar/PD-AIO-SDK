@@ -114,7 +114,10 @@ export class ExtendedWebSocketWrapper {
         };
 
         this.ws.onerror = (error) => {
-          this.logger.error('WebSocket error', error instanceof Error ? error : new Error('WebSocket error'));
+          this.logger.error(
+            'WebSocket error',
+            error instanceof Error ? error : new Error('WebSocket error')
+          );
           if (this.isConnecting) {
             this.isConnecting = false;
             reject(new Error('WebSocket connection failed'));
@@ -133,7 +136,7 @@ export class ExtendedWebSocketWrapper {
         };
       } catch (error) {
         this.isConnecting = false;
-        reject(error);
+        reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
 
@@ -144,7 +147,9 @@ export class ExtendedWebSocketWrapper {
    * Disconnect from WebSocket
    */
   disconnect(): void {
-    this.reconnect && (this.reconnectAttempts = this.maxReconnectAttempts); // Prevent reconnection
+    if (this.reconnect) {
+      this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnection
+    }
     this.stopHeartbeat();
 
     if (this.ws) {
@@ -173,14 +178,12 @@ export class ExtendedWebSocketWrapper {
           const orderbook: OrderBook = {
             exchange: 'extended',
             symbol: this.normalizer.symbolToCCXT(message.symbol),
-            bids: message.bids.slice(0, limit).map(([price, amount]) => [
-              parseFloat(price),
-              parseFloat(amount),
-            ]),
-            asks: message.asks.slice(0, limit).map(([price, amount]) => [
-              parseFloat(price),
-              parseFloat(amount),
-            ]),
+            bids: message.bids
+              .slice(0, limit)
+              .map(([price, amount]) => [parseFloat(price), parseFloat(amount)]),
+            asks: message.asks
+              .slice(0, limit)
+              .map(([price, amount]) => [parseFloat(price), parseFloat(amount)]),
             timestamp: message.timestamp,
             sequenceId: message.sequence,
             checksum: message.checksum,
@@ -299,9 +302,7 @@ export class ExtendedWebSocketWrapper {
     try {
       for await (const message of this.createMessageIterator<ExtendedWsOrderUpdate>(channel)) {
         if (message.channel === 'orders') {
-          const orders: Order[] = message.orders.map((ord) =>
-            this.normalizer.normalizeOrder(ord)
-          );
+          const orders: Order[] = message.orders.map((ord) => this.normalizer.normalizeOrder(ord));
           yield orders;
         }
       }
@@ -345,7 +346,9 @@ export class ExtendedWebSocketWrapper {
     await this.subscribe(EXTENDED_WS_CHANNELS.FUNDING, exchangeSymbol);
 
     try {
-      for await (const message of this.createMessageIterator<ExtendedWsFundingRateUpdate>(channel)) {
+      for await (const message of this.createMessageIterator<ExtendedWsFundingRateUpdate>(
+        channel
+      )) {
         if (message.channel === 'funding' && message.symbol === exchangeSymbol) {
           const fundingRate: FundingRate = {
             symbol: this.normalizer.symbolToCCXT(message.symbol),
@@ -467,7 +470,10 @@ export class ExtendedWebSocketWrapper {
         handlers.forEach((handler) => handler(message as ExtendedWsMessage));
       }
     } catch (error) {
-      this.logger.error('Failed to parse WebSocket message', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error(
+        'Failed to parse WebSocket message',
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }
 
@@ -600,11 +606,16 @@ export class ExtendedWebSocketWrapper {
       EXTENDED_WS_CONFIG.maxReconnectDelay
     );
 
-    this.logger.info(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    this.logger.info(
+      `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+    );
 
     setTimeout(() => {
       this.connect().catch((error) => {
-        this.logger.error('Reconnection failed', error instanceof Error ? error : new Error(String(error)));
+        this.logger.error(
+          'Reconnection failed',
+          error instanceof Error ? error : new Error(String(error))
+        );
       });
     }, delay);
   }

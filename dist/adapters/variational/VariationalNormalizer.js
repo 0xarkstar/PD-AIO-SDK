@@ -247,9 +247,7 @@ export class VariationalNormalizer {
             entryPrice: entryPrice,
             markPrice: safeParseFloat(position.markPrice),
             leverage: safeParseFloat(position.leverage),
-            liquidationPrice: position.liquidationPrice
-                ? safeParseFloat(position.liquidationPrice)
-                : 0,
+            liquidationPrice: position.liquidationPrice ? safeParseFloat(position.liquidationPrice) : 0,
             unrealizedPnl: safeParseFloat(position.unrealizedPnl),
             realizedPnl: 0,
             margin: safeParseFloat(position.margin),

@@ -27,7 +27,10 @@ const isBrowser = typeof window !== 'undefined';
  * const bytes = toBuffer('SGVsbG8=', 'base64');
  * ```
  */
-export function toBuffer(data: string | Uint8Array, encoding?: 'hex' | 'base64' | 'utf8'): Uint8Array {
+export function toBuffer(
+  data: string | Uint8Array,
+  encoding?: 'hex' | 'base64' | 'utf8'
+): Uint8Array {
   if (data instanceof Uint8Array) {
     return data;
   }

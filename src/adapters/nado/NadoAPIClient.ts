@@ -10,12 +10,7 @@
 import type { RateLimiter } from '../../core/RateLimiter.js';
 import type { NadoResponse } from './types.js';
 import { NADO_REQUEST_CONFIG } from './constants.js';
-import {
-  mapNadoError,
-  mapHttpError,
-  extractNadoError,
-  isRetryableError,
-} from './error-codes.js';
+import { mapNadoError, mapHttpError, extractNadoError, isRetryableError } from './error-codes.js';
 import { PerpDEXError, ExchangeUnavailableError } from '../../types/errors.js';
 
 /**
@@ -169,7 +164,7 @@ export class NadoAPIClient {
    * Useful when shutting down the adapter or on critical errors.
    */
   cancelAllRequests(): void {
-    this.abortControllers.forEach(controller => {
+    this.abortControllers.forEach((controller) => {
       controller.abort();
     });
     this.abortControllers.clear();
@@ -291,8 +286,7 @@ export class NadoAPIClient {
     }
 
     // Check both error and wrapped originalError
-    return this.isRetryableNetworkError(error) ||
-           this.isRetryableNetworkError(error.originalError);
+    return this.isRetryableNetworkError(error) || this.isRetryableNetworkError(error.originalError);
   }
 
   /**
@@ -348,10 +342,12 @@ export class NadoAPIClient {
     }
 
     // Network errors
-    if (error.code === 'ECONNRESET' ||
-        error.code === 'ETIMEDOUT' ||
-        error.code === 'ENOTFOUND' ||
-        error.code === 'ECONNREFUSED') {
+    if (
+      error.code === 'ECONNRESET' ||
+      error.code === 'ETIMEDOUT' ||
+      error.code === 'ENOTFOUND' ||
+      error.code === 'ECONNREFUSED'
+    ) {
       return new ExchangeUnavailableError(
         `Network error: ${error.message}`,
         error.code,
@@ -361,12 +357,7 @@ export class NadoAPIClient {
     }
 
     // Unknown error
-    return new PerpDEXError(
-      error.message || 'Unknown error',
-      'UNKNOWN_ERROR',
-      'nado',
-      error
-    );
+    return new PerpDEXError(error.message || 'Unknown error', 'UNKNOWN_ERROR', 'nado', error);
   }
 
   // ===========================================================================
@@ -379,6 +370,6 @@ export class NadoAPIClient {
    * @param ms - Milliseconds to sleep
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

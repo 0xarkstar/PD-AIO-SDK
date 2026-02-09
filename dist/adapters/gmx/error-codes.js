@@ -56,10 +56,15 @@ export function mapGmxError(error) {
             return new InvalidSignatureError('Invalid transaction signature', 'INVALID_SIGNATURE', 'gmx', error);
         }
         // RPC/API errors
-        if (message.includes('429') || message.includes('rate limit') || message.includes('too many requests')) {
+        if (message.includes('429') ||
+            message.includes('rate limit') ||
+            message.includes('too many requests')) {
             return new RateLimitError('Rate limit exceeded', 'RATE_LIMIT', 'gmx', undefined, error);
         }
-        if (message.includes('503') || message.includes('502') || message.includes('504') || message.includes('service unavailable')) {
+        if (message.includes('503') ||
+            message.includes('502') ||
+            message.includes('504') ||
+            message.includes('service unavailable')) {
             return new ExchangeUnavailableError('GMX API temporarily unavailable', 'API_UNAVAILABLE', 'gmx', error);
         }
         if (message.includes('timeout') || message.includes('timed out')) {

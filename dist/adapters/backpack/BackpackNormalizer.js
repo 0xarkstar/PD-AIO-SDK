@@ -91,7 +91,10 @@ export class BackpackNormalizer {
         const isPerpetual = backpackMarket.marketType === 'PERP' || backpackMarket.symbol.endsWith('_PERP');
         // Handle potentially missing filter fields
         const priceFilters = backpackMarket.filters?.price ?? { tickSize: '0.01' };
-        const quantityFilters = backpackMarket.filters?.quantity ?? { stepSize: '0.001', minQuantity: '0.001' };
+        const quantityFilters = backpackMarket.filters?.quantity ?? {
+            stepSize: '0.001',
+            minQuantity: '0.001',
+        };
         return {
             id: backpackMarket.symbol,
             symbol,
@@ -107,7 +110,9 @@ export class BackpackNormalizer {
             makerFee: 0, // Not provided in market endpoint
             takerFee: 0, // Not provided in market endpoint
             maxLeverage: isPerpetual ? 20 : 1, // Perpetuals support leverage
-            fundingIntervalHours: backpackMarket.fundingInterval ? backpackMarket.fundingInterval / 3600000 : 1,
+            fundingIntervalHours: backpackMarket.fundingInterval
+                ? backpackMarket.fundingInterval / 3600000
+                : 1,
         };
     }
     /**
@@ -125,9 +130,7 @@ export class BackpackNormalizer {
             price: backpackOrder.price ? parseFloat(backpackOrder.price) : undefined,
             filled: parseFloat(backpackOrder.filled_size),
             remaining: parseFloat(backpackOrder.size) - parseFloat(backpackOrder.filled_size),
-            averagePrice: backpackOrder.avg_price
-                ? parseFloat(backpackOrder.avg_price)
-                : undefined,
+            averagePrice: backpackOrder.avg_price ? parseFloat(backpackOrder.avg_price) : undefined,
             status: this.normalizeOrderStatus(backpackOrder.status),
             timeInForce: this.normalizeTimeInForce(backpackOrder.time_in_force),
             postOnly: backpackOrder.post_only,
@@ -273,7 +276,7 @@ export class BackpackNormalizer {
      * Backpack API returns 'Bid' (buy) / 'Ask' (sell)
      */
     normalizeOrderSide(backpackSide) {
-        return (backpackSide === 'Bid' || backpackSide === 'BUY') ? 'buy' : 'sell';
+        return backpackSide === 'Bid' || backpackSide === 'BUY' ? 'buy' : 'sell';
     }
     /**
      * Normalize Backpack order status to unified format

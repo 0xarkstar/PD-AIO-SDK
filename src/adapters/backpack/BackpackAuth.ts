@@ -84,7 +84,10 @@ export class BackpackAuth implements IAuthStrategy {
       if (body) {
         for (const [key, value] of Object.entries(body)) {
           if (value !== undefined && value !== null) {
-            params[key] = String(value);
+            params[key] =
+              typeof value === 'object'
+                ? JSON.stringify(value)
+                : String(value as string | number | boolean);
           }
         }
       }
@@ -94,7 +97,7 @@ export class BackpackAuth implements IAuthStrategy {
 
       // Sort keys alphabetically and build the signing string
       const sortedKeys = Object.keys(params).sort();
-      const message = sortedKeys.map(k => `${k}=${params[k]}`).join('&');
+      const message = sortedKeys.map((k) => `${k}=${params[k]}`).join('&');
       const messageBytes = new TextEncoder().encode(message);
 
       // Convert private key to Uint8Array

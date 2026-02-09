@@ -4,7 +4,7 @@
  * Composable mixins that provide specific functionality for adapters.
  */
 // Logger
-export { LoggerMixin, } from './LoggerMixin.js';
+export { LoggerMixin } from './LoggerMixin.js';
 // Metrics
 export { MetricsTrackerMixin, } from './MetricsTrackerMixin.js';
 // Cache

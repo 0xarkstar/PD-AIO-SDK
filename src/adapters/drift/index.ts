@@ -10,7 +10,12 @@
 export { DriftAdapter, type DriftConfig } from './DriftAdapter.js';
 
 // Authentication
-export { DriftAuth, type DriftAuthConfig, isValidSolanaAddress, isValidSolanaPrivateKey } from './DriftAuth.js';
+export {
+  DriftAuth,
+  type DriftAuthConfig,
+  isValidSolanaAddress,
+  isValidSolanaPrivateKey,
+} from './DriftAuth.js';
 
 // Client Wrapper
 export {

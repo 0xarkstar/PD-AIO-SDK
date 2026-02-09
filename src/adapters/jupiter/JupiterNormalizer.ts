@@ -86,14 +86,7 @@ export class JupiterNormalizer {
     for (const [marketKey] of Object.entries(JUPITER_MARKETS)) {
       const custody = custodies.get(marketKey);
       if (custody) {
-        markets.push(
-          this.normalizeMarket(
-            marketKey,
-            custody,
-            pool,
-            stats?.get(marketKey)
-          )
-        );
+        markets.push(this.normalizeMarket(marketKey, custody, pool, stats?.get(marketKey)));
       }
     }
 
@@ -118,12 +111,7 @@ export class JupiterNormalizer {
     const leverage = sizeUsd / collateralUsd;
 
     // Calculate unrealized PnL
-    const unrealizedPnl = this.calculateUnrealizedPnl(
-      side,
-      size,
-      entryPrice,
-      currentPrice
-    );
+    const unrealizedPnl = this.calculateUnrealizedPnl(side, size, entryPrice, currentPrice);
 
     // Calculate liquidation price
     const liquidationPrice = this.calculateLiquidationPrice(
@@ -136,7 +124,7 @@ export class JupiterNormalizer {
 
     // Maintenance margin is approximately 1% of position size
     const maintenanceMargin = sizeUsd * 0.01;
-    const marginRatio = (collateralUsd - maintenanceMargin) / collateralUsd * 100;
+    const marginRatio = ((collateralUsd - maintenanceMargin) / collateralUsd) * 100;
 
     return {
       symbol,
@@ -182,12 +170,7 @@ export class JupiterNormalizer {
     const size = parseFloat(position.sizeTokens);
     const leverage = sizeUsd / collateralUsd;
 
-    const unrealizedPnl = this.calculateUnrealizedPnl(
-      side,
-      size,
-      entryPrice,
-      currentPrice
-    );
+    const unrealizedPnl = this.calculateUnrealizedPnl(side, size, entryPrice, currentPrice);
 
     const liquidationPrice = this.calculateLiquidationPrice(
       side,
@@ -264,11 +247,7 @@ export class JupiterNormalizer {
    * Normalize balance from pool stats
    * Jupiter uses JLP pool for collateral
    */
-  normalizeBalance(
-    currency: string,
-    total: number,
-    locked: number
-  ): Balance {
+  normalizeBalance(currency: string, total: number, locked: number): Balance {
     return {
       currency,
       total,
@@ -401,10 +380,10 @@ export class JupiterNormalizer {
 
     if (side === 'long') {
       // Long liquidation: price drops until margin is consumed
-      return entryPrice * (1 - (liquidationThreshold / leverage));
+      return entryPrice * (1 - liquidationThreshold / leverage);
     } else {
       // Short liquidation: price rises until margin is consumed
-      return entryPrice * (1 + (liquidationThreshold / leverage));
+      return entryPrice * (1 + liquidationThreshold / leverage);
     }
   }
 

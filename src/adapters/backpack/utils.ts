@@ -6,11 +6,7 @@
  */
 
 import type { OrderSide, OrderType, TimeInForce } from '../../types/common.js';
-import {
-  BACKPACK_ORDER_TYPES,
-  BACKPACK_ORDER_SIDES,
-  BACKPACK_TIME_IN_FORCE,
-} from './constants.js';
+import { BACKPACK_ORDER_TYPES, BACKPACK_ORDER_SIDES, BACKPACK_TIME_IN_FORCE } from './constants.js';
 
 /**
  * Convert unified order type to Backpack format
@@ -85,7 +81,7 @@ export function mapBackpackError(error: unknown): { code: string; message: strin
       default:
         return {
           code: 'UNKNOWN_ERROR',
-          message: (err.message as string | undefined) ?? 'Unknown error occurred',
+          message: err.message ?? 'Unknown error occurred',
         };
     }
   }

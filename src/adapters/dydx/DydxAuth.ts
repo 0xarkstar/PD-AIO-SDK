@@ -97,7 +97,9 @@ export class DydxAuth implements IAuthStrategy {
 
       this.initialized = true;
     } catch (error) {
-      throw new Error(`Failed to initialize dYdX auth: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to initialize dYdX auth: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -156,14 +158,14 @@ export class DydxAuth implements IAuthStrategy {
     let hash = 0;
     for (let i = 0; i < input.length; i++) {
       const char = input.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     // Convert to hex-like string
     const hexChars = '0123456789abcdef';
     let result = '';
     for (let i = 0; i < 40; i++) {
-      hash = ((hash << 5) - hash) + i;
+      hash = (hash << 5) - hash + i;
       hash = hash & hash;
       result += hexChars[Math.abs(hash) % 16];
     }

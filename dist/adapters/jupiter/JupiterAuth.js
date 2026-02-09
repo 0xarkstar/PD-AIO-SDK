@@ -211,7 +211,9 @@ export class JupiterAuth {
         const { PublicKey } = await import('@solana/web3.js');
         const tokenMintPubkey = new PublicKey(tokenMint);
         // Get associated token account
-        const tokenAccounts = await this.connection.getTokenAccountsByOwner(this.publicKey, { mint: tokenMintPubkey });
+        const tokenAccounts = await this.connection.getTokenAccountsByOwner(this.publicKey, {
+            mint: tokenMintPubkey,
+        });
         if (tokenAccounts.value.length === 0) {
             return 0;
         }
@@ -264,6 +266,7 @@ export class JupiterAuth {
         if (/^[1-9A-HJ-NP-Za-km-z]+$/.test(key)) {
             try {
                 // Use bs58 for base58 decoding
+                // eslint-disable-next-line @typescript-eslint/no-require-imports
                 const bs58 = require('bs58');
                 return bs58.decode(key);
             }

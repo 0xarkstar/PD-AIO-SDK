@@ -324,11 +324,7 @@ export class DydxAdapter extends BaseAdapter {
         queryParams.createdBeforeOrAtHeight = undefined; // dYdX uses block height, not timestamp directly
       }
 
-      const url = buildUrl(
-        this.apiUrl,
-        '/trades',
-        { market: exchangeSymbol, ...queryParams }
-      );
+      const url = buildUrl(this.apiUrl, '/trades', { market: exchangeSymbol, ...queryParams });
 
       const response = await this.request<DydxTradesResponse>('GET', url);
 
@@ -395,11 +391,10 @@ export class DydxAdapter extends BaseAdapter {
         queryParams.effectiveBeforeOrAt = new Date(since).toISOString();
       }
 
-      const url = buildUrl(
-        this.apiUrl,
-        '/historicalFunding',
-        { market: exchangeSymbol, ...queryParams }
-      );
+      const url = buildUrl(this.apiUrl, '/historicalFunding', {
+        market: exchangeSymbol,
+        ...queryParams,
+      });
 
       const response = await this.request<DydxHistoricalFundingResponse>('GET', url);
 
@@ -426,7 +421,9 @@ export class DydxAdapter extends BaseAdapter {
       const now = Date.now();
       const defaultDuration = getDefaultOHLCVDuration(timeframe);
       const fromISO = new Date(params?.since ?? now - defaultDuration).toISOString();
-      const toISO = params?.until ? new Date(params.until).toISOString() : new Date(now).toISOString();
+      const toISO = params?.until
+        ? new Date(params.until).toISOString()
+        : new Date(now).toISOString();
 
       const queryParams: Record<string, string | number | undefined> = {
         resolution,
@@ -435,11 +432,7 @@ export class DydxAdapter extends BaseAdapter {
         limit: params?.limit ?? 100,
       };
 
-      const url = buildUrl(
-        this.apiUrl,
-        '/candles',
-        { market: exchangeSymbol, ...queryParams }
-      );
+      const url = buildUrl(this.apiUrl, '/candles', { market: exchangeSymbol, ...queryParams });
 
       const response = await this.request<DydxCandlesResponse>('GET', url);
 
@@ -479,8 +472,8 @@ export class DydxAdapter extends BaseAdapter {
 
       throw new Error(
         'Trading operations require the official @dydxprotocol/v4-client-js SDK. ' +
-        'This adapter provides read-only access to the Indexer API. ' +
-        'Please integrate the official SDK for order placement.'
+          'This adapter provides read-only access to the Indexer API. ' +
+          'Please integrate the official SDK for order placement.'
       );
     } catch (error) {
       throw mapDydxError(error);
@@ -500,7 +493,7 @@ export class DydxAdapter extends BaseAdapter {
       // Same note as createOrder - requires official SDK for actual cancellation
       throw new Error(
         'Trading operations require the official @dydxprotocol/v4-client-js SDK. ' +
-        'This adapter provides read-only access to the Indexer API.'
+          'This adapter provides read-only access to the Indexer API.'
       );
     } catch (error) {
       throw mapDydxError(error);
@@ -519,7 +512,7 @@ export class DydxAdapter extends BaseAdapter {
     try {
       throw new Error(
         'Trading operations require the official @dydxprotocol/v4-client-js SDK. ' +
-        'This adapter provides read-only access to the Indexer API.'
+          'This adapter provides read-only access to the Indexer API.'
       );
     } catch (error) {
       throw mapDydxError(error);
@@ -595,7 +588,9 @@ export class DydxAdapter extends BaseAdapter {
   async setLeverage(_symbol: string, _leverage: number): Promise<void> {
     // dYdX v4 uses cross-margin and doesn't support per-symbol leverage setting
     this.debug('setLeverage: dYdX v4 uses cross-margin mode without per-symbol leverage');
-    throw new Error('dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity.');
+    throw new Error(
+      'dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity.'
+    );
   }
 
   // ===========================================================================
@@ -739,37 +734,49 @@ export class DydxAdapter extends BaseAdapter {
 
     // WebSocket implementation would go here
     // For now, we provide a polling fallback
-    throw new Error('WebSocket streams require additional implementation. Use fetchOrderBook for polling.');
+    throw new Error(
+      'WebSocket streams require additional implementation. Use fetchOrderBook for polling.'
+    );
     yield {} as OrderBook; // Type system requirement
   }
 
   async *watchTrades(_symbol: string): AsyncGenerator<Trade> {
     this.ensureInitialized();
-    throw new Error('WebSocket streams require additional implementation. Use fetchTrades for polling.');
+    throw new Error(
+      'WebSocket streams require additional implementation. Use fetchTrades for polling.'
+    );
     yield {} as Trade;
   }
 
   async *watchTicker(_symbol: string): AsyncGenerator<Ticker> {
     this.ensureInitialized();
-    throw new Error('WebSocket streams require additional implementation. Use fetchTicker for polling.');
+    throw new Error(
+      'WebSocket streams require additional implementation. Use fetchTicker for polling.'
+    );
     yield {} as Ticker;
   }
 
   async *watchPositions(): AsyncGenerator<Position[]> {
     this.ensureInitialized();
-    throw new Error('WebSocket streams require additional implementation. Use fetchPositions for polling.');
+    throw new Error(
+      'WebSocket streams require additional implementation. Use fetchPositions for polling.'
+    );
     yield [] as Position[];
   }
 
   async *watchOrders(): AsyncGenerator<Order[]> {
     this.ensureInitialized();
-    throw new Error('WebSocket streams require additional implementation. Use fetchOpenOrders for polling.');
+    throw new Error(
+      'WebSocket streams require additional implementation. Use fetchOpenOrders for polling.'
+    );
     yield [] as Order[];
   }
 
   async *watchBalance(): AsyncGenerator<Balance[]> {
     this.ensureInitialized();
-    throw new Error('WebSocket streams require additional implementation. Use fetchBalance for polling.');
+    throw new Error(
+      'WebSocket streams require additional implementation. Use fetchBalance for polling.'
+    );
     yield [] as Balance[];
   }
 

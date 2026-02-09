@@ -65,11 +65,7 @@ export function MetricsTrackerMixin<T extends Constructor<IMetricsMixinBase>>(Ba
      * Update per-endpoint metrics
      * @internal
      */
-    updateEndpointMetrics(
-      endpointKey: string,
-      latency: number,
-      isError: boolean
-    ): void {
+    updateEndpointMetrics(endpointKey: string, latency: number, isError: boolean): void {
       let stats = this.metrics.endpointStats.get(endpointKey);
 
       if (!stats) {

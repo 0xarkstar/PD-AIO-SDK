@@ -40,7 +40,14 @@ export function mapDriftError(error: unknown): PerpDEXError {
           case 'INSUFFICIENT_MARGIN':
             return new InsufficientMarginError(error.message, code, 'drift', error);
           case 'INSUFFICIENT_BALANCE':
-            return new InsufficientBalanceError(error.message, code, 'drift', undefined, undefined, error);
+            return new InsufficientBalanceError(
+              error.message,
+              code,
+              'drift',
+              undefined,
+              undefined,
+              error
+            );
           case 'POSITION_NOT_FOUND':
             return new PositionNotFoundError(error.message, code, 'drift', error);
           case 'ORDER_NOT_FOUND':
@@ -105,12 +112,7 @@ export function mapDriftError(error: unknown): PerpDEXError {
     }
 
     if (message.includes('account not found') || message.includes('account does not exist')) {
-      return new PerpDEXError(
-        'Account not found on chain',
-        'ACCOUNT_NOT_FOUND',
-        'drift',
-        error
-      );
+      return new PerpDEXError('Account not found on chain', 'ACCOUNT_NOT_FOUND', 'drift', error);
     }
 
     // RPC errors
@@ -128,12 +130,7 @@ export function mapDriftError(error: unknown): PerpDEXError {
     }
 
     if (message.includes('timeout') || message.includes('timed out')) {
-      return new ExchangeUnavailableError(
-        'Request timeout',
-        'TIMEOUT',
-        'drift',
-        error
-      );
+      return new ExchangeUnavailableError('Request timeout', 'TIMEOUT', 'drift', error);
     }
 
     // Drift-specific errors
@@ -175,12 +172,7 @@ export function mapDriftError(error: unknown): PerpDEXError {
   }
 
   // Default to generic exchange error
-  return new ExchangeUnavailableError(
-    'Unknown exchange error',
-    'UNKNOWN_ERROR',
-    'drift',
-    error
-  );
+  return new ExchangeUnavailableError('Unknown exchange error', 'UNKNOWN_ERROR', 'drift', error);
 }
 
 /**
@@ -236,4 +228,4 @@ export const DriftErrorCodes = {
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
 } as const;
 
-export type DriftErrorCode = typeof DriftErrorCodes[keyof typeof DriftErrorCodes];
+export type DriftErrorCode = (typeof DriftErrorCodes)[keyof typeof DriftErrorCodes];

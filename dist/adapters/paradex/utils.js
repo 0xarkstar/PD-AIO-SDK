@@ -1,7 +1,7 @@
 /**
  * Paradex utility functions for data normalization
  */
-import { PARADEX_ORDER_TYPES, PARADEX_ORDER_SIDES, PARADEX_TIME_IN_FORCE, } from './constants.js';
+import { PARADEX_ORDER_TYPES, PARADEX_ORDER_SIDES, PARADEX_TIME_IN_FORCE } from './constants.js';
 /**
  * Normalize Paradex symbol to unified format
  *
@@ -31,8 +31,8 @@ export function toParadexSymbol(symbol) {
     const parts = symbol.split(':');
     if (parts.length === 2) {
         // Perpetual format
-        const [pair = ""] = parts;
-        const [base = "", quote = ""] = pair.split('/');
+        const [pair = ''] = parts;
+        const [base = '', quote = ''] = pair.split('/');
         return `${base}-${quote}-PERP`;
     }
     // Spot format
@@ -76,9 +76,7 @@ export function normalizeOrder(paradexOrder) {
         price: paradexOrder.price ? parseFloat(paradexOrder.price) : undefined,
         filled: parseFloat(paradexOrder.filled_size),
         remaining: parseFloat(paradexOrder.size) - parseFloat(paradexOrder.filled_size),
-        averagePrice: paradexOrder.avg_fill_price
-            ? parseFloat(paradexOrder.avg_fill_price)
-            : undefined,
+        averagePrice: paradexOrder.avg_fill_price ? parseFloat(paradexOrder.avg_fill_price) : undefined,
         status: normalizeOrderStatus(paradexOrder.status),
         timeInForce: normalizeTimeInForce(paradexOrder.time_in_force),
         postOnly: paradexOrder.post_only,
@@ -134,14 +132,8 @@ export function normalizeOrderBook(paradexOrderBook) {
     return {
         symbol: normalizeSymbol(paradexOrderBook.market),
         exchange: 'paradex',
-        bids: paradexOrderBook.bids.map(([price, size]) => [
-            parseFloat(price),
-            parseFloat(size),
-        ]),
-        asks: paradexOrderBook.asks.map(([price, size]) => [
-            parseFloat(price),
-            parseFloat(size),
-        ]),
+        bids: paradexOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+        asks: paradexOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
         timestamp: paradexOrderBook.timestamp,
     };
 }

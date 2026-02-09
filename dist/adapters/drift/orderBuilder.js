@@ -184,7 +184,7 @@ export class DriftOrderBuilder {
         // Calculate notional value
         const notional = amount * price;
         // Use provided leverage or calculate from initial margin ratio
-        const effectiveLeverage = leverage || (1 / marketConfig.initialMarginRatio);
+        const effectiveLeverage = leverage || 1 / marketConfig.initialMarginRatio;
         const actualLeverage = Math.min(effectiveLeverage, marketConfig.maxLeverage);
         // Calculate margin
         const margin = notional / actualLeverage;

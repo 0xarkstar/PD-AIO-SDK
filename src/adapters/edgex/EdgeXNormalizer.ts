@@ -18,12 +18,7 @@ import type {
   OrderStatus,
   TimeInForce,
 } from '../../types/common.js';
-import type {
-  EdgeXOrder,
-  EdgeXPosition,
-  EdgeXBalance,
-  EdgeXTrade,
-} from './types.js';
+import type { EdgeXOrder, EdgeXPosition, EdgeXBalance, EdgeXTrade } from './types.js';
 
 export class EdgeXNormalizer {
   // Cache for symbol -> contractId mapping
@@ -202,9 +197,7 @@ export class EdgeXNormalizer {
       price: edgexOrder.price ? parseFloat(edgexOrder.price) : undefined,
       filled: parseFloat(edgexOrder.filled_size),
       remaining: parseFloat(edgexOrder.size) - parseFloat(edgexOrder.filled_size),
-      averagePrice: edgexOrder.average_price
-        ? parseFloat(edgexOrder.average_price)
-        : undefined,
+      averagePrice: edgexOrder.average_price ? parseFloat(edgexOrder.average_price) : undefined,
       status: this.normalizeOrderStatus(edgexOrder.status),
       timeInForce: this.normalizeTimeInForce(edgexOrder.time_in_force),
       postOnly: edgexOrder.post_only,
@@ -334,7 +327,10 @@ export class EdgeXNormalizer {
     return {
       symbol,
       fundingRate: parseFloat(fundingData.fundingRate || '0'),
-      fundingTimestamp: parseInt(fundingData.fundingTime || fundingData.fundingTimestamp || '0', 10),
+      fundingTimestamp: parseInt(
+        fundingData.fundingTime || fundingData.fundingTimestamp || '0',
+        10
+      ),
       markPrice: parseFloat(fundingData.markPrice || '0'),
       indexPrice: parseFloat(fundingData.indexPrice || '0'),
       nextFundingTimestamp: parseInt(fundingData.nextFundingTime || '0', 10),

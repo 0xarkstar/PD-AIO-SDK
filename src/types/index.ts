@@ -79,11 +79,7 @@ export type {
   WebSocketHealth,
 } from './health.js';
 
-export {
-  determineHealthStatus,
-  isHealthy,
-  isCriticallyUnhealthy,
-} from './health.js';
+export { determineHealthStatus, isHealthy, isCriticallyUnhealthy } from './health.js';
 
 // Errors
 export {

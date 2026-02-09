@@ -6,6 +6,7 @@
  *
  * @see https://docs.paradex.trade/api/errors
  */
+import { includesValue } from '../../utils/type-guards.js';
 import { PerpDEXError, InvalidOrderError, InsufficientMarginError, OrderNotFoundError, InvalidSignatureError, RateLimitError, ExchangeUnavailableError, } from '../../types/errors.js';
 /**
  * Paradex Client Error Codes
@@ -48,7 +49,7 @@ export function mapParadexError(errorCode, message, originalError) {
         case PARADEX_RATE_LIMIT_ERROR:
             return new RateLimitError(message, errorCode, 'paradex', undefined, originalError);
         default:
-            if (Object.values(PARADEX_SERVER_ERRORS).includes(errorCode)) {
+            if (includesValue(Object.values(PARADEX_SERVER_ERRORS), errorCode)) {
                 return new ExchangeUnavailableError(message, errorCode, 'paradex', originalError);
             }
             return new PerpDEXError(message, errorCode, 'paradex', originalError);
@@ -84,7 +85,7 @@ export function mapError(error) {
  * Check if error is retryable
  */
 export function isRetryableError(errorCode) {
-    return (Object.values(PARADEX_SERVER_ERRORS).includes(errorCode) ||
+    return (includesValue(Object.values(PARADEX_SERVER_ERRORS), errorCode) ||
         errorCode === PARADEX_RATE_LIMIT_ERROR);
 }
 //# sourceMappingURL=error-codes.js.map

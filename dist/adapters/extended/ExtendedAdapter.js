@@ -44,7 +44,7 @@ import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { EXTENDED_API_URLS, EXTENDED_ENDPOINTS, EXTENDED_RATE_LIMITS, EXTENDED_ENDPOINT_WEIGHTS, EXTENDED_WS_CONFIG, EXTENDED_DEFAULTS, } from './constants.js';
 import { ExtendedNormalizer } from './ExtendedNormalizer.js';
 import { ExtendedStarkNetClient } from './ExtendedStarkNetClient.js';
-import { convertOrderRequest, mapError, validateOrderRequest, validateLeverage, } from './utils.js';
+import { convertOrderRequest, mapError, validateOrderRequest, validateLeverage } from './utils.js';
 import { ExtendedWebSocketWrapper } from './ExtendedWebSocketWrapper.js';
 /**
  * Extended exchange adapter

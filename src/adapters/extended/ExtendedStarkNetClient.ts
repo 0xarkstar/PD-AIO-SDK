@@ -66,7 +66,10 @@ export class ExtendedStarkNetClient {
       this.account = new Account(accountOptions);
       this.logger.info('StarkNet account initialized', { address: formattedAddress });
     } catch (error) {
-      this.logger.error('Failed to initialize StarkNet account', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to initialize StarkNet account',
+        error instanceof Error ? error : undefined
+      );
       throw mapStarkNetError(error);
     }
   }
@@ -99,7 +102,8 @@ export class ExtendedStarkNetClient {
   }
 
   // StarkNet ETH contract address (same on mainnet and testnet)
-  private static readonly ETH_CONTRACT_ADDRESS = '0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7';
+  private static readonly ETH_CONTRACT_ADDRESS =
+    '0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7';
 
   /**
    * Get account state from StarkNet
@@ -129,7 +133,9 @@ export class ExtendedStarkNetClient {
           }
         }
       } catch (balanceError) {
-        this.logger.warn('Failed to fetch balance, using 0', { error: balanceError instanceof Error ? balanceError.message : String(balanceError) });
+        this.logger.warn('Failed to fetch balance, using 0', {
+          error: balanceError instanceof Error ? balanceError.message : String(balanceError),
+        });
       }
 
       // Get account nonce
@@ -155,7 +161,11 @@ export class ExtendedStarkNetClient {
 
       // StarkNet.js v8+ returns GetTransactionReceiptResponse with helper methods
       // Use isSuccess()/isReverted() to determine status and access typed properties
-      const executionStatus = receipt.isSuccess() ? 'SUCCEEDED' : receipt.isReverted() ? 'REVERTED' : undefined;
+      const executionStatus = receipt.isSuccess()
+        ? 'SUCCEEDED'
+        : receipt.isReverted()
+          ? 'REVERTED'
+          : undefined;
       const txType = receipt.isError() ? 'INVOKE' : receipt.type;
       const blockNumber = receipt.isError() ? undefined : receipt.block_number;
 
@@ -167,7 +177,9 @@ export class ExtendedStarkNetClient {
         timestamp: Date.now(), // StarkNet doesn't provide timestamp in receipt
       };
     } catch (error) {
-      this.logger.error('Failed to get transaction', error instanceof Error ? error : undefined, { txHash });
+      this.logger.error('Failed to get transaction', error instanceof Error ? error : undefined, {
+        txHash,
+      });
       throw mapStarkNetError(error);
     }
   }
@@ -175,9 +187,7 @@ export class ExtendedStarkNetClient {
   /**
    * Map StarkNet transaction status to our format
    */
-  private mapTransactionStatus(
-    status: string | undefined
-  ): 'pending' | 'accepted' | 'rejected' {
+  private mapTransactionStatus(status: string | undefined): 'pending' | 'accepted' | 'rejected' {
     switch (status) {
       case 'SUCCEEDED':
         return 'accepted';
@@ -208,7 +218,7 @@ export class ExtendedStarkNetClient {
 
         // Wait before next check
         await new Promise((resolve) => setTimeout(resolve, 5000)); // 5 seconds
-      } catch (error) {
+      } catch {
         // Transaction might not be available yet
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
@@ -311,13 +321,14 @@ export class ExtendedStarkNetClient {
       // 2. Correct entrypoint name
       // 3. Proper calldata formatting
 
-      const result = await this.callContract(contractAddress, 'get_positions', [
-        targetAddress,
-      ]);
+      const result = await this.callContract(contractAddress, 'get_positions', [targetAddress]);
 
       return result;
     } catch (error) {
-      this.logger.error('Failed to get positions from contract', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to get positions from contract',
+        error instanceof Error ? error : undefined
+      );
       throw mapStarkNetError(error);
     }
   }
@@ -326,10 +337,7 @@ export class ExtendedStarkNetClient {
    * Submit order to StarkNet contract
    * (Placeholder - actual implementation depends on Extended's contract ABI)
    */
-  async submitOrderToContract(
-    contractAddress: string,
-    orderData: any
-  ): Promise<string> {
+  async submitOrderToContract(contractAddress: string, orderData: any): Promise<string> {
     if (!this.account) {
       throw new Error('Account not initialized. Cannot submit orders.');
     }
@@ -348,7 +356,10 @@ export class ExtendedStarkNetClient {
 
       return txHash;
     } catch (error) {
-      this.logger.error('Failed to submit order to contract', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to submit order to contract',
+        error instanceof Error ? error : undefined
+      );
       throw mapStarkNetError(error);
     }
   }
@@ -366,7 +377,9 @@ export class ExtendedStarkNetClient {
         classHash,
       };
     } catch (error) {
-      this.logger.error('Failed to get contract info', error instanceof Error ? error : undefined, { contractAddress });
+      this.logger.error('Failed to get contract info', error instanceof Error ? error : undefined, {
+        contractAddress,
+      });
       throw mapStarkNetError(error);
     }
   }
@@ -400,7 +413,10 @@ export class ExtendedStarkNetClient {
 
       return BigInt(feeEstimate.overall_fee.toString());
     } catch (error) {
-      this.logger.error('Failed to estimate fee', error instanceof Error ? error : undefined, { contractAddress, entrypoint });
+      this.logger.error('Failed to estimate fee', error instanceof Error ? error : undefined, {
+        contractAddress,
+        entrypoint,
+      });
       throw mapStarkNetError(error);
     }
   }

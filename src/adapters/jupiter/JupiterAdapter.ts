@@ -413,13 +413,13 @@ export class JupiterAdapter extends BaseAdapter {
           // Normalize to SDK Position type
           positions.push(this.normalizePosition(pubkey, positionData, markPrice, symbol));
         } catch (error) {
-          this.warn(`Failed to parse position ${pubkey}: ${error}`);
+          this.warn(`Failed to parse position ${pubkey}: ${String(error)}`);
         }
       }
 
       // Filter by symbols if specified
       if (symbols && symbols.length > 0) {
-        return positions.filter(p => symbols.includes(p.symbol));
+        return positions.filter((p) => symbols.includes(p.symbol));
       }
 
       return positions;
@@ -533,7 +533,7 @@ export class JupiterAdapter extends BaseAdapter {
     const validation = validateOrderParams({
       symbol: request.symbol,
       side: request.side === 'buy' ? 'long' : 'short',
-      sizeUsd: request.amount * (request.price || await this.getCurrentPrice(request.symbol)),
+      sizeUsd: request.amount * (request.price || (await this.getCurrentPrice(request.symbol))),
       leverage,
     });
 
@@ -543,7 +543,7 @@ export class JupiterAdapter extends BaseAdapter {
 
     try {
       // Get current price
-      const currentPrice = request.price || await this.getCurrentPrice(request.symbol);
+      const currentPrice = request.price || (await this.getCurrentPrice(request.symbol));
       const sizeUsd = request.amount * currentPrice;
       const collateralUsd = sizeUsd / leverage;
 
@@ -556,7 +556,9 @@ export class JupiterAdapter extends BaseAdapter {
       );
 
       // Get owner's USDC token account
-      accounts.ownerTokenAccount = await this.auth.getAssociatedTokenAddress(JUPITER_TOKEN_MINTS.USDC);
+      accounts.ownerTokenAccount = await this.auth.getAssociatedTokenAddress(
+        JUPITER_TOKEN_MINTS.USDC
+      );
 
       // Build open position instruction
       const instruction = await this.instructionBuilder.buildOpenPositionInstruction(
@@ -632,7 +634,10 @@ export class JupiterAdapter extends BaseAdapter {
   /**
    * Close a position
    */
-  async closePosition(positionId: string, params?: { sizeUsd?: number; priceLimit?: number }): Promise<Order> {
+  async closePosition(
+    positionId: string,
+    params?: { sizeUsd?: number; priceLimit?: number }
+  ): Promise<Order> {
     this.ensureInitialized();
 
     if (!this.auth?.canSign()) {
@@ -651,7 +656,7 @@ export class JupiterAdapter extends BaseAdapter {
     try {
       // Fetch position to get details
       const positions = await this.fetchPositions();
-      const position = positions.find(p => p.info?.id === positionId);
+      const position = positions.find((p) => p.info?.id === positionId);
 
       if (!position) {
         throw new Error(`Position not found: ${positionId}`);
@@ -664,7 +669,9 @@ export class JupiterAdapter extends BaseAdapter {
         position.symbol,
         side
       );
-      accounts.ownerTokenAccount = await this.auth.getAssociatedTokenAddress(JUPITER_TOKEN_MINTS.USDC);
+      accounts.ownerTokenAccount = await this.auth.getAssociatedTokenAddress(
+        JUPITER_TOKEN_MINTS.USDC
+      );
 
       // Build close position instruction
       const instruction = await this.instructionBuilder.buildClosePositionInstruction(
@@ -792,7 +799,7 @@ export class JupiterAdapter extends BaseAdapter {
    */
   private async fetchPrices(tokenMints: string[]): Promise<Record<string, JupiterPriceData>> {
     // Map token symbols to mints if needed
-    const mints = tokenMints.map(t => {
+    const mints = tokenMints.map((t) => {
       if (t in JUPITER_TOKEN_MINTS) {
         return JUPITER_TOKEN_MINTS[t as keyof typeof JUPITER_TOKEN_MINTS];
       }
@@ -820,11 +827,11 @@ export class JupiterAdapter extends BaseAdapter {
     let filtered = markets;
 
     if (params.active !== undefined) {
-      filtered = filtered.filter(m => m.active === params.active);
+      filtered = filtered.filter((m) => m.active === params.active);
     }
 
     if (params.ids && params.ids.length > 0) {
-      filtered = filtered.filter(m => params.ids!.includes(m.id));
+      filtered = filtered.filter((m) => params.ids!.includes(m.id));
     }
 
     return filtered;
@@ -982,12 +989,7 @@ export class JupiterAdapter extends BaseAdapter {
     const leverage = sizeUsd / collateralUsd;
 
     // Calculate liquidation price
-    const liquidationPrice = calculateLiquidationPrice(
-      side,
-      entryPrice,
-      collateralUsd,
-      sizeUsd
-    );
+    const liquidationPrice = calculateLiquidationPrice(side, entryPrice, collateralUsd, sizeUsd);
 
     return {
       symbol,

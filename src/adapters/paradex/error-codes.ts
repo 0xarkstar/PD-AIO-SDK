@@ -7,6 +7,7 @@
  * @see https://docs.paradex.trade/api/errors
  */
 
+import { includesValue } from '../../utils/type-guards.js';
 import {
   PerpDEXError,
   InvalidOrderError,
@@ -70,7 +71,7 @@ export function mapParadexError(
       return new RateLimitError(message, errorCode, 'paradex', undefined, originalError);
 
     default:
-      if (Object.values(PARADEX_SERVER_ERRORS).includes(errorCode as any)) {
+      if (includesValue(Object.values(PARADEX_SERVER_ERRORS), errorCode)) {
         return new ExchangeUnavailableError(message, errorCode, 'paradex', originalError);
       }
       return new PerpDEXError(message, errorCode, 'paradex', originalError);
@@ -110,7 +111,7 @@ export function mapError(error: unknown): PerpDEXError {
  */
 export function isRetryableError(errorCode: string): boolean {
   return (
-    Object.values(PARADEX_SERVER_ERRORS).includes(errorCode as any) ||
+    includesValue(Object.values(PARADEX_SERVER_ERRORS), errorCode) ||
     errorCode === PARADEX_RATE_LIMIT_ERROR
   );
 }

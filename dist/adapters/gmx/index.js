@@ -8,13 +8,13 @@
 // Main adapter
 export { GmxAdapter } from './GmxAdapter.js';
 // Auth
-export { GmxAuth, isValidEthereumAddress, isValidEthereumPrivateKey } from './GmxAuth.js';
+export { GmxAuth, isValidEthereumAddress, isValidEthereumPrivateKey, } from './GmxAuth.js';
 // Contracts
 export { GmxContracts } from './GmxContracts.js';
 // Subgraph
 export { GmxSubgraph, } from './GmxSubgraph.js';
 // Order Builder
-export { GmxOrderBuilder } from './GmxOrderBuilder.js';
+export { GmxOrderBuilder, } from './GmxOrderBuilder.js';
 // Normalizer
 export { GmxNormalizer } from './GmxNormalizer.js';
 // Constants

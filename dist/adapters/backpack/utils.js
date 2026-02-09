@@ -4,7 +4,7 @@
  * Helper functions for order conversion and error mapping.
  * Normalization functions have been moved to BackpackNormalizer.ts
  */
-import { BACKPACK_ORDER_TYPES, BACKPACK_ORDER_SIDES, BACKPACK_TIME_IN_FORCE, } from './constants.js';
+import { BACKPACK_ORDER_TYPES, BACKPACK_ORDER_SIDES, BACKPACK_TIME_IN_FORCE } from './constants.js';
 /**
  * Convert unified order type to Backpack format
  */

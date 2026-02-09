@@ -36,14 +36,14 @@ export default {
   ],
   coverageThreshold: {
     // ==========================================================================
-    // Global Thresholds - Current: ~71%, Target: 80%
-    // Roadmap: 51% -> 65% -> 75% -> 80%
+    // Global Thresholds - Current: ~78%, Target: 80%
+    // Roadmap: 51% -> 65% -> 72% -> 80%
     // ==========================================================================
     global: {
-      branches: 60,
-      functions: 70,
-      lines: 65,
-      statements: 65
+      branches: 65,
+      functions: 78,
+      lines: 72,
+      statements: 72
     },
 
     // ==========================================================================
@@ -97,43 +97,43 @@ export default {
     },
 
     // ==========================================================================
-    // Newer Adapters - Baseline thresholds (to be improved)
-    // These are set to current coverage levels, will be raised incrementally
+    // Newer Adapters - Per-file thresholds (Cycle 7, 2026-02-09)
+    // Note: **/*.ts globs apply per-file, so thresholds must fit weakest file
     // ==========================================================================
 
-    // dydx: Current ~46% overall (DydxAdapter at ~47%)
+    // dydx: DydxAdapter.ts is weakest (63% stmts, 58% branch, 83% funcs)
     './src/adapters/dydx/**/*.ts': {
-      branches: 30,
+      branches: 55,
+      functions: 80,
+      lines: 60,
+      statements: 60
+    },
+
+    // drift: DriftAdapter.ts at 11%, DriftClientWrapper at 56% — keep low
+    './src/adapters/drift/**/*.ts': {
+      branches: 10,
+      functions: 20,
+      lines: 10,
+      statements: 10
+    },
+
+    // gmx: GmxAdapter.ts at 33%, GmxAuth funcs at 83% — keep conservative
+    './src/adapters/gmx/**/*.ts': {
+      branches: 20,
+      functions: 30,
+      lines: 30,
+      statements: 30
+    },
+
+    // jupiter: JupiterAdapter.ts at 56%, solana.ts at 46% — keep conservative
+    './src/adapters/jupiter/**/*.ts': {
+      branches: 35,
       functions: 40,
       lines: 45,
       statements: 45
     },
 
-    // drift: Current ~32% overall (some files at 4-11%)
-    './src/adapters/drift/**/*.ts': {
-      branches: 5,
-      functions: 5,
-      lines: 4,
-      statements: 4
-    },
-
-    // gmx: Current ~29% overall (OrderBuilder has 0% functions)
-    './src/adapters/gmx/**/*.ts': {
-      branches: 0,
-      functions: 0,
-      lines: 0,
-      statements: 0
-    },
-
-    // jupiter: Current ~37% overall (some files at 5-18%)
-    './src/adapters/jupiter/**/*.ts': {
-      branches: 0,
-      functions: 5,
-      lines: 5,
-      statements: 5
-    },
-
-    // extended: Current ~50% overall (Adapter at 21%, types at 0%)
+    // extended: types.ts at 0%, WebSocketWrapper at 50%, Adapter branches 47%
     './src/adapters/extended/**/*.ts': {
       branches: 0,
       functions: 0,

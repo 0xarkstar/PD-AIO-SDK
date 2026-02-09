@@ -40,7 +40,14 @@ export function mapGmxError(error: unknown): PerpDEXError {
           case 'INSUFFICIENT_MARGIN':
             return new InsufficientMarginError(error.message, code, 'gmx', error);
           case 'INSUFFICIENT_BALANCE':
-            return new InsufficientBalanceError(error.message, code, 'gmx', undefined, undefined, error);
+            return new InsufficientBalanceError(
+              error.message,
+              code,
+              'gmx',
+              undefined,
+              undefined,
+              error
+            );
           case 'POSITION_NOT_FOUND':
             return new PositionNotFoundError(error.message, code, 'gmx', error);
           case 'ORDER_NOT_FOUND':
@@ -94,11 +101,20 @@ export function mapGmxError(error: unknown): PerpDEXError {
     }
 
     // RPC/API errors
-    if (message.includes('429') || message.includes('rate limit') || message.includes('too many requests')) {
+    if (
+      message.includes('429') ||
+      message.includes('rate limit') ||
+      message.includes('too many requests')
+    ) {
       return new RateLimitError('Rate limit exceeded', 'RATE_LIMIT', 'gmx', undefined, error);
     }
 
-    if (message.includes('503') || message.includes('502') || message.includes('504') || message.includes('service unavailable')) {
+    if (
+      message.includes('503') ||
+      message.includes('502') ||
+      message.includes('504') ||
+      message.includes('service unavailable')
+    ) {
       return new ExchangeUnavailableError(
         'GMX API temporarily unavailable',
         'API_UNAVAILABLE',
@@ -108,12 +124,7 @@ export function mapGmxError(error: unknown): PerpDEXError {
     }
 
     if (message.includes('timeout') || message.includes('timed out')) {
-      return new ExchangeUnavailableError(
-        'Request timeout',
-        'TIMEOUT',
-        'gmx',
-        error
-      );
+      return new ExchangeUnavailableError('Request timeout', 'TIMEOUT', 'gmx', error);
     }
 
     if (message.includes('network') || message.includes('connection')) {
@@ -127,12 +138,7 @@ export function mapGmxError(error: unknown): PerpDEXError {
 
     // Subgraph/GraphQL errors
     if (message.includes('graphql') || message.includes('query')) {
-      return new ExchangeUnavailableError(
-        'Subgraph query error',
-        'SUBGRAPH_ERROR',
-        'gmx',
-        error
-      );
+      return new ExchangeUnavailableError('Subgraph query error', 'SUBGRAPH_ERROR', 'gmx', error);
     }
 
     // Order execution errors
@@ -158,12 +164,7 @@ export function mapGmxError(error: unknown): PerpDEXError {
 
     // Market specific errors
     if (message.includes('market not found') || message.includes('invalid market')) {
-      return new InvalidOrderError(
-        'Invalid or unsupported market',
-        'INVALID_MARKET',
-        'gmx',
-        error
-      );
+      return new InvalidOrderError('Invalid or unsupported market', 'INVALID_MARKET', 'gmx', error);
     }
 
     if (message.includes('disabled') || message.includes('paused')) {
@@ -196,12 +197,7 @@ export function mapGmxError(error: unknown): PerpDEXError {
   }
 
   // Default to generic exchange error
-  return new ExchangeUnavailableError(
-    'Unknown exchange error',
-    'UNKNOWN_ERROR',
-    'gmx',
-    error
-  );
+  return new ExchangeUnavailableError('Unknown exchange error', 'UNKNOWN_ERROR', 'gmx', error);
 }
 
 /**
@@ -260,4 +256,4 @@ export const GmxErrorCodes = {
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
 } as const;
 
-export type GmxErrorCode = typeof GmxErrorCodes[keyof typeof GmxErrorCodes];
+export type GmxErrorCode = (typeof GmxErrorCodes)[keyof typeof GmxErrorCodes];

@@ -297,10 +297,12 @@ export class GRVTSDKWrapper {
      * Extract session cookie from axios response
      */
     extractSessionCookieFromResponse(response) {
-        if (!response)
+        if (!response || typeof response !== 'object')
             return;
         // Check if it's an axios response with headers
-        const headers = response.headers || response.config?.headers;
+        const resp = response;
+        const config = resp.config;
+        const headers = resp.headers || config?.headers;
         if (!headers)
             return;
         // Look for Set-Cookie header

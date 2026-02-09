@@ -194,8 +194,12 @@ export class GRVTNormalizer {
             timeInForce: this.mapSDKTimeInForce(grvtOrder.time_in_force || ''),
             reduceOnly: grvtOrder.reduce_only || false,
             postOnly: grvtOrder.post_only || false,
-            timestamp: grvtOrder.metadata?.create_time ? parseInt(grvtOrder.metadata.create_time) : Date.now(),
-            lastUpdateTimestamp: grvtOrder.state?.update_time ? parseInt(grvtOrder.state.update_time) : undefined,
+            timestamp: grvtOrder.metadata?.create_time
+                ? parseInt(grvtOrder.metadata.create_time)
+                : Date.now(),
+            lastUpdateTimestamp: grvtOrder.state?.update_time
+                ? parseInt(grvtOrder.state.update_time)
+                : undefined,
             info: grvtOrder,
         };
     }

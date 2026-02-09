@@ -8,7 +8,7 @@
 // Main adapter
 export { JupiterAdapter } from './JupiterAdapter.js';
 // Authentication
-export { JupiterAuth, isValidSolanaAddress, isValidSolanaPrivateKey } from './JupiterAuth.js';
+export { JupiterAuth, isValidSolanaAddress, isValidSolanaPrivateKey, } from './JupiterAuth.js';
 // Solana Client
 export { SolanaClient, createSolanaClient, } from './solana.js';
 // Instruction Builder

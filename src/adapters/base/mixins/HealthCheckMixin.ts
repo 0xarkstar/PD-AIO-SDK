@@ -185,12 +185,14 @@ export function HealthCheckMixin<T extends Constructor<IHealthCheckMixinBase>>(B
      * Get current rate limit status
      * @internal
      */
-    getRateLimitStatus(): {
-      remaining: number;
-      limit: number;
-      resetAt: number;
-      percentUsed: number;
-    } | undefined {
+    getRateLimitStatus():
+      | {
+          remaining: number;
+          limit: number;
+          resetAt: number;
+          percentUsed: number;
+        }
+      | undefined {
       // Subclasses should override if they track rate limits
       return undefined;
     }

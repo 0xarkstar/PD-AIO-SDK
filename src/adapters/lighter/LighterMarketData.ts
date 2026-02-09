@@ -24,15 +24,17 @@ export interface MarketDataDeps {
   normalizer: LighterNormalizer;
   marketIdCache: Map<string, number>;
   marketMetadataCache: Map<string, MarketCacheEntry>;
-  request: <T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: Record<string, unknown>) => Promise<T>;
+  request: <T>(
+    method: 'GET' | 'POST' | 'DELETE',
+    path: string,
+    body?: Record<string, unknown>
+  ) => Promise<T>;
 }
 
 /**
  * Fetch and parse markets, populating caches
  */
-export async function fetchMarketsData(
-  deps: MarketDataDeps
-): Promise<Market[]> {
+export async function fetchMarketsData(deps: MarketDataDeps): Promise<Market[]> {
   try {
     const response = await deps.request<{ code: number; order_book_details: any[] }>(
       'GET',
@@ -44,9 +46,7 @@ export async function fetchMarketsData(
     }
 
     // Filter for perp markets only
-    const perpMarkets = response.order_book_details.filter(
-      (m: any) => m.market_type === 'perp'
-    );
+    const perpMarkets = response.order_book_details.filter((m: any) => m.market_type === 'perp');
 
     // Cache market_id and metadata for each symbol
     for (const market of perpMarkets) {
@@ -70,10 +70,7 @@ export async function fetchMarketsData(
 /**
  * Fetch ticker for a specific symbol
  */
-export async function fetchTickerData(
-  deps: MarketDataDeps,
-  symbol: string
-): Promise<Ticker> {
+export async function fetchTickerData(deps: MarketDataDeps, symbol: string): Promise<Ticker> {
   try {
     const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
     const response = await deps.request<{ code: number; order_book_details: any[] }>(
@@ -131,14 +128,16 @@ export async function fetchOrderBookData(
     // Convert to LighterOrderBook format
     const orderBook: LighterOrderBook = {
       symbol: lighterSymbol,
-      bids: response.bids?.map((b: any) => [
-        parseFloat(b.price || '0'),
-        parseFloat(b.remaining_base_amount || b.size || '0')
-      ]) || [],
-      asks: response.asks?.map((a: any) => [
-        parseFloat(a.price || '0'),
-        parseFloat(a.remaining_base_amount || a.size || '0')
-      ]) || [],
+      bids:
+        response.bids?.map((b: any) => [
+          parseFloat(b.price || '0'),
+          parseFloat(b.remaining_base_amount || b.size || '0'),
+        ]) || [],
+      asks:
+        response.asks?.map((a: any) => [
+          parseFloat(a.price || '0'),
+          parseFloat(a.remaining_base_amount || a.size || '0'),
+        ]) || [],
       timestamp: Date.now(),
     };
 
@@ -193,7 +192,10 @@ export async function fetchFundingRateData(
 ): Promise<FundingRate> {
   try {
     const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
-    const response = await deps.request<LighterFundingRate>('GET', `/api/v1/funding-rates?symbol=${lighterSymbol}`);
+    const response = await deps.request<LighterFundingRate>(
+      'GET',
+      `/api/v1/funding-rates?symbol=${lighterSymbol}`
+    );
 
     return deps.normalizer.normalizeFundingRate(response);
   } catch (error) {

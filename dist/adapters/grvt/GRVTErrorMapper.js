@@ -6,6 +6,7 @@
  *
  * @see https://docs.grvt.io/developer-resources/api/errors
  */
+import { includesValue } from '../../utils/type-guards.js';
 import { PerpDEXError, InvalidOrderError, InsufficientMarginError, OrderNotFoundError, InvalidSignatureError, RateLimitError, ExchangeUnavailableError, ExpiredAuthError, InsufficientPermissionsError, } from '../../types/errors.js';
 /**
  * GRVT Client Error Codes (4xx)
@@ -86,7 +87,7 @@ export const GRVT_NETWORK_ERRORS = {
  * @returns true if client error
  */
 export function isClientError(errorCode) {
-    return Object.values(GRVT_CLIENT_ERRORS).includes(errorCode);
+    return includesValue(Object.values(GRVT_CLIENT_ERRORS), errorCode);
 }
 /**
  * Check if an error code indicates a server error (retryable)
@@ -95,7 +96,7 @@ export function isClientError(errorCode) {
  * @returns true if server error
  */
 export function isServerError(errorCode) {
-    return Object.values(GRVT_SERVER_ERRORS).includes(errorCode);
+    return includesValue(Object.values(GRVT_SERVER_ERRORS), errorCode);
 }
 /**
  * Check if an error code indicates a network error (retryable)
@@ -104,7 +105,7 @@ export function isServerError(errorCode) {
  * @returns true if network error
  */
 export function isNetworkError(errorCode) {
-    return Object.values(GRVT_NETWORK_ERRORS).includes(errorCode);
+    return includesValue(Object.values(GRVT_NETWORK_ERRORS), errorCode);
 }
 /**
  * Check if an error should be retried
@@ -113,9 +114,7 @@ export function isNetworkError(errorCode) {
  * @returns true if retryable
  */
 export function isRetryableError(errorCode) {
-    return (isServerError(errorCode) ||
-        isNetworkError(errorCode) ||
-        errorCode === GRVT_RATE_LIMIT_ERROR);
+    return (isServerError(errorCode) || isNetworkError(errorCode) || errorCode === GRVT_RATE_LIMIT_ERROR);
 }
 /**
  * Map GRVT error code and message to unified SDK error type
@@ -156,8 +155,7 @@ export function mapGRVTError(errorCode, message, originalError) {
         return new ExpiredAuthError(message, code, 'grvt', originalError);
     }
     // Permission Errors
-    if (code === GRVT_CLIENT_ERRORS.UNAUTHORIZED ||
-        code === GRVT_CLIENT_ERRORS.FORBIDDEN) {
+    if (code === GRVT_CLIENT_ERRORS.UNAUTHORIZED || code === GRVT_CLIENT_ERRORS.FORBIDDEN) {
         return new InsufficientPermissionsError(message, code, 'grvt', originalError);
     }
     // Insufficient Margin/Balance

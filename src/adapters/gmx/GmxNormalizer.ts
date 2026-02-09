@@ -98,7 +98,7 @@ export class GmxNormalizer {
    * Normalize multiple markets
    */
   normalizeMarkets(markets: GmxMarketInfo[], chain: 'arbitrum' | 'avalanche'): Market[] {
-    return markets.map(m => this.normalizeMarket(m, chain));
+    return markets.map((m) => this.normalizeMarket(m, chain));
   }
 
   /**
@@ -114,8 +114,8 @@ export class GmxNormalizer {
     const symbol = config?.symbol || gmxToUnified(marketKey as GMXMarketKey);
 
     const sizeInUsd = parseFloat(position.sizeInUsd) / GMX_PRECISION.USD;
-    const sizeInTokens = parseFloat(position.sizeInTokens) / (10 ** 18); // Assume 18 decimals
-    const collateral = parseFloat(position.collateralAmount) / (10 ** 18);
+    const sizeInTokens = parseFloat(position.sizeInTokens) / 10 ** 18; // Assume 18 decimals
+    const collateral = parseFloat(position.collateralAmount) / 10 ** 18;
     const side: 'long' | 'short' = position.isLong ? 'long' : 'short';
 
     const entryPrice = sizeInTokens > 0 ? sizeInUsd / sizeInTokens : markPrice;
@@ -130,7 +130,12 @@ export class GmxNormalizer {
 
     // Calculate liquidation price (simplified)
     const maintenanceMargin = 0.01; // 1% maintenance margin
-    const liquidationPrice = this.calculateLiquidationPrice(side, entryPrice, leverage, maintenanceMargin);
+    const liquidationPrice = this.calculateLiquidationPrice(
+      side,
+      entryPrice,
+      leverage,
+      maintenanceMargin
+    );
 
     return {
       symbol,
@@ -143,7 +148,13 @@ export class GmxNormalizer {
       marginMode: 'cross', // GMX uses cross-margin
       margin: collateralUsd,
       maintenanceMargin: notional * maintenanceMargin,
-      marginRatio: this.calculateMarginRatio(side, entryPrice, markPrice, leverage, maintenanceMargin),
+      marginRatio: this.calculateMarginRatio(
+        side,
+        entryPrice,
+        markPrice,
+        leverage,
+        maintenanceMargin
+      ),
       unrealizedPnl,
       realizedPnl: 0, // Would need historical data
       timestamp: Date.now(),
@@ -181,16 +192,24 @@ export class GmxNormalizer {
 
     // Determine side
     const isIncrease = order.orderType === 0 || order.orderType === 2;
-    const side: 'buy' | 'sell' = (isIncrease && order.isLong) || (!isIncrease && !order.isLong) ? 'buy' : 'sell';
+    const side: 'buy' | 'sell' =
+      (isIncrease && order.isLong) || (!isIncrease && !order.isLong) ? 'buy' : 'sell';
 
     // Map status
-    let status: 'open' | 'closed' | 'canceled' | 'expired' | 'filled' | 'partiallyFilled' | 'rejected' = 'open';
+    let status:
+      | 'open'
+      | 'closed'
+      | 'canceled'
+      | 'expired'
+      | 'filled'
+      | 'partiallyFilled'
+      | 'rejected' = 'open';
     if (order.status === 'Executed') status = 'filled';
     else if (order.status === 'Cancelled') status = 'canceled';
     else if (order.status === 'Expired') status = 'expired';
     else if (order.isFrozen) status = 'rejected';
 
-    const price = triggerPrice > 0 ? triggerPrice : (marketPrice || acceptablePrice);
+    const price = triggerPrice > 0 ? triggerPrice : marketPrice || acceptablePrice;
     const amount = price > 0 ? sizeDeltaUsd / price : 0;
 
     return {
@@ -230,11 +249,12 @@ export class GmxNormalizer {
 
     const sizeDeltaUsd = parseFloat(trade.sizeDeltaUsd) / GMX_PRECISION.USD;
     const executionPrice = parseFloat(trade.executionPrice) / GMX_PRECISION.PRICE;
-    const sizeDeltaInTokens = parseFloat(trade.sizeDeltaInTokens) / (10 ** 18);
+    const sizeDeltaInTokens = parseFloat(trade.sizeDeltaInTokens) / 10 ** 18;
 
     // Determine side
     const isIncrease = trade.orderType === 0 || trade.orderType === 2;
-    const side: 'buy' | 'sell' = (isIncrease && trade.isLong) || (!isIncrease && !trade.isLong) ? 'buy' : 'sell';
+    const side: 'buy' | 'sell' =
+      (isIncrease && trade.isLong) || (!isIncrease && !trade.isLong) ? 'buy' : 'sell';
 
     return {
       id: trade.id,
@@ -258,16 +278,14 @@ export class GmxNormalizer {
   /**
    * Normalize funding rate
    */
-  normalizeFundingRate(
-    funding: GmxFundingRate,
-    indexPrice: number
-  ): FundingRate {
+  normalizeFundingRate(funding: GmxFundingRate, indexPrice: number): FundingRate {
     const marketKey = GMX_MARKET_ADDRESS_MAP[funding.market.toLowerCase()];
     const config = marketKey ? GMX_MARKETS[marketKey] : undefined;
     const symbol = config?.symbol || gmxToUnified(marketKey as GMXMarketKey);
 
     // GMX funding rate is per second, convert to hourly
-    const fundingFactorPerSecond = parseFloat(funding.fundingFactorPerSecond) / GMX_PRECISION.FACTOR;
+    const fundingFactorPerSecond =
+      parseFloat(funding.fundingFactorPerSecond) / GMX_PRECISION.FACTOR;
     const hourlyRate = fundingFactorPerSecond * 3600;
 
     // Adjust sign based on direction
@@ -295,7 +313,10 @@ export class GmxNormalizer {
    * Normalize market info to ticker
    * Note: Price data requires separate fetch from tickers endpoint
    */
-  normalizeTicker(market: GmxMarketInfo, priceData?: { minPrice: number; maxPrice: number }): Ticker {
+  normalizeTicker(
+    market: GmxMarketInfo,
+    priceData?: { minPrice: number; maxPrice: number }
+  ): Ticker {
     const marketKey = GMX_MARKET_ADDRESS_MAP[market.marketToken.toLowerCase()];
     const config = marketKey ? GMX_MARKETS[marketKey] : undefined;
 
@@ -358,7 +379,7 @@ export class GmxNormalizer {
    * Normalize candlesticks array
    */
   normalizeCandles(candles: GmxCandlestick[]): OHLCV[] {
-    return candles.map(c => this.normalizeCandle(c));
+    return candles.map((c) => this.normalizeCandle(c));
   }
 
   // ==========================================================================
@@ -413,9 +434,10 @@ export class GmxNormalizer {
   ): number {
     if (leverage <= 0 || entryPrice <= 0) return 100;
 
-    const pnlPercent = side === 'long'
-      ? (currentPrice - entryPrice) / entryPrice
-      : (entryPrice - currentPrice) / entryPrice;
+    const pnlPercent =
+      side === 'long'
+        ? (currentPrice - entryPrice) / entryPrice
+        : (entryPrice - currentPrice) / entryPrice;
 
     const marginUsed = 1 / leverage;
     const currentMargin = marginUsed + pnlPercent;

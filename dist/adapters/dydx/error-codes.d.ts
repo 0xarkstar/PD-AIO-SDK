@@ -33,5 +33,5 @@ export declare const DydxErrorCodes: {
     readonly BAD_REQUEST: "BAD_REQUEST";
     readonly NOT_FOUND: "NOT_FOUND";
 };
-export type DydxErrorCode = typeof DydxErrorCodes[keyof typeof DydxErrorCodes];
+export type DydxErrorCode = (typeof DydxErrorCodes)[keyof typeof DydxErrorCodes];
 //# sourceMappingURL=error-codes.d.ts.map

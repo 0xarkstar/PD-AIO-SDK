@@ -98,7 +98,7 @@ export class ExtendedNormalizer {
       takerFee: 0.0005,
       maxLeverage: market.maxLeverage ? safeParseFloat(market.maxLeverage) : 1,
       fundingIntervalHours: 8,
-      info: market as any,
+      info: market as unknown as Record<string, unknown>,
     };
   }
 
@@ -122,7 +122,7 @@ export class ExtendedNormalizer {
       quoteVolume: safeParseFloat(ticker.quoteVolume24h),
       change: safeParseFloat(ticker.priceChange24h),
       percentage: safeParseFloat(ticker.priceChangePercent24h),
-      info: ticker as any,
+      info: ticker as unknown as Record<string, unknown>,
     };
   }
 
@@ -162,7 +162,7 @@ export class ExtendedNormalizer {
       amount: safeParseFloat(trade.quantity),
       cost: safeParseFloat(trade.price) * safeParseFloat(trade.quantity),
       timestamp: trade.timestamp,
-      info: trade as any,
+      info: trade as unknown as Record<string, unknown>,
     };
   }
 
@@ -180,7 +180,7 @@ export class ExtendedNormalizer {
       markPrice: safeParseFloat(fundingRate.markPrice),
       indexPrice: safeParseFloat(fundingRate.indexPrice),
       fundingIntervalHours: 8,
-      info: fundingRate as any,
+      info: fundingRate as unknown as Record<string, unknown>,
     };
   }
 
@@ -209,16 +209,14 @@ export class ExtendedNormalizer {
       status: this.normalizeOrderStatus(order.status),
       timestamp: order.timestamp,
       lastUpdateTimestamp: order.updateTime,
-      info: order as any,
+      info: order as unknown as Record<string, unknown>,
     };
   }
 
   /**
    * Normalize order type
    */
-  private normalizeOrderType(
-    type: ExtendedOrder['type']
-  ): 'market' | 'limit' {
+  private normalizeOrderType(type: ExtendedOrder['type']): 'market' | 'limit' {
     switch (type) {
       case 'market':
         return 'market';
@@ -279,7 +277,7 @@ export class ExtendedNormalizer {
       marginRatio: safeParseFloat(position.maintenanceMargin) / (size * markPrice),
       marginMode: position.marginMode,
       timestamp: position.timestamp,
-      info: position as any,
+      info: position as unknown as Record<string, unknown>,
     };
   }
 

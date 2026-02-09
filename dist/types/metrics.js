@@ -7,7 +7,7 @@
  * Convert APIMetrics to snapshot for reporting
  */
 export function createMetricsSnapshot(metrics) {
-    const { totalRequests, successfulRequests, failedRequests, rateLimitHits, averageLatency, endpointStats, startedAt } = metrics;
+    const { totalRequests, successfulRequests, failedRequests, rateLimitHits, averageLatency, endpointStats, startedAt, } = metrics;
     const successRate = totalRequests > 0 ? successfulRequests / totalRequests : 0;
     const errorRate = totalRequests > 0 ? failedRequests / totalRequests : 0;
     const endpoints = Array.from(endpointStats.values()).map((stats) => ({

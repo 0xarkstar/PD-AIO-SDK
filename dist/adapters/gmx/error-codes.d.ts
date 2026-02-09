@@ -47,5 +47,5 @@ export declare const GmxErrorCodes: {
     readonly LIQUIDATION: "LIQUIDATION";
     readonly UNKNOWN_ERROR: "UNKNOWN_ERROR";
 };
-export type GmxErrorCode = typeof GmxErrorCodes[keyof typeof GmxErrorCodes];
+export type GmxErrorCode = (typeof GmxErrorCodes)[keyof typeof GmxErrorCodes];
 //# sourceMappingURL=error-codes.d.ts.map

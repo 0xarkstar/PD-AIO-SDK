@@ -196,7 +196,7 @@ export class HTTPClient {
           );
 
           // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
 
@@ -229,9 +229,7 @@ export class HTTPClient {
     // Prepare request body
     let body: string | undefined;
     if (options.body) {
-      body = typeof options.body === 'string'
-        ? options.body
-        : JSON.stringify(options.body);
+      body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
     }
 
     try {
@@ -268,12 +266,7 @@ export class HTTPClient {
         }
 
         if (error.message.includes('fetch') || error.message.includes('network')) {
-          throw new NetworkError(
-            'Network request failed',
-            'NETWORK_ERROR',
-            this.exchange,
-            error
-          );
+          throw new NetworkError('Network request failed', 'NETWORK_ERROR', this.exchange, error);
         }
       }
 

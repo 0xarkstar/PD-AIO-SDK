@@ -160,20 +160,14 @@ export class GmxOrderBuilder {
     getOrderType(orderType, isIncrease) {
         switch (orderType) {
             case 'market':
-                return isIncrease
-                    ? GMX_ORDER_TYPES.MARKET_INCREASE
-                    : GMX_ORDER_TYPES.MARKET_DECREASE;
+                return isIncrease ? GMX_ORDER_TYPES.MARKET_INCREASE : GMX_ORDER_TYPES.MARKET_DECREASE;
             case 'limit':
-                return isIncrease
-                    ? GMX_ORDER_TYPES.LIMIT_INCREASE
-                    : GMX_ORDER_TYPES.LIMIT_DECREASE;
+                return isIncrease ? GMX_ORDER_TYPES.LIMIT_INCREASE : GMX_ORDER_TYPES.LIMIT_DECREASE;
             case 'stopMarket':
             case 'stopLimit':
                 return GMX_ORDER_TYPES.STOP_LOSS;
             default:
-                return isIncrease
-                    ? GMX_ORDER_TYPES.MARKET_INCREASE
-                    : GMX_ORDER_TYPES.MARKET_DECREASE;
+                return isIncrease ? GMX_ORDER_TYPES.MARKET_INCREASE : GMX_ORDER_TYPES.MARKET_DECREASE;
         }
     }
     /**
@@ -186,9 +180,7 @@ export class GmxOrderBuilder {
         // For shorts:
         //   - Increase: receive lower price (1 - slippage)
         //   - Decrease: pay higher price (1 + slippage)
-        const multiplier = isLong === isIncrease
-            ? 1 + slippage
-            : 1 - slippage;
+        const multiplier = isLong === isIncrease ? 1 + slippage : 1 - slippage;
         return currentPrice * multiplier;
     }
     /**
@@ -266,9 +258,7 @@ export class GmxOrderBuilder {
         // For longs: liqPrice = entryPrice * (1 - (1 - maintenanceMargin) / leverage)
         // For shorts: liqPrice = entryPrice * (1 + (1 - maintenanceMargin) / leverage)
         const lossRate = (1 - maintenanceMarginRate) / leverage;
-        return isLong
-            ? entryPrice * (1 - lossRate)
-            : entryPrice * (1 + lossRate);
+        return isLong ? entryPrice * (1 - lossRate) : entryPrice * (1 + lossRate);
     }
 }
 //# sourceMappingURL=GmxOrderBuilder.js.map

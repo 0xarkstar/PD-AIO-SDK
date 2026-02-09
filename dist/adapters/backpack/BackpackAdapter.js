@@ -7,7 +7,7 @@ import { BaseAdapter } from '../base/BaseAdapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
-import { BACKPACK_API_URLS, BACKPACK_RATE_LIMITS, BACKPACK_ENDPOINT_WEIGHTS, } from './constants.js';
+import { BACKPACK_API_URLS, BACKPACK_RATE_LIMITS, BACKPACK_ENDPOINT_WEIGHTS } from './constants.js';
 import { BackpackNormalizer } from './BackpackNormalizer.js';
 import { BackpackAuth } from './BackpackAuth.js';
 import { toBackpackOrderType, toBackpackOrderSide, toBackpackTimeInForce, mapBackpackError, } from './utils.js';
@@ -401,14 +401,14 @@ export class BackpackAdapter extends BaseAdapter {
                 case 'DELETE':
                     return await this.httpClient.delete(fullPath, { headers, body });
                 default:
-                    throw new Error(`Unsupported HTTP method: ${method}`);
+                    throw new Error(`Unsupported HTTP method: ${String(method)}`);
             }
         }
         catch (error) {
             if (error instanceof PerpDEXError) {
                 throw error;
             }
-            const { code, } = mapBackpackError(error);
+            const { code } = mapBackpackError(error);
             throw new PerpDEXError('Request failed', code, 'backpack', error);
         }
     }

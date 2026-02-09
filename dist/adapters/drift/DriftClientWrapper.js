@@ -13,7 +13,6 @@ import { Logger } from '../../core/logger.js';
  */
 export class DriftClientWrapper {
     config;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DriftClient type from @drift-labs/sdk
     // is only available after dynamic import() at runtime. Cannot use static type because the SDK uses
     // ESM-only distribution with native Node addons requiring dynamic loading.
     driftClient;
@@ -32,7 +31,7 @@ export class DriftClientWrapper {
         try {
             // Dynamic import to handle ESM module loading
             const driftSdk = await import('@drift-labs/sdk');
-            const { DriftClient, Wallet, BulkAccountLoader, getMarketsAndOraclesForSubscription, } = driftSdk;
+            const { DriftClient, Wallet, BulkAccountLoader, getMarketsAndOraclesForSubscription } = driftSdk;
             // Create wallet from keypair (cast to any to handle different @solana/web3.js versions)
             const wallet = new Wallet(this.config.keypair);
             // Get markets and oracles to subscribe to
@@ -62,8 +61,7 @@ export class DriftClientWrapper {
             const userAccountExists = await this.driftClient.getUserAccountExists();
             if (!userAccountExists) {
                 // User account needs to be initialized first
-                this.logger.warn('Drift user account does not exist. ' +
-                    'Please deposit funds first to create an account.');
+                this.logger.warn('Drift user account does not exist. ' + 'Please deposit funds first to create an account.');
             }
             else {
                 // Subscribe to user account updates
@@ -92,7 +90,7 @@ export class DriftClientWrapper {
     async placePerpOrder(params) {
         this.ensureInitialized();
         const driftSdk = await import('@drift-labs/sdk');
-        const { OrderType, PositionDirection, MarketType, OrderTriggerCondition, PostOnlyParams, } = driftSdk;
+        const { OrderType, PositionDirection, MarketType, OrderTriggerCondition, PostOnlyParams } = driftSdk;
         // Map order type
         const orderTypeMap = {
             market: OrderType.MARKET,
@@ -204,7 +202,7 @@ export class DriftClientWrapper {
             price: newParams.price ?? originalOrder.price,
             triggerPrice: newParams.triggerPrice ?? originalOrder.triggerPrice,
             reduceOnly: newParams.reduceOnly ?? originalOrder.reduceOnly,
-            postOnly: newParams.postOnly ?? (originalOrder.postOnly !== 'none'),
+            postOnly: newParams.postOnly ?? originalOrder.postOnly !== 'none',
         };
         return this.placePerpOrder(mergedParams);
     }

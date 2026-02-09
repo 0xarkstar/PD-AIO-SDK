@@ -13,7 +13,7 @@
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
-import { PARADEX_API_URLS, PARADEX_RATE_LIMITS, PARADEX_ENDPOINT_WEIGHTS, } from './constants.js';
+import { PARADEX_API_URLS, PARADEX_RATE_LIMITS, PARADEX_ENDPOINT_WEIGHTS } from './constants.js';
 import { ParadexAuth } from './ParadexAuth.js';
 import { ParadexHTTPClient } from './ParadexHTTPClient.js';
 import { ParadexNormalizer } from './ParadexNormalizer.js';

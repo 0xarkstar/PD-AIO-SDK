@@ -124,11 +124,7 @@ export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
     // Check if circuit allows the request
     if (!this.canExecute()) {
       this.recordRejection();
-      throw new CircuitBreakerError(
-        'Circuit breaker is OPEN',
-        'CIRCUIT_OPEN',
-        this.state
-      );
+      throw new CircuitBreakerError('Circuit breaker is OPEN', 'CIRCUIT_OPEN', this.state);
     }
 
     try {
@@ -261,7 +257,7 @@ export class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
    */
   private cleanupOldTimestamps(): void {
     const cutoff = Date.now() - this.config.timeWindow;
-    this.requestTimestamps = this.requestTimestamps.filter(ts => ts >= cutoff);
+    this.requestTimestamps = this.requestTimestamps.filter((ts) => ts >= cutoff);
   }
 
   /**

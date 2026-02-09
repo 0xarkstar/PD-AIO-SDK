@@ -18,12 +18,7 @@ import type {
   IWSTdgPositionRequest,
   IWSTdgOrderRequest,
 } from '@grvt/client/ws/interfaces.js';
-import type {
-  IOrderbookLevels,
-  ITrade,
-  IPositions,
-  IOrder,
-} from '@grvt/client/interfaces';
+import type { IOrderbookLevels, ITrade, IPositions, IOrder } from '@grvt/client/interfaces';
 import type { OrderBook, Trade, Position, Order, Balance, Ticker } from '../../types/common.js';
 import { GRVTNormalizer } from './GRVTNormalizer.js';
 import { GRVT_API_URLS } from './constants.js';
@@ -546,14 +541,14 @@ export class GRVTWebSocketWrapper {
           symbol: this.normalizer.symbolToCCXT(instrument),
           timestamp: typeof tradeData.event_time === 'number' ? tradeData.event_time : Date.now(),
           last: lastPrice,
-          bid: 0,  // Not available from trade stream
-          ask: 0,  // Not available from trade stream
-          high: lastPrice,  // Single trade, same as last
-          low: lastPrice,   // Single trade, same as last
-          open: lastPrice,  // Single trade, same as last
+          bid: 0, // Not available from trade stream
+          ask: 0, // Not available from trade stream
+          high: lastPrice, // Single trade, same as last
+          low: lastPrice, // Single trade, same as last
+          open: lastPrice, // Single trade, same as last
           close: lastPrice,
-          change: 0,  // Requires 24h aggregation
-          percentage: 0,  // Requires 24h aggregation
+          change: 0, // Requires 24h aggregation
+          percentage: 0, // Requires 24h aggregation
           baseVolume: lastSize,
           quoteVolume: lastPrice * lastSize,
           info: tradeData as unknown as Record<string, unknown>,

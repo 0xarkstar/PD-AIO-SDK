@@ -70,10 +70,7 @@ export class GmxOrderBuilder {
   /**
    * Build create order parameters for a new position or position increase
    */
-  buildCreateOrderParams(
-    request: OrderRequest,
-    prices: GmxPriceData
-  ): GmxCreateOrderParams {
+  buildCreateOrderParams(request: OrderRequest, prices: GmxPriceData): GmxCreateOrderParams {
     // Get market configuration
     const marketKey = unifiedToGmx(request.symbol);
     if (!marketKey) {
@@ -243,20 +240,14 @@ export class GmxOrderBuilder {
   private getOrderType(orderType: string, isIncrease: boolean): number {
     switch (orderType) {
       case 'market':
-        return isIncrease
-          ? GMX_ORDER_TYPES.MARKET_INCREASE
-          : GMX_ORDER_TYPES.MARKET_DECREASE;
+        return isIncrease ? GMX_ORDER_TYPES.MARKET_INCREASE : GMX_ORDER_TYPES.MARKET_DECREASE;
       case 'limit':
-        return isIncrease
-          ? GMX_ORDER_TYPES.LIMIT_INCREASE
-          : GMX_ORDER_TYPES.LIMIT_DECREASE;
+        return isIncrease ? GMX_ORDER_TYPES.LIMIT_INCREASE : GMX_ORDER_TYPES.LIMIT_DECREASE;
       case 'stopMarket':
       case 'stopLimit':
         return GMX_ORDER_TYPES.STOP_LOSS;
       default:
-        return isIncrease
-          ? GMX_ORDER_TYPES.MARKET_INCREASE
-          : GMX_ORDER_TYPES.MARKET_DECREASE;
+        return isIncrease ? GMX_ORDER_TYPES.MARKET_INCREASE : GMX_ORDER_TYPES.MARKET_DECREASE;
     }
   }
 
@@ -276,9 +267,7 @@ export class GmxOrderBuilder {
     //   - Increase: receive lower price (1 - slippage)
     //   - Decrease: pay higher price (1 + slippage)
 
-    const multiplier = isLong === isIncrease
-      ? 1 + slippage
-      : 1 - slippage;
+    const multiplier = isLong === isIncrease ? 1 + slippage : 1 - slippage;
 
     return currentPrice * multiplier;
   }
@@ -344,7 +333,7 @@ export class GmxOrderBuilder {
   /**
    * Get market configuration
    */
-  getMarketConfig(symbol: string): typeof GMX_MARKETS[GMXMarketKey] {
+  getMarketConfig(symbol: string): (typeof GMX_MARKETS)[GMXMarketKey] {
     const marketKey = unifiedToGmx(symbol);
     if (!marketKey) {
       throw new Error(`Invalid market: ${symbol}`);
@@ -385,8 +374,6 @@ export class GmxOrderBuilder {
 
     const lossRate = (1 - maintenanceMarginRate) / leverage;
 
-    return isLong
-      ? entryPrice * (1 - lossRate)
-      : entryPrice * (1 + lossRate);
+    return isLong ? entryPrice * (1 - lossRate) : entryPrice * (1 + lossRate);
   }
 }

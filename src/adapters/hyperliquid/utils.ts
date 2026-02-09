@@ -108,7 +108,13 @@ export function mapError(error: unknown): PerpDEXError {
 
     // HTTP status code errors
     if (message.includes('429')) {
-      return new RateLimitError('Rate limit exceeded', 'RATE_LIMIT', 'hyperliquid', undefined, error);
+      return new RateLimitError(
+        'Rate limit exceeded',
+        'RATE_LIMIT',
+        'hyperliquid',
+        undefined,
+        error
+      );
     }
 
     if (message.includes('503') || message.includes('502')) {

@@ -43,10 +43,7 @@ export class DriftOrderBuilder {
   /**
    * Build order parameters from a unified OrderRequest
    */
-  buildOrderParams(
-    request: OrderRequest,
-    oraclePrice?: number
-  ): DriftOrderParams {
+  buildOrderParams(request: OrderRequest, oraclePrice?: number): DriftOrderParams {
     // Get market configuration
     const marketKey = unifiedToDrift(request.symbol);
     const marketConfig = DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS];
@@ -59,9 +56,7 @@ export class DriftOrderBuilder {
     this.validateOrder(request, marketConfig);
 
     // Calculate base asset amount (convert to Drift precision)
-    const baseAssetAmount = BigInt(
-      Math.floor(request.amount * DRIFT_PRECISION.BASE)
-    );
+    const baseAssetAmount = BigInt(Math.floor(request.amount * DRIFT_PRECISION.BASE));
 
     // Determine order type
     const orderType = this.mapOrderType(request.type);
@@ -75,9 +70,10 @@ export class DriftOrderBuilder {
       price = BigInt(Math.floor(request.price * DRIFT_PRECISION.PRICE));
     } else if (request.type === 'market' && oraclePrice) {
       // For market orders, set a price with slippage tolerance
-      const slippageMultiplier = direction === 'long'
-        ? 1 + this.config.slippageTolerance
-        : 1 - this.config.slippageTolerance;
+      const slippageMultiplier =
+        direction === 'long'
+          ? 1 + this.config.slippageTolerance
+          : 1 - this.config.slippageTolerance;
       price = BigInt(Math.floor(oraclePrice * slippageMultiplier * DRIFT_PRECISION.PRICE));
     }
 
@@ -146,9 +142,10 @@ export class DriftOrderBuilder {
     // Calculate acceptable price with slippage
     let price: bigint | undefined;
     if (oraclePrice) {
-      const slippageMultiplier = direction === 'long'
-        ? 1 + this.config.slippageTolerance
-        : 1 - this.config.slippageTolerance;
+      const slippageMultiplier =
+        direction === 'long'
+          ? 1 + this.config.slippageTolerance
+          : 1 - this.config.slippageTolerance;
       price = BigInt(Math.floor(oraclePrice * slippageMultiplier * DRIFT_PRECISION.PRICE));
     }
 
@@ -168,7 +165,7 @@ export class DriftOrderBuilder {
    */
   private validateOrder(
     request: OrderRequest,
-    marketConfig: typeof DRIFT_PERP_MARKETS[keyof typeof DRIFT_PERP_MARKETS]
+    marketConfig: (typeof DRIFT_PERP_MARKETS)[keyof typeof DRIFT_PERP_MARKETS]
   ): void {
     // Check minimum order size
     if (request.amount < marketConfig.minOrderSize) {
@@ -198,9 +195,7 @@ export class DriftOrderBuilder {
     const stepSize = marketConfig.stepSize;
     const remainder = request.amount % stepSize;
     if (remainder !== 0 && remainder / stepSize > 0.001) {
-      throw new Error(
-        `Order amount ${request.amount} does not conform to step size ${stepSize}`
-      );
+      throw new Error(`Order amount ${request.amount} does not conform to step size ${stepSize}`);
     }
 
     // Validate price tick size for limit orders
@@ -208,9 +203,7 @@ export class DriftOrderBuilder {
       const tickSize = marketConfig.tickSize;
       const priceRemainder = request.price % tickSize;
       if (priceRemainder !== 0 && priceRemainder / tickSize > 0.001) {
-        throw new Error(
-          `Order price ${request.price} does not conform to tick size ${tickSize}`
-        );
+        throw new Error(`Order price ${request.price} does not conform to tick size ${tickSize}`);
       }
     }
   }
@@ -264,7 +257,7 @@ export class DriftOrderBuilder {
     const notional = amount * price;
 
     // Use provided leverage or calculate from initial margin ratio
-    const effectiveLeverage = leverage || (1 / marketConfig.initialMarginRatio);
+    const effectiveLeverage = leverage || 1 / marketConfig.initialMarginRatio;
     const actualLeverage = Math.min(effectiveLeverage, marketConfig.maxLeverage);
 
     // Calculate margin
@@ -305,7 +298,9 @@ export class DriftOrderBuilder {
   /**
    * Get market configuration
    */
-  getMarketConfig(symbol: string): typeof DRIFT_PERP_MARKETS[keyof typeof DRIFT_PERP_MARKETS] | undefined {
+  getMarketConfig(
+    symbol: string
+  ): (typeof DRIFT_PERP_MARKETS)[keyof typeof DRIFT_PERP_MARKETS] | undefined {
     const marketKey = unifiedToDrift(symbol);
     return DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS];
   }

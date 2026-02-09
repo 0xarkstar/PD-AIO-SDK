@@ -23,11 +23,7 @@ import type { FeatureMap } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
-import {
-  BACKPACK_API_URLS,
-  BACKPACK_RATE_LIMITS,
-  BACKPACK_ENDPOINT_WEIGHTS,
-} from './constants.js';
+import { BACKPACK_API_URLS, BACKPACK_RATE_LIMITS, BACKPACK_ENDPOINT_WEIGHTS } from './constants.js';
 import { BackpackNormalizer } from './BackpackNormalizer.js';
 import { BackpackAuth } from './BackpackAuth.js';
 import {
@@ -87,7 +83,8 @@ export class BackpackAdapter extends BaseAdapter {
 
     this.rateLimiter = new RateLimiter({
       maxTokens: BACKPACK_RATE_LIMITS.rest.maxRequests,
-      refillRate: BACKPACK_RATE_LIMITS.rest.maxRequests / (BACKPACK_RATE_LIMITS.rest.windowMs / 1000),
+      refillRate:
+        BACKPACK_RATE_LIMITS.rest.maxRequests / (BACKPACK_RATE_LIMITS.rest.windowMs / 1000),
       windowMs: BACKPACK_RATE_LIMITS.rest.windowMs,
       weights: BACKPACK_ENDPOINT_WEIGHTS,
     });
@@ -188,7 +185,11 @@ export class BackpackAdapter extends BaseAdapter {
       queryParts.push(`depth=${params.limit}`);
     }
 
-    const response = await this.makeRequest('GET', `/depth?${queryParts.join('&')}`, 'fetchOrderBook');
+    const response = await this.makeRequest(
+      'GET',
+      `/depth?${queryParts.join('&')}`,
+      'fetchOrderBook'
+    );
 
     return this.normalizer.normalizeOrderBook(response, symbol);
   }
@@ -220,7 +221,11 @@ export class BackpackAdapter extends BaseAdapter {
    */
   async fetchFundingRate(symbol: string): Promise<FundingRate> {
     const market = this.normalizer.toBackpackSymbol(symbol);
-    const response = await this.makeRequest('GET', `/fundingRates?symbol=${market}`, 'fetchFundingRate');
+    const response = await this.makeRequest(
+      'GET',
+      `/fundingRates?symbol=${market}`,
+      'fetchFundingRate'
+    );
 
     // Backpack returns an array of funding rates, get the most recent one
     if (!Array.isArray(response) || response.length === 0) {
@@ -233,9 +238,17 @@ export class BackpackAdapter extends BaseAdapter {
   /**
    * Fetch funding rate history
    */
-  async fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]> {
+  async fetchFundingRateHistory(
+    symbol: string,
+    since?: number,
+    limit?: number
+  ): Promise<FundingRate[]> {
     const market = this.normalizer.toBackpackSymbol(symbol);
-    const response = await this.makeRequest('GET', `/fundingRates?symbol=${market}`, 'fetchFundingRate');
+    const response = await this.makeRequest(
+      'GET',
+      `/fundingRates?symbol=${market}`,
+      'fetchFundingRate'
+    );
 
     if (!Array.isArray(response)) {
       throw new PerpDEXError('Invalid funding rate response', 'INVALID_RESPONSE', 'backpack');
@@ -265,7 +278,9 @@ export class BackpackAdapter extends BaseAdapter {
       throw new PerpDEXError('Invalid positions response', 'INVALID_RESPONSE', 'backpack');
     }
 
-    let positions = response.positions.map((position: any) => this.normalizer.normalizePosition(position));
+    let positions = response.positions.map((position: any) =>
+      this.normalizer.normalizePosition(position)
+    );
 
     if (symbols && symbols.length > 0) {
       positions = positions.filter((p: Position) => symbols.includes(p.symbol));
@@ -321,7 +336,10 @@ export class BackpackAdapter extends BaseAdapter {
     const market = this.normalizer.toBackpackSymbol(validatedRequest.symbol);
     const orderType = toBackpackOrderType(validatedRequest.type, validatedRequest.postOnly);
     const side = toBackpackOrderSide(validatedRequest.side);
-    const timeInForce = toBackpackTimeInForce(validatedRequest.timeInForce, validatedRequest.postOnly);
+    const timeInForce = toBackpackTimeInForce(
+      validatedRequest.timeInForce,
+      validatedRequest.postOnly
+    );
 
     const payload = {
       market,
@@ -521,15 +539,14 @@ export class BackpackAdapter extends BaseAdapter {
         case 'DELETE':
           return await this.httpClient.delete(fullPath, { headers, body });
         default:
-          throw new Error(`Unsupported HTTP method: ${method}`);
+          throw new Error(`Unsupported HTTP method: ${String(method)}`);
       }
     } catch (error) {
       if (error instanceof PerpDEXError) {
         throw error;
       }
-      const { code,  } = mapBackpackError(error);
+      const { code } = mapBackpackError(error);
       throw new PerpDEXError('Request failed', code, 'backpack', error);
     }
   }
-
 }

@@ -21,7 +21,20 @@ import { JupiterAdapter, type JupiterAdapterConfig } from './adapters/jupiter/in
 import { DriftAdapter, type DriftConfig } from './adapters/drift/index.js';
 import { GmxAdapter, type GmxConfig } from './adapters/gmx/index.js';
 
-export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx';
+export type SupportedExchange =
+  | 'hyperliquid'
+  | 'lighter'
+  | 'grvt'
+  | 'paradex'
+  | 'edgex'
+  | 'backpack'
+  | 'nado'
+  | 'variational'
+  | 'extended'
+  | 'dydx'
+  | 'jupiter'
+  | 'drift'
+  | 'gmx';
 
 export type ExchangeConfigMap = {
   hyperliquid: HyperliquidConfig;
@@ -42,8 +55,9 @@ export type ExchangeConfigMap = {
 /**
  * Type for adapter constructor function
  */
-export type AdapterConstructor<C extends ExchangeConfig = ExchangeConfig> =
-  new (config?: C) => IExchangeAdapter;
+export type AdapterConstructor<C extends ExchangeConfig = ExchangeConfig> = new (
+  config?: C
+) => IExchangeAdapter;
 
 /**
  * Plugin registry for exchange adapters
@@ -147,8 +161,8 @@ export function createExchange<T extends SupportedExchange>(
   if (!Constructor) {
     throw new Error(
       `Unknown exchange: ${exchange}. ` +
-      `Supported exchanges: ${getSupportedExchanges().join(', ')}. ` +
-      `Use registerExchange() to add custom adapters.`
+        `Supported exchanges: ${getSupportedExchanges().join(', ')}. ` +
+        `Use registerExchange() to add custom adapters.`
     );
   }
 
@@ -169,7 +183,21 @@ export function getSupportedExchanges(): string[] {
  * Get list of built-in exchanges (for type safety)
  */
 export function getBuiltInExchanges(): SupportedExchange[] {
-  return ['hyperliquid', 'lighter', 'grvt', 'paradex', 'edgex', 'backpack', 'nado', 'variational', 'extended', 'dydx', 'jupiter', 'drift', 'gmx'];
+  return [
+    'hyperliquid',
+    'lighter',
+    'grvt',
+    'paradex',
+    'edgex',
+    'backpack',
+    'nado',
+    'variational',
+    'extended',
+    'dydx',
+    'jupiter',
+    'drift',
+    'gmx',
+  ];
 }
 
 /**

@@ -4,6 +4,7 @@
  * Error code definitions and mapping functions for Extended exchange
  */
 
+import { includesValue } from '../../utils/type-guards.js';
 import {
   PerpDEXError,
   InsufficientMarginError,
@@ -101,7 +102,7 @@ export const EXTENDED_ERROR_MESSAGES: Record<string, string> = {
   'too many requests': EXTENDED_RATE_LIMIT_ERROR,
   'internal server error': EXTENDED_SERVER_ERRORS.INTERNAL_ERROR,
   'service unavailable': EXTENDED_SERVER_ERRORS.SERVICE_UNAVAILABLE,
-  'timeout': EXTENDED_SERVER_ERRORS.TIMEOUT,
+  timeout: EXTENDED_SERVER_ERRORS.TIMEOUT,
   'matching engine error': EXTENDED_SERVER_ERRORS.MATCHING_ENGINE_ERROR,
   'starknet error': EXTENDED_SERVER_ERRORS.STARKNET_ERROR,
   'transaction failed': EXTENDED_STARKNET_ERRORS.TRANSACTION_FAILED,
@@ -114,21 +115,21 @@ export const EXTENDED_ERROR_MESSAGES: Record<string, string> = {
  * Check if error code is a client error
  */
 export function isClientError(code: string): boolean {
-  return Object.values(EXTENDED_CLIENT_ERRORS).includes(code as any);
+  return includesValue(Object.values(EXTENDED_CLIENT_ERRORS), code);
 }
 
 /**
  * Check if error code is a server error
  */
 export function isServerError(code: string): boolean {
-  return Object.values(EXTENDED_SERVER_ERRORS).includes(code as any);
+  return includesValue(Object.values(EXTENDED_SERVER_ERRORS), code);
 }
 
 /**
  * Check if error code is a StarkNet error
  */
 export function isStarkNetError(code: string): boolean {
-  return Object.values(EXTENDED_STARKNET_ERRORS).includes(code as any);
+  return includesValue(Object.values(EXTENDED_STARKNET_ERRORS), code);
 }
 
 /**

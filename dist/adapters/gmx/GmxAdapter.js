@@ -179,7 +179,7 @@ export class GmxAdapter extends BaseAdapter {
             let markets = this.normalizer.normalizeMarkets(marketsInfo, this.chain);
             // Filter if requested
             if (params?.active !== undefined) {
-                markets = markets.filter(m => m.active === params.active);
+                markets = markets.filter((m) => m.active === params.active);
             }
             return markets;
         }
@@ -199,16 +199,18 @@ export class GmxAdapter extends BaseAdapter {
                 this.fetchPrices(),
             ]);
             const config = GMX_MARKETS[marketKey];
-            const marketInfo = marketsInfo.find(m => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase());
+            const marketInfo = marketsInfo.find((m) => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase());
             if (!marketInfo) {
                 throw new Error(`Market info not found for ${symbol}`);
             }
             // Get price for the index token
             const indexTokenPrice = prices.get(config.indexToken.toLowerCase());
-            const priceData = indexTokenPrice ? {
-                minPrice: parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE,
-                maxPrice: parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE,
-            } : undefined;
+            const priceData = indexTokenPrice
+                ? {
+                    minPrice: parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE,
+                    maxPrice: parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE,
+                }
+                : undefined;
             return this.normalizer.normalizeTicker(marketInfo, priceData);
         }
         catch (error) {
@@ -235,7 +237,7 @@ export class GmxAdapter extends BaseAdapter {
                 this.fetchPrices(),
             ]);
             const config = GMX_MARKETS[marketKey];
-            const marketInfo = marketsInfo.find(m => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase());
+            const marketInfo = marketsInfo.find((m) => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase());
             if (!marketInfo) {
                 throw new Error(`Market info not found for ${symbol}`);
             }
@@ -333,7 +335,7 @@ export class GmxAdapter extends BaseAdapter {
             const positions = [];
             for (const pos of rawPositions) {
                 // Get mark price for this position's market
-                const marketConfig = Object.values(GMX_MARKETS).find(m => m.marketAddress.toLowerCase() === pos.market.toLowerCase());
+                const marketConfig = Object.values(GMX_MARKETS).find((m) => m.marketAddress.toLowerCase() === pos.market.toLowerCase());
                 if (!marketConfig)
                     continue;
                 const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
@@ -418,7 +420,7 @@ export class GmxAdapter extends BaseAdapter {
             const prices = await this.fetchPrices();
             const normalizedOrders = [];
             for (const order of orders) {
-                const marketConfig = Object.values(GMX_MARKETS).find(m => m.marketAddress.toLowerCase() === order.market.toLowerCase());
+                const marketConfig = Object.values(GMX_MARKETS).find((m) => m.marketAddress.toLowerCase() === order.market.toLowerCase());
                 let marketPrice;
                 if (marketConfig) {
                     const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
@@ -454,7 +456,7 @@ export class GmxAdapter extends BaseAdapter {
             const prices = await this.fetchPrices();
             const normalizedOrders = [];
             for (const order of orders) {
-                const marketConfig = Object.values(GMX_MARKETS).find(m => m.marketAddress.toLowerCase() === order.market.toLowerCase());
+                const marketConfig = Object.values(GMX_MARKETS).find((m) => m.marketAddress.toLowerCase() === order.market.toLowerCase());
                 let marketPrice;
                 if (marketConfig) {
                     const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());

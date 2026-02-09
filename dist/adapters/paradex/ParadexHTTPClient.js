@@ -100,7 +100,8 @@ export class ParadexHTTPClient {
     async delete(path, params) {
         let fullPath = path;
         // Handle as query params if it's simple key-value pairs
-        if (params && Object.values(params).every(v => typeof v === 'string' || typeof v === 'number')) {
+        if (params &&
+            Object.values(params).every((v) => typeof v === 'string' || typeof v === 'number')) {
             const searchParams = new URLSearchParams();
             Object.entries(params).forEach(([key, value]) => {
                 searchParams.append(key, String(value));
@@ -149,7 +150,9 @@ export class ParadexHTTPClient {
                 throw new PerpDEXError(`Request timeout after ${this.timeout}ms`, 'ETIMEDOUT', 'paradex', error);
             }
             // Handle network errors
-            if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
+            if (error instanceof Error &&
+                'code' in error &&
+                typeof error.code === 'string') {
                 throw mapAxiosError(error);
             }
             // Re-throw if already PerpDEXError
@@ -173,7 +176,7 @@ export class ParadexHTTPClient {
         // Parse response body
         let data;
         try {
-            data = await response.json();
+            data = (await response.json());
         }
         catch {
             // Empty or non-JSON response

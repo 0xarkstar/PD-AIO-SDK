@@ -82,7 +82,7 @@ import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { VARIATIONAL_API_URLS, VARIATIONAL_ENDPOINTS, VARIATIONAL_RATE_LIMITS, VARIATIONAL_ENDPOINT_WEIGHTS, VARIATIONAL_DEFAULTS, } from './constants.js';
 import { VariationalNormalizer } from './VariationalNormalizer.js';
-import { convertOrderRequest, mapError, validateOrderRequest, generateClientOrderId } from './utils.js';
+import { convertOrderRequest, mapError, validateOrderRequest, generateClientOrderId, } from './utils.js';
 /**
  * Variational exchange adapter
  *
@@ -576,7 +576,7 @@ export class VariationalAdapter extends BaseAdapter {
                     response = await this.httpClient.put(path, options);
                     break;
                 default:
-                    throw new PerpDEXError(`Unsupported HTTP method: ${method}`, 'INVALID_REQUEST', this.id);
+                    throw new PerpDEXError(`Unsupported HTTP method: ${String(method)}`, 'INVALID_REQUEST', this.id);
             }
             return response;
         }

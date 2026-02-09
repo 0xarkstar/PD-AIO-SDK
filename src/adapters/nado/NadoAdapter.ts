@@ -319,7 +319,6 @@ export class NadoAdapter extends BaseAdapter {
   // Private Helper Methods
   // ===========================================================================
 
-
   /**
    * Fetch contracts information
    */
@@ -350,7 +349,6 @@ export class NadoAdapter extends BaseAdapter {
     this.auth.setNonce(data.order_nonce);
   }
 
-
   /**
    * Get product mapping by symbol
    */
@@ -367,7 +365,6 @@ export class NadoAdapter extends BaseAdapter {
 
     return mapping;
   }
-
 
   /**
    * Require authentication for private methods
@@ -417,7 +414,7 @@ export class NadoAdapter extends BaseAdapter {
 
     const markets: Market[] = [];
 
-    for (const [_symbolKey, symbolData] of Object.entries(response.symbols || {})) {
+    for (const [, symbolData] of Object.entries(response.symbols || {})) {
       const market = this.normalizer.normalizeSymbol(symbolData);
       markets.push(market);
 
@@ -488,7 +485,7 @@ export class NadoAdapter extends BaseAdapter {
       );
     }
 
-    const info = ticker.info!;
+    const info = ticker.info;
     return {
       symbol,
       fundingRate: parseFloat(String(info.fundingRate)),
@@ -556,7 +553,7 @@ export class NadoAdapter extends BaseAdapter {
 
     // Find product mapping by productId
     const mapping = Array.from(this.productMappings.values()).find(
-      m => m.productId === order.product_id
+      (m) => m.productId === order.product_id
     );
     if (!mapping) {
       throw new InvalidOrderError('Product mapping not found', 'MAPPING_NOT_FOUND', this.id);
@@ -574,11 +571,7 @@ export class NadoAdapter extends BaseAdapter {
       this.contractsInfo.endpoint_addr
     );
 
-    await this.apiClient.execute(
-      NADO_EXECUTE_TYPES.CANCEL_ORDERS,
-      cancellationData,
-      signature
-    );
+    await this.apiClient.execute(NADO_EXECUTE_TYPES.CANCEL_ORDERS, cancellationData, signature);
 
     // Return updated order
     return this.normalizer.normalizeOrder(NadoOrderSchema.parse(order), mapping);
@@ -620,16 +613,12 @@ export class NadoAdapter extends BaseAdapter {
       this.contractsInfo.endpoint_addr
     );
 
-    await this.apiClient.execute(
-      NADO_EXECUTE_TYPES.CANCEL_ORDERS,
-      cancellationData,
-      signature
-    );
+    await this.apiClient.execute(NADO_EXECUTE_TYPES.CANCEL_ORDERS, cancellationData, signature);
 
     // Return cancelled orders
     const mappingsArray = Array.from(this.productMappings.values());
     return ordersToCancel.map((order) => {
-      const mapping = mappingsArray.find(m => m.productId === order.product_id)!;
+      const mapping = mappingsArray.find((m) => m.productId === order.product_id)!;
       return this.normalizer.normalizeOrder(order, mapping);
     });
   }
@@ -647,7 +636,7 @@ export class NadoAdapter extends BaseAdapter {
     const normalized: Position[] = [];
 
     for (const position of positions) {
-      const mapping = mappingsArray.find(m => m.productId === position.product_id);
+      const mapping = mappingsArray.find((m) => m.productId === position.product_id);
       if (!mapping) {
         this.warn(`Product mapping not found for product ID ${position.product_id}`);
         continue;
@@ -715,7 +704,7 @@ export class NadoAdapter extends BaseAdapter {
     const mappingsArray = Array.from(this.productMappings.values());
     return filteredOrders
       .map((order) => {
-        const mapping = mappingsArray.find(m => m.productId === order.product_id);
+        const mapping = mappingsArray.find((m) => m.productId === order.product_id);
         if (!mapping) return null;
         return this.normalizer.normalizeOrder(order, mapping);
       })
@@ -733,7 +722,10 @@ export class NadoAdapter extends BaseAdapter {
 
     const mapping = this.getProductMapping(symbol);
     const subscription = NadoSubscriptionBuilder.orderBook(mapping.productId);
-    const channelId = NadoSubscriptionBuilder.channelId(NADO_WS_CHANNELS.ORDERBOOK, mapping.productId);
+    const channelId = NadoSubscriptionBuilder.channelId(
+      NADO_WS_CHANNELS.ORDERBOOK,
+      mapping.productId
+    );
 
     for await (const update of this.wsManager.watch<NadoOrderBook>(channelId, subscription)) {
       yield this.normalizer.normalizeOrderBook(update, symbol);
@@ -755,7 +747,7 @@ export class NadoAdapter extends BaseAdapter {
       const normalized: Position[] = [];
 
       for (const position of positions) {
-        const mapping = mappingsArray.find(m => m.productId === position.product_id);
+        const mapping = mappingsArray.find((m) => m.productId === position.product_id);
         if (!mapping) continue;
         const normalizedPos = this.normalizer.normalizePosition(position, mapping);
         if (normalizedPos) normalized.push(normalizedPos);
@@ -780,7 +772,7 @@ export class NadoAdapter extends BaseAdapter {
       const normalized: Order[] = [];
 
       for (const order of orders) {
-        const mapping = mappingsArray.find(m => m.productId === order.product_id);
+        const mapping = mappingsArray.find((m) => m.productId === order.product_id);
         if (!mapping) continue;
         normalized.push(this.normalizer.normalizeOrder(order, mapping));
       }
@@ -863,11 +855,7 @@ export class NadoAdapter extends BaseAdapter {
     );
   }
 
-  async fetchOrderHistory(
-    _symbol?: string,
-    _since?: number,
-    _limit?: number
-  ): Promise<Order[]> {
+  async fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]> {
     const auth = this.requireAuth();
     const orders = await this.apiClient.query<NadoOrder[]>(NADO_QUERY_TYPES.ORDERS, {
       subaccount: auth.getAddress(),
@@ -876,18 +864,14 @@ export class NadoAdapter extends BaseAdapter {
     const mappingsArray = Array.from(this.productMappings.values());
     return orders
       .map((order) => {
-        const mapping = mappingsArray.find(m => m.productId === order.product_id);
+        const mapping = mappingsArray.find((m) => m.productId === order.product_id);
         if (!mapping) return null;
         return this.normalizer.normalizeOrder(order, mapping);
       })
       .filter((o): o is Order => o !== null);
   }
 
-  async fetchMyTrades(
-    _symbol?: string,
-    _since?: number,
-    _limit?: number
-  ): Promise<Trade[]> {
+  async fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]> {
     throw new PerpDEXError(
       'fetchMyTrades not supported on Nado (use WebSocket fills channel)',
       'NOT_SUPPORTED',

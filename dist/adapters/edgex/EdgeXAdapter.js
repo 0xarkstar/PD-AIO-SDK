@@ -7,10 +7,10 @@
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
-import { EDGEX_API_URLS, EDGEX_RATE_LIMITS, EDGEX_ENDPOINT_WEIGHTS, } from './constants.js';
+import { EDGEX_API_URLS, EDGEX_RATE_LIMITS, EDGEX_ENDPOINT_WEIGHTS } from './constants.js';
 import { EdgeXNormalizer } from './EdgeXNormalizer.js';
 import { EdgeXAuth } from './EdgeXAuth.js';
-import { toEdgeXOrderType, toEdgeXOrderSide, toEdgeXTimeInForce, mapEdgeXError, } from './utils.js';
+import { toEdgeXOrderType, toEdgeXOrderSide, toEdgeXTimeInForce, mapEdgeXError } from './utils.js';
 /**
  * EdgeX adapter implementation
  */
@@ -107,7 +107,9 @@ export class EdgeXAdapter extends BaseAdapter {
     async fetchTicker(symbol) {
         const contractId = this.normalizer.toEdgeXContractId(symbol);
         const response = await this.makeRequest('GET', `/api/v1/public/quote/getTicker?contractId=${contractId}`, 'fetchTicker');
-        if (response.code !== 'SUCCESS' || !Array.isArray(response.data) || response.data.length === 0) {
+        if (response.code !== 'SUCCESS' ||
+            !Array.isArray(response.data) ||
+            response.data.length === 0) {
             throw new PerpDEXError('Invalid ticker response', 'INVALID_RESPONSE', 'edgex');
         }
         return this.normalizer.normalizeTicker(response.data[0]);
@@ -121,7 +123,9 @@ export class EdgeXAdapter extends BaseAdapter {
         // EdgeX only accepts level=15 or level=200
         const level = params?.limit && params.limit > 15 ? 200 : 15;
         const response = await this.makeRequest('GET', `/api/v1/public/quote/getDepth?contractId=${contractId}&level=${level}`, 'fetchOrderBook');
-        if (response.code !== 'SUCCESS' || !Array.isArray(response.data) || response.data.length === 0) {
+        if (response.code !== 'SUCCESS' ||
+            !Array.isArray(response.data) ||
+            response.data.length === 0) {
             throw new PerpDEXError('Invalid order book response', 'INVALID_RESPONSE', 'edgex');
         }
         return this.normalizer.normalizeOrderBook(response.data[0], symbol);
@@ -140,7 +144,9 @@ export class EdgeXAdapter extends BaseAdapter {
     async fetchFundingRate(symbol) {
         const contractId = this.normalizer.toEdgeXContractId(symbol);
         const response = await this.makeRequest('GET', `/api/v1/public/funding/getLatestFundingRate?contractId=${contractId}`, 'fetchFundingRate');
-        if (response.code !== 'SUCCESS' || !Array.isArray(response.data) || response.data.length === 0) {
+        if (response.code !== 'SUCCESS' ||
+            !Array.isArray(response.data) ||
+            response.data.length === 0) {
             throw new PerpDEXError('Invalid funding rate response', 'INVALID_RESPONSE', 'edgex');
         }
         return this.normalizer.normalizeFundingRate(response.data[0], symbol);

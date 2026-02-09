@@ -65,7 +65,7 @@ export class Logger {
         this.context = context;
         this.level = config.level ?? LogLevel.INFO;
         this.enabled = config.enabled ?? true;
-        this.output = config.output ?? this.defaultOutput;
+        this.output = config.output ?? this.defaultOutput.bind(this);
         this.maskSensitiveData = config.maskSensitiveData ?? true;
         this.correlationId = config.correlationId;
     }
@@ -121,6 +121,19 @@ export class Logger {
      */
     getCorrelationId() {
         return this.correlationId;
+    }
+    /**
+     * Get logger configuration (used by createChildLogger)
+     */
+    getConfig() {
+        return {
+            context: this.context,
+            level: this.level,
+            enabled: this.enabled,
+            output: this.output,
+            maskSensitiveData: this.maskSensitiveData,
+            correlationId: this.correlationId,
+        };
     }
     /**
      * Create a child logger with a specific correlation ID
@@ -232,13 +245,14 @@ export class Logger {
  * ```
  */
 export function createChildLogger(parent, childContext) {
-    const fullContext = `${parent.context}:${childContext}`;
+    const config = parent.getConfig();
+    const fullContext = `${config.context}:${childContext}`;
     return new Logger(fullContext, {
-        level: parent.level,
-        enabled: parent.enabled,
-        output: parent.output,
-        maskSensitiveData: parent.maskSensitiveData,
-        correlationId: parent.correlationId,
+        level: config.level,
+        enabled: config.enabled,
+        output: config.output,
+        maskSensitiveData: config.maskSensitiveData,
+        correlationId: config.correlationId,
     });
 }
 /**
@@ -262,11 +276,7 @@ export function createChildLogger(parent, childContext) {
  * ```
  */
 export function formatLogEntry(entry) {
-    const parts = [
-        `[${entry.timestamp}]`,
-        entry.level.toUpperCase(),
-        `[${entry.context}]`,
-    ];
+    const parts = [`[${entry.timestamp}]`, entry.level.toUpperCase(), `[${entry.context}]`];
     // Add correlation ID if present
     if (entry.correlationId) {
         parts.push(`[${entry.correlationId}]`);

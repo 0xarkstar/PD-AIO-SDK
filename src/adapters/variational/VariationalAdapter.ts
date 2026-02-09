@@ -109,7 +109,12 @@ import {
   VARIATIONAL_DEFAULTS,
 } from './constants.js';
 import { VariationalNormalizer } from './VariationalNormalizer.js';
-import { convertOrderRequest, mapError, validateOrderRequest, generateClientOrderId } from './utils.js';
+import {
+  convertOrderRequest,
+  mapError,
+  validateOrderRequest,
+  generateClientOrderId,
+} from './utils.js';
 import type {
   VariationalOrder,
   VariationalPosition,
@@ -372,7 +377,11 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]> {
+  async fetchFundingRateHistory(
+    _symbol: string,
+    _since?: number,
+    _limit?: number
+  ): Promise<FundingRate[]> {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.FUNDING_HISTORY);
     throw new PerpDEXError('fetchFundingRateHistory not implemented', 'NOT_IMPLEMENTED', this.id);
   }
@@ -414,10 +423,7 @@ export class VariationalAdapter extends BaseAdapter {
 
     try {
       const endpoint = VARIATIONAL_ENDPOINTS.CANCEL_ORDER.replace('{orderId}', orderId);
-      const response = await this.authenticatedRequest<VariationalOrder>(
-        'DELETE',
-        endpoint
-      );
+      const response = await this.authenticatedRequest<VariationalOrder>('DELETE', endpoint);
 
       return this.normalizer.normalizeOrder(response);
     } catch (error) {
@@ -573,11 +579,19 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async fetchDeposits(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
+  async fetchDeposits(
+    _currency?: string,
+    _since?: number,
+    _limit?: number
+  ): Promise<Transaction[]> {
     throw new PerpDEXError('fetchDeposits not supported', 'NOT_SUPPORTED', this.id);
   }
 
-  async fetchWithdrawals(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
+  async fetchWithdrawals(
+    _currency?: string,
+    _since?: number,
+    _limit?: number
+  ): Promise<Transaction[]> {
     throw new PerpDEXError('fetchWithdrawals not supported', 'NOT_SUPPORTED', this.id);
   }
 
@@ -638,7 +652,11 @@ export class VariationalAdapter extends BaseAdapter {
    * @param amount - Trade size in base currency
    * @returns Array of quotes from market makers
    */
-  async requestQuote(symbol: string, side: 'buy' | 'sell', amount: number): Promise<VariationalQuote[]> {
+  async requestQuote(
+    symbol: string,
+    side: 'buy' | 'sell',
+    amount: number
+  ): Promise<VariationalQuote[]> {
     this.ensureAuthenticated();
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.REQUEST_QUOTE);
 
@@ -692,10 +710,7 @@ export class VariationalAdapter extends BaseAdapter {
 
     try {
       const endpoint = VARIATIONAL_ENDPOINTS.ACCEPT_QUOTE.replace('{quoteId}', quoteId);
-      const response = await this.authenticatedRequest<VariationalOrder>(
-        'POST',
-        endpoint
-      );
+      const response = await this.authenticatedRequest<VariationalOrder>('POST', endpoint);
 
       return this.normalizer.normalizeOrder(response);
     } catch (error) {
@@ -722,9 +737,18 @@ export class VariationalAdapter extends BaseAdapter {
    * Generate HMAC-SHA256 signature for authenticated requests
    * Note: This is now async to support browser Web Crypto API
    */
-  private async generateSignature(method: string, path: string, timestamp: string, body?: Record<string, unknown>): Promise<string> {
+  private async generateSignature(
+    method: string,
+    path: string,
+    timestamp: string,
+    body?: Record<string, unknown>
+  ): Promise<string> {
     if (!this.apiSecret) {
-      throw new PerpDEXError('API secret required for authentication', 'MISSING_API_SECRET', this.id);
+      throw new PerpDEXError(
+        'API secret required for authentication',
+        'MISSING_API_SECRET',
+        this.id
+      );
     }
 
     const message = `${timestamp}${method}${path}${body ? JSON.stringify(body) : ''}`;
@@ -775,7 +799,11 @@ export class VariationalAdapter extends BaseAdapter {
           response = await this.httpClient.put<T>(path, options);
           break;
         default:
-          throw new PerpDEXError(`Unsupported HTTP method: ${method}`, 'INVALID_REQUEST', this.id);
+          throw new PerpDEXError(
+            `Unsupported HTTP method: ${String(method)}`,
+            'INVALID_REQUEST',
+            this.id
+          );
       }
 
       return response;

@@ -358,5 +358,5 @@ export const DRIFT_ERROR_MESSAGES: Record<string, string> = {
   'post only': 'POST_ONLY_VIOLATION',
   'rate limit': 'RATE_LIMIT_EXCEEDED',
   'transaction failed': 'TRANSACTION_FAILED',
-  'liquidation': 'LIQUIDATION',
+  liquidation: 'LIQUIDATION',
 } as const;

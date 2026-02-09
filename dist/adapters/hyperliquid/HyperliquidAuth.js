@@ -4,7 +4,7 @@
  * Implements EIP-712 signing for Hyperliquid exchange
  */
 import { ethers } from 'ethers';
-import { HYPERLIQUID_EIP712_DOMAIN, HYPERLIQUID_ACTION_TYPES, } from './constants.js';
+import { HYPERLIQUID_EIP712_DOMAIN, HYPERLIQUID_ACTION_TYPES } from './constants.js';
 export class HyperliquidAuth {
     wallet;
     nonce = Date.now();

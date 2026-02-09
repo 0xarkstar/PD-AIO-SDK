@@ -88,13 +88,12 @@ export class SolanaClient {
 
     try {
       const { Connection } = await import('@solana/web3.js');
-      this.connection = new Connection(
-        this.config.rpcEndpoint,
-        this.config.commitment
-      );
+      this.connection = new Connection(this.config.rpcEndpoint, this.config.commitment);
       this.isInitialized = true;
     } catch (error) {
-      throw new Error(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -135,7 +134,7 @@ export class SolanaClient {
   async getMultipleAccountsInfo(pubkeys: string[]): Promise<(AccountInfo | null)[]> {
     const connection = this.ensureInitialized();
     const { PublicKey } = await import('@solana/web3.js');
-    const publicKeys = pubkeys.map(pk => new PublicKey(pk));
+    const publicKeys = pubkeys.map((pk) => new PublicKey(pk));
     return connection.getMultipleAccountsInfo(publicKeys);
   }
 
@@ -173,28 +172,28 @@ export class SolanaClient {
     const ownerPubkey = new PublicKey(owner);
     const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
-    const filter = mint
-      ? { mint: new PublicKey(mint) }
-      : { programId: TOKEN_PROGRAM_ID };
+    const filter = mint ? { mint: new PublicKey(mint) } : { programId: TOKEN_PROGRAM_ID };
 
     const accounts = await connection.getTokenAccountsByOwner(ownerPubkey, filter);
 
-    return accounts.value.map((account: { pubkey: { toBase58: () => string }; account: { data: Buffer } }) => {
-      // Parse token account data
-      const data = account.account.data;
-      // Token account layout: 32 bytes mint, 32 bytes owner, 8 bytes amount
-      const mintBytes = data.slice(0, 32);
-      const amountBytes = data.slice(64, 72);
+    return accounts.value.map(
+      (account: { pubkey: { toBase58: () => string }; account: { data: Buffer } }) => {
+        // Parse token account data
+        const data = account.account.data;
+        // Token account layout: 32 bytes mint, 32 bytes owner, 8 bytes amount
+        const mintBytes = data.slice(0, 32);
+        const amountBytes = data.slice(64, 72);
 
-      const mintPubkey = new PublicKey(mintBytes);
-      const amount = Buffer.from(amountBytes).readBigUInt64LE();
+        const mintPubkey = new PublicKey(mintBytes);
+        const amount = Buffer.from(amountBytes).readBigUInt64LE();
 
-      return {
-        pubkey: account.pubkey.toBase58(),
-        balance: Number(amount),
-        mint: mintPubkey.toBase58(),
-      };
-    });
+        return {
+          pubkey: account.pubkey.toBase58(),
+          balance: Number(amount),
+          mint: mintPubkey.toBase58(),
+        };
+      }
+    );
   }
 
   /**
@@ -209,21 +208,28 @@ export class SolanaClient {
     const programPubkey = new PublicKey(programId);
 
     const accounts = await connection.getProgramAccounts(programPubkey, {
-      filters: filters?.map(f => {
-        if (f.memcmp) {
-          return { memcmp: f.memcmp };
-        }
-        if (f.dataSize !== undefined) {
-          return { dataSize: f.dataSize };
-        }
-        return undefined;
-      }).filter(Boolean) as any[],
+      filters: filters
+        ?.map((f) => {
+          if (f.memcmp) {
+            return { memcmp: f.memcmp };
+          }
+          if (f.dataSize !== undefined) {
+            return { dataSize: f.dataSize };
+          }
+          return undefined;
+        })
+        .filter(
+          (f): f is { memcmp: { offset: number; bytes: string } } | { dataSize: number } =>
+            f !== undefined
+        ),
     });
 
-    return accounts.map((account: { pubkey: { toBase58: () => string }; account: AccountInfo }) => ({
-      pubkey: account.pubkey.toBase58(),
-      account: account.account,
-    }));
+    return accounts.map(
+      (account: { pubkey: { toBase58: () => string }; account: AccountInfo }) => ({
+        pubkey: account.pubkey.toBase58(),
+        account: account.account,
+      })
+    );
   }
 
   // ==========================================================================
@@ -261,10 +267,7 @@ export class SolanaClient {
   /**
    * Sign and send a transaction
    */
-  async sendTransaction(
-    transaction: Transaction,
-    signers: Keypair[]
-  ): Promise<TransactionResult> {
+  async sendTransaction(transaction: Transaction, signers: Keypair[]): Promise<TransactionResult> {
     const connection = this.ensureInitialized();
 
     // Sign the transaction
@@ -273,14 +276,11 @@ export class SolanaClient {
     }
 
     // Send the transaction
-    const signature = await connection.sendRawTransaction(
-      transaction.serialize(),
-      {
-        skipPreflight: false,
-        preflightCommitment: this.config.commitment,
-        maxRetries: 3,
-      }
-    );
+    const signature = await connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: this.config.commitment,
+      maxRetries: 3,
+    });
 
     // Confirm the transaction
     const confirmation = await connection.confirmTransaction(
@@ -333,9 +333,10 @@ export class SolanaClient {
     logs: string[];
   } | null> {
     const connection = this.ensureInitialized();
-    const commitment = this.config.commitment === 'processed' ? 'confirmed' : this.config.commitment;
+    const commitment =
+      this.config.commitment === 'processed' ? 'confirmed' : this.config.commitment;
     const tx = await connection.getTransaction(signature, {
-      commitment: commitment as 'confirmed' | 'finalized',
+      commitment: commitment,
       maxSupportedTransactionVersion: 0,
     });
 
@@ -384,10 +385,7 @@ export class SolanaClient {
   /**
    * Create PDA with bump
    */
-  async createProgramAddress(
-    seeds: (Uint8Array | Buffer)[],
-    programId: string
-  ): Promise<string> {
+  async createProgramAddress(seeds: (Uint8Array | Buffer)[], programId: string): Promise<string> {
     const { PublicKey } = await import('@solana/web3.js');
     const programPubkey = new PublicKey(programId);
 
@@ -402,14 +400,23 @@ export class SolanaClient {
   /**
    * Get Jupiter Perps position accounts for an owner
    */
-  async getJupiterPositions(owner: string): Promise<Array<{ pubkey: string; account: AccountInfo }>> {
+  async getJupiterPositions(
+    owner: string
+  ): Promise<Array<{ pubkey: string; account: AccountInfo }>> {
     const { PublicKey } = await import('@solana/web3.js');
     const ownerBytes = new PublicKey(owner).toBuffer();
 
     // Position account discriminator (first 8 bytes)
     // This would be derived from the Anchor IDL
     const POSITION_DISCRIMINATOR = Buffer.from([
-      0x56, 0x7a, 0x88, 0x4c, 0x5c, 0x47, 0x12, 0x8f // Example - actual value from IDL
+      0x56,
+      0x7a,
+      0x88,
+      0x4c,
+      0x5c,
+      0x47,
+      0x12,
+      0x8f, // Example - actual value from IDL
     ]);
 
     return this.getProgramAccounts(JUPITER_PERPS_PROGRAM_ID, [
@@ -451,7 +458,9 @@ export class SolanaClient {
   /**
    * Get custody account for a token
    */
-  async getJupiterCustody(tokenMint: string): Promise<{ pubkey: string; account: AccountInfo } | null> {
+  async getJupiterCustody(
+    tokenMint: string
+  ): Promise<{ pubkey: string; account: AccountInfo } | null> {
     const { PublicKey } = await import('@solana/web3.js');
     const mintPubkey = new PublicKey(tokenMint);
 

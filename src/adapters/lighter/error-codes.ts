@@ -7,6 +7,7 @@
  * @see https://docs.lighter.xyz/api/errors
  */
 
+import { includesValue } from '../../utils/type-guards.js';
 import {
   PerpDEXError,
   InvalidOrderError,
@@ -96,7 +97,7 @@ export const LIGHTER_NETWORK_ERRORS = {
  * @returns true if client error
  */
 export function isClientError(errorCode: string): boolean {
-  return Object.values(LIGHTER_CLIENT_ERRORS).includes(errorCode as any);
+  return includesValue(Object.values(LIGHTER_CLIENT_ERRORS), errorCode);
 }
 
 /**
@@ -106,7 +107,7 @@ export function isClientError(errorCode: string): boolean {
  * @returns true if server error
  */
 export function isServerError(errorCode: string): boolean {
-  return Object.values(LIGHTER_SERVER_ERRORS).includes(errorCode as any);
+  return includesValue(Object.values(LIGHTER_SERVER_ERRORS), errorCode);
 }
 
 /**
@@ -116,7 +117,7 @@ export function isServerError(errorCode: string): boolean {
  * @returns true if network error
  */
 export function isNetworkError(errorCode: string): boolean {
-  return Object.values(LIGHTER_NETWORK_ERRORS).includes(errorCode as any);
+  return includesValue(Object.values(LIGHTER_NETWORK_ERRORS), errorCode);
 }
 
 /**
@@ -127,9 +128,7 @@ export function isNetworkError(errorCode: string): boolean {
  */
 export function isRetryableError(errorCode: string): boolean {
   return (
-    isServerError(errorCode) ||
-    isNetworkError(errorCode) ||
-    errorCode === LIGHTER_RATE_LIMIT_ERROR
+    isServerError(errorCode) || isNetworkError(errorCode) || errorCode === LIGHTER_RATE_LIMIT_ERROR
   );
 }
 
@@ -335,7 +334,7 @@ export function mapHttpError(status: number, statusText: string): PerpDEXError {
       `Rate limit exceeded: ${statusText}`,
       LIGHTER_RATE_LIMIT_ERROR,
       'lighter',
-      undefined  // retryAfter parameter
+      undefined // retryAfter parameter
     );
   }
 
@@ -358,9 +357,5 @@ export function mapHttpError(status: number, statusText: string): PerpDEXError {
   }
 
   // Other
-  return new PerpDEXError(
-    `HTTP error (${status}): ${statusText}`,
-    `HTTP_${status}`,
-    'lighter'
-  );
+  return new PerpDEXError(`HTTP error (${status}): ${statusText}`, `HTTP_${status}`, 'lighter');
 }

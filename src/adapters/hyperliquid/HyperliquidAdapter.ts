@@ -61,16 +61,8 @@ import {
   getDefaultDuration as getDefaultOHLCVDuration,
   type HyperliquidCandle,
 } from './HyperliquidMarketData.js';
-import {
-  parseUserFees,
-  parsePortfolio,
-  parseRateLimitStatus,
-} from './HyperliquidInfoMethods.js';
-import {
-  processOrderHistory,
-  processUserFills,
-  processOpenOrders,
-} from './HyperliquidAccount.js';
+import { parseUserFees, parsePortfolio, parseRateLimitStatus } from './HyperliquidInfoMethods.js';
+import { processOrderHistory, processUserFills, processOpenOrders } from './HyperliquidAccount.js';
 
 export interface HyperliquidConfig extends ExchangeConfig {
   /** Ethereum wallet for signing */
@@ -220,7 +212,9 @@ export class HyperliquidAdapter extends BaseAdapter {
         type: 'meta',
       });
 
-      const markets = response.universe.map((asset, index) => this.normalizer.normalizeMarket(asset, index));
+      const markets = response.universe.map((asset, index) =>
+        this.normalizer.normalizeMarket(asset, index)
+      );
 
       // Filter by params if provided
       if (params?.active !== undefined) {
@@ -316,7 +310,9 @@ export class HyperliquidAdapter extends BaseAdapter {
       const exchangeSymbol = this.symbolToExchange(symbol);
 
       // Fetch funding history (last entry is current)
-      const response = await this.request<Array<{ coin: string; fundingRate: string; premium: string; time: number }>>('POST', `${this.apiUrl}/info`, {
+      const response = await this.request<
+        Array<{ coin: string; fundingRate: string; premium: string; time: number }>
+      >('POST', `${this.apiUrl}/info`, {
         type: 'fundingHistory',
         coin: exchangeSymbol,
         startTime: Date.now() - 86400000, // Last 24h
@@ -357,15 +353,13 @@ export class HyperliquidAdapter extends BaseAdapter {
       // Default to last 7 days if since not provided
       const startTime = since ?? Date.now() - 7 * 24 * 3600 * 1000;
 
-      const response = await this.request<Array<{ coin: string; fundingRate: string; premium: string; time: number }>>(
-        'POST',
-        `${this.apiUrl}/info`,
-        {
-          type: 'fundingHistory',
-          coin: exchangeSymbol,
-          startTime,
-        }
-      );
+      const response = await this.request<
+        Array<{ coin: string; fundingRate: string; premium: string; time: number }>
+      >('POST', `${this.apiUrl}/info`, {
+        type: 'fundingHistory',
+        coin: exchangeSymbol,
+        startTime,
+      });
 
       if (!response || response.length === 0) {
         return [];
@@ -542,7 +536,10 @@ export class HyperliquidAdapter extends BaseAdapter {
 
   async fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]> {
     try {
-      const response = await this.authInfoRequest<HyperliquidHistoricalOrder[]>('fetchOrderHistory', 'historicalOrders');
+      const response = await this.authInfoRequest<HyperliquidHistoricalOrder[]>(
+        'fetchOrderHistory',
+        'historicalOrders'
+      );
       return processOrderHistory(response, this.normalizer, symbol, since, limit);
     } catch (error) {
       throw mapError(error);
@@ -551,7 +548,10 @@ export class HyperliquidAdapter extends BaseAdapter {
 
   async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
     try {
-      const response = await this.authInfoRequest<HyperliquidUserFill[]>('fetchMyTrades', 'userFills');
+      const response = await this.authInfoRequest<HyperliquidUserFill[]>(
+        'fetchMyTrades',
+        'userFills'
+      );
       return processUserFills(response, this.normalizer, symbol, since, limit);
     } catch (error) {
       throw mapError(error);
@@ -564,7 +564,10 @@ export class HyperliquidAdapter extends BaseAdapter {
 
   async fetchPositions(symbols?: string[]): Promise<Position[]> {
     try {
-      const response = await this.authInfoRequest<HyperliquidUserState>('fetchPositions', 'clearinghouseState');
+      const response = await this.authInfoRequest<HyperliquidUserState>(
+        'fetchPositions',
+        'clearinghouseState'
+      );
 
       const positions = response.assetPositions
         .filter((p) => parseFloat(p.position.szi) !== 0)
@@ -582,7 +585,10 @@ export class HyperliquidAdapter extends BaseAdapter {
 
   async fetchBalance(): Promise<Balance[]> {
     try {
-      const response = await this.authInfoRequest<HyperliquidUserState>('fetchBalance', 'clearinghouseState');
+      const response = await this.authInfoRequest<HyperliquidUserState>(
+        'fetchBalance',
+        'clearinghouseState'
+      );
       return this.normalizer.normalizeBalance(response);
     } catch (error) {
       throw mapError(error);
@@ -622,7 +628,10 @@ export class HyperliquidAdapter extends BaseAdapter {
 
   async fetchUserFees(): Promise<import('../../types/common.js').UserFees> {
     try {
-      const response = await this.authInfoRequest<import('./types.js').HyperliquidUserFees>('fetchUserFees', 'userFees');
+      const response = await this.authInfoRequest<import('./types.js').HyperliquidUserFees>(
+        'fetchUserFees',
+        'userFees'
+      );
       return parseUserFees(response);
     } catch (error) {
       throw mapError(error);
@@ -631,7 +640,10 @@ export class HyperliquidAdapter extends BaseAdapter {
 
   async fetchPortfolio(): Promise<import('../../types/common.js').Portfolio> {
     try {
-      const response = await this.authInfoRequest<import('./types.js').HyperliquidPortfolio>('fetchPortfolio', 'portfolio');
+      const response = await this.authInfoRequest<import('./types.js').HyperliquidPortfolio>(
+        'fetchPortfolio',
+        'portfolio'
+      );
       return parsePortfolio(response);
     } catch (error) {
       throw mapError(error);
@@ -640,7 +652,10 @@ export class HyperliquidAdapter extends BaseAdapter {
 
   async fetchRateLimitStatus(): Promise<import('../../types/common.js').RateLimitStatus> {
     try {
-      const response = await this.authInfoRequest<import('./types.js').HyperliquidUserRateLimit>('fetchRateLimitStatus', 'userRateLimit');
+      const response = await this.authInfoRequest<import('./types.js').HyperliquidUserRateLimit>(
+        'fetchRateLimitStatus',
+        'userRateLimit'
+      );
       return parseRateLimitStatus(response);
     } catch (error) {
       throw mapError(error);
@@ -712,14 +727,10 @@ export class HyperliquidAdapter extends BaseAdapter {
     }
 
     try {
-      const response = await this.request<HyperliquidOpenOrder[]>(
-        'POST',
-        `${this.apiUrl}/info`,
-        {
-          type: 'openOrders',
-          user: this.auth.getAddress(),
-        }
-      );
+      const response = await this.request<HyperliquidOpenOrder[]>('POST', `${this.apiUrl}/info`, {
+        type: 'openOrders',
+        user: this.auth.getAddress(),
+      });
 
       return processOpenOrders(response, this.normalizer, symbol);
     } catch (error) {

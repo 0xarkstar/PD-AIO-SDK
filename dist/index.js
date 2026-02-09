@@ -7,7 +7,7 @@
 // Factory Functions
 // =============================================================================
 export { createExchange, getSupportedExchanges, isExchangeSupported } from './factory.js';
-export { determineHealthStatus, isHealthy, isCriticallyUnhealthy, } from './types/health.js';
+export { determineHealthStatus, isHealthy, isCriticallyUnhealthy } from './types/health.js';
 export { 
 // Constants
 ORDER_TYPES, ORDER_SIDES, ORDER_STATUSES, TIME_IN_FORCE, POSITION_SIDES, MARGIN_MODES, 

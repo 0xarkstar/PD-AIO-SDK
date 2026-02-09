@@ -5,6 +5,7 @@
  * GRVT uses official SDK which handles errors internally, but we provide
  * additional error mapping for completeness.
  */
+import { includesValue } from '../../utils/type-guards.js';
 import { PerpDEXError, InvalidOrderError, InsufficientMarginError, OrderNotFoundError, RateLimitError, ExchangeUnavailableError, } from '../../types/errors.js';
 /**
  * GRVT Client Error Codes
@@ -43,7 +44,7 @@ export function mapGRVTError(errorCode, message, originalError) {
         case GRVT_RATE_LIMIT_ERROR:
             return new RateLimitError(message, errorCode, 'grvt', undefined, originalError);
         default:
-            if (Object.values(GRVT_SERVER_ERRORS).includes(errorCode)) {
+            if (includesValue(Object.values(GRVT_SERVER_ERRORS), errorCode)) {
                 return new ExchangeUnavailableError(message, errorCode, 'grvt', originalError);
             }
             return new PerpDEXError(message, errorCode, 'grvt', originalError);
@@ -65,7 +66,7 @@ export function mapError(error) {
  * Check if error is retryable
  */
 export function isRetryableError(errorCode) {
-    return (Object.values(GRVT_SERVER_ERRORS).includes(errorCode) ||
+    return (includesValue(Object.values(GRVT_SERVER_ERRORS), errorCode) ||
         errorCode === GRVT_RATE_LIMIT_ERROR);
 }
 //# sourceMappingURL=error-codes.js.map

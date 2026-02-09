@@ -107,7 +107,9 @@ export class ExtendedStarkNetClient {
                 }
             }
             catch (balanceError) {
-                this.logger.warn('Failed to fetch balance, using 0', { error: balanceError instanceof Error ? balanceError.message : String(balanceError) });
+                this.logger.warn('Failed to fetch balance, using 0', {
+                    error: balanceError instanceof Error ? balanceError.message : String(balanceError),
+                });
             }
             // Get account nonce
             const nonce = await this.provider.getNonceForAddress(formattedAddress);
@@ -130,7 +132,11 @@ export class ExtendedStarkNetClient {
             const receipt = await this.provider.getTransactionReceipt(txHash);
             // StarkNet.js v8+ returns GetTransactionReceiptResponse with helper methods
             // Use isSuccess()/isReverted() to determine status and access typed properties
-            const executionStatus = receipt.isSuccess() ? 'SUCCEEDED' : receipt.isReverted() ? 'REVERTED' : undefined;
+            const executionStatus = receipt.isSuccess()
+                ? 'SUCCEEDED'
+                : receipt.isReverted()
+                    ? 'REVERTED'
+                    : undefined;
             const txType = receipt.isError() ? 'INVOKE' : receipt.type;
             const blockNumber = receipt.isError() ? undefined : receipt.block_number;
             return {
@@ -142,7 +148,9 @@ export class ExtendedStarkNetClient {
             };
         }
         catch (error) {
-            this.logger.error('Failed to get transaction', error instanceof Error ? error : undefined, { txHash });
+            this.logger.error('Failed to get transaction', error instanceof Error ? error : undefined, {
+                txHash,
+            });
             throw mapStarkNetError(error);
         }
     }
@@ -174,7 +182,7 @@ export class ExtendedStarkNetClient {
                 // Wait before next check
                 await new Promise((resolve) => setTimeout(resolve, 5000)); // 5 seconds
             }
-            catch (error) {
+            catch {
                 // Transaction might not be available yet
                 await new Promise((resolve) => setTimeout(resolve, 5000));
             }
@@ -254,9 +262,7 @@ export class ExtendedStarkNetClient {
             // 1. Extended's position contract ABI
             // 2. Correct entrypoint name
             // 3. Proper calldata formatting
-            const result = await this.callContract(contractAddress, 'get_positions', [
-                targetAddress,
-            ]);
+            const result = await this.callContract(contractAddress, 'get_positions', [targetAddress]);
             return result;
         }
         catch (error) {
@@ -299,7 +305,9 @@ export class ExtendedStarkNetClient {
             };
         }
         catch (error) {
-            this.logger.error('Failed to get contract info', error instanceof Error ? error : undefined, { contractAddress });
+            this.logger.error('Failed to get contract info', error instanceof Error ? error : undefined, {
+                contractAddress,
+            });
             throw mapStarkNetError(error);
         }
     }
@@ -325,7 +333,10 @@ export class ExtendedStarkNetClient {
             return BigInt(feeEstimate.overall_fee.toString());
         }
         catch (error) {
-            this.logger.error('Failed to estimate fee', error instanceof Error ? error : undefined, { contractAddress, entrypoint });
+            this.logger.error('Failed to estimate fee', error instanceof Error ? error : undefined, {
+                contractAddress,
+                entrypoint,
+            });
             throw mapStarkNetError(error);
         }
     }

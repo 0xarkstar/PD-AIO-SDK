@@ -493,4 +493,4 @@ export const StandardErrorCodes = {
   NONCE_ERROR: 'NONCE_ERROR',
 } as const;
 
-export type StandardErrorCode = typeof StandardErrorCodes[keyof typeof StandardErrorCodes];
+export type StandardErrorCode = (typeof StandardErrorCodes)[keyof typeof StandardErrorCodes];

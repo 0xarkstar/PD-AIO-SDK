@@ -13,14 +13,7 @@
  * @see https://docs.paradex.trade/websocket
  */
 
-import type {
-  OrderBook,
-  Trade,
-  Ticker,
-  Position,
-  Order,
-  Balance,
-} from '../../types/common.js';
+import type { OrderBook, Trade, Ticker, Position, Order, Balance } from '../../types/common.js';
 import { ParadexNormalizer } from './ParadexNormalizer.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { Logger } from '../../core/logger.js';
@@ -141,19 +134,13 @@ export class ParadexWebSocketWrapper {
 
         this.ws.onclose = () => {
           this.isConnected = false;
-          this.handleDisconnect();
+          void this.handleDisconnect();
         };
 
         // Timeout
         setTimeout(() => {
           if (!this.isConnected) {
-            reject(
-              new PerpDEXError(
-                'WebSocket connection timeout',
-                'WS_TIMEOUT',
-                'paradex'
-              )
-            );
+            reject(new PerpDEXError('WebSocket connection timeout', 'WS_TIMEOUT', 'paradex'));
           }
         }, this.timeout);
       } catch (error) {
@@ -194,7 +181,7 @@ export class ParadexWebSocketWrapper {
     const channel = `orderbook.${market}`;
 
     const queue: any[] = [];
-    let error: Error | null = null;
+    const error: Error | null = null;
     let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
@@ -252,7 +239,7 @@ export class ParadexWebSocketWrapper {
     const channel = `trades.${market}`;
 
     const queue: any[] = [];
-    let error: Error | null = null;
+    const error: Error | null = null;
     let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
@@ -313,7 +300,7 @@ export class ParadexWebSocketWrapper {
     const channel = `ticker.${market}`;
 
     const queue: any[] = [];
-    let error: Error | null = null;
+    const error: Error | null = null;
     let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
@@ -373,7 +360,7 @@ export class ParadexWebSocketWrapper {
     const channel = symbol ? `positions.${this.normalizer.symbolFromCCXT(symbol)}` : 'positions';
 
     const queue: any[] = [];
-    let error: Error | null = null;
+    const error: Error | null = null;
     let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
@@ -390,7 +377,11 @@ export class ParadexWebSocketWrapper {
     };
 
     try {
-      await this.subscribe(channel, symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {}, callback);
+      await this.subscribe(
+        channel,
+        symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {},
+        callback
+      );
 
       while (true) {
         if (error) throw error;
@@ -438,7 +429,7 @@ export class ParadexWebSocketWrapper {
     const channel = symbol ? `orders.${this.normalizer.symbolFromCCXT(symbol)}` : 'orders';
 
     const queue: any[] = [];
-    let error: Error | null = null;
+    const error: Error | null = null;
     let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
@@ -454,7 +445,11 @@ export class ParadexWebSocketWrapper {
     };
 
     try {
-      await this.subscribe(channel, symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {}, callback);
+      await this.subscribe(
+        channel,
+        symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {},
+        callback
+      );
 
       while (true) {
         if (error) throw error;
@@ -505,7 +500,7 @@ export class ParadexWebSocketWrapper {
     const channel = 'balances';
 
     const queue: any[] = [];
-    let error: Error | null = null;
+    const error: Error | null = null;
     let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
@@ -563,7 +558,7 @@ export class ParadexWebSocketWrapper {
     const channel = symbol ? `fills.${this.normalizer.symbolFromCCXT(symbol)}` : 'fills';
 
     const queue: any[] = [];
-    let error: Error | null = null;
+    const error: Error | null = null;
     let resolver: ((value: any) => void) | null = null;
 
     const callback = (data: any) => {
@@ -579,7 +574,11 @@ export class ParadexWebSocketWrapper {
     };
 
     try {
-      await this.subscribe(channel, symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {}, callback);
+      await this.subscribe(
+        channel,
+        symbol ? { market: this.normalizer.symbolFromCCXT(symbol) } : {},
+        callback
+      );
 
       while (true) {
         if (error) throw error;
@@ -732,7 +731,7 @@ export class ParadexWebSocketWrapper {
       }
     } catch (error) {
       this.logger.error('Reconnect failed', error instanceof Error ? error : undefined);
-      this.handleDisconnect(); // Retry
+      void this.handleDisconnect(); // Retry
     }
   }
 

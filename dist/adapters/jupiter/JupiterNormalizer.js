@@ -77,7 +77,7 @@ export class JupiterNormalizer {
         const liquidationPrice = this.calculateLiquidationPrice(side, entryPrice, leverage, collateralUsd, sizeUsd);
         // Maintenance margin is approximately 1% of position size
         const maintenanceMargin = sizeUsd * 0.01;
-        const marginRatio = (collateralUsd - maintenanceMargin) / collateralUsd * 100;
+        const marginRatio = ((collateralUsd - maintenanceMargin) / collateralUsd) * 100;
         return {
             symbol,
             side,
@@ -278,11 +278,11 @@ export class JupiterNormalizer {
         const liquidationThreshold = 1 - maintenanceMargin;
         if (side === 'long') {
             // Long liquidation: price drops until margin is consumed
-            return entryPrice * (1 - (liquidationThreshold / leverage));
+            return entryPrice * (1 - liquidationThreshold / leverage);
         }
         else {
             // Short liquidation: price rises until margin is consumed
-            return entryPrice * (1 + (liquidationThreshold / leverage));
+            return entryPrice * (1 + liquidationThreshold / leverage);
         }
     }
     /**

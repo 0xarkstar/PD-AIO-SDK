@@ -123,7 +123,8 @@ export function HttpRequestMixin<T extends Constructor<IHttpRequestMixinBase>>(B
             });
 
             if (!response.ok) {
-              const shouldRetry = attempt < maxAttempts - 1 && retryableStatuses.includes(response.status);
+              const shouldRetry =
+                attempt < maxAttempts - 1 && retryableStatuses.includes(response.status);
               const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
 
               if (!shouldRetry) {
@@ -147,7 +148,7 @@ export function HttpRequestMixin<T extends Constructor<IHttpRequestMixinBase>>(B
               this.abortControllers.delete(controller);
 
               // Wait before retry
-              await new Promise(resolve => setTimeout(resolve, delay));
+              await new Promise((resolve) => setTimeout(resolve, delay));
               continue;
             }
 
@@ -205,17 +206,20 @@ export function HttpRequestMixin<T extends Constructor<IHttpRequestMixinBase>>(B
             this.abortControllers.delete(controller);
 
             // Check if should retry
-            const isNetworkError = error instanceof Error &&
-              (error.name === 'AbortError' || error.message.includes('fetch') || error.message.includes('network'));
+            const isNetworkError =
+              error instanceof Error &&
+              (error.name === 'AbortError' ||
+                error.message.includes('fetch') ||
+                error.message.includes('network'));
 
             if (attempt < maxAttempts - 1 && isNetworkError) {
-              lastError = error as Error;
+              lastError = error;
 
               // Calculate delay with exponential backoff
               const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
 
               // Wait before retry
-              await new Promise(resolve => setTimeout(resolve, delay));
+              await new Promise((resolve) => setTimeout(resolve, delay));
               continue;
             }
 
@@ -224,7 +228,10 @@ export function HttpRequestMixin<T extends Constructor<IHttpRequestMixinBase>>(B
           }
         }
 
-        throw this.attachCorrelationId(lastError || new Error('Request failed after retries'), correlationId);
+        throw this.attachCorrelationId(
+          lastError || new Error('Request failed after retries'),
+          correlationId
+        );
       });
     }
 

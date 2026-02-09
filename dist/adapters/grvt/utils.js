@@ -1,7 +1,7 @@
 /**
  * GRVT utility functions for data normalization
  */
-import { GRVT_ORDER_TYPES, GRVT_ORDER_SIDES, GRVT_TIME_IN_FORCE, } from './constants.js';
+import { GRVT_ORDER_TYPES, GRVT_ORDER_SIDES, GRVT_TIME_IN_FORCE } from './constants.js';
 /**
  * Normalize GRVT symbol to unified format
  *
@@ -150,14 +150,8 @@ export function normalizeOrderBook(grvtOrderBook) {
     return {
         symbol: normalizeSymbol(grvtOrderBook.instrument),
         exchange: 'grvt',
-        bids: grvtOrderBook.bids.map(([price, size]) => [
-            parseFloat(price),
-            parseFloat(size),
-        ]),
-        asks: grvtOrderBook.asks.map(([price, size]) => [
-            parseFloat(price),
-            parseFloat(size),
-        ]),
+        bids: grvtOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+        asks: grvtOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
         timestamp: grvtOrderBook.timestamp,
         // nonce: grvtOrderBook.sequence,
     };

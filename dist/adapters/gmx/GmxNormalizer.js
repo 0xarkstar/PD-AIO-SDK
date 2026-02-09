@@ -69,7 +69,7 @@ export class GmxNormalizer {
      * Normalize multiple markets
      */
     normalizeMarkets(markets, chain) {
-        return markets.map(m => this.normalizeMarket(m, chain));
+        return markets.map((m) => this.normalizeMarket(m, chain));
     }
     /**
      * Normalize position to unified Position
@@ -79,8 +79,8 @@ export class GmxNormalizer {
         const config = marketKey ? GMX_MARKETS[marketKey] : undefined;
         const symbol = config?.symbol || gmxToUnified(marketKey);
         const sizeInUsd = parseFloat(position.sizeInUsd) / GMX_PRECISION.USD;
-        const sizeInTokens = parseFloat(position.sizeInTokens) / (10 ** 18); // Assume 18 decimals
-        const collateral = parseFloat(position.collateralAmount) / (10 ** 18);
+        const sizeInTokens = parseFloat(position.sizeInTokens) / 10 ** 18; // Assume 18 decimals
+        const collateral = parseFloat(position.collateralAmount) / 10 ** 18;
         const side = position.isLong ? 'long' : 'short';
         const entryPrice = sizeInTokens > 0 ? sizeInUsd / sizeInTokens : markPrice;
         const notional = sizeInTokens * markPrice;
@@ -150,7 +150,7 @@ export class GmxNormalizer {
             status = 'expired';
         else if (order.isFrozen)
             status = 'rejected';
-        const price = triggerPrice > 0 ? triggerPrice : (marketPrice || acceptablePrice);
+        const price = triggerPrice > 0 ? triggerPrice : marketPrice || acceptablePrice;
         const amount = price > 0 ? sizeDeltaUsd / price : 0;
         return {
             id: order.key,
@@ -187,7 +187,7 @@ export class GmxNormalizer {
         const symbol = config?.symbol || gmxToUnified(marketKey);
         const sizeDeltaUsd = parseFloat(trade.sizeDeltaUsd) / GMX_PRECISION.USD;
         const executionPrice = parseFloat(trade.executionPrice) / GMX_PRECISION.PRICE;
-        const sizeDeltaInTokens = parseFloat(trade.sizeDeltaInTokens) / (10 ** 18);
+        const sizeDeltaInTokens = parseFloat(trade.sizeDeltaInTokens) / 10 ** 18;
         // Determine side
         const isIncrease = trade.orderType === 0 || trade.orderType === 2;
         const side = (isIncrease && trade.isLong) || (!isIncrease && !trade.isLong) ? 'buy' : 'sell';
@@ -299,7 +299,7 @@ export class GmxNormalizer {
      * Normalize candlesticks array
      */
     normalizeCandles(candles) {
-        return candles.map(c => this.normalizeCandle(c));
+        return candles.map((c) => this.normalizeCandle(c));
     }
     // ==========================================================================
     // Helper Methods

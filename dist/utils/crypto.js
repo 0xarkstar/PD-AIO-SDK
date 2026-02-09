@@ -52,7 +52,7 @@ export function createHmacSha256Sync(key, message) {
         throw new Error('createHmacSha256Sync is not available in browsers. Use createHmacSha256 instead.');
     }
     // Dynamic require for Node.js
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const crypto = require('crypto');
     return crypto.createHmac('sha256', key).update(message).digest('hex');
 }
@@ -82,7 +82,7 @@ export async function createSha3Hash(data) {
  * @returns Hex-encoded hash
  */
 export function createSha3HashSync(data) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { sha3_256 } = require('js-sha3');
     return sha3_256(data);
 }

@@ -6,6 +6,7 @@
  *
  * @see https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/errors
  */
+import { includesValue } from '../../utils/type-guards.js';
 import { PerpDEXError, InvalidOrderError, InsufficientMarginError, OrderNotFoundError, PositionNotFoundError, InvalidSignatureError, RateLimitError, ExchangeUnavailableError, } from '../../types/errors.js';
 /**
  * Hyperliquid Client Error Codes
@@ -88,7 +89,7 @@ export function mapHyperliquidError(errorCode, message, originalError) {
         case HYPERLIQUID_RATE_LIMIT_ERROR:
             return new RateLimitError(message, errorCode, 'hyperliquid', undefined, originalError);
         default:
-            if (Object.values(HYPERLIQUID_SERVER_ERRORS).includes(errorCode)) {
+            if (includesValue(Object.values(HYPERLIQUID_SERVER_ERRORS), errorCode)) {
                 return new ExchangeUnavailableError(message, errorCode, 'hyperliquid', originalError);
             }
             return new PerpDEXError(message, errorCode, 'hyperliquid', originalError);
@@ -111,7 +112,7 @@ export function mapError(error) {
  * Check if error is retryable
  */
 export function isRetryableError(errorCode) {
-    return (Object.values(HYPERLIQUID_SERVER_ERRORS).includes(errorCode) ||
+    return (includesValue(Object.values(HYPERLIQUID_SERVER_ERRORS), errorCode) ||
         errorCode === HYPERLIQUID_RATE_LIMIT_ERROR);
 }
 //# sourceMappingURL=error-codes.js.map

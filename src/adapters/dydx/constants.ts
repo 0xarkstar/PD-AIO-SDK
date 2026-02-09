@@ -184,5 +184,5 @@ export const DYDX_ERROR_MESSAGES: Record<string, string> = {
   'price out of bounds': 'PRICE_OUT_OF_BOUNDS',
   'market not found': 'MARKET_NOT_FOUND',
   'subaccount not found': 'SUBACCOUNT_NOT_FOUND',
-  'unauthorized': 'UNAUTHORIZED',
+  unauthorized: 'UNAUTHORIZED',
 };

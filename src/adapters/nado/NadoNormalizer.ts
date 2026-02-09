@@ -210,9 +210,7 @@ export class NadoNormalizer {
     const amountPrecision = this.getPrecisionFromIncrement(sizeIncrement);
 
     // Build CCXT-style symbol
-    const symbol = isPerp
-      ? `${base}/${quote}:${quote}`
-      : `${base}/${quote}`;
+    const symbol = isPerp ? `${base}/${quote}:${quote}` : `${base}/${quote}`;
 
     return {
       id: validated.product_id.toString(),
@@ -264,9 +262,7 @@ export class NadoNormalizer {
       settle: validated.quote_currency,
       active: validated.is_active,
       minAmount: parseFloat(validated.min_size),
-      maxAmount: validated.max_position_size
-        ? parseFloat(validated.max_position_size)
-        : undefined,
+      maxAmount: validated.max_position_size ? parseFloat(validated.max_position_size) : undefined,
       pricePrecision: 8,
       amountPrecision: 8,
       priceTickSize: parseFloat(validated.tick_size),
@@ -321,10 +317,7 @@ export class NadoNormalizer {
    * @param productMapping - Product mapping for symbol resolution
    * @returns Normalized position or null if size is zero
    */
-  normalizePosition(
-    position: NadoPosition,
-    productMapping: ProductMapping
-  ): Position | null {
+  normalizePosition(position: NadoPosition, productMapping: ProductMapping): Position | null {
     // Validate with Zod
     const validated = NadoPositionSchema.parse(position);
 
@@ -353,7 +346,7 @@ export class NadoNormalizer {
       marginMode: 'cross',
       margin,
       maintenanceMargin: margin * 0.05, // Typical 5% maintenance margin
-      marginRatio: margin > 0 ? (margin / (Math.abs(size) * markPrice)) : 0,
+      marginRatio: margin > 0 ? margin / (Math.abs(size) * markPrice) : 0,
       markPrice,
       entryPrice,
       liquidationPrice: validated.liquidation_price
@@ -497,12 +490,9 @@ export class NadoNormalizer {
    * const normalized = normalizer.normalizeOrders(orders, productMappings);
    * ```
    */
-  normalizeOrders(
-    orders: NadoOrder[],
-    mappings: Map<string, ProductMapping>
-  ): Order[] {
+  normalizeOrders(orders: NadoOrder[], mappings: Map<string, ProductMapping>): Order[] {
     return orders
-      .map(order => {
+      .map((order) => {
         const mapping = mappings.get(order.product_id.toString());
         if (!mapping) {
           this.logger.warn('No mapping found for product ID', { productId: order.product_id });
@@ -511,7 +501,11 @@ export class NadoNormalizer {
         try {
           return this.normalizeOrder(order, mapping);
         } catch (error) {
-          this.logger.error('Failed to normalize order', error instanceof Error ? error : undefined, { orderId: order.order_id });
+          this.logger.error(
+            'Failed to normalize order',
+            error instanceof Error ? error : undefined,
+            { orderId: order.order_id }
+          );
           return null;
         }
       })
@@ -534,12 +528,9 @@ export class NadoNormalizer {
    * const normalized = normalizer.normalizePositions(positions, productMappings);
    * ```
    */
-  normalizePositions(
-    positions: NadoPosition[],
-    mappings: Map<string, ProductMapping>
-  ): Position[] {
+  normalizePositions(positions: NadoPosition[], mappings: Map<string, ProductMapping>): Position[] {
     return positions
-      .map(position => {
+      .map((position) => {
         const mapping = mappings.get(position.product_id.toString());
         if (!mapping) {
           this.logger.warn('No mapping found for product ID', { productId: position.product_id });
@@ -548,7 +539,11 @@ export class NadoNormalizer {
         try {
           return this.normalizePosition(position, mapping);
         } catch (error) {
-          this.logger.error('Failed to normalize position', error instanceof Error ? error : undefined, { productId: position.product_id });
+          this.logger.error(
+            'Failed to normalize position',
+            error instanceof Error ? error : undefined,
+            { productId: position.product_id }
+          );
           return null;
         }
       })
@@ -562,12 +557,9 @@ export class NadoNormalizer {
    * @param mappings - Map of product ID to ProductMapping
    * @returns Array of normalized trades
    */
-  normalizeTrades(
-    trades: NadoTrade[],
-    mappings: Map<string, ProductMapping>
-  ): Trade[] {
+  normalizeTrades(trades: NadoTrade[], mappings: Map<string, ProductMapping>): Trade[] {
     return trades
-      .map(trade => {
+      .map((trade) => {
         const mapping = mappings.get(trade.product_id.toString());
         if (!mapping) {
           this.logger.warn('No mapping found for product ID', { productId: trade.product_id });
@@ -576,7 +568,11 @@ export class NadoNormalizer {
         try {
           return this.normalizeTrade(trade, mapping);
         } catch (error) {
-          this.logger.error('Failed to normalize trade', error instanceof Error ? error : undefined, { tradeId: trade.trade_id });
+          this.logger.error(
+            'Failed to normalize trade',
+            error instanceof Error ? error : undefined,
+            { tradeId: trade.trade_id }
+          );
           return null;
         }
       })

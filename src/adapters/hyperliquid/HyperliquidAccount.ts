@@ -7,7 +7,11 @@
 
 import type { Order, Trade } from '../../types/index.js';
 import type { HyperliquidNormalizer } from './HyperliquidNormalizer.js';
-import type { HyperliquidHistoricalOrder, HyperliquidOpenOrder, HyperliquidUserFill } from './types.js';
+import type {
+  HyperliquidHistoricalOrder,
+  HyperliquidOpenOrder,
+  HyperliquidUserFill,
+} from './types.js';
 
 /**
  * Filter, sort, and limit order history

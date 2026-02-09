@@ -90,7 +90,7 @@ export class ParadexWebSocketWrapper {
                 };
                 this.ws.onclose = () => {
                     this.isConnected = false;
-                    this.handleDisconnect();
+                    void this.handleDisconnect();
                 };
                 // Timeout
                 setTimeout(() => {
@@ -127,7 +127,7 @@ export class ParadexWebSocketWrapper {
         const market = this.normalizer.symbolFromCCXT(symbol);
         const channel = `orderbook.${market}`;
         const queue = [];
-        let error = null;
+        const error = null;
         let resolver = null;
         const callback = (data) => {
             if (resolver) {
@@ -180,7 +180,7 @@ export class ParadexWebSocketWrapper {
         const market = this.normalizer.symbolFromCCXT(symbol);
         const channel = `trades.${market}`;
         const queue = [];
-        let error = null;
+        const error = null;
         let resolver = null;
         const callback = (data) => {
             // Handle both single trade and array of trades
@@ -236,7 +236,7 @@ export class ParadexWebSocketWrapper {
         const market = this.normalizer.symbolFromCCXT(symbol);
         const channel = `ticker.${market}`;
         const queue = [];
-        let error = null;
+        const error = null;
         let resolver = null;
         const callback = (data) => {
             if (resolver) {
@@ -291,7 +291,7 @@ export class ParadexWebSocketWrapper {
     async *watchPositions(symbol) {
         const channel = symbol ? `positions.${this.normalizer.symbolFromCCXT(symbol)}` : 'positions';
         const queue = [];
-        let error = null;
+        const error = null;
         let resolver = null;
         const callback = (data) => {
             // Handle both single position and array
@@ -351,7 +351,7 @@ export class ParadexWebSocketWrapper {
     async *watchOrders(symbol) {
         const channel = symbol ? `orders.${this.normalizer.symbolFromCCXT(symbol)}` : 'orders';
         const queue = [];
-        let error = null;
+        const error = null;
         let resolver = null;
         const callback = (data) => {
             const orders = Array.isArray(data) ? data : [data];
@@ -413,7 +413,7 @@ export class ParadexWebSocketWrapper {
     async *watchBalance() {
         const channel = 'balances';
         const queue = [];
-        let error = null;
+        const error = null;
         let resolver = null;
         const callback = (data) => {
             if (resolver) {
@@ -463,7 +463,7 @@ export class ParadexWebSocketWrapper {
     async *watchMyTrades(symbol) {
         const channel = symbol ? `fills.${this.normalizer.symbolFromCCXT(symbol)}` : 'fills';
         const queue = [];
-        let error = null;
+        const error = null;
         let resolver = null;
         const callback = (data) => {
             const fills = Array.isArray(data) ? data : [data];
@@ -606,7 +606,7 @@ export class ParadexWebSocketWrapper {
         }
         catch (error) {
             this.logger.error('Reconnect failed', error instanceof Error ? error : undefined);
-            this.handleDisconnect(); // Retry
+            void this.handleDisconnect(); // Retry
         }
     }
     /**

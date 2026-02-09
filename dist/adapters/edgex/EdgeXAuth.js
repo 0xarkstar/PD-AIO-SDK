@@ -53,11 +53,11 @@ export class EdgeXAuth {
             if (queryString) {
                 const params = new URLSearchParams(queryString);
                 const sortedKeys = Array.from(params.keys()).sort();
-                sortedParams = sortedKeys.map(k => `${k}=${params.get(k)}`).join('&');
+                sortedParams = sortedKeys.map((k) => `${k}=${params.get(k)}`).join('&');
             }
             else if (body) {
                 const sortedKeys = Object.keys(body).sort();
-                sortedParams = sortedKeys.map(k => `${k}=${body[k]}`).join('&');
+                sortedParams = sortedKeys.map((k) => `${k}=${String(body[k])}`).join('&');
             }
             // Create message: timestamp + METHOD + path + sorted_params
             const message = `${timestamp}${method.toUpperCase()}${basePath}${sortedParams}`;

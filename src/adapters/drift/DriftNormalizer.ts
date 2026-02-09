@@ -44,12 +44,17 @@ export class DriftNormalizer {
    */
   normalizeMarket(market: DriftPerpMarketAccount): Market {
     const marketKey = DRIFT_MARKET_INDEX_MAP[market.marketIndex];
-    const config = marketKey ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS] : undefined;
+    const config = marketKey
+      ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
+      : undefined;
     const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${market.marketIndex}`);
 
-    const tickSize = config?.tickSize || parseFloat(market.amm.orderTickSize) / DRIFT_PRECISION.PRICE;
-    const stepSize = config?.stepSize || parseFloat(market.amm.orderStepSize) / DRIFT_PRECISION.BASE;
-    const minOrderSize = config?.minOrderSize || parseFloat(market.amm.minOrderSize) / DRIFT_PRECISION.BASE;
+    const tickSize =
+      config?.tickSize || parseFloat(market.amm.orderTickSize) / DRIFT_PRECISION.PRICE;
+    const stepSize =
+      config?.stepSize || parseFloat(market.amm.orderStepSize) / DRIFT_PRECISION.BASE;
+    const minOrderSize =
+      config?.minOrderSize || parseFloat(market.amm.minOrderSize) / DRIFT_PRECISION.BASE;
 
     return {
       id: marketKey || `PERP-${market.marketIndex}`,
@@ -66,7 +71,8 @@ export class DriftNormalizer {
       amountStepSize: stepSize,
       makerFee: -0.0002, // Drift rebates makers (-0.02%)
       takerFee: 0.001, // 0.1% taker fee (varies by tier)
-      maxLeverage: config?.maxLeverage || Math.floor(DRIFT_PRECISION.MARGIN / market.marginRatioInitial),
+      maxLeverage:
+        config?.maxLeverage || Math.floor(DRIFT_PRECISION.MARGIN / market.marginRatioInitial),
       fundingIntervalHours: 1,
       contractSize: 1,
       info: {
@@ -84,7 +90,7 @@ export class DriftNormalizer {
    * Normalize multiple markets
    */
   normalizeMarkets(markets: DriftPerpMarketAccount[]): Market[] {
-    return markets.map(m => this.normalizeMarket(m));
+    return markets.map((m) => this.normalizeMarket(m));
   }
 
   /**
@@ -96,7 +102,9 @@ export class DriftNormalizer {
     _oraclePrice: number
   ): Position {
     const marketKey = DRIFT_MARKET_INDEX_MAP[position.marketIndex];
-    const config = marketKey ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS] : undefined;
+    const config = marketKey
+      ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
+      : undefined;
     const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${position.marketIndex}`);
 
     const baseAmount = parseFloat(position.baseAssetAmount) / DRIFT_PRECISION.BASE;
@@ -126,7 +134,13 @@ export class DriftNormalizer {
     );
 
     // Margin ratio (how close to liquidation, 100% = safe, 0% = liquidated)
-    const marginRatio = this.calculateMarginRatio(side, entryPrice, markPrice, leverage, maintenanceMargin);
+    const marginRatio = this.calculateMarginRatio(
+      side,
+      entryPrice,
+      markPrice,
+      leverage,
+      maintenanceMargin
+    );
 
     return {
       symbol,
@@ -158,7 +172,9 @@ export class DriftNormalizer {
    */
   normalizeOrder(order: DriftOrder, marketPrice?: number): Order {
     const marketKey = DRIFT_MARKET_INDEX_MAP[order.marketIndex];
-    const config = marketKey ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS] : undefined;
+    const config = marketKey
+      ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
+      : undefined;
     const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${order.marketIndex}`);
 
     const baseAmount = parseFloat(order.baseAssetAmount) / DRIFT_PRECISION.BASE;
@@ -172,8 +188,16 @@ export class DriftNormalizer {
     else if (order.orderType === 'triggerLimit') type = 'stopLimit';
 
     // Map status
-    let status: 'open' | 'closed' | 'canceled' | 'expired' | 'filled' | 'partiallyFilled' | 'rejected' = 'open';
-    if (order.status === 'filled') status = filledAmount >= baseAmount ? 'filled' : 'partiallyFilled';
+    let status:
+      | 'open'
+      | 'closed'
+      | 'canceled'
+      | 'expired'
+      | 'filled'
+      | 'partiallyFilled'
+      | 'rejected' = 'open';
+    if (order.status === 'filled')
+      status = filledAmount >= baseAmount ? 'filled' : 'partiallyFilled';
     else if (order.status === 'canceled') status = 'canceled';
     else if (order.status === 'expired') status = 'expired';
 
@@ -184,13 +208,17 @@ export class DriftNormalizer {
       side: order.direction === 'long' ? 'buy' : 'sell',
       amount: baseAmount,
       price: price > 0 ? price : marketPrice,
-      stopPrice: order.triggerPrice !== '0' ? parseFloat(order.triggerPrice) / DRIFT_PRECISION.PRICE : undefined,
+      stopPrice:
+        order.triggerPrice !== '0'
+          ? parseFloat(order.triggerPrice) / DRIFT_PRECISION.PRICE
+          : undefined,
       status,
       filled: filledAmount,
       remaining: baseAmount - filledAmount,
-      averagePrice: filledAmount > 0
-        ? parseFloat(order.quoteAssetAmountFilled) / DRIFT_PRECISION.QUOTE / filledAmount
-        : undefined,
+      averagePrice:
+        filledAmount > 0
+          ? parseFloat(order.quoteAssetAmountFilled) / DRIFT_PRECISION.QUOTE / filledAmount
+          : undefined,
       reduceOnly: order.reduceOnly,
       postOnly: order.postOnly !== 'none',
       clientOrderId: order.userOrderId > 0 ? order.userOrderId.toString() : undefined,
@@ -211,15 +239,17 @@ export class DriftNormalizer {
    */
   normalizeOrderBook(orderbook: DriftL2OrderBook): OrderBook {
     const marketKey = DRIFT_MARKET_INDEX_MAP[orderbook.marketIndex];
-    const config = marketKey ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS] : undefined;
+    const config = marketKey
+      ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
+      : undefined;
     const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${orderbook.marketIndex}`);
 
-    const bids: [number, number][] = orderbook.bids.map(b => [
+    const bids: [number, number][] = orderbook.bids.map((b) => [
       parseFloat(b.price) / DRIFT_PRECISION.PRICE,
       parseFloat(b.size) / DRIFT_PRECISION.BASE,
     ]);
 
-    const asks: [number, number][] = orderbook.asks.map(a => [
+    const asks: [number, number][] = orderbook.asks.map((a) => [
       parseFloat(a.price) / DRIFT_PRECISION.PRICE,
       parseFloat(a.size) / DRIFT_PRECISION.BASE,
     ]);
@@ -239,7 +269,9 @@ export class DriftNormalizer {
    */
   normalizeTrade(trade: DriftTrade): Trade {
     const marketKey = DRIFT_MARKET_INDEX_MAP[trade.marketIndex];
-    const config = marketKey ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS] : undefined;
+    const config = marketKey
+      ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
+      : undefined;
     const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${trade.marketIndex}`);
 
     const amount = parseFloat(trade.baseAssetAmount) / DRIFT_PRECISION.BASE;
@@ -266,19 +298,26 @@ export class DriftNormalizer {
   /**
    * Normalize funding rate
    */
-  normalizeFundingRate(funding: DriftFundingRate | DriftFundingRateRecord, oraclePrice?: number): FundingRate {
+  normalizeFundingRate(
+    funding: DriftFundingRate | DriftFundingRateRecord,
+    oraclePrice?: number
+  ): FundingRate {
     const marketKey = DRIFT_MARKET_INDEX_MAP[funding.marketIndex];
-    const config = marketKey ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS] : undefined;
+    const config = marketKey
+      ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
+      : undefined;
     const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${funding.marketIndex}`);
 
     const fundingRate = parseFloat(funding.fundingRate) / DRIFT_PRECISION.FUNDING_RATE;
-    const markPrice = 'markPriceTwap' in funding
-      ? parseFloat(funding.markPriceTwap) / DRIFT_PRECISION.PRICE
-      : (oraclePrice || 0);
+    const markPrice =
+      'markPriceTwap' in funding
+        ? parseFloat(funding.markPriceTwap) / DRIFT_PRECISION.PRICE
+        : oraclePrice || 0;
     // DriftFundingRate has oraclePrice, DriftFundingRateRecord has oraclePriceTwap
-    const indexPrice = 'oraclePrice' in funding
-      ? parseFloat(funding.oraclePrice) / DRIFT_PRECISION.PRICE
-      : parseFloat((funding as DriftFundingRateRecord).oraclePriceTwap) / DRIFT_PRECISION.PRICE;
+    const indexPrice =
+      'oraclePrice' in funding
+        ? parseFloat(funding.oraclePrice) / DRIFT_PRECISION.PRICE
+        : parseFloat(funding.oraclePriceTwap) / DRIFT_PRECISION.PRICE;
 
     const ts = funding.ts * 1000;
 
@@ -305,7 +344,9 @@ export class DriftNormalizer {
    */
   normalizeTicker(stats: DriftMarketStats): Ticker {
     const marketKey = DRIFT_MARKET_INDEX_MAP[stats.marketIndex];
-    const config = marketKey ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS] : undefined;
+    const config = marketKey
+      ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
+      : undefined;
     const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${stats.marketIndex}`);
 
     const markPrice = parseFloat(stats.markPrice) / DRIFT_PRECISION.PRICE;
@@ -343,11 +384,7 @@ export class DriftNormalizer {
   /**
    * Normalize balance from spot position
    */
-  normalizeBalance(
-    position: DriftSpotPosition,
-    tokenPrice: number,
-    tokenSymbol: string
-  ): Balance {
+  normalizeBalance(position: DriftSpotPosition, tokenPrice: number, tokenSymbol: string): Balance {
     const scaledBalance = parseFloat(position.scaledBalance);
     const isDeposit = position.balanceType === 'deposit';
 
@@ -434,9 +471,10 @@ export class DriftNormalizer {
   ): number {
     if (leverage <= 0 || entryPrice <= 0) return 100;
 
-    const pnlPercent = side === 'long'
-      ? (currentPrice - entryPrice) / entryPrice
-      : (entryPrice - currentPrice) / entryPrice;
+    const pnlPercent =
+      side === 'long'
+        ? (currentPrice - entryPrice) / entryPrice
+        : (entryPrice - currentPrice) / entryPrice;
 
     const marginUsed = 1 / leverage;
     const currentMargin = marginUsed + pnlPercent;

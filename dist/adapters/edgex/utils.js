@@ -4,7 +4,7 @@
  * Helper functions for order conversion and error mapping.
  * Normalization functions have been moved to EdgeXNormalizer.ts
  */
-import { EDGEX_ORDER_TYPES, EDGEX_ORDER_SIDES, EDGEX_TIME_IN_FORCE, } from './constants.js';
+import { EDGEX_ORDER_TYPES, EDGEX_ORDER_SIDES, EDGEX_TIME_IN_FORCE } from './constants.js';
 /**
  * Convert unified order type to EdgeX format
  */

@@ -148,13 +148,17 @@ export class LighterAuth implements IAuthStrategy {
         await this.signer.initialize();
       } catch (nativeError) {
         // Native signer failed, try WASM fallback
-        this.logger.warn('Native FFI signer unavailable, falling back to WASM', { error: nativeError instanceof Error ? nativeError.message : String(nativeError) });
+        this.logger.warn('Native FFI signer unavailable, falling back to WASM', {
+          error: nativeError instanceof Error ? nativeError.message : String(nativeError),
+        });
         try {
           this.signer = new LighterWasmSigner(signerConfig);
           await this.signer.initialize();
         } catch (wasmError) {
           // Both signers failed
-          this.logger.warn('WASM signer initialization also failed', { error: wasmError instanceof Error ? wasmError.message : String(wasmError) });
+          this.logger.warn('WASM signer initialization also failed', {
+            error: wasmError instanceof Error ? wasmError.message : String(wasmError),
+          });
           this.signer = null;
         }
       }
@@ -262,7 +266,9 @@ export class LighterAuth implements IAuthStrategy {
       this.authToken = await this.signer.createAuthToken(LighterAuth.TOKEN_DURATION);
       this.authTokenExpiry = Date.now() / 1000 + LighterAuth.TOKEN_DURATION;
     } catch (error) {
-      this.logger.warn('Failed to refresh auth token', { error: error instanceof Error ? error.message : String(error) });
+      this.logger.warn('Failed to refresh auth token', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       this.authToken = null;
       this.authTokenExpiry = 0;
     }

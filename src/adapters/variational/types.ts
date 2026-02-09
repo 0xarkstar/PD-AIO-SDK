@@ -315,7 +315,15 @@ export const VariationalOrderSchema = z.object({
   symbol: z.string(),
   type: z.enum(['market', 'limit', 'rfq']),
   side: z.enum(['buy', 'sell']),
-  status: z.enum(['pending', 'open', 'filled', 'partially_filled', 'cancelled', 'rejected', 'expired']),
+  status: z.enum([
+    'pending',
+    'open',
+    'filled',
+    'partially_filled',
+    'cancelled',
+    'rejected',
+    'expired',
+  ]),
   price: z.string().optional(),
   amount: z.string(),
   filledAmount: z.string().optional(),
@@ -326,10 +334,12 @@ export const VariationalOrderSchema = z.object({
   postOnly: z.boolean().optional(),
   reduceOnly: z.boolean().optional(),
   quoteId: z.string().optional(),
-  fees: z.object({
-    asset: z.string(),
-    amount: z.string(),
-  }).optional(),
+  fees: z
+    .object({
+      asset: z.string(),
+      amount: z.string(),
+    })
+    .optional(),
 });
 
 export const VariationalPositionSchema = z.object({

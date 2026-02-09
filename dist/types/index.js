@@ -4,7 +4,7 @@
 export { ORDER_TYPES, ORDER_SIDES, ORDER_STATUSES, TIME_IN_FORCE, POSITION_SIDES, MARGIN_MODES, TRANSACTION_TYPES, TRANSACTION_STATUSES, OHLCV_TIMEFRAMES, 
 // New CCXT-compatible constants
 LEDGER_ENTRY_TYPES, EXCHANGE_STATUS_VALUES, } from './common.js';
-export { determineHealthStatus, isHealthy, isCriticallyUnhealthy, } from './health.js';
+export { determineHealthStatus, isHealthy, isCriticallyUnhealthy } from './health.js';
 // Errors
 export { PerpDEXError, 
 // General Exchange Errors (CCXT-compatible)

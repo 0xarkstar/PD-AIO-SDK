@@ -162,9 +162,7 @@ export class EdgeXNormalizer {
             price: edgexOrder.price ? parseFloat(edgexOrder.price) : undefined,
             filled: parseFloat(edgexOrder.filled_size),
             remaining: parseFloat(edgexOrder.size) - parseFloat(edgexOrder.filled_size),
-            averagePrice: edgexOrder.average_price
-                ? parseFloat(edgexOrder.average_price)
-                : undefined,
+            averagePrice: edgexOrder.average_price ? parseFloat(edgexOrder.average_price) : undefined,
             status: this.normalizeOrderStatus(edgexOrder.status),
             timeInForce: this.normalizeTimeInForce(edgexOrder.time_in_force),
             postOnly: edgexOrder.post_only,

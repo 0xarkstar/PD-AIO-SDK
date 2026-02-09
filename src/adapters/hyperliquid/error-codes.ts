@@ -7,6 +7,7 @@
  * @see https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/errors
  */
 
+import { includesValue } from '../../utils/type-guards.js';
 import {
   PerpDEXError,
   InvalidOrderError,
@@ -118,7 +119,7 @@ export function mapHyperliquidError(
       return new RateLimitError(message, errorCode, 'hyperliquid', undefined, originalError);
 
     default:
-      if (Object.values(HYPERLIQUID_SERVER_ERRORS).includes(errorCode as any)) {
+      if (includesValue(Object.values(HYPERLIQUID_SERVER_ERRORS), errorCode)) {
         return new ExchangeUnavailableError(message, errorCode, 'hyperliquid', originalError);
       }
       return new PerpDEXError(message, errorCode, 'hyperliquid', originalError);
@@ -151,7 +152,7 @@ export function mapError(error: unknown): PerpDEXError {
  */
 export function isRetryableError(errorCode: string): boolean {
   return (
-    Object.values(HYPERLIQUID_SERVER_ERRORS).includes(errorCode as any) ||
+    includesValue(Object.values(HYPERLIQUID_SERVER_ERRORS), errorCode) ||
     errorCode === HYPERLIQUID_RATE_LIMIT_ERROR
   );
 }

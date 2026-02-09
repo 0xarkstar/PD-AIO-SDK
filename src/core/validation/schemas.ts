@@ -238,21 +238,33 @@ export const TickerSchema = z.object({
 // =============================================================================
 
 export const OHLCVTimeframeSchema = z.enum([
-  '1m', '3m', '5m', '15m', '30m',
-  '1h', '2h', '4h', '6h', '8h', '12h',
-  '1d', '3d', '1w', '1M',
+  '1m',
+  '3m',
+  '5m',
+  '15m',
+  '30m',
+  '1h',
+  '2h',
+  '4h',
+  '6h',
+  '8h',
+  '12h',
+  '1d',
+  '3d',
+  '1w',
+  '1M',
 ]);
 
 /**
  * OHLCV tuple: [timestamp, open, high, low, close, volume]
  */
 export const OHLCVSchema = z.tuple([
-  TimestampSchema,           // timestamp
-  PositiveNumberSchema,      // open
-  PositiveNumberSchema,      // high
-  PositiveNumberSchema,      // low
-  PositiveNumberSchema,      // close
-  NonNegativeNumberSchema,   // volume
+  TimestampSchema, // timestamp
+  PositiveNumberSchema, // open
+  PositiveNumberSchema, // high
+  PositiveNumberSchema, // low
+  PositiveNumberSchema, // close
+  NonNegativeNumberSchema, // volume
 ]);
 
 export const OHLCVParamsSchema = z
@@ -314,19 +326,13 @@ export type OHLCVParams = z.infer<typeof OHLCVParamsSchema>;
 /**
  * Safely parse and validate data with detailed error messages
  */
-export function validateData<T>(
-  schema: z.ZodType<T>,
-  data: unknown,
-  context?: string
-): T | never {
+export function validateData<T>(schema: z.ZodType<T>, data: unknown, context?: string): T | never {
   const result = schema.safeParse(data);
 
   if (!result.success) {
     const errors = result.error.errors.map((err) => `${err.path.join('.')}: ${err.message}`);
 
-    throw new Error(
-      `Validation failed${context ? ` for ${context}` : ''}: ${errors.join(', ')}`
-    );
+    throw new Error(`Validation failed${context ? ` for ${context}` : ''}: ${errors.join(', ')}`);
   }
 
   return result.data;

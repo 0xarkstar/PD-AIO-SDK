@@ -7,6 +7,7 @@
  * @see https://docs.nado.xyz/developer-resources/api/errors
  */
 
+import { includesValue } from '../../utils/type-guards.js';
 import {
   PerpDEXError,
   InvalidOrderError,
@@ -88,7 +89,7 @@ export const NADO_NETWORK_ERRORS = {
  * @returns true if client error
  */
 export function isClientError(errorCode: string): boolean {
-  return Object.values(NADO_CLIENT_ERRORS).includes(errorCode as any);
+  return includesValue(Object.values(NADO_CLIENT_ERRORS), errorCode);
 }
 
 /**
@@ -98,7 +99,7 @@ export function isClientError(errorCode: string): boolean {
  * @returns true if server error
  */
 export function isServerError(errorCode: string): boolean {
-  return Object.values(NADO_SERVER_ERRORS).includes(errorCode as any);
+  return includesValue(Object.values(NADO_SERVER_ERRORS), errorCode);
 }
 
 /**
@@ -108,7 +109,7 @@ export function isServerError(errorCode: string): boolean {
  * @returns true if network error
  */
 export function isNetworkError(errorCode: string): boolean {
-  return Object.values(NADO_NETWORK_ERRORS).includes(errorCode as any);
+  return includesValue(Object.values(NADO_NETWORK_ERRORS), errorCode);
 }
 
 /**
@@ -119,9 +120,7 @@ export function isNetworkError(errorCode: string): boolean {
  */
 export function isRetryableError(errorCode: string): boolean {
   return (
-    isServerError(errorCode) ||
-    isNetworkError(errorCode) ||
-    errorCode === NADO_RATE_LIMIT_ERROR
+    isServerError(errorCode) || isNetworkError(errorCode) || errorCode === NADO_RATE_LIMIT_ERROR
   );
 }
 
@@ -159,8 +158,10 @@ export function mapNadoError(
   const code = errorCode.toString();
 
   // Authentication & Signature Errors
-  if (code === NADO_CLIENT_ERRORS.INVALID_SIGNATURE ||
-      code === NADO_CLIENT_ERRORS.EXPIRED_SIGNATURE) {
+  if (
+    code === NADO_CLIENT_ERRORS.INVALID_SIGNATURE ||
+    code === NADO_CLIENT_ERRORS.EXPIRED_SIGNATURE
+  ) {
     return new InvalidSignatureError(message, code, 'nado', originalError);
   }
 
@@ -231,7 +232,7 @@ export function mapHttpError(status: number, statusText: string): PerpDEXError {
       `Rate limit exceeded: ${statusText}`,
       NADO_RATE_LIMIT_ERROR,
       'nado',
-      undefined  // retryAfter parameter
+      undefined // retryAfter parameter
     );
   }
 
@@ -254,9 +255,5 @@ export function mapHttpError(status: number, statusText: string): PerpDEXError {
   }
 
   // Other
-  return new PerpDEXError(
-    `HTTP error (${status}): ${statusText}`,
-    `HTTP_${status}`,
-    'nado'
-  );
+  return new PerpDEXError(`HTTP error (${status}): ${statusText}`, `HTTP_${status}`, 'nado');
 }

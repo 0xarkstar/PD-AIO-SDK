@@ -19,7 +19,7 @@ import { DriftNormalizer } from './DriftNormalizer.js';
 import { DriftOrderBuilder } from './orderBuilder.js';
 import { DRIFT_API_URLS, DRIFT_PERP_MARKETS, DRIFT_PRECISION, unifiedToDrift, driftToUnified, getMarketIndex, } from './constants.js';
 import { mapDriftError } from './error-codes.js';
-import { isValidMarket, getMarketConfig, buildOrderbookUrl, buildTradesUrl, } from './utils.js';
+import { isValidMarket, getMarketConfig, buildOrderbookUrl, buildTradesUrl } from './utils.js';
 import { DriftAuth } from './DriftAuth.js';
 import { DriftClientWrapper } from './DriftClientWrapper.js';
 /**
@@ -101,9 +101,7 @@ export class DriftAdapter extends BaseAdapter {
             ...config,
         });
         this.isTestnet = config.testnet || false;
-        this.dlobBaseUrl = this.isTestnet
-            ? DRIFT_API_URLS.devnet.dlob
-            : DRIFT_API_URLS.mainnet.dlob;
+        this.dlobBaseUrl = this.isTestnet ? DRIFT_API_URLS.devnet.dlob : DRIFT_API_URLS.mainnet.dlob;
         this.normalizer = new DriftNormalizer();
         // Initialize auth if credentials provided
         if (config.privateKey || config.walletAddress) {
@@ -111,9 +109,8 @@ export class DriftAdapter extends BaseAdapter {
                 privateKey: config.privateKey,
                 walletAddress: config.walletAddress,
                 subAccountId: config.subAccountId,
-                rpcEndpoint: config.rpcEndpoint || (this.isTestnet
-                    ? DRIFT_API_URLS.devnet.rpc
-                    : DRIFT_API_URLS.mainnet.rpc),
+                rpcEndpoint: config.rpcEndpoint ||
+                    (this.isTestnet ? DRIFT_API_URLS.devnet.rpc : DRIFT_API_URLS.mainnet.rpc),
                 isDevnet: this.isTestnet,
             });
         }
@@ -243,8 +240,12 @@ export class DriftAdapter extends BaseAdapter {
             const orderbook = await this.request('GET', buildOrderbookUrl(this.dlobBaseUrl, marketIndex, 'perp', 1));
             // Build ticker from orderbook data
             const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
-            const bestBid = orderbook.bids[0] ? parseFloat(orderbook.bids[0].price) / DRIFT_PRECISION.PRICE : oraclePrice * 0.999;
-            const bestAsk = orderbook.asks[0] ? parseFloat(orderbook.asks[0].price) / DRIFT_PRECISION.PRICE : oraclePrice * 1.001;
+            const bestBid = orderbook.bids[0]
+                ? parseFloat(orderbook.bids[0].price) / DRIFT_PRECISION.PRICE
+                : oraclePrice * 0.999;
+            const bestAsk = orderbook.asks[0]
+                ? parseFloat(orderbook.asks[0].price) / DRIFT_PRECISION.PRICE
+                : oraclePrice * 1.001;
             const markPrice = (bestBid + bestAsk) / 2;
             const config = getMarketConfig(symbol);
             return {
@@ -299,7 +300,7 @@ export class DriftAdapter extends BaseAdapter {
             const limit = params?.limit || 50;
             const url = buildTradesUrl(this.dlobBaseUrl, marketIndex, 'perp', limit);
             const trades = await this.request('GET', url);
-            return trades.map(t => this.normalizer.normalizeTrade(t));
+            return trades.map((t) => this.normalizer.normalizeTrade(t));
         }
         catch (error) {
             throw mapDriftError(error);
@@ -337,7 +338,7 @@ export class DriftAdapter extends BaseAdapter {
                 params.set('limit', limit.toString());
             const url = `${this.dlobBaseUrl}/fundingRateHistory?${params.toString()}`;
             const history = await this.request('GET', url);
-            return history.map(f => this.normalizer.normalizeFundingRate(f));
+            return history.map((f) => this.normalizer.normalizeFundingRate(f));
         }
         catch (error) {
             throw mapDriftError(error);
@@ -402,7 +403,7 @@ export class DriftAdapter extends BaseAdapter {
             const userData = await this.request('GET', url);
             const balances = [];
             // Add USDC balance (market index 0 for spot)
-            const usdcPosition = userData.spotPositions.find(p => p.marketIndex === 0);
+            const usdcPosition = userData.spotPositions.find((p) => p.marketIndex === 0);
             if (usdcPosition) {
                 const total = parseFloat(usdcPosition.scaledBalance) / DRIFT_PRECISION.QUOTE;
                 balances.push({
@@ -434,8 +435,8 @@ export class DriftAdapter extends BaseAdapter {
             const url = `${this.dlobBaseUrl}/orders?userAccount=${walletAddress}&subAccountId=${subAccountId}`;
             const ordersData = await this.request('GET', url);
             const orders = ordersData.orders
-                .filter(o => o.marketType === 'perp')
-                .map(o => this.normalizer.normalizeOrder({
+                .filter((o) => o.marketType === 'perp')
+                .map((o) => this.normalizer.normalizeOrder({
                 ...o,
                 orderType: o.orderType,
                 direction: o.direction,
@@ -446,7 +447,7 @@ export class DriftAdapter extends BaseAdapter {
             }));
             if (symbol) {
                 const marketIndex = getMarketIndex(symbol);
-                return orders.filter(o => o.info?.marketIndex === marketIndex);
+                return orders.filter((o) => o.info?.marketIndex === marketIndex);
             }
             return orders;
         }
@@ -566,7 +567,8 @@ export class DriftAdapter extends BaseAdapter {
             else {
                 txSig = await this.driftClient.cancelAllPerpOrders();
                 // Return a single order representing all cancellations
-                return [{
+                return [
+                    {
                         id: 'all',
                         symbol: 'ALL',
                         type: 'limit',
@@ -579,7 +581,8 @@ export class DriftAdapter extends BaseAdapter {
                         postOnly: false,
                         timestamp: Date.now(),
                         info: { txSig },
-                    }];
+                    },
+                ];
             }
         }
         catch (error) {
@@ -615,10 +618,10 @@ export class DriftAdapter extends BaseAdapter {
             return markets;
         let filtered = markets;
         if (params.active !== undefined) {
-            filtered = filtered.filter(m => m.active === params.active);
+            filtered = filtered.filter((m) => m.active === params.active);
         }
         if (params.ids && params.ids.length > 0) {
-            filtered = filtered.filter(m => params.ids.includes(m.id));
+            filtered = filtered.filter((m) => params.ids.includes(m.id));
         }
         return filtered;
     }

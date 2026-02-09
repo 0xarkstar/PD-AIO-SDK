@@ -30,7 +30,12 @@ import { PerpDEXError, InvalidOrderError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { WebSocketManager } from '../../websocket/WebSocketManager.js';
-import { LIGHTER_API_URLS, LIGHTER_RATE_LIMITS, LIGHTER_ENDPOINT_WEIGHTS, LIGHTER_WS_CONFIG } from './constants.js';
+import {
+  LIGHTER_API_URLS,
+  LIGHTER_RATE_LIMITS,
+  LIGHTER_ENDPOINT_WEIGHTS,
+  LIGHTER_WS_CONFIG,
+} from './constants.js';
 import { LighterNormalizer } from './LighterNormalizer.js';
 import { LighterWebSocket } from './LighterWebSocket.js';
 import { mapError } from './utils.js';
@@ -148,12 +153,15 @@ export class LighterAdapter extends BaseAdapter {
   // Cache for symbol -> market_id mapping (Lighter API requires market_id for orderbook)
   private marketIdCache: Map<string, number> = new Map();
   // Cache for symbol -> market metadata (for unit conversions)
-  private marketMetadataCache: Map<string, {
-    baseDecimals: number;
-    quoteDecimals: number;
-    tickSize: number;
-    stepSize: number;
-  }> = new Map();
+  private marketMetadataCache: Map<
+    string,
+    {
+      baseDecimals: number;
+      quoteDecimals: number;
+      tickSize: number;
+      stepSize: number;
+    }
+  > = new Map();
 
   constructor(config: LighterConfig = {}) {
     super(config);
@@ -163,7 +171,8 @@ export class LighterAdapter extends BaseAdapter {
 
     this.apiUrl = urls.rest;
     this.wsUrl = urls.websocket;
-    this.chainId = config.chainId ?? (this.testnet ? LIGHTER_CHAIN_IDS.testnet : LIGHTER_CHAIN_IDS.mainnet);
+    this.chainId =
+      config.chainId ?? (this.testnet ? LIGHTER_CHAIN_IDS.testnet : LIGHTER_CHAIN_IDS.mainnet);
 
     // HMAC auth
     this.apiKey = config.apiKey;
@@ -253,7 +262,9 @@ export class LighterAdapter extends BaseAdapter {
         await this.signer.initialize();
       } catch (error) {
         // WASM initialization failed - fall back to HMAC or public-only mode
-        this.logger.warn('WASM signer initialization failed, falling back to HMAC mode', { error: error instanceof Error ? error.message : String(error) });
+        this.logger.warn('WASM signer initialization failed, falling back to HMAC mode', {
+          error: error instanceof Error ? error.message : String(error),
+        });
         this.signer = null;
         this.nonceManager = null;
       }
@@ -291,7 +302,7 @@ export class LighterAdapter extends BaseAdapter {
         hasAuthentication: this.hasAuthentication,
         hasWasmSigning: this.hasWasmSigning,
       });
-    } catch (error) {
+    } catch {
       // WebSocket initialization is optional - watch methods will throw if needed
       this.wsManager = null;
       this.wsHandler = null;
@@ -326,8 +337,11 @@ export class LighterAdapter extends BaseAdapter {
       normalizer: this.normalizer,
       marketIdCache: this.marketIdCache,
       marketMetadataCache: this.marketMetadataCache,
-      request: <T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: Record<string, unknown>) =>
-        this.request<T>(method, path, body),
+      request: <T>(
+        method: 'GET' | 'POST' | 'DELETE',
+        path: string,
+        body?: Record<string, unknown>
+      ) => this.request<T>(method, path, body),
     };
   }
 
@@ -343,7 +357,9 @@ export class LighterAdapter extends BaseAdapter {
 
   async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     await this.rateLimiter.acquire('fetchOrderBook');
-    return fetchOrderBookData(this.getMarketDataDeps(), symbol, params?.limit || 50, () => this.fetchMarkets());
+    return fetchOrderBookData(this.getMarketDataDeps(), symbol, params?.limit || 50, () =>
+      this.fetchMarkets()
+    );
   }
 
   async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
@@ -377,8 +393,11 @@ export class LighterAdapter extends BaseAdapter {
       marketIdCache: this.marketIdCache,
       marketMetadataCache: this.marketMetadataCache,
       fetchMarkets: () => this.fetchMarkets(),
-      request: <T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: Record<string, unknown>) =>
-        this.request<T>(method, path, body),
+      request: <T>(
+        method: 'GET' | 'POST' | 'DELETE',
+        path: string,
+        body?: Record<string, unknown>
+      ) => this.request<T>(method, path, body),
       handleTransactionError: (code: number) => this.handleTransactionError(code),
     };
   }
@@ -423,11 +442,7 @@ export class LighterAdapter extends BaseAdapter {
       return cancelOrderHMAC(deps, orderId);
     }
 
-    throw new InvalidOrderError(
-      'API credentials required for trading',
-      'AUTH_REQUIRED',
-      'lighter'
-    );
+    throw new InvalidOrderError('API credentials required for trading', 'AUTH_REQUIRED', 'lighter');
   }
 
   async cancelAllOrders(symbol?: string): Promise<Order[]> {
@@ -445,11 +460,7 @@ export class LighterAdapter extends BaseAdapter {
       return cancelAllOrdersHMAC(deps, symbol);
     }
 
-    throw new InvalidOrderError(
-      'API credentials required for trading',
-      'AUTH_REQUIRED',
-      'lighter'
-    );
+    throw new InvalidOrderError('API credentials required for trading', 'AUTH_REQUIRED', 'lighter');
   }
 
   // ==================== Collateral Management ====================
@@ -469,7 +480,12 @@ export class LighterAdapter extends BaseAdapter {
     amount: bigint,
     destinationAddress: string
   ): Promise<string> {
-    return withdrawCollateralHelper(this.getTradingDeps(), collateralIndex, amount, destinationAddress);
+    return withdrawCollateralHelper(
+      this.getTradingDeps(),
+      collateralIndex,
+      amount,
+      destinationAddress
+    );
   }
 
   /**
@@ -493,8 +509,11 @@ export class LighterAdapter extends BaseAdapter {
   private getAccountDeps(): AccountDeps {
     return {
       normalizer: this.normalizer,
-      request: <T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: Record<string, unknown>) =>
-        this.request<T>(method, path, body),
+      request: <T>(
+        method: 'GET' | 'POST' | 'DELETE',
+        path: string,
+        body?: Record<string, unknown>
+      ) => this.request<T>(method, path, body),
     };
   }
 
@@ -584,7 +603,7 @@ export class LighterAdapter extends BaseAdapter {
         case 'DELETE':
           return await this.httpClient.delete<T>(path, { headers, body });
         default:
-          throw new Error(`Unsupported HTTP method: ${method}`);
+          throw new Error(`Unsupported HTTP method: ${String(method)}`);
       }
     } catch (error) {
       throw mapError(error);
@@ -734,7 +753,7 @@ export class LighterAdapter extends BaseAdapter {
     return {
       ready: this._isReady,
       authenticated: this.hasAuthentication,
-      authMode: this.hasWasmSigning ? 'wasm' : (this.apiKey && this.apiSecret ? 'hmac' : 'none'),
+      authMode: this.hasWasmSigning ? 'wasm' : this.apiKey && this.apiSecret ? 'hmac' : 'none',
       wsConnected: this.wsManager !== null,
       network: this.testnet ? 'testnet' : 'mainnet',
       latencyMs,

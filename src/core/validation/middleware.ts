@@ -66,11 +66,7 @@ export interface ValidationOptions {
  * });
  * ```
  */
-export function validate<T>(
-  schema: z.ZodType<T>,
-  data: unknown,
-  options: ValidationOptions
-): T {
+export function validate<T>(schema: z.ZodType<T>, data: unknown, options: ValidationOptions): T {
   const result = schema.safeParse(data);
 
   if (!result.success) {
@@ -78,11 +74,7 @@ export function validate<T>(
     const errorMessage = formatValidationErrors(errors, options.errorPrefix);
 
     if (options.throwOnError !== false) {
-      const error = new PerpDEXError(
-        errorMessage,
-        'VALIDATION_ERROR',
-        options.exchange
-      );
+      const error = new PerpDEXError(errorMessage, 'VALIDATION_ERROR', options.exchange);
 
       if (options.context?.correlationId) {
         error.withCorrelationId(options.context.correlationId);
@@ -102,10 +94,7 @@ export function validate<T>(
  * @param data - Data to validate
  * @returns Validation result with success flag and data/errors
  */
-export function validateSafe<T>(
-  schema: z.ZodType<T>,
-  data: unknown
-): ValidationResult<T> {
+export function validateSafe<T>(schema: z.ZodType<T>, data: unknown): ValidationResult<T> {
   const result = schema.safeParse(data);
 
   if (result.success) {
@@ -136,11 +125,7 @@ export function validateOrderRequest(
     const errors = mapZodErrors(result.error);
     const errorMessage = formatValidationErrors(errors, 'Invalid order');
 
-    const error = new InvalidOrderError(
-      errorMessage,
-      'INVALID_ORDER_REQUEST',
-      options.exchange
-    );
+    const error = new InvalidOrderError(errorMessage, 'INVALID_ORDER_REQUEST', options.exchange);
 
     if (options.context?.correlationId) {
       error.withCorrelationId(options.context.correlationId);
@@ -267,11 +252,7 @@ export function validateArray<T>(
 
   if (errors.length > 0 && options.throwOnError !== false) {
     const errorMessage = formatValidationErrors(errors, options.errorPrefix);
-    const error = new PerpDEXError(
-      errorMessage,
-      'VALIDATION_ERROR',
-      options.exchange
-    );
+    const error = new PerpDEXError(errorMessage, 'VALIDATION_ERROR', options.exchange);
 
     if (options.context?.correlationId) {
       error.withCorrelationId(options.context.correlationId);
@@ -302,19 +283,13 @@ export function createValidator(exchange: string) {
     /**
      * Validate any data against a schema
      */
-    validate: <T>(
-      schema: z.ZodType<T>,
-      data: unknown,
-      context?: RequestContext
-    ): T => validate(schema, data, { exchange, context }),
+    validate: <T>(schema: z.ZodType<T>, data: unknown, context?: RequestContext): T =>
+      validate(schema, data, { exchange, context }),
 
     /**
      * Validate order request
      */
-    orderRequest: (
-      data: unknown,
-      context?: RequestContext
-    ): z.infer<typeof OrderRequestSchema> =>
+    orderRequest: (data: unknown, context?: RequestContext): z.infer<typeof OrderRequestSchema> =>
       validateOrderRequest(data, { exchange, context }),
 
     /**
@@ -359,17 +334,13 @@ export function createValidator(exchange: string) {
     ohlcvTimeframe: (
       data: unknown,
       context?: RequestContext
-    ): z.infer<typeof OHLCVTimeframeSchema> =>
-      validateOHLCVTimeframe(data, { exchange, context }),
+    ): z.infer<typeof OHLCVTimeframeSchema> => validateOHLCVTimeframe(data, { exchange, context }),
 
     /**
      * Validate array of items
      */
-    array: <T>(
-      schema: z.ZodType<T>,
-      data: unknown[],
-      context?: RequestContext
-    ): T[] => validateArray(schema, data, { exchange, context }),
+    array: <T>(schema: z.ZodType<T>, data: unknown[], context?: RequestContext): T[] =>
+      validateArray(schema, data, { exchange, context }),
   };
 }
 
@@ -388,10 +359,7 @@ function mapZodErrors(zodError: z.ZodError): ValidationError[] {
 /**
  * Formats validation errors into a human-readable message
  */
-function formatValidationErrors(
-  errors: ValidationError[],
-  prefix?: string
-): string {
+function formatValidationErrors(errors: ValidationError[], prefix?: string): string {
   const errorMessages = errors.map((e) => {
     const location = e.field !== 'root' ? ` at '${e.field}'` : '';
     return `${e.message}${location}`;
@@ -419,15 +387,8 @@ function formatValidationErrors(
  * }
  * ```
  */
-export function validateResponse<T>(
-  schema: z.ZodType<T>,
-  exchange: string
-): MethodDecorator {
-  return function (
-    _target: any,
-    _propertyKey: string | symbol,
-    descriptor: PropertyDescriptor
-  ) {
+export function validateResponse<T>(schema: z.ZodType<T>, exchange: string): MethodDecorator {
+  return function (_target: any, _propertyKey: string | symbol, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (...args: any[]) {

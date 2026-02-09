@@ -251,14 +251,10 @@ export class HyperliquidNormalizer {
         const unifiedSymbol = hyperliquidToUnified(book.coin);
         // book.levels[0] = bids, book.levels[1] = asks
         // Each level is { px: string, sz: string, n: number }
-        const bids = book.levels[0]?.map((level) => [
-            parseFloat(level.px),
-            parseFloat(level.sz),
-        ]) || [];
-        const asks = book.levels[1]?.map((level) => [
-            parseFloat(level.px),
-            parseFloat(level.sz),
-        ]) || [];
+        const bids = book.levels[0]?.map((level) => [parseFloat(level.px), parseFloat(level.sz)]) ||
+            [];
+        const asks = book.levels[1]?.map((level) => [parseFloat(level.px), parseFloat(level.sz)]) ||
+            [];
         return {
             symbol: unifiedSymbol,
             timestamp: book.time,

@@ -120,11 +120,15 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
     async createBatchOrders(requests: OrderRequest[]): Promise<Order[]> {
       // If native batch is supported, subclass should override this method
       if (this.has.createBatchOrders === true) {
-        throw new Error('createBatchOrders must be implemented by subclass when has.createBatchOrders is true');
+        throw new Error(
+          'createBatchOrders must be implemented by subclass when has.createBatchOrders is true'
+        );
       }
 
       // Fallback to sequential execution
-      this.debug('No native batch support, creating orders sequentially', { count: requests.length });
+      this.debug('No native batch support, creating orders sequentially', {
+        count: requests.length,
+      });
 
       const orders: Order[] = [];
       const errors: Array<{ index: number; error: Error }> = [];
@@ -140,7 +144,11 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
           const err = error instanceof Error ? error : new Error(String(error));
           errors.push({ index: i, error: err });
 
-          this.debug('Failed to create order', { index: i + 1, total: requests.length, error: err.message });
+          this.debug('Failed to create order', {
+            index: i + 1,
+            total: requests.length,
+            error: err.message,
+          });
           // Continue with remaining orders despite failure
         }
       }
@@ -157,7 +165,10 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
 
       // Log summary if some failed
       if (errors.length > 0) {
-        this.debug('Batch order creation completed', { succeeded: orders.length, failed: errors.length });
+        this.debug('Batch order creation completed', {
+          succeeded: orders.length,
+          failed: errors.length,
+        });
       }
 
       return orders;
@@ -185,11 +196,15 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
     async cancelBatchOrders(orderIds: string[], symbol?: string): Promise<Order[]> {
       // If native batch is supported, subclass should override this method
       if (this.has.cancelBatchOrders === true) {
-        throw new Error('cancelBatchOrders must be implemented by subclass when has.cancelBatchOrders is true');
+        throw new Error(
+          'cancelBatchOrders must be implemented by subclass when has.cancelBatchOrders is true'
+        );
       }
 
       // Fallback to sequential execution
-      this.debug('No native batch support, canceling orders sequentially', { count: orderIds.length });
+      this.debug('No native batch support, canceling orders sequentially', {
+        count: orderIds.length,
+      });
 
       const orders: Order[] = [];
       const errors: Array<{ index: number; orderId: string; error: Error }> = [];
@@ -222,7 +237,10 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
 
       // Log summary if some failed
       if (errors.length > 0) {
-        this.debug('Batch order cancellation completed', { succeeded: orders.length, failed: errors.length });
+        this.debug('Batch order cancellation completed', {
+          succeeded: orders.length,
+          failed: errors.length,
+        });
       }
 
       return orders;
@@ -242,7 +260,11 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
       _params?: Record<string, unknown>
     ): Promise<Order> {
       if (!this.has.editOrder) {
-        throw new NotSupportedError(`${this.name} does not support editing orders`, 'NOT_SUPPORTED', this.id);
+        throw new NotSupportedError(
+          `${this.name} does not support editing orders`,
+          'NOT_SUPPORTED',
+          this.id
+        );
       }
       throw new Error('editOrder must be implemented by subclass');
     }
@@ -257,7 +279,11 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
      */
     async fetchOrder(_orderId: string, _symbol?: string): Promise<Order> {
       if (!this.has.fetchOrder) {
-        throw new NotSupportedError(`${this.name} does not support fetching single orders`, 'NOT_SUPPORTED', this.id);
+        throw new NotSupportedError(
+          `${this.name} does not support fetching single orders`,
+          'NOT_SUPPORTED',
+          this.id
+        );
       }
       throw new Error('fetchOrder must be implemented by subclass');
     }
@@ -268,7 +294,11 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
      */
     async fetchOpenOrders(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]> {
       if (!this.has.fetchOpenOrders) {
-        throw new NotSupportedError(`${this.name} does not support fetching open orders`, 'NOT_SUPPORTED', this.id);
+        throw new NotSupportedError(
+          `${this.name} does not support fetching open orders`,
+          'NOT_SUPPORTED',
+          this.id
+        );
       }
       throw new Error('fetchOpenOrders must be implemented by subclass');
     }
@@ -279,7 +309,11 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
      */
     async fetchClosedOrders(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]> {
       if (!this.has.fetchClosedOrders) {
-        throw new NotSupportedError(`${this.name} does not support fetching closed orders`, 'NOT_SUPPORTED', this.id);
+        throw new NotSupportedError(
+          `${this.name} does not support fetching closed orders`,
+          'NOT_SUPPORTED',
+          this.id
+        );
       }
       throw new Error('fetchClosedOrders must be implemented by subclass');
     }
@@ -518,7 +552,9 @@ export function OrderHelpersMixin<T extends Constructor<IOrderHelpersMixinBase>>
       }
 
       const message = error instanceof Error ? error.message : String(error);
-      return new PerpDEXError(message, 'REQUEST_ERROR', this.id, error).withCorrelationId(correlationId);
+      return new PerpDEXError(message, 'REQUEST_ERROR', this.id, error).withCorrelationId(
+        correlationId
+      );
     }
   };
 }

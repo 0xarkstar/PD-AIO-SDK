@@ -37,18 +37,18 @@ import type {
   UserFees,
 } from '../../types/index.js';
 import { NotSupportedError, PerpDEXError } from '../../types/errors.js';
-import type {
-  HealthCheckConfig,
-  HealthCheckResult,
-  ComponentHealth,
-} from '../../types/health.js';
+import type { HealthCheckConfig, HealthCheckResult, ComponentHealth } from '../../types/health.js';
 import { determineHealthStatus } from '../../types/health.js';
 import type { APIMetrics, MetricsSnapshot } from '../../types/metrics.js';
 import { createMetricsSnapshot } from '../../types/metrics.js';
 import { Logger, LogLevel, generateCorrelationId } from '../../core/logger.js';
 import { CircuitBreaker } from '../../core/CircuitBreaker.js';
 import type { HTTPClient } from '../../core/http/HTTPClient.js';
-import { PrometheusMetrics, isMetricsInitialized, getMetrics } from '../../monitoring/prometheus.js';
+import {
+  PrometheusMetrics,
+  isMetricsInitialized,
+  getMetrics,
+} from '../../monitoring/prometheus.js';
 import type { RateLimiter } from '../../core/RateLimiter.js';
 import { validateOrderRequest, createValidator } from '../../core/validation/middleware.js';
 
@@ -359,12 +359,14 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     return { valid: !!this.authStrategy };
   }
 
-  protected getRateLimitStatus(): {
-    remaining: number;
-    limit: number;
-    resetAt: number;
-    percentUsed: number;
-  } | undefined {
+  protected getRateLimitStatus():
+    | {
+        remaining: number;
+        limit: number;
+        resetAt: number;
+        percentUsed: number;
+      }
+    | undefined {
     return undefined;
   }
 
@@ -456,7 +458,12 @@ export abstract class BaseAdapter implements IExchangeAdapter {
         const endpoint = this.extractEndpoint(url);
         const endpointKey = `${method}:${endpoint}`;
 
-        this.debug(`Request ${correlationId}`, { method, endpoint, attempt: attempt + 1, correlationId });
+        this.debug(`Request ${correlationId}`, {
+          method,
+          endpoint,
+          attempt: attempt + 1,
+          correlationId,
+        });
 
         this.metrics.totalRequests++;
 
@@ -469,13 +476,18 @@ export abstract class BaseAdapter implements IExchangeAdapter {
         try {
           const response = await fetch(url, {
             method,
-            headers: { 'Content-Type': 'application/json', 'X-Correlation-ID': correlationId, ...headers },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Correlation-ID': correlationId,
+              ...headers,
+            },
             body: body ? JSON.stringify(body) : undefined,
             signal: controller.signal,
           });
 
           if (!response.ok) {
-            const shouldRetry = attempt < maxAttempts - 1 && retryableStatuses.includes(response.status);
+            const shouldRetry =
+              attempt < maxAttempts - 1 && retryableStatuses.includes(response.status);
             const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
 
             if (!shouldRetry) {
@@ -495,7 +507,7 @@ export abstract class BaseAdapter implements IExchangeAdapter {
             this.timers.delete(timeout);
             this.abortControllers.delete(controller);
 
-            await new Promise(resolve => setTimeout(resolve, delay));
+            await new Promise((resolve) => setTimeout(resolve, delay));
             continue;
           }
 
@@ -506,7 +518,11 @@ export abstract class BaseAdapter implements IExchangeAdapter {
           this.updateEndpointMetrics(endpointKey, latency, false);
           this.updateAverageLatency(latency);
 
-          this.debug(`Request ${correlationId} completed`, { correlationId, latency, status: response.status });
+          this.debug(`Request ${correlationId} completed`, {
+            correlationId,
+            latency,
+            status: response.status,
+          });
 
           if (this.prometheusMetrics) {
             this.prometheusMetrics.recordRequest(this.id, endpoint, 'success', latency);
@@ -540,15 +556,18 @@ export abstract class BaseAdapter implements IExchangeAdapter {
           this.timers.delete(timeout);
           this.abortControllers.delete(controller);
 
-          const isNetworkError = error instanceof Error &&
-            (error.name === 'AbortError' || error.message.includes('fetch') || error.message.includes('network'));
+          const isNetworkError =
+            error instanceof Error &&
+            (error.name === 'AbortError' ||
+              error.message.includes('fetch') ||
+              error.message.includes('network'));
 
           if (attempt < maxAttempts - 1 && isNetworkError) {
-            lastError = error as Error;
+            lastError = error;
 
             const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
 
-            await new Promise(resolve => setTimeout(resolve, delay));
+            await new Promise((resolve) => setTimeout(resolve, delay));
             continue;
           }
 
@@ -556,7 +575,10 @@ export abstract class BaseAdapter implements IExchangeAdapter {
         }
       }
 
-      throw this.attachCorrelationId(lastError || new Error('Request failed after retries'), correlationId);
+      throw this.attachCorrelationId(
+        lastError || new Error('Request failed after retries'),
+        correlationId
+      );
     });
   }
 
@@ -596,19 +618,35 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   abstract fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
   abstract fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
   abstract fetchFundingRate(symbol: string): Promise<FundingRate>;
-  abstract fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
+  abstract fetchFundingRateHistory(
+    symbol: string,
+    since?: number,
+    limit?: number
+  ): Promise<FundingRate[]>;
 
-  async fetchOHLCV(_symbol: string, _timeframe: OHLCVTimeframe, _params?: OHLCVParams): Promise<OHLCV[]> {
+  async fetchOHLCV(
+    _symbol: string,
+    _timeframe: OHLCVTimeframe,
+    _params?: OHLCVParams
+  ): Promise<OHLCV[]> {
     if (!this.has.fetchOHLCV) {
-      throw new NotSupportedError(`${this.name} does not support OHLCV data`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support OHLCV data`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchOHLCV must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchOHLCV must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   async fetchTickers(symbols?: string[]): Promise<Record<string, Ticker>> {
     if (!this.has.fetchTickers) {
       const result: Record<string, Ticker> = {};
-      const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map(m => m.symbol);
+      const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map((m) => m.symbol);
 
       for (const symbol of symbolsToFetch) {
         try {
@@ -619,14 +657,26 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       }
       return result;
     }
-    throw new NotSupportedError('fetchTickers must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchTickers must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   async fetchCurrencies(): Promise<Record<string, Currency>> {
     if (!this.has.fetchCurrencies) {
-      throw new NotSupportedError(`${this.name} does not support fetching currencies`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching currencies`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchCurrencies must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchCurrencies must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   async fetchStatus(): Promise<ExchangeStatus> {
@@ -635,17 +685,33 @@ export abstract class BaseAdapter implements IExchangeAdapter {
         await this.fetchMarkets();
         return { status: 'ok', updated: Date.now() };
       } catch (error) {
-        return { status: 'error', message: error instanceof Error ? error.message : 'Unknown error', updated: Date.now() };
+        return {
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          updated: Date.now(),
+        };
       }
     }
-    throw new NotSupportedError('fetchStatus must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchStatus must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   async fetchTime(): Promise<number> {
     if (!this.has.fetchTime) {
-      throw new NotSupportedError(`${this.name} does not support fetching server time`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching server time`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchTime must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchTime must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   // ===========================================================================
@@ -663,32 +729,81 @@ export abstract class BaseAdapter implements IExchangeAdapter {
   abstract fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
   abstract fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
 
-  async fetchDeposits(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
+  async fetchDeposits(
+    _currency?: string,
+    _since?: number,
+    _limit?: number
+  ): Promise<Transaction[]> {
     if (!this.has.fetchDeposits) {
-      throw new NotSupportedError(`${this.name} does not support fetching deposit history`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching deposit history`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchDeposits must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchDeposits must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
-  async fetchWithdrawals(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
+  async fetchWithdrawals(
+    _currency?: string,
+    _since?: number,
+    _limit?: number
+  ): Promise<Transaction[]> {
     if (!this.has.fetchWithdrawals) {
-      throw new NotSupportedError(`${this.name} does not support fetching withdrawal history`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching withdrawal history`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchWithdrawals must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchWithdrawals must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
-  async fetchLedger(_currency?: string, _since?: number, _limit?: number, _params?: Record<string, unknown>): Promise<LedgerEntry[]> {
+  async fetchLedger(
+    _currency?: string,
+    _since?: number,
+    _limit?: number,
+    _params?: Record<string, unknown>
+  ): Promise<LedgerEntry[]> {
     if (!this.has.fetchLedger) {
-      throw new NotSupportedError(`${this.name} does not support fetching ledger`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching ledger`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchLedger must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchLedger must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
-  async fetchFundingHistory(_symbol?: string, _since?: number, _limit?: number): Promise<FundingPayment[]> {
+  async fetchFundingHistory(
+    _symbol?: string,
+    _since?: number,
+    _limit?: number
+  ): Promise<FundingPayment[]> {
     if (!this.has.fetchFundingHistory) {
-      throw new NotSupportedError(`${this.name} does not support fetching funding history`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching funding history`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchFundingHistory must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchFundingHistory must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   // ===========================================================================
@@ -697,7 +812,11 @@ export abstract class BaseAdapter implements IExchangeAdapter {
 
   async createBatchOrders(requests: OrderRequest[]): Promise<Order[]> {
     if (this.has.createBatchOrders === true) {
-      throw new NotSupportedError('createBatchOrders must be implemented by subclass when has.createBatchOrders is true', 'NOT_IMPLEMENTED', this.id);
+      throw new NotSupportedError(
+        'createBatchOrders must be implemented by subclass when has.createBatchOrders is true',
+        'NOT_IMPLEMENTED',
+        this.id
+      );
     }
 
     this.debug('No native batch support, creating orders sequentially', { count: requests.length });
@@ -715,19 +834,31 @@ export abstract class BaseAdapter implements IExchangeAdapter {
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         errors.push({ index: i, error: err });
-        this.debug('Failed to create order', { index: i + 1, total: requests.length, error: err.message });
+        this.debug('Failed to create order', {
+          index: i + 1,
+          total: requests.length,
+          error: err.message,
+        });
       }
     }
 
     if (orders.length === 0 && errors.length > 0) {
       const firstError = errors[0];
       if (firstError) {
-        throw new PerpDEXError(`All batch order creations failed. First error: ${firstError.error.message}`, 'BATCH_FAILED', this.id, firstError.error);
+        throw new PerpDEXError(
+          `All batch order creations failed. First error: ${firstError.error.message}`,
+          'BATCH_FAILED',
+          this.id,
+          firstError.error
+        );
       }
     }
 
     if (errors.length > 0) {
-      this.debug('Batch order creation completed', { succeeded: orders.length, failed: errors.length });
+      this.debug('Batch order creation completed', {
+        succeeded: orders.length,
+        failed: errors.length,
+      });
     }
 
     return orders;
@@ -735,10 +866,16 @@ export abstract class BaseAdapter implements IExchangeAdapter {
 
   async cancelBatchOrders(orderIds: string[], symbol?: string): Promise<Order[]> {
     if (this.has.cancelBatchOrders === true) {
-      throw new NotSupportedError('cancelBatchOrders must be implemented by subclass when has.cancelBatchOrders is true', 'NOT_IMPLEMENTED', this.id);
+      throw new NotSupportedError(
+        'cancelBatchOrders must be implemented by subclass when has.cancelBatchOrders is true',
+        'NOT_IMPLEMENTED',
+        this.id
+      );
     }
 
-    this.debug('No native batch support, canceling orders sequentially', { count: orderIds.length });
+    this.debug('No native batch support, canceling orders sequentially', {
+      count: orderIds.length,
+    });
 
     const orders: Order[] = [];
     const errors: Array<{ index: number; orderId: string; error: Error }> = [];
@@ -760,12 +897,20 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     if (orders.length === 0 && errors.length > 0) {
       const firstError = errors[0];
       if (firstError) {
-        throw new PerpDEXError(`All batch order cancellations failed. First error: ${firstError.error.message}`, 'BATCH_FAILED', this.id, firstError.error);
+        throw new PerpDEXError(
+          `All batch order cancellations failed. First error: ${firstError.error.message}`,
+          'BATCH_FAILED',
+          this.id,
+          firstError.error
+        );
       }
     }
 
     if (errors.length > 0) {
-      this.debug('Batch order cancellation completed', { succeeded: orders.length, failed: errors.length });
+      this.debug('Batch order cancellation completed', {
+        succeeded: orders.length,
+        failed: errors.length,
+      });
     }
 
     return orders;
@@ -781,9 +926,17 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     _params?: Record<string, unknown>
   ): Promise<Order> {
     if (!this.has.editOrder) {
-      throw new NotSupportedError(`${this.name} does not support editing orders`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support editing orders`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('editOrder must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'editOrder must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   // ===========================================================================
@@ -792,51 +945,119 @@ export abstract class BaseAdapter implements IExchangeAdapter {
 
   async fetchOrder(_orderId: string, _symbol?: string): Promise<Order> {
     if (!this.has.fetchOrder) {
-      throw new NotSupportedError(`${this.name} does not support fetching single orders`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching single orders`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchOrder must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchOrder must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   async fetchOpenOrders(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]> {
     if (!this.has.fetchOpenOrders) {
-      throw new NotSupportedError(`${this.name} does not support fetching open orders`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching open orders`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchOpenOrders must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchOpenOrders must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   async fetchClosedOrders(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]> {
     if (!this.has.fetchClosedOrders) {
-      throw new NotSupportedError(`${this.name} does not support fetching closed orders`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching closed orders`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchClosedOrders must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchClosedOrders must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   // ===========================================================================
   // Convenience Order Methods (CCXT-compatible)
   // ===========================================================================
 
-  async createLimitBuyOrder(symbol: string, amount: number, price: number, params?: Record<string, unknown>): Promise<Order> {
+  async createLimitBuyOrder(
+    symbol: string,
+    amount: number,
+    price: number,
+    params?: Record<string, unknown>
+  ): Promise<Order> {
     return this.createOrder({ symbol, type: 'limit', side: 'buy', amount, price, ...params });
   }
 
-  async createLimitSellOrder(symbol: string, amount: number, price: number, params?: Record<string, unknown>): Promise<Order> {
+  async createLimitSellOrder(
+    symbol: string,
+    amount: number,
+    price: number,
+    params?: Record<string, unknown>
+  ): Promise<Order> {
     return this.createOrder({ symbol, type: 'limit', side: 'sell', amount, price, ...params });
   }
 
-  async createMarketBuyOrder(symbol: string, amount: number, params?: Record<string, unknown>): Promise<Order> {
+  async createMarketBuyOrder(
+    symbol: string,
+    amount: number,
+    params?: Record<string, unknown>
+  ): Promise<Order> {
     return this.createOrder({ symbol, type: 'market', side: 'buy', amount, ...params });
   }
 
-  async createMarketSellOrder(symbol: string, amount: number, params?: Record<string, unknown>): Promise<Order> {
+  async createMarketSellOrder(
+    symbol: string,
+    amount: number,
+    params?: Record<string, unknown>
+  ): Promise<Order> {
     return this.createOrder({ symbol, type: 'market', side: 'sell', amount, ...params });
   }
 
-  async createStopLossOrder(symbol: string, amount: number, stopPrice: number, params?: Record<string, unknown>): Promise<Order> {
-    return this.createOrder({ symbol, type: 'stopMarket', side: 'sell', amount, stopPrice, reduceOnly: true, ...params });
+  async createStopLossOrder(
+    symbol: string,
+    amount: number,
+    stopPrice: number,
+    params?: Record<string, unknown>
+  ): Promise<Order> {
+    return this.createOrder({
+      symbol,
+      type: 'stopMarket',
+      side: 'sell',
+      amount,
+      stopPrice,
+      reduceOnly: true,
+      ...params,
+    });
   }
 
-  async createTakeProfitOrder(symbol: string, amount: number, takeProfitPrice: number, params?: Record<string, unknown>): Promise<Order> {
-    return this.createOrder({ symbol, type: 'limit', side: 'sell', amount, price: takeProfitPrice, reduceOnly: true, ...params });
+  async createTakeProfitOrder(
+    symbol: string,
+    amount: number,
+    takeProfitPrice: number,
+    params?: Record<string, unknown>
+  ): Promise<Order> {
+    return this.createOrder({
+      symbol,
+      type: 'limit',
+      side: 'sell',
+      amount,
+      price: takeProfitPrice,
+      reduceOnly: true,
+      ...params,
+    });
   }
 
   // ===========================================================================
@@ -849,9 +1070,17 @@ export abstract class BaseAdapter implements IExchangeAdapter {
 
   async setMarginMode(_symbol: string, _marginMode: 'cross' | 'isolated'): Promise<void> {
     if (!this.has.setMarginMode || this.has.setMarginMode === 'emulated') {
-      throw new NotSupportedError(`${this.name} does not support setting margin mode directly`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support setting margin mode directly`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('setMarginMode must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'setMarginMode must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   // ===========================================================================
@@ -860,81 +1089,161 @@ export abstract class BaseAdapter implements IExchangeAdapter {
 
   async *watchOrderBook(_symbol: string, _limit?: number): AsyncGenerator<OrderBook> {
     if (!this.has.watchOrderBook) {
-      throw new NotSupportedError(`${this.name} does not support order book streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support order book streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('watchOrderBook must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'watchOrderBook must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
     yield {} as OrderBook;
   }
 
   async *watchTrades(_symbol: string): AsyncGenerator<Trade> {
     if (!this.has.watchTrades) {
-      throw new NotSupportedError(`${this.name} does not support trade streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support trade streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('watchTrades must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'watchTrades must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
     yield {} as Trade;
   }
 
   async *watchTicker(_symbol: string): AsyncGenerator<Ticker> {
     if (!this.has.watchTicker) {
-      throw new NotSupportedError(`${this.name} does not support ticker streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support ticker streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('watchTicker must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'watchTicker must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
     yield {} as Ticker;
   }
 
   async *watchTickers(_symbols?: string[]): AsyncGenerator<Ticker> {
     if (!this.has.watchTickers) {
-      throw new NotSupportedError(`${this.name} does not support multiple ticker streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support multiple ticker streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('watchTickers must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'watchTickers must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
     yield {} as Ticker;
   }
 
   async *watchPositions(): AsyncGenerator<Position[]> {
     if (!this.has.watchPositions) {
-      throw new NotSupportedError(`${this.name} does not support position streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support position streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('watchPositions must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'watchPositions must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
     yield [] as Position[];
   }
 
   async *watchOrders(): AsyncGenerator<Order[]> {
     if (!this.has.watchOrders) {
-      throw new NotSupportedError(`${this.name} does not support order streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support order streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('watchOrders must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'watchOrders must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
     yield [] as Order[];
   }
 
   async *watchBalance(): AsyncGenerator<Balance[]> {
     if (!this.has.watchBalance) {
-      throw new NotSupportedError(`${this.name} does not support balance streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support balance streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('watchBalance must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'watchBalance must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
     yield [] as Balance[];
   }
 
   async *watchFundingRate(_symbol: string): AsyncGenerator<FundingRate> {
     if (!this.has.watchFundingRate) {
-      throw new NotSupportedError(`${this.name} does not support funding rate streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support funding rate streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('watchFundingRate must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'watchFundingRate must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
     yield {} as FundingRate;
   }
 
   async *watchOHLCV(_symbol: string, _timeframe: OHLCVTimeframe): AsyncGenerator<OHLCV> {
     if (!this.has.watchOHLCV) {
-      throw new NotSupportedError(`${this.name} does not support OHLCV streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support OHLCV streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('watchOHLCV must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'watchOHLCV must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
     yield [0, 0, 0, 0, 0, 0] as OHLCV;
   }
 
   async *watchMyTrades(_symbol?: string): AsyncGenerator<Trade> {
     if (!this.has.watchMyTrades) {
-      throw new NotSupportedError(`${this.name} does not support user trade streaming`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support user trade streaming`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('watchMyTrades must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'watchMyTrades must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
     yield {} as Trade;
   }
 
@@ -944,23 +1253,47 @@ export abstract class BaseAdapter implements IExchangeAdapter {
 
   async fetchUserFees(): Promise<UserFees> {
     if (!this.has.fetchUserFees) {
-      throw new NotSupportedError(`${this.name} does not support fetching user fees`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching user fees`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchUserFees must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchUserFees must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   async fetchPortfolio(): Promise<Portfolio> {
     if (!this.has.fetchPortfolio) {
-      throw new NotSupportedError(`${this.name} does not support fetching portfolio metrics`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching portfolio metrics`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchPortfolio must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchPortfolio must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   async fetchRateLimitStatus(): Promise<RateLimitStatus> {
     if (!this.has.fetchRateLimitStatus) {
-      throw new NotSupportedError(`${this.name} does not support fetching rate limit status`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `${this.name} does not support fetching rate limit status`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
-    throw new NotSupportedError('fetchRateLimitStatus must be implemented by subclass', 'NOT_IMPLEMENTED', this.id);
+    throw new NotSupportedError(
+      'fetchRateLimitStatus must be implemented by subclass',
+      'NOT_IMPLEMENTED',
+      this.id
+    );
   }
 
   // ===========================================================================
@@ -973,13 +1306,21 @@ export abstract class BaseAdapter implements IExchangeAdapter {
 
   protected assertFeatureSupported(feature: keyof FeatureMap): void {
     if (!this.has[feature]) {
-      throw new NotSupportedError(`Feature '${feature}' is not supported by ${this.name}`, 'NOT_SUPPORTED', this.id);
+      throw new NotSupportedError(
+        `Feature '${feature}' is not supported by ${this.name}`,
+        'NOT_SUPPORTED',
+        this.id
+      );
     }
   }
 
   protected ensureInitialized(): void {
     if (!this._isReady) {
-      throw new PerpDEXError(`${this.name} adapter not initialized. Call initialize() first.`, 'NOT_INITIALIZED', this.id);
+      throw new PerpDEXError(
+        `${this.name} adapter not initialized. Call initialize() first.`,
+        'NOT_INITIALIZED',
+        this.id
+      );
     }
   }
 
@@ -1005,7 +1346,9 @@ export abstract class BaseAdapter implements IExchangeAdapter {
     }
 
     const message = error instanceof Error ? error.message : String(error);
-    return new PerpDEXError(message, 'REQUEST_ERROR', this.id, error).withCorrelationId(correlationId);
+    return new PerpDEXError(message, 'REQUEST_ERROR', this.id, error).withCorrelationId(
+      correlationId
+    );
   }
 
   protected abstract symbolToExchange(symbol: string): string;

@@ -161,7 +161,7 @@ export class CircuitBreaker extends EventEmitter {
      */
     cleanupOldTimestamps() {
         const cutoff = Date.now() - this.config.timeWindow;
-        this.requestTimestamps = this.requestTimestamps.filter(ts => ts >= cutoff);
+        this.requestTimestamps = this.requestTimestamps.filter((ts) => ts >= cutoff);
     }
     /**
      * Transition to OPEN state

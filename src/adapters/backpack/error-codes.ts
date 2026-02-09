@@ -7,6 +7,7 @@
  * @see https://docs.backpack.exchange/api-reference/errors
  */
 
+import { includesNumericValue, includesValue } from '../../utils/type-guards.js';
 import {
   PerpDEXError,
   InvalidOrderError,
@@ -89,7 +90,7 @@ export const BACKPACK_NETWORK_ERRORS = {
 export function isClientError(errorCode: number | string): boolean {
   const code = typeof errorCode === 'number' ? errorCode : parseInt(errorCode, 10);
   return (
-    Object.values(BACKPACK_CLIENT_ERRORS).includes(code as any) ||
+    includesNumericValue(Object.values(BACKPACK_CLIENT_ERRORS), code) ||
     (code >= 1000 && code < 4000)
   );
 }
@@ -102,7 +103,7 @@ export function isClientError(errorCode: number | string): boolean {
  */
 export function isServerError(errorCode: number | string): boolean {
   const code = typeof errorCode === 'number' ? errorCode : parseInt(errorCode, 10);
-  return Object.values(BACKPACK_SERVER_ERRORS).includes(code as any) || code >= 5000;
+  return includesNumericValue(Object.values(BACKPACK_SERVER_ERRORS), code) || code >= 5000;
 }
 
 /**
@@ -112,7 +113,7 @@ export function isServerError(errorCode: number | string): boolean {
  * @returns true if network error
  */
 export function isNetworkError(errorCode: string): boolean {
-  return Object.values(BACKPACK_NETWORK_ERRORS).includes(errorCode as any);
+  return includesValue(Object.values(BACKPACK_NETWORK_ERRORS), errorCode);
 }
 
 /**
@@ -243,7 +244,7 @@ export function mapHttpError(status: number, statusText: string): PerpDEXError {
       `Rate limit exceeded: ${statusText}`,
       BACKPACK_RATE_LIMIT_ERROR.toString(),
       'backpack',
-      undefined  // retryAfter parameter
+      undefined // retryAfter parameter
     );
   }
 
@@ -266,9 +267,5 @@ export function mapHttpError(status: number, statusText: string): PerpDEXError {
   }
 
   // Other
-  return new PerpDEXError(
-    `HTTP error (${status}): ${statusText}`,
-    `HTTP_${status}`,
-    'backpack'
-  );
+  return new PerpDEXError(`HTTP error (${status}): ${statusText}`, `HTTP_${status}`, 'backpack');
 }

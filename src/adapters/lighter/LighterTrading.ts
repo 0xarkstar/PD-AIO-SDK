@@ -38,17 +38,18 @@ export interface TradingDeps {
   marketIdCache: Map<string, number>;
   marketMetadataCache: Map<string, MarketMetadata>;
   fetchMarkets: () => Promise<unknown>;
-  request: <T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: Record<string, unknown>) => Promise<T>;
+  request: <T>(
+    method: 'GET' | 'POST' | 'DELETE',
+    path: string,
+    body?: Record<string, unknown>
+  ) => Promise<T>;
   handleTransactionError: (code: number) => Promise<void>;
 }
 
 /**
  * Create order using WASM signing
  */
-export async function createOrderWasm(
-  deps: TradingDeps,
-  request: OrderRequest
-): Promise<Order> {
+export async function createOrderWasm(deps: TradingDeps, request: OrderRequest): Promise<Order> {
   const lighterSymbol = deps.normalizer.toLighterSymbol(request.symbol);
 
   // Ensure market metadata is loaded
@@ -57,13 +58,21 @@ export async function createOrderWasm(
     await deps.fetchMarkets();
     marketId = deps.marketIdCache.get(lighterSymbol);
     if (marketId === undefined) {
-      throw new InvalidOrderError(`Market not found: ${request.symbol}`, 'INVALID_SYMBOL', 'lighter');
+      throw new InvalidOrderError(
+        `Market not found: ${request.symbol}`,
+        'INVALID_SYMBOL',
+        'lighter'
+      );
     }
   }
 
   const metadata = deps.marketMetadataCache.get(lighterSymbol);
   if (!metadata) {
-    throw new InvalidOrderError(`Market metadata not found: ${request.symbol}`, 'INVALID_SYMBOL', 'lighter');
+    throw new InvalidOrderError(
+      `Market metadata not found: ${request.symbol}`,
+      'INVALID_SYMBOL',
+      'lighter'
+    );
   }
 
   // Get nonce
@@ -102,7 +111,11 @@ export async function createOrderWasm(
     if (response.code !== 0) {
       // Check for nonce errors and auto-resync
       await deps.handleTransactionError(response.code);
-      throw new InvalidOrderError(`Order creation failed: code ${response.code}`, 'ORDER_REJECTED', 'lighter');
+      throw new InvalidOrderError(
+        `Order creation failed: code ${response.code}`,
+        'ORDER_REJECTED',
+        'lighter'
+      );
     }
 
     return deps.normalizer.normalizeOrder(response.order);
@@ -119,10 +132,7 @@ export async function createOrderWasm(
 /**
  * Create order using HMAC signing (legacy)
  */
-export async function createOrderHMAC(
-  deps: TradingDeps,
-  request: OrderRequest
-): Promise<Order> {
+export async function createOrderHMAC(deps: TradingDeps, request: OrderRequest): Promise<Order> {
   const lighterSymbol = deps.normalizer.toLighterSymbol(request.symbol);
   const orderRequest = convertOrderRequest(request, lighterSymbol);
 
@@ -168,7 +178,11 @@ export async function cancelOrderWasm(
 
     if (response.code !== 0) {
       await deps.handleTransactionError(response.code);
-      throw new InvalidOrderError(`Cancel failed: code ${response.code}`, 'CANCEL_REJECTED', 'lighter');
+      throw new InvalidOrderError(
+        `Cancel failed: code ${response.code}`,
+        'CANCEL_REJECTED',
+        'lighter'
+      );
     }
 
     return deps.normalizer.normalizeOrder(response.order);
@@ -184,10 +198,7 @@ export async function cancelOrderWasm(
 /**
  * Cancel order using HMAC signing (legacy)
  */
-export async function cancelOrderHMAC(
-  deps: TradingDeps,
-  orderId: string
-): Promise<Order> {
+export async function cancelOrderHMAC(deps: TradingDeps, orderId: string): Promise<Order> {
   const response = await deps.request<LighterOrder>('DELETE', `/orders/${orderId}`);
   return deps.normalizer.normalizeOrder(response);
 }
@@ -195,10 +206,7 @@ export async function cancelOrderHMAC(
 /**
  * Cancel all orders using WASM signing
  */
-export async function cancelAllOrdersWasm(
-  deps: TradingDeps,
-  symbol?: string
-): Promise<Order[]> {
+export async function cancelAllOrdersWasm(deps: TradingDeps, symbol?: string): Promise<Order[]> {
   // Get market index (-1 for all markets)
   let marketIndex = -1;
   if (symbol) {
@@ -227,7 +235,11 @@ export async function cancelAllOrdersWasm(
 
     if (response.code !== 0) {
       await deps.handleTransactionError(response.code);
-      throw new InvalidOrderError(`Cancel all failed: code ${response.code}`, 'CANCEL_REJECTED', 'lighter');
+      throw new InvalidOrderError(
+        `Cancel all failed: code ${response.code}`,
+        'CANCEL_REJECTED',
+        'lighter'
+      );
     }
 
     return (response.orders || []).map((order: any) => deps.normalizer.normalizeOrder(order));
@@ -243,10 +255,7 @@ export async function cancelAllOrdersWasm(
 /**
  * Cancel all orders using HMAC signing (legacy)
  */
-export async function cancelAllOrdersHMAC(
-  deps: TradingDeps,
-  symbol?: string
-): Promise<Order[]> {
+export async function cancelAllOrdersHMAC(deps: TradingDeps, symbol?: string): Promise<Order[]> {
   const path = symbol ? `/orders?symbol=${deps.normalizer.toLighterSymbol(symbol)}` : '/orders';
   const response = await deps.request<LighterOrder[]>('DELETE', path);
 
@@ -278,11 +287,7 @@ export async function withdrawCollateral(
 
   // Validate address format
   if (!destinationAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-    throw new InvalidOrderError(
-      'Invalid destination address format',
-      'INVALID_ADDRESS',
-      'lighter'
-    );
+    throw new InvalidOrderError('Invalid destination address format', 'INVALID_ADDRESS', 'lighter');
   }
 
   const nonce = await deps.nonceManager.getNextNonce();
@@ -295,10 +300,14 @@ export async function withdrawCollateral(
       nonce,
     });
 
-    const response = await deps.request<{ code: number; tx_hash: string }>('POST', '/api/v1/sendTx', {
-      tx_type: signedTx.txType,
-      tx_info: signedTx.txInfo,
-    });
+    const response = await deps.request<{ code: number; tx_hash: string }>(
+      'POST',
+      '/api/v1/sendTx',
+      {
+        tx_type: signedTx.txType,
+        tx_info: signedTx.txInfo,
+      }
+    );
 
     if (response.code !== 0) {
       // Check for nonce errors and resync

@@ -64,9 +64,7 @@ export class ParadexAuth implements IAuthStrategy {
    */
   requireAuth(): void {
     if (!this.hasCredentials()) {
-      throw new Error(
-        'Authentication required. Provide apiKey or starkPrivateKey in config.'
-      );
+      throw new Error('Authentication required. Provide apiKey or starkPrivateKey in config.');
     }
   }
 
@@ -151,7 +149,7 @@ export class ParadexAuth implements IAuthStrategy {
   setJWTToken(jwt: ParadexJWT): void {
     this.jwtToken = {
       accessToken: jwt.access_token,
-      expiresAt: Date.now() + (jwt.expires_in * 1000),
+      expiresAt: Date.now() + jwt.expires_in * 1000,
     };
   }
 
@@ -241,7 +239,7 @@ export class ParadexAuth implements IAuthStrategy {
     }
 
     // Add buffer before expiry
-    return Date.now() < this.jwtToken.expiresAt - (PARADEX_JWT_EXPIRY_BUFFER * 1000);
+    return Date.now() < this.jwtToken.expiresAt - PARADEX_JWT_EXPIRY_BUFFER * 1000;
   }
 
   /**
@@ -292,7 +290,9 @@ export class ParadexAuth implements IAuthStrategy {
       // Return signature in format: r,s
       return `0x${signature.r.toString(16)},0x${signature.s.toString(16)}`;
     } catch (error) {
-      throw new Error(`Failed to sign StarkNet request: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to sign StarkNet request: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -326,7 +326,10 @@ export class ParadexAuth implements IAuthStrategy {
       // Return the public key as the address (StarkNet format)
       return publicKey;
     } catch (error) {
-      this.logger.error('Failed to derive StarkNet address', error instanceof Error ? error : undefined);
+      this.logger.error(
+        'Failed to derive StarkNet address',
+        error instanceof Error ? error : undefined
+      );
       return undefined;
     }
   }

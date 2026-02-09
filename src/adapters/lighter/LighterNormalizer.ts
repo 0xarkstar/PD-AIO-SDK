@@ -55,8 +55,10 @@ export class LighterNormalizer {
     const symbol = `${base}/${quote}:${quote}`;
 
     // Extract precision from API response
-    const pricePrecision = lighterMarket.supported_price_decimals || lighterMarket.price_decimals || 2;
-    const amountPrecision = lighterMarket.supported_size_decimals || lighterMarket.size_decimals || 4;
+    const pricePrecision =
+      lighterMarket.supported_price_decimals || lighterMarket.price_decimals || 2;
+    const amountPrecision =
+      lighterMarket.supported_size_decimals || lighterMarket.size_decimals || 4;
 
     // Parse min amounts from string values
     const minAmount = parseFloat(lighterMarket.min_base_amount || '0');

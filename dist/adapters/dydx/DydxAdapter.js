@@ -271,7 +271,10 @@ export class DydxAdapter extends BaseAdapter {
             if (since) {
                 queryParams.effectiveBeforeOrAt = new Date(since).toISOString();
             }
-            const url = buildUrl(this.apiUrl, '/historicalFunding', { market: exchangeSymbol, ...queryParams });
+            const url = buildUrl(this.apiUrl, '/historicalFunding', {
+                market: exchangeSymbol,
+                ...queryParams,
+            });
             const response = await this.request('GET', url);
             // Get current oracle price
             const oraclePrice = await this.getOraclePrice(exchangeSymbol);
@@ -289,7 +292,9 @@ export class DydxAdapter extends BaseAdapter {
             const now = Date.now();
             const defaultDuration = getDefaultOHLCVDuration(timeframe);
             const fromISO = new Date(params?.since ?? now - defaultDuration).toISOString();
-            const toISO = params?.until ? new Date(params.until).toISOString() : new Date(now).toISOString();
+            const toISO = params?.until
+                ? new Date(params.until).toISOString()
+                : new Date(now).toISOString();
             const queryParams = {
                 resolution,
                 fromISO,

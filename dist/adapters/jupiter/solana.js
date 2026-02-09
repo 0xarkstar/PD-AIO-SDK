@@ -77,7 +77,7 @@ export class SolanaClient {
     async getMultipleAccountsInfo(pubkeys) {
         const connection = this.ensureInitialized();
         const { PublicKey } = await import('@solana/web3.js');
-        const publicKeys = pubkeys.map(pk => new PublicKey(pk));
+        const publicKeys = pubkeys.map((pk) => new PublicKey(pk));
         return connection.getMultipleAccountsInfo(publicKeys);
     }
     /**
@@ -108,9 +108,7 @@ export class SolanaClient {
         const { PublicKey } = await import('@solana/web3.js');
         const ownerPubkey = new PublicKey(owner);
         const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-        const filter = mint
-            ? { mint: new PublicKey(mint) }
-            : { programId: TOKEN_PROGRAM_ID };
+        const filter = mint ? { mint: new PublicKey(mint) } : { programId: TOKEN_PROGRAM_ID };
         const accounts = await connection.getTokenAccountsByOwner(ownerPubkey, filter);
         return accounts.value.map((account) => {
             // Parse token account data
@@ -135,7 +133,8 @@ export class SolanaClient {
         const { PublicKey } = await import('@solana/web3.js');
         const programPubkey = new PublicKey(programId);
         const accounts = await connection.getProgramAccounts(programPubkey, {
-            filters: filters?.map(f => {
+            filters: filters
+                ?.map((f) => {
                 if (f.memcmp) {
                     return { memcmp: f.memcmp };
                 }
@@ -143,7 +142,8 @@ export class SolanaClient {
                     return { dataSize: f.dataSize };
                 }
                 return undefined;
-            }).filter(Boolean),
+            })
+                .filter((f) => f !== undefined),
         });
         return accounts.map((account) => ({
             pubkey: account.pubkey.toBase58(),
@@ -279,7 +279,14 @@ export class SolanaClient {
         // Position account discriminator (first 8 bytes)
         // This would be derived from the Anchor IDL
         const POSITION_DISCRIMINATOR = Buffer.from([
-            0x56, 0x7a, 0x88, 0x4c, 0x5c, 0x47, 0x12, 0x8f // Example - actual value from IDL
+            0x56,
+            0x7a,
+            0x88,
+            0x4c,
+            0x5c,
+            0x47,
+            0x12,
+            0x8f, // Example - actual value from IDL
         ]);
         return this.getProgramAccounts(JUPITER_PERPS_PROGRAM_ID, [
             // Filter by discriminator

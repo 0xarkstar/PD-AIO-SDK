@@ -21,7 +21,7 @@ async function loadWasmSigner() {
         WasmSignerClient = module.WasmSignerClient;
         return WasmSignerClient;
     }
-    catch (error) {
+    catch {
         throw new Error('Failed to load @oraichain/lighter-ts-sdk. Please install it: npm install @oraichain/lighter-ts-sdk');
     }
 }

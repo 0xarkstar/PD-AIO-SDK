@@ -36,5 +36,5 @@ export declare const JupiterErrorCodes: {
     readonly TIMEOUT: "TIMEOUT";
     readonly UNKNOWN_ERROR: "UNKNOWN_ERROR";
 };
-export type JupiterErrorCode = typeof JupiterErrorCodes[keyof typeof JupiterErrorCodes];
+export type JupiterErrorCode = (typeof JupiterErrorCodes)[keyof typeof JupiterErrorCodes];
 //# sourceMappingURL=error-codes.d.ts.map

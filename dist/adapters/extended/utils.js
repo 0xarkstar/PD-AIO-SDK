@@ -116,10 +116,12 @@ export function validateOrderRequest(request) {
     if (!request.amount || request.amount <= 0) {
         throw new PerpDEXError('Quantity must be greater than 0', 'INVALID_QUANTITY', 'extended');
     }
-    if ((request.type === 'limit' || request.type === 'stopLimit') && (!request.price || request.price <= 0)) {
+    if ((request.type === 'limit' || request.type === 'stopLimit') &&
+        (!request.price || request.price <= 0)) {
         throw new PerpDEXError('Price is required for limit orders', 'INVALID_PRICE', 'extended');
     }
-    if ((request.type === 'stopMarket' || request.type === 'stopLimit') && (!request.stopPrice || request.stopPrice <= 0)) {
+    if ((request.type === 'stopMarket' || request.type === 'stopLimit') &&
+        (!request.stopPrice || request.stopPrice <= 0)) {
         throw new PerpDEXError('Stop price is required for stop orders', 'INVALID_STOP_PRICE', 'extended');
     }
 }

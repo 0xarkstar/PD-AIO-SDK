@@ -56,7 +56,20 @@ export interface BackpackOrder {
   price?: string;
   filled_size: string;
   avg_price?: string;
-  status: 'New' | 'Open' | 'PartiallyFilled' | 'Filled' | 'Cancelled' | 'Rejected' | 'NEW' | 'OPEN' | 'PARTIAL' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLED' | 'REJECTED';
+  status:
+    | 'New'
+    | 'Open'
+    | 'PartiallyFilled'
+    | 'Filled'
+    | 'Cancelled'
+    | 'Rejected'
+    | 'NEW'
+    | 'OPEN'
+    | 'PARTIAL'
+    | 'PARTIALLY_FILLED'
+    | 'FILLED'
+    | 'CANCELLED'
+    | 'REJECTED';
   time_in_force: 'GTC' | 'IOC' | 'FOK' | 'POST_ONLY';
   post_only: boolean;
   reduce_only: boolean;

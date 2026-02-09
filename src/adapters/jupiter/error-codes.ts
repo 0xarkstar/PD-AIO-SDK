@@ -38,7 +38,14 @@ export function mapJupiterError(error: unknown): PerpDEXError {
           case 'INSUFFICIENT_MARGIN':
             return new InsufficientMarginError(error.message, code, 'jupiter', error);
           case 'INSUFFICIENT_BALANCE':
-            return new InsufficientBalanceError(error.message, code, 'jupiter', undefined, undefined, error);
+            return new InsufficientBalanceError(
+              error.message,
+              code,
+              'jupiter',
+              undefined,
+              undefined,
+              error
+            );
           case 'POSITION_NOT_FOUND':
             return new PositionNotFoundError(error.message, code, 'jupiter', error);
           case 'INVALID_LEVERAGE':
@@ -89,17 +96,18 @@ export function mapJupiterError(error: unknown): PerpDEXError {
     }
 
     if (message.includes('account not found') || message.includes('account does not exist')) {
-      return new PerpDEXError(
-        'Account not found on chain',
-        'ACCOUNT_NOT_FOUND',
-        'jupiter',
-        error
-      );
+      return new PerpDEXError('Account not found on chain', 'ACCOUNT_NOT_FOUND', 'jupiter', error);
     }
 
     // RPC errors
     if (message.includes('429') || message.includes('too many requests')) {
-      return new RateLimitError('RPC rate limit exceeded', 'RATE_LIMIT', 'jupiter', undefined, error);
+      return new RateLimitError(
+        'RPC rate limit exceeded',
+        'RATE_LIMIT',
+        'jupiter',
+        undefined,
+        error
+      );
     }
 
     if (message.includes('503') || message.includes('502') || message.includes('504')) {
@@ -112,22 +120,12 @@ export function mapJupiterError(error: unknown): PerpDEXError {
     }
 
     if (message.includes('timeout') || message.includes('timed out')) {
-      return new ExchangeUnavailableError(
-        'Request timeout',
-        'TIMEOUT',
-        'jupiter',
-        error
-      );
+      return new ExchangeUnavailableError('Request timeout', 'TIMEOUT', 'jupiter', error);
     }
   }
 
   // Default to generic exchange error
-  return new ExchangeUnavailableError(
-    'Unknown exchange error',
-    'UNKNOWN_ERROR',
-    'jupiter',
-    error
-  );
+  return new ExchangeUnavailableError('Unknown exchange error', 'UNKNOWN_ERROR', 'jupiter', error);
 }
 
 /**
@@ -169,4 +167,4 @@ export const JupiterErrorCodes = {
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
 } as const;
 
-export type JupiterErrorCode = typeof JupiterErrorCodes[keyof typeof JupiterErrorCodes];
+export type JupiterErrorCode = (typeof JupiterErrorCodes)[keyof typeof JupiterErrorCodes];

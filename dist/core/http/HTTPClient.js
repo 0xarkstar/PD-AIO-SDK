@@ -108,7 +108,7 @@ export class HTTPClient {
                     // Calculate delay with exponential backoff
                     const delay = Math.min(this.retryConfig.initialDelay * Math.pow(this.retryConfig.multiplier, attempt), this.retryConfig.maxDelay);
                     // Wait before retry
-                    await new Promise(resolve => setTimeout(resolve, delay));
+                    await new Promise((resolve) => setTimeout(resolve, delay));
                 }
             }
             throw lastError || new Error('Request failed');
@@ -133,9 +133,7 @@ export class HTTPClient {
         // Prepare request body
         let body;
         if (options.body) {
-            body = typeof options.body === 'string'
-                ? options.body
-                : JSON.stringify(options.body);
+            body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
         }
         try {
             // Create abort controller for timeout

@@ -76,12 +76,7 @@ export function mapDydxError(error: unknown): PerpDEXError {
     }
 
     if (message.includes('401') || message.includes('403')) {
-      return new InvalidSignatureError(
-        'Authentication failed',
-        'UNAUTHORIZED',
-        'dydx',
-        error
-      );
+      return new InvalidSignatureError('Authentication failed', 'UNAUTHORIZED', 'dydx', error);
     }
 
     if (message.includes('404')) {
@@ -94,12 +89,7 @@ export function mapDydxError(error: unknown): PerpDEXError {
   }
 
   // Default to generic exchange error
-  return new ExchangeUnavailableError(
-    'Unknown exchange error',
-    'UNKNOWN_ERROR',
-    'dydx',
-    error
-  );
+  return new ExchangeUnavailableError('Unknown exchange error', 'UNKNOWN_ERROR', 'dydx', error);
 }
 
 /**
@@ -134,4 +124,4 @@ export const DydxErrorCodes = {
   NOT_FOUND: 'NOT_FOUND',
 } as const;
 
-export type DydxErrorCode = typeof DydxErrorCodes[keyof typeof DydxErrorCodes];
+export type DydxErrorCode = (typeof DydxErrorCodes)[keyof typeof DydxErrorCodes];

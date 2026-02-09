@@ -53,11 +53,7 @@ export type {
   WebSocketHealth,
 } from './types/index.js';
 
-export {
-  determineHealthStatus,
-  isHealthy,
-  isCriticallyUnhealthy,
-} from './types/health.js';
+export { determineHealthStatus, isHealthy, isCriticallyUnhealthy } from './types/health.js';
 
 export {
   // Constants
@@ -146,11 +142,7 @@ export {
   createChildLogger,
   formatLogEntry,
 } from './core/logger.js';
-export type {
-  LogEntry,
-  RequestContext,
-  LoggerConfig,
-} from './core/logger.js';
+export type { LogEntry, RequestContext, LoggerConfig } from './core/logger.js';
 
 // =============================================================================
 // Monitoring

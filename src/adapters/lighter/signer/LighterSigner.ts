@@ -50,8 +50,8 @@ function getLibraryFilename(): string {
   if (!filename) {
     throw new Error(
       `Native signer not supported on ${os}-${architecture}. ` +
-      `Supported platforms: ${Object.keys(platformMap).join(', ')}. ` +
-      `Consider using WASM signer (LighterWasmSigner) as a cross-platform alternative.`
+        `Supported platforms: ${Object.keys(platformMap).join(', ')}. ` +
+        `Consider using WASM signer (LighterWasmSigner) as a cross-platform alternative.`
     );
   }
 
@@ -87,7 +87,7 @@ function findLibraryPath(customPath?: string): string {
 
   throw new Error(
     `Native library not found. Searched: ${searchPaths.join(', ')}. ` +
-    `Please ensure the Lighter native library is installed in native/lighter/`
+      `Please ensure the Lighter native library is installed in native/lighter/`
   );
 }
 
@@ -155,9 +155,7 @@ export class LighterSigner {
             this.koffi = requireFn('koffi');
           }
         } catch {
-          throw new Error(
-            'koffi could not be loaded. Ensure it is installed: npm install koffi'
-          );
+          throw new Error('koffi could not be loaded. Ensure it is installed: npm install koffi');
         }
       }
 
@@ -222,7 +220,7 @@ export class LighterSigner {
 
       // Initialize the client - note: first param is URL, we pass empty string
       const result = this.functions.CreateClient(
-        '',  // URL (not used in our case)
+        '', // URL (not used in our case)
         this.config.apiPrivateKey,
         this.config.chainId,
         this.config.apiKeyIndex,
@@ -239,9 +237,7 @@ export class LighterSigner {
       this.initialized = true;
     } catch (error) {
       if (error instanceof Error && error.message.includes('Cannot find module')) {
-        throw new Error(
-          'koffi is not installed. Please run: npm install koffi'
-        );
+        throw new Error('koffi is not installed. Please run: npm install koffi');
       }
       throw error;
     }
@@ -326,8 +322,8 @@ export class LighterSigner {
     // timeInForce: 0 = GTC (cancel all), 1 = IOC, 2 = FOK
     // time: deadline timestamp (0 for no deadline)
     const response = this.functions.SignCancelAllOrders!(
-      0,  // timeInForce (GTC to cancel all)
-      BigInt(0),  // time (no deadline)
+      0, // timeInForce (GTC to cancel all)
+      BigInt(0), // time (no deadline)
       BigInt(params.nonce),
       this.config.apiKeyIndex,
       BigInt(this.config.accountIndex)
@@ -357,7 +353,7 @@ export class LighterSigner {
     // routeType: 0 = L1, 1 = L2, etc.
     const response = this.functions.SignWithdraw!(
       params.collateralIndex,
-      0,  // routeType (L1 withdrawal)
+      0, // routeType (L1 withdrawal)
       BigInt(params.amount),
       BigInt(params.nonce),
       this.config.apiKeyIndex,

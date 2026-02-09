@@ -6,6 +6,7 @@
  *
  * @see https://docs.backpack.exchange/api-reference/errors
  */
+import { includesNumericValue, includesValue } from '../../utils/type-guards.js';
 import { PerpDEXError, InvalidOrderError, InsufficientMarginError, OrderNotFoundError, PositionNotFoundError, InvalidSignatureError, ExpiredAuthError, RateLimitError, ExchangeUnavailableError, } from '../../types/errors.js';
 /**
  * Backpack Client Error Codes (1xxx - 2xxx)
@@ -70,7 +71,7 @@ export const BACKPACK_NETWORK_ERRORS = {
  */
 export function isClientError(errorCode) {
     const code = typeof errorCode === 'number' ? errorCode : parseInt(errorCode, 10);
-    return (Object.values(BACKPACK_CLIENT_ERRORS).includes(code) ||
+    return (includesNumericValue(Object.values(BACKPACK_CLIENT_ERRORS), code) ||
         (code >= 1000 && code < 4000));
 }
 /**
@@ -81,7 +82,7 @@ export function isClientError(errorCode) {
  */
 export function isServerError(errorCode) {
     const code = typeof errorCode === 'number' ? errorCode : parseInt(errorCode, 10);
-    return Object.values(BACKPACK_SERVER_ERRORS).includes(code) || code >= 5000;
+    return includesNumericValue(Object.values(BACKPACK_SERVER_ERRORS), code) || code >= 5000;
 }
 /**
  * Check if an error code indicates a network error (retryable)
@@ -90,7 +91,7 @@ export function isServerError(errorCode) {
  * @returns true if network error
  */
 export function isNetworkError(errorCode) {
-    return Object.values(BACKPACK_NETWORK_ERRORS).includes(errorCode);
+    return includesValue(Object.values(BACKPACK_NETWORK_ERRORS), errorCode);
 }
 /**
  * Check if an error should be retried

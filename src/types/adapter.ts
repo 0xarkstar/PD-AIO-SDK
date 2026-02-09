@@ -179,7 +179,9 @@ export interface IExchangeAdapter {
    * }
    * ```
    */
-  healthCheck(config?: import('./health.js').HealthCheckConfig): Promise<import('./health.js').HealthCheckResult>;
+  healthCheck(
+    config?: import('./health.js').HealthCheckConfig
+  ): Promise<import('./health.js').HealthCheckResult>;
 
   // ===========================================================================
   // Market Data (Public)

@@ -9,13 +9,13 @@ import type { FundingRate, OHLCV, OHLCVParams, OHLCVTimeframe } from '../../type
 
 /** OHLCV candle response from Hyperliquid */
 export interface HyperliquidCandle {
-  t: number;    // timestamp
-  o: string;    // open
-  h: string;    // high
-  l: string;    // low
-  c: string;    // close
-  v: string;    // volume
-  n?: number;   // number of trades (optional)
+  t: number; // timestamp
+  o: string; // open
+  h: string; // high
+  l: string; // low
+  c: string; // close
+  v: string; // volume
+  n?: number; // number of trades (optional)
 }
 
 /** Interval mapping from unified timeframes to Hyperliquid intervals */
@@ -39,21 +39,21 @@ const INTERVAL_MAP: Record<OHLCVTimeframe, string> = {
 
 /** Default duration for each timeframe */
 const DURATION_MAP: Record<OHLCVTimeframe, number> = {
-  '1m': 24 * 60 * 60 * 1000,         // 24 hours of 1m candles
-  '3m': 3 * 24 * 60 * 60 * 1000,     // 3 days
-  '5m': 5 * 24 * 60 * 60 * 1000,     // 5 days
-  '15m': 7 * 24 * 60 * 60 * 1000,    // 7 days
-  '30m': 14 * 24 * 60 * 60 * 1000,   // 14 days
-  '1h': 30 * 24 * 60 * 60 * 1000,    // 30 days
-  '2h': 60 * 24 * 60 * 60 * 1000,    // 60 days
-  '4h': 90 * 24 * 60 * 60 * 1000,    // 90 days
-  '6h': 120 * 24 * 60 * 60 * 1000,   // 120 days
-  '8h': 180 * 24 * 60 * 60 * 1000,   // 180 days
-  '12h': 365 * 24 * 60 * 60 * 1000,  // 1 year
-  '1d': 365 * 24 * 60 * 60 * 1000,   // 1 year
-  '3d': 2 * 365 * 24 * 60 * 60 * 1000,  // 2 years
-  '1w': 3 * 365 * 24 * 60 * 60 * 1000,  // 3 years
-  '1M': 5 * 365 * 24 * 60 * 60 * 1000,  // 5 years
+  '1m': 24 * 60 * 60 * 1000, // 24 hours of 1m candles
+  '3m': 3 * 24 * 60 * 60 * 1000, // 3 days
+  '5m': 5 * 24 * 60 * 60 * 1000, // 5 days
+  '15m': 7 * 24 * 60 * 60 * 1000, // 7 days
+  '30m': 14 * 24 * 60 * 60 * 1000, // 14 days
+  '1h': 30 * 24 * 60 * 60 * 1000, // 30 days
+  '2h': 60 * 24 * 60 * 60 * 1000, // 60 days
+  '4h': 90 * 24 * 60 * 60 * 1000, // 90 days
+  '6h': 120 * 24 * 60 * 60 * 1000, // 120 days
+  '8h': 180 * 24 * 60 * 60 * 1000, // 180 days
+  '12h': 365 * 24 * 60 * 60 * 1000, // 1 year
+  '1d': 365 * 24 * 60 * 60 * 1000, // 1 year
+  '3d': 2 * 365 * 24 * 60 * 60 * 1000, // 2 years
+  '1w': 3 * 365 * 24 * 60 * 60 * 1000, // 3 years
+  '1M': 5 * 365 * 24 * 60 * 60 * 1000, // 5 years
 };
 
 /**
@@ -104,14 +104,16 @@ export function parseCandles(
   const candles = limit ? response.slice(-limit) : response;
 
   // Convert to OHLCV format
-  return candles.map((candle): OHLCV => [
-    candle.t,
-    parseFloat(candle.o),
-    parseFloat(candle.h),
-    parseFloat(candle.l),
-    parseFloat(candle.c),
-    parseFloat(candle.v),
-  ]);
+  return candles.map(
+    (candle): OHLCV => [
+      candle.t,
+      parseFloat(candle.o),
+      parseFloat(candle.h),
+      parseFloat(candle.l),
+      parseFloat(candle.c),
+      parseFloat(candle.v),
+    ]
+  );
 }
 
 /**

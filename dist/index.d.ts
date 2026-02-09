@@ -6,7 +6,7 @@
 export { createExchange, getSupportedExchanges, isExchangeSupported } from './factory.js';
 export type { SupportedExchange, ExchangeConfigMap } from './factory.js';
 export type { Order, OrderRequest, OrderType, OrderSide, OrderStatus, TimeInForce, Position, PositionSide, MarginMode, Market, OrderBook, PriceLevel, Trade, FundingRate, Balance, Ticker, MarketParams, OrderBookParams, TradeParams, IExchangeAdapter, IAuthStrategy, FeatureMap, RequestParams, AuthenticatedRequest, ExchangeConfig, RateLimitConfig, HealthStatus, HealthCheckResult, HealthCheckConfig, ComponentHealth, AuthHealth, WebSocketHealth, } from './types/index.js';
-export { determineHealthStatus, isHealthy, isCriticallyUnhealthy, } from './types/health.js';
+export { determineHealthStatus, isHealthy, isCriticallyUnhealthy } from './types/health.js';
 export { ORDER_TYPES, ORDER_SIDES, ORDER_STATUSES, TIME_IN_FORCE, POSITION_SIDES, MARGIN_MODES, PerpDEXError, InsufficientMarginError, OrderNotFoundError, InvalidOrderError, PositionNotFoundError, RateLimitError, ExchangeUnavailableError, WebSocketDisconnectedError, InvalidSignatureError, ExpiredAuthError, InsufficientPermissionsError, TransactionFailedError, SlippageExceededError, LiquidationError, isPerpDEXError, isRateLimitError, isAuthError, } from './types/index.js';
 export { WebSocketClient, WebSocketManager } from './websocket/index.js';
 export type { ConnectionState, WebSocketConfig, ReconnectConfig, HeartbeatConfig, Subscription, WebSocketMessage, MessageHandler, WebSocketMetrics, } from './websocket/index.js';
@@ -19,7 +19,7 @@ export type { CircuitBreakerConfig, CircuitBreakerMetrics } from './core/Circuit
 export { createResilientExecutor, withResilience, Resilient, Bulkhead, withTimeout, withCache, } from './core/resilience.js';
 export type { ResilienceConfig, FailureContext } from './core/resilience.js';
 export { Logger, LogLevel, generateCorrelationId, createRequestContext, createChildLogger, formatLogEntry, } from './core/logger.js';
-export type { LogEntry, RequestContext, LoggerConfig, } from './core/logger.js';
+export type { LogEntry, RequestContext, LoggerConfig } from './core/logger.js';
 export { PrometheusMetrics, initializeMetrics, getMetrics, isMetricsInitialized, } from './monitoring/prometheus.js';
 export type { PrometheusConfig } from './monitoring/prometheus.js';
 export { MetricsServer, startMetricsServer } from './monitoring/metrics-server.js';

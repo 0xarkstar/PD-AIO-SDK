@@ -41,11 +41,7 @@ import { GRVTNormalizer } from './GRVTNormalizer.js';
 import { mapAxiosError } from './GRVTErrorMapper.js';
 import { GRVTWebSocketWrapper } from './GRVTWebSocketWrapper.js';
 
-import {
-  GRVT_API_URLS,
-  GRVT_RATE_LIMITS,
-  GRVT_ENDPOINT_WEIGHTS,
-} from './constants.js';
+import { GRVT_API_URLS, GRVT_RATE_LIMITS, GRVT_ENDPOINT_WEIGHTS } from './constants.js';
 
 /**
  * GRVT adapter configuration
@@ -280,14 +276,16 @@ export class GRVTAdapter extends BaseAdapter {
       }
 
       // Convert GRVT candle format to OHLCV tuple
-      return response.result.map((candle: any): OHLCV => [
-        candle.time || candle.t,
-        parseFloat(candle.open || candle.o || '0'),
-        parseFloat(candle.high || candle.h || '0'),
-        parseFloat(candle.low || candle.l || '0'),
-        parseFloat(candle.close || candle.c || '0'),
-        parseFloat(candle.volume || candle.v || '0'),
-      ]);
+      return response.result.map(
+        (candle: any): OHLCV => [
+          candle.time || candle.t,
+          parseFloat(candle.open || candle.o || '0'),
+          parseFloat(candle.high || candle.h || '0'),
+          parseFloat(candle.low || candle.l || '0'),
+          parseFloat(candle.close || candle.c || '0'),
+          parseFloat(candle.volume || candle.v || '0'),
+        ]
+      );
     } catch (error) {
       throw mapAxiosError(error);
     }
@@ -298,21 +296,21 @@ export class GRVTAdapter extends BaseAdapter {
    */
   private getDefaultDuration(timeframe: OHLCVTimeframe): number {
     const durationMap: Record<OHLCVTimeframe, number> = {
-      '1m': 24 * 60 * 60 * 1000,         // 24 hours
-      '3m': 3 * 24 * 60 * 60 * 1000,     // 3 days
-      '5m': 5 * 24 * 60 * 60 * 1000,     // 5 days
-      '15m': 7 * 24 * 60 * 60 * 1000,    // 7 days
-      '30m': 14 * 24 * 60 * 60 * 1000,   // 14 days
-      '1h': 30 * 24 * 60 * 60 * 1000,    // 30 days
-      '2h': 60 * 24 * 60 * 60 * 1000,    // 60 days
-      '4h': 90 * 24 * 60 * 60 * 1000,    // 90 days
-      '6h': 120 * 24 * 60 * 60 * 1000,   // 120 days
-      '8h': 180 * 24 * 60 * 60 * 1000,   // 180 days
-      '12h': 365 * 24 * 60 * 60 * 1000,  // 1 year
-      '1d': 365 * 24 * 60 * 60 * 1000,   // 1 year
-      '3d': 2 * 365 * 24 * 60 * 60 * 1000,  // 2 years
-      '1w': 3 * 365 * 24 * 60 * 60 * 1000,  // 3 years
-      '1M': 5 * 365 * 24 * 60 * 60 * 1000,  // 5 years
+      '1m': 24 * 60 * 60 * 1000, // 24 hours
+      '3m': 3 * 24 * 60 * 60 * 1000, // 3 days
+      '5m': 5 * 24 * 60 * 60 * 1000, // 5 days
+      '15m': 7 * 24 * 60 * 60 * 1000, // 7 days
+      '30m': 14 * 24 * 60 * 60 * 1000, // 14 days
+      '1h': 30 * 24 * 60 * 60 * 1000, // 30 days
+      '2h': 60 * 24 * 60 * 60 * 1000, // 60 days
+      '4h': 90 * 24 * 60 * 60 * 1000, // 90 days
+      '6h': 120 * 24 * 60 * 60 * 1000, // 120 days
+      '8h': 180 * 24 * 60 * 60 * 1000, // 180 days
+      '12h': 365 * 24 * 60 * 60 * 1000, // 1 year
+      '1d': 365 * 24 * 60 * 60 * 1000, // 1 year
+      '3d': 2 * 365 * 24 * 60 * 60 * 1000, // 2 years
+      '1w': 3 * 365 * 24 * 60 * 60 * 1000, // 3 years
+      '1M': 5 * 365 * 24 * 60 * 60 * 1000, // 5 years
     };
     return durationMap[timeframe] || 30 * 24 * 60 * 60 * 1000;
   }
@@ -348,7 +346,7 @@ export class GRVTAdapter extends BaseAdapter {
         markPrice: parseFloat(funding.mark_price ?? '0'),
         indexPrice: 0, // Not provided in funding API
         fundingIntervalHours,
-        info: funding as any,
+        info: funding as Record<string, unknown>,
       };
     } catch (error) {
       throw mapAxiosError(error);
@@ -638,7 +636,7 @@ export class GRVTAdapter extends BaseAdapter {
   private async ensureWebSocket(): Promise<GRVTWebSocketWrapper> {
     if (!this.ws) {
       // Get sub-account ID from config if available
-      const subAccountId = (this.config as any).subAccountId as string | undefined;
+      const subAccountId = (this.config as GRVTConfig & { subAccountId?: string }).subAccountId;
 
       this.ws = new GRVTWebSocketWrapper({
         testnet: this.testnet,
@@ -667,10 +665,7 @@ export class GRVTAdapter extends BaseAdapter {
    * }
    * ```
    */
-  async *watchOrderBook(
-    symbol: string,
-    limit?: number
-  ): AsyncGenerator<OrderBook> {
+  async *watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook> {
     const ws = await this.ensureWebSocket();
     const depth = limit || 50;
 

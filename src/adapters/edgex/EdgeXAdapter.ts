@@ -23,19 +23,10 @@ import type {
 import type { FeatureMap } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
-import {
-  EDGEX_API_URLS,
-  EDGEX_RATE_LIMITS,
-  EDGEX_ENDPOINT_WEIGHTS,
-} from './constants.js';
+import { EDGEX_API_URLS, EDGEX_RATE_LIMITS, EDGEX_ENDPOINT_WEIGHTS } from './constants.js';
 import { EdgeXNormalizer } from './EdgeXNormalizer.js';
 import { EdgeXAuth } from './EdgeXAuth.js';
-import {
-  toEdgeXOrderType,
-  toEdgeXOrderSide,
-  toEdgeXTimeInForce,
-  mapEdgeXError,
-} from './utils.js';
+import { toEdgeXOrderType, toEdgeXOrderSide, toEdgeXTimeInForce, mapEdgeXError } from './utils.js';
 import type { EdgeXConfig } from './types.js';
 
 /**
@@ -132,11 +123,17 @@ export class EdgeXAdapter extends BaseAdapter {
    * Fetch all available markets
    */
   async fetchMarkets(_params?: MarketParams): Promise<Market[]> {
-    const response = await this.makeRequest('GET', '/api/v1/public/meta/getMetaData', 'fetchMarkets');
+    const response = await this.makeRequest(
+      'GET',
+      '/api/v1/public/meta/getMetaData',
+      'fetchMarkets'
+    );
 
     // Handle new API format: { code: 'SUCCESS', data: { contractList: [...] } }
     if (response.code === 'SUCCESS' && response.data?.contractList) {
-      return response.data.contractList.map((market: any) => this.normalizer.normalizeMarket(market));
+      return response.data.contractList.map((market: any) =>
+        this.normalizer.normalizeMarket(market)
+      );
     }
 
     // Handle legacy test format: { markets: [...] }
@@ -158,7 +155,11 @@ export class EdgeXAdapter extends BaseAdapter {
       'fetchTicker'
     );
 
-    if (response.code !== 'SUCCESS' || !Array.isArray(response.data) || response.data.length === 0) {
+    if (
+      response.code !== 'SUCCESS' ||
+      !Array.isArray(response.data) ||
+      response.data.length === 0
+    ) {
       throw new PerpDEXError('Invalid ticker response', 'INVALID_RESPONSE', 'edgex');
     }
 
@@ -180,7 +181,11 @@ export class EdgeXAdapter extends BaseAdapter {
       'fetchOrderBook'
     );
 
-    if (response.code !== 'SUCCESS' || !Array.isArray(response.data) || response.data.length === 0) {
+    if (
+      response.code !== 'SUCCESS' ||
+      !Array.isArray(response.data) ||
+      response.data.length === 0
+    ) {
       throw new PerpDEXError('Invalid order book response', 'INVALID_RESPONSE', 'edgex');
     }
 
@@ -211,7 +216,11 @@ export class EdgeXAdapter extends BaseAdapter {
       'fetchFundingRate'
     );
 
-    if (response.code !== 'SUCCESS' || !Array.isArray(response.data) || response.data.length === 0) {
+    if (
+      response.code !== 'SUCCESS' ||
+      !Array.isArray(response.data) ||
+      response.data.length === 0
+    ) {
       throw new PerpDEXError('Invalid funding rate response', 'INVALID_RESPONSE', 'edgex');
     }
 
@@ -224,13 +233,9 @@ export class EdgeXAdapter extends BaseAdapter {
   async fetchFundingRateHistory(
     _symbol: string,
     _since?: number,
-    _limit?: number,
+    _limit?: number
   ): Promise<FundingRate[]> {
-    throw new PerpDEXError(
-      'EdgeX does not support funding rate history',
-      'NOT_SUPPORTED',
-      'edgex',
-    );
+    throw new PerpDEXError('EdgeX does not support funding rate history', 'NOT_SUPPORTED', 'edgex');
   }
 
   /**
@@ -238,13 +243,19 @@ export class EdgeXAdapter extends BaseAdapter {
    */
   async fetchPositions(symbols?: string[]): Promise<Position[]> {
     this.requireAuth();
-    const response = await this.makeRequest('GET', '/api/v1/private/account/getPositionList', 'fetchPositions');
+    const response = await this.makeRequest(
+      'GET',
+      '/api/v1/private/account/getPositionList',
+      'fetchPositions'
+    );
 
     if (!Array.isArray(response.positions)) {
       throw new PerpDEXError('Invalid positions response', 'INVALID_RESPONSE', 'edgex');
     }
 
-    let positions = response.positions.map((position: any) => this.normalizer.normalizePosition(position));
+    let positions = response.positions.map((position: any) =>
+      this.normalizer.normalizePosition(position)
+    );
 
     if (symbols && symbols.length > 0) {
       positions = positions.filter((p: Position) => symbols.includes(p.symbol));
@@ -258,7 +269,11 @@ export class EdgeXAdapter extends BaseAdapter {
    */
   async fetchBalance(): Promise<Balance[]> {
     this.requireAuth();
-    const response = await this.makeRequest('GET', '/api/v1/private/account/getCollateralBalance', 'fetchBalance');
+    const response = await this.makeRequest(
+      'GET',
+      '/api/v1/private/account/getCollateralBalance',
+      'fetchBalance'
+    );
 
     if (!Array.isArray(response.balances)) {
       throw new PerpDEXError('Invalid balance response', 'INVALID_RESPONSE', 'edgex');
@@ -292,7 +307,12 @@ export class EdgeXAdapter extends BaseAdapter {
       client_order_id: validatedRequest.clientOrderId,
     };
 
-    const response = await this.makeRequest('POST', '/api/v1/private/order/createOrder', 'createOrder', payload);
+    const response = await this.makeRequest(
+      'POST',
+      '/api/v1/private/order/createOrder',
+      'createOrder',
+      payload
+    );
 
     return this.normalizer.normalizeOrder(response);
   }
@@ -302,7 +322,12 @@ export class EdgeXAdapter extends BaseAdapter {
    */
   async cancelOrder(orderId: string, _symbol?: string): Promise<Order> {
     this.requireAuth();
-    const response = await this.makeRequest('POST', '/api/v1/private/order/cancelOrder', 'cancelOrder', { orderId });
+    const response = await this.makeRequest(
+      'POST',
+      '/api/v1/private/order/cancelOrder',
+      'cancelOrder',
+      { orderId }
+    );
 
     return this.normalizer.normalizeOrder(response);
   }
@@ -315,7 +340,11 @@ export class EdgeXAdapter extends BaseAdapter {
     const contractId = symbol ? this.normalizer.toEdgeXContractId(symbol) : undefined;
     const params = contractId ? `?contractId=${contractId}` : '';
 
-    const response = await this.makeRequest('DELETE', `/api/v1/private/order/cancelAllOrder${params}`, 'cancelAllOrders');
+    const response = await this.makeRequest(
+      'DELETE',
+      `/api/v1/private/order/cancelAllOrder${params}`,
+      'cancelAllOrders'
+    );
 
     if (!Array.isArray(response.orders)) {
       throw new PerpDEXError('Invalid cancel all orders response', 'INVALID_RESPONSE', 'edgex');
@@ -425,7 +454,11 @@ export class EdgeXAdapter extends BaseAdapter {
     this.requireAuth();
     const contractId = symbol ? this.normalizer.toEdgeXContractId(symbol) : undefined;
     const params = contractId ? `?contractId=${contractId}` : '';
-    const response = await this.makeRequest('GET', `/api/v1/private/order/getOpenOrderList${params}`, 'fetchOpenOrders');
+    const response = await this.makeRequest(
+      'GET',
+      `/api/v1/private/order/getOpenOrderList${params}`,
+      'fetchOpenOrders'
+    );
 
     if (!Array.isArray(response.orders)) {
       throw new PerpDEXError('Invalid open orders response', 'INVALID_RESPONSE', 'edgex');
@@ -439,7 +472,11 @@ export class EdgeXAdapter extends BaseAdapter {
    */
   async fetchOrder(orderId: string, _symbol?: string): Promise<Order> {
     this.requireAuth();
-    const response = await this.makeRequest('GET', `/api/v1/private/order/getOrder?orderId=${orderId}`, 'fetchOrder');
+    const response = await this.makeRequest(
+      'GET',
+      `/api/v1/private/order/getOrder?orderId=${orderId}`,
+      'fetchOrder'
+    );
 
     return this.normalizer.normalizeOrder(response);
   }
@@ -603,5 +640,4 @@ export class EdgeXAdapter extends BaseAdapter {
       throw new PerpDEXError('Request failed', code, 'edgex', error);
     }
   }
-
 }

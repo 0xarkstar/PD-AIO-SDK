@@ -73,8 +73,4 @@ export {
 } from './middleware.js';
 
 // Re-export middleware types
-export type {
-  ValidationResult,
-  ValidationError,
-  ValidationOptions,
-} from './middleware.js';
+export type { ValidationResult, ValidationError, ValidationOptions } from './middleware.js';

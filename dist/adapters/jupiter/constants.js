@@ -157,10 +157,7 @@ export const JUPITER_BORROW_FEE = {
 // Solana RPC Endpoints
 // =============================================================================
 export const SOLANA_RPC_ENDPOINTS = {
-    mainnet: [
-        'https://api.mainnet-beta.solana.com',
-        'https://solana-api.projectserum.com',
-    ],
+    mainnet: ['https://api.mainnet-beta.solana.com', 'https://solana-api.projectserum.com'],
 };
 export const SOLANA_DEFAULT_RPC = SOLANA_RPC_ENDPOINTS.mainnet[0];
 // =============================================================================

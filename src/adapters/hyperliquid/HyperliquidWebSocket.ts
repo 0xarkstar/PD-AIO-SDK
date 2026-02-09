@@ -187,7 +187,7 @@ export class HyperliquidWebSocket {
     yield await this.fetchOpenOrders();
 
     // Watch for fill events and fetch updated orders
-    for await (const _fillEvent of this.wsManager.watch<HyperliquidUserFill>(
+    for await (const _unused of this.wsManager.watch<HyperliquidUserFill>(
       `${HYPERLIQUID_WS_CHANNELS.USER_FILLS}:${this.auth.getAddress()}`,
       subscription
     )) {

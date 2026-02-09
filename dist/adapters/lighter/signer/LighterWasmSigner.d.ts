@@ -105,6 +105,6 @@ export declare class LighterWasmSigner {
     get chainId(): number;
 }
 export { OrderType, TimeInForce };
-export type { LighterSignerConfig, SignedTx, CreateOrderParams, CancelOrderParams, CancelAllOrdersParams, WithdrawCollateralParams };
+export type { LighterSignerConfig, SignedTx, CreateOrderParams, CancelOrderParams, CancelAllOrdersParams, WithdrawCollateralParams, };
 export { LighterWasmSigner as LighterSigner };
 //# sourceMappingURL=LighterWasmSigner.d.ts.map

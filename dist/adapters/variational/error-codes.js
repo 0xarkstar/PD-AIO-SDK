@@ -3,6 +3,7 @@
  *
  * Error code definitions and mapping functions for Variational exchange
  */
+import { includesValue } from '../../utils/type-guards.js';
 import { PerpDEXError, InsufficientMarginError, InvalidOrderError, OrderNotFoundError, InvalidSignatureError, RateLimitError, ExchangeUnavailableError, NetworkError, } from '../../types/errors.js';
 /**
  * Variational client error codes (4xx)
@@ -68,20 +69,20 @@ export const VARIATIONAL_ERROR_MESSAGES = {
     'too many requests': VARIATIONAL_RATE_LIMIT_ERROR,
     'internal server error': VARIATIONAL_SERVER_ERRORS.INTERNAL_ERROR,
     'service unavailable': VARIATIONAL_SERVER_ERRORS.SERVICE_UNAVAILABLE,
-    'timeout': VARIATIONAL_SERVER_ERRORS.TIMEOUT,
+    timeout: VARIATIONAL_SERVER_ERRORS.TIMEOUT,
     'matching engine error': VARIATIONAL_SERVER_ERRORS.MATCHING_ENGINE_ERROR,
 };
 /**
  * Check if error code is a client error
  */
 export function isClientError(code) {
-    return Object.values(VARIATIONAL_CLIENT_ERRORS).includes(code);
+    return includesValue(Object.values(VARIATIONAL_CLIENT_ERRORS), code);
 }
 /**
  * Check if error code is a server error
  */
 export function isServerError(code) {
-    return Object.values(VARIATIONAL_SERVER_ERRORS).includes(code);
+    return includesValue(Object.values(VARIATIONAL_SERVER_ERRORS), code);
 }
 /**
  * Check if error is retryable

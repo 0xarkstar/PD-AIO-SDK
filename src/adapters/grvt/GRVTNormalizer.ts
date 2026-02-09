@@ -20,6 +20,8 @@ import type {
 import type {
   Market,
   Order,
+  OrderStatus,
+  OrderType,
   Position,
   Balance,
   Trade,
@@ -148,11 +150,7 @@ export class GRVTNormalizer {
     const num = parseFloat(value);
 
     if (!Number.isFinite(num)) {
-      throw new PerpDEXError(
-        `Invalid number conversion: ${value}`,
-        'INVALID_NUMBER',
-        'grvt'
-      );
+      throw new PerpDEXError(`Invalid number conversion: ${value}`, 'INVALID_NUMBER', 'grvt');
     }
 
     // Round to specified decimal places
@@ -195,7 +193,7 @@ export class GRVTNormalizer {
       takerFee: 0,
       maxLeverage: 100, // GRVT supports up to 100x
       fundingIntervalHours: grvtMarket.funding_interval_hours || 8,
-      info: grvtMarket as any,
+      info: grvtMarket as Record<string, unknown>,
     };
   }
 
@@ -224,11 +222,11 @@ export class GRVTNormalizer {
       id: grvtOrder.order_id || '',
       clientOrderId: grvtOrder.metadata?.client_order_id,
       symbol: this.symbolToCCXT(leg?.instrument || ''),
-      type: (grvtOrder.is_market ? 'market' : 'limit') as any,
+      type: (grvtOrder.is_market ? 'market' : 'limit') as OrderType,
       side: leg?.is_buying_asset ? 'buy' : 'sell',
       amount,
       price: leg?.limit_price ? this.toNumberSafe(leg.limit_price) : undefined,
-      status: this.mapSDKOrderStatus(grvtOrder.state?.status || '') as any,
+      status: this.mapSDKOrderStatus(grvtOrder.state?.status || '') as OrderStatus,
       filled: traded,
       remaining: book,
       averagePrice: grvtOrder.state?.avg_fill_price?.[0]
@@ -237,9 +235,13 @@ export class GRVTNormalizer {
       timeInForce: this.mapSDKTimeInForce(grvtOrder.time_in_force || ''),
       reduceOnly: grvtOrder.reduce_only || false,
       postOnly: grvtOrder.post_only || false,
-      timestamp: grvtOrder.metadata?.create_time ? parseInt(grvtOrder.metadata.create_time) : Date.now(),
-      lastUpdateTimestamp: grvtOrder.state?.update_time ? parseInt(grvtOrder.state.update_time) : undefined,
-      info: grvtOrder as any,
+      timestamp: grvtOrder.metadata?.create_time
+        ? parseInt(grvtOrder.metadata.create_time)
+        : Date.now(),
+      lastUpdateTimestamp: grvtOrder.state?.update_time
+        ? parseInt(grvtOrder.state.update_time)
+        : undefined,
+      info: grvtOrder as Record<string, unknown>,
     };
   }
 
@@ -311,7 +313,7 @@ export class GRVTNormalizer {
       maintenanceMargin: margin * 0.5, // Estimate
       marginRatio: margin > 0 ? (margin / notional) * 100 : 0,
       timestamp: grvtPosition.event_time ? parseInt(grvtPosition.event_time) : Date.now(),
-      info: grvtPosition as any,
+      info: grvtPosition as Record<string, unknown>,
     };
   }
 
@@ -337,7 +339,7 @@ export class GRVTNormalizer {
       free: total, // SDK doesn't separate free/used for spot balances
       used: 0,
       total,
-      info: grvtBalance as any,
+      info: grvtBalance as Record<string, unknown>,
     };
   }
 
@@ -368,7 +370,7 @@ export class GRVTNormalizer {
       amount,
       cost: price * amount,
       timestamp: grvtTrade.event_time ? parseInt(grvtTrade.event_time) : Date.now(),
-      info: grvtTrade as any,
+      info: grvtTrade as Record<string, unknown>,
     };
   }
 
@@ -395,7 +397,7 @@ export class GRVTNormalizer {
       amount,
       cost: price * amount,
       timestamp: grvtFill.event_time ? parseInt(grvtFill.event_time) : Date.now(),
-      info: grvtFill as any,
+      info: grvtFill as Record<string, unknown>,
     };
   }
 
@@ -439,7 +441,7 @@ export class GRVTNormalizer {
       baseVolume: buyVolumeB + sellVolumeB,
       quoteVolume: 0,
       timestamp: grvtTicker.event_time ? parseInt(grvtTicker.event_time) : Date.now(),
-      info: grvtTicker as any,
+      info: grvtTicker as Record<string, unknown>,
     };
   }
 

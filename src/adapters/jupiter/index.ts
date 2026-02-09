@@ -10,7 +10,12 @@
 export { JupiterAdapter, type JupiterConfig, type JupiterAdapterConfig } from './JupiterAdapter.js';
 
 // Authentication
-export { JupiterAuth, type JupiterAuthConfig, isValidSolanaAddress, isValidSolanaPrivateKey } from './JupiterAuth.js';
+export {
+  JupiterAuth,
+  type JupiterAuthConfig,
+  isValidSolanaAddress,
+  isValidSolanaPrivateKey,
+} from './JupiterAuth.js';
 
 // Solana Client
 export {

@@ -112,7 +112,7 @@ export class ParadexAuth {
     setJWTToken(jwt) {
         this.jwtToken = {
             accessToken: jwt.access_token,
-            expiresAt: Date.now() + (jwt.expires_in * 1000),
+            expiresAt: Date.now() + jwt.expires_in * 1000,
         };
     }
     /**
@@ -185,7 +185,7 @@ export class ParadexAuth {
             return false;
         }
         // Add buffer before expiry
-        return Date.now() < this.jwtToken.expiresAt - (PARADEX_JWT_EXPIRY_BUFFER * 1000);
+        return Date.now() < this.jwtToken.expiresAt - PARADEX_JWT_EXPIRY_BUFFER * 1000;
     }
     /**
      * Check if request requires StarkNet signature

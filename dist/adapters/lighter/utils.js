@@ -4,7 +4,7 @@
  * Helper functions for order conversion and error mapping.
  * Normalization functions have been moved to LighterNormalizer.ts
  */
-import { PerpDEXError, RateLimitError, InsufficientMarginError, InvalidOrderError, OrderNotFoundError, InvalidSignatureError, ExchangeUnavailableError } from '../../types/errors.js';
+import { PerpDEXError, RateLimitError, InsufficientMarginError, InvalidOrderError, OrderNotFoundError, InvalidSignatureError, ExchangeUnavailableError, } from '../../types/errors.js';
 /**
  * Convert unified order request to Lighter format
  */

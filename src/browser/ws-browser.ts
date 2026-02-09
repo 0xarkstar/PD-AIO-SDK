@@ -9,9 +9,10 @@
  */
 
 // Get reference to global WebSocket
-const BrowserWebSocket = typeof window !== 'undefined'
-  ? window.WebSocket
-  : (globalThis as any).WebSocket;
+const BrowserWebSocket =
+  typeof window !== 'undefined'
+    ? window.WebSocket
+    : (globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket;
 
 // Export as default and named export to match 'ws' package interface
 export default BrowserWebSocket;

@@ -149,28 +149,28 @@ export function extractBaseFromPerpSymbol(symbol) {
  */
 export const ORDER_STATUS_MAP = {
     // Common statuses
-    'open': 'open',
-    'new': 'open',
-    'pending': 'open',
-    'active': 'open',
+    open: 'open',
+    new: 'open',
+    pending: 'open',
+    active: 'open',
     // Partial fills
-    'partial': 'open',
-    'partially_filled': 'open',
-    'partiallyFilled': 'open',
+    partial: 'open',
+    partially_filled: 'open',
+    partiallyFilled: 'open',
     // Filled
-    'filled': 'closed',
-    'closed': 'closed',
-    'done': 'closed',
-    'executed': 'closed',
+    filled: 'closed',
+    closed: 'closed',
+    done: 'closed',
+    executed: 'closed',
     // Canceled
-    'canceled': 'canceled',
-    'cancelled': 'canceled',
-    'cancel': 'canceled',
+    canceled: 'canceled',
+    cancelled: 'canceled',
+    cancel: 'canceled',
     // Expired
-    'expired': 'expired',
+    expired: 'expired',
     // Rejected
-    'rejected': 'rejected',
-    'failed': 'rejected',
+    rejected: 'rejected',
+    failed: 'rejected',
 };
 /**
  * Map exchange order status to unified format
@@ -187,19 +187,19 @@ export function mapOrderStatus(status, defaultStatus = 'open') {
  * Common order type mappings
  */
 export const ORDER_TYPE_MAP = {
-    'limit': 'limit',
-    'market': 'market',
-    'stop': 'stopMarket',
-    'stop_market': 'stopMarket',
-    'stopmarket': 'stopMarket',
-    'stop_loss': 'stopMarket',
-    'stoploss': 'stopMarket',
-    'stop_limit': 'stopLimit',
-    'stoplimit': 'stopLimit',
-    'take_profit': 'takeProfit',
-    'takeprofit': 'takeProfit',
-    'trailing_stop': 'trailingStop',
-    'trailingstop': 'trailingStop',
+    limit: 'limit',
+    market: 'market',
+    stop: 'stopMarket',
+    stop_market: 'stopMarket',
+    stopmarket: 'stopMarket',
+    stop_loss: 'stopMarket',
+    stoploss: 'stopMarket',
+    stop_limit: 'stopLimit',
+    stoplimit: 'stopLimit',
+    take_profit: 'takeProfit',
+    takeprofit: 'takeProfit',
+    trailing_stop: 'trailingStop',
+    trailingstop: 'trailingStop',
 };
 /**
  * Map exchange order type to unified format

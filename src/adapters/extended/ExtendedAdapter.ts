@@ -72,12 +72,7 @@ import {
 } from './constants.js';
 import { ExtendedNormalizer } from './ExtendedNormalizer.js';
 import { ExtendedStarkNetClient } from './ExtendedStarkNetClient.js';
-import {
-  convertOrderRequest,
-  mapError,
-  validateOrderRequest,
-  validateLeverage,
-} from './utils.js';
+import { convertOrderRequest, mapError, validateOrderRequest, validateLeverage } from './utils.js';
 import { ExtendedWebSocketWrapper } from './ExtendedWebSocketWrapper.js';
 import type {
   ExtendedMarket,
@@ -357,7 +352,11 @@ export class ExtendedAdapter extends BaseAdapter {
     }
   }
 
-  async fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]> {
+  async fetchFundingRateHistory(
+    symbol: string,
+    since?: number,
+    limit?: number
+  ): Promise<FundingRate[]> {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.FUNDING_HISTORY);
 
     try {
@@ -395,16 +394,13 @@ export class ExtendedAdapter extends BaseAdapter {
     try {
       const extendedOrder = convertOrderRequest(request);
 
-      const order = await this.httpClient.post<ExtendedOrder>(
-        EXTENDED_ENDPOINTS.CREATE_ORDER,
-        {
-          headers: {
-            'X-Api-Key': this.apiKey,
-            'Content-Type': 'application/json',
-          },
-          body: extendedOrder as unknown as Record<string, unknown>,
-        }
-      );
+      const order = await this.httpClient.post<ExtendedOrder>(EXTENDED_ENDPOINTS.CREATE_ORDER, {
+        headers: {
+          'X-Api-Key': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: extendedOrder as unknown as Record<string, unknown>,
+      });
 
       return this.normalizer.normalizeOrder(order);
     } catch (error) {
@@ -450,14 +446,11 @@ export class ExtendedAdapter extends BaseAdapter {
       let endpoint = EXTENDED_ENDPOINTS.CANCEL_ALL_ORDERS;
       endpoint += this.buildQueryString(queryParams);
 
-      const response = await this.httpClient.delete<{ orders: ExtendedOrder[] }>(
-        endpoint,
-        {
-          headers: {
-            'X-Api-Key': this.apiKey,
-          },
-        }
-      );
+      const response = await this.httpClient.delete<{ orders: ExtendedOrder[] }>(endpoint, {
+        headers: {
+          'X-Api-Key': this.apiKey,
+        },
+      });
 
       const orders = response.orders || [];
       return this.normalizer.normalizeOrders(orders);
@@ -585,14 +578,11 @@ export class ExtendedAdapter extends BaseAdapter {
       let endpoint = EXTENDED_ENDPOINTS.POSITIONS;
       endpoint += this.buildQueryString(queryParams);
 
-      const response = await this.httpClient.get<{ positions: ExtendedPosition[] }>(
-        endpoint,
-        {
-          headers: {
-            'X-Api-Key': this.apiKey,
-          },
-        }
-      );
+      const response = await this.httpClient.get<{ positions: ExtendedPosition[] }>(endpoint, {
+        headers: {
+          'X-Api-Key': this.apiKey,
+        },
+      });
 
       const positions = response.positions || [];
       return this.normalizer.normalizePositions(positions);
@@ -630,25 +620,26 @@ export class ExtendedAdapter extends BaseAdapter {
     validateLeverage(leverage);
 
     if (!this.apiKey) {
-      throw new PerpDEXError('API key required for leverage changes', 'AUTHENTICATION_ERROR', this.id);
+      throw new PerpDEXError(
+        'API key required for leverage changes',
+        'AUTHENTICATION_ERROR',
+        this.id
+      );
     }
 
     try {
       const market = this.symbolToExchange(symbol);
 
-      await this.httpClient.post(
-        EXTENDED_ENDPOINTS.LEVERAGE,
-        {
-          headers: {
-            'X-Api-Key': this.apiKey,
-            'Content-Type': 'application/json',
-          },
-          body: {
-            market,
-            leverage,
-          },
-        }
-      );
+      await this.httpClient.post(EXTENDED_ENDPOINTS.LEVERAGE, {
+        headers: {
+          'X-Api-Key': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: {
+          market,
+          leverage,
+        },
+      });
     } catch (error) {
       throw mapError(error);
     }
@@ -658,25 +649,26 @@ export class ExtendedAdapter extends BaseAdapter {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.MARGIN_MODE);
 
     if (!this.apiKey) {
-      throw new PerpDEXError('API key required for margin mode changes', 'AUTHENTICATION_ERROR', this.id);
+      throw new PerpDEXError(
+        'API key required for margin mode changes',
+        'AUTHENTICATION_ERROR',
+        this.id
+      );
     }
 
     try {
       const market = this.symbolToExchange(symbol);
 
-      await this.httpClient.post(
-        EXTENDED_ENDPOINTS.MARGIN_MODE,
-        {
-          headers: {
-            'X-Api-Key': this.apiKey,
-            'Content-Type': 'application/json',
-          },
-          body: {
-            market,
-            marginMode,
-          },
-        }
-      );
+      await this.httpClient.post(EXTENDED_ENDPOINTS.MARGIN_MODE, {
+        headers: {
+          'X-Api-Key': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: {
+          market,
+          marginMode,
+        },
+      });
     } catch (error) {
       throw mapError(error);
     }
@@ -704,14 +696,11 @@ export class ExtendedAdapter extends BaseAdapter {
       let endpoint = EXTENDED_ENDPOINTS.ORDER_HISTORY;
       endpoint += this.buildQueryString(queryParams);
 
-      const response = await this.httpClient.get<{ orders: ExtendedOrder[] }>(
-        endpoint,
-        {
-          headers: {
-            'X-Api-Key': this.apiKey,
-          },
-        }
-      );
+      const response = await this.httpClient.get<{ orders: ExtendedOrder[] }>(endpoint, {
+        headers: {
+          'X-Api-Key': this.apiKey,
+        },
+      });
 
       const orders = response.orders || [];
       return this.normalizer.normalizeOrders(orders);
@@ -742,14 +731,11 @@ export class ExtendedAdapter extends BaseAdapter {
       let endpoint = EXTENDED_ENDPOINTS.USER_TRADES;
       endpoint += this.buildQueryString(queryParams);
 
-      const response = await this.httpClient.get<{ trades: ExtendedTrade[] }>(
-        endpoint,
-        {
-          headers: {
-            'X-Api-Key': this.apiKey,
-          },
-        }
-      );
+      const response = await this.httpClient.get<{ trades: ExtendedTrade[] }>(endpoint, {
+        headers: {
+          'X-Api-Key': this.apiKey,
+        },
+      });
 
       const trades = response.trades || [];
       return this.normalizer.normalizeTrades(trades);
@@ -758,11 +744,19 @@ export class ExtendedAdapter extends BaseAdapter {
     }
   }
 
-  async fetchDeposits(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
+  async fetchDeposits(
+    _currency?: string,
+    _since?: number,
+    _limit?: number
+  ): Promise<Transaction[]> {
     throw new PerpDEXError('fetchDeposits not supported', 'NOT_SUPPORTED', this.id);
   }
 
-  async fetchWithdrawals(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]> {
+  async fetchWithdrawals(
+    _currency?: string,
+    _since?: number,
+    _limit?: number
+  ): Promise<Transaction[]> {
     throw new PerpDEXError('fetchWithdrawals not supported', 'NOT_SUPPORTED', this.id);
   }
 
@@ -770,7 +764,11 @@ export class ExtendedAdapter extends BaseAdapter {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.USER_FEES);
 
     if (!this.apiKey) {
-      throw new PerpDEXError('API key required for fee information', 'AUTHENTICATION_ERROR', this.id);
+      throw new PerpDEXError(
+        'API key required for fee information',
+        'AUTHENTICATION_ERROR',
+        this.id
+      );
     }
 
     try {
@@ -798,7 +796,11 @@ export class ExtendedAdapter extends BaseAdapter {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.PORTFOLIO);
 
     if (!this.apiKey) {
-      throw new PerpDEXError('API key required for portfolio data', 'AUTHENTICATION_ERROR', this.id);
+      throw new PerpDEXError(
+        'API key required for portfolio data',
+        'AUTHENTICATION_ERROR',
+        this.id
+      );
     }
 
     try {
@@ -879,7 +881,11 @@ export class ExtendedAdapter extends BaseAdapter {
    */
   async *watchPositions(): AsyncGenerator<Position[]> {
     if (!this.apiKey) {
-      throw new PerpDEXError('API key required for watching positions', 'AUTHENTICATION_ERROR', this.id);
+      throw new PerpDEXError(
+        'API key required for watching positions',
+        'AUTHENTICATION_ERROR',
+        this.id
+      );
     }
     const ws = await this.ensureWebSocketConnected();
     yield* ws.watchPositions();
@@ -890,7 +896,11 @@ export class ExtendedAdapter extends BaseAdapter {
    */
   async *watchOrders(): AsyncGenerator<Order[]> {
     if (!this.apiKey) {
-      throw new PerpDEXError('API key required for watching orders', 'AUTHENTICATION_ERROR', this.id);
+      throw new PerpDEXError(
+        'API key required for watching orders',
+        'AUTHENTICATION_ERROR',
+        this.id
+      );
     }
     const ws = await this.ensureWebSocketConnected();
     yield* ws.watchOrders();
@@ -901,7 +911,11 @@ export class ExtendedAdapter extends BaseAdapter {
    */
   async *watchBalance(): AsyncGenerator<Balance[]> {
     if (!this.apiKey) {
-      throw new PerpDEXError('API key required for watching balance', 'AUTHENTICATION_ERROR', this.id);
+      throw new PerpDEXError(
+        'API key required for watching balance',
+        'AUTHENTICATION_ERROR',
+        this.id
+      );
     }
     const ws = await this.ensureWebSocketConnected();
     yield* ws.watchBalance();

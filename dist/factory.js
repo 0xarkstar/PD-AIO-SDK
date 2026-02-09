@@ -124,7 +124,21 @@ export function getSupportedExchanges() {
  * Get list of built-in exchanges (for type safety)
  */
 export function getBuiltInExchanges() {
-    return ['hyperliquid', 'lighter', 'grvt', 'paradex', 'edgex', 'backpack', 'nado', 'variational', 'extended', 'dydx', 'jupiter', 'drift', 'gmx'];
+    return [
+        'hyperliquid',
+        'lighter',
+        'grvt',
+        'paradex',
+        'edgex',
+        'backpack',
+        'nado',
+        'variational',
+        'extended',
+        'dydx',
+        'jupiter',
+        'drift',
+        'gmx',
+    ];
 }
 /**
  * Check if an exchange is supported

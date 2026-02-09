@@ -32,7 +32,7 @@ async function loadWasmSigner(): Promise<any> {
     const module = await import('@oraichain/lighter-ts-sdk');
     WasmSignerClient = module.WasmSignerClient;
     return WasmSignerClient;
-  } catch (error) {
+  } catch {
     throw new Error(
       'Failed to load @oraichain/lighter-ts-sdk. Please install it: npm install @oraichain/lighter-ts-sdk'
     );
@@ -321,7 +321,14 @@ export class LighterWasmSigner {
 
 // Re-export types for convenience
 export { OrderType, TimeInForce };
-export type { LighterSignerConfig, SignedTx, CreateOrderParams, CancelOrderParams, CancelAllOrdersParams, WithdrawCollateralParams };
+export type {
+  LighterSignerConfig,
+  SignedTx,
+  CreateOrderParams,
+  CancelOrderParams,
+  CancelAllOrdersParams,
+  WithdrawCollateralParams,
+};
 
 // Alias for browser compatibility (package.json browser field maps LighterSigner -> LighterWasmSigner)
 export { LighterWasmSigner as LighterSigner };

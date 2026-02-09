@@ -154,9 +154,7 @@ export class NadoNormalizer {
         const pricePrecision = this.getPrecisionFromIncrement(priceIncrement);
         const amountPrecision = this.getPrecisionFromIncrement(sizeIncrement);
         // Build CCXT-style symbol
-        const symbol = isPerp
-            ? `${base}/${quote}:${quote}`
-            : `${base}/${quote}`;
+        const symbol = isPerp ? `${base}/${quote}:${quote}` : `${base}/${quote}`;
         return {
             id: validated.product_id.toString(),
             symbol,
@@ -204,9 +202,7 @@ export class NadoNormalizer {
             settle: validated.quote_currency,
             active: validated.is_active,
             minAmount: parseFloat(validated.min_size),
-            maxAmount: validated.max_position_size
-                ? parseFloat(validated.max_position_size)
-                : undefined,
+            maxAmount: validated.max_position_size ? parseFloat(validated.max_position_size) : undefined,
             pricePrecision: 8,
             amountPrecision: 8,
             priceTickSize: parseFloat(validated.tick_size),
@@ -281,7 +277,7 @@ export class NadoNormalizer {
             marginMode: 'cross',
             margin,
             maintenanceMargin: margin * 0.05, // Typical 5% maintenance margin
-            marginRatio: margin > 0 ? (margin / (Math.abs(size) * markPrice)) : 0,
+            marginRatio: margin > 0 ? margin / (Math.abs(size) * markPrice) : 0,
             markPrice,
             entryPrice,
             liquidationPrice: validated.liquidation_price
@@ -414,7 +410,7 @@ export class NadoNormalizer {
      */
     normalizeOrders(orders, mappings) {
         return orders
-            .map(order => {
+            .map((order) => {
             const mapping = mappings.get(order.product_id.toString());
             if (!mapping) {
                 this.logger.warn('No mapping found for product ID', { productId: order.product_id });
@@ -448,7 +444,7 @@ export class NadoNormalizer {
      */
     normalizePositions(positions, mappings) {
         return positions
-            .map(position => {
+            .map((position) => {
             const mapping = mappings.get(position.product_id.toString());
             if (!mapping) {
                 this.logger.warn('No mapping found for product ID', { productId: position.product_id });
@@ -473,7 +469,7 @@ export class NadoNormalizer {
      */
     normalizeTrades(trades, mappings) {
         return trades
-            .map(trade => {
+            .map((trade) => {
             const mapping = mappings.get(trade.product_id.toString());
             if (!mapping) {
                 this.logger.warn('No mapping found for product ID', { productId: trade.product_id });

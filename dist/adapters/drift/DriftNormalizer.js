@@ -14,7 +14,9 @@ export class DriftNormalizer {
      */
     normalizeMarket(market) {
         const marketKey = DRIFT_MARKET_INDEX_MAP[market.marketIndex];
-        const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : undefined;
+        const config = marketKey
+            ? DRIFT_PERP_MARKETS[marketKey]
+            : undefined;
         const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${market.marketIndex}`);
         const tickSize = config?.tickSize || parseFloat(market.amm.orderTickSize) / DRIFT_PRECISION.PRICE;
         const stepSize = config?.stepSize || parseFloat(market.amm.orderStepSize) / DRIFT_PRECISION.BASE;
@@ -51,14 +53,16 @@ export class DriftNormalizer {
      * Normalize multiple markets
      */
     normalizeMarkets(markets) {
-        return markets.map(m => this.normalizeMarket(m));
+        return markets.map((m) => this.normalizeMarket(m));
     }
     /**
      * Normalize perp position to unified Position
      */
     normalizePosition(position, markPrice, _oraclePrice) {
         const marketKey = DRIFT_MARKET_INDEX_MAP[position.marketIndex];
-        const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : undefined;
+        const config = marketKey
+            ? DRIFT_PERP_MARKETS[marketKey]
+            : undefined;
         const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${position.marketIndex}`);
         const baseAmount = parseFloat(position.baseAssetAmount) / DRIFT_PRECISION.BASE;
         const quoteAmount = parseFloat(position.quoteAssetAmount) / DRIFT_PRECISION.QUOTE;
@@ -107,7 +111,9 @@ export class DriftNormalizer {
      */
     normalizeOrder(order, marketPrice) {
         const marketKey = DRIFT_MARKET_INDEX_MAP[order.marketIndex];
-        const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : undefined;
+        const config = marketKey
+            ? DRIFT_PERP_MARKETS[marketKey]
+            : undefined;
         const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${order.marketIndex}`);
         const baseAmount = parseFloat(order.baseAssetAmount) / DRIFT_PRECISION.BASE;
         const filledAmount = parseFloat(order.baseAssetAmountFilled) / DRIFT_PRECISION.BASE;
@@ -135,7 +141,9 @@ export class DriftNormalizer {
             side: order.direction === 'long' ? 'buy' : 'sell',
             amount: baseAmount,
             price: price > 0 ? price : marketPrice,
-            stopPrice: order.triggerPrice !== '0' ? parseFloat(order.triggerPrice) / DRIFT_PRECISION.PRICE : undefined,
+            stopPrice: order.triggerPrice !== '0'
+                ? parseFloat(order.triggerPrice) / DRIFT_PRECISION.PRICE
+                : undefined,
             status,
             filled: filledAmount,
             remaining: baseAmount - filledAmount,
@@ -161,13 +169,15 @@ export class DriftNormalizer {
      */
     normalizeOrderBook(orderbook) {
         const marketKey = DRIFT_MARKET_INDEX_MAP[orderbook.marketIndex];
-        const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : undefined;
+        const config = marketKey
+            ? DRIFT_PERP_MARKETS[marketKey]
+            : undefined;
         const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${orderbook.marketIndex}`);
-        const bids = orderbook.bids.map(b => [
+        const bids = orderbook.bids.map((b) => [
             parseFloat(b.price) / DRIFT_PRECISION.PRICE,
             parseFloat(b.size) / DRIFT_PRECISION.BASE,
         ]);
-        const asks = orderbook.asks.map(a => [
+        const asks = orderbook.asks.map((a) => [
             parseFloat(a.price) / DRIFT_PRECISION.PRICE,
             parseFloat(a.size) / DRIFT_PRECISION.BASE,
         ]);
@@ -185,7 +195,9 @@ export class DriftNormalizer {
      */
     normalizeTrade(trade) {
         const marketKey = DRIFT_MARKET_INDEX_MAP[trade.marketIndex];
-        const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : undefined;
+        const config = marketKey
+            ? DRIFT_PERP_MARKETS[marketKey]
+            : undefined;
         const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${trade.marketIndex}`);
         const amount = parseFloat(trade.baseAssetAmount) / DRIFT_PRECISION.BASE;
         const price = parseFloat(trade.fillPrice) / DRIFT_PRECISION.PRICE;
@@ -211,12 +223,14 @@ export class DriftNormalizer {
      */
     normalizeFundingRate(funding, oraclePrice) {
         const marketKey = DRIFT_MARKET_INDEX_MAP[funding.marketIndex];
-        const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : undefined;
+        const config = marketKey
+            ? DRIFT_PERP_MARKETS[marketKey]
+            : undefined;
         const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${funding.marketIndex}`);
         const fundingRate = parseFloat(funding.fundingRate) / DRIFT_PRECISION.FUNDING_RATE;
         const markPrice = 'markPriceTwap' in funding
             ? parseFloat(funding.markPriceTwap) / DRIFT_PRECISION.PRICE
-            : (oraclePrice || 0);
+            : oraclePrice || 0;
         // DriftFundingRate has oraclePrice, DriftFundingRateRecord has oraclePriceTwap
         const indexPrice = 'oraclePrice' in funding
             ? parseFloat(funding.oraclePrice) / DRIFT_PRECISION.PRICE
@@ -244,7 +258,9 @@ export class DriftNormalizer {
      */
     normalizeTicker(stats) {
         const marketKey = DRIFT_MARKET_INDEX_MAP[stats.marketIndex];
-        const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : undefined;
+        const config = marketKey
+            ? DRIFT_PERP_MARKETS[marketKey]
+            : undefined;
         const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${stats.marketIndex}`);
         const markPrice = parseFloat(stats.markPrice) / DRIFT_PRECISION.PRICE;
         const oraclePrice = parseFloat(stats.oraclePrice) / DRIFT_PRECISION.PRICE;

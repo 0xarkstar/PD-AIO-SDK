@@ -6,7 +6,7 @@
  *
  * @see https://docs.dydx.exchange/
  */
-import { DYDX_DEFAULT_PRECISION, DYDX_FUNDING_INTERVAL_HOURS, dydxToUnified, } from './constants.js';
+import { DYDX_DEFAULT_PRECISION, DYDX_FUNDING_INTERVAL_HOURS, dydxToUnified } from './constants.js';
 /**
  * dYdX v4 Data Normalizer
  *

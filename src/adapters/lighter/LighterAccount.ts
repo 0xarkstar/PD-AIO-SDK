@@ -14,7 +14,11 @@ import { mapError } from './utils.js';
 /** Dependencies injected from the adapter */
 export interface AccountDeps {
   normalizer: LighterNormalizer;
-  request: <T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: Record<string, unknown>) => Promise<T>;
+  request: <T>(
+    method: 'GET' | 'POST' | 'DELETE',
+    path: string,
+    body?: Record<string, unknown>
+  ) => Promise<T>;
 }
 
 /**
@@ -35,7 +39,7 @@ export async function fetchPositionsData(
 
     // Filter by symbols if provided
     if (symbols && symbols.length > 0) {
-      positions = positions.filter(p => symbols.includes(p.symbol));
+      positions = positions.filter((p) => symbols.includes(p.symbol));
     }
 
     return positions;
@@ -64,12 +68,11 @@ export async function fetchBalanceData(deps: AccountDeps): Promise<Balance[]> {
 /**
  * Fetch open orders
  */
-export async function fetchOpenOrdersData(
-  deps: AccountDeps,
-  symbol?: string
-): Promise<Order[]> {
+export async function fetchOpenOrdersData(deps: AccountDeps, symbol?: string): Promise<Order[]> {
   try {
-    const path = symbol ? `/api/v1/accountActiveOrders?symbol=${deps.normalizer.toLighterSymbol(symbol)}` : '/api/v1/accountActiveOrders';
+    const path = symbol
+      ? `/api/v1/accountActiveOrders?symbol=${deps.normalizer.toLighterSymbol(symbol)}`
+      : '/api/v1/accountActiveOrders';
     const response = await deps.request<LighterOrder[]>('GET', path);
 
     if (!Array.isArray(response)) {

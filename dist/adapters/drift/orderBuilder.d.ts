@@ -58,7 +58,7 @@ export declare class DriftOrderBuilder {
     /**
      * Get market configuration
      */
-    getMarketConfig(symbol: string): typeof DRIFT_PERP_MARKETS[keyof typeof DRIFT_PERP_MARKETS] | undefined;
+    getMarketConfig(symbol: string): (typeof DRIFT_PERP_MARKETS)[keyof typeof DRIFT_PERP_MARKETS] | undefined;
     /**
      * Get market index from symbol
      */

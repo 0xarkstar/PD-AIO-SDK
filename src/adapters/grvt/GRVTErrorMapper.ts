@@ -7,6 +7,7 @@
  * @see https://docs.grvt.io/developer-resources/api/errors
  */
 
+import { includesValue } from '../../utils/type-guards.js';
 import {
   PerpDEXError,
   InvalidOrderError,
@@ -107,7 +108,7 @@ export const GRVT_NETWORK_ERRORS = {
  * @returns true if client error
  */
 export function isClientError(errorCode: string): boolean {
-  return Object.values(GRVT_CLIENT_ERRORS).includes(errorCode as any);
+  return includesValue(Object.values(GRVT_CLIENT_ERRORS), errorCode);
 }
 
 /**
@@ -117,7 +118,7 @@ export function isClientError(errorCode: string): boolean {
  * @returns true if server error
  */
 export function isServerError(errorCode: string): boolean {
-  return Object.values(GRVT_SERVER_ERRORS).includes(errorCode as any);
+  return includesValue(Object.values(GRVT_SERVER_ERRORS), errorCode);
 }
 
 /**
@@ -127,7 +128,7 @@ export function isServerError(errorCode: string): boolean {
  * @returns true if network error
  */
 export function isNetworkError(errorCode: string): boolean {
-  return Object.values(GRVT_NETWORK_ERRORS).includes(errorCode as any);
+  return includesValue(Object.values(GRVT_NETWORK_ERRORS), errorCode);
 }
 
 /**
@@ -138,9 +139,7 @@ export function isNetworkError(errorCode: string): boolean {
  */
 export function isRetryableError(errorCode: string): boolean {
   return (
-    isServerError(errorCode) ||
-    isNetworkError(errorCode) ||
-    errorCode === GRVT_RATE_LIMIT_ERROR
+    isServerError(errorCode) || isNetworkError(errorCode) || errorCode === GRVT_RATE_LIMIT_ERROR
   );
 }
 
@@ -192,10 +191,7 @@ export function mapGRVTError(
   }
 
   // Permission Errors
-  if (
-    code === GRVT_CLIENT_ERRORS.UNAUTHORIZED ||
-    code === GRVT_CLIENT_ERRORS.FORBIDDEN
-  ) {
+  if (code === GRVT_CLIENT_ERRORS.UNAUTHORIZED || code === GRVT_CLIENT_ERRORS.FORBIDDEN) {
     return new InsufficientPermissionsError(message, code, 'grvt', originalError);
   }
 
@@ -289,11 +285,7 @@ export function extractGRVTError(response: any): {
  * @param responseData - Optional response data
  * @returns Mapped error
  */
-export function mapHttpError(
-  status: number,
-  statusText: string,
-  responseData?: any
-): PerpDEXError {
+export function mapHttpError(status: number, statusText: string, responseData?: any): PerpDEXError {
   // Try to extract GRVT error from response
   if (responseData && responseData.error) {
     const { code, message } = extractGRVTError(responseData);
@@ -302,29 +294,17 @@ export function mapHttpError(
 
   // 401 Unauthorized
   if (status === 401) {
-    return new InvalidSignatureError(
-      `Unauthorized: ${statusText}`,
-      'UNAUTHORIZED',
-      'grvt'
-    );
+    return new InvalidSignatureError(`Unauthorized: ${statusText}`, 'UNAUTHORIZED', 'grvt');
   }
 
   // 403 Forbidden
   if (status === 403) {
-    return new InsufficientPermissionsError(
-      `Forbidden: ${statusText}`,
-      'FORBIDDEN',
-      'grvt'
-    );
+    return new InsufficientPermissionsError(`Forbidden: ${statusText}`, 'FORBIDDEN', 'grvt');
   }
 
   // 404 Not Found
   if (status === 404) {
-    return new OrderNotFoundError(
-      `Not found: ${statusText}`,
-      'NOT_FOUND',
-      'grvt'
-    );
+    return new OrderNotFoundError(`Not found: ${statusText}`, 'NOT_FOUND', 'grvt');
   }
 
   // 429 Rate Limit
@@ -366,11 +346,7 @@ export function mapHttpError(
   }
 
   // Other
-  return new PerpDEXError(
-    `HTTP error (${status}): ${statusText}`,
-    `HTTP_${status}`,
-    'grvt'
-  );
+  return new PerpDEXError(`HTTP error (${status}): ${statusText}`, `HTTP_${status}`, 'grvt');
 }
 
 /**
@@ -398,12 +374,7 @@ export function mapAxiosError(error: any): PerpDEXError {
 
   // Request timeout
   if (error.code === 'ECONNABORTED') {
-    return new ExchangeUnavailableError(
-      'Request timeout',
-      'ETIMEDOUT',
-      'grvt',
-      error
-    );
+    return new ExchangeUnavailableError('Request timeout', 'ETIMEDOUT', 'grvt', error);
   }
 
   // Generic error

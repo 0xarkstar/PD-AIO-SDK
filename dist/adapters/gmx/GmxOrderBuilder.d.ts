@@ -71,7 +71,7 @@ export declare class GmxOrderBuilder {
     /**
      * Get market configuration
      */
-    getMarketConfig(symbol: string): typeof GMX_MARKETS[GMXMarketKey];
+    getMarketConfig(symbol: string): (typeof GMX_MARKETS)[GMXMarketKey];
     /**
      * Calculate required collateral for a position
      */

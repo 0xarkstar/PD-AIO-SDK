@@ -29,11 +29,7 @@ import type {
 import type { FeatureMap } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
-import {
-  PARADEX_API_URLS,
-  PARADEX_RATE_LIMITS,
-  PARADEX_ENDPOINT_WEIGHTS,
-} from './constants.js';
+import { PARADEX_API_URLS, PARADEX_RATE_LIMITS, PARADEX_ENDPOINT_WEIGHTS } from './constants.js';
 import { ParadexAuth } from './ParadexAuth.js';
 import { ParadexHTTPClient } from './ParadexHTTPClient.js';
 import { ParadexNormalizer } from './ParadexNormalizer.js';
@@ -253,7 +249,9 @@ export class ParadexAdapter extends BaseAdapter {
       const limit = params?.limit;
 
       const queryParams = limit ? `?depth=${limit}` : '';
-      const response = await this.client.get<ParadexOrderBook>(`/orderbook/${market}${queryParams}`);
+      const response = await this.client.get<ParadexOrderBook>(
+        `/orderbook/${market}${queryParams}`
+      );
 
       return this.normalizer.normalizeOrderBook(response);
     } catch (error) {
@@ -322,7 +320,11 @@ export class ParadexAdapter extends BaseAdapter {
       const response = await this.client.get<FundingHistoryResponse>(path);
 
       if (!Array.isArray(response.history)) {
-        throw new PerpDEXError('Invalid funding rate history response', 'INVALID_RESPONSE', 'paradex');
+        throw new PerpDEXError(
+          'Invalid funding rate history response',
+          'INVALID_RESPONSE',
+          'paradex'
+        );
       }
 
       return this.normalizer.normalizeFundingRates(response.history);
@@ -397,9 +399,15 @@ export class ParadexAdapter extends BaseAdapter {
 
     try {
       const market = this.normalizer.symbolFromCCXT(validatedRequest.symbol);
-      const orderType = this.normalizer.toParadexOrderType(validatedRequest.type, validatedRequest.postOnly);
+      const orderType = this.normalizer.toParadexOrderType(
+        validatedRequest.type,
+        validatedRequest.postOnly
+      );
       const side = this.normalizer.toParadexOrderSide(validatedRequest.side);
-      const timeInForce = this.normalizer.toParadexTimeInForce(validatedRequest.timeInForce, validatedRequest.postOnly);
+      const timeInForce = this.normalizer.toParadexTimeInForce(
+        validatedRequest.timeInForce,
+        validatedRequest.postOnly
+      );
 
       const payload = {
         market,
@@ -529,7 +537,9 @@ export class ParadexAdapter extends BaseAdapter {
       if (limit) params.append('page_size', limit.toString());
 
       const queryString = params.toString();
-      const response = await this.client.get<OrderHistoryResponse>(`/orders/history${queryString ? `?${queryString}` : ''}`);
+      const response = await this.client.get<OrderHistoryResponse>(
+        `/orders/history${queryString ? `?${queryString}` : ''}`
+      );
 
       if (!Array.isArray(response.results)) {
         throw new PerpDEXError('Invalid order history response', 'INVALID_RESPONSE', 'paradex');
@@ -555,7 +565,9 @@ export class ParadexAdapter extends BaseAdapter {
       if (limit) params.append('page_size', limit.toString());
 
       const queryString = params.toString();
-      const response = await this.client.get<FillsResponse>(`/fills${queryString ? `?${queryString}` : ''}`);
+      const response = await this.client.get<FillsResponse>(
+        `/fills${queryString ? `?${queryString}` : ''}`
+      );
 
       if (!Array.isArray(response.results)) {
         throw new PerpDEXError('Invalid fills response', 'INVALID_RESPONSE', 'paradex');

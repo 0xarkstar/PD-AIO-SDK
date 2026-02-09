@@ -6,11 +6,7 @@
  */
 
 import type { OrderSide, OrderType, TimeInForce } from '../../types/common.js';
-import {
-  EDGEX_ORDER_TYPES,
-  EDGEX_ORDER_SIDES,
-  EDGEX_TIME_IN_FORCE,
-} from './constants.js';
+import { EDGEX_ORDER_TYPES, EDGEX_ORDER_SIDES, EDGEX_TIME_IN_FORCE } from './constants.js';
 
 /**
  * Convert unified order type to EdgeX format
@@ -70,7 +66,7 @@ export function mapEdgeXError(error: unknown): { code: string; message: string }
       default:
         return {
           code: 'UNKNOWN_ERROR',
-          message: (err.message as string | undefined) ?? 'Unknown error occurred',
+          message: err.message ?? 'Unknown error occurred',
         };
     }
   }

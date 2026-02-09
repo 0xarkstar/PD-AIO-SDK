@@ -34,7 +34,7 @@ export function isValidMarket(symbol) {
  * Get all market indices
  */
 export function getAllMarketIndices() {
-    return Object.values(DRIFT_PERP_MARKETS).map(m => m.marketIndex);
+    return Object.values(DRIFT_PERP_MARKETS).map((m) => m.marketIndex);
 }
 // =============================================================================
 // Price Utilities
@@ -149,11 +149,16 @@ export function calculateRequiredCollateral(positionSize, price, leverage) {
  */
 export function toDriftOrderType(type) {
     switch (type) {
-        case 'market': return 'market';
-        case 'limit': return 'limit';
-        case 'stopMarket': return 'triggerMarket';
-        case 'stopLimit': return 'triggerLimit';
-        default: return 'limit';
+        case 'market':
+            return 'market';
+        case 'limit':
+            return 'limit';
+        case 'stopMarket':
+            return 'triggerMarket';
+        case 'stopLimit':
+            return 'triggerLimit';
+        default:
+            return 'limit';
     }
 }
 /**

@@ -8,11 +8,7 @@
  */
 
 import { Wallet, ethers } from 'ethers';
-import type {
-  NadoEIP712Order,
-  NadoEIP712Cancellation,
-  NadoEIP712StreamAuth,
-} from './types.js';
+import type { NadoEIP712Order, NadoEIP712Cancellation, NadoEIP712StreamAuth } from './types.js';
 import { NADO_EIP712_DOMAIN } from './constants.js';
 import { PerpDEXError } from '../../types/errors.js';
 
@@ -212,10 +208,7 @@ export class NadoAuth {
    * );
    * ```
    */
-  async signStreamAuth(
-    streamAuth: NadoEIP712StreamAuth,
-    endpointAddress: string
-  ): Promise<string> {
+  async signStreamAuth(streamAuth: NadoEIP712StreamAuth, endpointAddress: string): Promise<string> {
     try {
       const domain = this.createDomain(endpointAddress);
 
@@ -374,11 +367,7 @@ export class NadoAuth {
    */
   private productIdToVerifyingContract(productId: number): string {
     if (productId < 0 || !Number.isInteger(productId)) {
-      throw new PerpDEXError(
-        `Invalid product ID: ${productId}`,
-        'INVALID_PRODUCT_ID',
-        'nado'
-      );
+      throw new PerpDEXError(`Invalid product ID: ${productId}`, 'INVALID_PRODUCT_ID', 'nado');
     }
 
     // Cross-platform compatible: use ethers instead of Buffer

@@ -191,7 +191,10 @@ export class GmxAuth implements IAuthStrategy {
   /**
    * Wait for a transaction to be confirmed
    */
-  async waitForTransaction(txHash: string, confirmations = 1): Promise<ethers.TransactionReceipt | null> {
+  async waitForTransaction(
+    txHash: string,
+    confirmations = 1
+  ): Promise<ethers.TransactionReceipt | null> {
     return this.provider.waitForTransaction(txHash, confirmations);
   }
 
@@ -234,7 +237,11 @@ export class GmxAuth implements IAuthStrategy {
   /**
    * Approve token spending
    */
-  async approveToken(tokenAddress: string, spenderAddress: string, amount: bigint): Promise<ethers.TransactionResponse> {
+  async approveToken(
+    tokenAddress: string,
+    spenderAddress: string,
+    amount: bigint
+  ): Promise<ethers.TransactionResponse> {
     if (!this.wallet) {
       throw new Error('Wallet required for approval');
     }

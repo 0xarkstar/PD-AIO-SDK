@@ -67,7 +67,15 @@ export const ExtendedOrderSchema = z.object({
     symbol: z.string(),
     type: z.enum(['market', 'limit', 'stop', 'stop_limit']),
     side: z.enum(['buy', 'sell']),
-    status: z.enum(['pending', 'open', 'filled', 'partially_filled', 'cancelled', 'rejected', 'expired']),
+    status: z.enum([
+        'pending',
+        'open',
+        'filled',
+        'partially_filled',
+        'cancelled',
+        'rejected',
+        'expired',
+    ]),
     price: z.string().optional(),
     stopPrice: z.string().optional(),
     quantity: z.string(),
@@ -81,10 +89,12 @@ export const ExtendedOrderSchema = z.object({
     postOnly: z.boolean().optional(),
     reduceOnly: z.boolean().optional(),
     timeInForce: z.enum(['GTC', 'IOC', 'FOK']).optional(),
-    fees: z.object({
+    fees: z
+        .object({
         asset: z.string(),
         amount: z.string(),
-    }).optional(),
+    })
+        .optional(),
     starknetTxHash: z.string().optional(),
 });
 export const ExtendedPositionSchema = z.object({

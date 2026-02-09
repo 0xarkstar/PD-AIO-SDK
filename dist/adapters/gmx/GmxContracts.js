@@ -54,9 +54,7 @@ const DATA_STORE_ABI = [
 /**
  * OrderVault ABI
  */
-const ORDER_VAULT_ABI = [
-    'function recordTransferIn(address token) external returns (uint256)',
-];
+const ORDER_VAULT_ABI = ['function recordTransferIn(address token) external returns (uint256)'];
 // =============================================================================
 // GMX Contract Manager
 // =============================================================================
@@ -153,7 +151,9 @@ export class GmxContracts {
             shouldUnwrapNativeToken: params.shouldUnwrapNativeToken,
             referralCode: params.referralCode || ethers.ZeroHash,
         };
-        return exchangeRouter.createOrder(orderParams, { value: executionFee });
+        return exchangeRouter.createOrder(orderParams, {
+            value: executionFee,
+        });
     }
     /**
      * Cancel an existing order
@@ -173,7 +173,9 @@ export class GmxContracts {
             throw new Error('Signer required for trading operations');
         }
         const exchangeRouter = this.getExchangeRouter();
-        return exchangeRouter.sendWnt(receiver, amount, { value: amount });
+        return exchangeRouter.sendWnt(receiver, amount, {
+            value: amount,
+        });
     }
     /**
      * Send tokens to a receiver
@@ -193,7 +195,7 @@ export class GmxContracts {
      */
     async getAccountPositions(account, start = 0, end = 100) {
         const reader = this.getReader();
-        const positions = await reader.getAccountPositions(this.addresses.dataStore, account, start, end);
+        const positions = (await reader.getAccountPositions(this.addresses.dataStore, account, start, end));
         return positions;
     }
     /**
@@ -201,7 +203,7 @@ export class GmxContracts {
      */
     async getAccountOrders(account, start = 0, end = 100) {
         const reader = this.getReader();
-        const orders = await reader.getAccountOrders(this.addresses.dataStore, account, start, end);
+        const orders = (await reader.getAccountOrders(this.addresses.dataStore, account, start, end));
         return orders;
     }
     /**
@@ -210,7 +212,7 @@ export class GmxContracts {
     async getPosition(positionKey) {
         const reader = this.getReader();
         try {
-            const position = await reader.getPosition(this.addresses.dataStore, positionKey);
+            const position = (await reader.getPosition(this.addresses.dataStore, positionKey));
             return position;
         }
         catch {

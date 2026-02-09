@@ -127,13 +127,13 @@ export function mapTimeframeToDydx(timeframe: OHLCVTimeframe): string {
  */
 export function getDefaultOHLCVDuration(timeframe: OHLCVTimeframe): number {
   const durationMap: Partial<Record<OHLCVTimeframe, number>> = {
-    '1m': 24 * 60 * 60 * 1000,         // 24 hours of 1m candles
-    '5m': 5 * 24 * 60 * 60 * 1000,     // 5 days
-    '15m': 7 * 24 * 60 * 60 * 1000,    // 7 days
-    '30m': 14 * 24 * 60 * 60 * 1000,   // 14 days
-    '1h': 30 * 24 * 60 * 60 * 1000,    // 30 days
-    '4h': 90 * 24 * 60 * 60 * 1000,    // 90 days
-    '1d': 365 * 24 * 60 * 60 * 1000,   // 1 year
+    '1m': 24 * 60 * 60 * 1000, // 24 hours of 1m candles
+    '5m': 5 * 24 * 60 * 60 * 1000, // 5 days
+    '15m': 7 * 24 * 60 * 60 * 1000, // 7 days
+    '30m': 14 * 24 * 60 * 60 * 1000, // 14 days
+    '1h': 30 * 24 * 60 * 60 * 1000, // 30 days
+    '4h': 90 * 24 * 60 * 60 * 1000, // 90 days
+    '1d': 365 * 24 * 60 * 60 * 1000, // 1 year
   };
 
   return durationMap[timeframe] || 30 * 24 * 60 * 60 * 1000; // Default 30 days
@@ -222,7 +222,10 @@ export function buildSubaccountId(address: string, subaccountNumber: number): st
  * @param subaccountId - Subaccount ID string
  * @returns Object with address and subaccountNumber
  */
-export function parseSubaccountId(subaccountId: string): { address: string; subaccountNumber: number } {
+export function parseSubaccountId(subaccountId: string): {
+  address: string;
+  subaccountNumber: number;
+} {
   const parts = subaccountId.split('/');
   return {
     address: parts[0] || '',
@@ -240,7 +243,9 @@ export function parseSubaccountId(subaccountId: string): { address: string; suba
  * @param params - Query parameters object
  * @returns Query string (without leading ?)
  */
-export function buildQueryString(params: Record<string, string | number | boolean | undefined>): string {
+export function buildQueryString(
+  params: Record<string, string | number | boolean | undefined>
+): string {
   const entries = Object.entries(params)
     .filter(([_, value]) => value !== undefined)
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);

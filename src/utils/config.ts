@@ -89,7 +89,12 @@ export function validateConfig(exchange: SupportedExchange): void {
   const required = EXCHANGE_ENV_REQUIREMENTS[exchange];
   const missing = required.filter((key) => {
     const value = process.env[key];
-    return !value || value.trim() === '' || value === 'your_private_key_here' || value === 'your_api_key_here';
+    return (
+      !value ||
+      value.trim() === '' ||
+      value === 'your_private_key_here' ||
+      value === 'your_api_key_here'
+    );
   });
 
   if (missing.length > 0) {

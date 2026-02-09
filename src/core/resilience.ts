@@ -6,7 +6,11 @@
  */
 
 import { withRetry, type RetryConfig } from './retry.js';
-import { CircuitBreaker, CircuitBreakerError, type CircuitBreakerConfig } from './CircuitBreaker.js';
+import {
+  CircuitBreaker,
+  CircuitBreakerError,
+  type CircuitBreakerConfig,
+} from './CircuitBreaker.js';
 
 /**
  * Resilience configuration combining circuit breaker and retry
@@ -227,7 +231,10 @@ export function Resilient(config: ResilienceConfig = {}) {
     const executor = createResilientExecutor(config);
 
     descriptor.value = async function (this: any, ...args: any[]) {
-      return executor(() => originalMethod.apply(this, args), `${target.constructor.name}.${propertyKey}`);
+      return executor(
+        () => originalMethod.apply(this, args),
+        `${target.constructor.name}.${propertyKey}`
+      );
     };
 
     return descriptor;
@@ -329,9 +336,7 @@ export async function withTimeout<T>(
 ): Promise<T> {
   return Promise.race([
     promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
-    ),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMessage)), timeoutMs)),
   ]);
 }
 

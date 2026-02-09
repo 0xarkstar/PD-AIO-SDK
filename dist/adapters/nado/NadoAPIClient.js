@@ -7,7 +7,7 @@
  * @see https://docs.nado.xyz/developer-resources/api/gateway
  */
 import { NADO_REQUEST_CONFIG } from './constants.js';
-import { mapNadoError, mapHttpError, extractNadoError, isRetryableError, } from './error-codes.js';
+import { mapNadoError, mapHttpError, extractNadoError, isRetryableError } from './error-codes.js';
 import { PerpDEXError, ExchangeUnavailableError } from '../../types/errors.js';
 /**
  * Default retry configuration
@@ -130,7 +130,7 @@ export class NadoAPIClient {
      * Useful when shutting down the adapter or on critical errors.
      */
     cancelAllRequests() {
-        this.abortControllers.forEach(controller => {
+        this.abortControllers.forEach((controller) => {
             controller.abort();
         });
         this.abortControllers.clear();
@@ -234,8 +234,7 @@ export class NadoAPIClient {
             return isRetryableError(error.code);
         }
         // Check both error and wrapped originalError
-        return this.isRetryableNetworkError(error) ||
-            this.isRetryableNetworkError(error.originalError);
+        return this.isRetryableNetworkError(error) || this.isRetryableNetworkError(error.originalError);
     }
     /**
      * Check if error is a retryable network error
@@ -296,7 +295,7 @@ export class NadoAPIClient {
      * @param ms - Milliseconds to sleep
      */
     sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 }
 //# sourceMappingURL=NadoAPIClient.js.map

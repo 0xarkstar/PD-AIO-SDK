@@ -45,7 +45,9 @@ export function OrderHelpersMixin(Base) {
                 throw new Error('createBatchOrders must be implemented by subclass when has.createBatchOrders is true');
             }
             // Fallback to sequential execution
-            this.debug('No native batch support, creating orders sequentially', { count: requests.length });
+            this.debug('No native batch support, creating orders sequentially', {
+                count: requests.length,
+            });
             const orders = [];
             const errors = [];
             for (let i = 0; i < requests.length; i++) {
@@ -59,7 +61,11 @@ export function OrderHelpersMixin(Base) {
                 catch (error) {
                     const err = error instanceof Error ? error : new Error(String(error));
                     errors.push({ index: i, error: err });
-                    this.debug('Failed to create order', { index: i + 1, total: requests.length, error: err.message });
+                    this.debug('Failed to create order', {
+                        index: i + 1,
+                        total: requests.length,
+                        error: err.message,
+                    });
                     // Continue with remaining orders despite failure
                 }
             }
@@ -72,7 +78,10 @@ export function OrderHelpersMixin(Base) {
             }
             // Log summary if some failed
             if (errors.length > 0) {
-                this.debug('Batch order creation completed', { succeeded: orders.length, failed: errors.length });
+                this.debug('Batch order creation completed', {
+                    succeeded: orders.length,
+                    failed: errors.length,
+                });
             }
             return orders;
         }
@@ -101,7 +110,9 @@ export function OrderHelpersMixin(Base) {
                 throw new Error('cancelBatchOrders must be implemented by subclass when has.cancelBatchOrders is true');
             }
             // Fallback to sequential execution
-            this.debug('No native batch support, canceling orders sequentially', { count: orderIds.length });
+            this.debug('No native batch support, canceling orders sequentially', {
+                count: orderIds.length,
+            });
             const orders = [];
             const errors = [];
             for (let i = 0; i < orderIds.length; i++) {
@@ -128,7 +139,10 @@ export function OrderHelpersMixin(Base) {
             }
             // Log summary if some failed
             if (errors.length > 0) {
-                this.debug('Batch order cancellation completed', { succeeded: orders.length, failed: errors.length });
+                this.debug('Batch order cancellation completed', {
+                    succeeded: orders.length,
+                    failed: errors.length,
+                });
             }
             return orders;
         }

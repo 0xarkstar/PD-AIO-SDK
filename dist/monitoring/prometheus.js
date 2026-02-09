@@ -225,7 +225,11 @@ export class PrometheusMetrics {
      * Record circuit breaker state transition
      */
     recordCircuitBreakerTransition(exchange, fromState, toState) {
-        this.circuitBreakerTransitionCounter.inc({ exchange, from_state: fromState, to_state: toState });
+        this.circuitBreakerTransitionCounter.inc({
+            exchange,
+            from_state: fromState,
+            to_state: toState,
+        });
     }
     /**
      * Record circuit breaker failure

@@ -5,7 +5,7 @@ export type { Order, OrderRequest, OrderType, OrderSide, OrderStatus, TimeInForc
 export { ORDER_TYPES, ORDER_SIDES, ORDER_STATUSES, TIME_IN_FORCE, POSITION_SIDES, MARGIN_MODES, TRANSACTION_TYPES, TRANSACTION_STATUSES, OHLCV_TIMEFRAMES, LEDGER_ENTRY_TYPES, EXCHANGE_STATUS_VALUES, } from './common.js';
 export type { IExchangeAdapter, IAuthStrategy, FeatureMap, RequestParams, AuthenticatedRequest, ExchangeConfig, RateLimitConfig, } from './adapter.js';
 export type { HealthStatus, HealthCheckResult, HealthCheckConfig, ComponentHealth, AuthHealth, WebSocketHealth, } from './health.js';
-export { determineHealthStatus, isHealthy, isCriticallyUnhealthy, } from './health.js';
+export { determineHealthStatus, isHealthy, isCriticallyUnhealthy } from './health.js';
 export { PerpDEXError, ExchangeError, NotSupportedError, BadRequestError, BadResponseError, AuthenticationError, InsufficientMarginError, OrderNotFoundError, InvalidOrderError, PositionNotFoundError, NetworkError, RateLimitError, ExchangeUnavailableError, WebSocketDisconnectedError, InvalidSignatureError, ExpiredAuthError, InsufficientPermissionsError, ValidationError, InvalidSymbolError, InvalidParameterError, TimeoutError, RequestTimeoutError, InsufficientBalanceError, OrderRejectedError, MinimumOrderSizeError, TransactionFailedError, SlippageExceededError, LiquidationError, isPerpDEXError, isRateLimitError, isAuthError, isNetworkError, isTimeoutError, isValidationError, isExchangeError, isNotSupportedError, isBadRequestError, isBadResponseError, isAuthenticationError, isOrderError, isTradingError, StandardErrorCodes, } from './errors.js';
 export type { StandardErrorCode } from './errors.js';
 //# sourceMappingURL=index.d.ts.map
