@@ -69,11 +69,13 @@ export class HyperliquidAdapter extends BaseAdapter {
     auth;
     rateLimiter;
     normalizer;
+    builderAddress;
     constructor(config = {}) {
         super(config);
         // Set API URLs
         this.apiUrl = config.testnet ? HYPERLIQUID_TESTNET_API : HYPERLIQUID_MAINNET_API;
         this.wsUrl = config.testnet ? HYPERLIQUID_TESTNET_WS : HYPERLIQUID_MAINNET_WS;
+        this.builderAddress = config.builderAddress ?? config.builderCode;
         // Initialize normalizer
         this.normalizer = new HyperliquidNormalizer();
         // Initialize rate limiter
@@ -265,10 +267,12 @@ export class HyperliquidAdapter extends BaseAdapter {
             const exchangeSymbol = this.symbolToExchange(validatedRequest.symbol);
             const orderRequest = convertOrderRequest(validatedRequest, exchangeSymbol);
             // Create action
+            const builderAddr = request.builderCode ?? this.builderAddress;
             const action = {
                 type: 'order',
                 orders: [orderRequest],
                 grouping: 'na',
+                ...(builderAddr ? { builder: { b: builderAddr, f: 1 } } : {}),
             };
             // Sign and send
             const signedRequest = await auth.sign({

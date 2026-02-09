@@ -1,0 +1,238 @@
+/**
+ * Ostium Constants
+ */
+
+import type { OstiumContractAddresses, OstiumPairInfo } from './types.js';
+
+export const OSTIUM_METADATA_URL = 'https://metadata-backend.ostium.io';
+
+export const OSTIUM_SUBGRAPH_URL =
+  'https://api.thegraph.com/subgraphs/name/ostium-labs/ostium-arbitrum';
+
+export const OSTIUM_RPC_URLS = {
+  mainnet: 'https://arb1.arbitrum.io/rpc',
+  testnet: 'https://sepolia-rollup.arbitrum.io/rpc',
+};
+
+export const OSTIUM_CONTRACTS: OstiumContractAddresses = {
+  trading: '0x4f5f2B6a97F0c536E2BF58c3E7e060F81FbA2B06',
+  storage: '0x7E8B4C3c95B4b93D5C0D0F14C1b36a5C7E5C9D5',
+  pairInfo: '0x3D9B5C7E8F0A4D6E9C3B2A1F8D7E6C5B4A3F21e',
+  nftRewards: '0x1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0b',
+  vault: '0x8F9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7a',
+  collateral: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+};
+
+export const OSTIUM_RATE_LIMITS = {
+  metadata: {
+    maxRequests: 300,
+    windowMs: 60000,
+  },
+  subgraph: {
+    maxRequests: 100,
+    windowMs: 60000,
+  },
+};
+
+export const OSTIUM_ENDPOINT_WEIGHTS: Record<string, number> = {
+  fetchMarkets: 5,
+  fetchTicker: 1,
+  fetchTrades: 3,
+  fetchFundingRate: 2,
+  createOrder: 10,
+  cancelOrder: 10,
+  fetchPositions: 3,
+  fetchBalance: 2,
+  setLeverage: 1,
+};
+
+export const OSTIUM_GROUP_NAMES: Record<number, string> = {
+  0: 'Crypto',
+  1: 'Forex',
+  2: 'Stocks',
+  3: 'Commodities',
+  4: 'Indices',
+};
+
+export const OSTIUM_PAIRS: OstiumPairInfo[] = [
+  {
+    pairIndex: 0,
+    name: 'BTC/USD',
+    from: 'BTC',
+    to: 'USD',
+    groupIndex: 0,
+    groupName: 'Crypto',
+    spreadP: '0.05',
+    maxLeverage: 150,
+    minLeverage: 2,
+    maxPositionSize: '1000000',
+    minPositionSize: '100',
+    feedId: '',
+  },
+  {
+    pairIndex: 1,
+    name: 'ETH/USD',
+    from: 'ETH',
+    to: 'USD',
+    groupIndex: 0,
+    groupName: 'Crypto',
+    spreadP: '0.05',
+    maxLeverage: 100,
+    minLeverage: 2,
+    maxPositionSize: '500000',
+    minPositionSize: '100',
+    feedId: '',
+  },
+  {
+    pairIndex: 2,
+    name: 'AAPL/USD',
+    from: 'AAPL',
+    to: 'USD',
+    groupIndex: 2,
+    groupName: 'Stocks',
+    spreadP: '0.1',
+    maxLeverage: 50,
+    minLeverage: 2,
+    maxPositionSize: '200000',
+    minPositionSize: '50',
+    feedId: '',
+  },
+  {
+    pairIndex: 3,
+    name: 'TSLA/USD',
+    from: 'TSLA',
+    to: 'USD',
+    groupIndex: 2,
+    groupName: 'Stocks',
+    spreadP: '0.1',
+    maxLeverage: 50,
+    minLeverage: 2,
+    maxPositionSize: '200000',
+    minPositionSize: '50',
+    feedId: '',
+  },
+  {
+    pairIndex: 4,
+    name: 'NVDA/USD',
+    from: 'NVDA',
+    to: 'USD',
+    groupIndex: 2,
+    groupName: 'Stocks',
+    spreadP: '0.1',
+    maxLeverage: 50,
+    minLeverage: 2,
+    maxPositionSize: '200000',
+    minPositionSize: '50',
+    feedId: '',
+  },
+  {
+    pairIndex: 5,
+    name: 'EUR/USD',
+    from: 'EUR',
+    to: 'USD',
+    groupIndex: 1,
+    groupName: 'Forex',
+    spreadP: '0.01',
+    maxLeverage: 250,
+    minLeverage: 2,
+    maxPositionSize: '1000000',
+    minPositionSize: '100',
+    feedId: '',
+  },
+  {
+    pairIndex: 6,
+    name: 'GBP/USD',
+    from: 'GBP',
+    to: 'USD',
+    groupIndex: 1,
+    groupName: 'Forex',
+    spreadP: '0.01',
+    maxLeverage: 250,
+    minLeverage: 2,
+    maxPositionSize: '1000000',
+    minPositionSize: '100',
+    feedId: '',
+  },
+  {
+    pairIndex: 7,
+    name: 'XAU/USD',
+    from: 'XAU',
+    to: 'USD',
+    groupIndex: 3,
+    groupName: 'Commodities',
+    spreadP: '0.05',
+    maxLeverage: 100,
+    minLeverage: 2,
+    maxPositionSize: '500000',
+    minPositionSize: '50',
+    feedId: '',
+  },
+  {
+    pairIndex: 8,
+    name: 'CL/USD',
+    from: 'CL',
+    to: 'USD',
+    groupIndex: 3,
+    groupName: 'Commodities',
+    spreadP: '0.05',
+    maxLeverage: 100,
+    minLeverage: 2,
+    maxPositionSize: '500000',
+    minPositionSize: '50',
+    feedId: '',
+  },
+  {
+    pairIndex: 9,
+    name: 'SPX/USD',
+    from: 'SPX',
+    to: 'USD',
+    groupIndex: 4,
+    groupName: 'Indices',
+    spreadP: '0.02',
+    maxLeverage: 100,
+    minLeverage: 2,
+    maxPositionSize: '500000',
+    minPositionSize: '50',
+    feedId: '',
+  },
+  {
+    pairIndex: 10,
+    name: 'NDX/USD',
+    from: 'NDX',
+    to: 'USD',
+    groupIndex: 4,
+    groupName: 'Indices',
+    spreadP: '0.02',
+    maxLeverage: 100,
+    minLeverage: 2,
+    maxPositionSize: '500000',
+    minPositionSize: '50',
+    feedId: '',
+  },
+];
+
+export const OSTIUM_TRADING_ABI = [
+  'function openTrade(tuple(address trader, uint256 pairIndex, uint256 index, uint256 positionSizeDai, uint256 openPrice, bool buy, uint256 leverage, uint256 tp, uint256 sl) t, uint8 orderType, uint256 slippageP, address referral) external',
+  'function closeTradeMarket(uint256 pairIndex, uint256 index) external',
+  'function cancelOpenLimitOrder(uint256 pairIndex, uint256 index) external',
+  'function updateTp(uint256 pairIndex, uint256 index, uint256 newTp) external',
+  'function updateSl(uint256 pairIndex, uint256 index, uint256 newSl) external',
+];
+
+export const OSTIUM_STORAGE_ABI = [
+  'function openTrades(address trader, uint256 pairIndex, uint256 index) view returns (tuple(address trader, uint256 pairIndex, uint256 index, uint256 positionSizeDai, uint256 openPrice, bool buy, uint256 leverage, uint256 tp, uint256 sl))',
+  'function openTradesCount(address trader, uint256 pairIndex) view returns (uint256)',
+  'function getOpenLimitOrders(address trader) view returns (tuple(address trader, uint256 pairIndex, uint256 index, uint256 positionSize, bool buy, uint256 leverage, uint256 tp, uint256 sl, uint256 minPrice, uint256 maxPrice, uint256 block, uint256 tokenId)[])',
+];
+
+export const OSTIUM_VAULT_ABI = ['function balanceOf(address account) view returns (uint256)'];
+
+export const OSTIUM_COLLATERAL_ABI = [
+  'function balanceOf(address account) view returns (uint256)',
+  'function approve(address spender, uint256 amount) returns (bool)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function decimals() view returns (uint8)',
+];
+
+export const OSTIUM_COLLATERAL_DECIMALS = 6;
+export const OSTIUM_PRICE_DECIMALS = 10;

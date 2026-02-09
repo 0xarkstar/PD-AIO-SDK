@@ -70,6 +70,9 @@ export interface HyperliquidConfig extends ExchangeConfig {
 
   /** Private key (alternative to wallet) */
   privateKey?: string;
+
+  /** Builder fee address for order attribution */
+  builderAddress?: string;
 }
 
 export class HyperliquidAdapter extends BaseAdapter {
@@ -133,6 +136,7 @@ export class HyperliquidAdapter extends BaseAdapter {
   private auth?: HyperliquidAuth;
   protected rateLimiter: RateLimiter;
   private normalizer: HyperliquidNormalizer;
+  private readonly builderAddress?: string;
 
   constructor(config: HyperliquidConfig = {}) {
     super(config);
@@ -140,6 +144,7 @@ export class HyperliquidAdapter extends BaseAdapter {
     // Set API URLs
     this.apiUrl = config.testnet ? HYPERLIQUID_TESTNET_API : HYPERLIQUID_MAINNET_API;
     this.wsUrl = config.testnet ? HYPERLIQUID_TESTNET_WS : HYPERLIQUID_MAINNET_WS;
+    this.builderAddress = config.builderAddress ?? config.builderCode;
 
     // Initialize normalizer
     this.normalizer = new HyperliquidNormalizer();
@@ -395,10 +400,12 @@ export class HyperliquidAdapter extends BaseAdapter {
       const orderRequest = convertOrderRequest(validatedRequest, exchangeSymbol);
 
       // Create action
+      const builderAddr = request.builderCode ?? this.builderAddress;
       const action: HyperliquidAction = {
         type: 'order',
         orders: [orderRequest],
         grouping: 'na',
+        ...(builderAddr ? { builder: { b: builderAddr, f: 1 } } : {}),
       };
 
       // Sign and send

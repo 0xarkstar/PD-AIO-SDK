@@ -159,6 +159,9 @@ export interface OrderRequest {
 
   /** Exchange-specific parameters */
   params?: Record<string, unknown>;
+
+  /** Builder/referral code override for this order */
+  builderCode?: string;
 }
 
 // =============================================================================

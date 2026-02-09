@@ -722,6 +722,8 @@ export interface ExchangeConfig {
     rateLimit?: RateLimitConfig;
     /** Circuit breaker configuration */
     circuitBreaker?: CircuitBreakerConfig;
+    /** Builder/referral code for fee attribution */
+    builderCode?: string;
 }
 /**
  * Rate limit configuration

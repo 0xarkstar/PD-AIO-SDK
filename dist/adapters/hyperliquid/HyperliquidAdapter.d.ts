@@ -12,6 +12,8 @@ export interface HyperliquidConfig extends ExchangeConfig {
     wallet?: Wallet;
     /** Private key (alternative to wallet) */
     privateKey?: string;
+    /** Builder fee address for order attribution */
+    builderAddress?: string;
 }
 export declare class HyperliquidAdapter extends BaseAdapter {
     readonly id = "hyperliquid";
@@ -24,6 +26,7 @@ export declare class HyperliquidAdapter extends BaseAdapter {
     private auth?;
     protected rateLimiter: RateLimiter;
     private normalizer;
+    private readonly builderAddress?;
     constructor(config?: HyperliquidConfig);
     initialize(): Promise<void>;
     disconnect(): Promise<void>;

@@ -48,6 +48,15 @@ const EXCHANGE_ENV_REQUIREMENTS: Record<SupportedExchange, string[]> = {
 
   // EVM based on-chain DEX (GMX v2 on Arbitrum/Avalanche)
   gmx: ['GMX_CHAIN'], // Chain selection; add GMX_WALLET_ADDRESS for positions
+
+  // Aster (BNB Chain, Binance-style HMAC)
+  aster: ['ASTER_API_KEY', 'ASTER_API_SECRET'],
+
+  // Pacifica (Solana, Ed25519)
+  pacifica: ['PACIFICA_API_KEY', 'PACIFICA_API_SECRET'],
+
+  // Ostium (Arbitrum, EVM contracts)
+  ostium: ['OSTIUM_PRIVATE_KEY'],
 };
 
 /**
@@ -170,6 +179,9 @@ export function getConfigErrorMessage(exchange: SupportedExchange, missingVars: 
     jupiter: 'Provide your Solana wallet address for Jupiter Perps (add private key for trading)',
     drift: 'Provide your Solana wallet address for Drift Protocol (add private key for trading)',
     gmx: 'Set GMX_CHAIN to arbitrum or avalanche (add GMX_WALLET_ADDRESS for position data)',
+    aster: 'Register at asterdex.com and create API key + secret (HMAC-SHA256)',
+    pacifica: 'Register at pacifica.fi and create Ed25519 API credentials',
+    ostium: 'Export your MetaMask private key for Arbitrum trading on Ostium',
   };
 
   return (

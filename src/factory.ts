@@ -20,6 +20,9 @@ import { DydxAdapter, type DydxConfig } from './adapters/dydx/index.js';
 import { JupiterAdapter, type JupiterAdapterConfig } from './adapters/jupiter/index.js';
 import { DriftAdapter, type DriftConfig } from './adapters/drift/index.js';
 import { GmxAdapter, type GmxConfig } from './adapters/gmx/index.js';
+import { AsterAdapter, type AsterConfig } from './adapters/aster/index.js';
+import { PacificaAdapter, type PacificaConfig } from './adapters/pacifica/index.js';
+import { OstiumAdapter, type OstiumConfig } from './adapters/ostium/index.js';
 
 export type SupportedExchange =
   | 'hyperliquid'
@@ -34,7 +37,10 @@ export type SupportedExchange =
   | 'dydx'
   | 'jupiter'
   | 'drift'
-  | 'gmx';
+  | 'gmx'
+  | 'aster'
+  | 'pacifica'
+  | 'ostium';
 
 export type ExchangeConfigMap = {
   hyperliquid: HyperliquidConfig;
@@ -50,6 +56,9 @@ export type ExchangeConfigMap = {
   jupiter: JupiterAdapterConfig;
   drift: DriftConfig;
   gmx: GmxConfig;
+  aster: AsterConfig;
+  pacifica: PacificaConfig;
+  ostium: OstiumConfig;
 };
 
 /**
@@ -79,6 +88,9 @@ const adapterRegistry = new Map<string, AdapterConstructor>([
   ['jupiter', JupiterAdapter as AdapterConstructor],
   ['drift', DriftAdapter as AdapterConstructor],
   ['gmx', GmxAdapter as AdapterConstructor],
+  ['aster', AsterAdapter as AdapterConstructor],
+  ['pacifica', PacificaAdapter as AdapterConstructor],
+  ['ostium', OstiumAdapter as AdapterConstructor],
 ]);
 
 /**
@@ -197,6 +209,9 @@ export function getBuiltInExchanges(): SupportedExchange[] {
     'jupiter',
     'drift',
     'gmx',
+    'aster',
+    'pacifica',
+    'ostium',
   ];
 }
 

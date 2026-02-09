@@ -1536,6 +1536,9 @@ var require_cjs2 = __commonJS({
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
+  AsterAdapter: () => AsterAdapter,
+  AsterAuth: () => AsterAuth,
+  AsterNormalizer: () => AsterNormalizer,
   BackpackAdapter: () => BackpackAdapter,
   BalanceSchema: () => BalanceSchema,
   BaseAdapter: () => BaseAdapter,
@@ -1581,7 +1584,13 @@ __export(index_exports, {
   OrderNotFoundError: () => OrderNotFoundError,
   OrderRequestSchema: () => OrderRequestSchema,
   OrderSchema: () => OrderSchema,
+  OstiumAdapter: () => OstiumAdapter,
+  OstiumAuth: () => OstiumAuth,
+  OstiumNormalizer: () => OstiumNormalizer,
   POSITION_SIDES: () => POSITION_SIDES,
+  PacificaAdapter: () => PacificaAdapter,
+  PacificaAuth: () => PacificaAuth,
+  PacificaNormalizer: () => PacificaNormalizer,
   ParadexAdapter: () => ParadexAdapter,
   ParadexAuth: () => ParadexAuth,
   PerpDEXError: () => PerpDEXError,
@@ -10041,10 +10050,12 @@ var HyperliquidAdapter = class extends BaseAdapter {
   auth;
   rateLimiter;
   normalizer;
+  builderAddress;
   constructor(config = {}) {
     super(config);
     this.apiUrl = config.testnet ? HYPERLIQUID_TESTNET_API : HYPERLIQUID_MAINNET_API;
     this.wsUrl = config.testnet ? HYPERLIQUID_TESTNET_WS : HYPERLIQUID_MAINNET_WS;
+    this.builderAddress = config.builderAddress ?? config.builderCode;
     this.normalizer = new HyperliquidNormalizer();
     this.rateLimiter = new RateLimiter({
       maxTokens: config.rateLimit?.maxRequests ?? HYPERLIQUID_RATE_LIMIT.maxRequests,
@@ -10224,10 +10235,12 @@ var HyperliquidAdapter = class extends BaseAdapter {
     try {
       const exchangeSymbol = this.symbolToExchange(validatedRequest.symbol);
       const orderRequest = convertOrderRequest(validatedRequest, exchangeSymbol);
+      const builderAddr = request.builderCode ?? this.builderAddress;
       const action = {
         type: "order",
         orders: [orderRequest],
-        grouping: "na"
+        grouping: "na",
+        ...builderAddr ? { builder: { b: builderAddr, f: 1 } } : {}
       };
       const signedRequest = await auth.sign({
         method: "POST",
@@ -33233,6 +33246,1967 @@ var GmxAdapter = class extends BaseAdapter {
   }
 };
 
+// src/adapters/aster/constants.ts
+var ASTER_API_URLS = {
+  mainnet: {
+    rest: "https://fapi.asterdex.com",
+    websocket: "wss://fstream.asterdex.com"
+  },
+  testnet: {
+    rest: "https://testnet-fapi.asterdex.com",
+    websocket: "wss://testnet-fstream.asterdex.com"
+  }
+};
+var ASTER_RATE_LIMITS = {
+  rest: {
+    maxRequests: 1200,
+    windowMs: 6e4
+  },
+  order: {
+    maxRequests: 300,
+    windowMs: 6e4
+  }
+};
+var ASTER_ENDPOINT_WEIGHTS = {
+  fetchMarkets: 40,
+  fetchTicker: 1,
+  fetchOrderBook: 5,
+  fetchTrades: 5,
+  fetchFundingRate: 1,
+  fetchOHLCV: 5,
+  createOrder: 1,
+  cancelOrder: 1,
+  cancelAllOrders: 1,
+  fetchPositions: 5,
+  fetchBalance: 5,
+  setLeverage: 1
+};
+var ASTER_ORDER_TYPES = {
+  market: "MARKET",
+  limit: "LIMIT",
+  stopMarket: "STOP_MARKET",
+  stopLimit: "STOP",
+  takeProfit: "TAKE_PROFIT_MARKET"
+};
+var ASTER_ORDER_SIDES = {
+  buy: "BUY",
+  sell: "SELL"
+};
+var ASTER_TIME_IN_FORCE = {
+  GTC: "GTC",
+  IOC: "IOC",
+  FOK: "FOK",
+  PO: "GTX"
+};
+var ASTER_ORDER_STATUS = {
+  NEW: "open",
+  PARTIALLY_FILLED: "partiallyFilled",
+  FILLED: "filled",
+  CANCELED: "canceled",
+  REJECTED: "rejected",
+  EXPIRED: "expired"
+};
+var ASTER_KLINE_INTERVALS = {
+  "1m": "1m",
+  "3m": "3m",
+  "5m": "5m",
+  "15m": "15m",
+  "30m": "30m",
+  "1h": "1h",
+  "2h": "2h",
+  "4h": "4h",
+  "6h": "6h",
+  "8h": "8h",
+  "12h": "12h",
+  "1d": "1d",
+  "3d": "3d",
+  "1w": "1w",
+  "1M": "1M"
+};
+var ASTER_DEFAULT_RECV_WINDOW = 5e3;
+
+// src/adapters/aster/AsterAuth.ts
+var AsterAuth = class {
+  apiKey;
+  apiSecret;
+  recvWindow;
+  constructor(config) {
+    this.apiKey = config.apiKey;
+    this.apiSecret = config.apiSecret;
+    this.recvWindow = config.recvWindow ?? ASTER_DEFAULT_RECV_WINDOW;
+  }
+  async sign(request) {
+    const timestamp = request.timestamp ?? Date.now();
+    const queryParams = this.buildQueryString(request, timestamp);
+    const signature = await createHmacSha256(queryParams, this.apiSecret);
+    return {
+      ...request,
+      params: {
+        ...request.params ?? {},
+        timestamp,
+        recvWindow: this.recvWindow,
+        signature
+      },
+      headers: {
+        "X-MBX-APIKEY": this.apiKey,
+        "Content-Type": "application/x-www-form-urlencoded"
+      }
+    };
+  }
+  buildQueryString(request, timestamp) {
+    const allParams = {
+      ...request.params ?? {},
+      timestamp,
+      recvWindow: this.recvWindow
+    };
+    if (request.body && typeof request.body === "object") {
+      const bodyObj = request.body;
+      for (const [key, value] of Object.entries(bodyObj)) {
+        allParams[key] = value;
+      }
+    }
+    return Object.entries(allParams).map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join("&");
+  }
+  getHeaders() {
+    return {
+      "X-MBX-APIKEY": this.apiKey
+    };
+  }
+  hasCredentials() {
+    return !!(this.apiKey && this.apiSecret);
+  }
+};
+
+// src/adapters/aster/utils.ts
+function toAsterSymbol(unified) {
+  const parts = unified.split(/[/:]/);
+  return `${parts[0]}${parts[1]}`;
+}
+function toUnifiedSymbol(_asterSymbol, baseAsset, quoteAsset) {
+  return `${baseAsset}/${quoteAsset}:${quoteAsset}`;
+}
+function toAsterOrderSide(side) {
+  return ASTER_ORDER_SIDES[side] ?? side.toUpperCase();
+}
+function toAsterOrderType(type) {
+  return ASTER_ORDER_TYPES[type] ?? type.toUpperCase();
+}
+function toAsterTimeInForce(tif, postOnly) {
+  if (postOnly) return "GTX";
+  if (tif) return ASTER_TIME_IN_FORCE[tif] ?? tif;
+  return "GTC";
+}
+function buildOrderParams(request, asterSymbol, referralCode) {
+  const params = {
+    symbol: asterSymbol,
+    side: toAsterOrderSide(request.side),
+    type: toAsterOrderType(request.type),
+    quantity: request.amount
+  };
+  if (request.price !== void 0) {
+    params.price = request.price;
+  }
+  if (request.stopPrice !== void 0) {
+    params.stopPrice = request.stopPrice;
+  }
+  if (request.type !== "market") {
+    params.timeInForce = toAsterTimeInForce(request.timeInForce, request.postOnly);
+  }
+  if (request.reduceOnly) {
+    params.reduceOnly = "true";
+  }
+  if (request.clientOrderId) {
+    params.newClientOrderId = request.clientOrderId;
+  }
+  const code = request.builderCode ?? referralCode;
+  if (code) {
+    params.referralCode = code;
+  }
+  return params;
+}
+
+// src/adapters/aster/AsterNormalizer.ts
+var AsterNormalizer = class {
+  normalizeMarket(info) {
+    const priceFilter = info.filters.find(
+      (f) => f.filterType === "PRICE_FILTER"
+    );
+    const lotFilter = info.filters.find(
+      (f) => f.filterType === "LOT_SIZE"
+    );
+    const tickSize = priceFilter ? parseFloat(priceFilter.tickSize) : 0.01;
+    const stepSize = lotFilter ? parseFloat(lotFilter.stepSize) : 1e-3;
+    const minQty = lotFilter ? parseFloat(lotFilter.minQty) : 0;
+    return {
+      id: info.symbol,
+      symbol: toUnifiedSymbol(info.symbol, info.baseAsset, info.quoteAsset),
+      base: info.baseAsset,
+      quote: info.quoteAsset,
+      settle: info.marginAsset,
+      active: info.status === "TRADING",
+      minAmount: minQty,
+      pricePrecision: info.pricePrecision,
+      amountPrecision: info.quantityPrecision,
+      priceTickSize: tickSize,
+      amountStepSize: stepSize,
+      makerFee: 2e-4,
+      takerFee: 5e-4,
+      maxLeverage: 125,
+      fundingIntervalHours: 8,
+      info
+    };
+  }
+  normalizeTicker(raw, symbol) {
+    const last = parseFloat(raw.lastPrice);
+    return {
+      symbol: symbol ?? raw.symbol,
+      last,
+      bid: last,
+      ask: last,
+      high: parseFloat(raw.highPrice),
+      low: parseFloat(raw.lowPrice),
+      open: parseFloat(raw.openPrice),
+      close: last,
+      change: parseFloat(raw.priceChange),
+      percentage: parseFloat(raw.priceChangePercent),
+      baseVolume: parseFloat(raw.volume),
+      quoteVolume: parseFloat(raw.quoteVolume),
+      timestamp: raw.closeTime,
+      info: raw
+    };
+  }
+  normalizeOrderBook(raw, symbol) {
+    return {
+      symbol,
+      timestamp: raw.T ?? Date.now(),
+      bids: raw.bids.map(([p, s]) => [parseFloat(p), parseFloat(s)]),
+      asks: raw.asks.map(([p, s]) => [parseFloat(p), parseFloat(s)]),
+      exchange: "aster"
+    };
+  }
+  normalizeTrade(raw, symbol) {
+    return {
+      id: String(raw.id),
+      symbol,
+      side: raw.isBuyerMaker ? "sell" : "buy",
+      price: parseFloat(raw.price),
+      amount: parseFloat(raw.qty),
+      cost: parseFloat(raw.quoteQty),
+      timestamp: raw.time,
+      info: raw
+    };
+  }
+  normalizeFundingRate(raw, symbol) {
+    return {
+      symbol,
+      fundingRate: parseFloat(raw.lastFundingRate),
+      fundingTimestamp: raw.time,
+      nextFundingTimestamp: raw.nextFundingTime,
+      markPrice: parseFloat(raw.markPrice),
+      indexPrice: parseFloat(raw.indexPrice),
+      fundingIntervalHours: 8,
+      info: raw
+    };
+  }
+  normalizeOHLCV(raw) {
+    return [
+      raw[0],
+      parseFloat(raw[1]),
+      parseFloat(raw[2]),
+      parseFloat(raw[3]),
+      parseFloat(raw[4]),
+      parseFloat(raw[5])
+    ];
+  }
+  normalizeOrder(raw, symbol) {
+    const filled = parseFloat(raw.executedQty);
+    const amount = parseFloat(raw.origQty);
+    const price = parseFloat(raw.price);
+    const avgPrice = parseFloat(raw.avgPrice);
+    return {
+      id: String(raw.orderId),
+      symbol: symbol ?? raw.symbol,
+      type: raw.origType?.toLowerCase() === "market" ? "market" : "limit",
+      side: raw.side === "BUY" ? "buy" : "sell",
+      amount,
+      price: price || void 0,
+      status: ASTER_ORDER_STATUS[raw.status] ?? "open",
+      filled,
+      remaining: amount - filled,
+      averagePrice: avgPrice || void 0,
+      cost: filled * (avgPrice || price),
+      reduceOnly: raw.reduceOnly ?? false,
+      postOnly: raw.timeInForce === "GTX",
+      clientOrderId: raw.clientOrderId,
+      timestamp: raw.updateTime,
+      info: raw
+    };
+  }
+  normalizePosition(raw, symbol) {
+    const size = parseFloat(raw.positionAmt);
+    const absSize = Math.abs(size);
+    const leverage = parseFloat(raw.leverage);
+    const entryPrice = parseFloat(raw.entryPrice);
+    const markPrice = parseFloat(raw.markPrice);
+    const notional = Math.abs(parseFloat(raw.notional));
+    return {
+      symbol: symbol ?? raw.symbol,
+      side: size >= 0 ? "long" : "short",
+      size: absSize,
+      entryPrice,
+      markPrice,
+      liquidationPrice: parseFloat(raw.liquidationPrice) || 0,
+      unrealizedPnl: parseFloat(raw.unRealizedProfit),
+      realizedPnl: 0,
+      leverage,
+      marginMode: raw.marginType === "isolated" ? "isolated" : "cross",
+      margin: notional / leverage,
+      maintenanceMargin: 0,
+      marginRatio: 0,
+      timestamp: raw.updateTime,
+      info: raw
+    };
+  }
+  normalizeBalance(raw) {
+    return {
+      currency: raw.asset,
+      total: parseFloat(raw.balance),
+      free: parseFloat(raw.availableBalance),
+      used: parseFloat(raw.balance) - parseFloat(raw.availableBalance),
+      info: raw
+    };
+  }
+};
+
+// src/adapters/aster/error-codes.ts
+function mapAsterError(code, message) {
+  if (code === -1003 || code === -1015) {
+    return new RateLimitError(message, String(code), "aster");
+  }
+  if (code === -1022 || code === -2014 || code === -2015) {
+    return new InvalidSignatureError(message, String(code), "aster");
+  }
+  if (code === -2013 || code === -2026) {
+    return new OrderNotFoundError(message, String(code), "aster");
+  }
+  if (code === -2018 || code === -2019) {
+    return new InsufficientMarginError(message, String(code), "aster");
+  }
+  if (code === -2010 || code === -2020 || code === -2021 || code === -2022 || code === -4e3 || code === -4001 || code === -4002 || code === -4003 || code === -4014 || code === -4028 || code === -4029 || code === -4046) {
+    return new InvalidOrderError(message, String(code), "aster");
+  }
+  if (code === -1001 || code === -1006 || code === -1007 || code === -1010 || code === -1016) {
+    return new ExchangeUnavailableError(message, String(code), "aster");
+  }
+  return new PerpDEXError(message, String(code), "aster");
+}
+
+// src/adapters/aster/AsterAdapter.ts
+var AsterAdapter = class extends BaseAdapter {
+  id = "aster";
+  name = "Aster";
+  has = {
+    fetchMarkets: true,
+    fetchTicker: true,
+    fetchOrderBook: true,
+    fetchTrades: true,
+    fetchOHLCV: true,
+    fetchFundingRate: true,
+    createOrder: true,
+    cancelOrder: true,
+    cancelAllOrders: true,
+    fetchPositions: true,
+    fetchBalance: true,
+    setLeverage: true
+  };
+  auth;
+  baseUrl;
+  httpClient;
+  rateLimiter;
+  normalizer;
+  referralCode;
+  constructor(config = {}) {
+    super(config);
+    const urls = config.testnet ? ASTER_API_URLS.testnet : ASTER_API_URLS.mainnet;
+    this.baseUrl = config.apiUrl ?? urls.rest;
+    this.referralCode = config.referralCode ?? config.builderCode;
+    if (config.apiKey && config.apiSecret) {
+      this.auth = new AsterAuth({
+        apiKey: config.apiKey,
+        apiSecret: config.apiSecret
+      });
+    }
+    this.normalizer = new AsterNormalizer();
+    this.rateLimiter = new RateLimiter({
+      maxTokens: config.rateLimit?.maxRequests ?? ASTER_RATE_LIMITS.rest.maxRequests,
+      windowMs: config.rateLimit?.windowMs ?? ASTER_RATE_LIMITS.rest.windowMs,
+      refillRate: (config.rateLimit?.maxRequests ?? ASTER_RATE_LIMITS.rest.maxRequests) / 60,
+      weights: ASTER_ENDPOINT_WEIGHTS
+    });
+    this.httpClient = new HTTPClient({
+      baseUrl: this.baseUrl,
+      timeout: config.timeout ?? 3e4,
+      retry: {
+        maxAttempts: 3,
+        initialDelay: 1e3,
+        maxDelay: 1e4,
+        multiplier: 2
+      },
+      circuitBreaker: {
+        enabled: true,
+        failureThreshold: 5,
+        resetTimeout: 6e4
+      },
+      exchange: this.id
+    });
+  }
+  async initialize() {
+    this._isReady = true;
+  }
+  // === Symbol conversion (required by BaseAdapter) ===
+  symbolToExchange(symbol) {
+    return toAsterSymbol(symbol);
+  }
+  symbolFromExchange(exchangeSymbol) {
+    const quoteAssets = ["USDT", "USDC", "BUSD"];
+    for (const quote of quoteAssets) {
+      if (exchangeSymbol.endsWith(quote)) {
+        const base = exchangeSymbol.slice(0, -quote.length);
+        return toUnifiedSymbol(exchangeSymbol, base, quote);
+      }
+    }
+    return exchangeSymbol;
+  }
+  // === Auth helpers ===
+  requireAuth() {
+    if (!this.auth?.hasCredentials()) {
+      throw new PerpDEXError("API key and secret required", "MISSING_CREDENTIALS", "aster");
+    }
+  }
+  async publicGet(path, feature) {
+    await this.rateLimiter.acquire(feature);
+    try {
+      return await this.httpClient.get(path);
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+  async signedRequest(method, path, feature, body) {
+    this.requireAuth();
+    await this.rateLimiter.acquire(feature);
+    try {
+      const signed = await this.auth.sign({
+        method,
+        path,
+        body
+      });
+      const queryString = Object.entries(signed.params ?? {}).map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join("&");
+      const fullPath = queryString ? `${path}?${queryString}` : path;
+      const headers = signed.headers ?? {};
+      if (method === "GET") {
+        return await this.httpClient.get(fullPath, { headers });
+      } else if (method === "DELETE") {
+        return await this.httpClient.delete(fullPath, { headers });
+      } else {
+        return await this.httpClient.post(fullPath, { headers });
+      }
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+  handleError(error) {
+    if (error instanceof PerpDEXError) return error;
+    if (error instanceof Error) {
+      const match = error.message.match(/code["\s:]+(-?\d+)/);
+      if (match?.[1]) {
+        return mapAsterError(parseInt(match[1], 10), error.message);
+      }
+    }
+    return new PerpDEXError(
+      error instanceof Error ? error.message : "Unknown error",
+      "UNKNOWN",
+      "aster"
+    );
+  }
+  // === Public Market Data ===
+  async fetchMarkets(_params) {
+    const response = await this.publicGet(
+      "/fapi/v1/exchangeInfo",
+      "fetchMarkets"
+    );
+    if (!response?.symbols || !Array.isArray(response.symbols)) {
+      throw new PerpDEXError("Invalid exchangeInfo response", "INVALID_RESPONSE", "aster");
+    }
+    return response.symbols.filter((s) => s.contractType === "PERPETUAL" && s.status === "TRADING").map((s) => this.normalizer.normalizeMarket(s));
+  }
+  async fetchTicker(symbol) {
+    const asterSymbol = toAsterSymbol(symbol);
+    const response = await this.publicGet(
+      `/fapi/v1/ticker/24hr?symbol=${asterSymbol}`,
+      "fetchTicker"
+    );
+    return this.normalizer.normalizeTicker(response, symbol);
+  }
+  async fetchOrderBook(symbol, params) {
+    const asterSymbol = toAsterSymbol(symbol);
+    const limit = params?.limit ?? 20;
+    const response = await this.publicGet(
+      `/fapi/v1/depth?symbol=${asterSymbol}&limit=${limit}`,
+      "fetchOrderBook"
+    );
+    return this.normalizer.normalizeOrderBook(response, symbol);
+  }
+  async fetchTrades(symbol, params) {
+    const asterSymbol = toAsterSymbol(symbol);
+    const limit = params?.limit ?? 100;
+    const response = await this.publicGet(
+      `/fapi/v1/trades?symbol=${asterSymbol}&limit=${limit}`,
+      "fetchTrades"
+    );
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid trades response", "INVALID_RESPONSE", "aster");
+    }
+    return response.map((t) => this.normalizer.normalizeTrade(t, symbol));
+  }
+  async fetchFundingRate(symbol) {
+    const asterSymbol = toAsterSymbol(symbol);
+    const response = await this.publicGet(
+      `/fapi/v1/premiumIndex?symbol=${asterSymbol}`,
+      "fetchFundingRate"
+    );
+    return this.normalizer.normalizeFundingRate(response, symbol);
+  }
+  async fetchFundingRateHistory(symbol, since, limit) {
+    const asterSymbol = toAsterSymbol(symbol);
+    let path = `/fapi/v1/fundingRate?symbol=${asterSymbol}`;
+    if (since) path += `&startTime=${since}`;
+    if (limit) path += `&limit=${limit}`;
+    const response = await this.publicGet(path, "fetchFundingRate");
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid funding rate history response", "INVALID_RESPONSE", "aster");
+    }
+    return response.map((r) => this.normalizer.normalizeFundingRate(r, symbol));
+  }
+  async fetchOHLCV(symbol, timeframe, params) {
+    const asterSymbol = toAsterSymbol(symbol);
+    const interval = ASTER_KLINE_INTERVALS[timeframe] ?? "1h";
+    let path = `/fapi/v1/klines?symbol=${asterSymbol}&interval=${interval}`;
+    if (params?.limit) path += `&limit=${params.limit}`;
+    if (params?.since) path += `&startTime=${params.since}`;
+    if (params?.until) path += `&endTime=${params.until}`;
+    const response = await this.publicGet(path, "fetchOHLCV");
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid klines response", "INVALID_RESPONSE", "aster");
+    }
+    return response.map((k) => this.normalizer.normalizeOHLCV(k));
+  }
+  // === Private Trading ===
+  async createOrder(request) {
+    const asterSymbol = toAsterSymbol(request.symbol);
+    const orderParams = buildOrderParams(request, asterSymbol, this.referralCode);
+    const response = await this.signedRequest(
+      "POST",
+      "/fapi/v1/order",
+      "createOrder",
+      orderParams
+    );
+    return this.normalizer.normalizeOrder(response, request.symbol);
+  }
+  async cancelOrder(orderId, symbol) {
+    if (!symbol) {
+      throw new PerpDEXError("Symbol required to cancel order", "MISSING_PARAM", "aster");
+    }
+    const asterSymbol = toAsterSymbol(symbol);
+    const response = await this.signedRequest(
+      "DELETE",
+      "/fapi/v1/order",
+      "cancelOrder",
+      { symbol: asterSymbol, orderId: parseInt(orderId, 10) }
+    );
+    return this.normalizer.normalizeOrder(response, symbol);
+  }
+  async cancelAllOrders(symbol) {
+    if (!symbol) {
+      throw new PerpDEXError("Symbol required to cancel all orders", "MISSING_PARAM", "aster");
+    }
+    const asterSymbol = toAsterSymbol(symbol);
+    await this.signedRequest(
+      "DELETE",
+      "/fapi/v1/allOpenOrders",
+      "cancelAllOrders",
+      { symbol: asterSymbol }
+    );
+    return [];
+  }
+  // === Private Account ===
+  async fetchPositions(_symbols) {
+    const response = await this.signedRequest(
+      "GET",
+      "/fapi/v1/positionRisk",
+      "fetchPositions"
+    );
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid positions response", "INVALID_RESPONSE", "aster");
+    }
+    return response.filter((p) => parseFloat(p.positionAmt) !== 0).map((p) => this.normalizer.normalizePosition(p));
+  }
+  async fetchBalance() {
+    const response = await this.signedRequest(
+      "GET",
+      "/fapi/v2/balance",
+      "fetchBalance"
+    );
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid balance response", "INVALID_RESPONSE", "aster");
+    }
+    return response.filter((b) => parseFloat(b.balance) > 0).map((b) => this.normalizer.normalizeBalance(b));
+  }
+  async setLeverage(symbol, leverage) {
+    const asterSymbol = toAsterSymbol(symbol);
+    await this.signedRequest("POST", "/fapi/v1/leverage", "setLeverage", { symbol: asterSymbol, leverage });
+  }
+  // === Account History (required abstract methods) ===
+  async fetchOrderHistory(_symbol, _since, _limit) {
+    throw new PerpDEXError("fetchOrderHistory not yet implemented", "NOT_IMPLEMENTED", "aster");
+  }
+  async fetchMyTrades(_symbol, _since, _limit) {
+    throw new PerpDEXError("fetchMyTrades not yet implemented", "NOT_IMPLEMENTED", "aster");
+  }
+};
+
+// src/adapters/pacifica/constants.ts
+var PACIFICA_API_URLS = {
+  mainnet: {
+    rest: "https://api.pacifica.fi/api/v1",
+    websocket: "wss://ws.pacifica.fi/ws"
+  },
+  testnet: {
+    rest: "https://testnet-api.pacifica.fi/api/v1",
+    websocket: "wss://testnet-ws.pacifica.fi/ws"
+  }
+};
+var PACIFICA_RATE_LIMITS = {
+  rest: {
+    maxRequests: 600,
+    windowMs: 6e4
+  },
+  order: {
+    maxRequests: 100,
+    windowMs: 1e4
+  }
+};
+var PACIFICA_ENDPOINT_WEIGHTS = {
+  fetchMarkets: 5,
+  fetchTicker: 1,
+  fetchOrderBook: 2,
+  fetchTrades: 2,
+  fetchFundingRate: 1,
+  createOrder: 3,
+  cancelOrder: 2,
+  fetchPositions: 3,
+  fetchBalance: 3,
+  registerBuilderCode: 5,
+  setLeverage: 2
+};
+var PACIFICA_ORDER_STATUS = {
+  open: "open",
+  filled: "filled",
+  partially_filled: "partiallyFilled",
+  cancelled: "canceled",
+  rejected: "rejected"
+};
+var PACIFICA_AUTH_WINDOW = 5e3;
+
+// src/adapters/pacifica/PacificaAuth.ts
+init_ed25519();
+var PacificaAuth = class {
+  apiKey;
+  apiSecret;
+  constructor(config) {
+    this.apiKey = config.apiKey;
+    this.apiSecret = config.apiSecret;
+  }
+  async sign(request) {
+    const timestamp = String(request.timestamp ?? Date.now());
+    const window2 = String(PACIFICA_AUTH_WINDOW);
+    const bodyStr = request.body ? JSON.stringify(request.body) : "";
+    const message = `${request.method}${request.path}${timestamp}${window2}${bodyStr}`;
+    const signature = await this.signMessage(message);
+    return {
+      ...request,
+      headers: {
+        "X-API-KEY": this.apiKey,
+        "X-Timestamp": timestamp,
+        "X-Window": window2,
+        "X-Signature": signature,
+        "Content-Type": "application/json"
+      }
+    };
+  }
+  async signMessage(message) {
+    try {
+      const messageBytes = new TextEncoder().encode(message);
+      const privateKey = toBuffer(this.apiSecret, "hex");
+      const signature = await signAsync(messageBytes, privateKey);
+      return fromBuffer(new Uint8Array(signature), "base64");
+    } catch (error) {
+      throw new PerpDEXError(
+        `Failed to sign request: ${error instanceof Error ? error.message : String(error)}`,
+        "SIGNATURE_ERROR",
+        "pacifica"
+      );
+    }
+  }
+  getHeaders() {
+    return {
+      "X-API-KEY": this.apiKey,
+      "Content-Type": "application/json"
+    };
+  }
+  hasCredentials() {
+    return !!(this.apiKey && this.apiSecret);
+  }
+};
+
+// src/adapters/pacifica/utils.ts
+function toPacificaSymbol(unified) {
+  const parts = unified.split(/[/:]/);
+  return `${parts[0]}-PERP`;
+}
+function toUnifiedSymbol2(pacificaSymbol) {
+  const base = pacificaSymbol.replace("-PERP", "");
+  return `${base}/USDC:USDC`;
+}
+function buildOrderBody(request, pacificaSymbol, builderCode) {
+  const body = {
+    symbol: pacificaSymbol,
+    side: request.side,
+    type: request.type,
+    size: String(request.amount)
+  };
+  if (request.price !== void 0) {
+    body.price = String(request.price);
+  }
+  if (request.reduceOnly) {
+    body.reduce_only = true;
+  }
+  if (request.postOnly) {
+    body.post_only = true;
+  }
+  if (request.clientOrderId) {
+    body.client_order_id = request.clientOrderId;
+  }
+  if (request.timeInForce) {
+    body.time_in_force = request.timeInForce;
+  }
+  const code = request.builderCode ?? builderCode;
+  if (code) {
+    body.builder_code = code;
+  }
+  return body;
+}
+
+// src/adapters/pacifica/PacificaNormalizer.ts
+var PacificaNormalizer = class {
+  normalizeMarket(raw) {
+    const symbol = toUnifiedSymbol2(raw.symbol);
+    return {
+      id: raw.symbol,
+      symbol,
+      base: raw.base_currency,
+      quote: raw.quote_currency,
+      settle: raw.quote_currency,
+      active: raw.status === "active",
+      minAmount: parseFloat(raw.min_size),
+      pricePrecision: this.countDecimals(raw.price_step),
+      amountPrecision: this.countDecimals(raw.size_step),
+      priceTickSize: parseFloat(raw.price_step),
+      amountStepSize: parseFloat(raw.size_step),
+      makerFee: parseFloat(raw.maker_fee),
+      takerFee: parseFloat(raw.taker_fee),
+      maxLeverage: raw.max_leverage,
+      fundingIntervalHours: raw.funding_interval / 3600,
+      info: raw
+    };
+  }
+  normalizeTicker(raw, symbol) {
+    const last = parseFloat(raw.last_price);
+    const high = parseFloat(raw.high_24h);
+    const low = parseFloat(raw.low_24h);
+    return {
+      symbol: symbol ?? toUnifiedSymbol2(raw.symbol),
+      last,
+      bid: parseFloat(raw.bid_price),
+      ask: parseFloat(raw.ask_price),
+      high,
+      low,
+      open: last,
+      close: last,
+      change: 0,
+      percentage: 0,
+      baseVolume: parseFloat(raw.volume_24h),
+      quoteVolume: parseFloat(raw.quote_volume_24h),
+      timestamp: raw.timestamp,
+      info: raw
+    };
+  }
+  normalizeOrderBook(raw, symbol) {
+    return {
+      symbol,
+      timestamp: raw.timestamp,
+      bids: raw.bids.map((b) => [parseFloat(b.price), parseFloat(b.size)]),
+      asks: raw.asks.map((a) => [parseFloat(a.price), parseFloat(a.size)]),
+      sequenceId: raw.sequence,
+      exchange: "pacifica"
+    };
+  }
+  normalizeTrade(raw, symbol) {
+    const price = parseFloat(raw.price);
+    const amount = parseFloat(raw.size);
+    return {
+      id: raw.id,
+      symbol: symbol ?? toUnifiedSymbol2(raw.symbol),
+      side: raw.side,
+      price,
+      amount,
+      cost: price * amount,
+      timestamp: raw.timestamp,
+      info: raw
+    };
+  }
+  normalizeFundingRate(raw, symbol) {
+    return {
+      symbol,
+      fundingRate: parseFloat(raw.funding_rate),
+      fundingTimestamp: raw.timestamp,
+      nextFundingTimestamp: raw.timestamp + 36e5,
+      markPrice: parseFloat(raw.mark_price),
+      indexPrice: parseFloat(raw.index_price),
+      fundingIntervalHours: 1,
+      info: raw
+    };
+  }
+  normalizeOrder(raw, symbol) {
+    const filled = parseFloat(raw.filled_size);
+    const amount = parseFloat(raw.size);
+    return {
+      id: raw.order_id,
+      symbol: symbol ?? toUnifiedSymbol2(raw.symbol),
+      type: raw.type === "market" ? "market" : "limit",
+      side: raw.side,
+      amount,
+      price: raw.price ? parseFloat(raw.price) : void 0,
+      status: PACIFICA_ORDER_STATUS[raw.status] ?? "open",
+      filled,
+      remaining: amount - filled,
+      averagePrice: raw.avg_fill_price ? parseFloat(raw.avg_fill_price) : void 0,
+      reduceOnly: raw.reduce_only,
+      postOnly: raw.post_only,
+      clientOrderId: raw.client_order_id,
+      timestamp: raw.created_at,
+      lastUpdateTimestamp: raw.updated_at,
+      info: raw
+    };
+  }
+  normalizePosition(raw, symbol) {
+    return {
+      symbol: symbol ?? toUnifiedSymbol2(raw.symbol),
+      side: raw.side,
+      size: parseFloat(raw.size),
+      entryPrice: parseFloat(raw.entry_price),
+      markPrice: parseFloat(raw.mark_price),
+      liquidationPrice: parseFloat(raw.liquidation_price),
+      unrealizedPnl: parseFloat(raw.unrealized_pnl),
+      realizedPnl: parseFloat(raw.realized_pnl),
+      leverage: raw.leverage,
+      marginMode: raw.margin_mode,
+      margin: parseFloat(raw.margin),
+      maintenanceMargin: parseFloat(raw.maintenance_margin),
+      marginRatio: 0,
+      timestamp: raw.timestamp,
+      info: raw
+    };
+  }
+  normalizeBalance(raw) {
+    const total = parseFloat(raw.total_equity);
+    const free = parseFloat(raw.available_balance);
+    return {
+      currency: raw.currency,
+      total,
+      free,
+      used: total - free,
+      info: raw
+    };
+  }
+  countDecimals(value) {
+    if (!value || !value.includes(".")) return 0;
+    const decimals = value.split(".")[1];
+    if (!decimals) return 0;
+    return decimals.replace(/0+$/, "").length || 0;
+  }
+};
+
+// src/adapters/pacifica/error-codes.ts
+function mapPacificaError(code, message) {
+  switch (code) {
+    case "RATE_LIMIT_EXCEEDED":
+      return new RateLimitError(message, code, "pacifica");
+    case "INVALID_SIGNATURE":
+    case "EXPIRED_TIMESTAMP":
+    case "INVALID_API_KEY":
+      return new InvalidSignatureError(message, code, "pacifica");
+    case "ORDER_NOT_FOUND":
+      return new OrderNotFoundError(message, code, "pacifica");
+    case "INSUFFICIENT_MARGIN":
+    case "INSUFFICIENT_BALANCE":
+      return new InsufficientMarginError(message, code, "pacifica");
+    case "INVALID_ORDER":
+    case "INVALID_PRICE":
+    case "INVALID_SIZE":
+    case "REDUCE_ONLY_REJECTED":
+    case "POST_ONLY_REJECTED":
+    case "MAX_LEVERAGE_EXCEEDED":
+    case "BUILDER_CODE_INVALID":
+      return new InvalidOrderError(message, code, "pacifica");
+    case "SERVICE_UNAVAILABLE":
+    case "INTERNAL_ERROR":
+      return new ExchangeUnavailableError(message, code, "pacifica");
+    default:
+      return new PerpDEXError(message, code, "pacifica");
+  }
+}
+
+// src/adapters/pacifica/PacificaAdapter.ts
+var PacificaAdapter = class extends BaseAdapter {
+  id = "pacifica";
+  name = "Pacifica";
+  has = {
+    fetchMarkets: true,
+    fetchTicker: true,
+    fetchOrderBook: true,
+    fetchTrades: true,
+    fetchFundingRate: true,
+    createOrder: true,
+    cancelOrder: true,
+    fetchPositions: true,
+    fetchBalance: true,
+    setLeverage: true
+  };
+  auth;
+  baseUrl;
+  httpClient;
+  rateLimiter;
+  normalizer;
+  builderCode;
+  maxBuilderFeeRate;
+  constructor(config = {}) {
+    super(config);
+    const urls = config.testnet ? PACIFICA_API_URLS.testnet : PACIFICA_API_URLS.mainnet;
+    this.baseUrl = config.apiUrl ?? urls.rest;
+    this.builderCode = config.builderCode;
+    this.maxBuilderFeeRate = config.maxBuilderFeeRate ?? 500;
+    if (config.apiKey && config.apiSecret) {
+      this.auth = new PacificaAuth({
+        apiKey: config.apiKey,
+        apiSecret: config.apiSecret
+      });
+    }
+    this.normalizer = new PacificaNormalizer();
+    this.rateLimiter = new RateLimiter({
+      maxTokens: config.rateLimit?.maxRequests ?? PACIFICA_RATE_LIMITS.rest.maxRequests,
+      windowMs: config.rateLimit?.windowMs ?? PACIFICA_RATE_LIMITS.rest.windowMs,
+      refillRate: (config.rateLimit?.maxRequests ?? PACIFICA_RATE_LIMITS.rest.maxRequests) / 60,
+      weights: PACIFICA_ENDPOINT_WEIGHTS
+    });
+    this.httpClient = new HTTPClient({
+      baseUrl: this.baseUrl,
+      timeout: config.timeout ?? 3e4,
+      retry: { maxAttempts: 3, initialDelay: 1e3, maxDelay: 1e4, multiplier: 2 },
+      circuitBreaker: { enabled: true, failureThreshold: 5, resetTimeout: 6e4 },
+      exchange: this.id
+    });
+  }
+  async initialize() {
+    if (this.auth?.hasCredentials() && this.builderCode) {
+      await this.registerBuilderCode(this.builderCode, this.maxBuilderFeeRate);
+    }
+    this._isReady = true;
+  }
+  requireAuth() {
+    if (!this.auth?.hasCredentials()) {
+      throw new PerpDEXError("API key and secret required", "MISSING_CREDENTIALS", "pacifica");
+    }
+  }
+  async publicGet(path, feature) {
+    await this.rateLimiter.acquire(feature);
+    try {
+      return await this.httpClient.get(path);
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+  async signedRequest(method, path, feature, body) {
+    this.requireAuth();
+    await this.rateLimiter.acquire(feature);
+    try {
+      const signed = await this.auth.sign({
+        method,
+        path,
+        body
+      });
+      const headers = signed.headers ?? {};
+      if (method === "GET") {
+        return await this.httpClient.get(path, { headers });
+      } else {
+        return await this.httpClient.post(path, { headers, body });
+      }
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+  handleError(error) {
+    if (error instanceof PerpDEXError) return error;
+    if (error instanceof Error) {
+      const codeMatch = error.message.match(/"code"\s*:\s*"([^"]+)"/);
+      if (codeMatch?.[1]) {
+        return mapPacificaError(codeMatch[1], error.message);
+      }
+    }
+    return new PerpDEXError(
+      error instanceof Error ? error.message : "Unknown error",
+      "UNKNOWN",
+      "pacifica"
+    );
+  }
+  async registerBuilderCode(code, maxFeeRate) {
+    await this.signedRequest(
+      "POST",
+      "/account/builder_codes/approve",
+      "registerBuilderCode",
+      {
+        type: "approve_builder_code",
+        builder_code: code,
+        max_fee_rate: maxFeeRate
+      }
+    );
+  }
+  // === Public Market Data ===
+  async fetchMarkets(_params) {
+    const response = await this.publicGet("/markets", "fetchMarkets");
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid markets response", "INVALID_RESPONSE", "pacifica");
+    }
+    return response.filter((m) => m.status === "active").map((m) => this.normalizer.normalizeMarket(m));
+  }
+  async fetchTicker(symbol) {
+    const pacificaSymbol = toPacificaSymbol(symbol);
+    const response = await this.publicGet(
+      `/prices?symbol=${pacificaSymbol}`,
+      "fetchTicker"
+    );
+    return this.normalizer.normalizeTicker(response, symbol);
+  }
+  async fetchOrderBook(symbol, params) {
+    const pacificaSymbol = toPacificaSymbol(symbol);
+    const limit = params?.limit ?? 20;
+    const response = await this.publicGet(
+      `/book?symbol=${pacificaSymbol}&limit=${limit}`,
+      "fetchOrderBook"
+    );
+    return this.normalizer.normalizeOrderBook(response, symbol);
+  }
+  async fetchTrades(symbol, params) {
+    const pacificaSymbol = toPacificaSymbol(symbol);
+    const limit = params?.limit ?? 100;
+    const response = await this.publicGet(
+      `/trades?symbol=${pacificaSymbol}&limit=${limit}`,
+      "fetchTrades"
+    );
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid trades response", "INVALID_RESPONSE", "pacifica");
+    }
+    return response.map((t) => this.normalizer.normalizeTrade(t, symbol));
+  }
+  async fetchFundingRate(symbol) {
+    const pacificaSymbol = toPacificaSymbol(symbol);
+    const response = await this.publicGet(
+      `/funding/historical?symbol=${pacificaSymbol}&limit=1`,
+      "fetchFundingRate"
+    );
+    if (!Array.isArray(response) || response.length === 0) {
+      throw new PerpDEXError("No funding rate data", "INVALID_RESPONSE", "pacifica");
+    }
+    return this.normalizer.normalizeFundingRate(response[0], symbol);
+  }
+  // === Private Trading ===
+  async createOrder(request) {
+    const pacificaSymbol = toPacificaSymbol(request.symbol);
+    const body = buildOrderBody(request, pacificaSymbol, this.builderCode);
+    const response = await this.signedRequest(
+      "POST",
+      "/orders/create",
+      "createOrder",
+      body
+    );
+    return this.normalizer.normalizeOrder(response, request.symbol);
+  }
+  async cancelOrder(orderId, _symbol) {
+    const response = await this.signedRequest(
+      "POST",
+      "/orders/cancel",
+      "cancelOrder",
+      { order_id: orderId }
+    );
+    return this.normalizer.normalizeOrder(response);
+  }
+  // === Private Account ===
+  async fetchPositions(_symbols) {
+    const response = await this.signedRequest(
+      "GET",
+      "/positions",
+      "fetchPositions"
+    );
+    if (!Array.isArray(response)) {
+      throw new PerpDEXError("Invalid positions response", "INVALID_RESPONSE", "pacifica");
+    }
+    return response.filter((p) => parseFloat(p.size) > 0).map((p) => this.normalizer.normalizePosition(p));
+  }
+  async fetchBalance() {
+    const response = await this.signedRequest(
+      "GET",
+      "/account",
+      "fetchBalance"
+    );
+    return [this.normalizer.normalizeBalance(response)];
+  }
+  async setLeverage(symbol, leverage) {
+    const pacificaSymbol = toPacificaSymbol(symbol);
+    await this.signedRequest("POST", "/account/leverage", "setLeverage", {
+      symbol: pacificaSymbol,
+      leverage
+    });
+  }
+  // === Abstract method stubs (not supported by Pacifica) ===
+  async fetchFundingRateHistory(_symbol, _since, _limit) {
+    return [];
+  }
+  async cancelAllOrders(_symbol) {
+    return [];
+  }
+  async fetchOrderHistory(_symbol, _since, _limit) {
+    return [];
+  }
+  async fetchMyTrades(_symbol, _since, _limit) {
+    return [];
+  }
+  symbolToExchange(symbol) {
+    return toPacificaSymbol(symbol);
+  }
+  symbolFromExchange(exchangeSymbol) {
+    return toUnifiedSymbol2(exchangeSymbol);
+  }
+};
+
+// src/adapters/ostium/constants.ts
+var OSTIUM_METADATA_URL = "https://metadata-backend.ostium.io";
+var OSTIUM_SUBGRAPH_URL = "https://api.thegraph.com/subgraphs/name/ostium-labs/ostium-arbitrum";
+var OSTIUM_RPC_URLS = {
+  mainnet: "https://arb1.arbitrum.io/rpc",
+  testnet: "https://sepolia-rollup.arbitrum.io/rpc"
+};
+var OSTIUM_CONTRACTS = {
+  trading: "0x4f5f2B6a97F0c536E2BF58c3E7e060F81FbA2B06",
+  storage: "0x7E8B4C3c95B4b93D5C0D0F14C1b36a5C7E5C9D5",
+  pairInfo: "0x3D9B5C7E8F0A4D6E9C3B2A1F8D7E6C5B4A3F21e",
+  nftRewards: "0x1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0b",
+  vault: "0x8F9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7a",
+  collateral: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+};
+var OSTIUM_RATE_LIMITS = {
+  metadata: {
+    maxRequests: 300,
+    windowMs: 6e4
+  },
+  subgraph: {
+    maxRequests: 100,
+    windowMs: 6e4
+  }
+};
+var OSTIUM_ENDPOINT_WEIGHTS = {
+  fetchMarkets: 5,
+  fetchTicker: 1,
+  fetchTrades: 3,
+  fetchFundingRate: 2,
+  createOrder: 10,
+  cancelOrder: 10,
+  fetchPositions: 3,
+  fetchBalance: 2,
+  setLeverage: 1
+};
+var OSTIUM_PAIRS = [
+  {
+    pairIndex: 0,
+    name: "BTC/USD",
+    from: "BTC",
+    to: "USD",
+    groupIndex: 0,
+    groupName: "Crypto",
+    spreadP: "0.05",
+    maxLeverage: 150,
+    minLeverage: 2,
+    maxPositionSize: "1000000",
+    minPositionSize: "100",
+    feedId: ""
+  },
+  {
+    pairIndex: 1,
+    name: "ETH/USD",
+    from: "ETH",
+    to: "USD",
+    groupIndex: 0,
+    groupName: "Crypto",
+    spreadP: "0.05",
+    maxLeverage: 100,
+    minLeverage: 2,
+    maxPositionSize: "500000",
+    minPositionSize: "100",
+    feedId: ""
+  },
+  {
+    pairIndex: 2,
+    name: "AAPL/USD",
+    from: "AAPL",
+    to: "USD",
+    groupIndex: 2,
+    groupName: "Stocks",
+    spreadP: "0.1",
+    maxLeverage: 50,
+    minLeverage: 2,
+    maxPositionSize: "200000",
+    minPositionSize: "50",
+    feedId: ""
+  },
+  {
+    pairIndex: 3,
+    name: "TSLA/USD",
+    from: "TSLA",
+    to: "USD",
+    groupIndex: 2,
+    groupName: "Stocks",
+    spreadP: "0.1",
+    maxLeverage: 50,
+    minLeverage: 2,
+    maxPositionSize: "200000",
+    minPositionSize: "50",
+    feedId: ""
+  },
+  {
+    pairIndex: 4,
+    name: "NVDA/USD",
+    from: "NVDA",
+    to: "USD",
+    groupIndex: 2,
+    groupName: "Stocks",
+    spreadP: "0.1",
+    maxLeverage: 50,
+    minLeverage: 2,
+    maxPositionSize: "200000",
+    minPositionSize: "50",
+    feedId: ""
+  },
+  {
+    pairIndex: 5,
+    name: "EUR/USD",
+    from: "EUR",
+    to: "USD",
+    groupIndex: 1,
+    groupName: "Forex",
+    spreadP: "0.01",
+    maxLeverage: 250,
+    minLeverage: 2,
+    maxPositionSize: "1000000",
+    minPositionSize: "100",
+    feedId: ""
+  },
+  {
+    pairIndex: 6,
+    name: "GBP/USD",
+    from: "GBP",
+    to: "USD",
+    groupIndex: 1,
+    groupName: "Forex",
+    spreadP: "0.01",
+    maxLeverage: 250,
+    minLeverage: 2,
+    maxPositionSize: "1000000",
+    minPositionSize: "100",
+    feedId: ""
+  },
+  {
+    pairIndex: 7,
+    name: "XAU/USD",
+    from: "XAU",
+    to: "USD",
+    groupIndex: 3,
+    groupName: "Commodities",
+    spreadP: "0.05",
+    maxLeverage: 100,
+    minLeverage: 2,
+    maxPositionSize: "500000",
+    minPositionSize: "50",
+    feedId: ""
+  },
+  {
+    pairIndex: 8,
+    name: "CL/USD",
+    from: "CL",
+    to: "USD",
+    groupIndex: 3,
+    groupName: "Commodities",
+    spreadP: "0.05",
+    maxLeverage: 100,
+    minLeverage: 2,
+    maxPositionSize: "500000",
+    minPositionSize: "50",
+    feedId: ""
+  },
+  {
+    pairIndex: 9,
+    name: "SPX/USD",
+    from: "SPX",
+    to: "USD",
+    groupIndex: 4,
+    groupName: "Indices",
+    spreadP: "0.02",
+    maxLeverage: 100,
+    minLeverage: 2,
+    maxPositionSize: "500000",
+    minPositionSize: "50",
+    feedId: ""
+  },
+  {
+    pairIndex: 10,
+    name: "NDX/USD",
+    from: "NDX",
+    to: "USD",
+    groupIndex: 4,
+    groupName: "Indices",
+    spreadP: "0.02",
+    maxLeverage: 100,
+    minLeverage: 2,
+    maxPositionSize: "500000",
+    minPositionSize: "50",
+    feedId: ""
+  }
+];
+var OSTIUM_TRADING_ABI = [
+  "function openTrade(tuple(address trader, uint256 pairIndex, uint256 index, uint256 positionSizeDai, uint256 openPrice, bool buy, uint256 leverage, uint256 tp, uint256 sl) t, uint8 orderType, uint256 slippageP, address referral) external",
+  "function closeTradeMarket(uint256 pairIndex, uint256 index) external",
+  "function cancelOpenLimitOrder(uint256 pairIndex, uint256 index) external",
+  "function updateTp(uint256 pairIndex, uint256 index, uint256 newTp) external",
+  "function updateSl(uint256 pairIndex, uint256 index, uint256 newSl) external"
+];
+var OSTIUM_STORAGE_ABI = [
+  "function openTrades(address trader, uint256 pairIndex, uint256 index) view returns (tuple(address trader, uint256 pairIndex, uint256 index, uint256 positionSizeDai, uint256 openPrice, bool buy, uint256 leverage, uint256 tp, uint256 sl))",
+  "function openTradesCount(address trader, uint256 pairIndex) view returns (uint256)",
+  "function getOpenLimitOrders(address trader) view returns (tuple(address trader, uint256 pairIndex, uint256 index, uint256 positionSize, bool buy, uint256 leverage, uint256 tp, uint256 sl, uint256 minPrice, uint256 maxPrice, uint256 block, uint256 tokenId)[])"
+];
+var OSTIUM_COLLATERAL_ABI = [
+  "function balanceOf(address account) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function decimals() view returns (uint8)"
+];
+var OSTIUM_COLLATERAL_DECIMALS = 6;
+var OSTIUM_PRICE_DECIMALS = 10;
+
+// src/adapters/ostium/OstiumAuth.ts
+var OstiumAuth = class {
+  privateKey;
+  rpcUrl;
+  constructor(config) {
+    this.privateKey = config.privateKey;
+    this.rpcUrl = config.rpcUrl;
+  }
+  getPrivateKey() {
+    return this.privateKey;
+  }
+  getRpcUrl() {
+    return this.rpcUrl;
+  }
+  async sign(request) {
+    return { ...request };
+  }
+  getHeaders() {
+    return { "Content-Type": "application/json" };
+  }
+  hasCredentials() {
+    return !!(this.privateKey && this.rpcUrl);
+  }
+  getAddress() {
+    const { Wallet: Wallet4 } = require("ethers");
+    const wallet = new Wallet4(this.privateKey);
+    return wallet.address;
+  }
+};
+
+// src/adapters/ostium/OstiumContracts.ts
+var OstiumContracts = class {
+  addresses;
+  rpcUrl;
+  privateKey;
+  constructor(rpcUrl, privateKey, addresses) {
+    this.rpcUrl = rpcUrl;
+    this.privateKey = privateKey;
+    this.addresses = addresses ?? OSTIUM_CONTRACTS;
+  }
+  async getProvider() {
+    const { JsonRpcProvider } = await import("ethers");
+    return new JsonRpcProvider(this.rpcUrl);
+  }
+  async getSigner() {
+    const { Wallet: Wallet4 } = await import("ethers");
+    const provider = await this.getProvider();
+    return new Wallet4(this.privateKey, provider);
+  }
+  async getTradingContract() {
+    const { Contract } = await import("ethers");
+    const signer = await this.getSigner();
+    return new Contract(this.addresses.trading, OSTIUM_TRADING_ABI, signer);
+  }
+  async getStorageContract() {
+    const { Contract } = await import("ethers");
+    const provider = await this.getProvider();
+    return new Contract(this.addresses.storage, OSTIUM_STORAGE_ABI, provider);
+  }
+  async openTrade(params) {
+    const trading = await this.getTradingContract();
+    const trade = {
+      trader: (await this.getSigner()).address,
+      pairIndex: params.pairIndex,
+      index: 0,
+      positionSizeDai: params.positionSizeDai,
+      openPrice: params.openPrice,
+      buy: params.buy,
+      leverage: params.leverage,
+      tp: params.tp,
+      sl: params.sl
+    };
+    const tx = await trading.openTrade(trade, 0, "10000000000", params.referral);
+    return { hash: tx.hash };
+  }
+  async closeTrade(pairIndex, index) {
+    const trading = await this.getTradingContract();
+    const tx = await trading.closeTradeMarket(pairIndex, index);
+    return { hash: tx.hash };
+  }
+  async cancelOrder(pairIndex, index) {
+    const trading = await this.getTradingContract();
+    const tx = await trading.cancelOpenLimitOrder(pairIndex, index);
+    return { hash: tx.hash };
+  }
+  async getOpenTrade(trader, pairIndex, index) {
+    const storage = await this.getStorageContract();
+    const raw = await storage.openTrades(trader, pairIndex, index);
+    return {
+      trader: raw.trader,
+      pairIndex: Number(raw.pairIndex),
+      index: Number(raw.index),
+      positionSizeDai: String(raw.positionSizeDai),
+      openPrice: String(raw.openPrice),
+      buy: raw.buy,
+      leverage: Number(raw.leverage),
+      tp: String(raw.tp),
+      sl: String(raw.sl),
+      timestamp: Date.now()
+    };
+  }
+  async getOpenTradeCount(trader, pairIndex) {
+    const storage = await this.getStorageContract();
+    const count = await storage.openTradesCount(trader, pairIndex);
+    return Number(count);
+  }
+  async getCollateralBalance(address) {
+    const { Contract } = await import("ethers");
+    const provider = await this.getProvider();
+    const collateral = new Contract(this.addresses.collateral, OSTIUM_COLLATERAL_ABI, provider);
+    const balance = await collateral.balanceOf(address);
+    return String(balance);
+  }
+  getTraderAddress() {
+    const { Wallet: Wallet4 } = require("ethers");
+    return new Wallet4(this.privateKey).address;
+  }
+};
+
+// src/adapters/ostium/OstiumSubgraph.ts
+var OstiumSubgraph = class {
+  url;
+  constructor(url) {
+    this.url = url ?? OSTIUM_SUBGRAPH_URL;
+  }
+  async query(graphqlQuery, variables) {
+    const response = await fetch(this.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: graphqlQuery, variables })
+    });
+    if (!response.ok) {
+      throw new Error(`Subgraph query failed: ${response.status}`);
+    }
+    const json = await response.json();
+    if (json.errors?.length) {
+      throw new Error(`Subgraph error: ${json.errors[0]?.message ?? "Unknown error"}`);
+    }
+    return json.data;
+  }
+  async fetchTrades(pairIndex, limit = 100) {
+    const where = pairIndex !== void 0 ? `where: { pairIndex: "${pairIndex}" }` : "";
+    const result = await this.query(`
+      {
+        trades(first: ${limit}, orderBy: timestamp, orderDirection: desc, ${where}) {
+          id
+          trader
+          pairIndex
+          action
+          price
+          size
+          buy
+          leverage
+          pnl
+          timestamp
+          txHash
+        }
+      }
+    `);
+    return result.trades;
+  }
+  async fetchPositions(trader) {
+    const result = await this.query(`
+      {
+        positions(where: { trader: "${trader.toLowerCase()}" }) {
+          id
+          trader
+          pairIndex
+          index
+          positionSizeDai
+          openPrice
+          buy
+          leverage
+          tp
+          sl
+          timestamp
+        }
+      }
+    `);
+    return result.positions;
+  }
+};
+
+// src/adapters/ostium/utils.ts
+function toOstiumPairIndex(unified) {
+  const parts = unified.split(/[/:]/);
+  const name = `${parts[0]}/${parts[1]}`;
+  const pair = OSTIUM_PAIRS.find((p) => p.name === name);
+  if (pair) return pair.pairIndex;
+  throw new Error(`Unknown Ostium pair: ${unified}`);
+}
+function toUnifiedSymbolFromName(name) {
+  const parts = name.split("/");
+  return `${parts[0]}/${parts[1]}:${parts[1]}`;
+}
+function formatCollateral(amount) {
+  return String(Math.round(amount * 10 ** OSTIUM_COLLATERAL_DECIMALS));
+}
+function parseCollateral(raw) {
+  return parseInt(raw, 10) / 10 ** OSTIUM_COLLATERAL_DECIMALS;
+}
+function formatPrice3(price) {
+  return String(Math.round(price * 10 ** OSTIUM_PRICE_DECIMALS));
+}
+function parsePrice(raw) {
+  return parseInt(raw, 10) / 10 ** OSTIUM_PRICE_DECIMALS;
+}
+
+// src/adapters/ostium/OstiumNormalizer.ts
+var OstiumNormalizer = class {
+  normalizeMarket(pair) {
+    return {
+      id: String(pair.pairIndex),
+      symbol: toUnifiedSymbolFromName(pair.name),
+      base: pair.from,
+      quote: pair.to,
+      settle: "USDC",
+      active: true,
+      minAmount: parseFloat(pair.minPositionSize),
+      maxAmount: parseFloat(pair.maxPositionSize),
+      pricePrecision: 2,
+      amountPrecision: 2,
+      priceTickSize: 0.01,
+      amountStepSize: 0.01,
+      makerFee: 0,
+      takerFee: parseFloat(pair.spreadP) / 100,
+      maxLeverage: pair.maxLeverage,
+      fundingIntervalHours: 1,
+      info: pair
+    };
+  }
+  normalizeTicker(raw, pair) {
+    const price = parseFloat(raw.price);
+    return {
+      symbol: toUnifiedSymbolFromName(pair.name),
+      last: price,
+      bid: price,
+      ask: price,
+      high: price,
+      low: price,
+      open: price,
+      close: price,
+      change: 0,
+      percentage: 0,
+      baseVolume: 0,
+      quoteVolume: 0,
+      timestamp: raw.timestamp,
+      info: raw
+    };
+  }
+  normalizeTrade(raw) {
+    const price = parseFloat(raw.price);
+    const amount = parseFloat(raw.size);
+    return {
+      id: raw.id,
+      symbol: `PAIR-${raw.pairIndex}/USD:USD`,
+      side: raw.buy ? "buy" : "sell",
+      price,
+      amount,
+      cost: price * amount,
+      timestamp: parseInt(raw.timestamp, 10) * 1e3,
+      info: raw
+    };
+  }
+  normalizePosition(raw, currentPrice) {
+    const size = parseCollateral(raw.positionSizeDai);
+    const entryPrice = parsePrice(raw.openPrice);
+    const leverage = parseInt(raw.leverage, 10);
+    const markPrice = currentPrice ?? entryPrice;
+    const notional = size * leverage;
+    const pnlMultiplier = raw.buy ? 1 : -1;
+    const unrealizedPnl = notional * pnlMultiplier * ((markPrice - entryPrice) / entryPrice);
+    return {
+      symbol: `PAIR-${raw.pairIndex}/USD:USD`,
+      side: raw.buy ? "long" : "short",
+      size,
+      entryPrice,
+      markPrice,
+      liquidationPrice: 0,
+      unrealizedPnl,
+      realizedPnl: 0,
+      leverage,
+      marginMode: "isolated",
+      margin: size,
+      maintenanceMargin: size * 0.05,
+      marginRatio: 0,
+      timestamp: parseInt(raw.timestamp, 10) * 1e3,
+      info: raw
+    };
+  }
+  normalizeBalance(rawBalance, currency = "USDC") {
+    const total = parseCollateral(rawBalance);
+    return {
+      currency,
+      total,
+      free: total,
+      used: 0,
+      info: { rawBalance }
+    };
+  }
+  normalizeOrderFromTrade(raw) {
+    return {
+      id: `${raw.pairIndex}-${raw.index}`,
+      symbol: `PAIR-${raw.pairIndex}/USD:USD`,
+      type: "market",
+      side: raw.buy ? "buy" : "sell",
+      amount: parseCollateral(raw.positionSizeDai),
+      price: parsePrice(raw.openPrice),
+      status: "filled",
+      filled: parseCollateral(raw.positionSizeDai),
+      remaining: 0,
+      reduceOnly: false,
+      postOnly: false,
+      timestamp: raw.timestamp,
+      info: raw
+    };
+  }
+};
+
+// src/adapters/ostium/error-codes.ts
+function mapOstiumError(error) {
+  if (error instanceof PerpDEXError) return error;
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  if (message.includes("insufficient funds") || message.includes("insufficient balance")) {
+    return new InsufficientMarginError(
+      error instanceof Error ? error.message : String(error),
+      "INSUFFICIENT_FUNDS",
+      "ostium"
+    );
+  }
+  if (message.includes("max leverage") || message.includes("min leverage") || message.includes("wrong leverage") || message.includes("max position") || message.includes("min position") || message.includes("slippage")) {
+    return new InvalidOrderError(
+      error instanceof Error ? error.message : String(error),
+      "INVALID_ORDER",
+      "ostium"
+    );
+  }
+  if (message.includes("execution reverted") || message.includes("nonce too low") || message.includes("replacement fee too low")) {
+    return new TransactionFailedError(
+      error instanceof Error ? error.message : String(error),
+      "TX_FAILED",
+      "ostium"
+    );
+  }
+  if (message.includes("paused") || message.includes("market closed")) {
+    return new ExchangeUnavailableError(
+      error instanceof Error ? error.message : String(error),
+      "EXCHANGE_UNAVAILABLE",
+      "ostium"
+    );
+  }
+  return new PerpDEXError(
+    error instanceof Error ? error.message : String(error),
+    "UNKNOWN",
+    "ostium"
+  );
+}
+
+// src/adapters/ostium/OstiumAdapter.ts
+var OstiumAdapter = class extends BaseAdapter {
+  id = "ostium";
+  name = "Ostium";
+  has = {
+    fetchMarkets: true,
+    fetchTicker: true,
+    fetchOrderBook: false,
+    fetchTrades: true,
+    fetchFundingRate: false,
+    createOrder: true,
+    cancelOrder: true,
+    fetchPositions: true,
+    fetchBalance: true,
+    setLeverage: false
+  };
+  metadataUrl;
+  auth;
+  contracts;
+  subgraph;
+  rateLimiter;
+  normalizer;
+  constructor(config = {}) {
+    super(config);
+    this.metadataUrl = config.metadataUrl ?? OSTIUM_METADATA_URL;
+    const rpcUrl = config.rpcUrl ?? OSTIUM_RPC_URLS.mainnet;
+    if (config.privateKey) {
+      this.auth = new OstiumAuth({
+        privateKey: config.privateKey,
+        rpcUrl
+      });
+      this.contracts = new OstiumContracts(rpcUrl, config.privateKey);
+    }
+    this.subgraph = new OstiumSubgraph(config.subgraphUrl);
+    this.normalizer = new OstiumNormalizer();
+    this.rateLimiter = new RateLimiter({
+      maxTokens: config.rateLimit?.maxRequests ?? OSTIUM_RATE_LIMITS.metadata.maxRequests,
+      windowMs: config.rateLimit?.windowMs ?? OSTIUM_RATE_LIMITS.metadata.windowMs,
+      refillRate: (config.rateLimit?.maxRequests ?? OSTIUM_RATE_LIMITS.metadata.maxRequests) / 60,
+      weights: OSTIUM_ENDPOINT_WEIGHTS
+    });
+  }
+  async initialize() {
+    this._isReady = true;
+  }
+  requireAuth() {
+    if (!this.auth?.hasCredentials() || !this.contracts) {
+      throw new PerpDEXError("Private key required for trading", "MISSING_CREDENTIALS", "ostium");
+    }
+  }
+  async fetchMetadata(path, feature) {
+    await this.rateLimiter.acquire(feature);
+    try {
+      const response = await fetch(`${this.metadataUrl}${path}`);
+      if (!response.ok) {
+        throw new Error(`Metadata request failed: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      throw mapOstiumError(error);
+    }
+  }
+  // === Public Market Data ===
+  async fetchMarkets(_params) {
+    return OSTIUM_PAIRS.map((pair) => this.normalizer.normalizeMarket(pair));
+  }
+  async fetchTicker(symbol) {
+    const pairIndex = toOstiumPairIndex(symbol);
+    const pair = OSTIUM_PAIRS.find((p) => p.pairIndex === pairIndex);
+    if (!pair) {
+      throw new PerpDEXError(`Unknown pair: ${symbol}`, "PAIR_NOT_FOUND", "ostium");
+    }
+    const response = await this.fetchMetadata(
+      `/PricePublish/latest-price?pair=${pair.name}`,
+      "fetchTicker"
+    );
+    return this.normalizer.normalizeTicker(response, pair);
+  }
+  async fetchOrderBook(_symbol, _params) {
+    throw new NotSupportedError(
+      "Ostium does not have an order book (on-chain DEX)",
+      "NOT_SUPPORTED",
+      "ostium"
+    );
+  }
+  async fetchTrades(symbol, params) {
+    const pairIndex = toOstiumPairIndex(symbol);
+    const limit = params?.limit ?? 100;
+    try {
+      const trades = await this.subgraph.fetchTrades(pairIndex, limit);
+      return trades.map((t) => this.normalizer.normalizeTrade(t));
+    } catch (error) {
+      throw mapOstiumError(error);
+    }
+  }
+  async fetchFundingRate(_symbol) {
+    throw new NotSupportedError(
+      "Ostium uses rollover fees, not funding rates",
+      "NOT_SUPPORTED",
+      "ostium"
+    );
+  }
+  async fetchFundingRateHistory(_symbol, _since, _limit) {
+    throw new NotSupportedError(
+      "Ostium uses rollover fees, not funding rates",
+      "NOT_SUPPORTED",
+      "ostium"
+    );
+  }
+  // === Private Trading ===
+  async createOrder(request) {
+    this.requireAuth();
+    const pairIndex = toOstiumPairIndex(request.symbol);
+    try {
+      const result = await this.contracts.openTrade({
+        pairIndex,
+        positionSizeDai: formatCollateral(request.amount),
+        openPrice: formatPrice3(request.price ?? 0),
+        buy: request.side === "buy",
+        leverage: request.leverage ?? 10,
+        tp: "0",
+        sl: "0",
+        referral: "0x0000000000000000000000000000000000000000"
+      });
+      return {
+        id: result.hash,
+        symbol: request.symbol,
+        type: request.type,
+        side: request.side,
+        amount: request.amount,
+        price: request.price,
+        status: "open",
+        filled: 0,
+        remaining: request.amount,
+        reduceOnly: request.reduceOnly ?? false,
+        postOnly: false,
+        timestamp: Date.now(),
+        info: { txHash: result.hash }
+      };
+    } catch (error) {
+      throw mapOstiumError(error);
+    }
+  }
+  async cancelOrder(orderId, _symbol) {
+    this.requireAuth();
+    const parts = orderId.split("-");
+    const pairIndexStr = parts[0] ?? "";
+    const indexStr = parts[1] ?? "";
+    const pairIndex = parseInt(pairIndexStr, 10);
+    const index = parseInt(indexStr, 10);
+    if (isNaN(pairIndex) || isNaN(index)) {
+      throw new PerpDEXError(`Invalid order ID format: ${orderId}`, "INVALID_ORDER_ID", "ostium");
+    }
+    try {
+      const result = await this.contracts.cancelOrder(pairIndex, index);
+      return {
+        id: orderId,
+        symbol: `PAIR-${pairIndex}/USD:USD`,
+        type: "limit",
+        side: "buy",
+        amount: 0,
+        status: "canceled",
+        filled: 0,
+        remaining: 0,
+        reduceOnly: false,
+        postOnly: false,
+        timestamp: Date.now(),
+        info: { txHash: result.hash }
+      };
+    } catch (error) {
+      throw mapOstiumError(error);
+    }
+  }
+  async cancelAllOrders(_symbol) {
+    throw new NotSupportedError("Ostium does not support batch cancel", "NOT_SUPPORTED", "ostium");
+  }
+  // === Private Account ===
+  async fetchPositions(_symbols) {
+    this.requireAuth();
+    try {
+      const trader = this.contracts.getTraderAddress();
+      const positions = await this.subgraph.fetchPositions(trader);
+      return positions.map((p) => this.normalizer.normalizePosition(p));
+    } catch (error) {
+      throw mapOstiumError(error);
+    }
+  }
+  async fetchBalance() {
+    this.requireAuth();
+    try {
+      const address = this.contracts.getTraderAddress();
+      const rawBalance = await this.contracts.getCollateralBalance(address);
+      return [this.normalizer.normalizeBalance(rawBalance)];
+    } catch (error) {
+      throw mapOstiumError(error);
+    }
+  }
+  async setLeverage(_symbol, _leverage) {
+    throw new NotSupportedError(
+      "Ostium sets leverage per-trade, not per-symbol",
+      "NOT_SUPPORTED",
+      "ostium"
+    );
+  }
+  async fetchOrderHistory(_symbol, _since, _limit) {
+    throw new NotSupportedError(
+      "Ostium order history not available via REST",
+      "NOT_SUPPORTED",
+      "ostium"
+    );
+  }
+  async fetchMyTrades(_symbol, _since, _limit) {
+    throw new NotSupportedError(
+      "Ostium user trades not available via REST",
+      "NOT_SUPPORTED",
+      "ostium"
+    );
+  }
+  // === Symbol Conversion ===
+  symbolToExchange(symbol) {
+    return String(toOstiumPairIndex(symbol));
+  }
+  symbolFromExchange(exchangeSymbol) {
+    const pairIndex = parseInt(exchangeSymbol, 10);
+    const pair = OSTIUM_PAIRS.find((p) => p.pairIndex === pairIndex);
+    return pair ? `${pair.from}/${pair.to}:${pair.to}` : exchangeSymbol;
+  }
+};
+
 // src/factory.ts
 var adapterRegistry = /* @__PURE__ */ new Map([
   ["hyperliquid", HyperliquidAdapter],
@@ -33247,7 +35221,10 @@ var adapterRegistry = /* @__PURE__ */ new Map([
   ["dydx", DydxAdapter],
   ["jupiter", JupiterAdapter],
   ["drift", DriftAdapter],
-  ["gmx", GmxAdapter]
+  ["gmx", GmxAdapter],
+  ["aster", AsterAdapter],
+  ["pacifica", PacificaAdapter],
+  ["ostium", OstiumAdapter]
 ]);
 var factoryLogger = new Logger("ExchangeFactory");
 function createExchange(exchange, config) {
@@ -34022,8 +35999,14 @@ var EXCHANGE_ENV_REQUIREMENTS = {
   drift: ["DRIFT_WALLET_ADDRESS"],
   // Read-only; for trading add DRIFT_PRIVATE_KEY
   // EVM based on-chain DEX (GMX v2 on Arbitrum/Avalanche)
-  gmx: ["GMX_CHAIN"]
+  gmx: ["GMX_CHAIN"],
   // Chain selection; add GMX_WALLET_ADDRESS for positions
+  // Aster (BNB Chain, Binance-style HMAC)
+  aster: ["ASTER_API_KEY", "ASTER_API_SECRET"],
+  // Pacifica (Solana, Ed25519)
+  pacifica: ["PACIFICA_API_KEY", "PACIFICA_API_SECRET"],
+  // Ostium (Arbitrum, EVM contracts)
+  ostium: ["OSTIUM_PRIVATE_KEY"]
 };
 var ConfigurationError = class _ConfigurationError extends Error {
   constructor(message, exchange, missingVars) {
@@ -34080,7 +36063,10 @@ function getConfigErrorMessage(exchange, missingVars) {
     dydx: "Generate a Cosmos wallet mnemonic (24 words) for dYdX v4 trading",
     jupiter: "Provide your Solana wallet address for Jupiter Perps (add private key for trading)",
     drift: "Provide your Solana wallet address for Drift Protocol (add private key for trading)",
-    gmx: "Set GMX_CHAIN to arbitrum or avalanche (add GMX_WALLET_ADDRESS for position data)"
+    gmx: "Set GMX_CHAIN to arbitrum or avalanche (add GMX_WALLET_ADDRESS for position data)",
+    aster: "Register at asterdex.com and create API key + secret (HMAC-SHA256)",
+    pacifica: "Register at pacifica.fi and create Ed25519 API credentials",
+    ostium: "Export your MetaMask private key for Arbitrum trading on Ostium"
   };
   return `\u274C Missing environment variables for ${exchange}:
 
@@ -34127,6 +36113,9 @@ function maskSensitive(value, showChars = 4) {
 var VERSION = "0.2.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  AsterAdapter,
+  AsterAuth,
+  AsterNormalizer,
   BackpackAdapter,
   BalanceSchema,
   BaseAdapter,
@@ -34172,7 +36161,13 @@ var VERSION = "0.2.0";
   OrderNotFoundError,
   OrderRequestSchema,
   OrderSchema,
+  OstiumAdapter,
+  OstiumAuth,
+  OstiumNormalizer,
   POSITION_SIDES,
+  PacificaAdapter,
+  PacificaAuth,
+  PacificaNormalizer,
   ParadexAdapter,
   ParadexAuth,
   PerpDEXError,

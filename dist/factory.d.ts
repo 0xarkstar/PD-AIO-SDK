@@ -18,7 +18,10 @@ import { type DydxConfig } from './adapters/dydx/index.js';
 import { type JupiterAdapterConfig } from './adapters/jupiter/index.js';
 import { type DriftConfig } from './adapters/drift/index.js';
 import { type GmxConfig } from './adapters/gmx/index.js';
-export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx';
+import { type AsterConfig } from './adapters/aster/index.js';
+import { type PacificaConfig } from './adapters/pacifica/index.js';
+import { type OstiumConfig } from './adapters/ostium/index.js';
+export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx' | 'aster' | 'pacifica' | 'ostium';
 export type ExchangeConfigMap = {
     hyperliquid: HyperliquidConfig;
     lighter: LighterConfig;
@@ -33,6 +36,9 @@ export type ExchangeConfigMap = {
     jupiter: JupiterAdapterConfig;
     drift: DriftConfig;
     gmx: GmxConfig;
+    aster: AsterConfig;
+    pacifica: PacificaConfig;
+    ostium: OstiumConfig;
 };
 /**
  * Type for adapter constructor function

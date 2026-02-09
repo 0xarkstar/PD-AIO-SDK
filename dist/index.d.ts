@@ -59,5 +59,11 @@ export { VariationalAdapter } from './adapters/variational/index.js';
 export type { VariationalConfig } from './adapters/variational/index.js';
 export { ExtendedAdapter } from './adapters/extended/index.js';
 export type { ExtendedConfig } from './adapters/extended/index.js';
+export { AsterAdapter, AsterAuth, AsterNormalizer } from './adapters/aster/index.js';
+export type { AsterConfig } from './adapters/aster/index.js';
+export { PacificaAdapter, PacificaAuth, PacificaNormalizer } from './adapters/pacifica/index.js';
+export type { PacificaConfig } from './adapters/pacifica/index.js';
+export { OstiumAdapter, OstiumAuth, OstiumNormalizer } from './adapters/ostium/index.js';
+export type { OstiumConfig } from './adapters/ostium/index.js';
 export declare const VERSION = "0.2.0";
 //# sourceMappingURL=index.d.ts.map

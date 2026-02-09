@@ -914,6 +914,9 @@ export interface ExchangeConfig {
 
   /** Circuit breaker configuration */
   circuitBreaker?: CircuitBreakerConfig;
+
+  /** Builder/referral code for fee attribution */
+  builderCode?: string;
 }
 
 /**

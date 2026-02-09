@@ -229,6 +229,7 @@ export interface HyperliquidAction {
   orders?: HyperliquidOrderRequest[];
   cancels?: HyperliquidCancelRequest[];
   grouping?: 'na';
+  builder?: { b: string; f: number };
 }
 
 export interface HyperliquidSignedAction {

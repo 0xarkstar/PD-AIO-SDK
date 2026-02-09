@@ -1,0 +1,84 @@
+/**
+ * Aster Utility Functions
+ */
+
+import type { OrderRequest } from '../../types/common.js';
+import { ASTER_ORDER_SIDES, ASTER_ORDER_TYPES, ASTER_TIME_IN_FORCE } from './constants.js';
+
+export function toAsterSymbol(unified: string): string {
+  // "BTC/USDT:USDT" -> "BTCUSDT"
+  const parts = unified.split(/[/:]/);
+  return `${parts[0]}${parts[1]}`;
+}
+
+export function toUnifiedSymbol(
+  _asterSymbol: string,
+  baseAsset: string,
+  quoteAsset: string
+): string {
+  // "BTCUSDT" + "BTC" + "USDT" -> "BTC/USDT:USDT"
+  return `${baseAsset}/${quoteAsset}:${quoteAsset}`;
+}
+
+export function toAsterOrderSide(side: string): string {
+  return ASTER_ORDER_SIDES[side] ?? side.toUpperCase();
+}
+
+export function toAsterOrderType(type: string): string {
+  return ASTER_ORDER_TYPES[type] ?? type.toUpperCase();
+}
+
+export function toAsterTimeInForce(tif?: string, postOnly?: boolean): string {
+  if (postOnly) return 'GTX';
+  if (tif) return ASTER_TIME_IN_FORCE[tif] ?? tif;
+  return 'GTC';
+}
+
+export function buildOrderParams(
+  request: OrderRequest,
+  asterSymbol: string,
+  referralCode?: string
+): Record<string, string | number | boolean> {
+  const params: Record<string, string | number | boolean> = {
+    symbol: asterSymbol,
+    side: toAsterOrderSide(request.side),
+    type: toAsterOrderType(request.type),
+    quantity: request.amount,
+  };
+
+  if (request.price !== undefined) {
+    params.price = request.price;
+  }
+
+  if (request.stopPrice !== undefined) {
+    params.stopPrice = request.stopPrice;
+  }
+
+  if (request.type !== 'market') {
+    params.timeInForce = toAsterTimeInForce(request.timeInForce, request.postOnly);
+  }
+
+  if (request.reduceOnly) {
+    params.reduceOnly = 'true';
+  }
+
+  if (request.clientOrderId) {
+    params.newClientOrderId = request.clientOrderId;
+  }
+
+  // Builder/referral code
+  const code = request.builderCode ?? referralCode;
+  if (code) {
+    params.referralCode = code;
+  }
+
+  return params;
+}
+
+export function parsePrecision(tickSize: string): number {
+  if (!tickSize || tickSize === '0') return 0;
+  const parts = tickSize.split('.');
+  const decimal = parts[1];
+  if (!decimal) return 0;
+  return decimal.replace(/0+$/, '').length || 0;
+}

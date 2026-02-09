@@ -329,6 +329,18 @@ export type { VariationalConfig } from './adapters/variational/index.js';
 export { ExtendedAdapter } from './adapters/extended/index.js';
 export type { ExtendedConfig } from './adapters/extended/index.js';
 
+// Aster (BNB Chain)
+export { AsterAdapter, AsterAuth, AsterNormalizer } from './adapters/aster/index.js';
+export type { AsterConfig } from './adapters/aster/index.js';
+
+// Pacifica (Solana)
+export { PacificaAdapter, PacificaAuth, PacificaNormalizer } from './adapters/pacifica/index.js';
+export type { PacificaConfig } from './adapters/pacifica/index.js';
+
+// Ostium (Arbitrum, RWA)
+export { OstiumAdapter, OstiumAuth, OstiumNormalizer } from './adapters/ostium/index.js';
+export type { OstiumConfig } from './adapters/ostium/index.js';
+
 // =============================================================================
 // Version
 // =============================================================================

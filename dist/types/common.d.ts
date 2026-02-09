@@ -99,6 +99,8 @@ export interface OrderRequest {
     leverage?: number;
     /** Exchange-specific parameters */
     params?: Record<string, unknown>;
+    /** Builder/referral code override for this order */
+    builderCode?: string;
 }
 export declare const POSITION_SIDES: readonly ["long", "short"];
 export type PositionSide = (typeof POSITION_SIDES)[number];

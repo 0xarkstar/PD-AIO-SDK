@@ -18,6 +18,9 @@ import { DydxAdapter } from './adapters/dydx/index.js';
 import { JupiterAdapter } from './adapters/jupiter/index.js';
 import { DriftAdapter } from './adapters/drift/index.js';
 import { GmxAdapter } from './adapters/gmx/index.js';
+import { AsterAdapter } from './adapters/aster/index.js';
+import { PacificaAdapter } from './adapters/pacifica/index.js';
+import { OstiumAdapter } from './adapters/ostium/index.js';
 /**
  * Plugin registry for exchange adapters
  *
@@ -38,6 +41,9 @@ const adapterRegistry = new Map([
     ['jupiter', JupiterAdapter],
     ['drift', DriftAdapter],
     ['gmx', GmxAdapter],
+    ['aster', AsterAdapter],
+    ['pacifica', PacificaAdapter],
+    ['ostium', OstiumAdapter],
 ]);
 /**
  * Register a custom exchange adapter
@@ -138,6 +144,9 @@ export function getBuiltInExchanges() {
         'jupiter',
         'drift',
         'gmx',
+        'aster',
+        'pacifica',
+        'ostium',
     ];
 }
 /**

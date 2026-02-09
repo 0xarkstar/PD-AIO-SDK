@@ -88,6 +88,12 @@ export { GmxAdapter, GmxNormalizer } from './adapters/gmx/index.js';
 export { VariationalAdapter } from './adapters/variational/index.js';
 // Extended (StarkNet)
 export { ExtendedAdapter } from './adapters/extended/index.js';
+// Aster (BNB Chain)
+export { AsterAdapter, AsterAuth, AsterNormalizer } from './adapters/aster/index.js';
+// Pacifica (Solana)
+export { PacificaAdapter, PacificaAuth, PacificaNormalizer } from './adapters/pacifica/index.js';
+// Ostium (Arbitrum, RWA)
+export { OstiumAdapter, OstiumAuth, OstiumNormalizer } from './adapters/ostium/index.js';
 // =============================================================================
 // Version
 // =============================================================================

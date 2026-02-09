@@ -73,6 +73,9 @@ describe('getSupportedExchanges', () => {
       'jupiter',
       'drift',
       'gmx',
+      'aster',
+      'pacifica',
+      'ostium',
     ]);
   });
 });
@@ -109,7 +112,7 @@ describe('getBuiltInExchanges', () => {
     expect(exchanges).toContain('edgex');
     expect(exchanges).toContain('backpack');
     expect(exchanges).toContain('nado');
-    expect(exchanges.length).toBe(13);
+    expect(exchanges.length).toBe(16);
   });
 });
 
