@@ -1471,3 +1471,291 @@ describe('GMX Additional Constants Tests', () => {
     });
   });
 });
+
+// =============================================================================
+// GmxContracts Tests (GmxContracts.ts - previously 0% coverage)
+// =============================================================================
+
+describe('GmxContracts', () => {
+  let GmxContracts: typeof import('../../src/adapters/gmx/GmxContracts.js').GmxContracts;
+
+  // Mock ethers.Contract to avoid actual blockchain calls
+  const mockContractInstance = {
+    createOrder: jest.fn(),
+    cancelOrder: jest.fn(),
+    sendWnt: jest.fn(),
+    sendTokens: jest.fn(),
+    getAccountPositions: jest.fn(),
+    getAccountOrders: jest.fn(),
+    getPosition: jest.fn(),
+    getUint: jest.fn(),
+    recordTransferIn: jest.fn(),
+  };
+
+  const mockProvider = {
+    getFeeData: jest.fn().mockResolvedValue({ gasPrice: 100000000n }),
+  };
+
+  const mockSigner = {
+    getAddress: jest.fn().mockResolvedValue('0x1234567890123456789012345678901234567890'),
+  };
+
+  beforeAll(async () => {
+    const mod = await import('../../src/adapters/gmx/GmxContracts.js');
+    GmxContracts = mod.GmxContracts;
+  });
+
+  describe('constructor', () => {
+    test('should create with chain, provider, and signer', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any, mockSigner as any);
+      expect(contracts).toBeDefined();
+    });
+
+    test('should create without signer (read-only mode)', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      expect(contracts).toBeDefined();
+    });
+
+    test('should accept avalanche chain', () => {
+      const contracts = new GmxContracts('avalanche', mockProvider as any);
+      expect(contracts).toBeDefined();
+    });
+  });
+
+  describe('getAddresses', () => {
+    test('should return arbitrum contract addresses', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      const addresses = contracts.getAddresses();
+      expect(addresses.exchangeRouter).toBeDefined();
+      expect(addresses.reader).toBeDefined();
+      expect(addresses.dataStore).toBeDefined();
+      expect(addresses.orderVault).toBeDefined();
+    });
+
+    test('should return avalanche contract addresses', () => {
+      const contracts = new GmxContracts('avalanche', mockProvider as any);
+      const addresses = contracts.getAddresses();
+      expect(addresses.exchangeRouter).toBeDefined();
+      expect(addresses.reader).toBeDefined();
+    });
+  });
+
+  describe('getChainId', () => {
+    test('should return arbitrum chain id', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      expect(contracts.getChainId()).toBe(GMX_API_URLS.arbitrum.chainId);
+    });
+
+    test('should return avalanche chain id', () => {
+      const contracts = new GmxContracts('avalanche', mockProvider as any);
+      expect(contracts.getChainId()).toBe(GMX_API_URLS.avalanche.chainId);
+    });
+  });
+
+  describe('contract getters (lazy initialization)', () => {
+    test('getExchangeRouter should return a contract instance', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any, mockSigner as any);
+      const router = contracts.getExchangeRouter();
+      expect(router).toBeDefined();
+    });
+
+    test('getReader should return a contract instance', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      const reader = contracts.getReader();
+      expect(reader).toBeDefined();
+    });
+
+    test('getDataStore should return a contract instance', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      const dataStore = contracts.getDataStore();
+      expect(dataStore).toBeDefined();
+    });
+
+    test('getOrderVault should return a contract instance', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any, mockSigner as any);
+      const vault = contracts.getOrderVault();
+      expect(vault).toBeDefined();
+    });
+
+    test('should cache contract instances (returns same object)', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      const reader1 = contracts.getReader();
+      const reader2 = contracts.getReader();
+      expect(reader1).toBe(reader2);
+    });
+
+    test('should cache DataStore instances', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      const ds1 = contracts.getDataStore();
+      const ds2 = contracts.getDataStore();
+      expect(ds1).toBe(ds2);
+    });
+  });
+
+  describe('getPositionKey', () => {
+    test('should compute a deterministic position key', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      const key = contracts.getPositionKey(
+        '0x1234567890123456789012345678901234567890',
+        '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
+        '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+        true
+      );
+      expect(key).toBeDefined();
+      expect(key).toMatch(/^0x[a-f0-9]{64}$/);
+    });
+
+    test('should produce different keys for long vs short', () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      const longKey = contracts.getPositionKey(
+        '0x1234567890123456789012345678901234567890',
+        '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
+        '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+        true
+      );
+      const shortKey = contracts.getPositionKey(
+        '0x1234567890123456789012345678901234567890',
+        '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
+        '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+        false
+      );
+      expect(longKey).not.toBe(shortKey);
+    });
+  });
+
+  describe('trading operations require signer', () => {
+    test('createOrder should throw without signer', async () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      await expect(
+        contracts.createOrder({
+          receiver: '0x1234567890123456789012345678901234567890',
+          callbackContract: '0x0000000000000000000000000000000000000000',
+          uiFeeReceiver: '0x0000000000000000000000000000000000000000',
+          market: '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
+          initialCollateralToken: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+          swapPath: [],
+          orderType: 0,
+          decreasePositionSwapType: 0,
+          sizeDeltaUsd: 100000000000000000000000000000000n,
+          initialCollateralDeltaAmount: 10000000n,
+          triggerPrice: 0n,
+          acceptablePrice: 2000000000000000000000000000000n,
+          executionFee: 100000000000000n,
+          callbackGasLimit: 0n,
+          minOutputAmount: 0n,
+          isLong: true,
+          shouldUnwrapNativeToken: false,
+        } as any, 100000000000000n)
+      ).rejects.toThrow('Signer required');
+    });
+
+    test('cancelOrder should throw without signer', async () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      await expect(contracts.cancelOrder('0xorderkey')).rejects.toThrow('Signer required');
+    });
+
+    test('sendWnt should throw without signer', async () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      await expect(
+        contracts.sendWnt('0x1234567890123456789012345678901234567890', 1000000000000000n)
+      ).rejects.toThrow('Signer required');
+    });
+
+    test('sendTokens should throw without signer', async () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      await expect(
+        contracts.sendTokens(
+          '0xtoken',
+          '0x1234567890123456789012345678901234567890',
+          1000000n
+        )
+      ).rejects.toThrow('Signer required');
+    });
+  });
+
+  describe('getExecutionFee', () => {
+    test('should calculate execution fee with gas price buffer', async () => {
+      const contracts = new GmxContracts('arbitrum', mockProvider as any);
+      const fee = await contracts.getExecutionFee(200000n);
+
+      // baseGasLimit(500000) + gasLimit(200000) = 700000
+      // 700000 * 100000000 = 70000000000000
+      // with 20% buffer: 70000000000000 * 120 / 100 = 84000000000000
+      expect(fee).toBe(84000000000000n);
+    });
+  });
+});
+
+// =============================================================================
+// GmxAdapter HTTP methods (previously untested)
+// =============================================================================
+
+describe('GmxAdapter HTTP Methods', () => {
+  let adapter: GmxAdapter;
+
+  beforeEach(() => {
+    adapter = new GmxAdapter({ chain: 'arbitrum' });
+    (adapter as any)._isReady = true;
+  });
+
+  describe('symbolToExchange', () => {
+    test('should convert valid unified symbol', () => {
+      const result = (adapter as any).symbolToExchange('ETH/USD:ETH');
+      expect(result).toBe('ETH/USD:ETH');
+    });
+
+    test('should throw for invalid symbol', () => {
+      expect(() => (adapter as any).symbolToExchange('INVALID/UNKNOWN')).toThrow('Invalid market');
+    });
+  });
+
+  describe('symbolFromExchange', () => {
+    test('should pass through valid GMX market key', () => {
+      const result = (adapter as any).symbolFromExchange('ETH/USD:ETH');
+      expect(result).toBeDefined();
+    });
+
+    test('should return exchange symbol unchanged for unknown keys', () => {
+      const result = (adapter as any).symbolFromExchange('UNKNOWN-SYMBOL');
+      expect(result).toBe('UNKNOWN-SYMBOL');
+    });
+  });
+
+  describe('timeframeToInterval', () => {
+    test('should map 1m correctly', () => {
+      expect((adapter as any).timeframeToInterval('1m')).toBe('1m');
+    });
+
+    test('should map 1h correctly', () => {
+      expect((adapter as any).timeframeToInterval('1h')).toBe('1h');
+    });
+
+    test('should map 4h correctly', () => {
+      expect((adapter as any).timeframeToInterval('4h')).toBe('4h');
+    });
+
+    test('should map 1d correctly', () => {
+      expect((adapter as any).timeframeToInterval('1d')).toBe('1d');
+    });
+
+    test('should map 1w correctly', () => {
+      expect((adapter as any).timeframeToInterval('1w')).toBe('1w');
+    });
+
+    test('should fallback unsupported 3m to 5m', () => {
+      expect((adapter as any).timeframeToInterval('3m')).toBe('5m');
+    });
+
+    test('should fallback unsupported 2h to 4h', () => {
+      expect((adapter as any).timeframeToInterval('2h')).toBe('4h');
+    });
+
+    test('should fallback unsupported 12h to 1d', () => {
+      expect((adapter as any).timeframeToInterval('12h')).toBe('1d');
+    });
+
+    test('should default unknown timeframe to 1h', () => {
+      expect((adapter as any).timeframeToInterval('unknown')).toBe('1h');
+    });
+  });
+});

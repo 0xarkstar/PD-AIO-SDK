@@ -108,13 +108,41 @@ Date: 2026-02-08
 ---
 
 ## Cumulative Metrics
-| Metric | Cycle 2 | Cycle 4 | Cycle 5 | Delta |
-|--------|---------|---------|---------|-------|
-| TS errors | 0 | 0 | 0 | = |
-| Tests passed | 4625 | 4822 | 4823 | +1 |
-| Tests failed | 1 | 0 | 0 | = |
-| Build | PASS | PASS | PASS | = |
-| Coverage thresholds | 50% | 65% | 65% | = |
+| Metric | Cycle 2 | Cycle 4 | Cycle 5 | Cycle 6 | Delta |
+|--------|---------|---------|---------|---------|-------|
+| TS errors | 0 | 0 | 0 | 0 | = |
+| Tests passed | 4625 | 4822 | 4823 | 5017 | +194 |
+| Tests failed | 1 | 0 | 0 | 0 | = |
+| Build | PASS | PASS | PASS | PASS | = |
+| Coverage (stmts) | 68.5% | 69.97% | 69.97% | 73.43% | +3.46% |
+| Coverage (funcs) | 73.5% | — | — | 78.28% | — |
+| Coverage thresholds | 50% | 65% | 65% | 65% | = |
+
+---
+
+## Cycle 6: Documentation Sync + Test Coverage + Error Standardization (COMPLETED)
+Date: 2026-02-09
+
+### Implementation Streams (P1)
+| Stream | Agent | Status | Task |
+|--------|-------|--------|------|
+| A | p-impl-docs | DONE | API.md Cycle 5 sync + README update (13 edits across 3 files) |
+| B | p-impl-coverage | DONE | +135 tests for GMX/Drift/dYdX/Jupiter |
+| C | p-impl-errors | DONE | 27 Error()→NotSupportedError/PerpDEXError + 2 `as any` fixed |
+
+### Quality Gates
+- [x] `npx tsc --noEmit` — 0 errors
+- [x] `npx jest --forceExit` — 5017 tests, 0 failures (+194)
+- [x] `npm run build` — PASS
+- [x] Coverage threshold — no violations (73.43% stmts, 78.28% functions)
+- [x] API.md matches actual code
+- [x] BaseAdapter has 0 generic `Error()`
+
+### Agents Used: 3 + lead
+| Phase | Agents |
+|-------|--------|
+| P1 | p-impl-docs, p-impl-coverage, p-impl-errors |
+| P2 | team-lead (direct QA) |
 
 ---
 
@@ -133,3 +161,6 @@ Date: 2026-02-08
 | RESEARCH_API_GROUP_B.md | Backpack, Nado, Variational, Extended audit |
 | RESEARCH_API_GROUP_C.md | dYdX, Jupiter, Drift, GMX audit |
 | DESIGN_API_AUDIT.md | Cycle 5 fix plan + file ownership map |
+| DOCS_REPORT.md | Cycle 6 Stream A: documentation sync report |
+| COVERAGE_REPORT.md | Cycle 6 Stream B: test coverage expansion report |
+| ERRORS_REPORT.md | Cycle 6 Stream C: error standardization report |

@@ -1127,3 +1127,455 @@ describe('DriftAuth Validation Functions', () => {
     });
   });
 });
+
+// =============================================================================
+// DriftOrderBuilder Tests (orderBuilder.ts - previously 0% coverage)
+// =============================================================================
+
+describe('DriftOrderBuilder', () => {
+  let DriftOrderBuilder: typeof import('../../src/adapters/drift/orderBuilder.js').DriftOrderBuilder;
+  let createOrderBuilder: typeof import('../../src/adapters/drift/orderBuilder.js').createOrderBuilder;
+
+  beforeAll(async () => {
+    const mod = await import('../../src/adapters/drift/orderBuilder.js');
+    DriftOrderBuilder = mod.DriftOrderBuilder;
+    createOrderBuilder = mod.createOrderBuilder;
+  });
+
+  describe('constructor', () => {
+    test('should create with default config', () => {
+      const builder = new DriftOrderBuilder();
+      expect(builder).toBeInstanceOf(DriftOrderBuilder);
+    });
+
+    test('should accept custom config', () => {
+      const builder = new DriftOrderBuilder({
+        subAccountId: 2,
+        slippageTolerance: 0.02,
+        auctionDuration: 120,
+      });
+      expect(builder).toBeInstanceOf(DriftOrderBuilder);
+    });
+
+    test('should use defaults for omitted config fields', () => {
+      const builder = new DriftOrderBuilder({ subAccountId: 1 });
+      expect(builder).toBeInstanceOf(DriftOrderBuilder);
+    });
+  });
+
+  describe('createOrderBuilder factory', () => {
+    test('should create an order builder', () => {
+      const builder = createOrderBuilder();
+      expect(builder).toBeInstanceOf(DriftOrderBuilder);
+    });
+
+    test('should pass config through', () => {
+      const builder = createOrderBuilder({ slippageTolerance: 0.05 });
+      expect(builder).toBeInstanceOf(DriftOrderBuilder);
+    });
+  });
+
+  describe('getMarketConfig', () => {
+    test('should return config for valid unified symbol', () => {
+      const builder = new DriftOrderBuilder();
+      const config = builder.getMarketConfig('SOL/USD:USD');
+      expect(config).toBeDefined();
+      expect(config?.marketIndex).toBe(0);
+      expect(config?.baseAsset).toBe('SOL');
+    });
+
+    test('should return undefined for unknown symbol', () => {
+      const builder = new DriftOrderBuilder();
+      const config = builder.getMarketConfig('UNKNOWN/USD:USD');
+      expect(config).toBeUndefined();
+    });
+  });
+
+  describe('getMarketIndex', () => {
+    test('should return market index', () => {
+      const builder = new DriftOrderBuilder();
+      expect(builder.getMarketIndex('SOL/USD:USD')).toBe(0);
+      expect(builder.getMarketIndex('BTC/USD:USD')).toBe(1);
+      expect(builder.getMarketIndex('ETH/USD:USD')).toBe(2);
+    });
+  });
+
+  describe('roundToStepSize', () => {
+    test('should round down to step size for SOL', () => {
+      const builder = new DriftOrderBuilder();
+      // SOL stepSize = 0.1
+      const rounded = builder.roundToStepSize(1.15, 'SOL/USD:USD');
+      expect(rounded).toBeCloseTo(1.1, 1);
+    });
+
+    test('should round down to step size for BTC', () => {
+      const builder = new DriftOrderBuilder();
+      // BTC stepSize = 0.001
+      const rounded = builder.roundToStepSize(0.1234, 'BTC/USD:USD');
+      expect(rounded).toBeCloseTo(0.123, 3);
+    });
+
+    test('should return amount unchanged for unknown symbol', () => {
+      const builder = new DriftOrderBuilder();
+      expect(builder.roundToStepSize(1.5, 'UNKNOWN/USD:USD')).toBe(1.5);
+    });
+  });
+
+  describe('roundToTickSize', () => {
+    test('should round to tick size for SOL', () => {
+      const builder = new DriftOrderBuilder();
+      // SOL tickSize = 0.001
+      const rounded = builder.roundToTickSize(100.1234, 'SOL/USD:USD');
+      expect(rounded).toBeCloseTo(100.123, 3);
+    });
+
+    test('should round to tick size for BTC', () => {
+      const builder = new DriftOrderBuilder();
+      // BTC tickSize = 0.1
+      const rounded = builder.roundToTickSize(50000.15, 'BTC/USD:USD');
+      expect(rounded).toBeCloseTo(50000.2, 1);
+    });
+
+    test('should return price unchanged for unknown symbol', () => {
+      const builder = new DriftOrderBuilder();
+      expect(builder.roundToTickSize(123.456, 'UNKNOWN/USD:USD')).toBe(123.456);
+    });
+  });
+
+  describe('calculateRequiredMargin', () => {
+    test('should calculate margin with explicit leverage', () => {
+      const builder = new DriftOrderBuilder();
+      // notional = 10 * 100 = 1000, margin = 1000 / 10 = 100
+      const result = builder.calculateRequiredMargin('SOL/USD:USD', 10, 100, 10);
+      expect(result.margin).toBe(100);
+      expect(result.leverage).toBe(10);
+    });
+
+    test('should cap leverage at max for market', () => {
+      const builder = new DriftOrderBuilder();
+      // SOL maxLeverage = 20, requested 25 → capped at 20
+      const result = builder.calculateRequiredMargin('SOL/USD:USD', 10, 100, 25);
+      expect(result.leverage).toBe(20);
+      expect(result.margin).toBe(50); // 1000 / 20
+    });
+
+    test('should calculate default leverage from initialMarginRatio', () => {
+      const builder = new DriftOrderBuilder();
+      // SOL initialMarginRatio = 0.1, so default leverage = 1/0.1 = 10
+      const result = builder.calculateRequiredMargin('SOL/USD:USD', 10, 100);
+      expect(result.leverage).toBe(10);
+      expect(result.margin).toBe(100); // 1000 / 10
+    });
+
+    test('should throw for unknown market', () => {
+      const builder = new DriftOrderBuilder();
+      expect(() =>
+        builder.calculateRequiredMargin('UNKNOWN/USD:USD', 10, 100)
+      ).toThrow('Unknown market');
+    });
+  });
+
+  describe('calculateLiquidationPrice', () => {
+    test('should calculate liquidation price for long position', () => {
+      const builder = new DriftOrderBuilder();
+      // SOL maintenanceMarginRatio = 0.05, threshold = 0.95
+      // long: entryPrice * (1 - 0.95/leverage)
+      // = 100 * (1 - 0.95/10) = 100 * 0.905 = 90.5
+      const liqPrice = builder.calculateLiquidationPrice('SOL/USD:USD', 100, 10, true);
+      expect(liqPrice).toBeCloseTo(90.5, 1);
+    });
+
+    test('should calculate liquidation price for short position', () => {
+      const builder = new DriftOrderBuilder();
+      // short: entryPrice * (1 + 0.95/leverage)
+      // = 100 * (1 + 0.95/10) = 100 * 1.095 = 109.5
+      const liqPrice = builder.calculateLiquidationPrice('SOL/USD:USD', 100, 10, false);
+      expect(liqPrice).toBeCloseTo(109.5, 1);
+    });
+
+    test('should throw for unknown market', () => {
+      const builder = new DriftOrderBuilder();
+      expect(() =>
+        builder.calculateLiquidationPrice('UNKNOWN/USD:USD', 100, 10, true)
+      ).toThrow('Unknown market');
+    });
+  });
+
+  describe('buildOrderParams', () => {
+    test('should build market buy order params', () => {
+      const builder = new DriftOrderBuilder();
+      // BTC: stepSize=0.001, minOrderSize=0.001
+      const params = builder.buildOrderParams({
+        symbol: 'BTC/USD:USD',
+        side: 'buy',
+        type: 'market',
+        amount: 0.01,
+      });
+
+      expect(params.orderType).toBe('market');
+      expect(params.marketIndex).toBe(1);
+      expect(params.marketType).toBe('perp');
+      expect(params.direction).toBe('long');
+      expect(params.baseAssetAmount).toBe(BigInt(Math.floor(0.01 * 1e9)));
+      expect(params.reduceOnly).toBe(false);
+    });
+
+    test('should build limit sell order params', () => {
+      const builder = new DriftOrderBuilder();
+      // SOL: stepSize=0.1, tickSize=0.001; use 100.123 which passes tick validation
+      const params = builder.buildOrderParams({
+        symbol: 'SOL/USD:USD',
+        side: 'sell',
+        type: 'limit',
+        amount: 0.1,
+        price: 100.123,
+      });
+
+      expect(params.orderType).toBe('limit');
+      expect(params.direction).toBe('short');
+      expect(params.price).toBe(BigInt(Math.floor(100.123 * 1e6)));
+      expect(params.marketIndex).toBe(0);
+    });
+
+    test('should build stop market order with trigger price', () => {
+      const builder = new DriftOrderBuilder();
+      // BTC: stepSize=0.001
+      const params = builder.buildOrderParams({
+        symbol: 'BTC/USD:USD',
+        side: 'sell',
+        type: 'stopMarket',
+        amount: 0.01,
+        stopPrice: 45000,
+      });
+
+      expect(params.orderType).toBe('triggerMarket');
+      expect(params.triggerPrice).toBe(BigInt(Math.floor(45000 * 1e6)));
+      expect(params.triggerCondition).toBe('above'); // sell direction = short, trigger above
+    });
+
+    test('should build stop limit order', () => {
+      const builder = new DriftOrderBuilder();
+      // SOL: stepSize=0.1, tickSize=0.001; 110.123 passes tick validation
+      const params = builder.buildOrderParams({
+        symbol: 'SOL/USD:USD',
+        side: 'buy',
+        type: 'stopLimit',
+        amount: 0.1,
+        price: 110.123,
+        stopPrice: 105.456,
+      });
+
+      expect(params.orderType).toBe('triggerLimit');
+      expect(params.triggerPrice).toBe(BigInt(Math.floor(105.456 * 1e6)));
+      expect(params.triggerCondition).toBe('below'); // buy direction = long, trigger below
+    });
+
+    test('should apply slippage to market order price when oraclePrice given', () => {
+      const builder = new DriftOrderBuilder({ slippageTolerance: 0.01 });
+      // BTC: stepSize=0.001
+      const params = builder.buildOrderParams(
+        { symbol: 'BTC/USD:USD', side: 'buy', type: 'market', amount: 0.01 },
+        50000 // oraclePrice
+      );
+
+      // For long: price = 50000 * 1.01 * 1e6
+      expect(params.price).toBe(BigInt(Math.floor(50000 * 1.01 * 1e6)));
+    });
+
+    test('should apply negative slippage for sell market order', () => {
+      const builder = new DriftOrderBuilder({ slippageTolerance: 0.01 });
+      // BTC: stepSize=0.001
+      const params = builder.buildOrderParams(
+        { symbol: 'BTC/USD:USD', side: 'sell', type: 'market', amount: 0.01 },
+        50000
+      );
+
+      // For short: price = 50000 * 0.99 * 1e6
+      expect(params.price).toBe(BigInt(Math.floor(50000 * 0.99 * 1e6)));
+    });
+
+    test('should set reduce only and post only flags', () => {
+      const builder = new DriftOrderBuilder();
+      // BTC: stepSize=0.001
+      const params = builder.buildOrderParams({
+        symbol: 'BTC/USD:USD',
+        side: 'sell',
+        type: 'market',
+        amount: 0.01,
+        reduceOnly: true,
+        postOnly: true,
+      });
+
+      expect(params.reduceOnly).toBe(true);
+      expect(params.postOnly).toBe(true);
+    });
+
+    test('should set IOC flag from timeInForce', () => {
+      const builder = new DriftOrderBuilder();
+      // SOL: stepSize=0.1, tickSize=0.001; 100.123 passes tick validation
+      const params = builder.buildOrderParams({
+        symbol: 'SOL/USD:USD',
+        side: 'buy',
+        type: 'limit',
+        amount: 0.1,
+        price: 100.123,
+        timeInForce: 'IOC',
+      });
+
+      expect(params.immediateOrCancel).toBe(true);
+    });
+
+    test('should set clientOrderId as userOrderId', () => {
+      const builder = new DriftOrderBuilder();
+      // BTC: stepSize=0.001
+      const params = builder.buildOrderParams({
+        symbol: 'BTC/USD:USD',
+        side: 'buy',
+        type: 'market',
+        amount: 0.01,
+        clientOrderId: '42',
+      });
+
+      expect(params.userOrderId).toBe(42);
+    });
+
+    test('should add auction params for limit orders with oraclePrice', () => {
+      const builder = new DriftOrderBuilder({ auctionDuration: 60 });
+      // SOL: stepSize=0.1, tickSize=0.001; 100.123 passes tick validation
+      const params = builder.buildOrderParams(
+        {
+          symbol: 'SOL/USD:USD',
+          side: 'buy',
+          type: 'limit',
+          amount: 0.1,
+          price: 100.123,
+        },
+        100.123 // oraclePrice
+      );
+
+      expect(params.auctionDuration).toBe(60);
+      expect(params.auctionStartPrice).toBeDefined();
+      expect(params.auctionEndPrice).toBeDefined();
+      // For long, auctionStartMultiplier = 0.995
+      expect(params.auctionStartPrice).toBe(
+        BigInt(Math.floor(100.123 * 0.995 * 1e6))
+      );
+      expect(params.auctionEndPrice).toBe(
+        BigInt(Math.floor(100.123 * 1e6))
+      );
+    });
+
+    test('should throw for unknown market', () => {
+      const builder = new DriftOrderBuilder();
+      expect(() =>
+        builder.buildOrderParams({
+          symbol: 'UNKNOWN/USD:USD',
+          side: 'buy',
+          type: 'market',
+          amount: 1,
+        })
+      ).toThrow('Unknown market');
+    });
+
+    test('should throw for amount below min order size', () => {
+      const builder = new DriftOrderBuilder();
+      // SOL minOrderSize = 0.1
+      expect(() =>
+        builder.buildOrderParams({
+          symbol: 'SOL/USD:USD',
+          side: 'buy',
+          type: 'market',
+          amount: 0.01,
+        })
+      ).toThrow(/below minimum/);
+    });
+
+    test('should throw for leverage exceeding max', () => {
+      const builder = new DriftOrderBuilder();
+      // SOL maxLeverage = 20
+      expect(() =>
+        builder.buildOrderParams({
+          symbol: 'SOL/USD:USD',
+          side: 'buy',
+          type: 'market',
+          amount: 1,
+          leverage: 25,
+        })
+      ).toThrow(/exceeds maximum/);
+    });
+
+    test('should throw when limit order has no price', () => {
+      const builder = new DriftOrderBuilder();
+      expect(() =>
+        builder.buildOrderParams({
+          symbol: 'SOL/USD:USD',
+          side: 'buy',
+          type: 'limit',
+          amount: 1,
+        })
+      ).toThrow('Price is required');
+    });
+
+    test('should throw when stop order has no stop price', () => {
+      const builder = new DriftOrderBuilder();
+      expect(() =>
+        builder.buildOrderParams({
+          symbol: 'SOL/USD:USD',
+          side: 'buy',
+          type: 'stopMarket',
+          amount: 1,
+        })
+      ).toThrow('Stop price is required');
+    });
+  });
+
+  describe('buildClosePositionParams', () => {
+    test('should build close params for long position', () => {
+      const builder = new DriftOrderBuilder();
+      const params = builder.buildClosePositionParams('SOL/USD:USD', 5, true, 100);
+
+      expect(params.orderType).toBe('market');
+      expect(params.direction).toBe('short'); // opposite of long
+      expect(params.reduceOnly).toBe(true);
+      expect(params.marketIndex).toBe(0);
+      expect(params.baseAssetAmount).toBe(BigInt(Math.floor(5 * 1e9)));
+    });
+
+    test('should build close params for short position', () => {
+      const builder = new DriftOrderBuilder();
+      const params = builder.buildClosePositionParams('SOL/USD:USD', 5, false);
+
+      expect(params.direction).toBe('long'); // opposite of short
+      expect(params.reduceOnly).toBe(true);
+    });
+
+    test('should apply slippage with oraclePrice', () => {
+      const builder = new DriftOrderBuilder({ slippageTolerance: 0.01 });
+      const params = builder.buildClosePositionParams('SOL/USD:USD', 5, true, 100);
+
+      // Closing long = short direction, slippage = 1 - 0.01 = 0.99
+      expect(params.price).toBe(BigInt(Math.floor(100 * 0.99 * 1e6)));
+    });
+
+    test('should handle negative size (absolute value)', () => {
+      const builder = new DriftOrderBuilder();
+      const params = builder.buildClosePositionParams('SOL/USD:USD', -5, true);
+
+      expect(params.baseAssetAmount).toBe(BigInt(Math.floor(5 * 1e9)));
+    });
+
+    test('should throw for unknown market', () => {
+      const builder = new DriftOrderBuilder();
+      expect(() =>
+        builder.buildClosePositionParams('UNKNOWN/USD:USD', 5, true)
+      ).toThrow('Unknown market');
+    });
+
+    test('should not set price when oraclePrice is not provided', () => {
+      const builder = new DriftOrderBuilder();
+      const params = builder.buildClosePositionParams('SOL/USD:USD', 5, true);
+
+      expect(params.price).toBeUndefined();
+    });
+  });
+});

@@ -1476,3 +1476,471 @@ describe('dYdX Utility Functions', () => {
     });
   });
 });
+
+// =============================================================================
+// dYdX Adapter HTTP Method Tests (mocking BaseAdapter.request)
+// =============================================================================
+
+describe('DydxAdapter HTTP Methods', () => {
+  let adapter: DydxAdapter;
+
+  const mockMarketsResponse = {
+    markets: {
+      'BTC-USD': {
+        ticker: 'BTC-USD',
+        status: 'ACTIVE',
+        stepSize: '0.001',
+        tickSize: '0.1',
+        oraclePrice: '50000',
+        openInterest: '1000',
+        volume24H: '100000000',
+        initialMarginFraction: '0.05',
+        maintenanceMarginFraction: '0.03',
+        nextFundingRate: '0.0001',
+        nextFundingAt: '2024-01-01T01:00:00Z',
+        priceChange24H: '0.02',
+        trades24H: '5000',
+      },
+      'ETH-USD': {
+        ticker: 'ETH-USD',
+        status: 'ACTIVE',
+        stepSize: '0.01',
+        tickSize: '0.01',
+        oraclePrice: '3000',
+        openInterest: '5000',
+        volume24H: '50000000',
+        initialMarginFraction: '0.05',
+        maintenanceMarginFraction: '0.03',
+        nextFundingRate: '0.00005',
+        nextFundingAt: '2024-01-01T01:00:00Z',
+        priceChange24H: '0',
+        trades24H: '10000',
+      },
+    },
+  };
+
+  beforeEach(() => {
+    adapter = new DydxAdapter({ testnet: true });
+    // Mock the protected request method
+    (adapter as any).request = jest.fn();
+    // Mark as initialized
+    (adapter as any)._isReady = true;
+  });
+
+  describe('fetchMarkets', () => {
+    test('should fetch and normalize markets', async () => {
+      (adapter as any).request.mockResolvedValueOnce(mockMarketsResponse);
+
+      const markets = await adapter.fetchMarkets();
+
+      expect(markets).toHaveLength(2);
+      expect(markets[0].symbol).toBe('BTC/USD:USD');
+      expect(markets[1].symbol).toBe('ETH/USD:USD');
+      expect((adapter as any).request).toHaveBeenCalledWith(
+        'GET',
+        expect.stringContaining('/perpetualMarkets')
+      );
+    });
+
+    test('should filter active markets', async () => {
+      const responseWithInactive = {
+        markets: {
+          ...mockMarketsResponse.markets,
+          'TEST-USD': {
+            ticker: 'TEST-USD',
+            status: 'PAUSED',
+            stepSize: '1',
+            tickSize: '1',
+            oraclePrice: '100',
+            openInterest: '0',
+            volume24H: '0',
+            initialMarginFraction: '0.1',
+            maintenanceMarginFraction: '0.05',
+            nextFundingRate: '0',
+            nextFundingAt: '2024-01-01T01:00:00Z',
+            priceChange24H: '0',
+            trades24H: '0',
+          },
+        },
+      };
+      (adapter as any).request.mockResolvedValueOnce(responseWithInactive);
+
+      const markets = await adapter.fetchMarkets({ active: true });
+
+      // Only ACTIVE markets should be returned
+      expect(markets.every((m: any) => m.active === true)).toBe(true);
+    });
+
+    test('should update oracle price cache on fetchMarkets', async () => {
+      (adapter as any).request.mockResolvedValueOnce(mockMarketsResponse);
+
+      await adapter.fetchMarkets();
+
+      const cache = (adapter as any).marketDataCache;
+      expect(cache.has('BTC-USD')).toBe(true);
+      expect(cache.get('BTC-USD').oraclePrice).toBe(50000);
+    });
+
+    test('should map errors via mapDydxError', async () => {
+      (adapter as any).request.mockRejectedValueOnce(new Error('503 Service Unavailable'));
+
+      await expect(adapter.fetchMarkets()).rejects.toThrow();
+    });
+  });
+
+  describe('fetchTicker', () => {
+    test('should fetch ticker for specific symbol', async () => {
+      (adapter as any).request.mockResolvedValueOnce(mockMarketsResponse);
+
+      const ticker = await adapter.fetchTicker('BTC/USD:USD');
+
+      expect(ticker.symbol).toBe('BTC/USD:USD');
+      expect(ticker.last).toBe(50000);
+    });
+
+    test('should throw for unknown market', async () => {
+      (adapter as any).request.mockResolvedValueOnce(mockMarketsResponse);
+
+      await expect(adapter.fetchTicker('UNKNOWN/USD:USD')).rejects.toThrow();
+    });
+
+    test('should update cache for fetched ticker', async () => {
+      (adapter as any).request.mockResolvedValueOnce(mockMarketsResponse);
+
+      await adapter.fetchTicker('BTC/USD:USD');
+
+      const cache = (adapter as any).marketDataCache;
+      expect(cache.has('BTC-USD')).toBe(true);
+    });
+  });
+
+  describe('fetchOrderBook', () => {
+    test('should fetch and normalize order book', async () => {
+      const mockOrderBook = {
+        bids: [
+          { price: '50000', size: '1.5' },
+          { price: '49999', size: '2.0' },
+        ],
+        asks: [
+          { price: '50001', size: '1.0' },
+          { price: '50002', size: '3.0' },
+        ],
+      };
+      (adapter as any).request.mockResolvedValueOnce(mockOrderBook);
+
+      const orderBook = await adapter.fetchOrderBook('BTC/USD:USD');
+
+      expect(orderBook.symbol).toBe('BTC/USD:USD');
+      expect(orderBook.bids).toHaveLength(2);
+      expect(orderBook.asks).toHaveLength(2);
+      expect((adapter as any).request).toHaveBeenCalledWith(
+        'GET',
+        expect.stringContaining('/orderbooks/perpetualMarket/BTC-USD')
+      );
+    });
+  });
+
+  describe('fetchTrades', () => {
+    test('should fetch and normalize trades', async () => {
+      const mockTrades = {
+        trades: [
+          {
+            id: 'trade-1',
+            side: 'BUY',
+            price: '50000',
+            size: '0.1',
+            type: 'LIMIT',
+            createdAt: '2024-01-01T00:00:00Z',
+            createdAtHeight: '12345',
+          },
+        ],
+      };
+      (adapter as any).request.mockResolvedValueOnce(mockTrades);
+
+      const trades = await adapter.fetchTrades('BTC/USD:USD');
+
+      expect(trades).toHaveLength(1);
+      expect(trades[0].symbol).toBe('BTC/USD:USD');
+      expect(trades[0].side).toBe('buy');
+      expect(trades[0].price).toBe(50000);
+    });
+
+    test('should pass limit param to query', async () => {
+      const mockTrades = { trades: [] };
+      (adapter as any).request.mockResolvedValueOnce(mockTrades);
+
+      await adapter.fetchTrades('BTC/USD:USD', { limit: 50 });
+
+      expect((adapter as any).request).toHaveBeenCalledWith(
+        'GET',
+        expect.stringContaining('limit=50')
+      );
+    });
+
+    test('should use market query param', async () => {
+      const mockTrades = { trades: [] };
+      (adapter as any).request.mockResolvedValueOnce(mockTrades);
+
+      await adapter.fetchTrades('ETH/USD:USD');
+
+      expect((adapter as any).request).toHaveBeenCalledWith(
+        'GET',
+        expect.stringContaining('market=ETH-USD')
+      );
+    });
+  });
+
+  describe('fetchFundingRate', () => {
+    test('should fetch and return funding rate', async () => {
+      (adapter as any).request.mockResolvedValueOnce(mockMarketsResponse);
+
+      const fundingRate = await adapter.fetchFundingRate('BTC/USD:USD');
+
+      expect(fundingRate.symbol).toBe('BTC/USD:USD');
+      expect(fundingRate.fundingRate).toBe(0.0001);
+      expect(fundingRate.markPrice).toBe(50000);
+      expect(fundingRate.indexPrice).toBe(50000);
+      expect(fundingRate.fundingIntervalHours).toBe(1);
+    });
+
+    test('should throw for unknown market', async () => {
+      (adapter as any).request.mockResolvedValueOnce(mockMarketsResponse);
+
+      await expect(adapter.fetchFundingRate('UNKNOWN/USD:USD')).rejects.toThrow();
+    });
+  });
+
+  describe('fetchFundingRateHistory', () => {
+    test('should fetch funding rate history', async () => {
+      const mockHistory = {
+        historicalFunding: [
+          {
+            ticker: 'BTC-USD',
+            rate: '0.0001',
+            price: '50000',
+            effectiveAt: '2024-01-01T00:00:00Z',
+            effectiveAtHeight: '12345',
+          },
+          {
+            ticker: 'BTC-USD',
+            rate: '0.00015',
+            price: '50100',
+            effectiveAt: '2024-01-01T01:00:00Z',
+            effectiveAtHeight: '12346',
+          },
+        ],
+      };
+      // First call: fetchFundingRateHistory, second call: getOraclePrice
+      (adapter as any).request.mockResolvedValueOnce(mockHistory);
+      (adapter as any).request.mockResolvedValueOnce(mockMarketsResponse);
+
+      const history = await adapter.fetchFundingRateHistory('BTC/USD:USD');
+
+      expect(history).toHaveLength(2);
+    });
+
+    test('should pass since and limit params', async () => {
+      const mockHistory = { historicalFunding: [] };
+      (adapter as any).request.mockResolvedValueOnce(mockHistory);
+      (adapter as any).request.mockResolvedValueOnce(mockMarketsResponse);
+
+      await adapter.fetchFundingRateHistory('BTC/USD:USD', 1704067200000, 50);
+
+      const url = (adapter as any).request.mock.calls[0][1];
+      expect(url).toContain('limit=50');
+      expect(url).toContain('market=BTC-USD');
+    });
+  });
+
+  describe('fetchOHLCV', () => {
+    test('should fetch and normalize OHLCV data', async () => {
+      const mockCandles = {
+        candles: [
+          {
+            startedAt: '2024-01-01T00:00:00Z',
+            open: '50000',
+            high: '51000',
+            low: '49500',
+            close: '50500',
+            baseTokenVolume: '100',
+            usdVolume: '5000000',
+            trades: '500',
+          },
+        ],
+      };
+      (adapter as any).request.mockResolvedValueOnce(mockCandles);
+
+      const candles = await adapter.fetchOHLCV('BTC/USD:USD', '1h');
+
+      expect(candles).toHaveLength(1);
+      expect(candles[0]).toHaveLength(6);
+      expect(candles[0][1]).toBe(50000); // open
+    });
+
+    test('should use correct resolution for timeframe', async () => {
+      const mockCandles = { candles: [] };
+      (adapter as any).request.mockResolvedValueOnce(mockCandles);
+
+      await adapter.fetchOHLCV('BTC/USD:USD', '4h');
+
+      expect((adapter as any).request).toHaveBeenCalledWith(
+        'GET',
+        expect.stringContaining('resolution=4HOURS')
+      );
+    });
+
+    test('should pass since and until params', async () => {
+      const mockCandles = { candles: [] };
+      (adapter as any).request.mockResolvedValueOnce(mockCandles);
+
+      await adapter.fetchOHLCV('BTC/USD:USD', '1d', {
+        since: 1704067200000,
+        limit: 30,
+      });
+
+      const url = (adapter as any).request.mock.calls[0][1];
+      expect(url).toContain('limit=30');
+      expect(url).toContain('resolution=1DAY');
+    });
+  });
+
+  describe('initialize', () => {
+    test('should initialize with market fetch', async () => {
+      const uninitAdapter = new DydxAdapter({ testnet: true });
+      (uninitAdapter as any).request = jest.fn().mockResolvedValueOnce(mockMarketsResponse);
+
+      await uninitAdapter.initialize();
+
+      expect(uninitAdapter.isReady).toBe(true);
+    });
+
+    test('should skip if already initialized', async () => {
+      const uninitAdapter = new DydxAdapter({ testnet: true });
+      (uninitAdapter as any).request = jest.fn().mockResolvedValueOnce(mockMarketsResponse);
+
+      await uninitAdapter.initialize();
+      await uninitAdapter.initialize(); // Second call should skip
+
+      expect((uninitAdapter as any).request).toHaveBeenCalledTimes(1);
+    });
+
+    test('should throw on fetch failure', async () => {
+      const uninitAdapter = new DydxAdapter({ testnet: true });
+      (uninitAdapter as any).request = jest.fn().mockRejectedValueOnce(new Error('Network error'));
+
+      await expect(uninitAdapter.initialize()).rejects.toThrow();
+    });
+  });
+
+  describe('WebSocket stubs', () => {
+    test('watchOrderBook should throw not implemented', async () => {
+      const gen = adapter.watchOrderBook('BTC/USD:USD');
+      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+    });
+
+    test('watchTrades should throw not implemented', async () => {
+      const gen = adapter.watchTrades('BTC/USD:USD');
+      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+    });
+
+    test('watchTicker should throw not implemented', async () => {
+      const gen = adapter.watchTicker('BTC/USD:USD');
+      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+    });
+
+    test('watchPositions should throw not implemented', async () => {
+      const gen = adapter.watchPositions();
+      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+    });
+
+    test('watchOrders should throw not implemented', async () => {
+      const gen = adapter.watchOrders();
+      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+    });
+
+    test('watchBalance should throw not implemented', async () => {
+      const gen = adapter.watchBalance();
+      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+    });
+  });
+
+  describe('trading operation stubs', () => {
+    test('createOrder should throw SDK required error', async () => {
+      const authAdapter = new DydxAdapter({
+        testnet: true,
+        mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+      });
+      (authAdapter as any)._isReady = true;
+      (authAdapter as any).request = jest.fn();
+
+      await expect(
+        authAdapter.createOrder({
+          symbol: 'BTC/USD:USD',
+          side: 'buy',
+          type: 'limit',
+          amount: 0.1,
+          price: 50000,
+        })
+      ).rejects.toThrow();
+    });
+
+    test('cancelOrder should throw error (mapped through error handler)', async () => {
+      const authAdapter = new DydxAdapter({
+        testnet: true,
+        mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+      });
+      (authAdapter as any)._isReady = true;
+
+      await expect(authAdapter.cancelOrder('order-123')).rejects.toThrow();
+    });
+
+    test('cancelAllOrders should throw error (mapped through error handler)', async () => {
+      const authAdapter = new DydxAdapter({
+        testnet: true,
+        mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+      });
+      (authAdapter as any)._isReady = true;
+
+      await expect(authAdapter.cancelAllOrders()).rejects.toThrow();
+    });
+  });
+
+  describe('getOraclePrice (private cache)', () => {
+    test('should use cache when fresh', async () => {
+      // Populate cache
+      (adapter as any).marketDataCache.set('BTC-USD', {
+        oraclePrice: 50000,
+        timestamp: Date.now(),
+      });
+
+      const price = await (adapter as any).getOraclePrice('BTC-USD');
+
+      expect(price).toBe(50000);
+      // Should NOT make an HTTP request
+      expect((adapter as any).request).not.toHaveBeenCalled();
+    });
+
+    test('should fetch fresh data when cache is stale', async () => {
+      // Populate cache with old data
+      (adapter as any).marketDataCache.set('BTC-USD', {
+        oraclePrice: 49000,
+        timestamp: Date.now() - 120000, // 2 minutes old (TTL is 1 minute)
+      });
+
+      (adapter as any).request.mockResolvedValueOnce(mockMarketsResponse);
+
+      const price = await (adapter as any).getOraclePrice('BTC-USD');
+
+      expect(price).toBe(50000); // Fresh value
+      expect((adapter as any).request).toHaveBeenCalled();
+    });
+
+    test('should return 0 for unknown market', async () => {
+      (adapter as any).request.mockResolvedValueOnce({ markets: {} });
+
+      const price = await (adapter as any).getOraclePrice('UNKNOWN-USD');
+
+      expect(price).toBe(0);
+    });
+  });
+});

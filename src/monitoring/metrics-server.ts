@@ -86,9 +86,10 @@ export interface HealthCheckResponse {
  */
 export class MetricsServer {
   private server?: Server;
-  private config: Required<Omit<MetricsServerConfig, 'authToken' | 'healthCheck'>> & {
+  private config: Required<Omit<MetricsServerConfig, 'authToken' | 'healthCheck' | 'metrics'>> & {
     authToken?: string;
     healthCheck?: () => Promise<HealthCheckResponse> | HealthCheckResponse;
+    metrics?: PrometheusMetrics;
   };
   private metrics: PrometheusMetrics;
   private startTime: number;
@@ -101,7 +102,7 @@ export class MetricsServer {
       host: config.host ?? '0.0.0.0',
       enableAuth: config.enableAuth ?? false,
       authToken: config.authToken,
-      metrics: config.metrics ?? (isMetricsInitialized() ? getMetrics() : undefined as any),
+      metrics: config.metrics ?? (isMetricsInitialized() ? getMetrics() : undefined),
       healthCheck: config.healthCheck,
       enableCors: config.enableCors ?? false,
       corsOrigin: config.corsOrigin ?? '*',
@@ -117,7 +118,7 @@ export class MetricsServer {
       throw new Error('authToken is required when enableAuth is true');
     }
 
-    this.metrics = this.config.metrics;
+    this.metrics = this.config.metrics!;
     this.startTime = Date.now();
   }
 

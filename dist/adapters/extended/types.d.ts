@@ -303,8 +303,8 @@ export declare const ExtendedTickerSchema: z.ZodObject<{
     markPrice?: string | undefined;
     fundingRate?: string | undefined;
     indexPrice?: string | undefined;
-    openInterest?: string | undefined;
     nextFundingTime?: number | undefined;
+    openInterest?: string | undefined;
 }, {
     symbol: string;
     timestamp: number;
@@ -320,8 +320,8 @@ export declare const ExtendedTickerSchema: z.ZodObject<{
     markPrice?: string | undefined;
     fundingRate?: string | undefined;
     indexPrice?: string | undefined;
-    openInterest?: string | undefined;
     nextFundingTime?: number | undefined;
+    openInterest?: string | undefined;
 }>;
 export declare const ExtendedOrderBookSchema: z.ZodObject<{
     symbol: z.ZodString;

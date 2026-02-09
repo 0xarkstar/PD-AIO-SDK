@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-2400%2B%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-4800%2B%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![npm version](https://img.shields.io/badge/npm-v0.2.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
@@ -142,7 +142,7 @@
 - **Request tracing** - Correlation IDs for distributed debugging
 - **Type safety** - Runtime validation (Zod) + TypeScript strict mode
 - **Health checks** - Prometheus metrics, structured JSON logging
-- **2400+ tests** - 100% pass rate, coverage thresholds enforced
+- **4800+ tests** - 100% pass rate, coverage thresholds enforced
 
 ---
 
@@ -544,7 +544,7 @@ npm test -- hyperliquid
 ### Test Results
 
 ```
-✅ 2400+ tests passing (100% pass rate)
+✅ 4800+ tests passing (100% pass rate)
 ✅ 90+ test suites
 ✅ Coverage thresholds enforced (60%+)
 ```

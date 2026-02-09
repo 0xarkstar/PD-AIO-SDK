@@ -79,7 +79,10 @@ export interface DriftClientWrapperConfig {
  */
 export class DriftClientWrapper {
   private readonly config: DriftClientWrapperConfig;
-  private driftClient: any; // Would be DriftClient type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DriftClient type from @drift-labs/sdk
+  // is only available after dynamic import() at runtime. Cannot use static type because the SDK uses
+  // ESM-only distribution with native Node addons requiring dynamic loading.
+  private driftClient: any;
   private isInitialized = false;
   private readonly logger = new Logger('DriftClientWrapper');
 

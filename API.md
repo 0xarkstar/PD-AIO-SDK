@@ -218,6 +218,7 @@ for await (const orderBook of exchange.watchOrderBook('BTC/USDT:USDT')) {
 - ✅ `setLeverage`
 - ✅ `setMarginMode`
 - ✅ WebSocket streaming (all channels)
+- ⚠️ `fetchTrades` throws `NotSupportedError` — use `watchTrades` (WebSocket) instead
 
 ---
 
@@ -368,7 +369,15 @@ interface BackpackConfig {
 }
 ```
 
-**Authentication:** ED25519 signatures (not secp256k1)
+**Authentication:** ED25519 signatures with instruction-prefixed signing. All request parameters (including `instruction`, `timestamp`, `window`) are alphabetized and concatenated as `key=value&...` before signing. Signed requests require the following headers:
+- `X-API-KEY` - API key
+- `X-Timestamp` - Request timestamp (ms)
+- `X-Window` - Validity window in ms (default: `5000`)
+- `X-Signature` - Base64-encoded ED25519 signature
+
+**Order Format (Cycle 5):**
+- Order sides: `Bid` (buy) / `Ask` (sell) — not `BUY`/`SELL`
+- Order types: `Market` / `Limit` / `PostOnly` — not `MARKET`/`LIMIT`
 
 **Special Features:**
 - Solana-based high throughput
@@ -411,12 +420,15 @@ interface LighterConfig {
 }
 ```
 
-**Authentication:** API key with HMAC signatures
+**Authentication:** WASM-based signing (recommended) or API key with HMAC-SHA256 signatures
+
+**API Notes (Cycle 5):**
+- All REST endpoints use the `/api/v1/` prefix (e.g., `/api/v1/orderBookDetails`, `/api/v1/trades`, `/api/v1/sendTx`, `/api/v1/account`)
 
 **Special Features:**
 - ZK-SNARK proofs
 - Orderbook DEX model
-- Beta status (active development)
+- WASM signing (cross-platform, no native dependencies)
 - Testnet on Ethereum testnet
 
 **Example:**
@@ -547,7 +559,7 @@ interface ExtendedConfig {
   starknetPrivateKey?: string;     // StarkNet private key
   starknetAccountAddress?: string; // StarkNet account address
   testnet?: boolean;               // Default: false (testnet offline)
-  rateLimitPerMinute?: number;     // Default: 600
+  rateLimitPerMinute?: number;     // Default: 1000
 }
 ```
 
@@ -603,6 +615,11 @@ interface DydxConfig {
 ```
 
 **Authentication:** Cosmos SDK signing (secp256k1)
+
+**API Notes (Cycle 5):**
+- Market data endpoints (`/trades`, `/candles`, `/historicalFunding`) use **query parameters** (e.g., `?market=BTC-USD`) — not path parameters
+- Private endpoints embed `subaccountNumber` in the URL path: `/addresses/{address}/subaccountNumber/{n}/orders`
+- The `buildUrl()` helper constructs all query-parameter-based URLs
 
 **Special Features:**
 - 220+ perpetual markets
@@ -681,7 +698,8 @@ await exchange.initialize();
 - ✅ Position and balance methods
 - ✅ `fetchFundingRate` (borrow fee)
 - ❌ WebSocket streaming (not available)
-- ❌ `fetchOHLCV`, `fetchTrades`
+- ❌ `fetchOHLCV`
+- ⚠️ `fetchTrades` throws `NotSupportedError` — Jupiter trades are on-chain only
 
 ---
 
@@ -774,6 +792,10 @@ await exchange.initialize();
 **Symbol Format:**
 - Exchange: `BTC/USD`, `ETH/USD`
 - Unified: `BTC/USD:ETH`, `ETH/USD:ETH` (settled in collateral)
+
+**API Notes (Cycle 5):**
+- Candles endpoint: `/prices/candles` (not `/candlesticks`)
+- Candles query parameter: `tokenSymbol` (not `marketAddress`)
 
 **Supported Methods:**
 - ✅ `fetchMarkets`, `fetchTicker`, `fetchFundingRate`

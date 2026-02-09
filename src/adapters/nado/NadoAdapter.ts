@@ -488,14 +488,14 @@ export class NadoAdapter extends BaseAdapter {
       );
     }
 
-    const info = ticker.info as any;
+    const info = ticker.info!;
     return {
       symbol,
-      fundingRate: parseFloat(info.fundingRate as string),
+      fundingRate: parseFloat(String(info.fundingRate)),
       fundingTimestamp: Date.now(),
       nextFundingTimestamp: (info.nextFundingTime as number) || Date.now() + 8 * 3600 * 1000,
-      markPrice: parseFloat(info.markPrice as string),
-      indexPrice: parseFloat(info.indexPrice as string),
+      markPrice: parseFloat(String(info.markPrice)),
+      indexPrice: parseFloat(String(info.indexPrice)),
       fundingIntervalHours: 8,
     };
   }

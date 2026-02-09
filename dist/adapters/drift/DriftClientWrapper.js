@@ -13,7 +13,10 @@ import { Logger } from '../../core/logger.js';
  */
 export class DriftClientWrapper {
     config;
-    driftClient; // Would be DriftClient type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DriftClient type from @drift-labs/sdk
+    // is only available after dynamic import() at runtime. Cannot use static type because the SDK uses
+    // ESM-only distribution with native Node addons requiring dynamic loading.
+    driftClient;
     isInitialized = false;
     logger = new Logger('DriftClientWrapper');
     constructor(config) {

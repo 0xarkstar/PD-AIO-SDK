@@ -1572,3 +1572,277 @@ describe('Jupiter Utility Functions', () => {
     });
   });
 });
+
+// =============================================================================
+// Jupiter Error Mapping Tests (error-codes.ts - previously 0% coverage)
+// =============================================================================
+
+describe('Jupiter Error Mapping', () => {
+  let mapJupiterError: typeof import('../../src/adapters/jupiter/error-codes.js').mapJupiterError;
+  let JupiterErrorCodes: typeof import('../../src/adapters/jupiter/error-codes.js').JupiterErrorCodes;
+
+  beforeAll(async () => {
+    const mod = await import('../../src/adapters/jupiter/error-codes.js');
+    mapJupiterError = mod.mapJupiterError;
+    JupiterErrorCodes = mod.JupiterErrorCodes;
+  });
+
+  describe('mapJupiterError', () => {
+    test('should pass through PerpDEXError', async () => {
+      const { PerpDEXError } = await import('../../src/types/errors.js');
+      const err = new PerpDEXError('Test', 'TEST', 'jupiter');
+      expect(mapJupiterError(err)).toBe(err);
+    });
+
+    test('should map insufficient collateral to margin error', () => {
+      const err = new Error('insufficient collateral for this position');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('INSUFFICIENT_MARGIN');
+    });
+
+    test('should map insufficient balance error', () => {
+      const err = new Error('insufficient balance');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('INSUFFICIENT_BALANCE');
+    });
+
+    test('should map position not found error', () => {
+      const err = new Error('position not found');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('POSITION_NOT_FOUND');
+    });
+
+    test('should map blockhash expired error', () => {
+      const err = new Error('blockhash not found');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('TRANSACTION_EXPIRED');
+    });
+
+    test('should map transaction expired error', () => {
+      const err = new Error('transaction expired');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('TRANSACTION_EXPIRED');
+    });
+
+    test('should map signature verification error', () => {
+      const err = new Error('signature verification failed');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('INVALID_SIGNATURE');
+    });
+
+    test('should map insufficient lamports error', () => {
+      const err = new Error('insufficient lamports');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('INSUFFICIENT_SOL');
+    });
+
+    test('should map insufficient sol error', () => {
+      const err = new Error('insufficient sol for fees');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('INSUFFICIENT_SOL');
+    });
+
+    test('should map account not found error', () => {
+      const err = new Error('account not found on solana');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('ACCOUNT_NOT_FOUND');
+    });
+
+    test('should map account does not exist error', () => {
+      const err = new Error('account does not exist');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('ACCOUNT_NOT_FOUND');
+    });
+
+    test('should map 429 rate limit error', () => {
+      const err = new Error('429 Too Many Requests');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('RATE_LIMIT');
+    });
+
+    test('should map too many requests error', () => {
+      const err = new Error('too many requests');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('RATE_LIMIT');
+    });
+
+    test('should map 503 service unavailable', () => {
+      const err = new Error('503 Service Unavailable');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('RPC_UNAVAILABLE');
+    });
+
+    test('should map 502 bad gateway', () => {
+      const err = new Error('502 Bad Gateway');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('RPC_UNAVAILABLE');
+    });
+
+    test('should map timeout error', () => {
+      const err = new Error('request timed out');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('TIMEOUT');
+    });
+
+    test('should map unknown error to default', () => {
+      const err = new Error('some random error');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+
+    test('should handle non-Error objects', () => {
+      const result = mapJupiterError('string error');
+      expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+
+    test('should handle null/undefined', () => {
+      expect(mapJupiterError(null).code).toBe('UNKNOWN_ERROR');
+      expect(mapJupiterError(undefined).code).toBe('UNKNOWN_ERROR');
+    });
+  });
+
+  describe('JupiterErrorCodes', () => {
+    test('should have all expected error codes', () => {
+      expect(JupiterErrorCodes.INSUFFICIENT_MARGIN).toBe('INSUFFICIENT_MARGIN');
+      expect(JupiterErrorCodes.INSUFFICIENT_BALANCE).toBe('INSUFFICIENT_BALANCE');
+      expect(JupiterErrorCodes.INSUFFICIENT_SOL).toBe('INSUFFICIENT_SOL');
+      expect(JupiterErrorCodes.INVALID_LEVERAGE).toBe('INVALID_LEVERAGE');
+      expect(JupiterErrorCodes.MAX_LEVERAGE_EXCEEDED).toBe('MAX_LEVERAGE_EXCEEDED');
+      expect(JupiterErrorCodes.MIN_POSITION_SIZE).toBe('MIN_POSITION_SIZE');
+      expect(JupiterErrorCodes.POOL_CAPACITY_EXCEEDED).toBe('POOL_CAPACITY_EXCEEDED');
+      expect(JupiterErrorCodes.POSITION_NOT_FOUND).toBe('POSITION_NOT_FOUND');
+      expect(JupiterErrorCodes.POSITION_LIQUIDATED).toBe('POSITION_LIQUIDATED');
+      expect(JupiterErrorCodes.ORACLE_ERROR).toBe('ORACLE_ERROR');
+      expect(JupiterErrorCodes.ORACLE_STALE).toBe('ORACLE_STALE');
+      expect(JupiterErrorCodes.TRANSACTION_FAILED).toBe('TRANSACTION_FAILED');
+      expect(JupiterErrorCodes.TRANSACTION_EXPIRED).toBe('TRANSACTION_EXPIRED');
+      expect(JupiterErrorCodes.INVALID_SIGNATURE).toBe('INVALID_SIGNATURE');
+      expect(JupiterErrorCodes.ACCOUNT_NOT_FOUND).toBe('ACCOUNT_NOT_FOUND');
+      expect(JupiterErrorCodes.RATE_LIMIT_EXCEEDED).toBe('RATE_LIMIT_EXCEEDED');
+      expect(JupiterErrorCodes.RPC_UNAVAILABLE).toBe('RPC_UNAVAILABLE');
+      expect(JupiterErrorCodes.TIMEOUT).toBe('TIMEOUT');
+      expect(JupiterErrorCodes.UNKNOWN_ERROR).toBe('UNKNOWN_ERROR');
+    });
+  });
+});
+
+// =============================================================================
+// SolanaClient Tests (solana.ts - constructor/config, previously 0% coverage)
+// =============================================================================
+
+describe('SolanaClient', () => {
+  let SolanaClient: typeof import('../../src/adapters/jupiter/solana.js').SolanaClient;
+
+  beforeAll(async () => {
+    const mod = await import('../../src/adapters/jupiter/solana.js');
+    SolanaClient = mod.SolanaClient;
+  });
+
+  describe('constructor', () => {
+    test('should create with default config', () => {
+      const client = new SolanaClient();
+      expect(client).toBeDefined();
+    });
+
+    test('should accept custom RPC endpoint', () => {
+      const client = new SolanaClient({
+        rpcEndpoint: 'https://custom-rpc.example.com',
+      });
+      expect(client).toBeDefined();
+    });
+
+    test('should accept custom commitment level', () => {
+      const client = new SolanaClient({
+        commitment: 'finalized',
+      });
+      expect(client).toBeDefined();
+    });
+
+    test('should accept custom confirm options', () => {
+      const client = new SolanaClient({
+        confirmOptions: {
+          commitment: 'finalized',
+          preflightCommitment: 'processed',
+          maxRetries: 5,
+        },
+      });
+      expect(client).toBeDefined();
+    });
+  });
+
+  describe('getConnection before initialization', () => {
+    test('should throw when not initialized', () => {
+      const client = new SolanaClient();
+      expect(() => client.getConnection()).toThrow(/not initialized/i);
+    });
+  });
+});
+
+// =============================================================================
+// JupiterInstructionBuilder Tests (instructions.ts - constructor, previously 0% coverage)
+// =============================================================================
+
+describe('JupiterInstructionBuilder', () => {
+  let JupiterInstructionBuilder: typeof import('../../src/adapters/jupiter/instructions.js').JupiterInstructionBuilder;
+
+  beforeAll(async () => {
+    const mod = await import('../../src/adapters/jupiter/instructions.js');
+    JupiterInstructionBuilder = mod.JupiterInstructionBuilder;
+  });
+
+  describe('constructor', () => {
+    test('should create instruction builder', () => {
+      const builder = new JupiterInstructionBuilder();
+      expect(builder).toBeDefined();
+    });
+  });
+
+  describe('before initialization', () => {
+    test('buildOpenPositionInstruction should throw when not initialized', async () => {
+      const builder = new JupiterInstructionBuilder();
+      await expect(
+        builder.buildOpenPositionInstruction(
+          {
+            owner: '11111111111111111111111111111111',
+            side: 'long',
+            symbol: 'SOL-PERP',
+            sizeUsd: 100,
+            collateralAmount: 10,
+          },
+          {
+            position: '22222222222222222222222222222222',
+            pool: '33333333333333333333333333333333',
+            custody: '44444444444444444444444444444444',
+            custodyTokenAccount: '55555555555555555555555555555555',
+            collateralCustody: '66666666666666666666666666666666',
+            collateralTokenAccount: '77777777777777777777777777777777',
+            oracle: '88888888888888888888888888888888',
+            ownerTokenAccount: '99999999999999999999999999999999',
+          }
+        )
+      ).rejects.toThrow(/not initialized/i);
+    });
+
+    test('buildClosePositionInstruction should throw when not initialized', async () => {
+      const builder = new JupiterInstructionBuilder();
+      await expect(
+        builder.buildClosePositionInstruction(
+          {
+            owner: '11111111111111111111111111111111',
+            position: '22222222222222222222222222222222',
+          },
+          {
+            position: '22222222222222222222222222222222',
+            pool: '33333333333333333333333333333333',
+            custody: '44444444444444444444444444444444',
+            custodyTokenAccount: '55555555555555555555555555555555',
+            collateralCustody: '66666666666666666666666666666666',
+            collateralTokenAccount: '77777777777777777777777777777777',
+            oracle: '88888888888888888888888888888888',
+            ownerTokenAccount: '99999999999999999999999999999999',
+          }
+        )
+      ).rejects.toThrow(/not initialized/i);
+    });
+  });
+});
