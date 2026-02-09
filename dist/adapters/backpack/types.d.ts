@@ -47,13 +47,13 @@ export interface BackpackOrder {
     order_id: string;
     client_order_id?: string;
     market: string;
-    side: 'BUY' | 'SELL';
-    type: 'MARKET' | 'LIMIT' | 'POST_ONLY';
+    side: 'Bid' | 'Ask' | 'BUY' | 'SELL';
+    type: 'Market' | 'Limit' | 'PostOnly' | 'MARKET' | 'LIMIT' | 'POST_ONLY';
     size: string;
     price?: string;
     filled_size: string;
     avg_price?: string;
-    status: 'NEW' | 'OPEN' | 'PARTIAL' | 'FILLED' | 'CANCELLED' | 'REJECTED';
+    status: 'New' | 'Open' | 'PartiallyFilled' | 'Filled' | 'Cancelled' | 'Rejected' | 'NEW' | 'OPEN' | 'PARTIAL' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLED' | 'REJECTED';
     time_in_force: 'GTC' | 'IOC' | 'FOK' | 'POST_ONLY';
     post_only: boolean;
     reduce_only: boolean;
@@ -135,7 +135,7 @@ export interface BackpackFundingRate {
  */
 export interface BackpackOrderSignPayload {
     market: string;
-    side: 'BUY' | 'SELL';
+    side: 'Bid' | 'Ask';
     order_type: string;
     size: string;
     price: string;

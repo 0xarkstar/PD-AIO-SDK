@@ -54,16 +54,16 @@ export declare const EXTENDED_ENDPOINTS: {
  */
 export declare const EXTENDED_RATE_LIMITS: {
     readonly default: {
-        readonly maxRequests: 100;
-        readonly windowMs: 1000;
+        readonly maxRequests: 1000;
+        readonly windowMs: 60000;
     };
     readonly authenticated: {
-        readonly maxRequests: 200;
-        readonly windowMs: 1000;
+        readonly maxRequests: 1000;
+        readonly windowMs: 60000;
     };
     readonly vip: {
-        readonly maxRequests: 500;
-        readonly windowMs: 1000;
+        readonly maxRequests: 12000;
+        readonly windowMs: 300000;
     };
 };
 /**

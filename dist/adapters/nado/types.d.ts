@@ -81,10 +81,10 @@ export declare const NadoSymbolSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     symbol: string;
     type: "perp" | "spot";
-    min_size: string;
     product_id: number;
     price_increment_x18: string;
     size_increment: string;
+    min_size: string;
     maker_fee_rate_x18: string;
     taker_fee_rate_x18: string;
     long_weight_initial_x18: string;
@@ -93,10 +93,10 @@ export declare const NadoSymbolSchema: z.ZodObject<{
 }, {
     symbol: string;
     type: "perp" | "spot";
-    min_size: string;
     product_id: number;
     price_increment_x18: string;
     size_increment: string;
+    min_size: string;
     maker_fee_rate_x18: string;
     taker_fee_rate_x18: string;
     long_weight_initial_x18: string;
@@ -138,28 +138,28 @@ export declare const NadoProductSchema: z.ZodObject<{
     product_type: z.ZodEnum<["perpetual", "spot", "future"]>;
 }, "strip", z.ZodTypeAny, {
     symbol: string;
+    product_id: number;
+    min_size: string;
     base_currency: string;
     quote_currency: string;
-    is_active: boolean;
+    contract_size: string;
+    tick_size: string;
     maker_fee: string;
     taker_fee: string;
-    min_size: string;
-    tick_size: string;
-    product_id: number;
-    contract_size: string;
+    is_active: boolean;
     product_type: "spot" | "perpetual" | "future";
     max_position_size?: string | undefined;
 }, {
     symbol: string;
+    product_id: number;
+    min_size: string;
     base_currency: string;
     quote_currency: string;
-    is_active: boolean;
+    contract_size: string;
+    tick_size: string;
     maker_fee: string;
     taker_fee: string;
-    min_size: string;
-    tick_size: string;
-    product_id: number;
-    contract_size: string;
+    is_active: boolean;
     product_type: "spot" | "perpetual" | "future";
     max_position_size?: string | undefined;
 }>;
@@ -231,17 +231,17 @@ export declare const NadoOrderSchema: z.ZodObject<{
     amount: string;
     timestamp: number;
     nonce: number;
-    order_id: string;
     expiration: number;
     product_id: number;
+    order_id: string;
     digest: string;
     sender: string;
     price_x18: string;
     filled_amount: string;
     remaining_amount: string;
+    avg_fill_price?: string | undefined;
     time_in_force?: "ioc" | "fok" | "gtc" | undefined;
     post_only?: boolean | undefined;
-    avg_fill_price?: string | undefined;
     is_reduce_only?: boolean | undefined;
 }, {
     status: "open" | "expired" | "rejected" | "filled" | "cancelled";
@@ -249,17 +249,17 @@ export declare const NadoOrderSchema: z.ZodObject<{
     amount: string;
     timestamp: number;
     nonce: number;
-    order_id: string;
     expiration: number;
     product_id: number;
+    order_id: string;
     digest: string;
     sender: string;
     price_x18: string;
     filled_amount: string;
     remaining_amount: string;
+    avg_fill_price?: string | undefined;
     time_in_force?: "ioc" | "fok" | "gtc" | undefined;
     post_only?: boolean | undefined;
-    avg_fill_price?: string | undefined;
     is_reduce_only?: boolean | undefined;
 }>;
 /**
@@ -295,24 +295,24 @@ export declare const NadoPositionSchema: z.ZodObject<{
     leverage: string;
     timestamp: number;
     size: string;
-    mark_price: string;
-    entry_price: string;
-    unrealized_pnl: string;
-    realized_pnl: string;
     product_id: number;
     subaccount: string;
+    entry_price: string;
+    mark_price: string;
+    unrealized_pnl: string;
+    realized_pnl: string;
     liquidation_price?: string | undefined;
 }, {
     margin: string;
     leverage: string;
     timestamp: number;
     size: string;
-    mark_price: string;
-    entry_price: string;
-    unrealized_pnl: string;
-    realized_pnl: string;
     product_id: number;
     subaccount: string;
+    entry_price: string;
+    mark_price: string;
+    unrealized_pnl: string;
+    realized_pnl: string;
     liquidation_price?: string | undefined;
 }>;
 /**
@@ -339,8 +339,8 @@ export declare const NadoBalanceSchema: z.ZodObject<{
     timestamp: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     timestamp: number;
-    unrealized_pnl: string;
     subaccount: string;
+    unrealized_pnl: string;
     quote_balance: string;
     total_equity: string;
     used_margin: string;
@@ -348,8 +348,8 @@ export declare const NadoBalanceSchema: z.ZodObject<{
     health: string;
 }, {
     timestamp: number;
-    unrealized_pnl: string;
     subaccount: string;
+    unrealized_pnl: string;
     quote_balance: string;
     total_equity: string;
     used_margin: string;
@@ -381,16 +381,16 @@ export declare const NadoTradeSchema: z.ZodObject<{
     price: string;
     timestamp: number;
     size: string;
-    trade_id: string;
     product_id: number;
+    trade_id: string;
     is_maker: boolean;
 }, {
     side: 0 | 1;
     price: string;
     timestamp: number;
     size: string;
-    trade_id: string;
     product_id: number;
+    trade_id: string;
     is_maker: boolean;
 }>;
 /**

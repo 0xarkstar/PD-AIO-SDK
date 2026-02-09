@@ -11,7 +11,7 @@ import { mapError } from './utils.js';
  */
 export async function fetchPositionsData(deps, symbols) {
     try {
-        const response = await deps.request('GET', '/account/positions');
+        const response = await deps.request('GET', '/api/v1/account');
         if (!Array.isArray(response)) {
             throw new PerpDEXError('Invalid positions response', 'INVALID_RESPONSE', 'lighter');
         }
@@ -31,7 +31,7 @@ export async function fetchPositionsData(deps, symbols) {
  */
 export async function fetchBalanceData(deps) {
     try {
-        const response = await deps.request('GET', '/account/balance');
+        const response = await deps.request('GET', '/api/v1/account');
         if (!Array.isArray(response)) {
             throw new PerpDEXError('Invalid balance response', 'INVALID_RESPONSE', 'lighter');
         }
@@ -46,7 +46,7 @@ export async function fetchBalanceData(deps) {
  */
 export async function fetchOpenOrdersData(deps, symbol) {
     try {
-        const path = symbol ? `/orders?symbol=${deps.normalizer.toLighterSymbol(symbol)}` : '/orders';
+        const path = symbol ? `/api/v1/accountActiveOrders?symbol=${deps.normalizer.toLighterSymbol(symbol)}` : '/api/v1/accountActiveOrders';
         const response = await deps.request('GET', path);
         if (!Array.isArray(response)) {
             throw new PerpDEXError('Invalid open orders response', 'INVALID_RESPONSE', 'lighter');
@@ -70,7 +70,7 @@ export async function fetchOrderHistoryData(deps, symbol, since, limit) {
         if (limit)
             params.append('limit', limit.toString());
         const queryString = params.toString();
-        const response = await deps.request('GET', `/account/inactiveOrders${queryString ? `?${queryString}` : ''}`);
+        const response = await deps.request('GET', `/api/v1/accountInactiveOrders${queryString ? `?${queryString}` : ''}`);
         if (!Array.isArray(response)) {
             throw new PerpDEXError('Invalid order history response', 'INVALID_RESPONSE', 'lighter');
         }
@@ -93,7 +93,7 @@ export async function fetchMyTradesData(deps, symbol, since, limit) {
         if (limit)
             params.append('limit', limit.toString());
         const queryString = params.toString();
-        const response = await deps.request('GET', `/account/fills${queryString ? `?${queryString}` : ''}`);
+        const response = await deps.request('GET', `/api/v1/accountFills${queryString ? `?${queryString}` : ''}`);
         if (!Array.isArray(response)) {
             throw new PerpDEXError('Invalid trade history response', 'INVALID_RESPONSE', 'lighter');
         }

@@ -1,4 +1,4 @@
-# Pipeline Progress — ALL CYCLES COMPLETE
+# Pipeline Progress
 
 ## Cycle 1: Code Quality (COMPLETED)
 | Item | Result |
@@ -70,6 +70,54 @@ Date: 2026-02-08
 
 ---
 
+## Cycle 5: API Audit + Endpoint Fixes (COMPLETED)
+Date: 2026-02-08
+
+### Research Phase (P-1)
+- 13 exchanges audited against real API documentation
+- 60+ issues found: ~17 CRITICAL, ~20 HIGH, ~15 MEDIUM, ~10 LOW
+- 3 research reports: RESEARCH_API_GROUP_A/B/C.md
+
+### Implementation Streams (P1)
+| Stream | Agent | Status | Fixes |
+|--------|-------|--------|-------|
+| 1 | p-impl-backpack | DONE | Order sides Bid/Ask, types PascalCase, auth signature rewrite, X-Window header |
+| 2 | p-impl-endpoints-a | DONE | Paradex 3 endpoint paths, Lighter 5 endpoint paths, Extended rate limit |
+| 3 | p-impl-endpoints-b | DONE | dYdX query params + subaccountNumber, GMX candles path, HL/Jupiter NotSupportedError, GRVT dead types |
+
+### Deferred (needs live verification or new deps)
+- dYdX auth (@cosmjs for Cosmos address derivation)
+- Jupiter Price API v2 vs v3 (needs live API test)
+- Drift/GMX dynamic market lists (architecture change)
+- Variational trading API (not live yet)
+- Nado V2 migration (V1 still works)
+
+### Quality Gates
+- [x] `npx tsc --noEmit` — 0 errors
+- [x] `npx jest --forceExit` — 4823 tests, 0 failures
+- [x] `npm run build` — PASS
+- [x] No breaking changes to public TypeScript types
+
+### Agents Used: 6 + lead
+| Phase | Agents |
+|-------|--------|
+| P-1 | p-research-a, p-research-b, p-research-c |
+| P1 | p-impl-backpack, p-impl-endpoints-a, p-impl-endpoints-b |
+| P2 | team-lead (direct QA) |
+
+---
+
+## Cumulative Metrics
+| Metric | Cycle 2 | Cycle 4 | Cycle 5 | Delta |
+|--------|---------|---------|---------|-------|
+| TS errors | 0 | 0 | 0 | = |
+| Tests passed | 4625 | 4822 | 4823 | +1 |
+| Tests failed | 1 | 0 | 0 | = |
+| Build | PASS | PASS | PASS | = |
+| Coverage thresholds | 50% | 65% | 65% | = |
+
+---
+
 ## Pipeline Artifacts (docs/pipeline/)
 | File | Content |
 |------|---------|
@@ -81,3 +129,7 @@ Date: 2026-02-08
 | TEST_STRATEGY.md | 255 new tests roadmap |
 | QA_REPORT.md | Final QA PASS |
 | PROGRESS.md | This file |
+| RESEARCH_API_GROUP_A.md | Hyperliquid, Lighter, GRVT, Paradex, EdgeX audit |
+| RESEARCH_API_GROUP_B.md | Backpack, Nado, Variational, Extended audit |
+| RESEARCH_API_GROUP_C.md | dYdX, Jupiter, Drift, GMX audit |
+| DESIGN_API_AUDIT.md | Cycle 5 fix plan + file ownership map |

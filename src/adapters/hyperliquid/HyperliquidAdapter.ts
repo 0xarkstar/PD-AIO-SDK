@@ -25,6 +25,7 @@ import type {
   TradeParams,
 } from '../../types/index.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
+import { NotSupportedError } from '../../types/errors.js';
 import { WebSocketManager } from '../../websocket/index.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import {
@@ -270,21 +271,12 @@ export class HyperliquidAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTrades(symbol: string, _params?: TradeParams): Promise<Trade[]> {
-    await this.rateLimiter.acquire('fetchTrades');
-
-    try {
-      this.symbolToExchange(symbol);
-
-      // Hyperliquid provides trade history via candlestick endpoint
-      // Note: Hyperliquid doesn't provide individual trades via REST
-      // This is a limitation - real trade data requires WebSocket
-      // Return empty array for now
-      this.debug('fetchTrades: Hyperliquid REST API does not provide trade history');
-      return [];
-    } catch (error) {
-      throw mapError(error);
-    }
+  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
+    throw new NotSupportedError(
+      'fetchTrades is not supported via REST API. Use watchTrades (WebSocket) instead.',
+      'NOT_SUPPORTED',
+      'hyperliquid'
+    );
   }
 
   /**

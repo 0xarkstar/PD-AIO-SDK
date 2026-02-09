@@ -105,20 +105,12 @@ describe('HyperliquidAdapter Integration Tests', () => {
       expect(orderBook.asks[0][0]).toBe(50100);
     });
 
-    test('fetchTrades - returns empty array (REST API limitation)', async () => {
-      // Mock candleSnapshot request (still made even though result is empty)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({}),
-      });
-
+    test('fetchTrades - throws NOT_SUPPORTED error (REST API limitation)', async () => {
       // Hyperliquid REST API does not provide individual trade history
       // This is by design - use WebSocket for real-time trades
-      const trades = await adapter.fetchTrades('BTC/USDT:USDT');
-
-      // Should return empty array as documented in the adapter
-      expect(Array.isArray(trades)).toBe(true);
-      expect(trades).toHaveLength(0);
+      await expect(adapter.fetchTrades('BTC/USDT:USDT')).rejects.toThrow(
+        /not supported/i
+      );
     });
 
     test('fetchFundingRate - fetches current funding rate', async () => {

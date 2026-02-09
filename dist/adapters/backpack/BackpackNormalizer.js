@@ -252,12 +252,17 @@ export class BackpackNormalizer {
     }
     /**
      * Normalize Backpack order type to unified format
+     * Backpack API returns PascalCase: 'Market', 'Limit', 'PostOnly'
      */
     normalizeOrderType(backpackType) {
         switch (backpackType) {
+            case 'Market':
             case 'MARKET':
                 return 'market';
+            case 'Limit':
             case 'LIMIT':
+            case 'PostOnly':
+            case 'POST_ONLY':
                 return 'limit';
             default:
                 return 'limit';
@@ -265,17 +270,29 @@ export class BackpackNormalizer {
     }
     /**
      * Normalize Backpack order side to unified format
+     * Backpack API returns 'Bid' (buy) / 'Ask' (sell)
      */
     normalizeOrderSide(backpackSide) {
-        return backpackSide === 'BUY' ? 'buy' : 'sell';
+        return (backpackSide === 'Bid' || backpackSide === 'BUY') ? 'buy' : 'sell';
     }
     /**
      * Normalize Backpack order status to unified format
+     * Backpack API returns PascalCase: 'New', 'Open', 'PartiallyFilled', 'Filled', 'Cancelled'
      */
     normalizeOrderStatus(backpackStatus) {
         const statusMap = {
+            // PascalCase (actual API format)
+            New: 'open',
+            Open: 'open',
+            PartiallyFilled: 'partiallyFilled',
+            Filled: 'filled',
+            Cancelled: 'canceled',
+            Rejected: 'rejected',
+            // UPPER_CASE (legacy/backward compat)
             PENDING: 'open',
+            NEW: 'open',
             OPEN: 'open',
+            PARTIAL: 'partiallyFilled',
             PARTIALLY_FILLED: 'partiallyFilled',
             FILLED: 'filled',
             CANCELLED: 'canceled',

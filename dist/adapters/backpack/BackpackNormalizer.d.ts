@@ -63,14 +63,17 @@ export declare class BackpackNormalizer {
     normalizeFundingRate(backpackFunding: BackpackFundingRate): FundingRate;
     /**
      * Normalize Backpack order type to unified format
+     * Backpack API returns PascalCase: 'Market', 'Limit', 'PostOnly'
      */
     private normalizeOrderType;
     /**
      * Normalize Backpack order side to unified format
+     * Backpack API returns 'Bid' (buy) / 'Ask' (sell)
      */
     private normalizeOrderSide;
     /**
      * Normalize Backpack order status to unified format
+     * Backpack API returns PascalCase: 'New', 'Open', 'PartiallyFilled', 'Filled', 'Cancelled'
      */
     private normalizeOrderStatus;
     /**

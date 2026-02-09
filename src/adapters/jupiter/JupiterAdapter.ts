@@ -15,6 +15,7 @@
  */
 
 import { BaseAdapter } from '../base/BaseAdapter.js';
+import { NotSupportedError } from '../../types/errors.js';
 import type {
   Balance,
   ExchangeConfig,
@@ -320,9 +321,11 @@ export class JupiterAdapter extends BaseAdapter {
   }
 
   async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
-    // Jupiter doesn't have a public trade feed
-    this.warn('Jupiter Perps does not provide a public trade feed');
-    return [];
+    throw new NotSupportedError(
+      'fetchTrades is not supported. Jupiter Perps trades are on-chain only.',
+      'NOT_SUPPORTED',
+      'jupiter'
+    );
   }
 
   async fetchFundingRate(symbol: string): Promise<FundingRate> {

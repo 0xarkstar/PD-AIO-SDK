@@ -104,11 +104,10 @@ describeIfIntegration('Jupiter Perps Integration Tests', () => {
       expect(typeof orderBook.timestamp).toBe('number');
     }, 30000);
 
-    test('fetchTrades returns empty array', async () => {
-      const trades = await adapter.fetchTrades('SOL/USD:USD');
-
-      expect(trades).toBeInstanceOf(Array);
-      expect(trades).toHaveLength(0);
+    test('fetchTrades throws NOT_SUPPORTED error', async () => {
+      await expect(adapter.fetchTrades('SOL/USD:USD')).rejects.toThrow(
+        /not supported/i
+      );
     }, 30000);
 
     test('fetchFundingRate returns valid borrow rate', async () => {

@@ -230,14 +230,14 @@ describe('Backpack Balance Normalization', () => {
 
 describe('Backpack Conversion Functions', () => {
   test('converts order types', () => {
-    expect(toBackpackOrderType('market', false)).toBe('MARKET');
-    expect(toBackpackOrderType('limit', false)).toBe('LIMIT');
-    expect(toBackpackOrderType('limit', true)).toBe('POST_ONLY');
+    expect(toBackpackOrderType('market', false)).toBe('Market');
+    expect(toBackpackOrderType('limit', false)).toBe('Limit');
+    expect(toBackpackOrderType('limit', true)).toBe('PostOnly');
   });
 
   test('converts order sides', () => {
-    expect(toBackpackOrderSide('buy')).toBe('BUY');
-    expect(toBackpackOrderSide('sell')).toBe('SELL');
+    expect(toBackpackOrderSide('buy')).toBe('Bid');
+    expect(toBackpackOrderSide('sell')).toBe('Ask');
   });
 
   test('converts time in force', () => {

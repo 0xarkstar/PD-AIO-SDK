@@ -116,6 +116,11 @@ export declare class BackpackAdapter extends BaseAdapter {
      */
     symbolFromExchange(exchangeSymbol: string): string;
     /**
+     * Instruction mapping for Backpack API endpoints.
+     * The instruction value is required for the ED25519 signature payload.
+     */
+    private static readonly INSTRUCTION_MAP;
+    /**
      * Make authenticated HTTP request using HTTPClient
      *
      * Backpack API uses /api/v1 prefix for all endpoints.

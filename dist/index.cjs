@@ -2075,6 +2075,171 @@ var RateLimiter = class {
   }
 };
 
+// src/types/errors.ts
+var PerpDEXError = class _PerpDEXError extends Error {
+  constructor(message, code, exchange, originalError) {
+    super(message);
+    this.code = code;
+    this.exchange = exchange;
+    this.originalError = originalError;
+    this.name = "PerpDEXError";
+    Object.setPrototypeOf(this, _PerpDEXError.prototype);
+  }
+  /** Correlation ID for request tracing */
+  correlationId;
+  /**
+   * Set correlation ID for this error
+   */
+  withCorrelationId(correlationId) {
+    this.correlationId = correlationId;
+    return this;
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      code: this.code,
+      exchange: this.exchange,
+      correlationId: this.correlationId,
+      originalError: this.originalError
+    };
+  }
+};
+var NotSupportedError = class _NotSupportedError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "NotSupportedError";
+    Object.setPrototypeOf(this, _NotSupportedError.prototype);
+  }
+};
+var InsufficientMarginError = class _InsufficientMarginError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "InsufficientMarginError";
+    Object.setPrototypeOf(this, _InsufficientMarginError.prototype);
+  }
+};
+var OrderNotFoundError = class _OrderNotFoundError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "OrderNotFoundError";
+    Object.setPrototypeOf(this, _OrderNotFoundError.prototype);
+  }
+};
+var InvalidOrderError = class _InvalidOrderError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "InvalidOrderError";
+    Object.setPrototypeOf(this, _InvalidOrderError.prototype);
+  }
+};
+var PositionNotFoundError = class _PositionNotFoundError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "PositionNotFoundError";
+    Object.setPrototypeOf(this, _PositionNotFoundError.prototype);
+  }
+};
+var NetworkError = class _NetworkError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "NetworkError";
+    Object.setPrototypeOf(this, _NetworkError.prototype);
+  }
+};
+var RateLimitError = class _RateLimitError extends PerpDEXError {
+  constructor(message, code, exchange, retryAfter, originalError) {
+    super(message, code, exchange, originalError);
+    this.retryAfter = retryAfter;
+    this.name = "RateLimitError";
+    Object.setPrototypeOf(this, _RateLimitError.prototype);
+  }
+};
+var ExchangeUnavailableError = class _ExchangeUnavailableError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "ExchangeUnavailableError";
+    Object.setPrototypeOf(this, _ExchangeUnavailableError.prototype);
+  }
+};
+var WebSocketDisconnectedError = class _WebSocketDisconnectedError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "WebSocketDisconnectedError";
+    Object.setPrototypeOf(this, _WebSocketDisconnectedError.prototype);
+  }
+};
+var InvalidSignatureError = class _InvalidSignatureError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "InvalidSignatureError";
+    Object.setPrototypeOf(this, _InvalidSignatureError.prototype);
+  }
+};
+var ExpiredAuthError = class _ExpiredAuthError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "ExpiredAuthError";
+    Object.setPrototypeOf(this, _ExpiredAuthError.prototype);
+  }
+};
+var InsufficientPermissionsError = class _InsufficientPermissionsError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "InsufficientPermissionsError";
+    Object.setPrototypeOf(this, _InsufficientPermissionsError.prototype);
+  }
+};
+var InvalidSymbolError = class _InvalidSymbolError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "InvalidSymbolError";
+    Object.setPrototypeOf(this, _InvalidSymbolError.prototype);
+  }
+};
+var InsufficientBalanceError = class _InsufficientBalanceError extends PerpDEXError {
+  constructor(message, code, exchange, required, available, originalError) {
+    super(message, code, exchange, originalError);
+    this.required = required;
+    this.available = available;
+    this.name = "InsufficientBalanceError";
+    Object.setPrototypeOf(this, _InsufficientBalanceError.prototype);
+  }
+};
+var TransactionFailedError = class _TransactionFailedError extends PerpDEXError {
+  constructor(message, code, exchange, txHash, originalError) {
+    super(message, code, exchange, originalError);
+    this.txHash = txHash;
+    this.name = "TransactionFailedError";
+    Object.setPrototypeOf(this, _TransactionFailedError.prototype);
+  }
+};
+var SlippageExceededError = class _SlippageExceededError extends PerpDEXError {
+  constructor(message, code, exchange, expectedPrice, actualPrice, originalError) {
+    super(message, code, exchange, originalError);
+    this.expectedPrice = expectedPrice;
+    this.actualPrice = actualPrice;
+    this.name = "SlippageExceededError";
+    Object.setPrototypeOf(this, _SlippageExceededError.prototype);
+  }
+};
+var LiquidationError = class _LiquidationError extends PerpDEXError {
+  constructor(message, code, exchange, originalError) {
+    super(message, code, exchange, originalError);
+    this.name = "LiquidationError";
+    Object.setPrototypeOf(this, _LiquidationError.prototype);
+  }
+};
+function isPerpDEXError(error) {
+  return error instanceof PerpDEXError;
+}
+function isRateLimitError(error) {
+  return error instanceof RateLimitError;
+}
+function isAuthError(error) {
+  return error instanceof InvalidSignatureError || error instanceof ExpiredAuthError || error instanceof InsufficientPermissionsError;
+}
+
 // node_modules/eventemitter3/index.mjs
 var import_index = __toESM(require_eventemitter3(), 1);
 
@@ -2447,171 +2612,6 @@ var WebSocketClient = class extends import_index.default {
     }
   }
 };
-
-// src/types/errors.ts
-var PerpDEXError = class _PerpDEXError extends Error {
-  constructor(message, code, exchange, originalError) {
-    super(message);
-    this.code = code;
-    this.exchange = exchange;
-    this.originalError = originalError;
-    this.name = "PerpDEXError";
-    Object.setPrototypeOf(this, _PerpDEXError.prototype);
-  }
-  /** Correlation ID for request tracing */
-  correlationId;
-  /**
-   * Set correlation ID for this error
-   */
-  withCorrelationId(correlationId) {
-    this.correlationId = correlationId;
-    return this;
-  }
-  toJSON() {
-    return {
-      name: this.name,
-      message: this.message,
-      code: this.code,
-      exchange: this.exchange,
-      correlationId: this.correlationId,
-      originalError: this.originalError
-    };
-  }
-};
-var NotSupportedError = class _NotSupportedError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "NotSupportedError";
-    Object.setPrototypeOf(this, _NotSupportedError.prototype);
-  }
-};
-var InsufficientMarginError = class _InsufficientMarginError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "InsufficientMarginError";
-    Object.setPrototypeOf(this, _InsufficientMarginError.prototype);
-  }
-};
-var OrderNotFoundError = class _OrderNotFoundError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "OrderNotFoundError";
-    Object.setPrototypeOf(this, _OrderNotFoundError.prototype);
-  }
-};
-var InvalidOrderError = class _InvalidOrderError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "InvalidOrderError";
-    Object.setPrototypeOf(this, _InvalidOrderError.prototype);
-  }
-};
-var PositionNotFoundError = class _PositionNotFoundError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "PositionNotFoundError";
-    Object.setPrototypeOf(this, _PositionNotFoundError.prototype);
-  }
-};
-var NetworkError = class _NetworkError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "NetworkError";
-    Object.setPrototypeOf(this, _NetworkError.prototype);
-  }
-};
-var RateLimitError = class _RateLimitError extends PerpDEXError {
-  constructor(message, code, exchange, retryAfter, originalError) {
-    super(message, code, exchange, originalError);
-    this.retryAfter = retryAfter;
-    this.name = "RateLimitError";
-    Object.setPrototypeOf(this, _RateLimitError.prototype);
-  }
-};
-var ExchangeUnavailableError = class _ExchangeUnavailableError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "ExchangeUnavailableError";
-    Object.setPrototypeOf(this, _ExchangeUnavailableError.prototype);
-  }
-};
-var WebSocketDisconnectedError = class _WebSocketDisconnectedError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "WebSocketDisconnectedError";
-    Object.setPrototypeOf(this, _WebSocketDisconnectedError.prototype);
-  }
-};
-var InvalidSignatureError = class _InvalidSignatureError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "InvalidSignatureError";
-    Object.setPrototypeOf(this, _InvalidSignatureError.prototype);
-  }
-};
-var ExpiredAuthError = class _ExpiredAuthError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "ExpiredAuthError";
-    Object.setPrototypeOf(this, _ExpiredAuthError.prototype);
-  }
-};
-var InsufficientPermissionsError = class _InsufficientPermissionsError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "InsufficientPermissionsError";
-    Object.setPrototypeOf(this, _InsufficientPermissionsError.prototype);
-  }
-};
-var InvalidSymbolError = class _InvalidSymbolError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "InvalidSymbolError";
-    Object.setPrototypeOf(this, _InvalidSymbolError.prototype);
-  }
-};
-var InsufficientBalanceError = class _InsufficientBalanceError extends PerpDEXError {
-  constructor(message, code, exchange, required, available, originalError) {
-    super(message, code, exchange, originalError);
-    this.required = required;
-    this.available = available;
-    this.name = "InsufficientBalanceError";
-    Object.setPrototypeOf(this, _InsufficientBalanceError.prototype);
-  }
-};
-var TransactionFailedError = class _TransactionFailedError extends PerpDEXError {
-  constructor(message, code, exchange, txHash, originalError) {
-    super(message, code, exchange, originalError);
-    this.txHash = txHash;
-    this.name = "TransactionFailedError";
-    Object.setPrototypeOf(this, _TransactionFailedError.prototype);
-  }
-};
-var SlippageExceededError = class _SlippageExceededError extends PerpDEXError {
-  constructor(message, code, exchange, expectedPrice, actualPrice, originalError) {
-    super(message, code, exchange, originalError);
-    this.expectedPrice = expectedPrice;
-    this.actualPrice = actualPrice;
-    this.name = "SlippageExceededError";
-    Object.setPrototypeOf(this, _SlippageExceededError.prototype);
-  }
-};
-var LiquidationError = class _LiquidationError extends PerpDEXError {
-  constructor(message, code, exchange, originalError) {
-    super(message, code, exchange, originalError);
-    this.name = "LiquidationError";
-    Object.setPrototypeOf(this, _LiquidationError.prototype);
-  }
-};
-function isPerpDEXError(error) {
-  return error instanceof PerpDEXError;
-}
-function isRateLimitError(error) {
-  return error instanceof RateLimitError;
-}
-function isAuthError(error) {
-  return error instanceof InvalidSignatureError || error instanceof ExpiredAuthError || error instanceof InsufficientPermissionsError;
-}
 
 // src/websocket/WebSocketManager.ts
 var MAX_QUEUE_SIZE = 1e3;
@@ -9844,15 +9844,12 @@ var HyperliquidAdapter = class extends BaseAdapter {
       throw mapError(error);
     }
   }
-  async fetchTrades(symbol, _params) {
-    await this.rateLimiter.acquire("fetchTrades");
-    try {
-      this.symbolToExchange(symbol);
-      this.debug("fetchTrades: Hyperliquid REST API does not provide trade history");
-      return [];
-    } catch (error) {
-      throw mapError(error);
-    }
+  async fetchTrades(_symbol, _params) {
+    throw new NotSupportedError(
+      "fetchTrades is not supported via REST API. Use watchTrades (WebSocket) instead.",
+      "NOT_SUPPORTED",
+      "hyperliquid"
+    );
   }
   /**
    * Fetch OHLCV (candlestick) data
@@ -11678,7 +11675,7 @@ async function fetchTradesData(deps, symbol, limit) {
 async function fetchFundingRateData(deps, symbol) {
   try {
     const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
-    const response = await deps.request("GET", `/funding/${lighterSymbol}`);
+    const response = await deps.request("GET", `/api/v1/funding-rates?symbol=${lighterSymbol}`);
     return deps.normalizer.normalizeFundingRate(response);
   } catch (error) {
     throw mapError2(error);
@@ -11688,7 +11685,7 @@ async function fetchFundingRateData(deps, symbol) {
 // src/adapters/lighter/LighterAccount.ts
 async function fetchPositionsData(deps, symbols) {
   try {
-    const response = await deps.request("GET", "/account/positions");
+    const response = await deps.request("GET", "/api/v1/account");
     if (!Array.isArray(response)) {
       throw new PerpDEXError("Invalid positions response", "INVALID_RESPONSE", "lighter");
     }
@@ -11703,7 +11700,7 @@ async function fetchPositionsData(deps, symbols) {
 }
 async function fetchBalanceData(deps) {
   try {
-    const response = await deps.request("GET", "/account/balance");
+    const response = await deps.request("GET", "/api/v1/account");
     if (!Array.isArray(response)) {
       throw new PerpDEXError("Invalid balance response", "INVALID_RESPONSE", "lighter");
     }
@@ -11714,7 +11711,7 @@ async function fetchBalanceData(deps) {
 }
 async function fetchOpenOrdersData(deps, symbol) {
   try {
-    const path = symbol ? `/orders?symbol=${deps.normalizer.toLighterSymbol(symbol)}` : "/orders";
+    const path = symbol ? `/api/v1/accountActiveOrders?symbol=${deps.normalizer.toLighterSymbol(symbol)}` : "/api/v1/accountActiveOrders";
     const response = await deps.request("GET", path);
     if (!Array.isArray(response)) {
       throw new PerpDEXError("Invalid open orders response", "INVALID_RESPONSE", "lighter");
@@ -11733,7 +11730,7 @@ async function fetchOrderHistoryData(deps, symbol, since, limit) {
     const queryString = params.toString();
     const response = await deps.request(
       "GET",
-      `/account/inactiveOrders${queryString ? `?${queryString}` : ""}`
+      `/api/v1/accountInactiveOrders${queryString ? `?${queryString}` : ""}`
     );
     if (!Array.isArray(response)) {
       throw new PerpDEXError("Invalid order history response", "INVALID_RESPONSE", "lighter");
@@ -11752,7 +11749,7 @@ async function fetchMyTradesData(deps, symbol, since, limit) {
     const queryString = params.toString();
     const response = await deps.request(
       "GET",
-      `/account/fills${queryString ? `?${queryString}` : ""}`
+      `/api/v1/accountFills${queryString ? `?${queryString}` : ""}`
     );
     if (!Array.isArray(response)) {
       throw new PerpDEXError("Invalid trade history response", "INVALID_RESPONSE", "lighter");
@@ -14663,93 +14660,6 @@ var GRVTAdapter = class extends BaseAdapter {
   }
 };
 
-// src/adapters/grvt/types.ts
-var GRVTMarketSchema = external_exports.object({
-  instrument_id: external_exports.string(),
-  instrument: external_exports.string(),
-  base_currency: external_exports.string(),
-  quote_currency: external_exports.string(),
-  settlement_currency: external_exports.string(),
-  instrument_type: external_exports.enum(["PERP", "SPOT"]),
-  is_active: external_exports.boolean(),
-  maker_fee: external_exports.string(),
-  taker_fee: external_exports.string(),
-  max_leverage: external_exports.string(),
-  min_size: external_exports.string(),
-  max_size: external_exports.string(),
-  tick_size: external_exports.string(),
-  step_size: external_exports.string(),
-  mark_price: external_exports.string(),
-  index_price: external_exports.string(),
-  funding_rate: external_exports.string().optional(),
-  next_funding_time: external_exports.number().optional(),
-  open_interest: external_exports.string().optional()
-});
-var GRVTOrderBookSchema = external_exports.object({
-  instrument: external_exports.string(),
-  bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
-  asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
-  timestamp: external_exports.number(),
-  sequence: external_exports.number()
-});
-var GRVTOrderSchema = external_exports.object({
-  order_id: external_exports.string(),
-  client_order_id: external_exports.string().optional(),
-  instrument: external_exports.string(),
-  order_type: external_exports.enum(["MARKET", "LIMIT", "LIMIT_MAKER"]),
-  side: external_exports.enum(["BUY", "SELL"]),
-  size: external_exports.string(),
-  price: external_exports.string().optional(),
-  time_in_force: external_exports.enum(["GTC", "IOC", "FOK", "POST_ONLY"]),
-  reduce_only: external_exports.boolean(),
-  post_only: external_exports.boolean(),
-  status: external_exports.enum(["PENDING", "OPEN", "PARTIALLY_FILLED", "FILLED", "CANCELLED", "REJECTED"]),
-  filled_size: external_exports.string(),
-  average_fill_price: external_exports.string().optional(),
-  created_at: external_exports.number(),
-  updated_at: external_exports.number()
-});
-var GRVTPositionSchema = external_exports.object({
-  instrument: external_exports.string(),
-  side: external_exports.enum(["LONG", "SHORT"]),
-  size: external_exports.string(),
-  entry_price: external_exports.string(),
-  mark_price: external_exports.string(),
-  liquidation_price: external_exports.string().optional(),
-  unrealized_pnl: external_exports.string(),
-  realized_pnl: external_exports.string(),
-  margin: external_exports.string(),
-  leverage: external_exports.string(),
-  timestamp: external_exports.number()
-});
-var GRVTBalanceSchema = external_exports.object({
-  currency: external_exports.string(),
-  total: external_exports.string(),
-  available: external_exports.string(),
-  reserved: external_exports.string(),
-  unrealized_pnl: external_exports.string()
-});
-var GRVTTradeSchema = external_exports.object({
-  trade_id: external_exports.string(),
-  instrument: external_exports.string(),
-  side: external_exports.enum(["BUY", "SELL"]),
-  price: external_exports.string(),
-  size: external_exports.string(),
-  timestamp: external_exports.number(),
-  is_buyer_maker: external_exports.boolean()
-});
-var GRVTTickerSchema = external_exports.object({
-  instrument: external_exports.string(),
-  last_price: external_exports.string(),
-  best_bid: external_exports.string(),
-  best_ask: external_exports.string(),
-  volume_24h: external_exports.string(),
-  high_24h: external_exports.string(),
-  low_24h: external_exports.string(),
-  price_change_24h: external_exports.string(),
-  timestamp: external_exports.number()
-});
-
 // src/adapters/paradex/constants.ts
 var PARADEX_API_URLS = {
   mainnet: {
@@ -16849,7 +16759,7 @@ var ParadexAdapter = class extends BaseAdapter {
       const market = this.normalizer.symbolFromCCXT(symbol);
       const limit = params?.limit;
       const queryParams = limit ? `?depth=${limit}` : "";
-      const response = await this.client.get(`/markets/${market}/orderbook${queryParams}`);
+      const response = await this.client.get(`/orderbook/${market}${queryParams}`);
       return this.normalizer.normalizeOrderBook(response);
     } catch (error) {
       throw mapAxiosError2(error);
@@ -16863,7 +16773,7 @@ var ParadexAdapter = class extends BaseAdapter {
     try {
       const market = this.normalizer.symbolFromCCXT(symbol);
       const limit = params?.limit ?? 100;
-      const response = await this.client.get(`/markets/${market}/trades?limit=${limit}`);
+      const response = await this.client.get(`/trades/${market}?limit=${limit}`);
       if (!Array.isArray(response.trades)) {
         throw new PerpDEXError("Invalid trades response", "INVALID_RESPONSE", "paradex");
       }
@@ -16936,7 +16846,7 @@ var ParadexAdapter = class extends BaseAdapter {
     this.requireAuth();
     await this.rateLimiter.acquire("fetchBalance");
     try {
-      const response = await this.client.get("/account/balance");
+      const response = await this.client.get("/balance");
       if (!Array.isArray(response.balances)) {
         throw new PerpDEXError("Invalid balance response", "INVALID_RESPONSE", "paradex");
       }
@@ -18276,13 +18186,13 @@ var BACKPACK_ENDPOINT_WEIGHTS = {
   setLeverage: 3
 };
 var BACKPACK_ORDER_TYPES = {
-  market: "MARKET",
-  limit: "LIMIT",
-  postOnly: "POST_ONLY"
+  market: "Market",
+  limit: "Limit",
+  postOnly: "PostOnly"
 };
 var BACKPACK_ORDER_SIDES = {
-  buy: "BUY",
-  sell: "SELL"
+  buy: "Bid",
+  sell: "Ask"
 };
 var BACKPACK_TIME_IN_FORCE = {
   GTC: "GTC",
@@ -18529,12 +18439,17 @@ var BackpackNormalizer = class {
   }
   /**
    * Normalize Backpack order type to unified format
+   * Backpack API returns PascalCase: 'Market', 'Limit', 'PostOnly'
    */
   normalizeOrderType(backpackType) {
     switch (backpackType) {
+      case "Market":
       case "MARKET":
         return "market";
+      case "Limit":
       case "LIMIT":
+      case "PostOnly":
+      case "POST_ONLY":
         return "limit";
       default:
         return "limit";
@@ -18542,17 +18457,29 @@ var BackpackNormalizer = class {
   }
   /**
    * Normalize Backpack order side to unified format
+   * Backpack API returns 'Bid' (buy) / 'Ask' (sell)
    */
   normalizeOrderSide(backpackSide) {
-    return backpackSide === "BUY" ? "buy" : "sell";
+    return backpackSide === "Bid" || backpackSide === "BUY" ? "buy" : "sell";
   }
   /**
    * Normalize Backpack order status to unified format
+   * Backpack API returns PascalCase: 'New', 'Open', 'PartiallyFilled', 'Filled', 'Cancelled'
    */
   normalizeOrderStatus(backpackStatus) {
     const statusMap = {
+      // PascalCase (actual API format)
+      New: "open",
+      Open: "open",
+      PartiallyFilled: "partiallyFilled",
+      Filled: "filled",
+      Cancelled: "canceled",
+      Rejected: "rejected",
+      // UPPER_CASE (legacy/backward compat)
       PENDING: "open",
+      NEW: "open",
       OPEN: "open",
+      PARTIAL: "partiallyFilled",
       PARTIALLY_FILLED: "partiallyFilled",
       FILLED: "filled",
       CANCELLED: "canceled",
@@ -18709,9 +18636,9 @@ var BackpackAuth = class {
    */
   async sign(request) {
     const timestamp = Date.now().toString();
+    const instruction = request.instruction ?? "";
     const signature = await this.signRequest(
-      request.method,
-      request.path,
+      instruction,
       timestamp,
       request.body
     );
@@ -18721,6 +18648,7 @@ var BackpackAuth = class {
         ...this.getHeaders(),
         "X-API-KEY": this.apiKey,
         "X-Timestamp": timestamp,
+        "X-Window": "5000",
         "X-Signature": signature
       }
     };
@@ -18736,11 +18664,29 @@ var BackpackAuth = class {
   }
   /**
    * Sign request with ED25519 signature
+   *
+   * Backpack requires alphabetized query/body params with instruction prefix:
+   * `instruction=orderExecute&orderType=Limit&price=100&...&timestamp=...&window=5000`
+   *
    * Uses cross-platform buffer utilities for browser compatibility
    */
-  async signRequest(method, path, timestamp, body) {
+  async signRequest(instruction, timestamp, body) {
     try {
-      const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ""}`;
+      const params = {};
+      if (instruction) {
+        params.instruction = instruction;
+      }
+      if (body) {
+        for (const [key, value] of Object.entries(body)) {
+          if (value !== void 0 && value !== null) {
+            params[key] = String(value);
+          }
+        }
+      }
+      params.timestamp = timestamp;
+      params.window = "5000";
+      const sortedKeys = Object.keys(params).sort();
+      const message = sortedKeys.map((k) => `${k}=${params[k]}`).join("&");
       const messageBytes = new TextEncoder().encode(message);
       let privateKey;
       if (this.apiSecret.startsWith("0x")) {
@@ -18836,7 +18782,7 @@ function mapBackpackError(error) {
 }
 
 // src/adapters/backpack/BackpackAdapter.ts
-var BackpackAdapter = class extends BaseAdapter {
+var BackpackAdapter = class _BackpackAdapter extends BaseAdapter {
   id = "backpack";
   name = "Backpack";
   has = {
@@ -19177,6 +19123,22 @@ var BackpackAdapter = class extends BaseAdapter {
     return this.normalizer.normalizeSymbol(exchangeSymbol);
   }
   /**
+   * Instruction mapping for Backpack API endpoints.
+   * The instruction value is required for the ED25519 signature payload.
+   */
+  static INSTRUCTION_MAP = {
+    createOrder: "orderExecute",
+    cancelOrder: "orderCancel",
+    cancelAllOrders: "orderCancelAll",
+    fetchOpenOrders: "orderQuery",
+    fetchOrder: "orderQuery",
+    fetchOrderHistory: "orderHistoryQuery",
+    fetchPositions: "positionQuery",
+    fetchBalance: "balanceQuery",
+    fetchMyTrades: "fillHistoryQuery",
+    setLeverage: "leverageChange"
+  };
+  /**
    * Make authenticated HTTP request using HTTPClient
    *
    * Backpack API uses /api/v1 prefix for all endpoints.
@@ -19187,9 +19149,11 @@ var BackpackAdapter = class extends BaseAdapter {
     const headers = {};
     if (this.auth) {
       const timestamp = Date.now().toString();
+      const instruction = _BackpackAdapter.INSTRUCTION_MAP[endpoint] ?? "";
       headers["X-API-KEY"] = this.auth.getApiKey();
       headers["X-Timestamp"] = timestamp;
-      headers["X-Signature"] = await this.auth.signRequest(method, fullPath, timestamp, body);
+      headers["X-Window"] = "5000";
+      headers["X-Signature"] = await this.auth.signRequest(instruction, timestamp, body);
     }
     try {
       switch (method) {
@@ -22498,19 +22462,19 @@ var EXTENDED_ENDPOINTS = {
 };
 var EXTENDED_RATE_LIMITS = {
   default: {
-    maxRequests: 100,
-    windowMs: 1e3
-    // 1 second
+    maxRequests: 1e3,
+    windowMs: 6e4
+    // 1 minute (1000 req/min per API docs)
   },
   authenticated: {
-    maxRequests: 200,
-    windowMs: 1e3
-    // 1 second
+    maxRequests: 1e3,
+    windowMs: 6e4
+    // 1 minute
   },
   vip: {
-    maxRequests: 500,
-    windowMs: 1e3
-    // 1 second
+    maxRequests: 12e3,
+    windowMs: 3e5
+    // 5 minutes (60000/5min for market makers)
   }
 };
 var EXTENDED_ENDPOINT_WEIGHTS = {
@@ -25513,8 +25477,8 @@ var DydxAdapter = class extends BaseAdapter {
       }
       const url = buildUrl(
         this.apiUrl,
-        `/trades/perpetualMarket/${exchangeSymbol}`,
-        queryParams
+        "/trades",
+        { market: exchangeSymbol, ...queryParams }
       );
       const response = await this.request("GET", url);
       return this.normalizer.normalizeTrades(response.trades, exchangeSymbol);
@@ -25565,8 +25529,8 @@ var DydxAdapter = class extends BaseAdapter {
       }
       const url = buildUrl(
         this.apiUrl,
-        `/historicalFunding/${exchangeSymbol}`,
-        queryParams
+        "/historicalFunding",
+        { market: exchangeSymbol, ...queryParams }
       );
       const response = await this.request("GET", url);
       const oraclePrice = await this.getOraclePrice(exchangeSymbol);
@@ -25592,8 +25556,8 @@ var DydxAdapter = class extends BaseAdapter {
       };
       const url = buildUrl(
         this.apiUrl,
-        `/candles/perpetualMarkets/${exchangeSymbol}`,
-        queryParams
+        "/candles",
+        { market: exchangeSymbol, ...queryParams }
       );
       const response = await this.request("GET", url);
       return this.normalizer.normalizeCandles(response.candles);
@@ -25710,15 +25674,14 @@ var DydxAdapter = class extends BaseAdapter {
     try {
       const address = await this.auth.getAddress();
       const queryParams = {
-        limit: limit ?? 100,
-        subaccountNumber: this.subaccountNumber
+        limit: limit ?? 100
       };
       if (symbol) {
         queryParams.ticker = this.symbolToExchange(symbol);
       }
       const url = buildUrl(
         this.apiUrl,
-        `/addresses/${address}/orders`,
+        `/addresses/${address}/subaccountNumber/${this.subaccountNumber}/orders`,
         queryParams
       );
       const response = await this.request("GET", url);
@@ -25741,15 +25704,14 @@ var DydxAdapter = class extends BaseAdapter {
     try {
       const address = await this.auth.getAddress();
       const queryParams = {
-        limit: limit ?? 100,
-        subaccountNumber: this.subaccountNumber
+        limit: limit ?? 100
       };
       if (symbol) {
         queryParams.market = this.symbolToExchange(symbol);
       }
       const url = buildUrl(
         this.apiUrl,
-        `/addresses/${address}/fills`,
+        `/addresses/${address}/subaccountNumber/${this.subaccountNumber}/fills`,
         queryParams
       );
       const response = await this.request("GET", url);
@@ -25778,7 +25740,6 @@ var DydxAdapter = class extends BaseAdapter {
     try {
       const address = await this.auth.getAddress();
       const queryParams = {
-        subaccountNumber: this.subaccountNumber,
         status: "OPEN"
       };
       if (symbol) {
@@ -25786,7 +25747,7 @@ var DydxAdapter = class extends BaseAdapter {
       }
       const url = buildUrl(
         this.apiUrl,
-        `/addresses/${address}/orders`,
+        `/addresses/${address}/subaccountNumber/${this.subaccountNumber}/orders`,
         queryParams
       );
       const response = await this.request("GET", url);
@@ -27637,8 +27598,11 @@ var JupiterAdapter = class extends BaseAdapter {
     }
   }
   async fetchTrades(_symbol, _params) {
-    this.warn("Jupiter Perps does not provide a public trade feed");
-    return [];
+    throw new NotSupportedError(
+      "fetchTrades is not supported. Jupiter Perps trades are on-chain only.",
+      "NOT_SUPPORTED",
+      "jupiter"
+    );
   }
   async fetchFundingRate(symbol) {
     this.ensureInitialized();
@@ -32419,7 +32383,7 @@ var GmxAdapter = class extends BaseAdapter {
     try {
       const interval = this.timeframeToInterval(timeframe);
       const queryParams = new URLSearchParams({
-        marketAddress: config.marketAddress,
+        tokenSymbol: config.baseAsset,
         period: interval
       });
       if (params?.since) {
@@ -32428,7 +32392,7 @@ var GmxAdapter = class extends BaseAdapter {
       if (params?.limit) {
         queryParams.set("limit", params.limit.toString());
       }
-      const url = `${this.apiBaseUrl}/candlesticks?${queryParams.toString()}`;
+      const url = `${this.apiBaseUrl}/prices/candles?${queryParams.toString()}`;
       const candles = await this.request("GET", url);
       return this.normalizer.normalizeCandles(candles);
     } catch (error) {

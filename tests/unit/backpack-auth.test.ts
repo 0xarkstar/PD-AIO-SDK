@@ -76,7 +76,7 @@ describe('BackpackAuth', () => {
         apiSecret: TEST_HEX_SECRET,
       });
 
-      const signature = await auth.signRequest('GET', '/api/v1/account', '1700000000000');
+      const signature = await auth.signRequest('balanceQuery', '1700000000000');
 
       expect(signature).toBeDefined();
       expect(typeof signature).toBe('string');
@@ -90,7 +90,7 @@ describe('BackpackAuth', () => {
         apiSecret: TEST_HEX_0X_SECRET,
       });
 
-      const signature = await auth.signRequest('POST', '/api/v1/orders', '1700000000000', { symbol: 'BTC' });
+      const signature = await auth.signRequest('orderExecute', '1700000000000', { symbol: 'BTC' });
 
       expect(signature).toBeDefined();
       expect(typeof signature).toBe('string');
@@ -102,20 +102,20 @@ describe('BackpackAuth', () => {
         apiSecret: TEST_BASE64_SECRET,
       });
 
-      const signature = await auth.signRequest('GET', '/api/v1/account', '1700000000000');
+      const signature = await auth.signRequest('balanceQuery', '1700000000000');
 
       expect(signature).toBeDefined();
       expect(typeof signature).toBe('string');
     });
 
-    it('should generate different signatures for different methods', async () => {
+    it('should generate different signatures for different instructions', async () => {
       const auth = new BackpackAuth({
         apiKey: TEST_API_KEY,
         apiSecret: TEST_HEX_SECRET,
       });
 
-      const sig1 = await auth.signRequest('GET', '/api/v1/account', '1700000000000');
-      const sig2 = await auth.signRequest('POST', '/api/v1/account', '1700000000000');
+      const sig1 = await auth.signRequest('balanceQuery', '1700000000000');
+      const sig2 = await auth.signRequest('orderExecute', '1700000000000');
 
       expect(sig1).not.toBe(sig2);
     });
@@ -126,8 +126,8 @@ describe('BackpackAuth', () => {
         apiSecret: TEST_HEX_SECRET,
       });
 
-      const sig1 = await auth.signRequest('GET', '/api/v1/account', '1700000000000');
-      const sig2 = await auth.signRequest('GET', '/api/v1/account', '1700000001000');
+      const sig1 = await auth.signRequest('balanceQuery', '1700000000000');
+      const sig2 = await auth.signRequest('balanceQuery', '1700000001000');
 
       expect(sig1).not.toBe(sig2);
     });
@@ -138,10 +138,24 @@ describe('BackpackAuth', () => {
         apiSecret: TEST_HEX_SECRET,
       });
 
-      const sigWithoutBody = await auth.signRequest('POST', '/api/v1/orders', '1700000000000');
-      const sigWithBody = await auth.signRequest('POST', '/api/v1/orders', '1700000000000', { symbol: 'BTC' });
+      const sigWithoutBody = await auth.signRequest('orderExecute', '1700000000000');
+      const sigWithBody = await auth.signRequest('orderExecute', '1700000000000', { symbol: 'BTC' });
 
       expect(sigWithoutBody).not.toBe(sigWithBody);
+    });
+
+    it('should create alphabetically sorted params string', async () => {
+      const auth = new BackpackAuth({
+        apiKey: TEST_API_KEY,
+        apiSecret: TEST_HEX_SECRET,
+      });
+
+      // The signature should be deterministic for same inputs
+      const sig1 = await auth.signRequest('orderExecute', '1700000000000', { symbol: 'BTC_USDC_PERP', side: 'Bid' });
+      const sig2 = await auth.signRequest('orderExecute', '1700000000000', { side: 'Bid', symbol: 'BTC_USDC_PERP' });
+
+      // Same params in different order should produce same signature (sorted alphabetically)
+      expect(sig1).toBe(sig2);
     });
 
     it('should throw PerpDEXError on invalid secret', async () => {
@@ -151,13 +165,13 @@ describe('BackpackAuth', () => {
       });
 
       await expect(
-        auth.signRequest('GET', '/api/v1/account', '1700000000000')
+        auth.signRequest('balanceQuery', '1700000000000')
       ).rejects.toThrow('Failed to sign request');
     });
   });
 
   describe('sign', () => {
-    it('should add signature headers to request', async () => {
+    it('should add signature headers to request including X-Window', async () => {
       const auth = new BackpackAuth({
         apiKey: TEST_API_KEY,
         apiSecret: TEST_HEX_SECRET,
@@ -173,6 +187,7 @@ describe('BackpackAuth', () => {
       expect(signed.headers).toBeDefined();
       expect(signed.headers!['X-API-KEY']).toBe(TEST_API_KEY);
       expect(signed.headers!['X-Timestamp']).toBeDefined();
+      expect(signed.headers!['X-Window']).toBe('5000');
       expect(signed.headers!['X-Signature']).toBeDefined();
       expect(signed.headers!['Content-Type']).toBe('application/json');
     });
@@ -192,6 +207,7 @@ describe('BackpackAuth', () => {
       const signed = await auth.sign(request);
 
       expect(signed.headers!['X-Signature']).toBeDefined();
+      expect(signed.headers!['X-Window']).toBe('5000');
       expect(signed.body).toEqual(request.body);
     });
   });

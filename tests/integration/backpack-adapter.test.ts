@@ -604,8 +604,8 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         order_id: '123456',
         market: 'BTC_USDC_PERP',
-        side: 'BUY',
-        type: 'LIMIT',
+        side: 'Bid',
+        type: 'Limit',
         size: '0.1',
         price: '50000',
         filled_size: '0',
@@ -639,8 +639,8 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         order_id: '123457',
         market: 'BTC_USDC_PERP',
-        side: 'SELL',
-        type: 'MARKET',
+        side: 'Ask',
+        type: 'Market',
         size: '0.05',
         filled_size: '0.05',
         avg_price: '50000',
@@ -672,8 +672,8 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         order_id: '123458',
         market: 'BTC_USDC_PERP',
-        side: 'BUY',
-        type: 'POST_ONLY',
+        side: 'Bid',
+        type: 'PostOnly',
         size: '0.1',
         price: '49000',
         filled_size: '0',
@@ -701,8 +701,8 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         order_id: '123459',
         market: 'BTC_USDC_PERP',
-        side: 'SELL',
-        type: 'LIMIT',
+        side: 'Ask',
+        type: 'Limit',
         size: '0.5',
         price: '52000',
         filled_size: '0',
@@ -731,8 +731,8 @@ describe('BackpackAdapter Integration Tests', () => {
         order_id: '123460',
         client_order_id: 'my-order-123',
         market: 'BTC_USDC_PERP',
-        side: 'BUY',
-        type: 'LIMIT',
+        side: 'Bid',
+        type: 'Limit',
         size: '0.1',
         price: '50000',
         filled_size: '0',
@@ -760,8 +760,8 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         order_id: '123461',
         market: 'BTC_USDC_PERP',
-        side: 'BUY',
-        type: 'LIMIT',
+        side: 'Bid',
+        type: 'Limit',
         size: '0.1',
         price: '50000',
         filled_size: '0.1',
@@ -790,8 +790,8 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         order_id: '123462',
         market: 'BTC_USDC_PERP',
-        side: 'BUY',
-        type: 'LIMIT',
+        side: 'Bid',
+        type: 'Limit',
         size: '0.1',
         price: '50000',
         filled_size: '0.1',
@@ -819,8 +819,8 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         order_id: '123456',
         market: 'BTC_USDC_PERP',
-        side: 'BUY',
-        type: 'LIMIT',
+        side: 'Bid',
+        type: 'Limit',
         size: '0.1',
         price: '50000',
         filled_size: '0',
@@ -849,8 +849,8 @@ describe('BackpackAdapter Integration Tests', () => {
           {
             order_id: '123456',
             market: 'BTC_USDC_PERP',
-            side: 'BUY',
-            type: 'LIMIT',
+            side: 'Bid',
+            type: 'Limit',
             size: '0.1',
             price: '50000',
             filled_size: '0',
@@ -877,8 +877,8 @@ describe('BackpackAdapter Integration Tests', () => {
           {
             order_id: '123456',
             market: 'BTC_USDC_PERP',
-            side: 'BUY',
-            type: 'LIMIT',
+            side: 'Bid',
+            type: 'Limit',
             size: '0.1',
             price: '50000',
             filled_size: '0',
@@ -916,8 +916,8 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         order_id: '123456',
         market: 'BTC_USDC_PERP',
-        side: 'BUY',
-        type: 'LIMIT',
+        side: 'Bid',
+        type: 'Limit',
         size: '0.1',
         price: '50000',
         filled_size: '0.05',
@@ -942,8 +942,8 @@ describe('BackpackAdapter Integration Tests', () => {
           {
             order_id: '123456',
             market: 'BTC_USDC_PERP',
-            side: 'BUY',
-            type: 'LIMIT',
+            side: 'Bid',
+            type: 'Limit',
             size: '0.1',
             price: '50000',
             filled_size: '0',
@@ -970,8 +970,8 @@ describe('BackpackAdapter Integration Tests', () => {
           {
             order_id: '123456',
             market: 'BTC_USDC_PERP',
-            side: 'BUY',
-            type: 'LIMIT',
+            side: 'Bid',
+            type: 'Limit',
             size: '0.1',
             price: '50000',
             filled_size: '0',
@@ -998,12 +998,12 @@ describe('BackpackAdapter Integration Tests', () => {
         {
           order_id: '123456',
           market: 'BTC_USDC_PERP',
-          side: 'BUY',
-          type: 'LIMIT',
+          side: 'Bid',
+          type: 'Limit',
           size: '0.1',
           price: '50000',
           filled_size: '0.1',
-          status: 'FILLED',
+          status: 'Filled',
           time_in_force: 'GTC',
           post_only: false,
           reduce_only: false,
@@ -1054,8 +1054,8 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         order_id: '123463',
         market: 'BTC_USDC_PERP',
-        side: 'BUY',
-        type: 'LIMIT',
+        side: 'Bid',
+        type: 'Limit',
         size: '0.1',
         price: '50000',
         filled_size: '0.05',
@@ -1084,8 +1084,8 @@ describe('BackpackAdapter Integration Tests', () => {
       mockSuccessResponse({
         order_id: '123464',
         market: 'BTC_USDC_PERP',
-        side: 'BUY',
-        type: 'LIMIT',
+        side: 'Bid',
+        type: 'Limit',
         size: '0.1',
         price: '50000',
         filled_size: '0',
@@ -1184,7 +1184,7 @@ describe('BackpackAdapter Integration Tests', () => {
       expect(signature).toHaveLength(88); // 64 bytes base64 = ~88 chars
     });
 
-    test('signature includes method in message', async () => {
+    test('signature uses alphabetized params with timestamp and window', async () => {
       mockSuccessResponse([]);
 
       await adapter.fetchMarkets();
@@ -1192,30 +1192,32 @@ describe('BackpackAdapter Integration Tests', () => {
       const messageBytes = mockSignAsync.mock.calls[0][0] as Uint8Array;
       const message = new TextDecoder().decode(messageBytes);
 
-      expect(message).toContain('GET');
+      // New format: alphabetized key=value pairs with timestamp and window
+      expect(message).toContain('timestamp=');
+      expect(message).toContain('window=5000');
     });
 
-    test('signature includes path in message', async () => {
-      mockSuccessResponse([]);
+    test('signature includes instruction for authenticated endpoints', async () => {
+      mockSuccessResponse({ positions: [] });
 
-      await adapter.fetchMarkets();
+      await adapter.fetchPositions();
 
       const messageBytes = mockSignAsync.mock.calls[0][0] as Uint8Array;
       const message = new TextDecoder().decode(messageBytes);
 
-      expect(message).toContain('/markets');
+      expect(message).toContain('instruction=positionQuery');
     });
 
-    test('signature includes body in message for POST requests', async () => {
+    test('signature includes body params for POST requests', async () => {
       mockSuccessResponse({
         order_id: '123456',
         market: 'BTC_USDC_PERP',
-        side: 'BUY',
-        type: 'LIMIT',
+        side: 'Bid',
+        type: 'Limit',
         size: '0.1',
         price: '50000',
         filled_size: '0',
-        status: 'OPEN',
+        status: 'Open',
         time_in_force: 'GTC',
         post_only: false,
         reduce_only: false,
@@ -1234,8 +1236,11 @@ describe('BackpackAdapter Integration Tests', () => {
       const messageBytes = mockSignAsync.mock.calls[0][0] as Uint8Array;
       const message = new TextDecoder().decode(messageBytes);
 
-      expect(message).toContain('POST');
-      expect(message).toContain('BTC_USDC_PERP');
+      // New format includes instruction and body params alphabetized
+      expect(message).toContain('instruction=orderExecute');
+      expect(message).toContain('market=BTC_USDC_PERP');
+      expect(message).toContain('side=Bid');
+      expect(message).toContain('type=Limit');
     });
   });
 

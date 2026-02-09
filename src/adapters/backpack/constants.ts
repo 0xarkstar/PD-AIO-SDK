@@ -56,17 +56,17 @@ export const BACKPACK_ENDPOINT_WEIGHTS = {
  * Backpack order types mapping
  */
 export const BACKPACK_ORDER_TYPES = {
-  market: 'MARKET',
-  limit: 'LIMIT',
-  postOnly: 'POST_ONLY',
+  market: 'Market',
+  limit: 'Limit',
+  postOnly: 'PostOnly',
 } as const;
 
 /**
  * Backpack order sides mapping
  */
 export const BACKPACK_ORDER_SIDES = {
-  buy: 'BUY',
-  sell: 'SELL',
+  buy: 'Bid',
+  sell: 'Ask',
 } as const;
 
 /**

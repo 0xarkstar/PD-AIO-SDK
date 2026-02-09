@@ -253,7 +253,7 @@ export class ParadexAdapter extends BaseAdapter {
       const limit = params?.limit;
 
       const queryParams = limit ? `?depth=${limit}` : '';
-      const response = await this.client.get<ParadexOrderBook>(`/markets/${market}/orderbook${queryParams}`);
+      const response = await this.client.get<ParadexOrderBook>(`/orderbook/${market}${queryParams}`);
 
       return this.normalizer.normalizeOrderBook(response);
     } catch (error) {
@@ -271,7 +271,7 @@ export class ParadexAdapter extends BaseAdapter {
       const market = this.normalizer.symbolFromCCXT(symbol);
       const limit = params?.limit ?? 100;
 
-      const response = await this.client.get<TradesResponse>(`/markets/${market}/trades?limit=${limit}`);
+      const response = await this.client.get<TradesResponse>(`/trades/${market}?limit=${limit}`);
 
       if (!Array.isArray(response.trades)) {
         throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'paradex');
@@ -369,7 +369,7 @@ export class ParadexAdapter extends BaseAdapter {
     await this.rateLimiter.acquire('fetchBalance');
 
     try {
-      const response = await this.client.get<BalancesResponse>('/account/balance');
+      const response = await this.client.get<BalancesResponse>('/balance');
 
       if (!Array.isArray(response.balances)) {
         throw new PerpDEXError('Invalid balance response', 'INVALID_RESPONSE', 'paradex');

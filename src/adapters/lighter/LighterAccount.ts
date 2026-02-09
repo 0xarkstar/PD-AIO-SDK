@@ -25,7 +25,7 @@ export async function fetchPositionsData(
   symbols?: string[]
 ): Promise<Position[]> {
   try {
-    const response = await deps.request<LighterPosition[]>('GET', '/account/positions');
+    const response = await deps.request<LighterPosition[]>('GET', '/api/v1/account');
 
     if (!Array.isArray(response)) {
       throw new PerpDEXError('Invalid positions response', 'INVALID_RESPONSE', 'lighter');
@@ -49,7 +49,7 @@ export async function fetchPositionsData(
  */
 export async function fetchBalanceData(deps: AccountDeps): Promise<Balance[]> {
   try {
-    const response = await deps.request<LighterBalance[]>('GET', '/account/balance');
+    const response = await deps.request<LighterBalance[]>('GET', '/api/v1/account');
 
     if (!Array.isArray(response)) {
       throw new PerpDEXError('Invalid balance response', 'INVALID_RESPONSE', 'lighter');
@@ -69,7 +69,7 @@ export async function fetchOpenOrdersData(
   symbol?: string
 ): Promise<Order[]> {
   try {
-    const path = symbol ? `/orders?symbol=${deps.normalizer.toLighterSymbol(symbol)}` : '/orders';
+    const path = symbol ? `/api/v1/accountActiveOrders?symbol=${deps.normalizer.toLighterSymbol(symbol)}` : '/api/v1/accountActiveOrders';
     const response = await deps.request<LighterOrder[]>('GET', path);
 
     if (!Array.isArray(response)) {
@@ -100,7 +100,7 @@ export async function fetchOrderHistoryData(
     const queryString = params.toString();
     const response = await deps.request<LighterOrder[]>(
       'GET',
-      `/account/inactiveOrders${queryString ? `?${queryString}` : ''}`
+      `/api/v1/accountInactiveOrders${queryString ? `?${queryString}` : ''}`
     );
 
     if (!Array.isArray(response)) {
@@ -131,7 +131,7 @@ export async function fetchMyTradesData(
     const queryString = params.toString();
     const response = await deps.request<LighterTrade[]>(
       'GET',
-      `/account/fills${queryString ? `?${queryString}` : ''}`
+      `/api/v1/accountFills${queryString ? `?${queryString}` : ''}`
     );
 
     if (!Array.isArray(response)) {

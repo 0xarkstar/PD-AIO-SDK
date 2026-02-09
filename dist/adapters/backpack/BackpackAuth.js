@@ -18,13 +18,15 @@ export class BackpackAuth {
      */
     async sign(request) {
         const timestamp = Date.now().toString();
-        const signature = await this.signRequest(request.method, request.path, timestamp, request.body);
+        const instruction = request.instruction ?? '';
+        const signature = await this.signRequest(instruction, timestamp, request.body);
         return {
             ...request,
             headers: {
                 ...this.getHeaders(),
                 'X-API-KEY': this.apiKey,
                 'X-Timestamp': timestamp,
+                'X-Window': '5000',
                 'X-Signature': signature,
             },
         };
@@ -40,12 +42,32 @@ export class BackpackAuth {
     }
     /**
      * Sign request with ED25519 signature
+     *
+     * Backpack requires alphabetized query/body params with instruction prefix:
+     * `instruction=orderExecute&orderType=Limit&price=100&...&timestamp=...&window=5000`
+     *
      * Uses cross-platform buffer utilities for browser compatibility
      */
-    async signRequest(method, path, timestamp, body) {
+    async signRequest(instruction, timestamp, body) {
         try {
-            // Create message to sign
-            const message = `${method}${path}${timestamp}${body ? JSON.stringify(body) : ''}`;
+            // Build the params object: merge body params + instruction + timestamp + window
+            const params = {};
+            if (instruction) {
+                params.instruction = instruction;
+            }
+            // Merge body params (flatten to string values)
+            if (body) {
+                for (const [key, value] of Object.entries(body)) {
+                    if (value !== undefined && value !== null) {
+                        params[key] = String(value);
+                    }
+                }
+            }
+            params.timestamp = timestamp;
+            params.window = '5000';
+            // Sort keys alphabetically and build the signing string
+            const sortedKeys = Object.keys(params).sort();
+            const message = sortedKeys.map(k => `${k}=${params[k]}`).join('&');
             const messageBytes = new TextEncoder().encode(message);
             // Convert private key to Uint8Array
             // Support both hex (0x... or plain hex) and base64 formats

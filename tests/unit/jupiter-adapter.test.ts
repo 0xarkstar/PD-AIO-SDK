@@ -314,10 +314,10 @@ describe('JupiterAdapter', () => {
       await adapter.initialize();
     });
 
-    test('returns empty array (no trade feed)', async () => {
-      const trades = await adapter.fetchTrades('SOL/USD:USD');
-
-      expect(trades).toEqual([]);
+    test('throws NOT_SUPPORTED error (no trade feed)', async () => {
+      await expect(adapter.fetchTrades('SOL/USD:USD')).rejects.toThrow(
+        /not supported/i
+      );
     });
   });
 

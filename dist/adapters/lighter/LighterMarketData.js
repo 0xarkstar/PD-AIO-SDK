@@ -125,7 +125,7 @@ export async function fetchTradesData(deps, symbol, limit) {
 export async function fetchFundingRateData(deps, symbol) {
     try {
         const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
-        const response = await deps.request('GET', `/funding/${lighterSymbol}`);
+        const response = await deps.request('GET', `/api/v1/funding-rates?symbol=${lighterSymbol}`);
         return deps.normalizer.normalizeFundingRate(response);
     }
     catch (error) {

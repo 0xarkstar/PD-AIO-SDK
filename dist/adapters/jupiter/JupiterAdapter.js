@@ -14,6 +14,7 @@
  * @see https://dev.jup.ag/docs/perps
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
+import { NotSupportedError } from '../../types/errors.js';
 import { JupiterNormalizer } from './JupiterNormalizer.js';
 import { JupiterAuth } from './JupiterAuth.js';
 import { SolanaClient } from './solana.js';
@@ -235,9 +236,7 @@ export class JupiterAdapter extends BaseAdapter {
         }
     }
     async fetchTrades(_symbol, _params) {
-        // Jupiter doesn't have a public trade feed
-        this.warn('Jupiter Perps does not provide a public trade feed');
-        return [];
+        throw new NotSupportedError('fetchTrades is not supported. Jupiter Perps trades are on-chain only.', 'NOT_SUPPORTED', 'jupiter');
     }
     async fetchFundingRate(symbol) {
         this.ensureInitialized();

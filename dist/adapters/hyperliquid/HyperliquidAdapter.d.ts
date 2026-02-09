@@ -30,7 +30,7 @@ export declare class HyperliquidAdapter extends BaseAdapter {
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
     fetchTicker(symbol: string): Promise<Ticker>;
     fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, _params?: TradeParams): Promise<Trade[]>;
+    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
     /**
      * Fetch OHLCV (candlestick) data
      *

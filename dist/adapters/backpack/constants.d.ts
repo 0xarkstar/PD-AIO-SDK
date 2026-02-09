@@ -52,16 +52,16 @@ export declare const BACKPACK_ENDPOINT_WEIGHTS: {
  * Backpack order types mapping
  */
 export declare const BACKPACK_ORDER_TYPES: {
-    readonly market: "MARKET";
-    readonly limit: "LIMIT";
-    readonly postOnly: "POST_ONLY";
+    readonly market: "Market";
+    readonly limit: "Limit";
+    readonly postOnly: "PostOnly";
 };
 /**
  * Backpack order sides mapping
  */
 export declare const BACKPACK_ORDER_SIDES: {
-    readonly buy: "BUY";
-    readonly sell: "SELL";
+    readonly buy: "Bid";
+    readonly sell: "Ask";
 };
 /**
  * Backpack time in force mapping

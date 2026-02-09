@@ -24,9 +24,13 @@ export declare class BackpackAuth implements IAuthStrategy {
     getHeaders(): Record<string, string>;
     /**
      * Sign request with ED25519 signature
+     *
+     * Backpack requires alphabetized query/body params with instruction prefix:
+     * `instruction=orderExecute&orderType=Limit&price=100&...&timestamp=...&window=5000`
+     *
      * Uses cross-platform buffer utilities for browser compatibility
      */
-    signRequest(method: string, path: string, timestamp: string, body?: Record<string, unknown>): Promise<string>;
+    signRequest(instruction: string, timestamp: string, body?: Record<string, unknown>): Promise<string>;
     /**
      * Verify if credentials are available
      */

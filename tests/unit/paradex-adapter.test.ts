@@ -224,7 +224,7 @@ describe('ParadexAdapter', () => {
 
       await adapter.fetchOrderBook('BTC/USD:USDC', { limit: 10 });
 
-      expect(mockClient.get).toHaveBeenCalledWith('/markets/BTC-USD-PERP/orderbook?depth=10');
+      expect(mockClient.get).toHaveBeenCalledWith('/orderbook/BTC-USD-PERP?depth=10');
     });
   });
 
@@ -269,7 +269,7 @@ describe('ParadexAdapter', () => {
 
       await adapter.fetchTrades('BTC/USD:USDC', { limit: 50 });
 
-      expect(mockClient.get).toHaveBeenCalledWith('/markets/BTC-USD-PERP/trades?limit=50');
+      expect(mockClient.get).toHaveBeenCalledWith('/trades/BTC-USD-PERP?limit=50');
     });
   });
 

@@ -193,7 +193,7 @@ export async function fetchFundingRateData(
 ): Promise<FundingRate> {
   try {
     const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
-    const response = await deps.request<LighterFundingRate>('GET', `/funding/${lighterSymbol}`);
+    const response = await deps.request<LighterFundingRate>('GET', `/api/v1/funding-rates?symbol=${lighterSymbol}`);
 
     return deps.normalizer.normalizeFundingRate(response);
   } catch (error) {

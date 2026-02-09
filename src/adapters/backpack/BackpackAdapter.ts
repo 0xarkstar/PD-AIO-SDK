@@ -467,6 +467,23 @@ export class BackpackAdapter extends BaseAdapter {
   }
 
   /**
+   * Instruction mapping for Backpack API endpoints.
+   * The instruction value is required for the ED25519 signature payload.
+   */
+  private static readonly INSTRUCTION_MAP: Record<string, string> = {
+    createOrder: 'orderExecute',
+    cancelOrder: 'orderCancel',
+    cancelAllOrders: 'orderCancelAll',
+    fetchOpenOrders: 'orderQuery',
+    fetchOrder: 'orderQuery',
+    fetchOrderHistory: 'orderHistoryQuery',
+    fetchPositions: 'positionQuery',
+    fetchBalance: 'balanceQuery',
+    fetchMyTrades: 'fillHistoryQuery',
+    setLeverage: 'leverageChange',
+  };
+
+  /**
    * Make authenticated HTTP request using HTTPClient
    *
    * Backpack API uses /api/v1 prefix for all endpoints.
@@ -486,9 +503,11 @@ export class BackpackAdapter extends BaseAdapter {
 
     if (this.auth) {
       const timestamp = Date.now().toString();
+      const instruction = BackpackAdapter.INSTRUCTION_MAP[endpoint] ?? '';
       headers['X-API-KEY'] = this.auth.getApiKey();
       headers['X-Timestamp'] = timestamp;
-      headers['X-Signature'] = await this.auth.signRequest(method, fullPath, timestamp, body);
+      headers['X-Window'] = '5000';
+      headers['X-Signature'] = await this.auth.signRequest(instruction, timestamp, body);
     }
 
     try {

@@ -296,7 +296,7 @@ export class GmxAdapter extends BaseAdapter {
             const interval = this.timeframeToInterval(timeframe);
             // Build query params
             const queryParams = new URLSearchParams({
-                marketAddress: config.marketAddress,
+                tokenSymbol: config.baseAsset,
                 period: interval,
             });
             if (params?.since) {
@@ -305,7 +305,7 @@ export class GmxAdapter extends BaseAdapter {
             if (params?.limit) {
                 queryParams.set('limit', params.limit.toString());
             }
-            const url = `${this.apiBaseUrl}/candlesticks?${queryParams.toString()}`;
+            const url = `${this.apiBaseUrl}/prices/candles?${queryParams.toString()}`;
             const candles = await this.request('GET', url);
             return this.normalizer.normalizeCandles(candles);
         }

@@ -326,8 +326,8 @@ export class DydxAdapter extends BaseAdapter {
 
       const url = buildUrl(
         this.apiUrl,
-        `/trades/perpetualMarket/${exchangeSymbol}`,
-        queryParams
+        '/trades',
+        { market: exchangeSymbol, ...queryParams }
       );
 
       const response = await this.request<DydxTradesResponse>('GET', url);
@@ -397,8 +397,8 @@ export class DydxAdapter extends BaseAdapter {
 
       const url = buildUrl(
         this.apiUrl,
-        `/historicalFunding/${exchangeSymbol}`,
-        queryParams
+        '/historicalFunding',
+        { market: exchangeSymbol, ...queryParams }
       );
 
       const response = await this.request<DydxHistoricalFundingResponse>('GET', url);
@@ -437,8 +437,8 @@ export class DydxAdapter extends BaseAdapter {
 
       const url = buildUrl(
         this.apiUrl,
-        `/candles/perpetualMarkets/${exchangeSymbol}`,
-        queryParams
+        '/candles',
+        { market: exchangeSymbol, ...queryParams }
       );
 
       const response = await this.request<DydxCandlesResponse>('GET', url);
@@ -616,7 +616,6 @@ export class DydxAdapter extends BaseAdapter {
 
       const queryParams: Record<string, string | number | undefined> = {
         limit: limit ?? 100,
-        subaccountNumber: this.subaccountNumber,
       };
 
       if (symbol) {
@@ -625,7 +624,7 @@ export class DydxAdapter extends BaseAdapter {
 
       const url = buildUrl(
         this.apiUrl,
-        `/addresses/${address}/orders`,
+        `/addresses/${address}/subaccountNumber/${this.subaccountNumber}/orders`,
         queryParams
       );
 
@@ -661,7 +660,6 @@ export class DydxAdapter extends BaseAdapter {
 
       const queryParams: Record<string, string | number | undefined> = {
         limit: limit ?? 100,
-        subaccountNumber: this.subaccountNumber,
       };
 
       if (symbol) {
@@ -670,7 +668,7 @@ export class DydxAdapter extends BaseAdapter {
 
       const url = buildUrl(
         this.apiUrl,
-        `/addresses/${address}/fills`,
+        `/addresses/${address}/subaccountNumber/${this.subaccountNumber}/fills`,
         queryParams
       );
 
@@ -711,7 +709,6 @@ export class DydxAdapter extends BaseAdapter {
       const address = await this.auth.getAddress();
 
       const queryParams: Record<string, string | number | undefined> = {
-        subaccountNumber: this.subaccountNumber,
         status: 'OPEN',
       };
 
@@ -721,7 +718,7 @@ export class DydxAdapter extends BaseAdapter {
 
       const url = buildUrl(
         this.apiUrl,
-        `/addresses/${address}/orders`,
+        `/addresses/${address}/subaccountNumber/${this.subaccountNumber}/orders`,
         queryParams
       );
 

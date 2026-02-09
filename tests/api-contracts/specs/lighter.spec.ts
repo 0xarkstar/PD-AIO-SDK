@@ -138,7 +138,7 @@ export const lighterSpec: APISpecification = {
     },
     {
       id: 'lighter.fetchFundingRate',
-      path: '/funding/BTC-PERP',
+      path: '/api/v1/funding-rates?symbol=BTC-PERP',
       method: 'GET',
       requiresAuth: false,
       responseSchema: LighterFundingRateSchema,
@@ -160,7 +160,7 @@ export const lighterSpec: APISpecification = {
     },
     {
       id: 'lighter.fetchBalance',
-      path: '/account/balance',
+      path: '/api/v1/account',
       method: 'GET',
       requiresAuth: true,
       responseSchema: z.object({

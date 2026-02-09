@@ -223,7 +223,7 @@ export class DydxAdapter extends BaseAdapter {
             if (params?.since) {
                 queryParams.createdBeforeOrAtHeight = undefined; // dYdX uses block height, not timestamp directly
             }
-            const url = buildUrl(this.apiUrl, `/trades/perpetualMarket/${exchangeSymbol}`, queryParams);
+            const url = buildUrl(this.apiUrl, '/trades', { market: exchangeSymbol, ...queryParams });
             const response = await this.request('GET', url);
             return this.normalizer.normalizeTrades(response.trades, exchangeSymbol);
         }
@@ -271,7 +271,7 @@ export class DydxAdapter extends BaseAdapter {
             if (since) {
                 queryParams.effectiveBeforeOrAt = new Date(since).toISOString();
             }
-            const url = buildUrl(this.apiUrl, `/historicalFunding/${exchangeSymbol}`, queryParams);
+            const url = buildUrl(this.apiUrl, '/historicalFunding', { market: exchangeSymbol, ...queryParams });
             const response = await this.request('GET', url);
             // Get current oracle price
             const oraclePrice = await this.getOraclePrice(exchangeSymbol);
@@ -296,7 +296,7 @@ export class DydxAdapter extends BaseAdapter {
                 toISO,
                 limit: params?.limit ?? 100,
             };
-            const url = buildUrl(this.apiUrl, `/candles/perpetualMarkets/${exchangeSymbol}`, queryParams);
+            const url = buildUrl(this.apiUrl, '/candles', { market: exchangeSymbol, ...queryParams });
             const response = await this.request('GET', url);
             return this.normalizer.normalizeCandles(response.candles);
         }
@@ -425,12 +425,11 @@ export class DydxAdapter extends BaseAdapter {
             const address = await this.auth.getAddress();
             const queryParams = {
                 limit: limit ?? 100,
-                subaccountNumber: this.subaccountNumber,
             };
             if (symbol) {
                 queryParams.ticker = this.symbolToExchange(symbol);
             }
-            const url = buildUrl(this.apiUrl, `/addresses/${address}/orders`, queryParams);
+            const url = buildUrl(this.apiUrl, `/addresses/${address}/subaccountNumber/${this.subaccountNumber}/orders`, queryParams);
             const response = await this.request('GET', url);
             let orders = this.normalizer.normalizeOrders(response);
             // Filter by since timestamp if provided
@@ -455,12 +454,11 @@ export class DydxAdapter extends BaseAdapter {
             const address = await this.auth.getAddress();
             const queryParams = {
                 limit: limit ?? 100,
-                subaccountNumber: this.subaccountNumber,
             };
             if (symbol) {
                 queryParams.market = this.symbolToExchange(symbol);
             }
-            const url = buildUrl(this.apiUrl, `/addresses/${address}/fills`, queryParams);
+            const url = buildUrl(this.apiUrl, `/addresses/${address}/subaccountNumber/${this.subaccountNumber}/fills`, queryParams);
             const response = await this.request('GET', url);
             let trades = this.normalizer.normalizeFills(response.fills);
             // Filter by since timestamp if provided
@@ -490,13 +488,12 @@ export class DydxAdapter extends BaseAdapter {
         try {
             const address = await this.auth.getAddress();
             const queryParams = {
-                subaccountNumber: this.subaccountNumber,
                 status: 'OPEN',
             };
             if (symbol) {
                 queryParams.ticker = this.symbolToExchange(symbol);
             }
-            const url = buildUrl(this.apiUrl, `/addresses/${address}/orders`, queryParams);
+            const url = buildUrl(this.apiUrl, `/addresses/${address}/subaccountNumber/${this.subaccountNumber}/orders`, queryParams);
             const response = await this.request('GET', url);
             return this.normalizer.normalizeOrders(response);
         }

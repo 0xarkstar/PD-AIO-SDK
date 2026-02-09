@@ -66,16 +66,16 @@ export const EXTENDED_ENDPOINTS = {
  */
 export const EXTENDED_RATE_LIMITS = {
   default: {
-    maxRequests: 100,
-    windowMs: 1000, // 1 second
+    maxRequests: 1000,
+    windowMs: 60000, // 1 minute (1000 req/min per API docs)
   },
   authenticated: {
-    maxRequests: 200,
-    windowMs: 1000, // 1 second
+    maxRequests: 1000,
+    windowMs: 60000, // 1 minute
   },
   vip: {
-    maxRequests: 500,
-    windowMs: 1000, // 1 second
+    maxRequests: 12000,
+    windowMs: 300000, // 5 minutes (60000/5min for market makers)
   },
 } as const;
 

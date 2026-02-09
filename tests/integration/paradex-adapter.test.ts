@@ -209,7 +209,7 @@ describe('ParadexAdapter - Integration Tests', () => {
 
         const orderBook = await adapter.fetchOrderBook('BTC/USD:USD');
 
-        expect(mockHttpClient.get).toHaveBeenCalledWith('/markets/BTC-USD-PERP/orderbook');
+        expect(mockHttpClient.get).toHaveBeenCalledWith('/orderbook/BTC-USD-PERP');
         expect(orderBook.symbol).toBe('BTC/USD:USD');
         expect(orderBook.bids).toHaveLength(2);
         expect(orderBook.bids[0]).toEqual([49990, 1.5]);
@@ -230,7 +230,7 @@ describe('ParadexAdapter - Integration Tests', () => {
 
         await adapter.fetchOrderBook('BTC/USD:USD', { limit: 10 });
 
-        expect(mockHttpClient.get).toHaveBeenCalledWith('/markets/BTC-USD-PERP/orderbook?depth=10');
+        expect(mockHttpClient.get).toHaveBeenCalledWith('/orderbook/BTC-USD-PERP?depth=10');
       });
     });
 
@@ -261,7 +261,7 @@ describe('ParadexAdapter - Integration Tests', () => {
 
         const trades = await adapter.fetchTrades('BTC/USD:USD');
 
-        expect(mockHttpClient.get).toHaveBeenCalledWith('/markets/BTC-USD-PERP/trades?limit=100');
+        expect(mockHttpClient.get).toHaveBeenCalledWith('/trades/BTC-USD-PERP?limit=100');
         expect(trades).toHaveLength(2);
         expect(trades[0].symbol).toBe('BTC/USD:USD');
         expect(trades[0].price).toBe(50000);
@@ -275,7 +275,7 @@ describe('ParadexAdapter - Integration Tests', () => {
 
         await adapter.fetchTrades('BTC/USD:USD', { limit: 50 });
 
-        expect(mockHttpClient.get).toHaveBeenCalledWith('/markets/BTC-USD-PERP/trades?limit=50');
+        expect(mockHttpClient.get).toHaveBeenCalledWith('/trades/BTC-USD-PERP?limit=50');
       });
 
       it('should throw error when trades response is invalid', async () => {
@@ -456,7 +456,7 @@ describe('ParadexAdapter - Integration Tests', () => {
 
         const balances = await adapter.fetchBalance();
 
-        expect(mockHttpClient.get).toHaveBeenCalledWith('/account/balance');
+        expect(mockHttpClient.get).toHaveBeenCalledWith('/balance');
         expect(balances).toHaveLength(1);
         expect(balances[0].currency).toBe('USDC');
         expect(balances[0].total).toBe(10000);

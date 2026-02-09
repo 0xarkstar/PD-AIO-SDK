@@ -418,7 +418,7 @@ export class GmxAdapter extends BaseAdapter {
 
       // Build query params
       const queryParams = new URLSearchParams({
-        marketAddress: config.marketAddress,
+        tokenSymbol: config.baseAsset,
         period: interval,
       });
 
@@ -429,7 +429,7 @@ export class GmxAdapter extends BaseAdapter {
         queryParams.set('limit', params.limit.toString());
       }
 
-      const url = `${this.apiBaseUrl}/candlesticks?${queryParams.toString()}`;
+      const url = `${this.apiBaseUrl}/prices/candles?${queryParams.toString()}`;
       const candles = await this.request<GmxCandlestick[]>('GET', url);
 
       return this.normalizer.normalizeCandles(candles);
