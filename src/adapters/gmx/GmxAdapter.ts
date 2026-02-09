@@ -182,6 +182,16 @@ export class GmxAdapter extends BaseAdapter {
     this.apiBaseUrl = GMX_API_URLS[this.chain].api;
     this.walletAddress = config.walletAddress;
     this.orderConfig = config.orderConfig;
+
+    // Bridge unified builderCode to GMX-specific referralCode
+    if (config.builderCode && !this.orderConfig?.referralCode) {
+      this.orderConfig = { ...this.orderConfig, referralCode: config.builderCode };
+    }
+    // When builderCodeEnabled is false, clear referralCode
+    if (config.builderCodeEnabled === false) {
+      this.orderConfig = { ...this.orderConfig, referralCode: undefined };
+    }
+
     this.normalizer = new GmxNormalizer();
 
     // Initialize auth if credentials provided

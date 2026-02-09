@@ -166,4 +166,39 @@ describe('HyperliquidAdapter', () => {
       expect((adapter as any)._isReady).toBe(false);
     });
   });
+
+  describe('builderCodeEnabled', () => {
+    it('should default builderCodeEnabled to true', () => {
+      const adapter = new HyperliquidAdapter({
+        builderAddress: '0xBuilder',
+      });
+      expect((adapter as any).builderCodeEnabled).toBe(true);
+      expect((adapter as any).builderAddress).toBe('0xBuilder');
+    });
+
+    it('should store builderCodeEnabled=false', () => {
+      const adapter = new HyperliquidAdapter({
+        builderAddress: '0xBuilder',
+        builderCodeEnabled: false,
+      });
+      expect((adapter as any).builderCodeEnabled).toBe(false);
+    });
+
+    it('should store builderCodeEnabled=true explicitly', () => {
+      const adapter = new HyperliquidAdapter({
+        builderAddress: '0xBuilder',
+        builderCodeEnabled: true,
+      });
+      expect((adapter as any).builderCodeEnabled).toBe(true);
+    });
+
+    it('should use builderCode as builderAddress fallback with enabled flag', () => {
+      const adapter = new HyperliquidAdapter({
+        builderCode: '0xBuilderViaCode',
+        builderCodeEnabled: false,
+      });
+      expect((adapter as any).builderAddress).toBe('0xBuilderViaCode');
+      expect((adapter as any).builderCodeEnabled).toBe(false);
+    });
+  });
 });

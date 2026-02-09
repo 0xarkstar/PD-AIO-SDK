@@ -1758,4 +1758,56 @@ describe('GmxAdapter HTTP Methods', () => {
       expect((adapter as any).timeframeToInterval('unknown')).toBe('1h');
     });
   });
+
+  describe('Builder Code Bridging', () => {
+    test('should bridge builderCode to orderConfig.referralCode', () => {
+      const adapter = new GmxAdapter({
+        chain: 'arbitrum',
+        builderCode: 'my-ref-code',
+      });
+      expect((adapter as any).orderConfig?.referralCode).toBe('my-ref-code');
+    });
+
+    test('should not override existing orderConfig.referralCode with builderCode', () => {
+      const adapter = new GmxAdapter({
+        chain: 'arbitrum',
+        builderCode: 'new-code',
+        orderConfig: { referralCode: 'existing-code' },
+      });
+      expect((adapter as any).orderConfig?.referralCode).toBe('existing-code');
+    });
+
+    test('should clear referralCode when builderCodeEnabled is false', () => {
+      const adapter = new GmxAdapter({
+        chain: 'arbitrum',
+        builderCodeEnabled: false,
+        orderConfig: { referralCode: 'some-code' },
+      });
+      expect((adapter as any).orderConfig?.referralCode).toBeUndefined();
+    });
+
+    test('should clear bridged referralCode when builderCodeEnabled is false', () => {
+      const adapter = new GmxAdapter({
+        chain: 'arbitrum',
+        builderCode: 'my-code',
+        builderCodeEnabled: false,
+      });
+      expect((adapter as any).orderConfig?.referralCode).toBeUndefined();
+    });
+
+    test('should work without builderCode or referralCode', () => {
+      const adapter = new GmxAdapter({ chain: 'arbitrum' });
+      expect((adapter as any).orderConfig).toBeUndefined();
+    });
+
+    test('should preserve other orderConfig fields when bridging builderCode', () => {
+      const adapter = new GmxAdapter({
+        chain: 'arbitrum',
+        builderCode: 'ref-code',
+        orderConfig: { slippageTolerance: 0.005 },
+      });
+      expect((adapter as any).orderConfig?.referralCode).toBe('ref-code');
+      expect((adapter as any).orderConfig?.slippageTolerance).toBe(0.005);
+    });
+  });
 });

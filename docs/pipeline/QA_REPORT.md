@@ -1,7 +1,7 @@
-# Cycle 10 QA Report
+# Cycle 11 QA Report
 
-**Date**: 2026-02-09
-**Phase**: P2 Verification (Cycle 10)
+**Date**: 2026-02-10
+**Phase**: P2 Verification (Cycle 11 — Universal Builder Codes)
 **QA Agent**: p-qa
 **Verdict**: PASS (after auto-fix)
 
@@ -10,12 +10,17 @@
 ## Quality Gates
 
 - [x] `tsc --noEmit`: 0 errors
-- [x] `jest --coverage`: 6047 tests (78 skipped), 0 failures, 82.24% stmts, 87.36% funcs
-- [x] `eslint src/`: 0 errors (6 prettier auto-fixed), 1701 warnings
+- [x] `jest --coverage`: 6089 tests (78 skipped), 0 failures, 82.27% stmts, 87.36% funcs
+- [x] `eslint src/`: 0 errors (3 prettier auto-fixed), 1702 warnings
 
 ## Verdict: PASS
 
-6 ESLint prettier errors in `src/adapters/ostium/OstiumSubgraph.ts` were auto-fixed by team lead. All quality gates now pass.
+3 ESLint prettier formatting errors were found in Cycle 11 files and auto-fixed:
+- `src/adapters/hyperliquid/HyperliquidAdapter.ts` (line wrapping)
+- `src/adapters/ostium/OstiumAdapter.ts` (line wrapping)
+- `src/adapters/grvt/GRVTAdapter.ts` (ternary formatting)
+
+All quality gates now pass.
 
 ---
 
@@ -32,57 +37,64 @@ $ npx tsc --noEmit
 
 ```
 Test Suites: 3 skipped, 169 passed, 169 of 172 total
-Tests:       78 skipped, 5969 passed, 6047 total
+Tests:       78 skipped, 6011 passed, 6089 total
 Snapshots:   0 total
-Time:        50.028 s
+Time:        50.778 s
 ```
 
 ### Coverage Summary
 
 | Metric     | Value   | Threshold | Status |
 |------------|---------|-----------|--------|
-| Statements | 82.24%  | >= 82%    | PASS   |
-| Branches   | 75.65%  | —         | —      |
+| Statements | 82.27%  | >= 82%    | PASS   |
+| Branches   | 75.76%  | —         | —      |
 | Functions  | 87.36%  | >= 87%    | PASS   |
-| Lines      | 82.59%  | —         | —      |
+| Lines      | 82.62%  | —         | —      |
 
-### Test Count Comparison (Cycle 9 → Cycle 10)
+### Test Count Comparison (Cycle 10 → Cycle 11)
 
-| Metric       | Cycle 9 | Cycle 10 | Delta |
-|--------------|---------|----------|-------|
-| Tests Passed | 5836    | 5969     | +133  |
-| Tests Total  | 5914    | 6047     | +133  |
-| Failures     | 0       | 0        | 0     |
-| Skipped      | 78      | 78       | 0     |
+| Metric       | Cycle 10 | Cycle 11 | Delta |
+|--------------|----------|----------|-------|
+| Tests Passed | 5969     | 6011     | +42   |
+| Tests Total  | 6047     | 6089     | +42   |
+| Failures     | 0        | 0        | 0     |
+| Skipped      | 78       | 78       | 0     |
 
 ---
 
-## 3. ESLint — FAIL (6 errors)
+## 3. ESLint — PASS (after auto-fix)
+
+### Initial Run: 3 errors
 
 ```
 $ npx eslint src/
-✖ 1707 problems (6 errors, 1701 warnings)
-  6 errors and 0 warnings potentially fixable with the `--fix` option.
+✖ 1705 problems (3 errors, 1702 warnings)
+  3 errors and 0 warnings potentially fixable with the `--fix` option.
 ```
 
 ### Error Details
 
-All 6 errors are `prettier/prettier` formatting issues in a single file:
+All 3 errors are `prettier/prettier` formatting issues in Cycle 11 files:
 
-**File**: `src/adapters/ostium/OstiumSubgraph.ts`
+| File | Line | Rule | Issue |
+|------|------|------|-------|
+| `src/adapters/hyperliquid/HyperliquidAdapter.ts` | 391 | prettier/prettier | Ternary line wrapping |
+| `src/adapters/ostium/OstiumAdapter.ts` | 405 | prettier/prettier | Ternary line wrapping |
+| `src/adapters/grvt/GRVTAdapter.ts` | 391 | prettier/prettier | Ternary line wrapping |
 
-| Line | Rule              | Issue                                                    |
-|------|-------------------|----------------------------------------------------------|
-| 36   | prettier/prettier | Insert newline + indent                                  |
-| 37   | prettier/prettier | Insert indent                                            |
-| 42   | prettier/prettier | Insert indent                                            |
-| 64   | prettier/prettier | Replace multiline query call with single-line format     |
-| 66   | prettier/prettier | Replace object literal formatting                        |
-| 67   | prettier/prettier | Insert closing brace                                     |
+### Fix Applied
 
-**Fix**: `npx eslint --fix src/adapters/ostium/OstiumSubgraph.ts`
+- `npx eslint --fix` resolved 2 errors (HL + Ostium)
+- Manual edit resolved 1 error (GRVT — ternary reformatted to multi-line)
 
-### Warnings (1701)
+### Post-fix Run: 0 errors
+
+```
+$ npx eslint src/
+✖ 1702 problems (0 errors, 1702 warnings)
+```
+
+### Warnings (1702)
 
 Warnings are all intentional downgrades from Cycle 8 (SDK boundary type gaps):
 - `@typescript-eslint/no-unsafe-*` variants
@@ -95,15 +107,13 @@ Warnings are all intentional downgrades from Cycle 8 (SDK boundary type gaps):
 
 ## Summary
 
-| Check            | Result | Notes                              |
-|------------------|--------|------------------------------------|
-| tsc --noEmit     | PASS   | 0 errors                           |
-| jest --coverage  | PASS   | 6047 tests, 0 failures, 82%+ stmts |
-| eslint src/      | FAIL   | 6 prettier errors (auto-fixable)   |
-
-**Action Required**: Run `npx eslint --fix src/adapters/ostium/OstiumSubgraph.ts` to resolve the 6 formatting errors, then re-run ESLint to confirm 0 errors.
+| Check           | Result | Notes                               |
+|-----------------|--------|-------------------------------------|
+| tsc --noEmit    | PASS   | 0 errors                            |
+| jest --coverage | PASS   | 6089 tests, 0 failures, 82%+ stmts  |
+| eslint src/     | PASS   | 0 errors (3 auto-fixed), 1702 warns |
 
 ---
 
-**QA Completed**: 2026-02-09
+**QA Completed**: 2026-02-10
 **QA Sign-off**: p-qa agent

@@ -1059,3 +1059,137 @@ describe('PacificaNormalizer', () => {
     expect(rate.nextFundingTimestamp).toBe(mockFundingHistory.timestamp + 3600000);
   });
 });
+
+// ============================================================================
+// builderCodeEnabled Tests
+// ============================================================================
+
+describe('PacificaAdapter builderCodeEnabled', () => {
+  let mockHttpClient: {
+    get: jest.Mock;
+    post: jest.Mock;
+    put: jest.Mock;
+    delete: jest.Mock;
+  };
+
+  const mockOrderResponse: PacificaOrderResponse = {
+    order_id: 'order-toggle',
+    client_order_id: 'toggle-1',
+    symbol: 'BTC-PERP',
+    side: 'buy',
+    type: 'limit',
+    price: '50000.0',
+    size: '0.1',
+    filled_size: '0.0',
+    status: 'open',
+    reduce_only: false,
+    post_only: false,
+    created_at: 1699999000000,
+    updated_at: 1699999000000,
+  };
+
+  test('builderCodeEnabled defaults to true', () => {
+    const a = new PacificaAdapter({ builderCode: 'my-builder' });
+    expect((a as any).builderCodeEnabled).toBe(true);
+  });
+
+  test('builderCodeEnabled=false disables builder code in createOrder', async () => {
+    const a = new PacificaAdapter({
+      apiKey: 'test-key',
+      apiSecret: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      builderCode: 'my-builder',
+      builderCodeEnabled: false,
+    });
+    mockHttpClient = (a as unknown as Record<string, unknown>).httpClient as typeof mockHttpClient;
+    mockHttpClient.post.mockResolvedValue(mockOrderResponse);
+
+    await a.createOrder({
+      symbol: 'BTC/USDC:USDC',
+      type: 'limit',
+      side: 'buy',
+      amount: 0.1,
+      price: 50000,
+    });
+
+    expect(mockHttpClient.post).toHaveBeenCalledWith(
+      '/orders/create',
+      expect.objectContaining({
+        body: expect.not.objectContaining({
+          builder_code: expect.anything(),
+        }),
+      })
+    );
+  });
+
+  test('builderCodeEnabled=true still attaches builder code in createOrder', async () => {
+    const a = new PacificaAdapter({
+      apiKey: 'test-key',
+      apiSecret: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      builderCode: 'my-builder',
+      builderCodeEnabled: true,
+    });
+    mockHttpClient = (a as unknown as Record<string, unknown>).httpClient as typeof mockHttpClient;
+    mockHttpClient.post.mockResolvedValue(mockOrderResponse);
+
+    await a.createOrder({
+      symbol: 'BTC/USDC:USDC',
+      type: 'limit',
+      side: 'buy',
+      amount: 0.1,
+      price: 50000,
+    });
+
+    expect(mockHttpClient.post).toHaveBeenCalledWith(
+      '/orders/create',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          builder_code: 'my-builder',
+        }),
+      })
+    );
+  });
+
+  test('builderCodeEnabled=false skips registerBuilderCode on initialize', async () => {
+    const a = new PacificaAdapter({
+      apiKey: 'test-key',
+      apiSecret: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      builderCode: 'my-builder',
+      builderCodeEnabled: false,
+    });
+    mockHttpClient = (a as unknown as Record<string, unknown>).httpClient as typeof mockHttpClient;
+
+    await a.initialize();
+
+    expect(a.isReady).toBe(true);
+    expect(mockHttpClient.post).not.toHaveBeenCalled();
+  });
+
+  test('per-order builderCode still works when builderCodeEnabled=true', async () => {
+    const a = new PacificaAdapter({
+      apiKey: 'test-key',
+      apiSecret: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      builderCode: 'adapter-builder',
+      builderCodeEnabled: true,
+    });
+    mockHttpClient = (a as unknown as Record<string, unknown>).httpClient as typeof mockHttpClient;
+    mockHttpClient.post.mockResolvedValue(mockOrderResponse);
+
+    await a.createOrder({
+      symbol: 'BTC/USDC:USDC',
+      type: 'limit',
+      side: 'buy',
+      amount: 0.1,
+      price: 50000,
+      builderCode: 'order-override',
+    });
+
+    expect(mockHttpClient.post).toHaveBeenCalledWith(
+      '/orders/create',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          builder_code: 'order-override',
+        }),
+      })
+    );
+  });
+});

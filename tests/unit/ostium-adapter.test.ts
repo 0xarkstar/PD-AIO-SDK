@@ -544,6 +544,147 @@ describe('OstiumAdapter', () => {
 
       expect(order.reduceOnly).toBe(true);
     });
+
+    test('should use referralAddress in openTrade when set', async () => {
+      const refAdapter = new OstiumAdapter({
+        privateKey: '0x' + '1'.repeat(64),
+        rpcUrl: 'https://arb1.arbitrum.io/rpc',
+        referralAddress: '0xREFERRAL_ADDRESS_HERE_1234567890123456',
+      });
+      await refAdapter.initialize();
+
+      const spy = jest.spyOn((refAdapter as any).contracts, 'openTrade');
+      await refAdapter.createOrder({
+        symbol: 'BTC/USD:USD',
+        type: 'market',
+        side: 'buy',
+        amount: 100,
+      });
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referral: '0xREFERRAL_ADDRESS_HERE_1234567890123456',
+        })
+      );
+    });
+
+    test('should fall back to builderCode when referralAddress not set', async () => {
+      const bcAdapter = new OstiumAdapter({
+        privateKey: '0x' + '1'.repeat(64),
+        rpcUrl: 'https://arb1.arbitrum.io/rpc',
+        builderCode: '0xBUILDER_CODE_ADDR_1234567890123456789',
+      });
+      await bcAdapter.initialize();
+
+      const spy = jest.spyOn((bcAdapter as any).contracts, 'openTrade');
+      await bcAdapter.createOrder({
+        symbol: 'ETH/USD:USD',
+        type: 'market',
+        side: 'buy',
+        amount: 50,
+      });
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referral: '0xBUILDER_CODE_ADDR_1234567890123456789',
+        })
+      );
+    });
+
+    test('should fall back to zero address when neither referralAddress nor builderCode set', async () => {
+      const spy = jest.spyOn((adapter as any).contracts, 'openTrade');
+      await adapter.createOrder({
+        symbol: 'BTC/USD:USD',
+        type: 'market',
+        side: 'buy',
+        amount: 100,
+      });
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referral: '0x0000000000000000000000000000000000000000',
+        })
+      );
+    });
+
+    test('should use zero address when builderCodeEnabled=false', async () => {
+      const disabledAdapter = new OstiumAdapter({
+        privateKey: '0x' + '1'.repeat(64),
+        rpcUrl: 'https://arb1.arbitrum.io/rpc',
+        referralAddress: '0xREFERRAL_ADDRESS_HERE_1234567890123456',
+        builderCodeEnabled: false,
+      });
+      await disabledAdapter.initialize();
+
+      const spy = jest.spyOn((disabledAdapter as any).contracts, 'openTrade');
+      await disabledAdapter.createOrder({
+        symbol: 'BTC/USD:USD',
+        type: 'market',
+        side: 'buy',
+        amount: 100,
+      });
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referral: '0x0000000000000000000000000000000000000000',
+        })
+      );
+    });
+
+    test('should allow per-order builderCode override', async () => {
+      const refAdapter = new OstiumAdapter({
+        privateKey: '0x' + '1'.repeat(64),
+        rpcUrl: 'https://arb1.arbitrum.io/rpc',
+        referralAddress: '0xADAPTER_REFERRAL_12345678901234567890',
+      });
+      await refAdapter.initialize();
+
+      const spy = jest.spyOn((refAdapter as any).contracts, 'openTrade');
+      await refAdapter.createOrder({
+        symbol: 'BTC/USD:USD',
+        type: 'market',
+        side: 'buy',
+        amount: 100,
+        builderCode: '0xORDER_OVERRIDE_ADDR_12345678901234567',
+      });
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referral: '0xORDER_OVERRIDE_ADDR_12345678901234567',
+        })
+      );
+    });
+
+    test('should prefer referralAddress over builderCode', async () => {
+      const bothAdapter = new OstiumAdapter({
+        privateKey: '0x' + '1'.repeat(64),
+        rpcUrl: 'https://arb1.arbitrum.io/rpc',
+        referralAddress: '0xREFERRAL_ADDRESS_HERE_1234567890123456',
+        builderCode: '0xBUILDER_CODE_ADDR_1234567890123456789',
+      });
+      await bothAdapter.initialize();
+
+      const spy = jest.spyOn((bothAdapter as any).contracts, 'openTrade');
+      await bothAdapter.createOrder({
+        symbol: 'BTC/USD:USD',
+        type: 'market',
+        side: 'buy',
+        amount: 100,
+      });
+
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referral: '0xREFERRAL_ADDRESS_HERE_1234567890123456',
+        })
+      );
+    });
+
+    test('constructor stores referralAddress correctly', () => {
+      const a = new OstiumAdapter({
+        referralAddress: '0xABC123',
+      });
+      expect((a as any).referralAddress).toBe('0xABC123');
+    });
   });
 
   // ==========================================================================

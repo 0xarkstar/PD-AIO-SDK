@@ -24,19 +24,31 @@ export interface DriftOrderBuilderConfig {
   slippageTolerance?: number;
   /** Auction duration for limit orders (default: 60 slots) */
   auctionDuration?: number;
+  /** Builder code index (Drift DBC) */
+  builderIdx?: number;
+  /** Builder fee in basis points */
+  builderFee?: number;
 }
 
 /**
  * Builds order parameters for Drift Protocol
  */
 export class DriftOrderBuilder {
-  private readonly config: Required<DriftOrderBuilderConfig>;
+  private readonly config: {
+    subAccountId: number;
+    slippageTolerance: number;
+    auctionDuration: number;
+    builderIdx?: number;
+    builderFee?: number;
+  };
 
   constructor(config: DriftOrderBuilderConfig = {}) {
     this.config = {
       subAccountId: config.subAccountId ?? 0,
       slippageTolerance: config.slippageTolerance ?? 0.01,
       auctionDuration: config.auctionDuration ?? 60,
+      builderIdx: config.builderIdx,
+      builderFee: config.builderFee,
     };
   }
 
@@ -113,6 +125,14 @@ export class DriftOrderBuilder {
         );
         orderParams.auctionEndPrice = price;
       }
+    }
+
+    // Add builder code fields if configured
+    if (this.config.builderIdx !== undefined) {
+      orderParams.builderIdx = this.config.builderIdx;
+    }
+    if (this.config.builderFee !== undefined) {
+      orderParams.builderFee = this.config.builderFee;
     }
 
     return orderParams;

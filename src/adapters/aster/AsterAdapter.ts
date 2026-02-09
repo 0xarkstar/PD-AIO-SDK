@@ -75,6 +75,7 @@ export class AsterAdapter extends BaseAdapter {
   protected rateLimiter: RateLimiter;
   private normalizer: AsterNormalizer;
   private readonly referralCode?: string;
+  private readonly builderCodeEnabled: boolean;
 
   constructor(config: AsterConfig = {}) {
     super(config);
@@ -82,6 +83,7 @@ export class AsterAdapter extends BaseAdapter {
     const urls = config.testnet ? ASTER_API_URLS.testnet : ASTER_API_URLS.mainnet;
     this.baseUrl = config.apiUrl ?? urls.rest;
     this.referralCode = config.referralCode ?? config.builderCode;
+    this.builderCodeEnabled = config.builderCodeEnabled ?? true;
 
     if (config.apiKey && config.apiSecret) {
       this.auth = new AsterAuth({
@@ -314,7 +316,8 @@ export class AsterAdapter extends BaseAdapter {
 
   async createOrder(request: OrderRequest): Promise<Order> {
     const asterSymbol = toAsterSymbol(request.symbol);
-    const orderParams = buildOrderParams(request, asterSymbol, this.referralCode);
+    const effectiveReferralCode = this.builderCodeEnabled ? this.referralCode : undefined;
+    const orderParams = buildOrderParams(request, asterSymbol, effectiveReferralCode);
 
     const response = await this.signedRequest<AsterOrderResponse>(
       'POST',

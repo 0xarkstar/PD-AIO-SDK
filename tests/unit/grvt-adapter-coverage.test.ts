@@ -386,4 +386,195 @@ describe('GRVTAdapter Coverage', () => {
       expect((freshAdapter as any).auth.verify).not.toHaveBeenCalled();
     });
   });
+
+  // =========================================================================
+  // Builder Code
+  // =========================================================================
+  describe('builder code', () => {
+    it('should store builderCode from config', () => {
+      const a = new GRVTAdapter({ builderCode: 'GRVT_BUILDER_1' });
+      expect((a as any).builderCode).toBe('GRVT_BUILDER_1');
+    });
+
+    it('should default builderCodeEnabled to true', () => {
+      const a = new GRVTAdapter({ builderCode: 'GRVT_BUILDER_1' });
+      expect((a as any).builderCodeEnabled).toBe(true);
+    });
+
+    it('should respect builderCodeEnabled=false', () => {
+      const a = new GRVTAdapter({ builderCode: 'GRVT_BUILDER_1', builderCodeEnabled: false });
+      expect((a as any).builderCodeEnabled).toBe(false);
+    });
+
+    it('should add builder_id to order when builderCode is set', async () => {
+      const a = new GRVTAdapter({ builderCode: 'GRVT_BUILDER_1' });
+      // Inject mocks
+      const mockSdk: any = {
+        createOrder: jest.fn(async (req: any) => ({ result: { order_id: '456', status: 'active' } })),
+        getSessionCookie: jest.fn(() => null),
+      };
+      const mockAuth: any = {
+        hasCredentials: jest.fn(() => true),
+        requireAuth: jest.fn(),
+        getAddress: jest.fn(() => '0xabc'),
+        getNextNonce: jest.fn(() => 1),
+        createSignature: jest.fn(async () => '0xsig'),
+        setSessionCookie: jest.fn(),
+      };
+      const mockNormalizer: any = {
+        symbolFromCCXT: jest.fn((s: string) => s.replace('/USDT:USDT', '_USDT_Perp')),
+        normalizeOrder: jest.fn((data: any) => ({ id: data.order_id, status: data.status })),
+      };
+      (a as any).sdk = mockSdk;
+      (a as any).auth = mockAuth;
+      (a as any).normalizer = mockNormalizer;
+      (a as any).rateLimiter = { acquire: jest.fn(async () => {}) };
+      (a as any)._isReady = true;
+
+      await a.createOrder({
+        symbol: 'BTC/USDT:USDT',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 36000,
+      });
+
+      const orderArg = mockSdk.createOrder.mock.calls[0][0];
+      expect(orderArg.builder_id).toBe('GRVT_BUILDER_1');
+    });
+
+    it('should NOT add builder_id when builderCode is not set', async () => {
+      const a = createTestAdapter();
+
+      await a.createOrder({
+        symbol: 'BTC/USDT:USDT',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 36000,
+      });
+
+      const orderArg = (a as any).sdk.createOrder.mock.calls[0][0];
+      expect(orderArg.builder_id).toBeUndefined();
+    });
+
+    it('should NOT add builder_id when builderCodeEnabled=false', async () => {
+      const a = new GRVTAdapter({ builderCode: 'GRVT_BUILDER_1', builderCodeEnabled: false });
+      const mockSdk: any = {
+        createOrder: jest.fn(async () => ({ result: { order_id: '789', status: 'active' } })),
+        getSessionCookie: jest.fn(() => null),
+      };
+      const mockAuth: any = {
+        hasCredentials: jest.fn(() => true),
+        requireAuth: jest.fn(),
+        getAddress: jest.fn(() => '0xabc'),
+        getNextNonce: jest.fn(() => 1),
+        createSignature: jest.fn(async () => '0xsig'),
+        setSessionCookie: jest.fn(),
+      };
+      const mockNormalizer: any = {
+        symbolFromCCXT: jest.fn((s: string) => s.replace('/USDT:USDT', '_USDT_Perp')),
+        normalizeOrder: jest.fn((data: any) => ({ id: data.order_id, status: data.status })),
+      };
+      (a as any).sdk = mockSdk;
+      (a as any).auth = mockAuth;
+      (a as any).normalizer = mockNormalizer;
+      (a as any).rateLimiter = { acquire: jest.fn(async () => {}) };
+      (a as any)._isReady = true;
+
+      await a.createOrder({
+        symbol: 'BTC/USDT:USDT',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 36000,
+      });
+
+      const orderArg = mockSdk.createOrder.mock.calls[0][0];
+      expect(orderArg.builder_id).toBeUndefined();
+    });
+
+    it('should allow per-order builderCode override', async () => {
+      const a = new GRVTAdapter({ builderCode: 'ADAPTER_BUILDER' });
+      const mockSdk: any = {
+        createOrder: jest.fn(async () => ({ result: { order_id: '101', status: 'active' } })),
+        getSessionCookie: jest.fn(() => null),
+      };
+      const mockAuth: any = {
+        hasCredentials: jest.fn(() => true),
+        requireAuth: jest.fn(),
+        getAddress: jest.fn(() => '0xabc'),
+        getNextNonce: jest.fn(() => 1),
+        createSignature: jest.fn(async () => '0xsig'),
+        setSessionCookie: jest.fn(),
+      };
+      const mockNormalizer: any = {
+        symbolFromCCXT: jest.fn((s: string) => s.replace('/USDT:USDT', '_USDT_Perp')),
+        normalizeOrder: jest.fn((data: any) => ({ id: data.order_id, status: data.status })),
+      };
+      (a as any).sdk = mockSdk;
+      (a as any).auth = mockAuth;
+      (a as any).normalizer = mockNormalizer;
+      (a as any).rateLimiter = { acquire: jest.fn(async () => {}) };
+      (a as any)._isReady = true;
+
+      await a.createOrder({
+        symbol: 'BTC/USDT:USDT',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 36000,
+        builderCode: 'ORDER_BUILDER',
+      });
+
+      const orderArg = mockSdk.createOrder.mock.calls[0][0];
+      expect(orderArg.builder_id).toBe('ORDER_BUILDER');
+    });
+
+    it('should use adapter builderCode when per-order is not set', async () => {
+      const a = new GRVTAdapter({ builderCode: 'ADAPTER_BUILDER' });
+      const mockSdk: any = {
+        createOrder: jest.fn(async () => ({ result: { order_id: '102', status: 'active' } })),
+        getSessionCookie: jest.fn(() => null),
+      };
+      const mockAuth: any = {
+        hasCredentials: jest.fn(() => true),
+        requireAuth: jest.fn(),
+        getAddress: jest.fn(() => '0xabc'),
+        getNextNonce: jest.fn(() => 1),
+        createSignature: jest.fn(async () => '0xsig'),
+        setSessionCookie: jest.fn(),
+      };
+      const mockNormalizer: any = {
+        symbolFromCCXT: jest.fn((s: string) => s.replace('/USDT:USDT', '_USDT_Perp')),
+        normalizeOrder: jest.fn((data: any) => ({ id: data.order_id, status: data.status })),
+      };
+      (a as any).sdk = mockSdk;
+      (a as any).auth = mockAuth;
+      (a as any).normalizer = mockNormalizer;
+      (a as any).rateLimiter = { acquire: jest.fn(async () => {}) };
+      (a as any)._isReady = true;
+
+      await a.createOrder({
+        symbol: 'BTC/USDT:USDT',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 36000,
+      });
+
+      const orderArg = mockSdk.createOrder.mock.calls[0][0];
+      expect(orderArg.builder_id).toBe('ADAPTER_BUILDER');
+    });
+
+    it('should default builderCodeEnabled to true when not specified', () => {
+      const a = new GRVTAdapter({});
+      expect((a as any).builderCodeEnabled).toBe(true);
+    });
+
+    it('should not have builderCode when not configured', () => {
+      const a = new GRVTAdapter({});
+      expect((a as any).builderCode).toBeUndefined();
+    });
+  });
 });

@@ -50,6 +50,10 @@ export interface GRVTConfig extends GRVTAuthConfig {
   testnet?: boolean;
   timeout?: number;
   debug?: boolean;
+  /** Builder code for fee attribution */
+  builderCode?: string;
+  /** Enable/disable builder code (default: true when builderCode is set) */
+  builderCodeEnabled?: boolean;
 }
 
 /**
@@ -95,6 +99,8 @@ export class GRVTAdapter extends BaseAdapter {
   private ws?: GRVTWebSocketWrapper;
   protected readonly rateLimiter: RateLimiter;
   private readonly testnet: boolean;
+  private readonly builderCode?: string;
+  private readonly builderCodeEnabled: boolean;
 
   constructor(config: GRVTAdapterConfig = {}) {
     super(config);
@@ -117,6 +123,9 @@ export class GRVTAdapter extends BaseAdapter {
       windowMs: GRVT_RATE_LIMITS.rest.windowMs,
       weights: GRVT_ENDPOINT_WEIGHTS,
     });
+
+    this.builderCode = config.builderCode;
+    this.builderCodeEnabled = config.builderCodeEnabled ?? true;
   }
 
   async initialize(): Promise<void> {
@@ -377,6 +386,14 @@ export class GRVTAdapter extends BaseAdapter {
         post_only: validatedRequest.postOnly || false,
         client_order_id: validatedRequest.clientOrderId,
       };
+
+      // Add builder code for fee attribution
+      const builderCode = this.builderCodeEnabled
+        ? (request.builderCode ?? this.builderCode)
+        : undefined;
+      if (builderCode) {
+        orderRequest.builder_id = builderCode;
+      }
 
       // Sign if wallet available
       if (this.auth.getAddress()) {

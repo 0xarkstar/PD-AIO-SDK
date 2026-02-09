@@ -137,6 +137,7 @@ export class HyperliquidAdapter extends BaseAdapter {
   protected rateLimiter: RateLimiter;
   private normalizer: HyperliquidNormalizer;
   private readonly builderAddress?: string;
+  private readonly builderCodeEnabled: boolean;
 
   constructor(config: HyperliquidConfig = {}) {
     super(config);
@@ -145,6 +146,7 @@ export class HyperliquidAdapter extends BaseAdapter {
     this.apiUrl = config.testnet ? HYPERLIQUID_TESTNET_API : HYPERLIQUID_MAINNET_API;
     this.wsUrl = config.testnet ? HYPERLIQUID_TESTNET_WS : HYPERLIQUID_MAINNET_WS;
     this.builderAddress = config.builderAddress ?? config.builderCode;
+    this.builderCodeEnabled = config.builderCodeEnabled ?? true;
 
     // Initialize normalizer
     this.normalizer = new HyperliquidNormalizer();
@@ -400,7 +402,10 @@ export class HyperliquidAdapter extends BaseAdapter {
       const orderRequest = convertOrderRequest(validatedRequest, exchangeSymbol);
 
       // Create action
-      const builderAddr = request.builderCode ?? this.builderAddress;
+      const builderAddr =
+        this.builderCodeEnabled === false
+          ? undefined
+          : (request.builderCode ?? this.builderAddress);
       const action: HyperliquidAction = {
         type: 'order',
         orders: [orderRequest],

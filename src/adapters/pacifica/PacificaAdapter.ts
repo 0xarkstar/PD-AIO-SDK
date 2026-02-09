@@ -68,6 +68,7 @@ export class PacificaAdapter extends BaseAdapter {
   private normalizer: PacificaNormalizer;
   private readonly builderCode?: string;
   private readonly maxBuilderFeeRate: number;
+  private readonly builderCodeEnabled: boolean;
 
   constructor(config: PacificaConfig = {}) {
     super(config);
@@ -76,6 +77,7 @@ export class PacificaAdapter extends BaseAdapter {
     this.baseUrl = config.apiUrl ?? urls.rest;
     this.builderCode = config.builderCode;
     this.maxBuilderFeeRate = config.maxBuilderFeeRate ?? 500;
+    this.builderCodeEnabled = config.builderCodeEnabled ?? true;
 
     if (config.apiKey && config.apiSecret) {
       this.auth = new PacificaAuth({
@@ -103,7 +105,7 @@ export class PacificaAdapter extends BaseAdapter {
   }
 
   async initialize(): Promise<void> {
-    if (this.auth?.hasCredentials() && this.builderCode) {
+    if (this.auth?.hasCredentials() && this.builderCode && this.builderCodeEnabled) {
       await this.registerBuilderCode(this.builderCode, this.maxBuilderFeeRate);
     }
     this._isReady = true;
@@ -248,7 +250,8 @@ export class PacificaAdapter extends BaseAdapter {
 
   async createOrder(request: OrderRequest): Promise<Order> {
     const pacificaSymbol = toPacificaSymbol(request.symbol);
-    const body = buildOrderBody(request, pacificaSymbol, this.builderCode);
+    const effectiveBuilderCode = this.builderCodeEnabled ? this.builderCode : undefined;
+    const body = buildOrderBody(request, pacificaSymbol, effectiveBuilderCode);
 
     const response = await this.signedRequest<PacificaOrderResponse>(
       'POST',

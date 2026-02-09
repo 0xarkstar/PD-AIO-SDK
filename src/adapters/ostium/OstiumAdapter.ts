@@ -61,6 +61,8 @@ export class OstiumAdapter extends BaseAdapter {
   private subgraph: OstiumSubgraph;
   protected rateLimiter: RateLimiter;
   private normalizer: OstiumNormalizer;
+  private readonly referralAddress: string;
+  private readonly builderCodeEnabled: boolean;
 
   constructor(config: OstiumConfig = {}) {
     super(config);
@@ -78,6 +80,9 @@ export class OstiumAdapter extends BaseAdapter {
 
     this.subgraph = new OstiumSubgraph(config.subgraphUrl);
     this.normalizer = new OstiumNormalizer();
+    this.referralAddress =
+      config.referralAddress ?? config.builderCode ?? '0x0000000000000000000000000000000000000000';
+    this.builderCodeEnabled = config.builderCodeEnabled ?? true;
 
     this.rateLimiter = new RateLimiter({
       maxTokens: config.rateLimit?.maxRequests ?? OSTIUM_RATE_LIMITS.metadata.maxRequests,
@@ -180,6 +185,10 @@ export class OstiumAdapter extends BaseAdapter {
     const pairIndex = toOstiumPairIndex(request.symbol);
 
     try {
+      const effectiveReferral = this.builderCodeEnabled
+        ? (request.builderCode ?? this.referralAddress)
+        : '0x0000000000000000000000000000000000000000';
+
       const result = await this.contracts!.openTrade({
         pairIndex,
         positionSizeDai: formatCollateral(request.amount),
@@ -188,7 +197,7 @@ export class OstiumAdapter extends BaseAdapter {
         leverage: request.leverage ?? 10,
         tp: '0',
         sl: '0',
-        referral: '0x0000000000000000000000000000000000000000',
+        referral: effectiveReferral,
       });
 
       return {

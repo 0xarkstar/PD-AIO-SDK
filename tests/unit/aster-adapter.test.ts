@@ -1239,4 +1239,103 @@ describe('AsterAdapter', () => {
       expect(ASTER_ERROR_CODES[-2013]).toBe('NO_SUCH_ORDER');
     });
   });
+
+  // =========================================================================
+  // builderCodeEnabled
+  // =========================================================================
+
+  describe('builderCodeEnabled', () => {
+    const mockOrderResponse = {
+      orderId: 789,
+      symbol: 'BTCUSDT',
+      status: 'NEW',
+      clientOrderId: 'toggle-1',
+      price: '40000.00',
+      avgPrice: '0',
+      origQty: '0.1',
+      executedQty: '0',
+      cumQuote: '0',
+      timeInForce: 'GTC',
+      type: 'LIMIT',
+      reduceOnly: false,
+      closePosition: false,
+      side: 'BUY',
+      positionSide: 'BOTH',
+      stopPrice: '0',
+      workingType: 'CONTRACT_PRICE',
+      origType: 'LIMIT',
+      updateTime: 1700000000000,
+    };
+
+    test('builderCodeEnabled defaults to true', () => {
+      const a = new AsterAdapter({ referralCode: 'REF123' });
+      expect((a as any).builderCodeEnabled).toBe(true);
+    });
+
+    test('builderCodeEnabled=false disables referral code in createOrder', async () => {
+      const a = new AsterAdapter({
+        apiKey: 'test-key',
+        apiSecret: 'test-secret',
+        referralCode: 'REF_CODE',
+        builderCodeEnabled: false,
+      });
+      const http = (a as unknown as Record<string, unknown>).httpClient as typeof mockHttpClient;
+      http.post.mockResolvedValue(mockOrderResponse);
+
+      await a.createOrder({
+        symbol: 'BTC/USDT:USDT',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 40000,
+      });
+
+      const callArgs = http.post.mock.calls[0];
+      const params = callArgs[1];
+      expect(params.body?.referralCode).toBeUndefined();
+    });
+
+    test('builderCodeEnabled=true still attaches referral code', async () => {
+      const a = new AsterAdapter({
+        apiKey: 'test-key',
+        apiSecret: 'test-secret',
+        referralCode: 'REF_CODE',
+        builderCodeEnabled: true,
+      });
+      const http = (a as unknown as Record<string, unknown>).httpClient as typeof mockHttpClient;
+      http.post.mockResolvedValue(mockOrderResponse);
+
+      await a.createOrder({
+        symbol: 'BTC/USDT:USDT',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 40000,
+      });
+
+      expect(http.post).toHaveBeenCalled();
+    });
+
+    test('per-order builderCode still works when enabled', async () => {
+      const a = new AsterAdapter({
+        apiKey: 'test-key',
+        apiSecret: 'test-secret',
+        referralCode: 'ADAPTER_REF',
+        builderCodeEnabled: true,
+      });
+      const http = (a as unknown as Record<string, unknown>).httpClient as typeof mockHttpClient;
+      http.post.mockResolvedValue(mockOrderResponse);
+
+      await a.createOrder({
+        symbol: 'BTC/USDT:USDT',
+        type: 'limit',
+        side: 'buy',
+        amount: 0.1,
+        price: 40000,
+        builderCode: 'ORDER_OVERRIDE',
+      });
+
+      expect(http.post).toHaveBeenCalled();
+    });
+  });
 });

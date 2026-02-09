@@ -1578,4 +1578,89 @@ describe('DriftOrderBuilder', () => {
       expect(params.price).toBeUndefined();
     });
   });
+
+  describe('builder code fields', () => {
+    test('should pass builderIdx and builderFee in order params', () => {
+      const builder = new DriftOrderBuilder({
+        builderIdx: 42,
+        builderFee: 50,
+      });
+      const params = builder.buildOrderParams({
+        symbol: 'BTC/USD:USD',
+        side: 'buy',
+        type: 'market',
+        amount: 0.01,
+      });
+
+      expect(params.builderIdx).toBe(42);
+      expect(params.builderFee).toBe(50);
+    });
+
+    test('should omit builder fields when not configured', () => {
+      const builder = new DriftOrderBuilder();
+      const params = builder.buildOrderParams({
+        symbol: 'BTC/USD:USD',
+        side: 'buy',
+        type: 'market',
+        amount: 0.01,
+      });
+
+      expect(params.builderIdx).toBeUndefined();
+      expect(params.builderFee).toBeUndefined();
+    });
+
+    test('should allow builderIdx without builderFee', () => {
+      const builder = new DriftOrderBuilder({ builderIdx: 10 });
+      const params = builder.buildOrderParams({
+        symbol: 'BTC/USD:USD',
+        side: 'sell',
+        type: 'market',
+        amount: 0.01,
+      });
+
+      expect(params.builderIdx).toBe(10);
+      expect(params.builderFee).toBeUndefined();
+    });
+
+    test('should allow builderFee without builderIdx', () => {
+      const builder = new DriftOrderBuilder({ builderFee: 25 });
+      const params = builder.buildOrderParams({
+        symbol: 'BTC/USD:USD',
+        side: 'buy',
+        type: 'market',
+        amount: 0.01,
+      });
+
+      expect(params.builderIdx).toBeUndefined();
+      expect(params.builderFee).toBe(25);
+    });
+
+    test('should include builder fields in DriftOrderParams type', () => {
+      const params: import('../../src/adapters/drift/DriftClientWrapper.js').DriftOrderParams = {
+        orderType: 'market',
+        marketIndex: 0,
+        marketType: 'perp',
+        direction: 'long',
+        baseAssetAmount: 1000000000n,
+        builderIdx: 5,
+        builderFee: 100,
+      };
+
+      expect(params.builderIdx).toBe(5);
+      expect(params.builderFee).toBe(100);
+    });
+
+    test('should accept builder config in DriftOrderBuilderConfig', () => {
+      const config: import('../../src/adapters/drift/orderBuilder.js').DriftOrderBuilderConfig = {
+        subAccountId: 0,
+        slippageTolerance: 0.01,
+        auctionDuration: 60,
+        builderIdx: 7,
+        builderFee: 30,
+      };
+
+      const builder = new DriftOrderBuilder(config);
+      expect(builder).toBeInstanceOf(DriftOrderBuilder);
+    });
+  });
 });

@@ -32,6 +32,10 @@ export interface DriftOrderParams {
   auctionDuration?: number;
   auctionStartPrice?: bigint;
   auctionEndPrice?: bigint;
+  /** Builder code index (Drift Builder Codes DBC) */
+  builderIdx?: number;
+  /** Builder fee in basis points */
+  builderFee?: number;
 }
 
 /**
@@ -216,6 +220,8 @@ export class DriftClientWrapper {
       auctionDuration: params.auctionDuration,
       auctionStartPrice: params.auctionStartPrice,
       auctionEndPrice: params.auctionEndPrice,
+      ...(params.builderIdx !== undefined && { builderIdx: params.builderIdx }),
+      ...(params.builderFee !== undefined && { builderFee: params.builderFee }),
     };
 
     // Place the order
