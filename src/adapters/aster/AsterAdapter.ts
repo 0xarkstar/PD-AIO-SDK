@@ -66,6 +66,7 @@ export class AsterAdapter extends BaseAdapter {
     fetchPositions: true,
     fetchBalance: true,
     setLeverage: true,
+    fetchFundingRateHistory: true,
   };
 
   private readonly auth?: AsterAuth;

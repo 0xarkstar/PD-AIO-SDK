@@ -52,6 +52,10 @@ export class PacificaAdapter extends BaseAdapter {
     fetchFundingRate: true,
     createOrder: true,
     cancelOrder: true,
+    cancelAllOrders: false,
+    fetchFundingRateHistory: false,
+    fetchOrderHistory: false,
+    fetchMyTrades: false,
     fetchPositions: true,
     fetchBalance: true,
     setLeverage: true,
@@ -325,11 +329,11 @@ export class PacificaAdapter extends BaseAdapter {
     return [];
   }
 
-  symbolToExchange(symbol: string): string {
+  protected symbolToExchange(symbol: string): string {
     return toPacificaSymbol(symbol);
   }
 
-  symbolFromExchange(exchangeSymbol: string): string {
+  protected symbolFromExchange(exchangeSymbol: string): string {
     return toUnifiedSymbol(exchangeSymbol);
   }
 }

@@ -34,7 +34,7 @@ import { OstiumAuth } from './OstiumAuth.js';
 import { OstiumContracts } from './OstiumContracts.js';
 import { OstiumSubgraph } from './OstiumSubgraph.js';
 import { OstiumNormalizer } from './OstiumNormalizer.js';
-import { toOstiumPairIndex, formatCollateral, formatPrice } from './utils.js';
+import { toOstiumPairIndex, formatCollateral, formatPrice, toUnifiedSymbol } from './utils.js';
 import { mapOstiumError } from './error-codes.js';
 import type { OstiumConfig, OstiumPriceResponse } from './types.js';
 
@@ -229,7 +229,7 @@ export class OstiumAdapter extends BaseAdapter {
 
       return {
         id: orderId,
-        symbol: `PAIR-${pairIndex}/USD:USD`,
+        symbol: toUnifiedSymbol(pairIndex),
         type: 'limit',
         side: 'buy',
         amount: 0,

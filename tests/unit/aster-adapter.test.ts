@@ -98,6 +98,7 @@ describe('AsterAdapter', () => {
       expect(adapter.has.fetchPositions).toBe(true);
       expect(adapter.has.fetchBalance).toBe(true);
       expect(adapter.has.setLeverage).toBe(true);
+      expect(adapter.has.fetchFundingRateHistory).toBe(true);
     });
   });
 
@@ -401,6 +402,65 @@ describe('AsterAdapter', () => {
       expect(fr.indexPrice).toBe(40490);
       expect(fr.nextFundingTimestamp).toBe(1700028800000);
       expect(fr.fundingIntervalHours).toBe(8);
+    });
+  });
+
+  // =========================================================================
+  // fetchFundingRateHistory
+  // =========================================================================
+
+  describe('fetchFundingRateHistory', () => {
+    const mockFundingRates = [
+      {
+        symbol: 'BTCUSDT',
+        markPrice: '40500.00',
+        indexPrice: '40490.00',
+        estimatedSettlePrice: '40495.00',
+        lastFundingRate: '0.0001',
+        nextFundingTime: 1700028800000,
+        interestRate: '0.0001',
+        time: 1700000000000,
+      },
+      {
+        symbol: 'BTCUSDT',
+        markPrice: '40600.00',
+        indexPrice: '40590.00',
+        estimatedSettlePrice: '40595.00',
+        lastFundingRate: '0.00015',
+        nextFundingTime: 1700057600000,
+        interestRate: '0.0001',
+        time: 1700028800000,
+      },
+    ];
+
+    test('fetches funding rate history', async () => {
+      mockHttpClient.get.mockResolvedValue(mockFundingRates);
+
+      const rates = await adapter.fetchFundingRateHistory('BTC/USDT:USDT');
+
+      expect(rates).toHaveLength(2);
+      expect(rates[0].symbol).toBe('BTC/USDT:USDT');
+      expect(rates[0].fundingRate).toBe(0.0001);
+      expect(rates[1].fundingRate).toBe(0.00015);
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/fapi/v1/fundingRate?symbol=BTCUSDT');
+    });
+
+    test('passes since and limit params', async () => {
+      mockHttpClient.get.mockResolvedValue(mockFundingRates);
+
+      await adapter.fetchFundingRateHistory('BTC/USDT:USDT', 1700000000000, 100);
+
+      expect(mockHttpClient.get).toHaveBeenCalledWith(
+        '/fapi/v1/fundingRate?symbol=BTCUSDT&startTime=1700000000000&limit=100'
+      );
+    });
+
+    test('throws on invalid response (non-array)', async () => {
+      mockHttpClient.get.mockResolvedValue({ invalid: true });
+
+      await expect(adapter.fetchFundingRateHistory('BTC/USDT:USDT')).rejects.toThrow(
+        'Invalid funding rate history response'
+      );
     });
   });
 

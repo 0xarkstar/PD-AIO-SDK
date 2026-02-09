@@ -107,19 +107,57 @@ Date: 2026-02-08
 
 ---
 
+## Cycle 10: New Adapter Inspection + Test Coverage (COMPLETED)
+Date: 2026-02-09
+
+### Bug Fixes (Stream A)
+| Fix | File | Change |
+|-----|------|--------|
+| A1 | PacificaAdapter.ts | `symbolToExchange`/`symbolFromExchange` → `protected` |
+| A2 | AsterAdapter.ts | Added `fetchFundingRateHistory: true` to `has` map |
+| A3 | ostium/utils.ts | `throw Error` → `throw PerpDEXError('PAIR_NOT_FOUND')` |
+| A4 | OstiumNormalizer.ts + OstiumAdapter.ts | `PAIR-N/USD:USD` → real pair names via `toUnifiedSymbol()` |
+| A5 | PacificaAdapter.ts | Added 4 explicit `false` entries to `has` map |
+| A6 | OstiumSubgraph.ts | GraphQL string interpolation → `$variables` (security) |
+
+### Test Coverage (Stream B)
+| Agent | New Tests | Total |
+|-------|-----------|-------|
+| p-impl-aster | +42 | 119 Aster tests |
+| p-impl-pacifica | +35 | 109 Pacifica tests |
+| p-impl-ostium | +56 | 159 Ostium tests |
+| **Total** | **+133** | **6047** |
+
+### Quality Gates
+- [x] `npx tsc --noEmit` — 0 errors
+- [x] `npx eslint src/` — 0 errors, 1701 warnings
+- [x] `npx jest --coverage --forceExit` — 6047 tests, 0 failures
+- [x] Coverage: 82.24% stmts, 87.36% funcs (up from 81.67%/86.33%)
+
+### Agents Used: 4 + lead
+| Phase | Agents |
+|-------|--------|
+| P1 | p-impl-aster, p-impl-pacifica, p-impl-ostium |
+| P2 | p-qa |
+
+---
+
 ## Cumulative Metrics
-| Metric | Cycle 2 | Cycle 4 | Cycle 5 | Cycle 6 | Cycle 7 | Cycle 8 | Delta |
-|--------|---------|---------|---------|---------|---------|---------|-------|
-| TS errors | 0 | 0 | 0 | 0 | 0 | 0 | = |
-| Tests passed | 4625 | 4822 | 4823 | 5017 | 5329 | 5582 | +253 |
-| Tests failed | 1 | 0 | 0 | 0 | 0 | 0 | = |
-| Build | PASS | PASS | PASS | PASS | PASS | PASS | = |
-| Coverage (stmts) | 68.5% | 69.97% | 69.97% | 73.43% | 78.08% | 81.31% | +3.23% |
-| Coverage (funcs) | 73.5% | — | — | 78.28% | 83.39% | 86.51% | +3.12% |
-| Coverage thresholds | 50% | 65% | 65% | 65% | 72% | 72% | = |
-| ESLint errors | — | — | — | 2934 | 1708 | 0 | -1708 |
-| ESLint warnings | — | — | — | — | — | 1666 | new |
-| `as any` count | — | — | — | 82 | 15 | 13 | -2 |
+| Metric | Cycle 2 | Cycle 4 | Cycle 5 | Cycle 6 | Cycle 7 | Cycle 8 | Cycle 9 | Cycle 10 | Delta |
+|--------|---------|---------|---------|---------|---------|---------|---------|----------|-------|
+| TS errors | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | = |
+| Tests passed | 4625 | 4822 | 4823 | 5017 | 5329 | 5582 | 5836 | 5969 | +133 |
+| Tests total | — | — | — | — | — | — | 5914 | 6047 | +133 |
+| Tests failed | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | = |
+| Build | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | = |
+| Coverage (stmts) | 68.5% | 69.97% | 69.97% | 73.43% | 78.08% | 81.31% | 81.67% | 82.24% | +0.57% |
+| Coverage (funcs) | 73.5% | — | — | 78.28% | 83.39% | 86.51% | 86.33% | 87.36% | +1.03% |
+| Coverage thresholds | 50% | 65% | 65% | 65% | 72% | 72% | 72% | 72% | = |
+| ESLint errors | — | — | — | 2934 | 1708 | 0 | 0 | 0 | = |
+| ESLint warnings | — | — | — | — | — | 1666 | 1701 | 1701 | = |
+| `as any` count | — | — | — | 82 | 15 | 13 | 13 | 13 | = |
+| Adapters | — | — | — | — | — | — | 16 | 16 | = |
+| Bug fixes | — | — | — | — | — | — | — | 6 | new |
 
 ---
 

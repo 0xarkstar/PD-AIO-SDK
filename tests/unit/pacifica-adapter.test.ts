@@ -240,6 +240,10 @@ describe('PacificaAdapter', () => {
       expect(adapter.has.fetchFundingRate).toBe(true);
       expect(adapter.has.createOrder).toBe(true);
       expect(adapter.has.cancelOrder).toBe(true);
+      expect(adapter.has.cancelAllOrders).toBe(false);
+      expect(adapter.has.fetchFundingRateHistory).toBe(false);
+      expect(adapter.has.fetchOrderHistory).toBe(false);
+      expect(adapter.has.fetchMyTrades).toBe(false);
       expect(adapter.has.fetchPositions).toBe(true);
       expect(adapter.has.fetchBalance).toBe(true);
       expect(adapter.has.setLeverage).toBe(true);
@@ -790,6 +794,17 @@ describe('PacificaAdapter', () => {
       await expect(adapter.setLeverage('BTC/USDC:USDC', 10)).rejects.toThrow(
         'API key and secret required'
       );
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // disconnect
+  // --------------------------------------------------------------------------
+
+  describe('disconnect', () => {
+    test('disconnects cleanly', async () => {
+      await adapter.initialize();
+      await expect(adapter.disconnect()).resolves.not.toThrow();
     });
   });
 });

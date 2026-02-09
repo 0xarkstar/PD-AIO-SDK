@@ -10,7 +10,7 @@ import type {
   OstiumSubgraphPosition,
   OstiumOpenTrade,
 } from './types.js';
-import { toUnifiedSymbolFromName, parseCollateral, parsePrice } from './utils.js';
+import { toUnifiedSymbolFromName, parseCollateral, parsePrice, toUnifiedSymbol } from './utils.js';
 
 export class OstiumNormalizer {
   normalizeMarket(pair: OstiumPairInfo): Market {
@@ -62,7 +62,7 @@ export class OstiumNormalizer {
 
     return {
       id: raw.id,
-      symbol: `PAIR-${raw.pairIndex}/USD:USD`,
+      symbol: toUnifiedSymbol(parseInt(raw.pairIndex, 10)),
       side: raw.buy ? 'buy' : 'sell',
       price,
       amount,
@@ -83,7 +83,7 @@ export class OstiumNormalizer {
     const unrealizedPnl = notional * pnlMultiplier * ((markPrice - entryPrice) / entryPrice);
 
     return {
-      symbol: `PAIR-${raw.pairIndex}/USD:USD`,
+      symbol: toUnifiedSymbol(parseInt(raw.pairIndex, 10)),
       side: raw.buy ? 'long' : 'short',
       size,
       entryPrice,
@@ -115,7 +115,7 @@ export class OstiumNormalizer {
   normalizeOrderFromTrade(raw: OstiumOpenTrade): Order {
     return {
       id: `${raw.pairIndex}-${raw.index}`,
-      symbol: `PAIR-${raw.pairIndex}/USD:USD`,
+      symbol: toUnifiedSymbol(raw.pairIndex),
       type: 'market',
       side: raw.buy ? 'buy' : 'sell',
       amount: parseCollateral(raw.positionSizeDai),

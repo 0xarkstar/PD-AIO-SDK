@@ -565,6 +565,7 @@ describe('OstiumAdapter', () => {
       const result = await adapter.cancelOrder('2-0');
 
       expect(result.id).toBe('2-0');
+      expect(result.symbol).toBe('AAPL/USD:USD');
       expect(result.status).toBe('canceled');
     });
 
@@ -836,6 +837,7 @@ describe('OstiumNormalizer', () => {
       const trade = normalizer.normalizeTrade(MOCK_SUBGRAPH_TRADE);
 
       expect(trade.id).toBe('trade-1');
+      expect(trade.symbol).toBe('AAPL/USD:USD');
       expect(trade.side).toBe('buy');
       expect(trade.price).toBe(175.5);
       expect(trade.amount).toBe(1000);
@@ -855,6 +857,7 @@ describe('OstiumNormalizer', () => {
     test('should normalize long position', () => {
       const position = normalizer.normalizePosition(MOCK_SUBGRAPH_POSITION);
 
+      expect(position.symbol).toBe('AAPL/USD:USD');
       expect(position.side).toBe('long');
       expect(position.leverage).toBe(10);
       expect(position.marginMode).toBe('isolated');
@@ -902,6 +905,7 @@ describe('OstiumNormalizer', () => {
       const order = normalizer.normalizeOrderFromTrade(MOCK_OPEN_TRADE);
 
       expect(order.id).toBe('2-0');
+      expect(order.symbol).toBe('AAPL/USD:USD');
       expect(order.side).toBe('buy');
       expect(order.status).toBe('filled');
       expect(order.type).toBe('market');
@@ -931,6 +935,10 @@ describe('Utils', () => {
 
     test('should throw for unknown pair', () => {
       expect(() => toOstiumPairIndex('UNKNOWN/USD:USD')).toThrow('Unknown Ostium pair');
+    });
+
+    test('should throw PerpDEXError for unknown pair', () => {
+      expect(() => toOstiumPairIndex('UNKNOWN/USD:USD')).toThrow(PerpDEXError);
     });
   });
 
