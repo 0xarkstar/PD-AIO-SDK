@@ -36,13 +36,19 @@ export class OstiumNormalizer {
   }
 
   normalizeTicker(raw: OstiumPriceResponse, pair: OstiumPairInfo): Ticker {
-    const price = parseFloat(raw.price);
+    // API returns {bid, mid, ask, timestampSeconds} instead of {price, timestamp}
+    const rawAny = raw as any;
+    const price = rawAny.mid != null ? parseFloat(String(rawAny.mid)) : parseFloat(raw.price);
+    const bid = rawAny.bid != null ? parseFloat(String(rawAny.bid)) : price;
+    const ask = rawAny.ask != null ? parseFloat(String(rawAny.ask)) : price;
+    const timestamp =
+      rawAny.timestampSeconds != null ? rawAny.timestampSeconds * 1000 : raw.timestamp;
 
     return {
       symbol: toUnifiedSymbolFromName(pair.name),
       last: price,
-      bid: price,
-      ask: price,
+      bid,
+      ask,
       high: price,
       low: price,
       open: price,
@@ -51,7 +57,7 @@ export class OstiumNormalizer {
       percentage: 0,
       baseVolume: 0,
       quoteVolume: 0,
-      timestamp: raw.timestamp,
+      timestamp,
       info: raw as unknown as Record<string, unknown>,
     };
   }

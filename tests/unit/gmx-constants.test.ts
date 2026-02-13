@@ -20,6 +20,8 @@ import {
   gmxToUnified,
   getMarketByAddress,
   getBaseToken,
+  getTokenDecimals,
+  getOraclePriceDivisor,
   getMarketsForChain,
   type GMXMarketKey,
 } from '../../src/adapters/gmx/constants.js';
@@ -314,5 +316,66 @@ describe('getMarketsForChain', () => {
 
     expect(arbitrumMarkets.some(m => m.baseAsset === 'ETH')).toBe(true);
     expect(avalancheMarkets.some(m => m.baseAsset === 'ETH')).toBe(true);
+  });
+});
+
+describe('getTokenDecimals', () => {
+  test('should return 18 for ETH', () => {
+    expect(getTokenDecimals('ETH')).toBe(18);
+  });
+
+  test('should return 8 for BTC', () => {
+    expect(getTokenDecimals('BTC')).toBe(8);
+  });
+
+  test('should return 6 for USDC', () => {
+    expect(getTokenDecimals('USDC')).toBe(6);
+  });
+
+  test('should return 18 for AVAX', () => {
+    expect(getTokenDecimals('AVAX')).toBe(18);
+  });
+
+  test('should return 9 for SOL', () => {
+    expect(getTokenDecimals('SOL')).toBe(9);
+  });
+
+  test('should return 18 (default) for unknown token', () => {
+    expect(getTokenDecimals('UNKNOWN')).toBe(18);
+  });
+
+  test('should return 18 (default) for empty string', () => {
+    expect(getTokenDecimals('')).toBe(18);
+  });
+});
+
+describe('getOraclePriceDivisor', () => {
+  test('should return 10^12 for ETH (18 decimals)', () => {
+    expect(getOraclePriceDivisor('ETH')).toBe(1e12);
+  });
+
+  test('should return 10^22 for BTC (8 decimals)', () => {
+    expect(getOraclePriceDivisor('BTC')).toBe(1e22);
+  });
+
+  test('should return 10^24 for USDC (6 decimals)', () => {
+    expect(getOraclePriceDivisor('USDC')).toBe(1e24);
+  });
+
+  test('should return 10^21 for SOL (9 decimals)', () => {
+    expect(getOraclePriceDivisor('SOL')).toBe(1e21);
+  });
+
+  test('should return 10^12 for unknown token (defaults to 18 decimals)', () => {
+    expect(getOraclePriceDivisor('UNKNOWN')).toBe(1e12);
+  });
+
+  test('should be consistent with getTokenDecimals', () => {
+    const assets = ['ETH', 'BTC', 'USDC', 'AVAX', 'SOL', 'LINK'];
+    for (const asset of assets) {
+      const decimals = getTokenDecimals(asset);
+      const divisor = getOraclePriceDivisor(asset);
+      expect(divisor).toBe(Math.pow(10, 30 - decimals));
+    }
   });
 });

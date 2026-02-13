@@ -42,7 +42,7 @@ describe('HyperliquidAdapter', () => {
       expect(adapter.has.fetchMarkets).toBe(true);
       expect(adapter.has.fetchTicker).toBe(true);
       expect(adapter.has.fetchOrderBook).toBe(true);
-      expect(adapter.has.fetchTrades).toBe(true);
+      expect(adapter.has.fetchTrades).toBe(false);
       expect(adapter.has.fetchOHLCV).toBe(true);
       expect(adapter.has.fetchFundingRate).toBe(true);
       expect(adapter.has.createOrder).toBe(true);

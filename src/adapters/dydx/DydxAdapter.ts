@@ -324,7 +324,7 @@ export class DydxAdapter extends BaseAdapter {
         queryParams.createdBeforeOrAtHeight = undefined; // dYdX uses block height, not timestamp directly
       }
 
-      const url = buildUrl(this.apiUrl, '/trades', { market: exchangeSymbol, ...queryParams });
+      const url = buildUrl(this.apiUrl, `/trades/perpetualMarket/${exchangeSymbol}`, queryParams);
 
       const response = await this.request<DydxTradesResponse>('GET', url);
 
@@ -391,10 +391,7 @@ export class DydxAdapter extends BaseAdapter {
         queryParams.effectiveBeforeOrAt = new Date(since).toISOString();
       }
 
-      const url = buildUrl(this.apiUrl, '/historicalFunding', {
-        market: exchangeSymbol,
-        ...queryParams,
-      });
+      const url = buildUrl(this.apiUrl, `/historicalFunding/${exchangeSymbol}`, queryParams);
 
       const response = await this.request<DydxHistoricalFundingResponse>('GET', url);
 
@@ -432,7 +429,7 @@ export class DydxAdapter extends BaseAdapter {
         limit: params?.limit ?? 100,
       };
 
-      const url = buildUrl(this.apiUrl, '/candles', { market: exchangeSymbol, ...queryParams });
+      const url = buildUrl(this.apiUrl, `/candles/perpetualMarket/${exchangeSymbol}`, queryParams);
 
       const response = await this.request<DydxCandlesResponse>('GET', url);
 

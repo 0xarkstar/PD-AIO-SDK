@@ -3,7 +3,7 @@
 > Development context and guidelines for contributors and AI-assisted development tools.
 
 ## Project Overview
-Unified TypeScript SDK for decentralized perpetual exchanges. Supports 7+ platforms: Hyperliquid (+ HIP-3 ecosystem), Lighter, GRVT, Paradex, EdgeX, Backpack.
+Unified TypeScript SDK for decentralized perpetual exchanges. Supports 16 exchanges: Hyperliquid, Lighter, GRVT, Paradex, EdgeX, Backpack, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX, Aster, Pacifica, Ostium.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ Unified TypeScript SDK for decentralized perpetual exchanges. Supports 7+ platfo
 - **Infrastructure**: WebSocket, rate limiting, authentication
 
 ### Pattern A (Full-Featured) Architecture
-All 7 exchange adapters follow **Pattern A** for consistency and maintainability.
+All 16 exchange adapters follow **Pattern A** for consistency and maintainability.
 
 **File Structure (9-11 files per adapter):**
 ```
@@ -158,6 +158,16 @@ Every adapter must implement:
 - **GRVT**: API key + session cookie + EIP-712
 - **Lighter**: API key with configurable expiration
 - **EdgeX**: ECDSA + Pedersen hash (StarkEx)
+- **Nado**: EIP-712 on Ink L2 (Kraken)
+- **Variational**: HMAC-SHA256 API key
+- **Extended**: API key header
+- **dYdX**: Cosmos SDK secp256k1 signing
+- **Jupiter**: Solana wallet ed25519
+- **Drift**: Solana wallet ed25519
+- **GMX**: EVM wallet (on-chain)
+- **Aster**: HMAC-SHA256 (Binance-compatible)
+- **Pacifica**: Ed25519 API key
+- **Ostium**: EVM private key (ethers.js)
 
 ### Rate Limiting
 - **Hyperliquid**: 1200 weight/min
@@ -201,7 +211,7 @@ tests/
 4. No mocking in unit tests for domain logic
 
 ### Coverage Targets
-- Minimum: 80% across branches/functions/lines/statements
+- Current: 82.25% statements, 87.02% functions (threshold: 72%/78%)
 - Critical paths (auth, WebSocket reconnection): 100%
 
 ## Error Handling
@@ -254,7 +264,7 @@ Examples:
 - TypeScript compilation: Zero errors
 - ESLint: Zero warnings
 - Prettier: Auto-formatted
-- Tests: All passing, >80% coverage
+- Tests: 6092 passing, 82% coverage, 56/96 live API methods verified
 - No hardcoded credentials
 - No exposed secrets in errors
 

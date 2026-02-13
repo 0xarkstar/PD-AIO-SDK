@@ -1677,7 +1677,7 @@ describe('DydxAdapter HTTP Methods', () => {
       );
     });
 
-    test('should use market query param', async () => {
+    test('should use perpetualMarket path', async () => {
       const mockTrades = { trades: [] };
       (adapter as any).request.mockResolvedValueOnce(mockTrades);
 
@@ -1685,7 +1685,7 @@ describe('DydxAdapter HTTP Methods', () => {
 
       expect((adapter as any).request).toHaveBeenCalledWith(
         'GET',
-        expect.stringContaining('market=ETH-USD')
+        expect.stringContaining('/trades/perpetualMarket/ETH-USD')
       );
     });
   });
@@ -1748,7 +1748,7 @@ describe('DydxAdapter HTTP Methods', () => {
 
       const url = (adapter as any).request.mock.calls[0][1];
       expect(url).toContain('limit=50');
-      expect(url).toContain('market=BTC-USD');
+      expect(url).toContain('/historicalFunding/BTC-USD');
     });
   });
 

@@ -46,7 +46,7 @@ export class OstiumAdapter extends BaseAdapter {
     fetchMarkets: true,
     fetchTicker: true,
     fetchOrderBook: false,
-    fetchTrades: true,
+    fetchTrades: false, // Subgraph has been removed from The Graph hosted service
     fetchFundingRate: false,
     createOrder: true,
     cancelOrder: true,
@@ -129,8 +129,10 @@ export class OstiumAdapter extends BaseAdapter {
       throw new PerpDEXError(`Unknown pair: ${symbol}`, 'PAIR_NOT_FOUND', 'ostium');
     }
 
+    // Ostium API uses concatenated asset names (e.g., "BTCUSD" not "BTC/USD")
+    const assetParam = `${pair.from}${pair.to}`;
     const response = await this.fetchMetadata<OstiumPriceResponse>(
-      `/PricePublish/latest-price?pair=${pair.name}`,
+      `/PricePublish/latest-price?asset=${assetParam}`,
       'fetchTicker'
     );
 
@@ -145,16 +147,14 @@ export class OstiumAdapter extends BaseAdapter {
     );
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
-    const pairIndex = toOstiumPairIndex(symbol);
-    const limit = params?.limit ?? 100;
-
-    try {
-      const trades = await this.subgraph.fetchTrades(pairIndex, limit);
-      return trades.map((t) => this.normalizer.normalizeTrade(t));
-    } catch (error: unknown) {
-      throw mapOstiumError(error);
-    }
+  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
+    // The Graph hosted service subgraph has been removed.
+    // Trades require an alternative data source (e.g., Graph Studio with API key).
+    throw new NotSupportedError(
+      'Ostium subgraph has been removed from The Graph hosted service. Trade data unavailable.',
+      'NOT_SUPPORTED',
+      'ostium'
+    );
   }
 
   async fetchFundingRate(_symbol: string): Promise<FundingRate> {

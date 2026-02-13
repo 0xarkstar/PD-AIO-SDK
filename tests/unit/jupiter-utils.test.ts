@@ -265,15 +265,37 @@ describe('Jupiter Utils', () => {
 
   describe('URL Builders', () => {
     describe('buildPriceApiUrl', () => {
-      it('should build price API URL with single token', () => {
+      it('should build Pyth price API URL with single token', () => {
         const url = buildPriceApiUrl(['SOL']);
-        expect(url).toContain('https://api.jup.ag/price/v3');
-        expect(url).toContain('ids=SOL');
+        expect(url).toContain('https://hermes.pyth.network/v2/updates/price/latest');
+        expect(url).toContain('ids[]=');
       });
 
-      it('should build price API URL with multiple tokens', () => {
+      it('should build Pyth price API URL with multiple tokens', () => {
         const url = buildPriceApiUrl(['SOL', 'ETH', 'BTC']);
-        expect(url).toContain('ids=SOL%2CETH%2CBTC');
+        expect(url).toContain('hermes.pyth.network');
+        // Should have 3 feed IDs
+        const feedCount = (url.match(/ids\[\]=/g) || []).length;
+        expect(feedCount).toBe(3);
+      });
+
+      it('should strip 0x prefix from Pyth feed IDs', () => {
+        const url = buildPriceApiUrl(['SOL']);
+        // Feed IDs in URL should NOT contain 0x prefix
+        expect(url).not.toMatch(/ids\[\]=0x/);
+        // But should still contain feed ID content
+        expect(url).toContain('ids[]=');
+      });
+
+      it('should handle empty token list', () => {
+        const url = buildPriceApiUrl([]);
+        expect(url).toBe('https://hermes.pyth.network/v2/updates/price/latest?');
+      });
+
+      it('should handle unknown tokens gracefully', () => {
+        const url = buildPriceApiUrl(['UNKNOWN_TOKEN']);
+        // Should produce URL with no feed IDs
+        expect(url).toBe('https://hermes.pyth.network/v2/updates/price/latest?');
       });
     });
 

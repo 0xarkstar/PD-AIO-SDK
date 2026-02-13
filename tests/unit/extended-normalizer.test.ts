@@ -42,6 +42,18 @@ describe('ExtendedNormalizer', () => {
     it('should return as-is for unknown format', () => {
       expect(normalizer.symbolToCCXT('UNKNOWN')).toBe('UNKNOWN');
     });
+
+    it('should handle undefined symbol without crashing', () => {
+      expect(normalizer.symbolToCCXT(undefined as unknown as string)).toBe('');
+    });
+
+    it('should handle null symbol without crashing', () => {
+      expect(normalizer.symbolToCCXT(null as unknown as string)).toBe('');
+    });
+
+    it('should handle empty string symbol', () => {
+      expect(normalizer.symbolToCCXT('')).toBe('');
+    });
   });
 
   describe('symbolFromCCXT', () => {

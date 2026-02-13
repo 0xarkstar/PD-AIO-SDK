@@ -393,6 +393,8 @@ export class ParadexNormalizer {
   normalizeTrade(paradexTrade: ParadexTrade): Trade {
     const price = parseFloat(paradexTrade.price);
     const amount = parseFloat(paradexTrade.size);
+    // API returns created_at instead of timestamp
+    const timestamp = paradexTrade.timestamp || (paradexTrade as any).created_at || 0;
 
     return {
       id: paradexTrade.id,
@@ -401,7 +403,7 @@ export class ParadexNormalizer {
       price,
       amount,
       cost: price * amount,
-      timestamp: paradexTrade.timestamp,
+      timestamp,
       info: paradexTrade as unknown as Record<string, unknown>,
     };
   }

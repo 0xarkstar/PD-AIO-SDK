@@ -11,10 +11,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.2.0] - 2026-02-13
+## [0.2.0] - 2026-02-14
 
-> Cycles 4-12: Major quality push, 3 new exchanges, builder codes, subpath exports, and npm publish readiness.
-> **6,092 tests | 82.27% statement coverage | 87.36% function coverage | 16 exchanges supported**
+> Cycles 4-13: Major quality push, 3 new exchanges, builder codes, subpath exports, live API verification, and npm publish readiness.
+> **6,092 tests | 82.25% statement coverage | 87.02% function coverage | 16 exchanges supported | 56/96 live API methods verified**
+
+### Added (Cycle 13)
+
+#### Live API Compatibility Verification
+- **`tests/production/live-api-validation.ts`** — standalone live E2E validation script for all 16 exchanges
+- Tested 6 public methods per exchange (fetchMarkets, fetchTicker, fetchOrderBook, fetchTrades, fetchFundingRate, fetchOHLCV) against live mainnet APIs
+- Results: **56 PASS**, 1 FAIL, 10 SKIP, 29 ERROR across 96 total method calls
+- 12/16 exchanges operational with 3+ methods working
+
+#### API Contract Specifications (9 new)
+- `dydx.spec.ts` — dYdX v4 indexer API (5 endpoints, Zod schemas)
+- `aster.spec.ts` — Aster DEX API (6 endpoints, Binance-compatible)
+- `pacifica.spec.ts` — Pacifica API (5 endpoints)
+- `extended.spec.ts` — Extended API (6 endpoints)
+- `variational.spec.ts` — Variational API (1 public endpoint)
+- `gmx.spec.ts` — GMX v2 API (3 REST endpoints)
+- `drift.spec.ts` — Drift DLOB API (4 endpoints)
+- `jupiter.spec.ts` — Jupiter price API (1 endpoint)
+- `ostium.spec.ts` — Ostium metadata API (1 endpoint)
+- API contract registry expanded from 7 to **16 exchanges**
+
+### Fixed (Cycle 13)
+
+#### Adapter Endpoint & Data Fixes
+- **dYdX**: Fixed `fetchTrades` and `fetchOHLCV` — switched from query params to path-based routing (`/trades/perpetualMarket/{ticker}`, `/candles/perpetualMarket/{ticker}`)
+- **Drift**: Fixed `fetchFundingRate` — switched from DLOB API to Data API (`data.api.drift.trade/fundingRates`); marked `fetchTrades` as unsupported (DLOB removed endpoint)
+- **GMX**: Fixed inverted ticker prices — per-token divisor `10^(30-tokenDecimals)` instead of flat `1e30`; added NaN guards for funding rate
+- **Lighter**: Fixed `fetchTrades` — switched to `/api/v1/recentTrades` endpoint; fixed `fetchFundingRate` — rewritten to parse `{funding_rates: [{rate}]}` array format
+- **Jupiter**: Migrated from jup.ag price API (now requires auth) to Pyth Network Hermes API
+- **Extended**: Fixed response parsing (`{data:[...]}` not `{markets:[...]}`)
+- **Ostium**: Fixed metadata API parameter format (`asset=BTCUSD` not `pair=BTC/USD`); disabled `fetchTrades` (The Graph hosted subgraph removed)
+- **Paradex**: Switched to public endpoints (`/markets/summary`, `/trades?market=X`, `/funding/data?market=X`); made auth headers conditional
+
+#### Exchange Status Changes
+- **Pacifica**: Confirmed API fully offline (all endpoints return 404) — no code fix possible
 
 ### Breaking Changes
 

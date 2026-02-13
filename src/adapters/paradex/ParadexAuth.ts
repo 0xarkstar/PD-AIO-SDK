@@ -83,23 +83,27 @@ export class ParadexAuth implements IAuthStrategy {
       'Content-Type': 'application/json',
     };
 
-    // Add API key if available
-    if (this.apiKey) {
-      headers['X-API-KEY'] = this.apiKey;
-    }
+    // Only add auth headers if credentials are configured
+    // Public endpoints (markets, trades, orderbook, funding, bbo, summary) work without auth
+    if (this.hasCredentials()) {
+      // Add API key if available
+      if (this.apiKey) {
+        headers['X-API-KEY'] = this.apiKey;
+      }
 
-    // Add JWT token if available and valid
-    if (this.jwtToken && this.isTokenValid()) {
-      headers['Authorization'] = `Bearer ${this.jwtToken.accessToken}`;
-    }
+      // Add JWT token if available and valid
+      if (this.jwtToken && this.isTokenValid()) {
+        headers['Authorization'] = `Bearer ${this.jwtToken.accessToken}`;
+      }
 
-    // Add timestamp for all requests
-    headers['X-Timestamp'] = Date.now().toString();
+      // Add timestamp for authenticated requests
+      headers['X-Timestamp'] = Date.now().toString();
 
-    // Add signature for trading operations
-    if (this.requiresSignature(request.method, request.path)) {
-      const signature = await this.signRequest(request);
-      headers['X-Signature'] = signature;
+      // Add signature for trading operations
+      if (this.requiresSignature(request.method, request.path)) {
+        const signature = await this.signRequest(request);
+        headers['X-Signature'] = signature;
+      }
     }
 
     return {

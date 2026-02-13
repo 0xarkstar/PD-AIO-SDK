@@ -214,8 +214,8 @@ describe('OstiumAdapter', () => {
       expect(adapter.has.fetchOrderBook).toBe(false);
     });
 
-    test('should support fetchTrades', () => {
-      expect(adapter.has.fetchTrades).toBe(true);
+    test('should NOT support fetchTrades (subgraph removed)', () => {
+      expect(adapter.has.fetchTrades).toBe(false);
     });
 
     test('should NOT support fetchFundingRate', () => {
@@ -387,37 +387,12 @@ describe('OstiumAdapter', () => {
       await adapter.initialize();
     });
 
-    test('should fetch trades from subgraph', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          data: { trades: [MOCK_SUBGRAPH_TRADE] },
-        }),
-      } as Response);
-
-      const trades = await adapter.fetchTrades('AAPL/USD:USD');
-
-      expect(trades.length).toBe(1);
-      expect(trades[0].id).toBe('trade-1');
-      expect(trades[0].side).toBe('buy');
-      expect(trades[0].price).toBe(175.5);
-      expect(trades[0].amount).toBe(1000);
+    test('should throw NotSupportedError (subgraph removed)', async () => {
+      await expect(adapter.fetchTrades('AAPL/USD:USD')).rejects.toThrow(NotSupportedError);
     });
 
-    test('should pass limit parameter', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          data: { trades: [] },
-        }),
-      } as Response);
-
-      const trades = await adapter.fetchTrades('BTC/USD:USD', { limit: 50 });
-      expect(trades).toEqual([]);
-    });
-
-    test('should throw for unknown pair', async () => {
-      await expect(adapter.fetchTrades('UNKNOWN/USD:USD')).rejects.toThrow();
+    test('should mention subgraph removal in error message', async () => {
+      await expect(adapter.fetchTrades('BTC/USD:USD')).rejects.toThrow('subgraph');
     });
   });
 

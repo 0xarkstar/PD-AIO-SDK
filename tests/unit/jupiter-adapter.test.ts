@@ -84,14 +84,13 @@ describe('JupiterAdapter', () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '98.50',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '9850000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '9850000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -115,14 +114,13 @@ describe('JupiterAdapter', () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '98.50',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '9850000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '9850000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -132,6 +130,36 @@ describe('JupiterAdapter', () => {
       expect(adapter.isReady).toBe(true);
       // Should only call fetch once (from first initialize)
       expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    test('handles empty parsed response without crashing', async () => {
+      adapter = new JupiterAdapter();
+
+      // Mock response with empty parsed array — fetchPrices returns empty result
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          parsed: [],
+        }),
+      });
+
+      // Initialize calls fetchPrices (not fetchPrice), which returns empty without throwing
+      await adapter.initialize();
+      expect(adapter.isReady).toBe(true);
+    });
+
+    test('handles undefined parsed response without crashing', async () => {
+      adapter = new JupiterAdapter();
+
+      // Mock response with no parsed field at all
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+      });
+
+      // fetchPrices guards against undefined parsed, returns empty
+      await adapter.initialize();
+      expect(adapter.isReady).toBe(true);
     });
   });
 
@@ -143,14 +171,13 @@ describe('JupiterAdapter', () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '98.50',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '9850000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '9850000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -209,23 +236,17 @@ describe('JupiterAdapter', () => {
     beforeEach(async () => {
       adapter = new JupiterAdapter();
 
+      // Mock Pyth Network Hermes API response format
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '98.50',
-              extraInfo: {
-                quotedPrice: {
-                  buyPrice: '98.48',
-                  sellPrice: '98.52',
-                },
-              },
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '9850000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '9850000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -237,8 +258,9 @@ describe('JupiterAdapter', () => {
 
       expect(ticker.symbol).toBe('SOL/USD:USD');
       expect(ticker.last).toBe(98.5);
-      expect(ticker.bid).toBe(98.48);
-      expect(ticker.ask).toBe(98.52);
+      // Pyth returns same price for buy/sell, so bid/ask use approximate spread
+      expect(ticker.bid).toBeLessThanOrEqual(98.5);
+      expect(ticker.ask).toBeGreaterThanOrEqual(98.5);
     });
 
     test('throws for invalid symbol', async () => {
@@ -260,17 +282,17 @@ describe('JupiterAdapter', () => {
     beforeEach(async () => {
       adapter = new JupiterAdapter();
 
+      // Mock Pyth Network Hermes API response
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '100.00',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -300,14 +322,13 @@ describe('JupiterAdapter', () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '100.00',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -325,17 +346,17 @@ describe('JupiterAdapter', () => {
     beforeEach(async () => {
       adapter = new JupiterAdapter();
 
+      // Mock Pyth Network Hermes API response
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '100.00',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -365,14 +386,13 @@ describe('JupiterAdapter', () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '100.00',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -393,14 +413,13 @@ describe('JupiterAdapter', () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '100.00',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -419,14 +438,13 @@ describe('JupiterAdapter', () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '100.00',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -443,14 +461,13 @@ describe('JupiterAdapter', () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '100.00',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -469,14 +486,13 @@ describe('JupiterAdapter', () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '100.00',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -497,14 +513,13 @@ describe('JupiterAdapter', () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              type: 'derivedPrice',
-              price: '100.00',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '10000000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-          },
-          timeTaken: 0.1,
+          ],
         }),
       });
 
@@ -659,7 +674,7 @@ describe('Jupiter Constants', () => {
 
   describe('API URLs', () => {
     test('mainnet price API is defined', () => {
-      expect(JUPITER_API_URLS.mainnet.price).toContain('jup.ag');
+      expect(JUPITER_API_URLS.mainnet.price).toContain('hermes.pyth.network');
     });
 
     test('mainnet stats API is defined', () => {
@@ -1311,13 +1326,19 @@ describe('Jupiter Utility Functions', () => {
   describe('buildPriceApiUrl', () => {
     test('should build URL with single token', () => {
       const url = buildPriceApiUrl(['So11111111111111111111111111111111111111112']);
-      expect(url).toContain('api.jup.ag/price');
-      expect(url).toContain('ids=');
+      expect(url).toContain('hermes.pyth.network');
+      expect(url).toContain('ids[]');
     });
 
     test('should build URL with multiple tokens', () => {
-      const url = buildPriceApiUrl(['token1', 'token2', 'token3']);
-      expect(url).toContain('token1%2Ctoken2%2Ctoken3');
+      const url = buildPriceApiUrl([
+        'So11111111111111111111111111111111111111112',
+        '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs',
+        '3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh',
+      ]);
+      // Should have multiple ids[] params for the mapped Pyth feed IDs
+      const feedIdCount = (url.match(/ids\[\]/g) || []).length;
+      expect(feedIdCount).toBe(3);
     });
   });
 
@@ -1688,6 +1709,18 @@ describe('Jupiter Error Mapping', () => {
       const err = new Error('some random error');
       const result = mapJupiterError(err);
       expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+
+    test('should map "price not available" to ORACLE_ERROR', () => {
+      const err = new Error('Price not available for SOL');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('ORACLE_ERROR');
+    });
+
+    test('should map "no price data" to ORACLE_ERROR', () => {
+      const err = new Error('no price data for this feed');
+      const result = mapJupiterError(err);
+      expect(result.code).toBe('ORACLE_ERROR');
     });
 
     test('should handle non-Error objects', () => {

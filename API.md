@@ -428,6 +428,10 @@ interface LighterConfig {
 **API Notes (Cycle 5):**
 - All REST endpoints use the `/api/v1/` prefix (e.g., `/api/v1/orderBookDetails`, `/api/v1/trades`, `/api/v1/sendTx`, `/api/v1/account`)
 
+**API Notes (Cycle 13):**
+- `fetchTrades` endpoint changed to `/api/v1/recentTrades?market_id={id}`
+- `fetchFundingRate` response format changed to `{funding_rates: [{rate, ...}]}` array
+
 **Special Features:**
 - ZK-SNARK proofs
 - Orderbook DEX model
@@ -619,10 +623,10 @@ interface DydxConfig {
 
 **Authentication:** Cosmos SDK signing (secp256k1)
 
-**API Notes (Cycle 5):**
-- Market data endpoints (`/trades`, `/candles`, `/historicalFunding`) use **query parameters** (e.g., `?market=BTC-USD`) — not path parameters
+**API Notes (Cycle 13):**
+- Market data endpoints use **path-based routing**: `/trades/perpetualMarket/{ticker}`, `/candles/perpetualMarket/{ticker}`, `/historicalFunding/{ticker}`
 - Private endpoints embed `subaccountNumber` in the URL path: `/addresses/{address}/subaccountNumber/{n}/orders`
-- The `buildUrl()` helper constructs all query-parameter-based URLs
+- Live API validated: fetchMarkets, fetchTicker, fetchOrderBook, fetchTrades, fetchFundingRate all PASS
 
 **Special Features:**
 - 220+ perpetual markets
@@ -672,6 +676,10 @@ interface JupiterConfig {
 ```
 
 **Authentication:** Solana wallet (ed25519)
+
+**API Notes (Cycle 13):**
+- Migrated from jup.ag price API (now requires auth, returns 401) to **Pyth Network Hermes API** for price feeds
+- Runtime initialization may fail if Pyth feed IDs need updating — unit tests pass but live API requires correct feed configuration
 
 **Special Features:**
 - SOL, ETH, BTC perpetuals
@@ -747,8 +755,10 @@ await exchange.initialize();
 - Unified: `SOL/USD:USD`, `BTC/USD:USD`, `ETH/USD:USD`
 
 **Supported Methods:**
-- ✅ Most core methods
-- ✅ `fetchOHLCV`
+- ✅ Most core methods (fetchMarkets, fetchTicker, fetchOrderBook, fetchFundingRate)
+- ❌ `fetchTrades` (DLOB API removed this endpoint)
+- ❌ `fetchOHLCV` (not supported)
+- ✅ `fetchFundingRate` (via Data API: `data.api.drift.trade`)
 - ✅ `fetchClosedOrders`
 - ✅ `fetchMyTrades`
 - ✅ WebSocket streaming (orderbook, trades, ticker, positions, orders, balance, myTrades)
@@ -799,6 +809,11 @@ await exchange.initialize();
 **API Notes (Cycle 5):**
 - Candles endpoint: `/prices/candles` (not `/candlesticks`)
 - Candles query parameter: `tokenSymbol` (not `marketAddress`)
+
+**API Notes (Cycle 13):**
+- Fixed price precision: per-token divisor `10^(30-tokenDecimals)` instead of flat `1e30` division
+- Funding rate: Added NaN guards for missing `fundingFactorPerSecond` values
+- Live API validated: fetchMarkets, fetchTicker, fetchFundingRate all PASS
 
 **Supported Methods:**
 - ✅ `fetchMarkets`, `fetchTicker`, `fetchFundingRate`
@@ -916,6 +931,9 @@ await exchange.initialize();  // Auto-registers builder code if set
 - ❌ `fetchOrderHistory`, `fetchMyTrades` (not supported)
 - ❌ WebSocket streaming (not available)
 
+**API Notes (Cycle 13):**
+- **WARNING**: Pacifica API is currently offline. All endpoints return HTTP 404. No code fix possible — awaiting API restoration.
+
 ---
 
 ### Ostium Adapter
@@ -984,7 +1002,7 @@ const order = await exchange.createOrder({
 **Supported Methods:**
 - ✅ `fetchMarkets` (static pair list)
 - ✅ `fetchTicker` (via metadata API)
-- ✅ `fetchTrades` (via GraphQL subgraph)
+- ❌ `fetchTrades` (The Graph hosted subgraph removed; disabled in Cycle 13)
 - ✅ `createOrder`, `cancelOrder` (on-chain transactions)
 - ✅ `fetchPositions` (via GraphQL subgraph)
 - ✅ `fetchBalance` (on-chain collateral balance)
@@ -994,6 +1012,11 @@ const order = await exchange.createOrder({
 - ❌ `setLeverage` (set per-trade at order time)
 - ❌ `fetchOrderHistory`, `fetchMyTrades` (not available via REST)
 - ❌ WebSocket streaming (not available)
+
+**API Notes (Cycle 13):**
+- The Graph hosted subgraph (`api.thegraph.com/subgraphs/name/ostium-labs/ostium-arbitrum`) has been removed
+- `fetchTicker` metadata API parameter format fixed: `asset=BTCUSD` (not `pair=BTC/USD`)
+- `fetchTrades` disabled — subgraph migration needed for trade history
 
 **Note:** Ostium is unique in this SDK as an RWA perpetual DEX. It supports traditional finance assets (stocks, forex, commodities, indices) alongside crypto, all settled in USDC on Arbitrum.
 

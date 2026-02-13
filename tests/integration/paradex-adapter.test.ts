@@ -163,29 +163,29 @@ describe('ParadexAdapter - Integration Tests', () => {
     describe('fetchTicker()', () => {
       it('should fetch and normalize ticker data', async () => {
         const mockResponse = {
-          market: 'BTC-USD-PERP',
-          last_price: '50000.00',
-          price_change_24h: '1000.00',
-          price_change_percent_24h: '2.04',
-          bid: '49995.00',
-          ask: '50005.00',
-          high_24h: '51000.00',
-          low_24h: '48500.00',
-          volume_24h: '1000.5',
-          timestamp: 1234567890000,
+          results: [
+            {
+              symbol: 'BTC-USD-PERP',
+              last_traded_price: '50000.00',
+              price_change_rate_24h: '2.04',
+              bid: '49995.00',
+              ask: '50005.00',
+              volume_24h: '1000.5',
+              created_at: 1234567890000,
+            },
+          ],
         };
 
         mockHttpClient.get.mockResolvedValue(mockResponse);
 
         const ticker = await adapter.fetchTicker('BTC/USD:USD');
 
-        expect(mockHttpClient.get).toHaveBeenCalledWith('/markets/BTC-USD-PERP/ticker');
+        expect(mockHttpClient.get).toHaveBeenCalledWith('/markets/summary?market=BTC-USD-PERP');
         expect(ticker.symbol).toBe('BTC/USD:USD');
         expect(ticker.last).toBe(50000);
         expect(ticker.bid).toBe(49995);
         expect(ticker.ask).toBe(50005);
         expect(ticker.baseVolume).toBe(1000.5);
-        expect(ticker.change).toBe(1000);
       });
     });
 
@@ -237,14 +237,14 @@ describe('ParadexAdapter - Integration Tests', () => {
     describe('fetchTrades()', () => {
       it('should fetch and normalize recent trades', async () => {
         const mockResponse = {
-          trades: [
+          results: [
             {
               id: 'trade-1',
               market: 'BTC-USD-PERP',
               price: '50000.00',
               size: '1.5',
               side: 'BUY',
-              timestamp: 1234567890000,
+              created_at: 1234567890000,
             },
             {
               id: 'trade-2',
@@ -252,7 +252,7 @@ describe('ParadexAdapter - Integration Tests', () => {
               price: '50005.00',
               size: '2.0',
               side: 'SELL',
-              timestamp: 1234567891000,
+              created_at: 1234567891000,
             },
           ],
         };
@@ -261,7 +261,7 @@ describe('ParadexAdapter - Integration Tests', () => {
 
         const trades = await adapter.fetchTrades('BTC/USD:USD');
 
-        expect(mockHttpClient.get).toHaveBeenCalledWith('/trades/BTC-USD-PERP?limit=100');
+        expect(mockHttpClient.get).toHaveBeenCalledWith('/trades?market=BTC-USD-PERP&limit=100');
         expect(trades).toHaveLength(2);
         expect(trades[0].symbol).toBe('BTC/USD:USD');
         expect(trades[0].price).toBe(50000);
@@ -270,16 +270,16 @@ describe('ParadexAdapter - Integration Tests', () => {
       });
 
       it('should respect custom limit parameter', async () => {
-        const mockResponse = { trades: [] };
+        const mockResponse = { results: [] };
         mockHttpClient.get.mockResolvedValue(mockResponse);
 
         await adapter.fetchTrades('BTC/USD:USD', { limit: 50 });
 
-        expect(mockHttpClient.get).toHaveBeenCalledWith('/trades/BTC-USD-PERP?limit=50');
+        expect(mockHttpClient.get).toHaveBeenCalledWith('/trades?market=BTC-USD-PERP&limit=50');
       });
 
       it('should throw error when trades response is invalid', async () => {
-        mockHttpClient.get.mockResolvedValue({ trades: 'invalid' });
+        mockHttpClient.get.mockResolvedValue({ results: 'invalid' });
 
         await expect(adapter.fetchTrades('BTC/USD:USD')).rejects.toThrow(PerpDEXError);
       });
@@ -288,46 +288,41 @@ describe('ParadexAdapter - Integration Tests', () => {
     describe('fetchFundingRate()', () => {
       it('should fetch current funding rate', async () => {
         const mockResponse = {
-          market: 'BTC-USD-PERP',
-          rate: '0.0001',
-          timestamp: 1234567880000,
-          next_funding_time: 1234567890000,
-          index_price: '50000.00',
-          mark_price: '50010.00',
+          results: [
+            {
+              market: 'BTC-USD-PERP',
+              funding_rate: '0.0001',
+              funding_premium: '50010.00',
+              created_at: 1234567880000,
+            },
+          ],
         };
 
         mockHttpClient.get.mockResolvedValue(mockResponse);
 
         const fundingRate = await adapter.fetchFundingRate('BTC/USD:USD');
 
-        expect(mockHttpClient.get).toHaveBeenCalledWith('/markets/BTC-USD-PERP/funding');
+        expect(mockHttpClient.get).toHaveBeenCalledWith('/funding/data?market=BTC-USD-PERP&limit=1');
         expect(fundingRate.symbol).toBe('BTC/USD:USD');
         expect(fundingRate.fundingRate).toBe(0.0001);
-        expect(fundingRate.nextFundingTimestamp).toBe(1234567890000);
-        expect(fundingRate.markPrice).toBe(50010);
-        expect(fundingRate.indexPrice).toBe(50000);
       });
     });
 
     describe('fetchFundingRateHistory()', () => {
       it('should fetch funding rate history with all parameters', async () => {
         const mockResponse = {
-          history: [
+          results: [
             {
               market: 'BTC-USD-PERP',
-              rate: '0.0001',
-              timestamp: 1234567890000,
-              next_funding_time: 1234567900000,
-              index_price: '50000.00',
-              mark_price: '50010.00',
+              funding_rate: '0.0001',
+              funding_premium: '50010.00',
+              created_at: 1234567890000,
             },
             {
               market: 'BTC-USD-PERP',
-              rate: '0.00015',
-              timestamp: 1234567900000,
-              next_funding_time: 1234567910000,
-              index_price: '50100.00',
-              mark_price: '50110.00',
+              funding_rate: '0.00015',
+              funding_premium: '50110.00',
+              created_at: 1234567900000,
             },
           ],
         };
@@ -337,18 +332,23 @@ describe('ParadexAdapter - Integration Tests', () => {
         const history = await adapter.fetchFundingRateHistory('BTC/USD:USD', 1234567800000, 10);
 
         expect(mockHttpClient.get).toHaveBeenCalledWith(
-          '/markets/BTC-USD-PERP/funding/history?start_time=1234567800000&limit=10'
+          expect.stringContaining('funding/data?')
+        );
+        expect(mockHttpClient.get).toHaveBeenCalledWith(
+          expect.stringContaining('market=BTC-USD-PERP')
         );
         expect(history).toHaveLength(2);
         expect(history[0].fundingRate).toBe(0.0001);
       });
 
       it('should handle optional parameters', async () => {
-        mockHttpClient.get.mockResolvedValue({ history: [] });
+        mockHttpClient.get.mockResolvedValue({ results: [] });
 
         await adapter.fetchFundingRateHistory('BTC/USD:USD');
 
-        expect(mockHttpClient.get).toHaveBeenCalledWith('/markets/BTC-USD-PERP/funding/history');
+        expect(mockHttpClient.get).toHaveBeenCalledWith(
+          expect.stringContaining('funding/data?market=BTC-USD-PERP')
+        );
       });
     });
   });

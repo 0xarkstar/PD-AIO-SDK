@@ -266,12 +266,14 @@ export class ExtendedAdapter extends BaseAdapter {
     await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.MARKETS);
 
     try {
-      const response = await this.httpClient.get<{ markets: ExtendedMarket[] }>(
-        EXTENDED_ENDPOINTS.MARKETS,
-        {}
-      );
+      const response = await this.httpClient.get<{
+        markets?: ExtendedMarket[];
+        data?: ExtendedMarket[];
+        status?: string;
+      }>(EXTENDED_ENDPOINTS.MARKETS, {});
 
-      const markets = response.markets || [];
+      // API returns {status: "OK", data: [...]} or legacy {markets: [...]}
+      const markets = response.data || response.markets || [];
       return this.normalizer.normalizeMarkets(markets);
     } catch (error) {
       throw mapError(error);
@@ -285,7 +287,11 @@ export class ExtendedAdapter extends BaseAdapter {
       const market = this.symbolToExchange(symbol);
       const endpoint = EXTENDED_ENDPOINTS.TICKER_SYMBOL.replace('{market}', market);
 
-      const ticker = await this.httpClient.get<ExtendedTicker>(endpoint, {});
+      const response = await this.httpClient.get<ExtendedTicker & { data?: ExtendedTicker }>(
+        endpoint,
+        {}
+      );
+      const ticker: ExtendedTicker = response.data || response;
       return this.normalizer.normalizeTicker(ticker);
     } catch (error) {
       throw mapError(error);
@@ -306,7 +312,11 @@ export class ExtendedAdapter extends BaseAdapter {
 
       endpoint += this.buildQueryString(queryParams);
 
-      const orderbook = await this.httpClient.get<ExtendedOrderBook>(endpoint, {});
+      const response = await this.httpClient.get<ExtendedOrderBook & { data?: ExtendedOrderBook }>(
+        endpoint,
+        {}
+      );
+      const orderbook: ExtendedOrderBook = response.data || response;
       return this.normalizer.normalizeOrderBook(orderbook);
     } catch (error) {
       throw mapError(error);

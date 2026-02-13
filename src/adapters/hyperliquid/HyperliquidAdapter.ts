@@ -84,7 +84,7 @@ export class HyperliquidAdapter extends BaseAdapter {
     fetchMarkets: true,
     fetchTicker: true,
     fetchOrderBook: true,
-    fetchTrades: true,
+    fetchTrades: false,
     fetchOHLCV: true,
     fetchFundingRate: true,
     fetchFundingRateHistory: true,

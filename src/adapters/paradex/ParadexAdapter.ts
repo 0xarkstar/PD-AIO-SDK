@@ -56,13 +56,7 @@ interface MarketsResponse {
   markets?: ParadexMarket[];
 }
 
-interface TradesResponse {
-  trades: ParadexTrade[];
-}
-
-interface FundingHistoryResponse {
-  history: ParadexFundingRate[];
-}
+// TradesResponse and FundingHistoryResponse removed — using inline types with /trades and /funding/data endpoints
 
 interface PositionsResponse {
   positions: ParadexPosition[];
@@ -224,15 +218,39 @@ export class ParadexAdapter extends BaseAdapter {
 
   /**
    * Fetch ticker for a symbol
+   *
+   * Uses /markets/summary endpoint which is publicly accessible (no JWT required)
    */
   async fetchTicker(symbol: string): Promise<Ticker> {
     await this.rateLimiter.acquire('fetchTicker');
 
     try {
       const market = this.normalizer.symbolFromCCXT(symbol);
-      const response = await this.client.get<ParadexTicker>(`/markets/${market}/ticker`);
+      const response = await this.client.get<{ results: any[] }>(
+        `/markets/summary?market=${market}`
+      );
 
-      return this.normalizer.normalizeTicker(response);
+      const results = response.results;
+      if (!Array.isArray(results) || results.length === 0) {
+        throw new PerpDEXError('No ticker data', 'INVALID_RESPONSE', 'paradex');
+      }
+
+      const summary = results[0];
+      // Map summary fields to ParadexTicker structure
+      const tickerData: ParadexTicker = {
+        market,
+        last_price: summary.last_traded_price || '0',
+        bid: summary.bid || '0',
+        ask: summary.ask || '0',
+        high_24h: summary.last_traded_price || '0',
+        low_24h: summary.last_traded_price || '0',
+        volume_24h: summary.volume_24h || '0',
+        price_change_24h: '0',
+        price_change_percent_24h: summary.price_change_rate_24h || '0',
+        timestamp: summary.created_at || Date.now(),
+      };
+
+      return this.normalizer.normalizeTicker(tickerData);
     } catch (error) {
       throw mapAxiosError(error);
     }
@@ -261,6 +279,8 @@ export class ParadexAdapter extends BaseAdapter {
 
   /**
    * Fetch recent trades for a symbol
+   *
+   * Uses /trades?market=X query param format (publicly accessible, no JWT)
    */
   async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
     await this.rateLimiter.acquire('fetchTrades');
@@ -269,13 +289,16 @@ export class ParadexAdapter extends BaseAdapter {
       const market = this.normalizer.symbolFromCCXT(symbol);
       const limit = params?.limit ?? 100;
 
-      const response = await this.client.get<TradesResponse>(`/trades/${market}?limit=${limit}`);
+      const response = await this.client.get<{ results: ParadexTrade[] }>(
+        `/trades?market=${market}&limit=${limit}`
+      );
 
-      if (!Array.isArray(response.trades)) {
+      const trades = response.results;
+      if (!Array.isArray(trades)) {
         throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'paradex');
       }
 
-      return this.normalizer.normalizeTrades(response.trades);
+      return this.normalizer.normalizeTrades(trades);
     } catch (error) {
       throw mapAxiosError(error);
     }
@@ -283,15 +306,35 @@ export class ParadexAdapter extends BaseAdapter {
 
   /**
    * Fetch current funding rate
+   *
+   * Uses /funding/data?market=X endpoint (publicly accessible, no JWT)
    */
   async fetchFundingRate(symbol: string): Promise<FundingRate> {
     await this.rateLimiter.acquire('fetchFundingRate');
 
     try {
       const market = this.normalizer.symbolFromCCXT(symbol);
-      const response = await this.client.get<ParadexFundingRate>(`/markets/${market}/funding`);
+      const response = await this.client.get<{ results: any[] }>(
+        `/funding/data?market=${market}&limit=1`
+      );
 
-      return this.normalizer.normalizeFundingRate(response);
+      const results = response.results;
+      if (!Array.isArray(results) || results.length === 0) {
+        throw new PerpDEXError('No funding rate data', 'INVALID_RESPONSE', 'paradex');
+      }
+
+      const fundingData = results[0];
+      // Map funding/data fields to ParadexFundingRate-like structure
+      const fundingRate: ParadexFundingRate = {
+        market,
+        rate: fundingData.funding_rate || '0',
+        mark_price: fundingData.funding_premium || '0',
+        index_price: '0',
+        timestamp: fundingData.created_at || Date.now(),
+        next_funding_time: 0,
+      };
+
+      return this.normalizer.normalizeFundingRate(fundingRate);
     } catch (error) {
       throw mapAxiosError(error);
     }
@@ -299,6 +342,8 @@ export class ParadexAdapter extends BaseAdapter {
 
   /**
    * Fetch funding rate history
+   *
+   * Uses /funding/data?market=X endpoint with pagination
    */
   async fetchFundingRateHistory(
     symbol: string,
@@ -310,16 +355,18 @@ export class ParadexAdapter extends BaseAdapter {
     try {
       const market = this.normalizer.symbolFromCCXT(symbol);
       const params = new URLSearchParams();
+      params.append('market', market);
 
-      if (since) params.append('start_time', since.toString());
-      if (limit) params.append('limit', limit.toString());
+      if (since) params.append('start_at', since.toString());
+      if (limit) params.append('page_size', limit.toString());
 
       const queryString = params.toString();
-      const path = `/markets/${market}/funding/history${queryString ? `?${queryString}` : ''}`;
+      const path = `/funding/data?${queryString}`;
 
-      const response = await this.client.get<FundingHistoryResponse>(path);
+      const response = await this.client.get<{ results: any[] }>(path);
 
-      if (!Array.isArray(response.history)) {
+      const results = response.results;
+      if (!Array.isArray(results)) {
         throw new PerpDEXError(
           'Invalid funding rate history response',
           'INVALID_RESPONSE',
@@ -327,7 +374,17 @@ export class ParadexAdapter extends BaseAdapter {
         );
       }
 
-      return this.normalizer.normalizeFundingRates(response.history);
+      return results.map((item) => {
+        const fundingRate: ParadexFundingRate = {
+          market,
+          rate: item.funding_rate || '0',
+          mark_price: item.funding_premium || '0',
+          index_price: '0',
+          timestamp: item.created_at || 0,
+          next_funding_time: 0,
+        };
+        return this.normalizer.normalizeFundingRate(fundingRate);
+      });
     } catch (error) {
       throw mapAxiosError(error);
     }

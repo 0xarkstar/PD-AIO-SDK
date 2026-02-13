@@ -354,17 +354,12 @@ describe('OstiumAdapter Coverage', () => {
     });
   });
 
-  describe('fetchTrades subgraph error propagation', () => {
-    test('should propagate subgraph HTTP 500 error', async () => {
+  describe('fetchTrades not supported', () => {
+    test('should throw NotSupportedError (subgraph removed)', async () => {
       const adapter = new OstiumAdapter();
       await adapter.initialize();
 
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-      } as Response);
-
-      await expect(adapter.fetchTrades('BTC/USD:USD')).rejects.toThrow(PerpDEXError);
+      await expect(adapter.fetchTrades('BTC/USD:USD')).rejects.toThrow(NotSupportedError);
     });
   });
 

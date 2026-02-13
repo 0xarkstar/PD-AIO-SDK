@@ -265,35 +265,41 @@ describe('LighterAdapter Integration Tests', () => {
 
     describe('fetchTrades', () => {
       it('should fetch and normalize public trades', async () => {
-        // Lighter uses simple symbols (BTC) with USDC as quote currency
-        // Response format: { code, trades: [] }
-        const mockResponse = {
+        // First call: fetchMarkets to populate marketIdCache
+        const mockMarketsResponse = {
+          code: 200,
+          order_book_details: [
+            { symbol: 'BTC', market_id: 1, market_type: 'perp', status: 'active' },
+          ],
+        };
+        mockSuccessResponse(mockMarketsResponse);
+
+        // Second call: recentTrades with market_id
+        // Uses trade_id, is_maker_ask (false=buy, true=sell), size fields
+        const mockTradesResponse = {
           code: 200,
           trades: [
             {
-              id: 'trade-1',
-              symbol: 'BTC',
-              side: 'buy',
+              trade_id: 'trade-1',
+              is_maker_ask: false,
               price: '50000',
               size: '0.5',
               timestamp: 1234567890000,
             },
             {
-              id: 'trade-2',
-              symbol: 'BTC',
-              side: 'sell',
+              trade_id: 'trade-2',
+              is_maker_ask: true,
               price: '50010',
               size: '0.3',
               timestamp: 1234567891000,
             },
           ],
         };
-
-        mockSuccessResponse(mockResponse);
+        mockSuccessResponse(mockTradesResponse);
 
         const trades = await adapter.fetchTrades('BTC/USDC:USDC');
 
-        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(mockFetch).toHaveBeenCalledTimes(2); // fetchMarkets + recentTrades
         expect(trades).toHaveLength(2);
         expect(trades[0].symbol).toBe('BTC/USDC:USDC');
         expect(trades[0].side).toBe('buy');
@@ -302,12 +308,24 @@ describe('LighterAdapter Integration Tests', () => {
       });
 
       it('should handle limit parameter', async () => {
+        // First call: fetchMarkets to populate marketIdCache
+        const mockMarketsResponse = {
+          code: 200,
+          order_book_details: [
+            { symbol: 'BTC', market_id: 1, market_type: 'perp', status: 'active' },
+          ],
+        };
+        mockSuccessResponse(mockMarketsResponse);
+
+        // Second call: recentTrades
         mockSuccessResponse({ code: 200, trades: [] });
 
         await adapter.fetchTrades('BTC/USDC:USDC', { limit: 50 });
 
-        const url = (mockFetch.mock.calls[0][0] as string);
+        // Check the second call (recentTrades) contains limit parameter
+        const url = (mockFetch.mock.calls[1][0] as string);
         expect(url).toContain('limit=50');
+        expect(url).toContain('recentTrades');
       });
     });
 
@@ -347,22 +365,34 @@ describe('LighterAdapter Integration Tests', () => {
 
     describe('fetchFundingRate', () => {
       it('should fetch and normalize funding rate', async () => {
-        // Lighter uses simple symbols (BTC) with USDC as quote currency
-        const mockFundingRate: LighterFundingRate = {
-          symbol: 'BTC',
-          fundingRate: 0.0001,
-          markPrice: 50000,
-          nextFundingTime: 1234567890000,
+        // First call: fetchMarkets to populate marketIdCache
+        const mockMarketsResponse = {
+          code: 200,
+          order_book_details: [
+            { symbol: 'BTC', market_id: 1, market_type: 'perp', status: 'active' },
+          ],
         };
+        mockSuccessResponse(mockMarketsResponse);
 
-        mockSuccessResponse(mockFundingRate);
+        // Second call: funding-rates API returns array format
+        const mockFundingResponse = {
+          code: 200,
+          funding_rates: [
+            {
+              market_id: 1,
+              exchange: 'lighter',
+              symbol: 'BTC',
+              rate: 0.0001,
+            },
+          ],
+        };
+        mockSuccessResponse(mockFundingResponse);
 
         const fundingRate = await adapter.fetchFundingRate('BTC/USDC:USDC');
 
-        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(mockFetch).toHaveBeenCalledTimes(2); // fetchMarkets + funding-rates
         expect(fundingRate.symbol).toBe('BTC/USDC:USDC');
         expect(fundingRate.fundingRate).toBe(0.0001);
-        expect(fundingRate.markPrice).toBe(50000);
         expect(fundingRate.fundingIntervalHours).toBe(8);
       });
     });

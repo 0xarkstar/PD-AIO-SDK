@@ -10,6 +10,7 @@
  *   npm run check:api hyperliquid  # Check specific exchange
  */
 
+import { fileURLToPath } from 'node:url';
 import { ContractValidator } from '../tests/api-contracts/contract-validator.js';
 import {
   hyperliquidTestnetSpec,
@@ -19,6 +20,15 @@ import {
   edgexTestnetSpec,
   nadoTestnetSpec,
   backpackSpec,
+  dydxTestnetSpec,
+  asterTestnetSpec,
+  pacificaTestnetSpec,
+  extendedTestnetSpec,
+  variationalTestnetSpec,
+  gmxSpec,
+  driftDevnetSpec,
+  jupiterSpec,
+  ostiumSpec,
 } from '../tests/api-contracts/index.js';
 import type { APISpecification, ContractValidationReport } from '../tests/api-contracts/types.js';
 
@@ -37,6 +47,15 @@ const ALL_SPECS: Record<string, APISpecification> = {
   edgex: edgexTestnetSpec,
   nado: nadoTestnetSpec,
   backpack: backpackSpec,
+  dydx: dydxTestnetSpec,
+  aster: asterTestnetSpec,
+  pacifica: pacificaTestnetSpec,
+  extended: extendedTestnetSpec,
+  variational: variationalTestnetSpec,
+  gmx: gmxSpec,
+  drift: driftDevnetSpec,
+  jupiter: jupiterSpec,
+  ostium: ostiumSpec,
 };
 
 /**
@@ -209,7 +228,8 @@ async function main() {
 }
 
 // Run if called directly
-if (require.main === module) {
+const isMain = process.argv[1] === fileURLToPath(import.meta.url);
+if (isMain) {
   main().catch((error) => {
     console.error('Fatal error:', error);
     process.exit(1);

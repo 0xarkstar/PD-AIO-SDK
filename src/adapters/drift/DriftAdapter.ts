@@ -43,8 +43,8 @@ import {
   getMarketIndex,
 } from './constants.js';
 import { mapDriftError } from './error-codes.js';
-import { isValidMarket, getMarketConfig, buildOrderbookUrl, buildTradesUrl } from './utils.js';
-import type { DriftL2OrderBook, DriftTrade, DriftFundingRate } from './types.js';
+import { isValidMarket, getMarketConfig, buildOrderbookUrl } from './utils.js';
+import type { DriftL2OrderBook, DriftFundingRateRecord } from './types.js';
 import { DriftAuth } from './DriftAuth.js';
 import { DriftClientWrapper } from './DriftClientWrapper.js';
 
@@ -105,7 +105,7 @@ export class DriftAdapter extends BaseAdapter {
     fetchMarkets: true,
     fetchTicker: true,
     fetchOrderBook: true,
-    fetchTrades: true,
+    fetchTrades: false, // DLOB trades endpoint removed; requires on-chain indexing
     fetchFundingRate: true,
     fetchFundingRateHistory: true,
     fetchOHLCV: false, // Requires historical data API
@@ -142,6 +142,7 @@ export class DriftAdapter extends BaseAdapter {
   private driftClient?: DriftClientWrapper;
   private orderBuilder?: DriftOrderBuilder;
   private dlobBaseUrl: string;
+  private dataBaseUrl: string;
   private isTestnet: boolean;
   constructor(config: DriftConfig = {}) {
     super({
@@ -151,6 +152,7 @@ export class DriftAdapter extends BaseAdapter {
 
     this.isTestnet = config.testnet || false;
     this.dlobBaseUrl = this.isTestnet ? DRIFT_API_URLS.devnet.dlob : DRIFT_API_URLS.mainnet.dlob;
+    this.dataBaseUrl = this.isTestnet ? DRIFT_API_URLS.devnet.data : DRIFT_API_URLS.mainnet.data;
 
     this.normalizer = new DriftNormalizer();
 
@@ -383,25 +385,13 @@ export class DriftAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
-    this.ensureInitialized();
-
-    const driftSymbol = this.symbolToExchange(symbol);
-    if (!isValidMarket(driftSymbol)) {
-      throw new Error(`Invalid market: ${symbol}`);
-    }
-
-    try {
-      const marketIndex = getMarketIndex(symbol);
-      const limit = params?.limit || 50;
-
-      const url = buildTradesUrl(this.dlobBaseUrl, marketIndex, 'perp', limit);
-      const trades = await this.request<DriftTrade[]>('GET', url);
-
-      return trades.map((t) => this.normalizer.normalizeTrade(t));
-    } catch (error) {
-      throw mapDriftError(error);
-    }
+  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
+    // The DLOB /trades endpoint has been removed from the Drift API.
+    // Trade data requires on-chain transaction indexing or historical S3 data.
+    throw new Error(
+      'fetchTrades is not available via the Drift REST API. ' +
+        'Trade data requires on-chain indexing or the historical data archive.'
+    );
   }
 
   async fetchFundingRate(symbol: string): Promise<FundingRate> {
@@ -415,11 +405,17 @@ export class DriftAdapter extends BaseAdapter {
     try {
       const marketIndex = getMarketIndex(symbol);
 
-      // Get funding rate from DLOB API
-      const url = `${this.dlobBaseUrl}/fundingRate?marketIndex=${marketIndex}`;
-      const funding = await this.request<DriftFundingRate>('GET', url);
+      // Use data API for funding rates (DLOB /fundingRate endpoint removed)
+      const url = `${this.dataBaseUrl}/fundingRates?marketIndex=${marketIndex}&limit=1`;
+      const response = await this.request<{ fundingRates: DriftFundingRateRecord[] }>('GET', url);
 
-      return this.normalizer.normalizeFundingRate(funding);
+      const fundingRates = response.fundingRates || [];
+      if (fundingRates.length === 0) {
+        throw new Error(`No funding rate data available for ${symbol}`);
+      }
+
+      const latestRate = fundingRates[0] as DriftFundingRateRecord;
+      return this.normalizer.normalizeFundingRate(latestRate);
     } catch (error) {
       throw mapDriftError(error);
     }
@@ -444,10 +440,11 @@ export class DriftAdapter extends BaseAdapter {
       });
       if (limit) params.set('limit', limit.toString());
 
-      const url = `${this.dlobBaseUrl}/fundingRateHistory?${params.toString()}`;
-      const history = await this.request<DriftFundingRate[]>('GET', url);
+      // Use data API for funding rate history (DLOB endpoint removed)
+      const url = `${this.dataBaseUrl}/fundingRates?${params.toString()}`;
+      const response = await this.request<{ fundingRates: DriftFundingRateRecord[] }>('GET', url);
 
-      return history.map((f) => this.normalizer.normalizeFundingRate(f));
+      return (response.fundingRates || []).map((f) => this.normalizer.normalizeFundingRate(f));
     } catch (error) {
       throw mapDriftError(error);
     }

@@ -64,23 +64,20 @@ jest.mock('@noble/ed25519', () => ({
   sign: jest.fn().mockResolvedValue(new Uint8Array(64)),
 }));
 
-// Mock HTTP requests for price API
+// Mock HTTP requests for Pyth Network Hermes API (price source)
 global.fetch = jest.fn((url: string) => {
-  if (url.includes('api.jup.ag/price')) {
+  if (url.includes('hermes.pyth.network')) {
     return Promise.resolve({
       ok: true,
       json: () =>
         Promise.resolve({
-          data: {
-            'So11111111111111111111111111111111111111112': {
-              id: 'So11111111111111111111111111111111111111112',
-              price: '100.5',
+          parsed: [
+            {
+              id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+              price: { price: '10050000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
+              ema_price: { price: '10050000000', expo: -8, conf: '1000000', publish_time: Math.floor(Date.now() / 1000) },
             },
-            EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: {
-              id: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-              price: '1.0',
-            },
-          },
+          ],
         }),
     } as Response);
   }

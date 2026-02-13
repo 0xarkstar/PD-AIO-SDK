@@ -98,7 +98,7 @@ describe('DriftAdapter', () => {
       expect(adapter.has.fetchMarkets).toBe(true);
       expect(adapter.has.fetchTicker).toBe(true);
       expect(adapter.has.fetchOrderBook).toBe(true);
-      expect(adapter.has.fetchTrades).toBe(true);
+      expect(adapter.has.fetchTrades).toBe(false); // DLOB trades endpoint removed
     });
 
     test('should support funding rate features', () => {
@@ -152,9 +152,9 @@ describe('DriftAdapter', () => {
       await expect(adapter.fetchOrderBook('SOL/USD:USD')).rejects.toThrow(/not initialized/);
     });
 
-    test('should require initialization before fetchTrades', async () => {
+    test('should throw not available for fetchTrades', async () => {
       const adapter = new DriftAdapter();
-      await expect(adapter.fetchTrades('SOL/USD:USD')).rejects.toThrow(/not initialized/);
+      await expect(adapter.fetchTrades('SOL/USD:USD')).rejects.toThrow(/not available/);
     });
 
     test('should require initialization before fetchFundingRate', async () => {

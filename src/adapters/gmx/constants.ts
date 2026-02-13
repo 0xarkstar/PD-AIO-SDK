@@ -353,6 +353,27 @@ export function getBaseToken(symbol: string): string {
 }
 
 /**
+ * Get token decimals for a base asset
+ * GMX oracle prices are stored as: price * 10^(30 - tokenDecimals)
+ * So to convert raw price to USD: raw / 10^(30 - tokenDecimals)
+ */
+export function getTokenDecimals(baseAsset: string): number {
+  const decimals =
+    GMX_PRECISION.TOKEN_DECIMALS[baseAsset as keyof typeof GMX_PRECISION.TOKEN_DECIMALS];
+  return decimals ?? 18; // Default to 18 decimals
+}
+
+/**
+ * Get the price divisor for a token's oracle price
+ * Oracle prices = price_usd * 10^(30 - tokenDecimals)
+ * Divisor = 10^(30 - tokenDecimals)
+ */
+export function getOraclePriceDivisor(baseAsset: string): number {
+  const tokenDecimals = getTokenDecimals(baseAsset);
+  return Math.pow(10, 30 - tokenDecimals);
+}
+
+/**
  * Get markets for a specific chain
  */
 export function getMarketsForChain(

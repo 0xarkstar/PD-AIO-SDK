@@ -35,6 +35,11 @@ export class ExtendedNormalizer {
    * "BTCUSD" → "BTC/USD:USD"
    */
   symbolToCCXT(extendedSymbol: string): string {
+    // Guard: return as-is if symbol is null/undefined/empty
+    if (!extendedSymbol) {
+      return extendedSymbol ?? '';
+    }
+
     // Handle "BTC-USD-PERP" format
     if (extendedSymbol.includes('-')) {
       const parts = extendedSymbol.split('-');
@@ -76,27 +81,53 @@ export class ExtendedNormalizer {
 
   /**
    * Normalize market data
+   *
+   * Handles both legacy SDK type format and actual API response format:
+   * - API returns: {name, assetName, collateralAssetName, tradingConfig, active, ...}
+   * - Legacy type: {symbol, marketId, baseAsset, quoteAsset, ...}
    */
   normalizeMarket(market: ExtendedMarket): Market {
-    const unifiedSymbol = this.symbolToCCXT(market.symbol);
+    // Handle actual API format: name field like "BTC-USD"
+    const rawSymbol = (market as any).name || market.symbol;
+    const unifiedSymbol = this.symbolToCCXT(rawSymbol);
+
+    // Extract base/quote from API or legacy format
+    const base = (market as any).assetName || market.baseAsset;
+    const quote = (market as any).collateralAssetName || market.quoteAsset || 'USD';
+    const settle = market.settleAsset || quote;
+
+    // Handle active flag from API or legacy
+    const isActive = (market as any).active ?? market.isActive ?? true;
+
+    // Extract trading config from actual API response
+    const tradingConfig = (market as any).tradingConfig;
+    const minOrderSize = tradingConfig?.minOrderSize || market.minOrderQuantity || '0';
+    const maxLeverage = tradingConfig?.maxLeverage || market.maxLeverage || '1';
+    const minPriceChange = tradingConfig?.minPriceChange || market.minPrice || '0.01';
+
+    // Extract precision from API or legacy
+    const pricePrecision = (market as any).collateralAssetPrecision ?? market.pricePrecision ?? 2;
+    const amountPrecision = (market as any).assetPrecision ?? market.quantityPrecision ?? 0;
 
     return {
-      id: market.marketId,
+      id: (market as any).name || market.marketId || rawSymbol,
       symbol: unifiedSymbol,
-      base: market.baseAsset,
-      quote: market.quoteAsset,
-      settle: market.settleAsset,
+      base,
+      quote,
+      settle,
       contractSize: safeParseFloat(market.contractMultiplier) || 1,
-      active: market.isActive,
-      minAmount: safeParseFloat(market.minOrderQuantity),
-      maxAmount: safeParseFloat(market.maxOrderQuantity),
-      pricePrecision: market.pricePrecision,
-      amountPrecision: market.quantityPrecision,
-      priceTickSize: safeParseFloat(market.minPrice),
-      amountStepSize: safeParseFloat(market.minOrderQuantity),
+      active: isActive,
+      minAmount: safeParseFloat(minOrderSize),
+      maxAmount: tradingConfig
+        ? safeParseFloat(tradingConfig.maxPositionValue)
+        : safeParseFloat(market.maxOrderQuantity),
+      pricePrecision,
+      amountPrecision,
+      priceTickSize: safeParseFloat(minPriceChange),
+      amountStepSize: safeParseFloat(tradingConfig?.minOrderSizeChange || minOrderSize),
       makerFee: 0.0002,
       takerFee: 0.0005,
-      maxLeverage: market.maxLeverage ? safeParseFloat(market.maxLeverage) : 1,
+      maxLeverage: safeParseFloat(maxLeverage),
       fundingIntervalHours: 8,
       info: market as unknown as Record<string, unknown>,
     };

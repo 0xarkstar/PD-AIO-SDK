@@ -18,8 +18,8 @@ import {
 
 describe('Jupiter Constants', () => {
   describe('API URLs', () => {
-    test('has mainnet price API URL', () => {
-      expect(JUPITER_API_URLS.mainnet.price).toBe('https://api.jup.ag/price/v3');
+    test('has mainnet price API URL (Pyth Network)', () => {
+      expect(JUPITER_API_URLS.mainnet.price).toBe('https://hermes.pyth.network/v2/updates/price/latest');
     });
 
     test('has mainnet stats API URL', () => {

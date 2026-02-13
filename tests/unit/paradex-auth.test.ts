@@ -112,8 +112,8 @@ describe('ParadexAuth', () => {
       expect(request.headers?.['X-API-KEY']).toBe('my-api-key');
     });
 
-    it('should add timestamp header', async () => {
-      const auth = new ParadexAuth({});
+    it('should add timestamp header when credentials exist', async () => {
+      const auth = new ParadexAuth({ apiKey: 'test-key' });
       const before = Date.now();
 
       const request = await auth.sign({
@@ -124,6 +124,19 @@ describe('ParadexAuth', () => {
       const timestamp = parseInt(request.headers?.['X-Timestamp'] || '0', 10);
       expect(timestamp).toBeGreaterThanOrEqual(before);
       expect(timestamp).toBeLessThanOrEqual(Date.now());
+    });
+
+    it('should not add auth headers for public requests without credentials', async () => {
+      const auth = new ParadexAuth({});
+
+      const request = await auth.sign({
+        method: 'GET',
+        path: '/api/v1/markets',
+      });
+
+      expect(request.headers?.['X-Timestamp']).toBeUndefined();
+      expect(request.headers?.['X-API-KEY']).toBeUndefined();
+      expect(request.headers?.['Content-Type']).toBe('application/json');
     });
 
     it('should add JWT Authorization header when token is valid', async () => {

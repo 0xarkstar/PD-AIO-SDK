@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-6089%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-6092%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![Coverage](https://img.shields.io/badge/coverage-82%25-green)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![ESLint](https://img.shields.io/badge/ESLint-0%20errors-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![npm version](https://img.shields.io/badge/npm-v0.2.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
@@ -76,20 +76,20 @@ const order = await exchange.createOrder({
 |----------|--------|---------|------|-------|
 | **Hyperliquid** | ✅ Production | 228 perp | EIP-712 | Full API + WebSocket |
 | **EdgeX** | ✅ Production | 292 perp | StarkNet ECDSA | No REST trades¹ |
-| **Paradex** | ✅ Production | 108 perp | StarkNet + JWT | Full API + WebSocket |
+| **Paradex** | ✅ Production | 96 perp | StarkNet + JWT | Public data + WebSocket |
 | **GRVT** | ✅ Production | 80 perp | API Key + EIP-712 | Sub-ms latency |
 | **Backpack** | ✅ Production | 75 perp, 79 spot | ED25519 | Solana-based |
-| **Lighter** | ✅ Production | 132 perp | WASM Signing | Cross-platform |
+| **Lighter** | ✅ Production | 145 perp | WASM Signing | Cross-platform |
 | **Nado** | ✅ Production | 23 perp, 3 spot | EIP-712 (Ink L2) | No REST trades¹ |
-| **Extended** | 🟡 Mainnet Only | 94 perp | API Key | Testnet offline |
+| **Extended** | 🔴 Degraded | 94 perp | API Key | API returning empty markets |
 | **Variational** | 🟡 Dev | RFQ-based | API Key | No WebSocket |
-| **dYdX v4** | ✅ Production | 220+ perp | Cosmos SDK | Full trading + WebSocket |
-| **Jupiter Perps** | ✅ Production | 3 perp | Solana Wallet | SOL/ETH/BTC markets |
-| **Drift Protocol** | ✅ Production | 30+ perp | Solana Wallet | DLOB + WebSocket |
-| **GMX v2** | 🟡 Read-Only | 11 perp | On-chain | Arbitrum/Avalanche² |
-| **Aster** | ✅ Production | 100+ perp | HMAC-SHA256 | BNB Chain |
-| **Pacifica** | ✅ Production | 50+ perp | ED25519 | Solana-based |
-| **Ostium** | ✅ Production | 11 RWA perp | ethers.js | Arbitrum RWA³ |
+| **dYdX v4** | ✅ Production | 293 perp | Cosmos SDK | Full trading + WebSocket |
+| **Jupiter Perps** | 🔴 Degraded | 3 perp | Solana Wallet | Pyth API migration issue |
+| **Drift Protocol** | ✅ Production | 11 perp | Solana Wallet | DLOB + WebSocket |
+| **GMX v2** | 🟡 Read-Only | 129 markets | On-chain | Arbitrum/Avalanche² |
+| **Aster** | ✅ Production | 275 perp | HMAC-SHA256 | Full API + OHLCV |
+| **Pacifica** | 🔴 Offline | 50+ perp | ED25519 | API offline (404) |
+| **Ostium** | ✅ Production | 11 RWA perp | ethers.js | Arbitrum RWA, limited REST³ |
 
 > ¹ Use `watchTrades()` for real-time trade data
 > ² GMX trading requires on-chain transactions via ExchangeRouter contract
@@ -108,9 +108,9 @@ const order = await exchange.createOrder({
 | fetchMarkets | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | fetchTicker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | fetchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁵ | ✅ | ✅ | ❌ |
-| fetchTrades | ✅ | ❌¹ | ✅ | ✅ | ⚠️² | ✅ | ⚠️³ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ |
-| fetchOHLCV | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| fetchFundingRate | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| fetchTrades | ✅ | ❌¹ | ❌ | ✅ | ⚠️² | ✅ | ⚠️³ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| fetchOHLCV | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| fetchFundingRate | ⚠️ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | fetchFundingRateHistory | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 
 #### Trading Methods
@@ -187,7 +187,7 @@ const order = await exchange.createOrder({
 - **Request tracing** - Correlation IDs for distributed debugging
 - **Type safety** - Runtime validation (Zod) + TypeScript strict mode
 - **Health checks** - Prometheus metrics, structured JSON logging
-- **6089 tests** - 100% pass rate, 82% coverage enforced
+- **6092 tests** - 100% pass rate, 82% coverage enforced
 
 ---
 
@@ -361,15 +361,16 @@ const ostium = await createExchange('ostium', {
 | Exchange | Special Requirements |
 |----------|---------------------|
 | **Lighter** | WASM-based signing, works cross-platform without native dependencies |
-| **Extended** | Testnet offline, mainnet only |
+| **Extended** | API returning empty markets; mainnet only |
 | **Variational** | RFQ-based, no WebSocket support |
 | **EdgeX/Nado** | Use `watchTrades()` instead of `fetchTrades()` |
 | **dYdX v4** | Requires 24-word Cosmos mnemonic for trading |
-| **Jupiter/Drift** | Solana wallet required; private key for trading |
+| **Jupiter** | Pyth Hermes price API; Solana wallet for trading |
+| **Drift** | Solana wallet required; private key for trading |
 | **GMX v2** | Read-only REST API; trading requires @gmx-io/sdk |
 | **Aster** | BNB Chain, Binance-style HMAC-SHA256 auth, referral codes supported |
-| **Pacifica** | Solana-based, ED25519 signing (Backpack-style), builder codes supported |
-| **Ostium** | Arbitrum RWA perpetuals (stocks, forex, commodities); ethers.js contracts |
+| **Pacifica** | API currently offline |
+| **Ostium** | Arbitrum RWA perpetuals; subgraph service migrated |
 
 ---
 
@@ -456,7 +457,7 @@ for (const [timestamp, open, high, low, close, volume] of candles) {
 }
 
 // Supported timeframes: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
-// Currently available on: Hyperliquid, GRVT, dYdX, Drift, GMX
+// Currently available on: Hyperliquid, GRVT, dYdX, GMX, Aster
 ```
 
 ### WebSocket Streaming
@@ -679,10 +680,11 @@ npm test -- hyperliquid
 ### Test Results
 
 ```
-✅ 6089 tests passing (100% pass rate)
-✅ 170+ test suites
+✅ 6092 tests passing (100% pass rate)
+✅ 172 test suites
 ✅ Coverage: 82% statements, 87% functions
 ✅ ESLint: 0 errors
+✅ Live API: 56/96 public methods verified (12/16 exchanges operational)
 ```
 
 ---

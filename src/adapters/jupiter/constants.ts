@@ -14,7 +14,7 @@
 
 export const JUPITER_API_URLS = {
   mainnet: {
-    price: 'https://api.jup.ag/price/v3',
+    price: 'https://hermes.pyth.network/v2/updates/price/latest',
     stats: 'https://perp-api.jup.ag', // Stats API (unofficial, may change)
   },
   // Jupiter Perps only operates on mainnet
@@ -22,6 +22,16 @@ export const JUPITER_API_URLS = {
 
 export const JUPITER_MAINNET_PRICE_API = JUPITER_API_URLS.mainnet.price;
 export const JUPITER_MAINNET_STATS_API = JUPITER_API_URLS.mainnet.stats;
+
+/**
+ * Pyth Network price feed IDs for Jupiter markets
+ * @see https://pyth.network/developers/price-feed-ids
+ */
+export const JUPITER_PYTH_FEED_IDS: Record<string, string> = {
+  SOL: '0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+  ETH: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
+  BTC: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
+};
 
 // =============================================================================
 // Solana Program Constants
@@ -200,6 +210,8 @@ export const JUPITER_ERROR_MESSAGES: Record<string, string> = {
   'max leverage exceeded': 'MAX_LEVERAGE_EXCEEDED',
   'min position size': 'MIN_POSITION_SIZE',
   'oracle price stale': 'ORACLE_ERROR',
+  'price not available': 'ORACLE_ERROR',
+  'no price data': 'ORACLE_ERROR',
   'pool capacity exceeded': 'POOL_CAPACITY_EXCEEDED',
   'rate limit': 'RATE_LIMIT_EXCEEDED',
   'transaction failed': 'TRANSACTION_FAILED',
