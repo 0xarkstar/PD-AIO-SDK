@@ -205,7 +205,9 @@ export class ExtendedNormalizer {
     const raw = trade as unknown as Record<string, any>;
     const symbol = raw.symbol || raw.m || '';
     const unifiedSymbol = this.symbolToCCXT(symbol);
-    const side = (raw.side || (raw.S === 'BUY' ? 'buy' : raw.S === 'SELL' ? 'sell' : raw.S?.toLowerCase())) as 'buy' | 'sell';
+    const rawSide =
+      raw.side || (raw.S === 'BUY' ? 'buy' : raw.S === 'SELL' ? 'sell' : raw.S?.toLowerCase());
+    const side = rawSide as 'buy' | 'sell';
     const price = safeParseFloat(raw.price || raw.p);
     const amount = safeParseFloat(raw.quantity || raw.q);
 
