@@ -11,6 +11,8 @@ export interface OstiumConfig extends ExchangeConfig {
     subgraphUrl?: string;
     /** Metadata API URL */
     metadataUrl?: string;
+    /** Referral/builder address for Ostium fee attribution (Ethereum address) */
+    referralAddress?: string;
 }
 export interface OstiumPairInfo {
     pairIndex: number;

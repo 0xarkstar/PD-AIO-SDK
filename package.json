@@ -101,8 +101,9 @@
   },
   "files": [
     "dist",
-    "src",
-    "native"
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "prepare": "npm run build",
@@ -162,7 +163,7 @@
     "unified-api",
     "typescript"
   ],
-  "author": "",
+  "author": "0xarkstar",
   "license": "MIT",
   "dependencies": {
     "@drift-labs/sdk": "^2.156.0",

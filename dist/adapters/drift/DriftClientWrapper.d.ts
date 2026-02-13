@@ -26,6 +26,10 @@ export interface DriftOrderParams {
     auctionDuration?: number;
     auctionStartPrice?: bigint;
     auctionEndPrice?: bigint;
+    /** Builder code index (Drift Builder Codes DBC) */
+    builderIdx?: number;
+    /** Builder fee in basis points */
+    builderFee?: number;
 }
 /**
  * Place order result

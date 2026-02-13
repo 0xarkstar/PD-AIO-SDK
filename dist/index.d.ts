@@ -3,7 +3,7 @@
  *
  * Unified TypeScript SDK for decentralized perpetual exchanges
  */
-export { createExchange, getSupportedExchanges, isExchangeSupported } from './factory.js';
+export { createExchange, createExchangeSync, preloadAdapters, getSupportedExchanges, isExchangeSupported, } from './factory.js';
 export type { SupportedExchange, ExchangeConfigMap } from './factory.js';
 export type { Order, OrderRequest, OrderType, OrderSide, OrderStatus, TimeInForce, Position, PositionSide, MarginMode, Market, OrderBook, PriceLevel, Trade, FundingRate, Balance, Ticker, MarketParams, OrderBookParams, TradeParams, IExchangeAdapter, IAuthStrategy, FeatureMap, RequestParams, AuthenticatedRequest, ExchangeConfig, RateLimitConfig, HealthStatus, HealthCheckResult, HealthCheckConfig, ComponentHealth, AuthHealth, WebSocketHealth, } from './types/index.js';
 export { determineHealthStatus, isHealthy, isCriticallyUnhealthy } from './types/health.js';

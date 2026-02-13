@@ -23,6 +23,10 @@ export interface GRVTConfig extends GRVTAuthConfig {
     testnet?: boolean;
     timeout?: number;
     debug?: boolean;
+    /** Builder code for fee attribution */
+    builderCode?: string;
+    /** Enable/disable builder code (default: true when builderCode is set) */
+    builderCodeEnabled?: boolean;
 }
 /**
  * @deprecated Use GRVTConfig instead
@@ -41,6 +45,8 @@ export declare class GRVTAdapter extends BaseAdapter {
     private ws?;
     protected readonly rateLimiter: RateLimiter;
     private readonly testnet;
+    private readonly builderCode?;
+    private readonly builderCodeEnabled;
     constructor(config?: GRVTAdapterConfig);
     initialize(): Promise<void>;
     fetchMarkets(params?: MarketParams): Promise<Market[]>;

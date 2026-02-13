@@ -12,7 +12,7 @@ import { OstiumAuth } from './OstiumAuth.js';
 import { OstiumContracts } from './OstiumContracts.js';
 import { OstiumSubgraph } from './OstiumSubgraph.js';
 import { OstiumNormalizer } from './OstiumNormalizer.js';
-import { toOstiumPairIndex, formatCollateral, formatPrice } from './utils.js';
+import { toOstiumPairIndex, formatCollateral, formatPrice, toUnifiedSymbol } from './utils.js';
 import { mapOstiumError } from './error-codes.js';
 export class OstiumAdapter extends BaseAdapter {
     id = 'ostium';
@@ -35,6 +35,8 @@ export class OstiumAdapter extends BaseAdapter {
     subgraph;
     rateLimiter;
     normalizer;
+    referralAddress;
+    builderCodeEnabled;
     constructor(config = {}) {
         super(config);
         this.metadataUrl = config.metadataUrl ?? OSTIUM_METADATA_URL;
@@ -48,6 +50,9 @@ export class OstiumAdapter extends BaseAdapter {
         }
         this.subgraph = new OstiumSubgraph(config.subgraphUrl);
         this.normalizer = new OstiumNormalizer();
+        this.referralAddress =
+            config.referralAddress ?? config.builderCode ?? '0x0000000000000000000000000000000000000000';
+        this.builderCodeEnabled = config.builderCodeEnabled ?? true;
         this.rateLimiter = new RateLimiter({
             maxTokens: config.rateLimit?.maxRequests ?? OSTIUM_RATE_LIMITS.metadata.maxRequests,
             windowMs: config.rateLimit?.windowMs ?? OSTIUM_RATE_LIMITS.metadata.windowMs,
@@ -114,6 +119,9 @@ export class OstiumAdapter extends BaseAdapter {
         this.requireAuth();
         const pairIndex = toOstiumPairIndex(request.symbol);
         try {
+            const effectiveReferral = this.builderCodeEnabled
+                ? (request.builderCode ?? this.referralAddress)
+                : '0x0000000000000000000000000000000000000000';
             const result = await this.contracts.openTrade({
                 pairIndex,
                 positionSizeDai: formatCollateral(request.amount),
@@ -122,7 +130,7 @@ export class OstiumAdapter extends BaseAdapter {
                 leverage: request.leverage ?? 10,
                 tp: '0',
                 sl: '0',
-                referral: '0x0000000000000000000000000000000000000000',
+                referral: effectiveReferral,
             });
             return {
                 id: result.hash,
@@ -158,7 +166,7 @@ export class OstiumAdapter extends BaseAdapter {
             const result = await this.contracts.cancelOrder(pairIndex, index);
             return {
                 id: orderId,
-                symbol: `PAIR-${pairIndex}/USD:USD`,
+                symbol: toUnifiedSymbol(pairIndex),
                 type: 'limit',
                 side: 'buy',
                 amount: 0,

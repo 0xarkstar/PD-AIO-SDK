@@ -15,6 +15,8 @@ export class DriftOrderBuilder {
             subAccountId: config.subAccountId ?? 0,
             slippageTolerance: config.slippageTolerance ?? 0.01,
             auctionDuration: config.auctionDuration ?? 60,
+            builderIdx: config.builderIdx,
+            builderFee: config.builderFee,
         };
     }
     /**
@@ -79,6 +81,13 @@ export class DriftOrderBuilder {
                 orderParams.auctionStartPrice = BigInt(Math.floor(oraclePrice * auctionStartMultiplier * DRIFT_PRECISION.PRICE));
                 orderParams.auctionEndPrice = price;
             }
+        }
+        // Add builder code fields if configured
+        if (this.config.builderIdx !== undefined) {
+            orderParams.builderIdx = this.config.builderIdx;
+        }
+        if (this.config.builderFee !== undefined) {
+            orderParams.builderFee = this.config.builderFee;
         }
         return orderParams;
     }

@@ -18,6 +18,8 @@ export declare class OstiumAdapter extends BaseAdapter {
     private subgraph;
     protected rateLimiter: RateLimiter;
     private normalizer;
+    private readonly referralAddress;
+    private readonly builderCodeEnabled;
     constructor(config?: OstiumConfig);
     initialize(): Promise<void>;
     private requireAuth;

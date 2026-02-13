@@ -23,6 +23,10 @@ export class PacificaAdapter extends BaseAdapter {
         fetchFundingRate: true,
         createOrder: true,
         cancelOrder: true,
+        cancelAllOrders: false,
+        fetchFundingRateHistory: false,
+        fetchOrderHistory: false,
+        fetchMyTrades: false,
         fetchPositions: true,
         fetchBalance: true,
         setLeverage: true,
@@ -34,12 +38,14 @@ export class PacificaAdapter extends BaseAdapter {
     normalizer;
     builderCode;
     maxBuilderFeeRate;
+    builderCodeEnabled;
     constructor(config = {}) {
         super(config);
         const urls = config.testnet ? PACIFICA_API_URLS.testnet : PACIFICA_API_URLS.mainnet;
         this.baseUrl = config.apiUrl ?? urls.rest;
         this.builderCode = config.builderCode;
         this.maxBuilderFeeRate = config.maxBuilderFeeRate ?? 500;
+        this.builderCodeEnabled = config.builderCodeEnabled ?? true;
         if (config.apiKey && config.apiSecret) {
             this.auth = new PacificaAuth({
                 apiKey: config.apiKey,
@@ -62,7 +68,7 @@ export class PacificaAdapter extends BaseAdapter {
         });
     }
     async initialize() {
-        if (this.auth?.hasCredentials() && this.builderCode) {
+        if (this.auth?.hasCredentials() && this.builderCode && this.builderCodeEnabled) {
             await this.registerBuilderCode(this.builderCode, this.maxBuilderFeeRate);
         }
         this._isReady = true;
@@ -161,7 +167,8 @@ export class PacificaAdapter extends BaseAdapter {
     // === Private Trading ===
     async createOrder(request) {
         const pacificaSymbol = toPacificaSymbol(request.symbol);
-        const body = buildOrderBody(request, pacificaSymbol, this.builderCode);
+        const effectiveBuilderCode = this.builderCodeEnabled ? this.builderCode : undefined;
+        const body = buildOrderBody(request, pacificaSymbol, effectiveBuilderCode);
         const response = await this.signedRequest('POST', '/orders/create', 'createOrder', body);
         return this.normalizer.normalizeOrder(response, request.symbol);
     }

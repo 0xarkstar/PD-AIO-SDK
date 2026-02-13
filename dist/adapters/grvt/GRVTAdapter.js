@@ -57,6 +57,8 @@ export class GRVTAdapter extends BaseAdapter {
     ws;
     rateLimiter;
     testnet;
+    builderCode;
+    builderCodeEnabled;
     constructor(config = {}) {
         super(config);
         this.testnet = config.testnet ?? false;
@@ -75,6 +77,8 @@ export class GRVTAdapter extends BaseAdapter {
             windowMs: GRVT_RATE_LIMITS.rest.windowMs,
             weights: GRVT_ENDPOINT_WEIGHTS,
         });
+        this.builderCode = config.builderCode;
+        this.builderCodeEnabled = config.builderCodeEnabled ?? true;
     }
     async initialize() {
         // Verify credentials only if provided
@@ -289,6 +293,13 @@ export class GRVTAdapter extends BaseAdapter {
                 post_only: validatedRequest.postOnly || false,
                 client_order_id: validatedRequest.clientOrderId,
             };
+            // Add builder code for fee attribution
+            const builderCode = this.builderCodeEnabled
+                ? (request.builderCode ?? this.builderCode)
+                : undefined;
+            if (builderCode) {
+                orderRequest.builder_id = builderCode;
+            }
             // Sign if wallet available
             if (this.auth.getAddress()) {
                 const payload = {

@@ -2,13 +2,14 @@
  * Ostium Utility Functions
  */
 import { OSTIUM_PAIRS, OSTIUM_COLLATERAL_DECIMALS, OSTIUM_PRICE_DECIMALS } from './constants.js';
+import { PerpDEXError } from '../../types/errors.js';
 export function toOstiumPairIndex(unified) {
     const parts = unified.split(/[/:]/);
     const name = `${parts[0]}/${parts[1]}`;
     const pair = OSTIUM_PAIRS.find((p) => p.name === name);
     if (pair)
         return pair.pairIndex;
-    throw new Error(`Unknown Ostium pair: ${unified}`);
+    throw new PerpDEXError(`Unknown Ostium pair: ${unified}`, 'PAIR_NOT_FOUND', 'ostium');
 }
 export function toUnifiedSymbol(pairIndex) {
     const pair = OSTIUM_PAIRS.find((p) => p.pairIndex === pairIndex);

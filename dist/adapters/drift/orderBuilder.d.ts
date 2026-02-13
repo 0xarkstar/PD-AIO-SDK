@@ -17,6 +17,10 @@ export interface DriftOrderBuilderConfig {
     slippageTolerance?: number;
     /** Auction duration for limit orders (default: 60 slots) */
     auctionDuration?: number;
+    /** Builder code index (Drift DBC) */
+    builderIdx?: number;
+    /** Builder fee in basis points */
+    builderFee?: number;
 }
 /**
  * Builds order parameters for Drift Protocol

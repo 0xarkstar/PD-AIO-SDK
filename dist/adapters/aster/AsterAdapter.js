@@ -28,6 +28,7 @@ export class AsterAdapter extends BaseAdapter {
         fetchPositions: true,
         fetchBalance: true,
         setLeverage: true,
+        fetchFundingRateHistory: true,
     };
     auth;
     baseUrl;
@@ -35,11 +36,13 @@ export class AsterAdapter extends BaseAdapter {
     rateLimiter;
     normalizer;
     referralCode;
+    builderCodeEnabled;
     constructor(config = {}) {
         super(config);
         const urls = config.testnet ? ASTER_API_URLS.testnet : ASTER_API_URLS.mainnet;
         this.baseUrl = config.apiUrl ?? urls.rest;
         this.referralCode = config.referralCode ?? config.builderCode;
+        this.builderCodeEnabled = config.builderCodeEnabled ?? true;
         if (config.apiKey && config.apiSecret) {
             this.auth = new AsterAuth({
                 apiKey: config.apiKey,
@@ -210,7 +213,8 @@ export class AsterAdapter extends BaseAdapter {
     // === Private Trading ===
     async createOrder(request) {
         const asterSymbol = toAsterSymbol(request.symbol);
-        const orderParams = buildOrderParams(request, asterSymbol, this.referralCode);
+        const effectiveReferralCode = this.builderCodeEnabled ? this.referralCode : undefined;
+        const orderParams = buildOrderParams(request, asterSymbol, effectiveReferralCode);
         const response = await this.signedRequest('POST', '/fapi/v1/order', 'createOrder', orderParams);
         return this.normalizer.normalizeOrder(response, request.symbol);
     }

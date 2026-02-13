@@ -20,6 +20,7 @@ export declare class PacificaAdapter extends BaseAdapter {
     private normalizer;
     private readonly builderCode?;
     private readonly maxBuilderFeeRate;
+    private readonly builderCodeEnabled;
     constructor(config?: PacificaConfig);
     initialize(): Promise<void>;
     private requireAuth;
@@ -41,7 +42,7 @@ export declare class PacificaAdapter extends BaseAdapter {
     cancelAllOrders(_symbol?: string): Promise<Order[]>;
     fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
     fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
-    symbolToExchange(symbol: string): string;
-    symbolFromExchange(exchangeSymbol: string): string;
+    protected symbolToExchange(symbol: string): string;
+    protected symbolFromExchange(exchangeSymbol: string): string;
 }
 //# sourceMappingURL=PacificaAdapter.d.ts.map

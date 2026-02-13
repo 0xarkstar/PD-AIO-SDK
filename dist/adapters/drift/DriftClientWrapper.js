@@ -125,6 +125,8 @@ export class DriftClientWrapper {
             auctionDuration: params.auctionDuration,
             auctionStartPrice: params.auctionStartPrice,
             auctionEndPrice: params.auctionEndPrice,
+            ...(params.builderIdx !== undefined && { builderIdx: params.builderIdx }),
+            ...(params.builderFee !== undefined && { builderFee: params.builderFee }),
         };
         // Place the order
         const txSig = await this.driftClient.placePerpOrder(orderParams);

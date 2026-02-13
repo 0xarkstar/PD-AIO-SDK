@@ -115,6 +115,9 @@ export class DriftAdapter extends BaseAdapter {
             });
         }
         // Initialize order builder
+        // Note: Drift DBC requires numeric builderIdx (not a string code like builderCode).
+        // The unified builderCode string cannot be auto-bridged to Drift's numeric index.
+        // Users should set orderConfig.builderIdx/builderFee directly for Drift builder codes.
         this.orderBuilder = new DriftOrderBuilder(config.orderConfig);
     }
     // ==========================================================================

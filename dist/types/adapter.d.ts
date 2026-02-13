@@ -724,6 +724,8 @@ export interface ExchangeConfig {
     circuitBreaker?: CircuitBreakerConfig;
     /** Builder/referral code for fee attribution */
     builderCode?: string;
+    /** Enable/disable builder code attachment (default: true when builderCode is set) */
+    builderCodeEnabled?: boolean;
 }
 /**
  * Rate limit configuration

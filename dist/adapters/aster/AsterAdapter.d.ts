@@ -19,6 +19,7 @@ export declare class AsterAdapter extends BaseAdapter {
     protected rateLimiter: RateLimiter;
     private normalizer;
     private readonly referralCode?;
+    private readonly builderCodeEnabled;
     constructor(config?: AsterConfig);
     initialize(): Promise<void>;
     protected symbolToExchange(symbol: string): string;

@@ -2,25 +2,25 @@
  * Exchange Factory
  *
  * Factory function for creating exchange adapter instances.
- * Supports both built-in adapters and custom adapters via plugin registration.
+ * Uses lazy loading via dynamic imports — only the requested adapter is loaded.
  */
 import type { ExchangeConfig, IExchangeAdapter } from './types/index.js';
-import { type HyperliquidConfig } from './adapters/hyperliquid/index.js';
-import { type LighterConfig } from './adapters/lighter/index.js';
-import { type GRVTAdapterConfig } from './adapters/grvt/index.js';
-import { type ParadexConfig } from './adapters/paradex/index.js';
-import { type EdgeXConfig } from './adapters/edgex/index.js';
-import { type BackpackConfig } from './adapters/backpack/index.js';
-import { type NadoConfig } from './adapters/nado/index.js';
-import { type VariationalConfig } from './adapters/variational/index.js';
-import { type ExtendedConfig } from './adapters/extended/index.js';
-import { type DydxConfig } from './adapters/dydx/index.js';
-import { type JupiterAdapterConfig } from './adapters/jupiter/index.js';
-import { type DriftConfig } from './adapters/drift/index.js';
-import { type GmxConfig } from './adapters/gmx/index.js';
-import { type AsterConfig } from './adapters/aster/index.js';
-import { type PacificaConfig } from './adapters/pacifica/index.js';
-import { type OstiumConfig } from './adapters/ostium/index.js';
+import type { HyperliquidConfig } from './adapters/hyperliquid/index.js';
+import type { LighterConfig } from './adapters/lighter/index.js';
+import type { GRVTAdapterConfig } from './adapters/grvt/index.js';
+import type { ParadexConfig } from './adapters/paradex/index.js';
+import type { EdgeXConfig } from './adapters/edgex/index.js';
+import type { BackpackConfig } from './adapters/backpack/index.js';
+import type { NadoConfig } from './adapters/nado/index.js';
+import type { VariationalConfig } from './adapters/variational/index.js';
+import type { ExtendedConfig } from './adapters/extended/index.js';
+import type { DydxConfig } from './adapters/dydx/index.js';
+import type { JupiterAdapterConfig } from './adapters/jupiter/index.js';
+import type { DriftConfig } from './adapters/drift/index.js';
+import type { GmxConfig } from './adapters/gmx/index.js';
+import type { AsterConfig } from './adapters/aster/index.js';
+import type { PacificaConfig } from './adapters/pacifica/index.js';
+import type { OstiumConfig } from './adapters/ostium/index.js';
 export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx' | 'aster' | 'pacifica' | 'ostium';
 export type ExchangeConfigMap = {
     hyperliquid: HyperliquidConfig;
@@ -44,6 +44,26 @@ export type ExchangeConfigMap = {
  * Type for adapter constructor function
  */
 export type AdapterConstructor<C extends ExchangeConfig = ExchangeConfig> = new (config?: C) => IExchangeAdapter;
+/**
+ * Register a custom exchange adapter
+ *
+ * Use this to add support for new exchanges without modifying the SDK.
+ *
+ * @param id - Unique exchange identifier (lowercase)
+ * @param constructor - Adapter class constructor
+ *
+ * @example
+ * ```typescript
+ * import { registerExchange } from 'pd-aio-sdk';
+ * import { MyCustomAdapter } from './my-adapter';
+ *
+ * // Register custom adapter
+ * registerExchange('myexchange', MyCustomAdapter);
+ *
+ * // Now you can use it with createExchange
+ * const exchange = await createExchange('myexchange' as any, { ... });
+ * ```
+ */
 export declare function registerExchange<C extends ExchangeConfig>(id: string, constructor: AdapterConstructor<C>): void;
 /**
  * Unregister an exchange adapter
@@ -53,14 +73,15 @@ export declare function registerExchange<C extends ExchangeConfig>(id: string, c
  */
 export declare function unregisterExchange(id: string): boolean;
 /**
- * Create an exchange adapter instance
+ * Create an exchange adapter instance (async, lazy-loading)
  *
- * Uses the adapter registry to instantiate adapters. Built-in adapters
- * are pre-registered, and custom adapters can be added via registerExchange().
+ * Uses dynamic imports to load only the requested adapter.
+ * Built-in adapters are lazy-loaded on first use and cached.
+ * Custom adapters registered via registerExchange() are resolved synchronously.
  *
  * @param exchange - Exchange identifier
  * @param config - Exchange-specific configuration
- * @returns Exchange adapter instance
+ * @returns Promise resolving to exchange adapter instance
  *
  * @example
  * ```typescript
@@ -68,7 +89,7 @@ export declare function unregisterExchange(id: string): boolean;
  * import { Wallet } from 'ethers';
  *
  * const wallet = new Wallet(process.env.PRIVATE_KEY);
- * const exchange = createExchange('hyperliquid', {
+ * const exchange = await createExchange('hyperliquid', {
  *   wallet,
  *   testnet: true
  * });
@@ -77,7 +98,24 @@ export declare function unregisterExchange(id: string): boolean;
  * const markets = await exchange.fetchMarkets();
  * ```
  */
-export declare function createExchange<T extends SupportedExchange>(exchange: T, config?: ExchangeConfigMap[T]): IExchangeAdapter;
+export declare function createExchange<T extends SupportedExchange>(exchange: T, config?: ExchangeConfigMap[T]): Promise<IExchangeAdapter>;
+/**
+ * Create exchange adapter synchronously (requires pre-loaded adapters)
+ *
+ * Use preloadAdapters() first, or use createExchange() for automatic lazy loading.
+ * Also works with adapters registered via registerExchange().
+ *
+ * @param exchange - Exchange identifier
+ * @param config - Exchange-specific configuration
+ * @returns Exchange adapter instance
+ */
+export declare function createExchangeSync<T extends SupportedExchange>(exchange: T, config?: ExchangeConfigMap[T]): IExchangeAdapter;
+/**
+ * Preload specific adapters into cache for synchronous access
+ *
+ * @param exchanges - List of exchange identifiers to preload
+ */
+export declare function preloadAdapters(exchanges: SupportedExchange[]): Promise<void>;
 /**
  * Get list of supported exchanges
  *

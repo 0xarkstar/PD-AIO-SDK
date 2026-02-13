@@ -23,44 +23,33 @@ export class OstiumSubgraph {
         return json.data;
     }
     async fetchTrades(pairIndex, limit = 100) {
-        const where = pairIndex !== undefined ? `where: { pairIndex: "${pairIndex}" }` : '';
-        const result = await this.query(`
-      {
-        trades(first: ${limit}, orderBy: timestamp, orderDirection: desc, ${where}) {
-          id
-          trader
-          pairIndex
-          action
-          price
-          size
-          buy
-          leverage
-          pnl
-          timestamp
-          txHash
+        const query = pairIndex !== undefined
+            ? `query($first: Int!, $pairIndex: String!) {
+          trades(first: $first, orderBy: timestamp, orderDirection: desc, where: { pairIndex: $pairIndex }) {
+            id trader pairIndex action price size buy leverage pnl timestamp txHash
+          }
+        }`
+            : `query($first: Int!) {
+          trades(first: $first, orderBy: timestamp, orderDirection: desc) {
+            id trader pairIndex action price size buy leverage pnl timestamp txHash
+          }
+        }`;
+        const variables = { first: limit };
+        if (pairIndex !== undefined) {
+            variables.pairIndex = String(pairIndex);
         }
-      }
-    `);
+        const result = await this.query(query, variables);
         return result.trades;
     }
     async fetchPositions(trader) {
-        const result = await this.query(`
-      {
-        positions(where: { trader: "${trader.toLowerCase()}" }) {
-          id
-          trader
-          pairIndex
-          index
-          positionSizeDai
-          openPrice
-          buy
-          leverage
-          tp
-          sl
-          timestamp
-        }
+        const query = `query($trader: String!) {
+      positions(where: { trader: $trader }) {
+        id trader pairIndex index positionSizeDai openPrice buy leverage tp sl timestamp
       }
-    `);
+    }`;
+        const result = await this.query(query, {
+            trader: trader.toLowerCase(),
+        });
         return result.positions;
     }
 }

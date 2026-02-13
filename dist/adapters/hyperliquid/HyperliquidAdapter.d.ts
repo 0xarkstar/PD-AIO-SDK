@@ -27,6 +27,7 @@ export declare class HyperliquidAdapter extends BaseAdapter {
     protected rateLimiter: RateLimiter;
     private normalizer;
     private readonly builderAddress?;
+    private readonly builderCodeEnabled;
     constructor(config?: HyperliquidConfig);
     initialize(): Promise<void>;
     disconnect(): Promise<void>;

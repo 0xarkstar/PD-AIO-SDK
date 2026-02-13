@@ -2,49 +2,36 @@
  * Exchange Factory
  *
  * Factory function for creating exchange adapter instances.
- * Supports both built-in adapters and custom adapters via plugin registration.
+ * Uses lazy loading via dynamic imports — only the requested adapter is loaded.
  */
 import { Logger } from './core/logger.js';
-import { HyperliquidAdapter } from './adapters/hyperliquid/index.js';
-import { LighterAdapter } from './adapters/lighter/index.js';
-import { GRVTAdapter } from './adapters/grvt/index.js';
-import { ParadexAdapter } from './adapters/paradex/index.js';
-import { EdgeXAdapter } from './adapters/edgex/index.js';
-import { BackpackAdapter } from './adapters/backpack/index.js';
-import { NadoAdapter } from './adapters/nado/index.js';
-import { VariationalAdapter } from './adapters/variational/index.js';
-import { ExtendedAdapter } from './adapters/extended/index.js';
-import { DydxAdapter } from './adapters/dydx/index.js';
-import { JupiterAdapter } from './adapters/jupiter/index.js';
-import { DriftAdapter } from './adapters/drift/index.js';
-import { GmxAdapter } from './adapters/gmx/index.js';
-import { AsterAdapter } from './adapters/aster/index.js';
-import { PacificaAdapter } from './adapters/pacifica/index.js';
-import { OstiumAdapter } from './adapters/ostium/index.js';
 /**
- * Plugin registry for exchange adapters
- *
- * Built-in adapters are pre-registered. Custom adapters can be added
- * via registerExchange() for extensibility.
+ * Lazy adapter loader map
+ * Each entry is a function that dynamically imports the adapter module
  */
-const adapterRegistry = new Map([
-    ['hyperliquid', HyperliquidAdapter],
-    ['lighter', LighterAdapter],
-    ['grvt', GRVTAdapter],
-    ['paradex', ParadexAdapter],
-    ['edgex', EdgeXAdapter],
-    ['backpack', BackpackAdapter],
-    ['nado', NadoAdapter],
-    ['variational', VariationalAdapter],
-    ['extended', ExtendedAdapter],
-    ['dydx', DydxAdapter],
-    ['jupiter', JupiterAdapter],
-    ['drift', DriftAdapter],
-    ['gmx', GmxAdapter],
-    ['aster', AsterAdapter],
-    ['pacifica', PacificaAdapter],
-    ['ostium', OstiumAdapter],
-]);
+const adapterLoaders = {
+    hyperliquid: async () => (await import('./adapters/hyperliquid/index.js')).HyperliquidAdapter,
+    lighter: async () => (await import('./adapters/lighter/index.js')).LighterAdapter,
+    grvt: async () => (await import('./adapters/grvt/index.js')).GRVTAdapter,
+    paradex: async () => (await import('./adapters/paradex/index.js')).ParadexAdapter,
+    edgex: async () => (await import('./adapters/edgex/index.js')).EdgeXAdapter,
+    backpack: async () => (await import('./adapters/backpack/index.js')).BackpackAdapter,
+    nado: async () => (await import('./adapters/nado/index.js')).NadoAdapter,
+    variational: async () => (await import('./adapters/variational/index.js')).VariationalAdapter,
+    extended: async () => (await import('./adapters/extended/index.js')).ExtendedAdapter,
+    dydx: async () => (await import('./adapters/dydx/index.js')).DydxAdapter,
+    jupiter: async () => (await import('./adapters/jupiter/index.js')).JupiterAdapter,
+    drift: async () => (await import('./adapters/drift/index.js')).DriftAdapter,
+    gmx: async () => (await import('./adapters/gmx/index.js')).GmxAdapter,
+    aster: async () => (await import('./adapters/aster/index.js')).AsterAdapter,
+    pacifica: async () => (await import('./adapters/pacifica/index.js')).PacificaAdapter,
+    ostium: async () => (await import('./adapters/ostium/index.js')).OstiumAdapter,
+};
+/** Cache for loaded adapter constructors */
+const adapterCache = new Map();
+/** Custom adapter registry (for registerExchange) */
+const customRegistry = new Map();
+const factoryLogger = new Logger('ExchangeFactory');
 /**
  * Register a custom exchange adapter
  *
@@ -62,16 +49,15 @@ const adapterRegistry = new Map([
  * registerExchange('myexchange', MyCustomAdapter);
  *
  * // Now you can use it with createExchange
- * const exchange = createExchange('myexchange' as any, { ... });
+ * const exchange = await createExchange('myexchange' as any, { ... });
  * ```
  */
-const factoryLogger = new Logger('ExchangeFactory');
 export function registerExchange(id, constructor) {
     const normalizedId = id.toLowerCase();
-    if (adapterRegistry.has(normalizedId)) {
+    if (customRegistry.has(normalizedId) || adapterLoaders[normalizedId]) {
         factoryLogger.warn(`Exchange '${normalizedId}' already registered. Overwriting.`);
     }
-    adapterRegistry.set(normalizedId, constructor);
+    customRegistry.set(normalizedId, constructor);
 }
 /**
  * Unregister an exchange adapter
@@ -80,17 +66,18 @@ export function registerExchange(id, constructor) {
  * @returns true if adapter was removed, false if not found
  */
 export function unregisterExchange(id) {
-    return adapterRegistry.delete(id.toLowerCase());
+    return customRegistry.delete(id.toLowerCase());
 }
 /**
- * Create an exchange adapter instance
+ * Create an exchange adapter instance (async, lazy-loading)
  *
- * Uses the adapter registry to instantiate adapters. Built-in adapters
- * are pre-registered, and custom adapters can be added via registerExchange().
+ * Uses dynamic imports to load only the requested adapter.
+ * Built-in adapters are lazy-loaded on first use and cached.
+ * Custom adapters registered via registerExchange() are resolved synchronously.
  *
  * @param exchange - Exchange identifier
  * @param config - Exchange-specific configuration
- * @returns Exchange adapter instance
+ * @returns Promise resolving to exchange adapter instance
  *
  * @example
  * ```typescript
@@ -98,7 +85,7 @@ export function unregisterExchange(id) {
  * import { Wallet } from 'ethers';
  *
  * const wallet = new Wallet(process.env.PRIVATE_KEY);
- * const exchange = createExchange('hyperliquid', {
+ * const exchange = await createExchange('hyperliquid', {
  *   wallet,
  *   testnet: true
  * });
@@ -107,15 +94,62 @@ export function unregisterExchange(id) {
  * const markets = await exchange.fetchMarkets();
  * ```
  */
-export function createExchange(exchange, config) {
+export async function createExchange(exchange, config) {
     const normalizedId = exchange.toLowerCase();
-    const Constructor = adapterRegistry.get(normalizedId);
+    // Check custom registry first
+    const customConstructor = customRegistry.get(normalizedId);
+    if (customConstructor) {
+        return new customConstructor(config);
+    }
+    // Check cache
+    let Constructor = adapterCache.get(normalizedId);
     if (!Constructor) {
-        throw new Error(`Unknown exchange: ${exchange}. ` +
-            `Supported exchanges: ${getSupportedExchanges().join(', ')}. ` +
-            `Use registerExchange() to add custom adapters.`);
+        const loader = adapterLoaders[normalizedId];
+        if (!loader) {
+            throw new Error(`Unknown exchange: ${exchange}. ` +
+                `Supported exchanges: ${getSupportedExchanges().join(', ')}. ` +
+                `Use registerExchange() to add custom adapters.`);
+        }
+        Constructor = await loader();
+        adapterCache.set(normalizedId, Constructor);
     }
     return new Constructor(config);
+}
+/**
+ * Create exchange adapter synchronously (requires pre-loaded adapters)
+ *
+ * Use preloadAdapters() first, or use createExchange() for automatic lazy loading.
+ * Also works with adapters registered via registerExchange().
+ *
+ * @param exchange - Exchange identifier
+ * @param config - Exchange-specific configuration
+ * @returns Exchange adapter instance
+ */
+export function createExchangeSync(exchange, config) {
+    const normalizedId = exchange.toLowerCase();
+    const customConstructor = customRegistry.get(normalizedId);
+    if (customConstructor) {
+        return new customConstructor(config);
+    }
+    const Constructor = adapterCache.get(normalizedId);
+    if (!Constructor) {
+        throw new Error(`Exchange '${exchange}' not preloaded. Use createExchange() (async) or call preloadAdapters(['${exchange}']) first.`);
+    }
+    return new Constructor(config);
+}
+/**
+ * Preload specific adapters into cache for synchronous access
+ *
+ * @param exchanges - List of exchange identifiers to preload
+ */
+export async function preloadAdapters(exchanges) {
+    await Promise.all(exchanges.map(async (exchange) => {
+        const normalizedId = exchange.toLowerCase();
+        const loader = adapterLoaders[normalizedId];
+        if (loader && !adapterCache.has(normalizedId)) {
+            adapterCache.set(normalizedId, await loader());
+        }
+    }));
 }
 /**
  * Get list of supported exchanges
@@ -124,7 +158,10 @@ export function createExchange(exchange, config) {
  * and custom-registered adapters.
  */
 export function getSupportedExchanges() {
-    return Array.from(adapterRegistry.keys());
+    const builtInKeys = Object.keys(adapterLoaders);
+    const customKeys = Array.from(customRegistry.keys());
+    const allKeys = new Set([...builtInKeys, ...customKeys]);
+    return Array.from(allKeys);
 }
 /**
  * Get list of built-in exchanges (for type safety)
@@ -153,7 +190,8 @@ export function getBuiltInExchanges() {
  * Check if an exchange is supported
  */
 export function isExchangeSupported(exchange) {
-    return adapterRegistry.has(exchange.toLowerCase());
+    const normalizedId = exchange.toLowerCase();
+    return normalizedId in adapterLoaders || customRegistry.has(normalizedId);
 }
 /**
  * Check if an exchange is a built-in supported exchange
