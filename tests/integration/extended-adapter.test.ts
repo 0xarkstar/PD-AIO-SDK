@@ -210,10 +210,11 @@ describe('ExtendedAdapter Integration Tests', () => {
 
     test('fetchTrades - fetches and normalizes recent trades', async () => {
       mockSuccessResponse({
-        trades: [
+        status: 'OK',
+        data: [
           {
             id: 'trade1',
-            symbol: 'BTC-USD-PERP',
+            symbol: 'BTC-USD',
             price: '50000',
             quantity: '1.5',
             side: 'buy',
@@ -221,7 +222,7 @@ describe('ExtendedAdapter Integration Tests', () => {
           },
           {
             id: 'trade2',
-            symbol: 'BTC-USD-PERP',
+            symbol: 'BTC-USD',
             price: '50100',
             quantity: '2.0',
             side: 'sell',
@@ -242,10 +243,11 @@ describe('ExtendedAdapter Integration Tests', () => {
 
     test('fetchTrades - with limit parameter', async () => {
       mockSuccessResponse({
-        trades: [
+        status: 'OK',
+        data: [
           {
             id: 'trade1',
-            symbol: 'BTC-USD-PERP',
+            symbol: 'BTC-USD',
             price: '50000',
             quantity: '1.5',
             side: 'buy',
@@ -259,14 +261,16 @@ describe('ExtendedAdapter Integration Tests', () => {
       expect(trades).toHaveLength(1);
     });
 
-    test('fetchFundingRate - fetches current funding rate', async () => {
+    test('fetchFundingRate - fetches current funding rate from stats endpoint', async () => {
       mockSuccessResponse({
-        symbol: 'BTC-USD-PERP',
-        fundingRate: '0.0001',
-        markPrice: '50000',
-        indexPrice: '49990',
-        fundingTime: 1234567890,
-        nextFundingTime: 1234597890,
+        status: 'OK',
+        data: {
+          fundingRate: '0.0001',
+          markPrice: '50000',
+          indexPrice: '49990',
+          nextFundingRate: 1234597890,
+          lastPrice: '50000',
+        },
       });
 
       const fundingRate = await adapter.fetchFundingRate('BTC/USD:USD');
@@ -279,20 +283,17 @@ describe('ExtendedAdapter Integration Tests', () => {
 
     test('fetchFundingRateHistory - fetches funding rate history', async () => {
       mockSuccessResponse({
-        rates: [
+        status: 'OK',
+        data: [
           {
-            symbol: 'BTC-USD-PERP',
-            fundingRate: '0.0001',
-            markPrice: '50000',
-            indexPrice: '49990',
-            fundingTime: 1234567890,
+            m: 'BTC-USD',
+            f: '0.0001',
+            T: 1234567890,
           },
           {
-            symbol: 'BTC-USD-PERP',
-            fundingRate: '0.00012',
-            markPrice: '50100',
-            indexPrice: '50090',
-            fundingTime: 1234597890,
+            m: 'BTC-USD',
+            f: '0.00012',
+            T: 1234597890,
           },
         ],
       });

@@ -287,11 +287,11 @@ export class ExtendedAdapter extends BaseAdapter {
       const market = this.symbolToExchange(symbol);
       const endpoint = EXTENDED_ENDPOINTS.TICKER_SYMBOL.replace('{market}', market);
 
-      const response = await this.httpClient.get<ExtendedTicker & { data?: ExtendedTicker }>(
+      const response = await this.httpClient.get<{ status: string; data?: ExtendedTicker }>(
         endpoint,
         {}
       );
-      const ticker: ExtendedTicker = response.data || response;
+      const ticker = (response.data || response) as ExtendedTicker;
       return this.normalizer.normalizeTicker(ticker);
     } catch (error) {
       throw mapError(error);
@@ -312,11 +312,11 @@ export class ExtendedAdapter extends BaseAdapter {
 
       endpoint += this.buildQueryString(queryParams);
 
-      const response = await this.httpClient.get<ExtendedOrderBook & { data?: ExtendedOrderBook }>(
+      const response = await this.httpClient.get<{ status: string; data?: ExtendedOrderBook }>(
         endpoint,
         {}
       );
-      const orderbook: ExtendedOrderBook = response.data || response;
+      const orderbook = (response.data || response) as ExtendedOrderBook;
       return this.normalizer.normalizeOrderBook(orderbook);
     } catch (error) {
       throw mapError(error);
@@ -340,8 +340,11 @@ export class ExtendedAdapter extends BaseAdapter {
 
       endpoint += this.buildQueryString(queryParams);
 
-      const response = await this.httpClient.get<{ trades: ExtendedTrade[] }>(endpoint, {});
-      const trades = response.trades || [];
+      const response = await this.httpClient.get<{ status: string; data?: ExtendedTrade[] }>(
+        endpoint,
+        {}
+      );
+      const trades = response.data || [];
       return this.normalizer.normalizeTrades(trades);
     } catch (error) {
       throw mapError(error);
@@ -349,14 +352,27 @@ export class ExtendedAdapter extends BaseAdapter {
   }
 
   async fetchFundingRate(symbol: string): Promise<FundingRate> {
-    await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.FUNDING_RATE);
+    await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.TICKER_SYMBOL);
 
     try {
       const market = this.symbolToExchange(symbol);
-      const endpoint = EXTENDED_ENDPOINTS.FUNDING_RATE.replace('{market}', market);
+      // Use the stats endpoint which includes fundingRate, markPrice, indexPrice
+      const endpoint = EXTENDED_ENDPOINTS.TICKER_SYMBOL.replace('{market}', market);
 
-      const fundingRate = await this.httpClient.get<ExtendedFundingRate>(endpoint, {});
-      return this.normalizer.normalizeFundingRate(fundingRate);
+      const response = await this.httpClient.get<{ status: string; data?: Record<string, any> }>(
+        endpoint,
+        {}
+      );
+      const stats: Record<string, any> = response.data ?? {};
+
+      return this.normalizer.normalizeFundingRate({
+        symbol: market,
+        fundingRate: String(stats.fundingRate ?? '0'),
+        fundingTime: Date.now(),
+        nextFundingTime: stats.nextFundingRate || 0,
+        markPrice: String(stats.markPrice ?? '0'),
+        indexPrice: String(stats.indexPrice ?? '0'),
+      } as ExtendedFundingRate);
     } catch (error) {
       throw mapError(error);
     }
@@ -367,24 +383,38 @@ export class ExtendedAdapter extends BaseAdapter {
     since?: number,
     limit?: number
   ): Promise<FundingRate[]> {
-    await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.FUNDING_HISTORY);
+    await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.FUNDING_RATE);
 
     try {
       const market = this.symbolToExchange(symbol);
-      let endpoint = EXTENDED_ENDPOINTS.FUNDING_HISTORY.replace('{market}', market);
+      const endpoint = EXTENDED_ENDPOINTS.FUNDING_RATE.replace('{market}', market);
 
-      const queryParams: Record<string, any> = {};
-      if (since) {
-        queryParams.startTime = since;
-      }
+      // API requires both startTime and endTime
+      const now = Date.now();
+      const queryParams: Record<string, any> = {
+        startTime: since || now - 7 * 24 * 60 * 60 * 1000, // default: 7 days ago
+        endTime: now,
+      };
       if (limit) {
         queryParams.limit = limit;
       }
 
-      endpoint += this.buildQueryString(queryParams);
+      const fullEndpoint = endpoint + this.buildQueryString(queryParams);
 
-      const response = await this.httpClient.get<{ rates: ExtendedFundingRate[] }>(endpoint, {});
-      const rates = response.rates || [];
+      const response = await this.httpClient.get<{
+        status: string;
+        data?: Array<Record<string, any>>;
+      }>(fullEndpoint, {});
+      const rates = (response.data || []).map(
+        (r) =>
+          ({
+            symbol: r.m || market,
+            fundingRate: r.f || r.fundingRate || '0',
+            fundingTime: r.T || r.fundingTime || 0,
+            markPrice: r.markPrice || '0',
+            indexPrice: r.indexPrice || '0',
+          }) as ExtendedFundingRate
+      );
       return this.normalizer.normalizeFundingRates(rates);
     } catch (error) {
       throw mapError(error);

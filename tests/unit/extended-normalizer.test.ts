@@ -57,16 +57,16 @@ describe('ExtendedNormalizer', () => {
   });
 
   describe('symbolFromCCXT', () => {
-    it('should convert BTC/USD:USD to BTC-USD-PERP', () => {
-      expect(normalizer.symbolFromCCXT('BTC/USD:USD')).toBe('BTC-USD-PERP');
+    it('should convert BTC/USD:USD to BTC-USD', () => {
+      expect(normalizer.symbolFromCCXT('BTC/USD:USD')).toBe('BTC-USD');
     });
 
-    it('should convert ETH/USDT:USDT to ETH-USDT-PERP', () => {
-      expect(normalizer.symbolFromCCXT('ETH/USDT:USDT')).toBe('ETH-USDT-PERP');
+    it('should convert ETH/USDT:USDT to ETH-USDT', () => {
+      expect(normalizer.symbolFromCCXT('ETH/USDT:USDT')).toBe('ETH-USDT');
     });
 
     it('should handle symbols without settlement currency', () => {
-      expect(normalizer.symbolFromCCXT('BTC/USD')).toBe('BTC-USD-PERP');
+      expect(normalizer.symbolFromCCXT('BTC/USD')).toBe('BTC-USD');
     });
 
     it('should return as-is for empty string after colon split (line 65)', () => {
@@ -249,7 +249,7 @@ describe('ExtendedNormalizer', () => {
       expect(result.nextFundingTimestamp).toBe(1234596690);
       expect(result.markPrice).toBe(50000);
       expect(result.indexPrice).toBe(50005);
-      expect(result.fundingIntervalHours).toBe(8);
+      expect(result.fundingIntervalHours).toBe(1);
     });
 
     it('should handle missing nextFundingTime', () => {

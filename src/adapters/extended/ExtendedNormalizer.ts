@@ -62,7 +62,7 @@ export class ExtendedNormalizer {
 
   /**
    * Convert unified CCXT symbol to Extended format
-   * "BTC/USD:USD" → "BTC-USD-PERP"
+   * "BTC/USD:USD" → "BTC-USD"
    */
   symbolFromCCXT(ccxtSymbol: string): string {
     const [pair] = ccxtSymbol.split(':');
@@ -75,8 +75,8 @@ export class ExtendedNormalizer {
       return ccxtSymbol;
     }
 
-    // Extended uses "BTC-USD-PERP" format
-    return `${base}-${quote}-PERP`;
+    // Extended uses "BTC-USD" format (no -PERP suffix)
+    return `${base}-${quote}`;
   }
 
   /**
@@ -135,82 +135,113 @@ export class ExtendedNormalizer {
 
   /**
    * Normalize ticker data
+   *
+   * Handles both legacy SDK type and actual API response format:
+   * - API returns: {lastPrice, bidPrice, askPrice, dailyHigh, dailyLow, dailyVolume, dailyPriceChange, ...}
+   * - Legacy type: {lastPrice, bidPrice, askPrice, high24h, low24h, volume24h, priceChange24h, ...}
    */
   normalizeTicker(ticker: ExtendedTicker): Ticker {
-    const unifiedSymbol = this.symbolToCCXT(ticker.symbol);
+    const raw = ticker as unknown as Record<string, any>;
+    const unifiedSymbol = this.symbolToCCXT(raw.symbol || raw.market || '');
 
     return {
       symbol: unifiedSymbol,
-      timestamp: ticker.timestamp,
-      high: safeParseFloat(ticker.high24h),
-      low: safeParseFloat(ticker.low24h),
-      bid: safeParseFloat(ticker.bidPrice),
-      ask: safeParseFloat(ticker.askPrice),
-      last: safeParseFloat(ticker.lastPrice),
-      open: safeParseFloat(ticker.lastPrice),
-      close: safeParseFloat(ticker.lastPrice),
-      baseVolume: safeParseFloat(ticker.volume24h),
-      quoteVolume: safeParseFloat(ticker.quoteVolume24h),
-      change: safeParseFloat(ticker.priceChange24h),
-      percentage: safeParseFloat(ticker.priceChangePercent24h),
+      timestamp: raw.timestamp || Date.now(),
+      high: safeParseFloat(raw.dailyHigh || raw.high24h),
+      low: safeParseFloat(raw.dailyLow || raw.low24h),
+      bid: safeParseFloat(raw.bidPrice),
+      ask: safeParseFloat(raw.askPrice),
+      last: safeParseFloat(raw.lastPrice),
+      open: safeParseFloat(raw.lastPrice),
+      close: safeParseFloat(raw.lastPrice),
+      baseVolume: safeParseFloat(raw.dailyVolumeBase || raw.volume24h),
+      quoteVolume: safeParseFloat(raw.dailyVolume || raw.quoteVolume24h),
+      change: safeParseFloat(raw.dailyPriceChange || raw.priceChange24h),
+      percentage: safeParseFloat(raw.dailyPriceChangePercentage || raw.priceChangePercent24h),
       info: ticker as unknown as Record<string, unknown>,
     };
   }
 
   /**
    * Normalize order book data
+   *
+   * Handles both legacy SDK type and actual API response format:
+   * - API returns: {market, bid: [{qty, price}], ask: [{qty, price}]}
+   * - Legacy type: {symbol, bids: [[price, size]], asks: [[price, size]]}
    */
   normalizeOrderBook(orderbook: ExtendedOrderBook): OrderBook {
-    const unifiedSymbol = this.symbolToCCXT(orderbook.symbol);
+    const raw = orderbook as unknown as Record<string, any>;
+    const unifiedSymbol = this.symbolToCCXT(raw.symbol || raw.market || '');
+
+    // API uses "bid"/"ask" with object arrays; legacy uses "bids"/"asks" with tuples
+    const rawBids = raw.bid || raw.bids || [];
+    const rawAsks = raw.ask || raw.asks || [];
+
+    const parseSide = (entries: any[]): [number, number][] =>
+      entries.map((entry: any) => {
+        if (Array.isArray(entry)) {
+          return [safeParseFloat(entry[0]), safeParseFloat(entry[1])];
+        }
+        return [safeParseFloat(entry.price), safeParseFloat(entry.qty)];
+      });
 
     return {
       exchange: 'extended',
       symbol: unifiedSymbol,
-      bids: orderbook.bids.map(([price, amount]) => [
-        safeParseFloat(price),
-        safeParseFloat(amount),
-      ]),
-      asks: orderbook.asks.map(([price, amount]) => [
-        safeParseFloat(price),
-        safeParseFloat(amount),
-      ]),
-      timestamp: orderbook.timestamp,
+      bids: parseSide(rawBids),
+      asks: parseSide(rawAsks),
+      timestamp: raw.timestamp || Date.now(),
     };
   }
 
   /**
    * Normalize trade data
+   *
+   * Handles both legacy SDK type and actual API response format:
+   * - API returns: {i (id), m (market), S (side), tT (tradeType), T (timestamp), p (price), q (qty)}
+   * - Legacy type: {id, symbol, side, price, quantity, timestamp}
    */
   normalizeTrade(trade: ExtendedTrade): Trade {
-    const unifiedSymbol = this.symbolToCCXT(trade.symbol);
+    const raw = trade as unknown as Record<string, any>;
+    const symbol = raw.symbol || raw.m || '';
+    const unifiedSymbol = this.symbolToCCXT(symbol);
+    const side = (raw.side || (raw.S === 'BUY' ? 'buy' : raw.S === 'SELL' ? 'sell' : raw.S?.toLowerCase())) as 'buy' | 'sell';
+    const price = safeParseFloat(raw.price || raw.p);
+    const amount = safeParseFloat(raw.quantity || raw.q);
 
     return {
-      id: trade.id,
+      id: String(raw.id || raw.i || ''),
       orderId: undefined,
       symbol: unifiedSymbol,
-      side: trade.side,
-      price: safeParseFloat(trade.price),
-      amount: safeParseFloat(trade.quantity),
-      cost: safeParseFloat(trade.price) * safeParseFloat(trade.quantity),
-      timestamp: trade.timestamp,
+      side,
+      price,
+      amount,
+      cost: price * amount,
+      timestamp: raw.timestamp || raw.T,
       info: trade as unknown as Record<string, unknown>,
     };
   }
 
   /**
    * Normalize funding rate data
+   *
+   * Handles both legacy SDK type and actual API response format:
+   * - API returns: {m (market), f (fundingRate), T (timestamp)}
+   * - Legacy type: {symbol, fundingRate, fundingTime, markPrice, indexPrice}
    */
   normalizeFundingRate(fundingRate: ExtendedFundingRate): FundingRate {
-    const unifiedSymbol = this.symbolToCCXT(fundingRate.symbol);
+    const raw = fundingRate as unknown as Record<string, any>;
+    const symbol = raw.symbol || raw.m || '';
+    const unifiedSymbol = this.symbolToCCXT(symbol);
 
     return {
       symbol: unifiedSymbol,
-      fundingRate: safeParseFloat(fundingRate.fundingRate),
-      fundingTimestamp: fundingRate.fundingTime,
-      nextFundingTimestamp: fundingRate.nextFundingTime || 0,
-      markPrice: safeParseFloat(fundingRate.markPrice),
-      indexPrice: safeParseFloat(fundingRate.indexPrice),
-      fundingIntervalHours: 8,
+      fundingRate: safeParseFloat(raw.fundingRate || raw.f),
+      fundingTimestamp: raw.fundingTime || raw.T || 0,
+      nextFundingTimestamp: raw.nextFundingTime || 0,
+      markPrice: safeParseFloat(raw.markPrice),
+      indexPrice: safeParseFloat(raw.indexPrice),
+      fundingIntervalHours: 1,
       info: fundingRate as unknown as Record<string, unknown>,
     };
   }
