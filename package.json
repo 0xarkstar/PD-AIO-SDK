@@ -19,84 +19,85 @@
     "./dist/adapters/lighter/signer/LighterSigner.js": "./dist/adapters/lighter/signer/LighterWasmSigner.js",
     "./dist/monitoring/metrics-server.js": false
   },
+  "sideEffects": false,
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "browser": "./dist/index.js",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     },
     "./hyperliquid": {
-      "import": "./dist/adapters/hyperliquid/index.js",
-      "types": "./dist/adapters/hyperliquid/index.d.ts"
+      "types": "./dist/adapters/hyperliquid/index.d.ts",
+      "import": "./dist/adapters/hyperliquid/index.js"
     },
     "./lighter": {
-      "import": "./dist/adapters/lighter/index.js",
-      "types": "./dist/adapters/lighter/index.d.ts"
+      "types": "./dist/adapters/lighter/index.d.ts",
+      "import": "./dist/adapters/lighter/index.js"
     },
     "./grvt": {
-      "import": "./dist/adapters/grvt/index.js",
-      "types": "./dist/adapters/grvt/index.d.ts"
+      "types": "./dist/adapters/grvt/index.d.ts",
+      "import": "./dist/adapters/grvt/index.js"
     },
     "./paradex": {
-      "import": "./dist/adapters/paradex/index.js",
-      "types": "./dist/adapters/paradex/index.d.ts"
+      "types": "./dist/adapters/paradex/index.d.ts",
+      "import": "./dist/adapters/paradex/index.js"
     },
     "./edgex": {
-      "import": "./dist/adapters/edgex/index.js",
-      "types": "./dist/adapters/edgex/index.d.ts"
+      "types": "./dist/adapters/edgex/index.d.ts",
+      "import": "./dist/adapters/edgex/index.js"
     },
     "./backpack": {
-      "import": "./dist/adapters/backpack/index.js",
-      "types": "./dist/adapters/backpack/index.d.ts"
+      "types": "./dist/adapters/backpack/index.d.ts",
+      "import": "./dist/adapters/backpack/index.js"
     },
     "./nado": {
-      "import": "./dist/adapters/nado/index.js",
-      "types": "./dist/adapters/nado/index.d.ts"
+      "types": "./dist/adapters/nado/index.d.ts",
+      "import": "./dist/adapters/nado/index.js"
     },
     "./variational": {
-      "import": "./dist/adapters/variational/index.js",
-      "types": "./dist/adapters/variational/index.d.ts"
+      "types": "./dist/adapters/variational/index.d.ts",
+      "import": "./dist/adapters/variational/index.js"
     },
     "./extended": {
-      "import": "./dist/adapters/extended/index.js",
-      "types": "./dist/adapters/extended/index.d.ts"
+      "types": "./dist/adapters/extended/index.d.ts",
+      "import": "./dist/adapters/extended/index.js"
     },
     "./dydx": {
-      "import": "./dist/adapters/dydx/index.js",
-      "types": "./dist/adapters/dydx/index.d.ts"
+      "types": "./dist/adapters/dydx/index.d.ts",
+      "import": "./dist/adapters/dydx/index.js"
     },
     "./jupiter": {
-      "import": "./dist/adapters/jupiter/index.js",
-      "types": "./dist/adapters/jupiter/index.d.ts"
+      "types": "./dist/adapters/jupiter/index.d.ts",
+      "import": "./dist/adapters/jupiter/index.js"
     },
     "./drift": {
-      "import": "./dist/adapters/drift/index.js",
-      "types": "./dist/adapters/drift/index.d.ts"
+      "types": "./dist/adapters/drift/index.d.ts",
+      "import": "./dist/adapters/drift/index.js"
     },
     "./gmx": {
-      "import": "./dist/adapters/gmx/index.js",
-      "types": "./dist/adapters/gmx/index.d.ts"
+      "types": "./dist/adapters/gmx/index.d.ts",
+      "import": "./dist/adapters/gmx/index.js"
     },
     "./aster": {
-      "import": "./dist/adapters/aster/index.js",
-      "types": "./dist/adapters/aster/index.d.ts"
+      "types": "./dist/adapters/aster/index.d.ts",
+      "import": "./dist/adapters/aster/index.js"
     },
     "./pacifica": {
-      "import": "./dist/adapters/pacifica/index.js",
-      "types": "./dist/adapters/pacifica/index.d.ts"
+      "types": "./dist/adapters/pacifica/index.d.ts",
+      "import": "./dist/adapters/pacifica/index.js"
     },
     "./ostium": {
-      "import": "./dist/adapters/ostium/index.js",
-      "types": "./dist/adapters/ostium/index.d.ts"
+      "types": "./dist/adapters/ostium/index.d.ts",
+      "import": "./dist/adapters/ostium/index.js"
     },
     "./types": {
-      "import": "./dist/types/index.js",
-      "types": "./dist/types/index.d.ts"
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
     },
     "./core": {
-      "import": "./dist/core/index.js",
-      "types": "./dist/core/index.d.ts"
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
     }
   },
   "files": [
@@ -173,7 +174,6 @@
     "@paradex/sdk": "^0.7.0",
     "@solana/web3.js": "^1.98.4",
     "bs58": "^6.0.0",
-    "dotenv": "^16.4.5",
     "ethers": "^6.13.0",
     "eventemitter3": "^5.0.1",
     "js-sha3": "^0.9.3",
@@ -192,6 +192,7 @@
     "@types/ws": "^8.5.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "dotenv": "^16.4.5",
     "esbuild": "^0.25.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",

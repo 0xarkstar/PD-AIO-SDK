@@ -10815,7 +10815,6 @@ var WasmSignerClient, LighterWasmSigner;
 var init_LighterWasmSigner = __esm({
   "src/adapters/lighter/signer/LighterWasmSigner.ts"() {
     "use strict";
-    init_types2();
     WasmSignerClient = null;
     LighterWasmSigner = class {
       wasmClient = null;
@@ -11337,7 +11336,6 @@ var init_signer = __esm({
     "use strict";
     init_LighterWasmSigner();
     init_LighterSigner();
-    init_LighterWasmSigner();
     init_types2();
   }
 });
@@ -11624,7 +11622,6 @@ function validateLighterOrder(request) {
 var init_LighterOrderUtils = __esm({
   "src/adapters/lighter/LighterOrderUtils.ts"() {
     "use strict";
-    init_signer();
   }
 });
 
@@ -23319,7 +23316,6 @@ var VARIATIONAL_CLIENT_ERRORS, VARIATIONAL_SERVER_ERRORS, VARIATIONAL_RATE_LIMIT
 var init_error_codes2 = __esm({
   "src/adapters/variational/error-codes.ts"() {
     "use strict";
-    init_type_guards();
     init_errors();
     VARIATIONAL_CLIENT_ERRORS = {
       INSUFFICIENT_MARGIN: "INSUFFICIENT_MARGIN",
@@ -24620,7 +24616,6 @@ var EXTENDED_CLIENT_ERRORS, EXTENDED_SERVER_ERRORS, EXTENDED_RATE_LIMIT_ERROR, E
 var init_error_codes3 = __esm({
   "src/adapters/extended/error-codes.ts"() {
     "use strict";
-    init_type_guards();
     init_errors();
     EXTENDED_CLIENT_ERRORS = {
       INSUFFICIENT_MARGIN: "INSUFFICIENT_MARGIN",
@@ -27525,7 +27520,6 @@ function buildUrl(baseUrl, path, params) {
 var init_utils8 = __esm({
   "src/adapters/dydx/utils.ts"() {
     "use strict";
-    init_constants10();
   }
 });
 
@@ -38777,7 +38771,6 @@ var POSITION_SIDES = ["long", "short"];
 var MARGIN_MODES = ["cross", "isolated"];
 
 // src/types/index.ts
-init_health();
 init_errors();
 
 // src/index.ts
