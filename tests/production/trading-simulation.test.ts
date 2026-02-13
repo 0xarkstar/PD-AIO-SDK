@@ -176,7 +176,7 @@ async function testTradingSimulation(exchange: SupportedExchange): Promise<Tradi
     // 1. Initialize Exchange
     const initResult = await runTest('Initialize Exchange', async () => {
       const config = TESTNET_CONFIGS[exchange];
-      exchangeInstance = createExchange(exchange, config as any);
+      exchangeInstance = await createExchange(exchange, config as any);
       await exchangeInstance.initialize();
       return { initialized: true };
     });

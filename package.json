@@ -1,7 +1,7 @@
 {
   "name": "pd-aio-sdk",
   "version": "0.2.0",
-  "description": "PD AIO SDK - Unified TypeScript SDK for 13 decentralized perpetual exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Variational, Extended, dYdX v4, GMX v2, Drift, Jupiter)",
+  "description": "PD AIO SDK - Unified TypeScript SDK for 16 decentralized perpetual exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Variational, Extended, dYdX v4, Jupiter, Drift, GMX v2, Aster, Pacifica, Ostium)",
   "type": "module",
   "repository": {
     "type": "git",
@@ -25,6 +25,78 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
+    },
+    "./hyperliquid": {
+      "import": "./dist/adapters/hyperliquid/index.js",
+      "types": "./dist/adapters/hyperliquid/index.d.ts"
+    },
+    "./lighter": {
+      "import": "./dist/adapters/lighter/index.js",
+      "types": "./dist/adapters/lighter/index.d.ts"
+    },
+    "./grvt": {
+      "import": "./dist/adapters/grvt/index.js",
+      "types": "./dist/adapters/grvt/index.d.ts"
+    },
+    "./paradex": {
+      "import": "./dist/adapters/paradex/index.js",
+      "types": "./dist/adapters/paradex/index.d.ts"
+    },
+    "./edgex": {
+      "import": "./dist/adapters/edgex/index.js",
+      "types": "./dist/adapters/edgex/index.d.ts"
+    },
+    "./backpack": {
+      "import": "./dist/adapters/backpack/index.js",
+      "types": "./dist/adapters/backpack/index.d.ts"
+    },
+    "./nado": {
+      "import": "./dist/adapters/nado/index.js",
+      "types": "./dist/adapters/nado/index.d.ts"
+    },
+    "./variational": {
+      "import": "./dist/adapters/variational/index.js",
+      "types": "./dist/adapters/variational/index.d.ts"
+    },
+    "./extended": {
+      "import": "./dist/adapters/extended/index.js",
+      "types": "./dist/adapters/extended/index.d.ts"
+    },
+    "./dydx": {
+      "import": "./dist/adapters/dydx/index.js",
+      "types": "./dist/adapters/dydx/index.d.ts"
+    },
+    "./jupiter": {
+      "import": "./dist/adapters/jupiter/index.js",
+      "types": "./dist/adapters/jupiter/index.d.ts"
+    },
+    "./drift": {
+      "import": "./dist/adapters/drift/index.js",
+      "types": "./dist/adapters/drift/index.d.ts"
+    },
+    "./gmx": {
+      "import": "./dist/adapters/gmx/index.js",
+      "types": "./dist/adapters/gmx/index.d.ts"
+    },
+    "./aster": {
+      "import": "./dist/adapters/aster/index.js",
+      "types": "./dist/adapters/aster/index.d.ts"
+    },
+    "./pacifica": {
+      "import": "./dist/adapters/pacifica/index.js",
+      "types": "./dist/adapters/pacifica/index.d.ts"
+    },
+    "./ostium": {
+      "import": "./dist/adapters/ostium/index.js",
+      "types": "./dist/adapters/ostium/index.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./core": {
+      "import": "./dist/core/index.js",
+      "types": "./dist/core/index.d.ts"
     }
   },
   "files": [
@@ -73,8 +145,16 @@
     "gmx",
     "drift",
     "jupiter",
+    "aster",
+    "pacifica",
+    "ostium",
     "solana",
     "arbitrum",
+    "web3",
+    "ethereum",
+    "starknet",
+    "perpetual-futures",
+    "trading-sdk",
     "trading",
     "crypto",
     "defi",

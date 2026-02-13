@@ -60,8 +60,8 @@ describe('Config-Adapter Alignment', () => {
     ] as const;
 
     describe.each(exchangeConfigs)('$exchange adapter', ({ exchange, config, envVars, description }) => {
-      test(`should create adapter with valid credentials (${description})`, () => {
-        const adapter = createExchange(exchange, config as any);
+      test(`should create adapter with valid credentials (${description})`, async () => {
+        const adapter = await createExchange(exchange, config as any);
 
         expect(adapter).toBeDefined();
         expect(adapter.id).toBe(exchange);
@@ -80,7 +80,7 @@ describe('Config-Adapter Alignment', () => {
 
   describe('Adapter Initialization Validation', () => {
     test('EdgeX should allow public API access without starkPrivateKey', async () => {
-      const adapter = createExchange('edgex', {});
+      const adapter = await createExchange('edgex', {});
 
       // Should be able to initialize for public API access
       await adapter.initialize();
@@ -92,7 +92,7 @@ describe('Config-Adapter Alignment', () => {
     });
 
     test('Lighter should require apiKey and apiSecret for trading', async () => {
-      const adapter = createExchange('lighter', {});
+      const adapter = await createExchange('lighter', {});
 
       // Should be able to create adapter without credentials
       expect(adapter).toBeDefined();
@@ -111,7 +111,7 @@ describe('Config-Adapter Alignment', () => {
     });
 
     test('Extended should require apiKey for authenticated endpoints', async () => {
-      const adapter = createExchange('extended', {});
+      const adapter = await createExchange('extended', {});
 
       // Market data should work without apiKey (once initialized)
       // But trading requires apiKey - check that it throws

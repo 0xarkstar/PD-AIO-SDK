@@ -23,6 +23,9 @@ Complete API documentation for PD AIO SDK.
    - [Jupiter Perps](#jupiter-perps-adapter)
    - [Drift Protocol](#drift-protocol-adapter)
    - [GMX v2](#gmx-v2-adapter)
+   - [Aster](#aster-adapter)
+   - [Pacifica](#pacifica-adapter)
+   - [Ostium](#ostium-adapter)
 3. [Normalizers](#normalizers)
 4. [Types](#types)
    - [Market Data Types](#market-data-types)
@@ -104,7 +107,7 @@ function createExchange(
 ```
 
 **Parameters:**
-- `exchangeId`: Exchange identifier (`'hyperliquid'` | `'grvt'` | `'paradex'` | `'edgex'` | `'backpack'` | `'lighter'` | `'nado'` | `'variational'` | `'extended'` | `'dydx'` | `'jupiter'` | `'drift'` | `'gmx'`)
+- `exchangeId`: Exchange identifier (`'hyperliquid'` | `'grvt'` | `'paradex'` | `'edgex'` | `'backpack'` | `'lighter'` | `'nado'` | `'variational'` | `'extended'` | `'dydx'` | `'jupiter'` | `'drift'` | `'gmx'` | `'aster'` | `'pacifica'` | `'ostium'`)
 - `config`: Exchange-specific configuration
 
 **Returns:** Exchange adapter instance
@@ -809,6 +812,193 @@ await exchange.initialize();
 
 ---
 
+### Aster Adapter
+
+Binance-style perpetual DEX with HMAC-SHA256 authentication.
+
+**Configuration:**
+```typescript
+interface AsterConfig {
+  apiKey?: string;              // API key
+  apiSecret?: string;           // API secret (HMAC-SHA256)
+  testnet?: boolean;            // Default: false
+  timeout?: number;             // Request timeout in ms (default: 30000)
+  referralCode?: string;        // Referral/builder code for fee sharing
+  rateLimitPerMinute?: number;  // Default: 1200
+}
+```
+
+**Authentication:** HMAC-SHA256 API key + secret (Binance-compatible signing)
+
+**Special Features:**
+- Binance-compatible API surface (`/fapi/v1/` endpoints)
+- Up to 1200 requests/min (REST), 300/min (WebSocket)
+- Builder code / referral code support with on/off toggle
+- PERPETUAL contract filtering
+
+**Example:**
+```typescript
+const exchange = createExchange('aster', {
+  apiKey: process.env.ASTER_API_KEY,
+  apiSecret: process.env.ASTER_API_SECRET,
+  testnet: true
+});
+
+await exchange.initialize();
+```
+
+**Symbol Format:**
+- Exchange: `BTCUSDT`, `ETHUSDT`
+- Unified: `BTC/USDT:USDT`, `ETH/USDT:USDT`
+
+**Supported Methods:**
+- ✅ All core market data methods
+- ✅ `fetchOHLCV` (1m, 5m, 15m, 1h, 4h, 1d, and more)
+- ✅ `fetchFundingRate` + `fetchFundingRateHistory`
+- ✅ `createOrder`, `cancelOrder`, `cancelAllOrders`
+- ✅ `fetchPositions`, `fetchBalance`
+- ✅ `setLeverage`
+- ❌ `fetchMyTrades` (not yet implemented)
+- ❌ `fetchOrderHistory` (not yet implemented)
+- ❌ WebSocket streaming (not available)
+
+---
+
+### Pacifica Adapter
+
+Solana-based perpetual DEX with Ed25519 authentication.
+
+**Configuration:**
+```typescript
+interface PacificaConfig {
+  apiKey?: string;              // API key
+  apiSecret?: string;           // API secret (Ed25519)
+  testnet?: boolean;            // Default: false
+  timeout?: number;             // Request timeout in ms (default: 30000)
+  builderCode?: string;         // Builder code for fee attribution
+  maxBuilderFeeRate?: number;   // Max builder fee rate (default: 500)
+  rateLimitPerMinute?: number;  // Default: 600
+}
+```
+
+**Authentication:** Ed25519 API key + secret signatures
+
+**Special Features:**
+- Solana-based high-throughput DEX
+- Builder code auto-registration on `initialize()` (approved on-chain)
+- Configurable max builder fee rate
+- Per-symbol leverage setting
+
+**Example:**
+```typescript
+const exchange = createExchange('pacifica', {
+  apiKey: process.env.PACIFICA_API_KEY,
+  apiSecret: process.env.PACIFICA_API_SECRET,
+  builderCode: 'your-builder-code',
+  testnet: true
+});
+
+await exchange.initialize();  // Auto-registers builder code if set
+```
+
+**Symbol Format:**
+- Exchange: `BTC-PERP`, `ETH-PERP`
+- Unified: `BTC/USD:USD`, `ETH/USD:USD`
+
+**Supported Methods:**
+- ✅ Core market data methods (`fetchMarkets`, `fetchTicker`, `fetchOrderBook`, `fetchTrades`)
+- ✅ `fetchFundingRate`
+- ✅ `createOrder`, `cancelOrder`
+- ✅ `fetchPositions`, `fetchBalance`
+- ✅ `setLeverage`
+- ❌ `cancelAllOrders` (not supported)
+- ❌ `fetchFundingRateHistory` (not supported)
+- ❌ `fetchOrderHistory`, `fetchMyTrades` (not supported)
+- ❌ WebSocket streaming (not available)
+
+---
+
+### Ostium Adapter
+
+Arbitrum-based RWA (Real World Asset) perpetual DEX using on-chain contracts + GraphQL subgraph.
+
+**Configuration:**
+```typescript
+interface OstiumConfig {
+  privateKey?: string;           // EVM private key for signing transactions
+  rpcUrl?: string;               // Arbitrum RPC URL (default: public endpoint)
+  subgraphUrl?: string;          // GraphQL subgraph URL for trade/position data
+  metadataUrl?: string;          // Metadata API URL for price feeds
+  referralAddress?: string;      // Ethereum address for referral fee attribution
+  rateLimitPerMinute?: number;   // Default: 300
+}
+```
+
+**Authentication:** EVM private key for on-chain transaction signing (Arbitrum)
+
+**Special Features:**
+- Real World Asset (RWA) perpetuals: crypto, stocks (AAPL, TSLA, NVDA), forex (EUR/USD, GBP/USD), commodities (Gold, Oil), indices (SPX)
+- Hybrid architecture: REST metadata API + GraphQL subgraph + EVM smart contracts
+- Up to 250x leverage (forex), 150x (crypto), 100x (commodities/indices), 50x (stocks)
+- USDC collateral (on Arbitrum)
+- Rollover fees instead of funding rates
+- Leverage set per-trade (not per-symbol)
+- Builder code support via referral address
+
+**Example:**
+```typescript
+const exchange = createExchange('ostium', {
+  privateKey: process.env.OSTIUM_PRIVATE_KEY,
+  rpcUrl: 'https://arb1.arbitrum.io/rpc',
+  referralAddress: '0xYourReferralAddress'
+});
+
+await exchange.initialize();
+
+// Fetch RWA markets (crypto, stocks, forex, commodities, indices)
+const markets = await exchange.fetchMarkets();
+
+// Trade AAPL perpetual
+const order = await exchange.createOrder({
+  symbol: 'AAPL/USD:USD',
+  type: 'market',
+  side: 'buy',
+  amount: 100,    // Position size in USDC
+  leverage: 20
+});
+```
+
+**Symbol Format:**
+- Exchange: pair index (`0` = BTC/USD, `2` = AAPL/USD, `5` = EUR/USD, `7` = XAU/USD)
+- Unified: `BTC/USD:USD`, `AAPL/USD:USD`, `EUR/USD:USD`, `XAU/USD:USD`
+
+**Available Markets:**
+| Group | Pairs | Max Leverage |
+|-------|-------|:------------:|
+| Crypto | BTC/USD, ETH/USD | 150x |
+| Stocks | AAPL/USD, TSLA/USD, NVDA/USD | 50x |
+| Forex | EUR/USD, GBP/USD | 250x |
+| Commodities | XAU/USD (Gold), CL/USD (Oil) | 100x |
+| Indices | SPX/USD | 100x |
+
+**Supported Methods:**
+- ✅ `fetchMarkets` (static pair list)
+- ✅ `fetchTicker` (via metadata API)
+- ✅ `fetchTrades` (via GraphQL subgraph)
+- ✅ `createOrder`, `cancelOrder` (on-chain transactions)
+- ✅ `fetchPositions` (via GraphQL subgraph)
+- ✅ `fetchBalance` (on-chain collateral balance)
+- ❌ `fetchOrderBook` (on-chain DEX, no order book)
+- ❌ `fetchFundingRate` (uses rollover fees, not funding rates)
+- ❌ `cancelAllOrders` (not supported)
+- ❌ `setLeverage` (set per-trade at order time)
+- ❌ `fetchOrderHistory`, `fetchMyTrades` (not available via REST)
+- ❌ WebSocket streaming (not available)
+
+**Note:** Ostium is unique in this SDK as an RWA perpetual DEX. It supports traditional finance assets (stocks, forex, commodities, indices) alongside crypto, all settled in USDC on Arbitrum.
+
+---
+
 ## Normalizers
 
 All adapters use dedicated Normalizer classes for data transformation (Pattern A architecture).
@@ -868,6 +1058,9 @@ const market = normalizer.normalizeMarket(rawMarketData);
 - `JupiterNormalizer`
 - `DriftNormalizer`
 - `GmxNormalizer`
+- `AsterNormalizer`
+- `PacificaNormalizer`
+- `OstiumNormalizer`
 
 ---
 
@@ -1215,7 +1408,7 @@ type OrderType = 'market' | 'limit';
 type OrderSide = 'buy' | 'sell';
 type OrderStatus = 'open' | 'closed' | 'canceled' | 'rejected' | 'expired';
 type TimeInForce = 'GTC' | 'IOC' | 'FOK' | 'PO';
-type ExchangeId = 'hyperliquid' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'lighter' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx';
+type ExchangeId = 'hyperliquid' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'lighter' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx' | 'aster' | 'pacifica' | 'ostium';
 ```
 
 ---

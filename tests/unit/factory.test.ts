@@ -4,6 +4,8 @@
 
 import {
   createExchange,
+  createExchangeSync,
+  preloadAdapters,
   getSupportedExchanges,
   isExchangeSupported,
   registerExchange,
@@ -22,36 +24,57 @@ import { BaseAdapter } from '../../src/adapters/base/BaseAdapter.js';
 import type { IExchangeAdapter, FeatureMap, Market, Ticker, OrderBook, Trade, FundingRate, Position, Balance, Order, OrderRequest } from '../../src/types/index.js';
 
 describe('createExchange', () => {
-  test('creates Hyperliquid adapter', () => {
-    const exchange = createExchange('hyperliquid', { testnet: true });
+  test('creates Hyperliquid adapter', async () => {
+    const exchange = await createExchange('hyperliquid', { testnet: true });
 
     expect(exchange).toBeInstanceOf(HyperliquidAdapter);
     expect(exchange.id).toBe('hyperliquid');
     expect(exchange.name).toBe('Hyperliquid');
   });
 
-  test('creates all exchange adapters', () => {
-    expect(createExchange('lighter', {})).toBeInstanceOf(LighterAdapter);
-    expect(createExchange('grvt', { apiKey: 'test-key' })).toBeInstanceOf(GRVTAdapter);
-    expect(createExchange('paradex', { apiKey: 'test-key' })).toBeInstanceOf(ParadexAdapter);
-    expect(createExchange('edgex', { apiKey: 'test-key' })).toBeInstanceOf(EdgeXAdapter);
-    expect(createExchange('backpack', { apiKey: 'test-key' })).toBeInstanceOf(BackpackAdapter);
+  test('creates all exchange adapters', async () => {
+    expect(await createExchange('lighter', {})).toBeInstanceOf(LighterAdapter);
+    expect(await createExchange('grvt', { apiKey: 'test-key' })).toBeInstanceOf(GRVTAdapter);
+    expect(await createExchange('paradex', { apiKey: 'test-key' })).toBeInstanceOf(ParadexAdapter);
+    expect(await createExchange('edgex', { apiKey: 'test-key' })).toBeInstanceOf(EdgeXAdapter);
+    expect(await createExchange('backpack', { apiKey: 'test-key' })).toBeInstanceOf(BackpackAdapter);
     expect(
-      createExchange('nado', {
+      await createExchange('nado', {
         testnet: true,
         privateKey: '0x0000000000000000000000000000000000000000000000000000000000000001',
       })
     ).toBeInstanceOf(NadoAdapter);
   });
 
-  test('passes config to adapter', () => {
-    const exchange = createExchange('hyperliquid', {
+  test('passes config to adapter', async () => {
+    const exchange = await createExchange('hyperliquid', {
       testnet: true,
       debug: true,
       timeout: 60000,
     });
 
     expect(exchange.isReady).toBe(false);
+  });
+});
+
+describe('createExchangeSync', () => {
+  test('throws if adapter not preloaded', () => {
+    // Use an exchange that is unlikely to have been loaded by prior tests
+    expect(() => createExchangeSync('variational')).toThrow(/not preloaded/);
+  });
+
+  test('works after preloadAdapters', async () => {
+    await preloadAdapters(['hyperliquid']);
+    const exchange = createExchangeSync('hyperliquid', { testnet: true });
+    expect(exchange).toBeInstanceOf(HyperliquidAdapter);
+  });
+});
+
+describe('preloadAdapters', () => {
+  test('preloads multiple adapters', async () => {
+    await preloadAdapters(['lighter', 'grvt']);
+    expect(createExchangeSync('lighter', {})).toBeInstanceOf(LighterAdapter);
+    expect(createExchangeSync('grvt', { apiKey: 'test-key' })).toBeInstanceOf(GRVTAdapter);
   });
 });
 
@@ -241,10 +264,10 @@ describe('registerExchange / unregisterExchange', () => {
     expect(getSupportedExchanges()).toContain('mock');
   });
 
-  test('creates instance of registered adapter', () => {
+  test('creates instance of registered adapter', async () => {
     registerExchange('mock', MockAdapter);
 
-    const adapter = createExchange('mock' as any);
+    const adapter = await createExchange('mock' as any);
 
     expect(adapter).toBeInstanceOf(MockAdapter);
     expect(adapter.id).toBe('mock');
@@ -273,11 +296,11 @@ describe('registerExchange / unregisterExchange', () => {
     expect(isExchangeSupported('MOCK')).toBe(true);
   });
 
-  test('throws error for unknown exchange', () => {
-    expect(() => createExchange('unknown' as any)).toThrow(/Unknown exchange: unknown/);
+  test('throws error for unknown exchange', async () => {
+    await expect(createExchange('unknown' as any)).rejects.toThrow(/Unknown exchange: unknown/);
   });
 
-  test('error message includes supported exchanges', () => {
-    expect(() => createExchange('unknown' as any)).toThrow(/Supported exchanges:/);
+  test('error message includes supported exchanges', async () => {
+    await expect(createExchange('unknown' as any)).rejects.toThrow(/Supported exchanges:/);
   });
 });

@@ -8,7 +8,13 @@
 // Factory Functions
 // =============================================================================
 
-export { createExchange, getSupportedExchanges, isExchangeSupported } from './factory.js';
+export {
+  createExchange,
+  createExchangeSync,
+  preloadAdapters,
+  getSupportedExchanges,
+  isExchangeSupported,
+} from './factory.js';
 export type { SupportedExchange, ExchangeConfigMap } from './factory.js';
 
 // =============================================================================

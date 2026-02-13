@@ -106,7 +106,7 @@ async function testWebSocketStability(
   try {
     // Exchange 초기화
     console.log('  📡 Initializing exchange...');
-    exchangeInstance = createExchange(exchange, config as any);
+    exchangeInstance = await createExchange(exchange, config as any);
     await exchangeInstance.initialize();
 
     // Market 조회

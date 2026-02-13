@@ -208,7 +208,7 @@ async function testExchangeBasicFlow(exchange: SupportedExchange): Promise<TestR
     // 1. Exchange 초기화
     const initResult = await runTest('Initialize Exchange', async () => {
       const config = TESTNET_CONFIGS[exchange];
-      exchangeInstance = createExchange(exchange, config as any);
+      exchangeInstance = await createExchange(exchange, config as any);
       await exchangeInstance.initialize();
       return { initialized: true };
     });

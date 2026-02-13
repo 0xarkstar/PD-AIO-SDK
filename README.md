@@ -4,11 +4,49 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-6000%2B%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-6089%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Coverage](https://img.shields.io/badge/coverage-82%25-green)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![ESLint](https://img.shields.io/badge/ESLint-0%20errors-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![npm version](https://img.shields.io/badge/npm-v0.2.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
 **[한국어 문서](./README.ko.md)** | English
+
+---
+
+## ⚡ 5-Minute Quickstart
+
+```bash
+npm install pd-aio-sdk
+```
+
+```typescript
+import { createExchange } from 'pd-aio-sdk';
+
+// 1. Fetch market data (no auth needed)
+const hl = await createExchange('hyperliquid', { testnet: true });
+await hl.initialize();
+
+const ticker = await hl.fetchTicker('ETH/USDT:USDT');
+console.log(`ETH Price: $${ticker.last}`);
+
+// 2. Place a trade (with auth)
+const exchange = await createExchange('hyperliquid', {
+  privateKey: process.env.PRIVATE_KEY,
+  testnet: true,
+});
+await exchange.initialize();
+
+const order = await exchange.createOrder({
+  symbol: 'ETH/USDT:USDT',
+  side: 'buy',
+  type: 'limit',
+  amount: 0.1,
+  price: 3000,
+});
+```
+
+> **16 exchanges, one interface.** Swap `'hyperliquid'` for any supported exchange — the API stays the same.
 
 ---
 
@@ -149,7 +187,7 @@
 - **Request tracing** - Correlation IDs for distributed debugging
 - **Type safety** - Runtime validation (Zod) + TypeScript strict mode
 - **Health checks** - Prometheus metrics, structured JSON logging
-- **6000+ tests** - 100% pass rate, coverage thresholds enforced
+- **6089 tests** - 100% pass rate, 82% coverage enforced
 
 ---
 
@@ -171,7 +209,7 @@ pnpm add pd-aio-sdk
 import { createExchange } from 'pd-aio-sdk';
 
 // Initialize adapter (no auth needed for public API)
-const exchange = createExchange('hyperliquid', { testnet: true });
+const exchange = await createExchange('hyperliquid', { testnet: true });
 await exchange.initialize();
 
 // Fetch market data (Public API - no credentials needed)
@@ -189,7 +227,7 @@ console.log(`BTC price: ${ticker.last}`);
 import { createExchange } from 'pd-aio-sdk';
 
 // Initialize with credentials for private API
-const exchange = createExchange('hyperliquid', {
+const exchange = await createExchange('hyperliquid', {
   privateKey: process.env.HYPERLIQUID_PRIVATE_KEY,
   testnet: true
 });
@@ -224,96 +262,96 @@ await exchange.disconnect();
 
 ```typescript
 // Hyperliquid (EIP-712)
-const hl = createExchange('hyperliquid', {
+const hl = await createExchange('hyperliquid', {
   privateKey: process.env.HYPERLIQUID_PRIVATE_KEY,
   testnet: true
 });
 
 // EdgeX (StarkNet ECDSA)
-const edgex = createExchange('edgex', {
+const edgex = await createExchange('edgex', {
   starkPrivateKey: process.env.EDGEX_STARK_PRIVATE_KEY
 });
 
 // Paradex (StarkNet + JWT)
-const paradex = createExchange('paradex', {
+const paradex = await createExchange('paradex', {
   starkPrivateKey: process.env.PARADEX_STARK_PRIVATE_KEY,
   testnet: true
 });
 
 // GRVT (API Key + EIP-712)
-const grvt = createExchange('grvt', {
+const grvt = await createExchange('grvt', {
   apiKey: process.env.GRVT_API_KEY,
   testnet: false
 });
 
 // Backpack (ED25519)
-const backpack = createExchange('backpack', {
+const backpack = await createExchange('backpack', {
   apiKey: process.env.BACKPACK_API_KEY,
   apiSecret: process.env.BACKPACK_API_SECRET
 });
 
 // Lighter (WASM Signing) - cross-platform, no native dependencies
-const lighter = createExchange('lighter', {
+const lighter = await createExchange('lighter', {
   apiPrivateKey: process.env.LIGHTER_PRIVATE_KEY,
   testnet: true
 });
 
 // Nado (EIP-712 on Ink L2)
-const nado = createExchange('nado', {
+const nado = await createExchange('nado', {
   privateKey: process.env.NADO_PRIVATE_KEY,
   testnet: true
 });
 
 // Extended (API Key) - mainnet only
-const extended = createExchange('extended', {
+const extended = await createExchange('extended', {
   apiKey: process.env.EXTENDED_API_KEY
 });
 
 // Variational (API Key) - no WebSocket
-const variational = createExchange('variational', {
+const variational = await createExchange('variational', {
   apiKey: process.env.VARIATIONAL_API_KEY,
   apiSecret: process.env.VARIATIONAL_API_SECRET,
   testnet: true
 });
 
 // dYdX v4 (Cosmos SDK)
-const dydx = createExchange('dydx', {
+const dydx = await createExchange('dydx', {
   mnemonic: process.env.DYDX_MNEMONIC,  // 24-word seed phrase
   testnet: true
 });
 
 // Jupiter Perps (Solana)
-const jupiter = createExchange('jupiter', {
+const jupiter = await createExchange('jupiter', {
   walletAddress: process.env.JUPITER_WALLET_ADDRESS,
   privateKey: process.env.JUPITER_PRIVATE_KEY,  // Optional, for trading
 });
 
 // Drift Protocol (Solana)
-const drift = createExchange('drift', {
+const drift = await createExchange('drift', {
   walletAddress: process.env.DRIFT_WALLET_ADDRESS,
   privateKey: process.env.DRIFT_PRIVATE_KEY,  // Optional, for trading
 });
 
 // GMX v2 (Arbitrum/Avalanche) - read-only via REST
-const gmx = createExchange('gmx', {
+const gmx = await createExchange('gmx', {
   chain: 'arbitrum',  // or 'avalanche'
   walletAddress: process.env.GMX_WALLET_ADDRESS,  // Optional, for positions
 });
 
 // Aster (BNB Chain) - Binance-style HMAC-SHA256
-const aster = createExchange('aster', {
+const aster = await createExchange('aster', {
   apiKey: process.env.ASTER_API_KEY,
   apiSecret: process.env.ASTER_API_SECRET,
 });
 
 // Pacifica (Solana) - ED25519 signing
-const pacifica = createExchange('pacifica', {
+const pacifica = await createExchange('pacifica', {
   apiKey: process.env.PACIFICA_API_KEY,
   apiSecret: process.env.PACIFICA_API_SECRET,  // ED25519 private key (base64)
 });
 
 // Ostium (Arbitrum RWA) - ethers.js contract interaction
-const ostium = createExchange('ostium', {
+const ostium = await createExchange('ostium', {
   privateKey: process.env.OSTIUM_PRIVATE_KEY,  // EVM private key
 });
 ```
@@ -405,7 +443,7 @@ OSTIUM_PRIVATE_KEY=0x...                  # EVM private key
 ```typescript
 import { createExchange } from 'pd-aio-sdk';
 
-const exchange = createExchange('hyperliquid', { testnet: true });
+const exchange = await createExchange('hyperliquid', { testnet: true });
 await exchange.initialize();
 
 // Fetch 1-hour candles for the last 24 hours
@@ -426,7 +464,7 @@ for (const [timestamp, open, high, low, close, volume] of candles) {
 ```typescript
 import { createExchange } from 'pd-aio-sdk';
 
-const exchange = createExchange('hyperliquid', {
+const exchange = await createExchange('hyperliquid', {
   privateKey: process.env.PRIVATE_KEY,
   testnet: true
 });
@@ -456,9 +494,9 @@ for await (const trade of exchange.watchMyTrades('BTC/USDT:USDT')) {
 import { createExchange } from 'pd-aio-sdk';
 
 // Initialize multiple exchanges (public API - no auth needed)
-const hyperliquid = createExchange('hyperliquid', { testnet: true });
-const edgex = createExchange('edgex', {});
-const nado = createExchange('nado', { testnet: true });
+const hyperliquid = await createExchange('hyperliquid', { testnet: true });
+const edgex = await createExchange('edgex', {});
+const nado = await createExchange('nado', { testnet: true });
 
 await Promise.all([
   hyperliquid.initialize(),
@@ -483,7 +521,7 @@ console.log(`Nado: ${nadoMarkets.length} markets`);
 ```typescript
 import { createExchange, PerpDEXError } from 'pd-aio-sdk';
 
-const exchange = createExchange('hyperliquid', { testnet: true });
+const exchange = await createExchange('hyperliquid', { testnet: true });
 await exchange.initialize();
 
 try {
@@ -504,7 +542,7 @@ try {
 ```typescript
 import { createExchange } from 'pd-aio-sdk';
 
-const exchange = createExchange('hyperliquid', { testnet: true });
+const exchange = await createExchange('hyperliquid', { testnet: true });
 await exchange.initialize();
 
 // Get API metrics
@@ -534,7 +572,7 @@ Lighter uses WASM-based transaction signing that works cross-platform without an
 ```typescript
 import { createExchange } from 'pd-aio-sdk';
 
-const lighter = createExchange('lighter', {
+const lighter = await createExchange('lighter', {
   apiPrivateKey: '0x...',  // Your Lighter private key
   testnet: true,
 });
@@ -561,6 +599,65 @@ const order = await lighter.createOrder({
 
 ---
 
+## 💰 Builder Codes (Revenue Sharing)
+
+Builder codes enable fee attribution for SDK operators — earn a share of trading fees generated through your application.
+
+### Supported Exchanges
+
+| Exchange | Builder Code Field | Notes |
+|----------|-------------------|-------|
+| **Hyperliquid** | `builderAddress` | EVM address, fee split on-chain |
+| **GRVT** | `builderAddress` | API-level attribution |
+| **Pacifica** | `builderAddress` | Solana-based attribution |
+| **Aster** | `builderAddress` | BNB Chain referral system |
+| **Ostium** | `builderAddress` | Arbitrum RWA fee sharing |
+| **GMX** | `builderAddress` | Arbitrum/Avalanche |
+| **Drift** | `builderAddress` | Solana referral program |
+
+### Configuration
+
+```typescript
+import { createExchange } from 'pd-aio-sdk';
+
+const exchange = await createExchange('hyperliquid', {
+  privateKey: process.env.PRIVATE_KEY,
+  builderAddress: '0xYourAddress',
+  builderCodeEnabled: true, // default — can be omitted
+  testnet: true,
+});
+```
+
+### On/Off Toggle
+
+Builder codes are **enabled by default** when a `builderAddress` is provided. You can disable them at any time:
+
+```typescript
+// Disable builder code (fees go directly to exchange)
+const exchange = await createExchange('hyperliquid', {
+  builderAddress: '0xYourAddress',
+  builderCodeEnabled: false, // explicitly disable
+});
+```
+
+---
+
+## 📦 Subpath Imports (Tree-Shaking)
+
+Import only the adapters you need to reduce bundle size:
+
+```typescript
+// Import only what you need (tree-shakeable)
+import { HyperliquidAdapter } from 'pd-aio-sdk/hyperliquid';
+import { DriftAdapter } from 'pd-aio-sdk/drift';
+import { AsterAdapter } from 'pd-aio-sdk/aster';
+
+// Or use the full SDK
+import { createExchange } from 'pd-aio-sdk';
+```
+
+---
+
 ## 🧪 Testing
 
 ### Run Tests
@@ -582,9 +679,10 @@ npm test -- hyperliquid
 ### Test Results
 
 ```
-✅ 6000+ tests passing (100% pass rate)
+✅ 6089 tests passing (100% pass rate)
 ✅ 170+ test suites
-✅ Coverage thresholds enforced (82%+ statements, 87%+ functions)
+✅ Coverage: 82% statements, 87% functions
+✅ ESLint: 0 errors
 ```
 
 ---

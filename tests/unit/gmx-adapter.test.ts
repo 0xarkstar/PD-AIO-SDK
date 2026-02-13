@@ -264,7 +264,7 @@ describe('GmxAdapter Integration-ready', () => {
     expect(getSupportedExchanges()).toContain('gmx');
     expect(isExchangeSupported('gmx')).toBe(true);
 
-    const adapter = createExchange('gmx', { chain: 'arbitrum' });
+    const adapter = await createExchange('gmx', { chain: 'arbitrum' });
     expect(adapter.id).toBe('gmx');
   });
 });

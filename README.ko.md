@@ -4,11 +4,49 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-6000%2B%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-6089%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Coverage](https://img.shields.io/badge/coverage-82%25-green)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![ESLint](https://img.shields.io/badge/ESLint-0%20errors-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![npm version](https://img.shields.io/badge/npm-v0.2.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
 한국어 | **[English](./README.md)**
+
+---
+
+## ⚡ 5분 빠른 시작
+
+```bash
+npm install pd-aio-sdk
+```
+
+```typescript
+import { createExchange } from 'pd-aio-sdk';
+
+// 1. 시장 데이터 조회 (인증 불필요)
+const hl = await createExchange('hyperliquid', { testnet: true });
+await hl.initialize();
+
+const ticker = await hl.fetchTicker('ETH/USDT:USDT');
+console.log(`ETH 가격: $${ticker.last}`);
+
+// 2. 거래 실행 (인증 포함)
+const exchange = await createExchange('hyperliquid', {
+  privateKey: process.env.PRIVATE_KEY,
+  testnet: true,
+});
+await exchange.initialize();
+
+const order = await exchange.createOrder({
+  symbol: 'ETH/USDT:USDT',
+  side: 'buy',
+  type: 'limit',
+  amount: 0.1,
+  price: 3000,
+});
+```
+
+> **16개 거래소, 하나의 인터페이스.** `'hyperliquid'`를 지원되는 다른 거래소로 바꾸기만 하면 — API는 동일합니다.
 
 ---
 
@@ -160,7 +198,7 @@
 
 ### 📊 개발자 경험
 - **Pattern A 아키텍처** - 16개 어댑터 모두 표준화된 구조 따름
-- **6000개+ 테스트** - 100% 통과율, 프로덕션 준비 완료
+- **6089개 테스트** - 100% 통과율, 82% 커버리지 적용
 - **구조화된 로깅** - 민감 데이터 마스킹을 포함한 JSON 로그
 - **헬스 체크** - 내장 시스템 모니터링
 - **포괄적인 문서** - 영어 + 한국어 문서 제공
@@ -187,7 +225,7 @@ pnpm add pd-aio-sdk
 import { createExchange } from 'pd-aio-sdk';
 
 // 어댑터 초기화 (Public API는 인증 불필요)
-const exchange = createExchange('hyperliquid', { testnet: true });
+const exchange = await createExchange('hyperliquid', { testnet: true });
 await exchange.initialize();
 
 // 시장 데이터 조회 (Public API - 자격증명 불필요)
@@ -205,7 +243,7 @@ console.log(`BTC 가격: ${ticker.last}`);
 import { createExchange } from 'pd-aio-sdk';
 
 // Private API를 위한 자격증명과 함께 초기화
-const exchange = createExchange('hyperliquid', {
+const exchange = await createExchange('hyperliquid', {
   privateKey: process.env.HYPERLIQUID_PRIVATE_KEY,
   testnet: true
 });
@@ -240,7 +278,7 @@ await exchange.disconnect();
 
 #### Hyperliquid
 ```typescript
-const exchange = createExchange('hyperliquid', {
+const exchange = await createExchange('hyperliquid', {
   privateKey: process.env.HYPERLIQUID_PRIVATE_KEY, // Public API는 선택사항
   testnet: true
 });
@@ -251,7 +289,7 @@ const exchange = createExchange('hyperliquid', {
 
 #### EdgeX
 ```typescript
-const exchange = createExchange('edgex', {
+const exchange = await createExchange('edgex', {
   starkPrivateKey: process.env.EDGEX_STARK_PRIVATE_KEY, // Public API는 선택사항
 });
 ```
@@ -261,7 +299,7 @@ const exchange = createExchange('edgex', {
 
 #### Nado
 ```typescript
-const exchange = createExchange('nado', {
+const exchange = await createExchange('nado', {
   privateKey: process.env.NADO_PRIVATE_KEY, // Public API는 선택사항
   testnet: true
 });
@@ -271,7 +309,7 @@ const exchange = createExchange('nado', {
 
 #### GRVT
 ```typescript
-const exchange = createExchange('grvt', {
+const exchange = await createExchange('grvt', {
   apiKey: process.env.GRVT_API_KEY, // Public API는 선택사항
   testnet: false
 });
@@ -284,7 +322,7 @@ const exchange = createExchange('grvt', {
 
 #### Backpack
 ```typescript
-const exchange = createExchange('backpack', {
+const exchange = await createExchange('backpack', {
   apiKey: process.env.BACKPACK_API_KEY, // Public API는 선택사항
   apiSecret: process.env.BACKPACK_API_SECRET,
   testnet: false
@@ -297,7 +335,7 @@ const exchange = createExchange('backpack', {
 
 #### Lighter
 ```typescript
-const exchange = createExchange('lighter', {
+const exchange = await createExchange('lighter', {
   apiPrivateKey: process.env.LIGHTER_PRIVATE_KEY, // Public API는 선택사항
   testnet: true
 });
@@ -309,7 +347,7 @@ const exchange = createExchange('lighter', {
 
 #### dYdX v4
 ```typescript
-const exchange = createExchange('dydx', {
+const exchange = await createExchange('dydx', {
   mnemonic: process.env.DYDX_MNEMONIC,  // 24단어 시드 구문
   testnet: true
 });
@@ -320,7 +358,7 @@ const exchange = createExchange('dydx', {
 
 #### Jupiter Perps
 ```typescript
-const exchange = createExchange('jupiter', {
+const exchange = await createExchange('jupiter', {
   walletAddress: process.env.JUPITER_WALLET_ADDRESS,
   privateKey: process.env.JUPITER_PRIVATE_KEY,  // 거래용 선택사항
 });
@@ -331,7 +369,7 @@ const exchange = createExchange('jupiter', {
 
 #### Drift Protocol
 ```typescript
-const exchange = createExchange('drift', {
+const exchange = await createExchange('drift', {
   walletAddress: process.env.DRIFT_WALLET_ADDRESS,
   privateKey: process.env.DRIFT_PRIVATE_KEY,  // 거래용 선택사항
 });
@@ -342,7 +380,7 @@ const exchange = createExchange('drift', {
 
 #### GMX v2
 ```typescript
-const exchange = createExchange('gmx', {
+const exchange = await createExchange('gmx', {
   chain: 'arbitrum',  // 또는 'avalanche'
   walletAddress: process.env.GMX_WALLET_ADDRESS,  // 포지션 데이터용 선택사항
 });
@@ -354,7 +392,7 @@ const exchange = createExchange('gmx', {
 
 #### Aster
 ```typescript
-const exchange = createExchange('aster', {
+const exchange = await createExchange('aster', {
   apiKey: process.env.ASTER_API_KEY,
   apiSecret: process.env.ASTER_API_SECRET,
 });
@@ -366,7 +404,7 @@ const exchange = createExchange('aster', {
 
 #### Pacifica
 ```typescript
-const exchange = createExchange('pacifica', {
+const exchange = await createExchange('pacifica', {
   apiKey: process.env.PACIFICA_API_KEY,
   apiSecret: process.env.PACIFICA_API_SECRET,  // ED25519 개인키 (base64)
 });
@@ -378,7 +416,7 @@ const exchange = createExchange('pacifica', {
 
 #### Ostium
 ```typescript
-const exchange = createExchange('ostium', {
+const exchange = await createExchange('ostium', {
   privateKey: process.env.OSTIUM_PRIVATE_KEY,  // EVM 개인키
 });
 ```
@@ -391,7 +429,7 @@ const exchange = createExchange('ostium', {
 
 #### Paradex
 ```typescript
-const exchange = createExchange('paradex', { testnet: true });
+const exchange = await createExchange('paradex', { testnet: true });
 ```
 - **마켓**: 108 perp
 - **Public API**: ✅ fetchMarkets만 지원
@@ -400,7 +438,7 @@ const exchange = createExchange('paradex', { testnet: true });
 
 #### Extended
 ```typescript
-const exchange = createExchange('extended', {
+const exchange = await createExchange('extended', {
   apiKey: process.env.EXTENDED_API_KEY
 });
 ```
@@ -506,7 +544,7 @@ OSTIUM_PRIVATE_KEY=0x...                  # EVM 개인키
 ```typescript
 import { createExchange } from 'pd-aio-sdk';
 
-const exchange = createExchange('hyperliquid', { testnet: true });
+const exchange = await createExchange('hyperliquid', { testnet: true });
 await exchange.initialize();
 
 // 지난 24시간 동안의 1시간 캔들 조회
@@ -527,7 +565,7 @@ for (const [timestamp, open, high, low, close, volume] of candles) {
 ```typescript
 import { createExchange } from 'pd-aio-sdk';
 
-const exchange = createExchange('hyperliquid', {
+const exchange = await createExchange('hyperliquid', {
   privateKey: process.env.PRIVATE_KEY,
   testnet: true
 });
@@ -557,9 +595,9 @@ for await (const trade of exchange.watchMyTrades('BTC/USDT:USDT')) {
 import { createExchange } from 'pd-aio-sdk';
 
 // 여러 거래소 초기화 (Public API - 인증 불필요)
-const hyperliquid = createExchange('hyperliquid', { testnet: true });
-const edgex = createExchange('edgex', {});
-const nado = createExchange('nado', { testnet: true });
+const hyperliquid = await createExchange('hyperliquid', { testnet: true });
+const edgex = await createExchange('edgex', {});
+const nado = await createExchange('nado', { testnet: true });
 
 await Promise.all([
   hyperliquid.initialize(),
@@ -584,7 +622,7 @@ console.log(`Nado: ${nadoMarkets.length}개 마켓`);
 ```typescript
 import { createExchange, PerpDEXError } from 'pd-aio-sdk';
 
-const exchange = createExchange('hyperliquid', { testnet: true });
+const exchange = await createExchange('hyperliquid', { testnet: true });
 await exchange.initialize();
 
 try {
@@ -597,6 +635,65 @@ try {
     console.log('메시지:', error.message);
   }
 }
+```
+
+---
+
+## 💰 빌더 코드 (수익 공유)
+
+빌더 코드는 SDK 운영자를 위한 수수료 귀속 기능으로, 애플리케이션을 통해 발생한 거래 수수료의 일부를 받을 수 있습니다.
+
+### 지원 거래소
+
+| 거래소 | 빌더 코드 필드 | 비고 |
+|--------|---------------|------|
+| **Hyperliquid** | `builderAddress` | EVM 주소, 온체인 수수료 분배 |
+| **GRVT** | `builderAddress` | API 수준 귀속 |
+| **Pacifica** | `builderAddress` | Solana 기반 귀속 |
+| **Aster** | `builderAddress` | BNB Chain 레퍼럴 시스템 |
+| **Ostium** | `builderAddress` | Arbitrum RWA 수수료 공유 |
+| **GMX** | `builderAddress` | Arbitrum/Avalanche |
+| **Drift** | `builderAddress` | Solana 레퍼럴 프로그램 |
+
+### 설정
+
+```typescript
+import { createExchange } from 'pd-aio-sdk';
+
+const exchange = await createExchange('hyperliquid', {
+  privateKey: process.env.PRIVATE_KEY,
+  builderAddress: '0xYourAddress',
+  builderCodeEnabled: true, // 기본값 — 생략 가능
+  testnet: true,
+});
+```
+
+### 켜기/끄기 토글
+
+빌더 코드는 `builderAddress`가 제공되면 **기본적으로 활성화**됩니다. 언제든지 비활성화할 수 있습니다:
+
+```typescript
+// 빌더 코드 비활성화 (수수료가 거래소로 직접 전달)
+const exchange = await createExchange('hyperliquid', {
+  builderAddress: '0xYourAddress',
+  builderCodeEnabled: false, // 명시적으로 비활성화
+});
+```
+
+---
+
+## 📦 서브패스 임포트 (트리 쉐이킹)
+
+필요한 어댑터만 임포트하여 번들 크기를 줄일 수 있습니다:
+
+```typescript
+// 필요한 것만 임포트 (트리 쉐이킹 가능)
+import { HyperliquidAdapter } from 'pd-aio-sdk/hyperliquid';
+import { DriftAdapter } from 'pd-aio-sdk/drift';
+import { AsterAdapter } from 'pd-aio-sdk/aster';
+
+// 또는 전체 SDK 사용
+import { createExchange } from 'pd-aio-sdk';
 ```
 
 ---
@@ -622,10 +719,10 @@ npm test -- hyperliquid
 ### 테스트 결과
 
 ```
-✅ 6000개+ 테스트 통과 (100% 성공률)
+✅ 6089개 테스트 통과 (100% 성공률)
 ✅ 170개+ 테스트 스위트
-✅ 커버리지 임계값 적용 (82%+ 구문, 87%+ 함수)
-✅ 통합 테스트: 모두 통과
+✅ 커버리지: 82% 구문, 87% 함수
+✅ ESLint: 0 에러
 ```
 
 ### API 검증 결과 (2026-02-01 기준)

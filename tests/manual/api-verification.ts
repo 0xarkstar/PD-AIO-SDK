@@ -42,7 +42,7 @@ async function testExchange(name: string, config: Record<string, unknown>): Prom
   };
 
   try {
-    const exchange = createExchange(name as SupportedExchange, config);
+    const exchange = await createExchange(name as SupportedExchange, config);
 
     // Test fetchMarkets
     console.log('\n📊 fetchMarkets:');

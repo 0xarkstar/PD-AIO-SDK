@@ -188,7 +188,7 @@ async function testExchange(exchange: SupportedExchange): Promise<ExchangeTestRe
     console.log('1️⃣  Initializing...');
     const initResult = await runTest('Initialize', async () => {
       const config = TESTNET_CONFIGS[exchange];
-      exchangeInstance = createExchange(exchange, config as any);
+      exchangeInstance = await createExchange(exchange, config as any);
       await exchangeInstance.initialize();
 
       // Capture features

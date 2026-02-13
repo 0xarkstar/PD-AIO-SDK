@@ -10,7 +10,7 @@ async function testHyperliquid() {
   console.log('Testing HYPERLIQUID (Testnet)');
   console.log('='.repeat(60));
 
-  const exchange = createExchange('hyperliquid', { testnet: true });
+  const exchange = await createExchange('hyperliquid', { testnet: true });
 
   // Test fetchMarkets
   console.log('\n📊 fetchMarkets:');

@@ -1,584 +1,502 @@
-# PD-AIO-SDK Codebase Research Report
+# PD-AIO-SDK Codebase Analysis
 
-**Research Date**: 2026-02-08
+**Research Date**: 2026-02-13
 **SDK Version**: 0.2.0
-**Total Source Files**: 169 TypeScript files (~56,687 lines)
-**Total Test Files**: 139 test files
-**Supported Exchanges**: 13 (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational, dYdX v4, Jupiter, Drift, GMX)
-
----
+**Total Source Files**: ~170 TypeScript files (~60,639 lines)
 
 ## Executive Summary
 
-PD-AIO-SDK is a well-architected, production-grade TypeScript SDK with a CCXT-style unified interface. The codebase demonstrates excellent compositional patterns through mixins, consistent error handling, and comprehensive type safety. The recent refactoring (commit `420599c`) successfully extracted BaseAdapter functionality into composable mixins, significantly improving maintainability.
+PD-AIO-SDK is a well-architected, production-oriented unified TypeScript SDK covering 16 decentralized perpetual exchanges through a single `IExchangeAdapter` interface. The codebase demonstrates strong engineering fundamentals: strict TypeScript configuration, a comprehensive error hierarchy with 20+ typed error classes, CCXT-compatible API design, and enterprise features (circuit breaker, rate limiter, Prometheus metrics, structured logging with correlation IDs). At ~60,600 lines of source code with 139 unit test files and 22 integration test files producing 78% line coverage, the SDK is well-tested but has coverage gaps in newer adapters (Drift 10%, Extended 0%, GMX 30%). The primary competitive differentiator is breadth — no other SDK covers this many perp DEX exchanges with a unified interface.
 
-### Key Strengths
-- ✅ **Solid Architecture**: BaseAdapter with 6 mixins (Logger, Metrics, Cache, HealthCheck, HttpRequest, OrderHelpers)
-- ✅ **Type Safety**: Comprehensive TypeScript types with minimal `any` usage (55 occurrences across 169 files = 0.32 per file)
-- ✅ **Production-Ready Core**: RateLimiter, CircuitBreaker, retry logic, and structured logging
-- ✅ **Good Test Coverage**: 139 test files for 169 source files (82% ratio)
-- ✅ **Consistent Normalizers**: Each adapter has a dedicated normalizer for data transformation
+## Architecture
 
-### Critical Issues Found
-- 🔴 **21 files with console.log**: Should use Logger instead (src/core/logger.ts, src/adapters/*/error-codes.ts)
-- 🟡 **WebSocket Implementation Gaps**: Only 55 files with WebSocket code across 13 adapters
-- 🟡 **Inconsistent Feature Completeness**: Some adapters have NotSupportedError stubs
-- 🟡 **Deprecated Code**: 7 @deprecated annotations need cleanup (e.g., GRVTAdapterConfig, hasWasmSigning)
-
----
-
-## 1. Architecture Analysis
-
-### 1.1 BaseAdapter Pattern (Post-Refactor)
-
-**Location**: `src/adapters/base/`
-
-The SDK uses a modern **mixin-based composition** architecture (as of commit `420599c`):
+### Directory Layout
 
 ```
-BaseAdapterCore (state + abstract methods)
-  ↓
-BaseAdapter = BaseAdapterCore + 6 mixins
-  ↓
-[Adapter]Adapter (e.g., HyperliquidAdapter)
+src/
+├── adapters/           # 17 adapter directories (16 exchanges + base)
+│   ├── base/           # BaseAdapter (1,394 lines) + BaseAdapterCore + mixins
+│   ├── hyperliquid/    # Most mature: 12 files, full WebSocket
+│   ├── dydx/           # 8 files, Cosmos SDK integration
+│   ├── lighter/        # 15 files, WASM signer support
+│   ├── aster/          # 8 files, Binance-style API (newest)
+│   ├── pacifica/       # 8 files, Solana-based (newest)
+│   ├── ostium/         # 10 files, RWA perps (newest)
+│   └── ... (10 more: grvt, paradex, edgex, backpack, nado, variational,
+│            extended, drift, jupiter, gmx)
+├── core/               # Infrastructure (9 files)
+│   ├── CircuitBreaker.ts, RateLimiter.ts, retry.ts, resilience.ts
+│   ├── logger.ts, http/HTTPClient.ts
+│   ├── calculations/pnl.ts
+│   └── validation/     # Zod-based runtime validation
+├── types/              # 6 files: adapter.ts (937 lines), common.ts (907), errors.ts (497)
+├── utils/              # 5 files: symbols.ts, config.ts, crypto.ts, buffer.ts, type-guards.ts
+├── websocket/          # WebSocketClient.ts (369 lines), WebSocketManager.ts
+├── monitoring/         # Prometheus metrics + metrics HTTP server
+├── browser/            # Browser WebSocket polyfill
+├── factory.ts          # Exchange factory with plugin registry
+└── index.ts            # Barrel exports (348 lines)
 ```
 
-**Mixins** (`src/adapters/base/mixins/`):
-1. **LoggerMixin** - Structured logging with correlation IDs
-2. **MetricsTrackerMixin** - Request/latency/error tracking
-3. **CacheManagerMixin** - TTL-based caching for markets
-4. **HealthCheckMixin** - Multi-component health checks
-5. **HttpRequestMixin** - Standardized HTTP requests with retry/circuit breaker
-6. **OrderHelpersMixin** - Order creation convenience methods
+### Adapter Pattern
 
-**Files**:
-- `BaseAdapterCore.ts` (100 lines) - Core state and abstract properties
-- `BaseAdapter.ts` (200+ lines) - Fully composed adapter with mixins
-- `BaseNormalizer.ts` - Reusable normalization utilities (parseDecimal, buildUnifiedSymbol, etc.)
-- `OrderHelpers.ts` - Order request factory functions
+The architecture follows a clean **Template Method / Strategy** pattern:
 
-**Assessment**: ✅ **EXCELLENT** - Clean separation of concerns, high cohesion, low coupling. Mixins enable selective composition without inheritance bloat.
+1. **`IExchangeAdapter`** (937 lines) — comprehensive interface with 50+ methods spanning market data, trading, positions, WebSocket, and account history
+2. **`BaseAdapter`** (1,394 lines) — abstract base class providing:
+   - HTTP request handling with retry (3 attempts, exponential backoff)
+   - Circuit breaker integration
+   - Market cache management (5-min TTL)
+   - Health check orchestration
+   - Metrics tracking (latency, success/failure, per-endpoint)
+   - Validation (Zod-based `validateOrderRequest`)
+   - CCXT convenience methods (`createLimitBuyOrder`, etc.)
+   - Python-style snake_case aliases
+   - Resource tracking (timers, intervals, AbortControllers)
+   - Default `NotSupportedError` for unimplemented features
+3. **Exchange Adapters** — each implements:
+   - `has` feature map (which features are supported)
+   - `symbolToExchange` / `symbolFromExchange` for symbol normalization
+   - Market data methods (fetchMarkets, fetchTicker, etc.)
+   - Trading methods (createOrder, cancelOrder, etc.)
+   - Separate files for: Auth, Normalizer, Constants, Types, Utils, Error Codes
 
-### 1.2 Adapter File Count Distribution
-
-```
-base:        12 files (mixins + utilities)
-lighter:     15 files (most complex - WASM + HMAC auth modes)
-paradex:     12 files (StarkNet + JWT + Paraclear SDK)
-grvt:        11 files (GRVT SDK wrapper)
-jupiter:     10 files (Solana integration)
-drift:       10 files (Drift SDK wrapper)
-gmx:         10 files (read-only, on-chain data)
-hyperliquid:  9 files (EIP-712 signing)
-extended:     9 files (StarkNet)
-nado:         9 files (Ink L2)
-edgex:        8 files (StarkNet)
-dydx:         8 files (Cosmos SDK)
-backpack:     8 files (ED25519 Solana)
-variational:  7 files (simplest - RFQ-based)
-```
-
-**Pattern**: More files correlates with complexity (multi-auth modes, SDK wrappers, WebSocket handlers).
-
-### 1.3 Per-Adapter Components
-
-**Typical structure**:
-```
-src/adapters/[exchange]/
-├── [Exchange]Adapter.ts       # Main adapter (extends BaseAdapter)
-├── [Exchange]Auth.ts           # Authentication strategy
-├── [Exchange]Normalizer.ts    # Data transformation
-├── [Exchange]WebSocket.ts     # WebSocket handler
-├── constants.ts                # URLs, rate limits, configs
-├── types.ts                    # Exchange-specific types
-├── utils.ts                    # Utility functions
-└── error-codes.ts              # Error mapping
-```
-
-**Consistency**: ✅ All 13 adapters follow this pattern. No architectural drift detected.
-
----
-
-## 2. Code Quality Analysis
-
-### 2.1 Type Safety Issues
-
-**`any` usage** (55 files total):
-
-```typescript
-// High-risk files (require manual review):
-src/adapters/grvt/GRVTAdapter.ts
-src/adapters/paradex/ParadexAdapter.ts
-src/adapters/drift/DriftAdapter.ts
-src/adapters/extended/ExtendedAdapter.ts
-src/factory.ts (lines 55-67: AdapterConstructor casts)
-src/core/logger.ts (meta?: any)
-```
-
-**Type casts with `as unknown`** (36 files):
-- Most occurrences are in normalizers (safe - converting external API responses)
-- Factory pattern uses `as AdapterConstructor` (acceptable for registry)
-
-**Assessment**: 🟡 **ACCEPTABLE** - Average 0.32 `any` per file is low. Most are in boundary layers (API responses, SDK wrappers). No unsafe patterns detected.
-
-### 2.2 Console.log Usage ❗
-
-**21 files with console.log/warn/error**:
-
-```typescript
-// CRITICAL - Should use Logger:
-src/core/logger.ts:89 - console.warn (bootstrapping issue)
-src/adapters/grvt/GRVTAdapter.ts
-src/adapters/paradex/ParadexAdapter.ts
-src/adapters/extended/ExtendedAdapter.ts
-src/adapters/nado/NadoAdapter.ts
-
-// Error mappers (acceptable for debugging):
-src/adapters/*/error-codes.ts (13 files)
-
-// Mixins:
-src/adapters/base/mixins/CacheManagerMixin.ts
-src/adapters/base/mixins/MetricsTrackerMixin.ts
-```
-
-**Recommendation**: Replace all `console.*` with `this.logger.*` from LoggerMixin. Only exception: `src/core/logger.ts` (bootstrapping).
-
-### 2.3 TODO/FIXME Comments
-
-Only **2 TODOs** found (excellent):
-
-```typescript
-// src/adapters/variational/constants.ts:13
-websocket: 'wss://ws.variational.io', // TODO: Update when WebSocket available
-
-// src/adapters/variational/constants.ts:16
-rest: 'https://omni-client-api.testnet.variational.io', // TODO: Update when testnet available
-```
-
-**Assessment**: ✅ **EXCELLENT** - No abandoned work, no technical debt flags.
-
-### 2.4 Deprecated Code
-
-**7 @deprecated annotations**:
-
-```typescript
-// src/adapters/grvt/GRVTAdapter.ts:60
-export type GRVTAdapterConfig = GRVTConfig; // @deprecated Use GRVTConfig instead
-
-// src/adapters/jupiter/JupiterAdapter.ts:83
-export type JupiterAdapterConfig = JupiterConfig; // @deprecated
-
-// src/adapters/lighter/LighterAdapter.ts:211
-hasAuth() // @deprecated Use hasWasmSigning instead
-
-// src/adapters/nado/types.ts:66, 84
-NadoMarket, NadoMarketSchema // @deprecated (API assumptions were wrong)
-
-// src/adapters/backpack/utils.ts:60
-mapError() // @deprecated Use mapBackpackError from error-codes.ts
-```
-
-**Action Required**: These should either be removed or kept with a deprecation timeline.
-
----
-
-## 3. Adapter Implementation Completeness
-
-### 3.1 Test Coverage Comparison
+### Per-Adapter Architecture Pattern (consistent across all 16)
 
 ```
-Exchange      | Source Files | Test Files | Ratio
---------------|--------------|------------|------
-Hyperliquid   |      9       |     7      | 78%
-Lighter       |     15       |    10      | 67%
-GRVT          |     11       |     9      | 82%
-Paradex       |     12       |    11      | 92% ⭐
-EdgeX         |      8       |     6      | 75%
-Backpack      |      8       |     5      | 63%
-Nado          |      9       |     7      | 78%
-Variational   |      7       |     5      | 71%
-Extended      |      9       |     7      | 78%
-dYdX          |      8       |     7      | 88%
-Jupiter       |     10       |     7      | 70%
-Drift         |     10       |     7      | 70%
-GMX           |     10       |     6      | 60%
+<Exchange>/
+├── <Exchange>Adapter.ts       # Main adapter (640-1,025 lines)
+├── <Exchange>Auth.ts          # Authentication strategy
+├── <Exchange>Normalizer.ts    # API response → unified types
+├── constants.ts               # URLs, rate limits, mappings
+├── types.ts                   # Exchange-specific raw types
+├── utils.ts                   # Exchange-specific utilities
+├── error-codes.ts             # Error code mapping
+├── index.ts                   # Barrel exports
+└── <Exchange>WebSocket*.ts    # (if supported) WebSocket wrapper
 ```
 
-**Average**: 74% test coverage ratio
-**Best**: Paradex (92%), dYdX (88%), GRVT (82%)
-**Needs Improvement**: GMX (60%), Backpack (63%), Lighter (67%)
+### Core Infrastructure
 
-### 3.2 Feature Implementation Status
+| Component | Implementation | Quality |
+|-----------|---------------|---------|
+| **Rate Limiter** | Token bucket with per-endpoint weights, queue, destroy cleanup | Production-ready |
+| **Circuit Breaker** | 3-state (CLOSED/OPEN/HALF_OPEN), configurable thresholds, EventEmitter events | Production-ready |
+| **Retry** | Exponential backoff, configurable, stats tracking, `withRetry` wrapper | Production-ready |
+| **Resilience** | Composable: circuit breaker + retry + fallback + bulkhead + timeout + cache | Production-ready |
+| **Logger** | Structured JSON, LogLevels, correlation IDs, sensitive data masking | Production-ready |
+| **HTTPClient** | Separate class (used by newer adapters), vs. `BaseAdapter.request()` | Two patterns co-exist |
+| **Validation** | Zod schemas for Order, Position, Market, etc. + middleware validators | Production-ready |
+| **WebSocket** | Client + Manager, auto-reconnect, heartbeat, subscription management | Production-ready |
 
-**From README.md analysis**:
+### Type System
 
-| Adapter | Market Data | Trading | Account | WebSocket | Status |
-|---------|-------------|---------|---------|-----------|--------|
-| Hyperliquid | ✅ Full | ✅ Full | ✅ Full | ✅ Full | Production |
-| GRVT | ✅ Full | ✅ Full | ✅ Full | ✅ Full | Production |
-| Paradex | ✅ Full | ✅ Full | ✅ Full | ✅ Full | Production |
-| Lighter | ✅ Full | ✅ Full | ✅ Full | ✅ Full | Production |
-| Backpack | ✅ Full | ✅ Full | ✅ Full | ✅ Full | Production |
-| EdgeX | ⚠️ No REST trades | ✅ Full | ⚠️ No history | ✅ Full | Production |
-| Nado | ⚠️ No REST trades | ✅ Full | ⚠️ No myTrades | ✅ Full | Production |
-| dYdX | ✅ Full | ✅ Full | ✅ Full | ✅ Full | Production |
-| Drift | ✅ Full | ✅ Full | ✅ Full | ✅ Full | Production |
-| Jupiter | ⚠️ No fetchTrades | ✅ Full | ⚠️ No history | ❌ No WS | Production |
-| Extended | ✅ Full | ✅ Full | ✅ Full | ✅ Full | Mainnet Only |
-| Variational | ❌ No fetchTrades | ✅ Full | ✅ Full | ❌ No WS | Dev |
-| GMX | ⚠️ Read-only | ❌ No trading* | ❌ No account | ❌ No WS | Read-Only |
+- **TypeScript Strict Mode**: All strict checks enabled (`strict: true`, `noUncheckedIndexedAccess`, `noImplicitReturns`, `noUnusedLocals/Parameters`)
+- **ES2022 target**: Modern JavaScript output
+- **Generics usage**: Factory `createExchange<T>` with mapped config types
+- **Const assertions**: `as const` for all enums (ORDER_TYPES, ORDER_SIDES, etc.)
+- **Type guards**: `isPerpDEXError`, `isRateLimitError`, `isAuthError`, etc.
+- **`as any` count**: Only 13 occurrences across 6 files (excellent for 60K lines)
 
-*GMX requires on-chain transactions via ExchangeRouter contract
+### Error Handling
 
-### 3.3 NotSupportedError Usage
+Comprehensive error hierarchy with 20+ typed error classes:
 
-Only **3 files** throw NotSupportedError (minimal stubs - good sign):
-- Located in less mature adapters (GMX, Variational)
-- Expected for read-only or limited-feature exchanges
-
----
-
-## 4. Error Handling Consistency
-
-### 4.1 Error Architecture
-
-**Core Errors** (`src/types/errors.ts`):
-```typescript
+```
 PerpDEXError (base)
-├── ExchangeUnavailableError
-├── RateLimitError
-├── InvalidOrderError
-├── InsufficientMarginError
-├── OrderNotFoundError
-├── InvalidSignatureError
+├── ExchangeError
 ├── NotSupportedError
-└── WebSocketDisconnectedError
+├── BadRequestError / BadResponseError
+├── AuthenticationError
+│   ├── InvalidSignatureError
+│   ├── ExpiredAuthError
+│   └── InsufficientPermissionsError
+├── NetworkError
+│   ├── RateLimitError (with retryAfter)
+│   ├── ExchangeUnavailableError
+│   └── WebSocketDisconnectedError
+├── Trading Errors
+│   ├── InsufficientMarginError / InsufficientBalanceError
+│   ├── InvalidOrderError / OrderNotFoundError / OrderRejectedError
+│   ├── MinimumOrderSizeError
+│   └── LiquidationError
+├── Validation Errors
+│   ├── ValidationError
+│   ├── InvalidSymbolError
+│   └── InvalidParameterError
+├── Timeout Errors
+│   └── RequestTimeoutError
+└── DEX-Specific
+    ├── TransactionFailedError (with txHash)
+    └── SlippageExceededError (with expectedPrice/actualPrice)
 ```
 
-**Per-Adapter Error Mappers**:
-- All 13 adapters have `error-codes.ts` or `[Exchange]ErrorMapper.ts`
-- Maps exchange-specific error codes to PerpDEXError hierarchy
-- Consistent pattern:
-  ```typescript
-  export function mapError(error: unknown): PerpDEXError {
-    // Map axios/fetch errors
-    // Map exchange-specific codes
-    // Fallback to PerpDEXError
-  }
-  ```
+All errors include: `code`, `exchange`, `correlationId`, `originalError`, and `toJSON()`.
 
-**Assessment**: ✅ **EXCELLENT** - Uniform error handling across all adapters.
+**StandardErrorCodes** provides 30+ standardized string codes for consistent error mapping across adapters.
 
-### 4.2 Retry & Circuit Breaker
+Each adapter has a dedicated `error-codes.ts` with an error mapper function (e.g., `mapAsterError`, `mapOstiumError`).
 
-**RateLimiter** (`src/core/RateLimiter.ts`):
-- Token bucket algorithm
-- Endpoint-specific weights
-- Queue-based request management
-- Resource cleanup on destroy
+## Feature Matrix
 
-**CircuitBreaker** (`src/core/CircuitBreaker.ts`):
-- 3 states: CLOSED → OPEN → HALF_OPEN
-- Configurable thresholds (failure count, error rate, time window)
-- EventEmitter for state change notifications
-- Integrated with BaseAdapter
+### Exchange Support Summary (16 Exchanges)
 
-**Retry Logic** (`src/core/retry.ts`):
-- Exponential backoff with jitter
-- Configurable max attempts
-- Idempotency checks
+| Exchange | Chain | Auth | Markets | Public API | Trading | Account | WebSocket | Overall |
+|----------|-------|------|---------|:----------:|:-------:|:-------:|:---------:|:-------:|
+| **Extended** | StarkNet | API Key | 94 perp | 6/7 (86%) | 6/6 (100%) | 8/8 (100%) | 7/8 (88%) | **93%** |
+| **Hyperliquid** | L1 | EIP-712 | 228 perp | 6/7 (86%) | 5/6 (83%) | 7/8 (88%) | 6/8 (75%) | **83%** |
+| **dYdX v4** | Cosmos | Cosmos SDK | 220+ perp | 7/7 (100%) | 5/6 (83%) | 5/8 (63%) | 7/8 (88%) | **83%** |
+| **GRVT** | zkSync | API Key + EIP-712 | 80 perp | 6/7 (86%) | 4/6 (67%) | 5/8 (63%) | 6/8 (75%) | **72%** |
+| **Drift** | Solana | Solana Wallet | 30+ perp | 6/7 (86%) | 3/6 (50%) | 5/8 (63%) | 7/8 (88%) | **72%** |
+| **Paradex** | StarkNet | StarkNet + JWT | 108 perp | 5/7 (71%) | 3/6 (50%) | 6/8 (75%) | 7/8 (88%) | **71%** |
+| **Backpack** | Solana | ED25519 | 75+79 | 5/7 (71%) | 3/6 (50%) | 5/8 (63%) | 6/8 (75%) | **65%** |
+| **Lighter** | Lighter L2 | WASM Signing | 132 perp | 5/7 (71%) | 3/6 (50%) | 5/8 (63%) | 6/8 (75%) | **65%** |
+| **Nado** | Ink L2 | EIP-712 | 23+3 | 4/7 (57%) | 4/6 (67%) | 5/8 (63%) | 5/8 (63%) | **62%** |
+| **EdgeX** | StarkNet | StarkNet ECDSA | 292 perp | 4/7 (57%) | 5/6 (83%) | 4/8 (50%) | 6/8 (75%) | **62%** |
+| **Aster** | BNB Chain | HMAC-SHA256 | 100+ perp | 7/7 (100%) | 3/6 (50%) | 4/8 (50%) | 0/8 (0%) | **48%** |
+| **Variational** | - | API Key | RFQ | 4/7 (57%) | 5/6 (83%) | 4/8 (50%) | 0/8 (0%) | **45%** |
+| **Pacifica** | Solana | ED25519 | 50+ perp | 5/7 (71%) | 3/6 (50%) | 4/8 (50%) | 0/8 (0%) | **41%** |
+| **Jupiter** | Solana | Solana Wallet | 3 perp | 5/7 (71%) | 3/6 (50%) | 3/8 (38%) | 0/8 (0%) | **38%** |
+| **Ostium** | Arbitrum | ethers.js | 11 RWA | 3/7 (43%) | 3/6 (50%) | 3/8 (38%) | 0/8 (0%) | **31%** |
+| **GMX v2** | Arbitrum | On-chain | 11 perp | 5/7 (71%) | 0/6 (0%) | 0/8 (0%) | 0/8 (0%) | **17%** |
 
-**Assessment**: ✅ **PRODUCTION-READY** - Enterprise-grade resilience patterns.
+### Public API Methods
 
----
+| Method | HL | EdgeX | Ext | GRVT | Paradex | Backpack | Lighter | Nado | Var | dYdX | Jupiter | Drift | GMX | Aster | Pacifica | Ostium |
+|--------|:--:|:-----:|:---:|:----:|:-------:|:--------:|:-------:|:----:|:---:|:----:|:-------:|:-----:|:---:|:-----:|:--------:|:------:|
+| fetchMarkets | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y |
+| fetchTicker | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y |
+| fetchOrderBook | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | - | Y | Y | - |
+| fetchTrades | Y | - | Y | Y | Y | Y | Y | ~ | - | Y | - | Y | - | Y | Y | Y |
+| fetchOHLCV | Y | - | - | Y | - | - | - | - | - | Y | - | Y | Y | Y | - | - |
+| fetchFundingRate | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y | - |
+| fetchFundingRateHistory | Y | - | Y | - | Y | Y | - | - | - | Y | - | - | - | Y | - | - |
 
-## 5. WebSocket Infrastructure
+(Y = implemented, ~ = partial, - = not implemented)
 
-### 5.1 Implementation Status
+### WebSocket Support Distribution
 
-**Files with WebSocket code**: 55 files
+- **Full WebSocket (7+ streams)**: Extended, dYdX, Drift, Paradex, Hyperliquid
+- **Partial WebSocket (5-6 streams)**: GRVT, Backpack, Lighter, EdgeX, Nado
+- **No WebSocket**: Aster, Pacifica, Ostium, Jupiter, Variational, GMX
 
-**Core WebSocket** (`src/websocket/`):
-- `WebSocketClient.ts` - Low-level WS client with reconnect
-- `WebSocketManager.ts` - Manages multiple WS connections
-- `types.ts` - WS event types
+### Key Feature Gaps
 
-**Per-Adapter WebSocket Handlers**:
-```
-Implemented (9/13):
-✅ Hyperliquid - HyperliquidWebSocket.ts
-✅ Lighter - LighterWebSocket.ts
-✅ GRVT - GRVTWebSocketWrapper.ts
-✅ Paradex - ParadexWebSocketWrapper.ts
-✅ EdgeX - (integrated in EdgeXAdapter)
-✅ Backpack - (integrated in BackpackAdapter)
-✅ Nado - subscriptions.ts
-✅ dYdX - (SDK wrapper)
-✅ Drift - (SDK wrapper)
+- **5 exchanges lack WebSocket entirely** (Aster, Pacifica, Ostium, Jupiter, Variational)
+- **GMX v2 is read-only** (no trading, requires on-chain tx through ExchangeRouter)
+- **fetchOHLCV** only on 7/16 exchanges
+- **fetchOrderHistory** only on 10/16 exchanges
+- **setLeverage** only on 8/16 exchanges
 
-Not Implemented (4/13):
-❌ Extended - No WebSocket yet
-❌ Variational - "TODO: Update when WebSocket available"
-❌ Jupiter - No native WS support
-❌ GMX - Read-only, no WS needed
-```
+## Developer Experience
 
-**WebSocket Reconnect Config** (example from Hyperliquid):
+### Getting Started (Good)
+
 ```typescript
-HYPERLIQUID_WS_RECONNECT = {
-  maxAttempts: 10,
-  initialDelay: 1000,
-  maxDelay: 30000,
-  backoffMultiplier: 1.5,
+import { createExchange } from 'pd-aio-sdk';
+
+const exchange = createExchange('hyperliquid', { testnet: true });
+await exchange.initialize();
+const markets = await exchange.fetchMarkets();
+```
+
+- Factory pattern with typed config per exchange
+- `getSupportedExchanges()` for discovery
+- Plugin system via `registerExchange()` for custom adapters
+
+### API Consistency (Very Good)
+
+- **Unified symbol format**: `BTC/USDT:USDT` (CCXT-compatible)
+- **Consistent method signatures**: All adapters implement same interface
+- **Feature discovery**: `exchange.has.fetchOHLCV` before calling
+- **CCXT-compatible convenience methods**: `createLimitBuyOrder()`, `createMarketSellOrder()`, etc.
+- **Python aliases**: `exchange.fetch_markets()`, `exchange.create_order()`, etc.
+
+### TypeScript Quality (Excellent)
+
+- All strict mode checks enabled
+- `ExchangeConfigMap` provides per-exchange type narrowing
+- `FeatureMap` with 40+ boolean/string flags
+- Const assertions for all enum-like values
+- Only 13 `as any` in 60K lines of source
+- `noUncheckedIndexedAccess` enabled
+
+### Error Messages (Good)
+
+- Typed errors with exchange context
+- Correlation IDs for request tracing
+- Standard error codes for consistency
+- Per-exchange error code mappers
+
+### Configuration (Good but Complex)
+
+- Base `ExchangeConfig` with common fields (apiUrl, wsUrl, testnet, timeout, debug, rateLimit, circuitBreaker, builderCode)
+- Per-exchange configs add specific auth fields (wallet, privateKey, apiKey, etc.)
+- `.env.example` with 6,229 lines documenting all env vars
+- `validateConfig()` utility for config validation
+
+### Pain Points
+
+1. **Inconsistent HTTP patterns**: Older adapters use `BaseAdapter.request()`, newer ones use `HTTPClient` — two separate HTTP abstractions
+2. **No lazy loading**: All 16 adapters imported in factory.ts even if only 1 is used (impacts bundle size)
+3. **`initialize()` is required but easy to forget** — some methods may silently fail without it
+4. **Large `.env.example`** (6,229 lines) — overwhelming for new users
+
+## Code Quality
+
+### File Size Analysis
+
+| Category | Largest Files | Lines |
+|----------|--------------|-------|
+| Base infrastructure | BaseAdapter.ts | 1,394 |
+| Adapter | JupiterAdapter.ts | 1,025 |
+| Adapter | GmxAdapter.ts | 984 |
+| Adapter | ExtendedAdapter.ts | 944 |
+| Type definitions | adapter.ts | 937 |
+| Type definitions | common.ts | 907 |
+
+**Files exceeding 800 lines** (6 files):
+- `BaseAdapter.ts` (1,394) - justified as the base class
+- `JupiterAdapter.ts` (1,025) - could benefit from decomposition
+- `GmxAdapter.ts` (984) - complex subgraph + contract interactions
+- `ExtendedAdapter.ts` (944) - many features implemented
+- `adapter.ts` (937) - comprehensive interface definition
+- `common.ts` (907) - all unified type definitions
+
+Most adapter files are well within 400-800 line range. The codebase follows the "many small files" pattern well — each exchange has 8-15 focused files.
+
+### Test Coverage
+
+**Global Coverage (from coverage-summary.json):**
+
+| Metric | Covered | Total | Percentage |
+|--------|---------|-------|:----------:|
+| Lines | 8,834 | 11,293 | **78.22%** |
+| Statements | 9,029 | 11,620 | **77.70%** |
+| Functions | 1,958 | 2,342 | **83.60%** |
+| Branches | 3,856 | 5,456 | **70.67%** |
+
+**Test Volume:**
+- 139 unit test files (~64,754 lines)
+- 22 integration test files (~12,978 lines)
+- API contract tests, production tests, manual tests available
+- 6,000+ test cases (per README badge)
+
+**High-Coverage Modules (90%+):**
+- `src/utils/` — 100% statements, 100% functions, 93% branches
+- `src/core/calculations/` — 100% statements, 100% functions, 83% branches
+- `src/adapters/backpack/` — 97-100% across all metrics
+- `src/adapters/hyperliquid/utils.ts` — 91% lines, 88% branches
+- `src/adapters/edgex/utils.ts` — 100% everything
+
+**Low-Coverage Modules (potential risk):**
+- `src/adapters/drift/` — 10% statements, 13% branches (mostly DriftAdapter.ts at 11%)
+- `src/adapters/extended/` — 0% threshold (types.ts has no coverage)
+- `src/adapters/gmx/` — 30% statements, 23% branches
+- `src/adapters/jupiter/` — 45% statements, 35% branches
+- `src/adapters/lighter/signer/` — 38% statements, 20% branches
+
+### ESLint Configuration
+
+Strong configuration with:
+- TypeScript ESLint recommended + type-checked rules
+- `@typescript-eslint/no-explicit-any: 'warn'`
+- `@typescript-eslint/no-floating-promises: 'error'` (important for async code)
+- `@typescript-eslint/await-thenable: 'error'`
+- `no-console: 'warn'` (with allow for warn/error)
+- Prettier integration for formatting
+
+### `as any` Usage (13 occurrences — excellent)
+
+| File | Count | Context |
+|------|:-----:|---------|
+| factory.ts | 1 | AdapterConstructor cast |
+| type-guards.ts | 2 | Type narrowing helpers |
+| DriftAdapter.ts | 5 | @drift-labs/sdk interop |
+| DriftClientWrapper.ts | 3 | @drift-labs/sdk interop |
+| ParadexParaclearWrapper.ts | 1 | @paradex/sdk interop |
+| GRVTWebSocketWrapper.ts | 1 | @grvt/client interop |
+
+Most `as any` usage is at SDK boundary interop — expected and acceptable.
+
+### Code Patterns (Positive)
+
+- **Immutable patterns**: Spread operators for object creation, no mutation of inputs
+- **Consistent Normalizer pattern**: Each adapter maps raw API types → unified types through a dedicated Normalizer class
+- **Error mapping**: Each adapter has dedicated error-code mapper converting exchange-specific errors to `PerpDEXError` subtypes
+- **Resource cleanup**: BaseAdapter tracks timers/intervals/AbortControllers and cleans them in `disconnect()`
+- **Builder code support**: Universal referral/builder code system across 7 exchanges with on/off toggle
+
+## Documentation
+
+### Existing Documentation (4,346+ lines total)
+
+| Document | Lines | Quality |
+|----------|-------|---------|
+| **README.md** | 684 | Excellent — badges, feature matrix, quick start, examples |
+| **README.ko.md** | ~700 | Korean translation (internationalization) |
+| **API.md** | 1,226 | Good — TOC, interface docs, adapter-specific configs |
+| **ADAPTER_GUIDE.md** | 947 | Good — how to build new adapters |
+| **ARCHITECTURE.md** | 794 | Good — system design overview |
+| **CONTRIBUTING.md** | 281 | Basic — code style, PR process |
+| **CHANGELOG.md** | 414 | Basic — version history |
+| **docs/guides/** | 4 files | Exchange-specific guides (Hyperliquid, GRVT, testnet, troubleshooting) |
+| **docs/*.md** | 4 files | Production readiness, security audit, monitoring, landscape |
+| **examples/** | 16 files | Trading, market data, error handling, health, WebSocket, strategies |
+
+### Documentation Gaps
+
+1. **API.md is slightly outdated**: Lists 13 exchanges, missing Aster/Pacifica/Ostium
+2. **No auto-generated TypeDoc output** deployed (typedoc.json exists, `npm run docs` available)
+3. **No migration guide** between SDK versions
+4. **Exchange-specific guides** only for 2/16 exchanges (Hyperliquid, GRVT)
+5. **No cookbook/recipes** for common patterns (cross-exchange arbitrage, risk management, portfolio tracking)
+
+### JSDoc Coverage
+
+Public API types (`adapter.ts`, `common.ts`) have comprehensive JSDoc with `@param`, `@returns`, `@throws`, `@example` annotations. Internal adapter code has moderate JSDoc (mostly class/method-level descriptions, not parameter-level).
+
+## Packaging & Distribution
+
+### package.json Analysis
+
+```json
+{
+  "name": "pd-aio-sdk",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "browser": "./dist/index.js",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "engines": { "node": ">=18.0.0" },
+  "files": ["dist", "src", "native"]
 }
 ```
 
-**Assessment**: 🟡 **GOOD** - 9/13 adapters have WebSocket. Missing 4 are either in-dev or not supported by exchange.
-
-### 5.2 AsyncGenerator Pattern
-
-All `watch*` methods use AsyncGenerator for streaming:
-```typescript
-async *watchOrderBook(symbol: string): AsyncGenerator<OrderBook> {
-  // Yield updates as they arrive
-}
-```
-
-**Benefits**:
-- ✅ Natural for-await-of syntax
-- ✅ Backpressure handling
-- ✅ Memory-efficient streaming
-
----
-
-## 6. Dependencies Analysis
-
-### 6.1 Core Dependencies (package.json)
-
-**SDKs for specific exchanges**:
-- `@drift-labs/sdk@2.155.0` - Drift Protocol
-- `@grvt/client@1.6.11` - GRVT official SDK
-- `@paradex/sdk@0.7.0` - Paradex Paraclear SDK
-- `@oraichain/lighter-ts-sdk@1.1.5` - Lighter WASM signing
-
-**Blockchain Libraries**:
-- `ethers@6.16.0` - EVM chains (Hyperliquid, GRVT, etc.)
-- `starknet@8.9.1` - StarkNet (Paradex, EdgeX, Extended)
-- `@solana/web3.js@1.98.4` - Solana (Jupiter, Drift, Backpack)
-
-**Utilities**:
-- `eventemitter3@5.0.1` - Event handling
-- `ws@8.18.0` - WebSocket client
-- `prom-client@15.1.3` - Prometheus metrics
-- `zod@3.23.0` - Runtime validation (not found in actual usage - potential dead dependency)
-
-**Optional**:
-- `koffi@2.14.1` - Native FFI (for Lighter native signing mode)
-
-**Assessment**: ✅ **CLEAN** - All dependencies are actively used. Only potential issue: `zod` is listed but not found in code.
-
-### 6.2 Import Depth Check
-
-**Deep imports** (`../../..`): Only in mixins (6 files)
-```
-src/adapters/base/mixins/LoggerMixin.ts
-src/adapters/base/mixins/MetricsTrackerMixin.ts
-src/adapters/base/mixins/CacheManagerMixin.ts
-src/adapters/base/mixins/HealthCheckMixin.ts
-src/adapters/base/mixins/HttpRequestMixin.ts
-src/adapters/base/mixins/OrderHelpersMixin.ts
-```
-
-**Reason**: Mixins are in `src/adapters/base/mixins/`, importing from `src/core/`, `src/types/` requires `../../../`.
-
-**Assessment**: ✅ **ACCEPTABLE** - Architectural necessity, not a code smell.
-
----
-
-## 7. Potential Issues & Technical Debt
-
-### 7.1 Code Smells Found
-
-#### 🔴 HIGH PRIORITY
-1. **Console.log in production code** (21 files)
-   - Replace with Logger in adapters (GRVT, Paradex, Extended, Nado)
-   - Exception: error-codes.ts files can keep for debugging
-
-2. **Zod dependency unused** (package.json line 102)
-   - Imported but no actual usage found
-   - Either implement validation or remove dependency
-
-#### 🟡 MEDIUM PRIORITY
-3. **Inconsistent WebSocket implementations**
-   - Extended needs WebSocket handler
-   - Variational waiting on exchange WebSocket support
-
-4. **Deprecated code not cleaned up**
-   - GRVTAdapterConfig, JupiterAdapterConfig type aliases
-   - Lighter's `hasAuth()` method
-
-5. **Test coverage gaps**
-   - GMX (60%), Backpack (63%), Lighter (67%)
-   - Should aim for 80%+ across all adapters
-
-#### 🟢 LOW PRIORITY
-6. **Normalizer utility duplication**
-   - Each adapter has its own normalizer
-   - Some functions (parseDecimal, buildUnifiedSymbol) could be centralized more
-   - **Note**: BaseNormalizer.ts already provides many shared utilities
-
----
-
-## 8. Strengths & Best Practices
-
-### 8.1 Architectural Wins 🏆
-
-1. **Mixin Composition** - Modern, flexible, testable
-2. **Consistent Adapter Pattern** - All 13 adapters follow same structure
-3. **Comprehensive Type System** - IExchangeAdapter interface with 40+ methods
-4. **Factory Pattern** - Extensible via `registerExchange()`
-5. **Resource Cleanup** - Proper disposal in `disconnect()`
-6. **Metrics & Observability** - Prometheus integration, structured logging
-
-### 8.2 Production-Ready Features ✅
-
-- ✅ Rate limiting (token bucket)
-- ✅ Circuit breaker (prevents cascading failures)
-- ✅ Exponential backoff retry
-- ✅ Correlation IDs for distributed tracing
-- ✅ Health checks (multi-component)
-- ✅ Graceful shutdown
-- ✅ Browser compatibility (ws-browser.ts)
-- ✅ TypeScript 5.6+ with strict mode
-
----
-
-## 9. File Ownership & Hotspots
-
-### 9.1 Largest Files (Potential Refactor Candidates)
-
-```bash
-# Run: find src -name "*.ts" -exec wc -l {} + | sort -rn | head -20
-```
-
-**Expected hotspots**:
-- `src/adapters/base/BaseAdapter.ts` - Core adapter (200+ lines, but well-organized)
-- Adapter main files (150-300 lines each)
-- Normalizers (100-200 lines each)
-
-**Assessment**: No excessively large files detected. Most files under 400 lines (within guidelines).
-
-### 9.2 Cross-Adapter Shared Code
-
-**Well-centralized**:
-- `src/core/` - RateLimiter, CircuitBreaker, retry, logger, HTTP client
-- `src/types/` - All shared types
-- `src/adapters/base/` - BaseAdapter, mixins, normalizers, order helpers
-
-**Adapter-specific** (no centralization needed):
-- Authentication strategies (each exchange has unique auth)
-- WebSocket protocols (exchange-specific)
-- Error code mappings (exchange-specific)
-
----
-
-## 10. Recommendations
-
-### 10.1 Immediate Actions (P0)
-
-1. **Remove console.log from adapters** (GRVT, Paradex, Extended, Nado)
-   - Files: `src/adapters/{grvt,paradex,extended,nado}/*Adapter.ts`
-   - Replace with `this.logger.warn()` or `this.logger.error()`
-
-2. **Verify zod usage or remove**
-   - Check if runtime validation is planned
-   - Remove from package.json if unused
-
-3. **Clean up deprecated exports**
-   - Remove or add deprecation timeline comments
-
-### 10.2 Short-Term Improvements (P1)
-
-4. **Increase test coverage**
-   - GMX: 60% → 80%
-   - Backpack: 63% → 80%
-   - Lighter: 67% → 80%
-
-5. **Implement Extended WebSocket**
-   - Create `ExtendedWebSocket.ts`
-   - Add watch* methods
-
-6. **Standardize error-codes.ts console usage**
-   - Add comment: "// Debug console logs - OK for error mapping"
-   - Or wrap in debug flag
-
-### 10.3 Long-Term Enhancements (P2)
-
-7. **Metrics Dashboard**
-   - Already has Prometheus metrics
-   - Add Grafana dashboard templates
-
-8. **Browser Bundle Optimization**
-   - Current setup uses esbuild for CJS
-   - Consider tree-shaking optimization
-
-9. **SDK Versioning Strategy**
-   - Document breaking change policy
-   - Add CHANGELOG.md generation
-
----
-
-## 11. Comparison with CCXT
-
-| Feature | PD-AIO-SDK | CCXT |
-|---------|------------|------|
-| Focus | DEX perpetuals only | CEX + DEX (spot + futures) |
-| Architecture | TypeScript-first, mixins | JavaScript, class hierarchy |
-| Type Safety | ✅ Full TypeScript | ⚠️ JSDoc annotations |
-| Async/Await | ✅ 100% Promise-based | ⚠️ Mixed (some callbacks) |
-| WebSocket | ✅ AsyncGenerator pattern | ✅ Similar approach |
-| Resilience | ✅ Circuit breaker + retry | ⚠️ Basic retry |
-| Exchange Count | 13 DEX perpetuals | 100+ CEX |
-| Auth Complexity | ✅ Native (EIP-712, StarkNet, Solana) | ⚠️ API keys mostly |
-| Maintenance | Single-team, focused | Community-driven, broad |
-
-**Verdict**: PD-AIO-SDK is **narrower but deeper** - fewer exchanges but better DEX-specific features (native wallet signing, on-chain positions, etc.).
-
----
-
-## 12. Conclusion
-
-### Overall Assessment: ⭐⭐⭐⭐½ (4.5/5)
-
-**What's Great**:
-- Modern TypeScript architecture with mixins
-- Production-ready resilience patterns
-- Consistent implementation across 13 adapters
-- Excellent type safety (0.32 `any` per file)
-- Comprehensive error handling
-- Good test coverage (82% ratio)
-
-**What Needs Work**:
-- Remove console.log from adapters
-- Increase test coverage for GMX/Backpack/Lighter
-- Complete WebSocket for Extended
-- Clean up deprecated code
-- Verify zod dependency usage
-
-### Production Readiness: ✅ **READY**
-
-The SDK is **production-ready** for most use cases. Critical path (market data, trading, positions, WebSocket) is well-tested and battle-hardened. Minor issues (console.log, test gaps) are cosmetic and don't affect functionality.
-
-### Recommended Next Steps:
-
-1. **Phase 1** (1-2 days): Console.log cleanup, deprecated code removal
-2. **Phase 2** (1 week): Test coverage to 80%+ for all adapters
-3. **Phase 3** (2 weeks): Extended WebSocket implementation
-4. **Phase 4** (ongoing): Metrics dashboard, documentation improvements
-
----
-
-**Research conducted by**: p-research-code agent
-**Files analyzed**: 169 source files, 139 test files
-**Total lines reviewed**: ~56,687 lines of TypeScript
-**Time to market confidence**: HIGH (SDK is production-ready as-is)
+**Strengths:**
+- ESM-first with CJS fallback via esbuild
+- Browser field with polyfills (ws → browser shim, crypto → false, WASM signer)
+- Source maps and declaration maps included
+- `prepublishOnly` runs build + test
+- `engines` field specifies Node 18+
+
+**Concerns:**
+- **No tree-shaking**: Single entry point exports everything, including all 16 adapters
+- **No subpath exports**: Can't `import { HyperliquidAdapter } from 'pd-aio-sdk/adapters/hyperliquid'`
+- **CJS bundle is fully bundled**: esbuild bundles everything into one file
+- **`files` includes `src`**: Good for source maps, but increases package size
+- **608MB node_modules**: Heavy dependencies (@drift-labs/sdk, @solana/web3.js, starknet, ethers)
+- **6.6MB dist**: Reasonable but could be smaller with tree-shaking
+- **No peer dependencies**: ethers, starknet, @solana/web3.js are all direct deps (users can't deduplicate)
+- **Optional dep `koffi`**: Native FFI for Lighter signer (good use of optionalDependencies)
+
+### Dependency Footprint
+
+| Dependency | Size Impact | Required By |
+|------------|------------|-------------|
+| `@drift-labs/sdk` | Very large | Drift |
+| `@solana/web3.js` | Large | Jupiter, Drift, Pacifica, Backpack |
+| `starknet` | Large | Paradex, EdgeX, Extended |
+| `ethers` | Large | Hyperliquid, GRVT, Ostium |
+| `@paradex/sdk`, `@grvt/client` | Moderate | Paradex, GRVT |
+| `zod` | Small | Core validation |
+| `eventemitter3` | Tiny | Core events |
+
+Users who only need Hyperliquid still install the full Solana + StarkNet stack.
+
+## Strengths
+
+1. **Unmatched breadth**: 16 exchanges in one unified interface — no competitor offers this for perp DEX
+2. **Strong TypeScript**: Strict mode, const assertions, 13 `as any` in 60K lines
+3. **Enterprise infrastructure**: Circuit breaker, rate limiter, Prometheus metrics, structured logging, health checks, retry with backoff
+4. **CCXT-compatible design**: Familiar API for traders/developers already using CCXT
+5. **Comprehensive error hierarchy**: 20+ typed errors with correlation IDs, exchange context, and standard codes
+6. **Good test coverage**: 78% lines, 84% functions, 139 unit test files, 6,000+ tests
+7. **Well-organized codebase**: Consistent adapter structure (Auth/Normalizer/Constants/Types/Utils/ErrorCodes per exchange)
+8. **Builder code system**: Universal referral/fee attribution across 7 exchanges
+9. **Python aliases**: snake_case method names for Python developer familiarity
+10. **Internationalization**: Korean README (significant market for crypto trading)
+11. **Plugin system**: `registerExchange()` allows custom adapter registration
+12. **Resilience utilities**: Composable `withResilience`, `Bulkhead`, `withCache`, `withTimeout` for production use
+
+## Weaknesses & Gaps
+
+### P0 (Critical — would block production/enterprise adoption)
+
+1. **No tree-shaking / lazy loading**: Importing the SDK loads all 16 exchange adapters + all their dependencies (ethers, starknet, @solana/web3.js, @drift-labs/sdk). Bundle size is unacceptable for frontend/serverless use cases.
+2. **Heavy dependency footprint**: 608MB node_modules. Users wanting only 1 exchange still get everything.
+3. **GMX v2 is read-only**: Listed as supported but has 0% trading capability — potentially misleading.
+
+### P1 (High — significant friction for adoption)
+
+4. **No subpath exports**: Can't import individual adapters (`pd-aio-sdk/hyperliquid`)
+5. **5 exchanges have no WebSocket**: Aster, Pacifica, Ostium, Jupiter, Variational — limiting for real-time use cases
+6. **Two HTTP abstraction patterns**: Older adapters use `BaseAdapter.request()`, newer ones use `HTTPClient` class — inconsistency
+7. **Drift/Jupiter/GMX have very low test coverage** (10-30% statements): These are Solana/on-chain adapters with complex interactions
+8. **BaseAdapter at 1,394 lines**: Does too many things — could benefit from further decomposition
+9. **API.md outdated**: Missing 3 newest exchanges (Aster, Pacifica, Ostium)
+
+### P2 (Medium — polish items for competitive positioning)
+
+10. **No exchange-specific guides** for 14/16 exchanges
+11. **No auto-generated API docs** deployed/hosted
+12. **No migration guide** between versions
+13. **Large .env.example** (6,229 lines) — needs exchange-specific sections or splitting
+14. **No cookbook/recipes** for common trading patterns
+15. **No benchmarks** (latency per exchange, throughput, memory)
+16. **No changelog entries since recent Cycles** — CHANGELOG.md needs updating
+
+### P3 (Low — nice-to-have improvements)
+
+17. **Newer adapters (Aster, Pacifica, Ostium)** have fewer features than mature ones
+18. **No browser-specific test suite** — browser field exists but not tested
+19. **`koffi` optional dep** may confuse users who don't need Lighter
+20. **No OpenAPI/Swagger spec** for the unified interface
+
+## Recommendations
+
+### Immediate (next release)
+
+1. **Add subpath exports** to package.json for per-adapter imports:
+   ```json
+   {
+     "exports": {
+       ".": { ... },
+       "./hyperliquid": "./dist/adapters/hyperliquid/index.js",
+       "./dydx": "./dist/adapters/dydx/index.js"
+     }
+   }
+   ```
+2. **Update API.md** to include all 16 exchanges
+3. **Mark GMX v2 as "read-only / market-data only"** more prominently
+4. **Increase test coverage for Drift** (currently 10%) — at minimum for core trading flows
+
+### Short-term (next 2-3 releases)
+
+5. **Implement lazy adapter loading** in factory.ts using dynamic imports
+6. **Migrate all adapters to HTTPClient** pattern (standardize away from `BaseAdapter.request()`)
+7. **Add WebSocket support** for Aster and Pacifica (both exchanges have WebSocket APIs)
+8. **Deploy TypeDoc** to GitHub Pages
+9. **Create exchange-specific guides** for top 5 exchanges by usage
+
+### Medium-term (v1.0 readiness)
+
+10. **Move exchange-specific SDKs to peer/optional deps** (@drift-labs/sdk, starknet, @solana/web3.js) so users only install what they need
+11. **Add benchmark suite** comparing adapter latencies
+12. **Add browser test suite** with Playwright
+13. **Create cookbook** with cross-exchange arbitrage, DCA, portfolio rebalancing examples
+14. **Consider monorepo split**: `@pd-aio/core`, `@pd-aio/hyperliquid`, `@pd-aio/dydx`, etc.
+
+## Handoff
+
+- **Attempted**: Full codebase analysis covering architecture, types, adapters, tests, docs, packaging across all 16 exchanges
+- **Worked**: Comprehensive data collection from src/, tests/, coverage-summary.json, package.json, tsconfig.json; analysis of feature maps, error hierarchy, type system, file sizes, test coverage, dependency footprint
+- **Failed**: Could not run actual test suite or build (read-only analysis); could not measure actual bundle size via bundlephobia
+- **Remaining**: Live test execution, ESLint run output analysis, `npm audit` security check, actual bundle size measurement, per-adapter latency benchmarking
