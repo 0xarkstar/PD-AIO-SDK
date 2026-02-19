@@ -11,6 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] - Cycle 15
+
+### Fixed (Cycle 15)
+
+#### OHLCV Adapter Fixes
+- **dYdX**: Fixed 404 on fetchOHLCV — candles endpoint requires plural `perpetualMarkets` (not `perpetualMarket`)
+- **GMX**: Fixed "Unknown exchange error" — API returns `{period, candles: [[ts,o,h,l,c]]}` wrapper; adapter now unwraps `response.candles` and normalizer handles tuple format
+- **GRVT**: Fixed 400 on fetchOHLCV — replaced SDK `getCandlestick()` with direct POST to `/full/v1/kline` using `CandlestickInterval` enum strings (`CI_1_H`), `type: 'TRADE'`, and nanosecond timestamps
+
+#### Live API Validation
+- `NotSupportedError` now reported as SKIP instead of ERROR for accurate pass/fail counts
+- **Pacifica**: Marked as Closed Beta — public API unavailable, `fetchOHLCV` set to `false` in feature map
+
+---
+
 ## [0.2.0] - 2026-02-14
 
 > Cycles 4-13: Major quality push, 3 new exchanges, builder codes, subpath exports, live API verification, and npm publish readiness.

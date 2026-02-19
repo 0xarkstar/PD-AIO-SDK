@@ -44,12 +44,18 @@ export class PacificaAdapter extends BaseAdapter {
   readonly id = 'pacifica';
   readonly name = 'Pacifica';
 
+  /**
+   * Feature map.
+   * Note: Pacifica is in Closed Beta (invite only). Public API currently unavailable.
+   * All endpoints at api.pacifica.fi return 404.
+   */
   readonly has: Partial<FeatureMap> = {
     fetchMarkets: true,
     fetchTicker: true,
     fetchOrderBook: true,
     fetchTrades: true,
     fetchFundingRate: true,
+    fetchOHLCV: false,
     createOrder: true,
     cancelOrder: true,
     cancelAllOrders: false,

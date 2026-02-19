@@ -22,6 +22,7 @@ function createTestAdapter(): GRVTAdapter {
     getOrderBook: jest.fn(async () => ({ result: { bids: [], asks: [] } })),
     getTradeHistory: jest.fn(async () => ({ result: [{ id: '1', price: '36000' }] })),
     getCandlestick: jest.fn(async () => ({ result: [{ t: 1700000000000, o: '36000', h: '36500', l: '35800', c: '36200', v: '100' }] })),
+    mdgAxios: { post: jest.fn(async () => ({ data: { result: [{ open_time: '1700000000000000000', open: '36000', high: '36500', low: '35800', close: '36200', volume_b: '100' }] } })) },
     getFunding: jest.fn(async () => ({ result: [{ funding_rate: '0.0001', funding_time: '1700000000000', mark_price: '36000' }] })),
     createOrder: jest.fn(async () => ({ result: { order_id: '123', status: 'active' } })),
     cancelOrder: jest.fn(async () => ({ result: { order_id: '123', status: 'canceled' } })),
@@ -142,14 +143,21 @@ describe('GRVTAdapter Coverage', () => {
   });
 
   describe('fetchOHLCV', () => {
-    it('should fetch OHLCV data', async () => {
+    it('should fetch OHLCV data via direct kline POST', async () => {
       const result = await adapter.fetchOHLCV('BTC/USDT:USDT', '1h');
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveLength(6);
+      expect((adapter as any).sdk.mdgAxios.post).toHaveBeenCalledWith(
+        expect.stringContaining('/full/v1/kline'),
+        expect.objectContaining({
+          interval: 'CI_1_H',
+          type: 'TRADE',
+        })
+      );
     });
 
     it('should return empty for null result', async () => {
-      (adapter as any).sdk.getCandlestick.mockResolvedValue({ result: null });
+      (adapter as any).sdk.mdgAxios.post.mockResolvedValue({ data: { result: null } });
       const result = await adapter.fetchOHLCV('BTC/USDT:USDT');
       expect(result).toEqual([]);
     });
@@ -158,15 +166,16 @@ describe('GRVTAdapter Coverage', () => {
       await adapter.fetchOHLCV('BTC/USDT:USDT', '1m');
       await adapter.fetchOHLCV('BTC/USDT:USDT', '4h');
       await adapter.fetchOHLCV('BTC/USDT:USDT', '1d');
-      expect((adapter as any).sdk.getCandlestick).toHaveBeenCalledTimes(3);
+      expect((adapter as any).sdk.mdgAxios.post).toHaveBeenCalledTimes(3);
     });
 
-    it('should use since and until params', async () => {
+    it('should use since and until params as nanoseconds', async () => {
       await adapter.fetchOHLCV('BTC/USDT:USDT', '1h', { since: 1700000000000, until: 1700100000000, limit: 100 });
-      expect((adapter as any).sdk.getCandlestick).toHaveBeenCalledWith(
+      expect((adapter as any).sdk.mdgAxios.post).toHaveBeenCalledWith(
+        expect.stringContaining('/full/v1/kline'),
         expect.objectContaining({
-          start_time: 1700000000000,
-          end_time: 1700100000000,
+          start_time: '1700000000000000000',
+          end_time: '1700100000000000000',
           limit: 100,
         })
       );

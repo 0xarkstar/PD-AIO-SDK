@@ -11,7 +11,6 @@ import type {
   GmxOrder,
   GmxTrade,
   GmxFundingRate,
-  GmxCandlestick,
 } from '../../src/adapters/gmx/types.js';
 
 describe('GmxNormalizer', () => {
@@ -200,15 +199,10 @@ describe('GmxNormalizer', () => {
   });
 
   describe('normalizeCandle', () => {
-    const mockCandle: GmxCandlestick = {
-      timestamp: 1700000000,
-      open: 3000,
-      high: 3050,
-      low: 2950,
-      close: 3025,
-    };
+    // Tuple format: [timestamp_seconds, open, high, low, close]
+    const mockCandle = [1700000000, 3000, 3050, 2950, 3025];
 
-    test('should normalize candle to OHLCV format', () => {
+    test('should normalize candle tuple to OHLCV format', () => {
       const ohlcv = normalizer.normalizeCandle(mockCandle);
 
       expect(ohlcv).toHaveLength(6);
@@ -222,10 +216,10 @@ describe('GmxNormalizer', () => {
   });
 
   describe('normalizeCandles', () => {
-    test('should normalize array of candles', () => {
-      const candles: GmxCandlestick[] = [
-        { timestamp: 1700000000, open: 3000, high: 3050, low: 2950, close: 3025 },
-        { timestamp: 1700003600, open: 3025, high: 3100, low: 3000, close: 3075 },
+    test('should normalize array of candle tuples', () => {
+      const candles = [
+        [1700000000, 3000, 3050, 2950, 3025],
+        [1700003600, 3025, 3100, 3000, 3075],
       ];
 
       const ohlcv = normalizer.normalizeCandles(candles);

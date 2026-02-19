@@ -50,7 +50,7 @@ import {
   type GMXMarketKey,
 } from './constants.js';
 import { mapGmxError } from './error-codes.js';
-import type { GmxMarketInfo, GmxCandlestick } from './types.js';
+import type { GmxMarketInfo, GmxCandlesResponse } from './types.js';
 
 /**
  * Ticker price data from GMX API
@@ -447,9 +447,9 @@ export class GmxAdapter extends BaseAdapter {
       }
 
       const url = `${this.apiBaseUrl}/prices/candles?${queryParams.toString()}`;
-      const candles = await this.request<GmxCandlestick[]>('GET', url);
+      const response = await this.request<GmxCandlesResponse>('GET', url);
 
-      return this.normalizer.normalizeCandles(candles);
+      return this.normalizer.normalizeCandles(response.candles);
     } catch (error) {
       throw mapGmxError(error);
     }

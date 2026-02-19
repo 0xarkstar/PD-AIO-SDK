@@ -429,7 +429,7 @@ export class DydxAdapter extends BaseAdapter {
         limit: params?.limit ?? 100,
       };
 
-      const url = buildUrl(this.apiUrl, `/candles/perpetualMarket/${exchangeSymbol}`, queryParams);
+      const url = buildUrl(this.apiUrl, `/candles/perpetualMarkets/${exchangeSymbol}`, queryParams);
 
       const response = await this.request<DydxCandlesResponse>('GET', url);
 

@@ -19,7 +19,7 @@ import type {
   GmxOrder,
   GmxTrade,
   GmxFundingRate,
-  GmxCandlestick,
+  GmxCandleTuple,
 } from './types.js';
 import {
   GMX_MARKETS,
@@ -362,15 +362,16 @@ export class GmxNormalizer {
   }
 
   /**
-   * Normalize candlesticks to OHLCV
+   * Normalize candlestick tuple to OHLCV
+   * Input: [timestamp_seconds, open, high, low, close]
    */
-  normalizeCandle(candle: GmxCandlestick): OHLCV {
+  normalizeCandle(candle: GmxCandleTuple): OHLCV {
     return [
-      candle.timestamp * 1000,
-      candle.open,
-      candle.high,
-      candle.low,
-      candle.close,
+      (candle[0] ?? 0) * 1000,
+      candle[1] ?? 0,
+      candle[2] ?? 0,
+      candle[3] ?? 0,
+      candle[4] ?? 0,
       0, // GMX candlestick endpoint doesn't include volume
     ];
   }
@@ -378,7 +379,7 @@ export class GmxNormalizer {
   /**
    * Normalize candlesticks array
    */
-  normalizeCandles(candles: GmxCandlestick[]): OHLCV[] {
+  normalizeCandles(candles: GmxCandleTuple[]): OHLCV[] {
     return candles.map((c) => this.normalizeCandle(c));
   }
 

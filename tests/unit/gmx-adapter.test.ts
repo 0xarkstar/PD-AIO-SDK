@@ -434,24 +434,10 @@ describe('GmxNormalizer Unit Tests', () => {
   });
 
   describe('normalizeCandles', () => {
-    test('should normalize OHLCV data', () => {
+    test('should normalize OHLCV tuple data', () => {
       const mockCandles = [
-        {
-          timestamp: 1700000000,
-          open: '2000.5',
-          high: '2050.0',
-          low: '1980.0',
-          close: '2020.0',
-          volume: '1000000',
-        },
-        {
-          timestamp: 1700003600,
-          open: '2020.0',
-          high: '2100.0',
-          low: '2010.0',
-          close: '2080.0',
-          volume: '1200000',
-        },
+        [1700000000, 2000.5, 2050.0, 1980.0, 2020.0],
+        [1700003600, 2020.0, 2100.0, 2010.0, 2080.0],
       ];
 
       const candles = normalizer.normalizeCandles(mockCandles);

@@ -122,7 +122,21 @@ export interface GmxTokenInfo {
 }
 
 /**
- * Candlestick data from /candlesticks endpoint
+ * Candlestick data tuple from /prices/candles endpoint
+ * Format: [timestamp_seconds, open, high, low, close]
+ */
+export type GmxCandleTuple = number[];
+
+/**
+ * Response wrapper from /prices/candles endpoint
+ */
+export interface GmxCandlesResponse {
+  period: string;
+  candles: GmxCandleTuple[];
+}
+
+/**
+ * @deprecated Use GmxCandleTuple instead — API returns tuples, not objects
  */
 export interface GmxCandlestick {
   timestamp: number;
