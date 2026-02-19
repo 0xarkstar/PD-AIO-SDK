@@ -9,6 +9,7 @@
 
 import { createExchange, type SupportedExchange } from '../../src/factory.js';
 import type { IExchangeAdapter } from '../../src/types/adapter.js';
+import { NotSupportedError } from '../../src/types/errors.js';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -242,6 +243,9 @@ async function testMethod(
       }
     }
   } catch (err) {
+    if (err instanceof NotSupportedError) {
+      return makeSkipResult(err.message);
+    }
     return makeErrorResult(err, Date.now() - start);
   }
 }
