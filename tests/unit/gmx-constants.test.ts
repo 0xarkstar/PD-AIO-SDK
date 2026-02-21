@@ -28,20 +28,23 @@ import {
 
 describe('GMX API URLs', () => {
   test('should have arbitrum endpoints', () => {
-    expect(GMX_API_URLS.arbitrum).toBeDefined();
-    expect(GMX_API_URLS.arbitrum.api).toContain('arbitrum');
-    expect(GMX_API_URLS.arbitrum.chainId).toBe(42161);
+    expect(GMX_API_URLS.arbitrum).toEqual(expect.objectContaining({
+      api: expect.stringContaining('arbitrum'),
+      chainId: 42161
+    }));
   });
 
   test('should have avalanche endpoints', () => {
-    expect(GMX_API_URLS.avalanche).toBeDefined();
-    expect(GMX_API_URLS.avalanche.api).toContain('avalanche');
-    expect(GMX_API_URLS.avalanche.chainId).toBe(43114);
+    expect(GMX_API_URLS.avalanche).toEqual(expect.objectContaining({
+      api: expect.stringContaining('avalanche'),
+      chainId: 43114
+    }));
   });
 
   test('should have testnet endpoints', () => {
-    expect(GMX_API_URLS.arbitrumSepolia).toBeDefined();
-    expect(GMX_API_URLS.arbitrumSepolia.chainId).toBe(421614);
+    expect(GMX_API_URLS.arbitrumSepolia).toEqual(expect.objectContaining({
+      chainId: 421614
+    }));
   });
 
   test('should export shorthand API URLs', () => {
@@ -64,6 +67,7 @@ describe('GMX Precision Constants', () => {
   });
 
   test('should have token decimals defined', () => {
+    expect(typeof GMX_PRECISION.TOKEN_DECIMALS).toBe('object');
     expect(GMX_PRECISION.TOKEN_DECIMALS.ETH).toBe(18);
     expect(GMX_PRECISION.TOKEN_DECIMALS.BTC).toBe(8);
     expect(GMX_PRECISION.TOKEN_DECIMALS.USDC).toBe(6);
@@ -73,7 +77,7 @@ describe('GMX Precision Constants', () => {
 
 describe('GMX Rate Limits', () => {
   test('should have maxRequests defined', () => {
-    expect(GMX_RATE_LIMIT.maxRequests).toBeGreaterThan(0);
+    expect(GMX_RATE_LIMIT.maxRequests).toBe(60);
   });
 
   test('should have window in milliseconds', () => {
@@ -81,36 +85,40 @@ describe('GMX Rate Limits', () => {
   });
 
   test('should have weights for various endpoints', () => {
-    expect(GMX_RATE_LIMIT.weights.fetchMarkets).toBeDefined();
-    expect(GMX_RATE_LIMIT.weights.fetchTicker).toBeDefined();
-    expect(GMX_RATE_LIMIT.weights.fetchOHLCV).toBeDefined();
+    expect(typeof GMX_RATE_LIMIT.weights).toBe('object');
+    expect(GMX_RATE_LIMIT.weights.fetchMarkets).toEqual(expect.any(Number));
+    expect(GMX_RATE_LIMIT.weights.fetchTicker).toEqual(expect.any(Number));
+    expect(GMX_RATE_LIMIT.weights.fetchOHLCV).toEqual(expect.any(Number));
   });
 });
 
 describe('GMX Markets', () => {
   test('should have ETH/USD:ETH market on Arbitrum', () => {
     const market = GMX_MARKETS['ETH/USD:ETH'];
-    expect(market).toBeDefined();
-    expect(market.baseAsset).toBe('ETH');
-    expect(market.quoteAsset).toBe('USD');
-    expect(market.settleAsset).toBe('ETH');
-    expect(market.chain).toBe('arbitrum');
+    expect(market).toEqual(expect.objectContaining({
+      baseAsset: 'ETH',
+      quoteAsset: 'USD',
+      settleAsset: 'ETH',
+      chain: 'arbitrum'
+    }));
     expect(market.marketAddress).toMatch(/^0x[a-fA-F0-9]{40}$/);
   });
 
   test('should have BTC/USD:BTC market on Arbitrum', () => {
     const market = GMX_MARKETS['BTC/USD:BTC'];
-    expect(market).toBeDefined();
-    expect(market.baseAsset).toBe('BTC');
-    expect(market.chain).toBe('arbitrum');
-    expect(market.maxLeverage).toBe(100);
+    expect(market).toEqual(expect.objectContaining({
+      baseAsset: 'BTC',
+      chain: 'arbitrum',
+      maxLeverage: 100
+    }));
   });
 
   test('should have AVAX/USD:AVAX market on Avalanche', () => {
     const market = GMX_MARKETS['AVAX/USD:AVAX'];
-    expect(market).toBeDefined();
-    expect(market.baseAsset).toBe('AVAX');
-    expect(market.chain).toBe('avalanche');
+    expect(market).toEqual(expect.objectContaining({
+      baseAsset: 'AVAX',
+      chain: 'avalanche'
+    }));
   });
 
   test('all markets should have required properties', () => {
@@ -120,7 +128,8 @@ describe('GMX Markets', () => {
       expect(market.longToken).toMatch(/^0x[a-fA-F0-9]{40}$/);
       expect(market.shortToken).toMatch(/^0x[a-fA-F0-9]{40}$/);
       expect(market.symbol).toBe(key);
-      expect(market.baseAsset).toBeTruthy();
+      expect(typeof market.baseAsset).toBe('string');
+      expect(market.baseAsset.length).toBeGreaterThan(0);
       expect(market.quoteAsset).toBe('USD');
       expect(market.maxLeverage).toBeGreaterThan(0);
       expect(market.minOrderSize).toBeGreaterThan(0);
@@ -227,8 +236,8 @@ describe('GMX Funding', () => {
   });
 
   test('should have base rate factor', () => {
-    expect(GMX_FUNDING.baseRateFactor).toBeDefined();
     expect(typeof GMX_FUNDING.baseRateFactor).toBe('number');
+    expect(GMX_FUNDING.baseRateFactor).toBeGreaterThan(0);
   });
 });
 
@@ -266,14 +275,18 @@ describe('getMarketByAddress', () => {
   test('should find ETH market by address', () => {
     const ethMarket = GMX_MARKETS['ETH/USD:ETH'];
     const found = getMarketByAddress(ethMarket.marketAddress);
-    expect(found).toBeDefined();
-    expect(found?.symbol).toBe('ETH/USD:ETH');
+    expect(found).toEqual(expect.objectContaining({
+      symbol: 'ETH/USD:ETH',
+      baseAsset: 'ETH'
+    }));
   });
 
   test('should handle lowercase address', () => {
     const ethMarket = GMX_MARKETS['ETH/USD:ETH'];
     const found = getMarketByAddress(ethMarket.marketAddress.toLowerCase());
-    expect(found).toBeDefined();
+    expect(found).toEqual(expect.objectContaining({
+      baseAsset: 'ETH'
+    }));
   });
 
   test('should return undefined for unknown address', () => {

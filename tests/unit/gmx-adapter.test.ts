@@ -231,31 +231,31 @@ describe('GmxAdapter', () => {
 describe('GmxAdapter Integration-ready', () => {
   test('should be importable from index', async () => {
     const { GmxAdapter, GmxNormalizer } = await import('../../src/adapters/gmx/index.js');
-    expect(GmxAdapter).toBeDefined();
-    expect(GmxNormalizer).toBeDefined();
+    expect(typeof GmxAdapter).toBe('function');
+    expect(typeof GmxNormalizer).toBe('function');
   });
 
   test('should export all necessary types', async () => {
     const gmxModule = await import('../../src/adapters/gmx/index.js');
 
     // Adapter and config
-    expect(gmxModule.GmxAdapter).toBeDefined();
+    expect(typeof gmxModule.GmxAdapter).toBe('function');
 
     // Normalizer
-    expect(gmxModule.GmxNormalizer).toBeDefined();
+    expect(typeof gmxModule.GmxNormalizer).toBe('function');
 
     // Constants
-    expect(gmxModule.GMX_API_URLS).toBeDefined();
-    expect(gmxModule.GMX_MARKETS).toBeDefined();
-    expect(gmxModule.GMX_PRECISION).toBeDefined();
+    expect(typeof gmxModule.GMX_API_URLS).toBe('object');
+    expect(typeof gmxModule.GMX_MARKETS).toBe('object');
+    expect(typeof gmxModule.GMX_PRECISION).toBe('object');
 
     // Error mapping
-    expect(gmxModule.mapGmxError).toBeDefined();
-    expect(gmxModule.GmxErrorCodes).toBeDefined();
+    expect(typeof gmxModule.mapGmxError).toBe('function');
+    expect(typeof gmxModule.GmxErrorCodes).toBe('object');
 
     // Symbol conversion
-    expect(gmxModule.unifiedToGmx).toBeDefined();
-    expect(gmxModule.gmxToUnified).toBeDefined();
+    expect(typeof gmxModule.unifiedToGmx).toBe('function');
+    expect(typeof gmxModule.gmxToUnified).toBe('function');
   });
 
   test('should be available from factory', async () => {
@@ -298,11 +298,13 @@ describe('GmxNormalizer Unit Tests', () => {
 
       const market = normalizer.normalizeMarket(mockMarketInfo, 'arbitrum');
 
-      expect(market).toBeDefined();
-      expect(market.id).toBe(mockMarketInfo.marketToken);
-      expect(market.active).toBe(true);
-      expect(market.base).toBeDefined();
-      expect(market.quote).toBe('USD');
+      expect(market).toEqual(expect.objectContaining({
+        id: mockMarketInfo.marketToken,
+        active: true,
+        quote: 'USD'
+      }));
+      expect(typeof market.base).toBe('string');
+      expect(market.base.length).toBeGreaterThan(0);
     });
 
     test('should handle disabled market', () => {
@@ -402,10 +404,10 @@ describe('GmxNormalizer Unit Tests', () => {
 
       const ticker = normalizer.normalizeTicker(mockMarketInfo, priceData);
 
-      expect(ticker).toBeDefined();
       expect(ticker.last).toBeGreaterThan(0);
-      expect(ticker.bid).toBeDefined();
-      expect(ticker.ask).toBeDefined();
+      expect(ticker.bid).toEqual(expect.any(Number));
+      expect(ticker.ask).toEqual(expect.any(Number));
+      expect(ticker.bid).toBeLessThanOrEqual(ticker.ask);
     });
 
     test('should normalize ticker without price data', () => {
@@ -429,7 +431,10 @@ describe('GmxNormalizer Unit Tests', () => {
 
       const ticker = normalizer.normalizeTicker(mockMarketInfo, undefined);
 
-      expect(ticker).toBeDefined();
+      expect(ticker).toEqual(expect.objectContaining({
+        symbol: expect.any(String),
+        last: expect.any(Number)
+      }));
     });
   });
 
@@ -468,9 +473,11 @@ describe('GmxNormalizer Unit Tests', () => {
 
       const position = normalizer.normalizePosition(mockPosition, 2000, 'arbitrum');
 
-      expect(position).toBeDefined();
       expect(position.side).toBe('long');
       expect(position.marginMode).toBe('cross');
+      expect(position).toHaveProperty('symbol');
+      expect(position).toHaveProperty('size');
+      expect(typeof position.symbol).toBe('string');
     });
 
     test('should normalize short position', () => {
@@ -488,8 +495,10 @@ describe('GmxNormalizer Unit Tests', () => {
 
       const position = normalizer.normalizePosition(mockPosition, 2000, 'arbitrum');
 
-      expect(position).toBeDefined();
       expect(position.side).toBe('short');
+      expect(position).toHaveProperty('symbol');
+      expect(position).toHaveProperty('size');
+      expect(typeof position.symbol).toBe('string');
     });
   });
 
@@ -521,8 +530,10 @@ describe('GmxNormalizer Unit Tests', () => {
 
       const order = normalizer.normalizeOrder(mockOrder, 2000);
 
-      expect(order).toBeDefined();
       expect(order.id).toBe(mockOrder.key);
+      expect(order).toHaveProperty('symbol');
+      expect(order).toHaveProperty('type');
+      expect(order).toHaveProperty('side');
     });
   });
 
@@ -547,9 +558,11 @@ describe('GmxNormalizer Unit Tests', () => {
 
       const trade = normalizer.normalizeTrade(mockTrade);
 
-      expect(trade).toBeDefined();
       expect(trade.id).toBe(mockTrade.id);
       expect(trade.side).toBe('buy');
+      expect(trade).toHaveProperty('symbol');
+      expect(trade).toHaveProperty('price');
+      expect(trade).toHaveProperty('amount');
     });
   });
 
@@ -563,34 +576,43 @@ describe('GmxNormalizer Unit Tests', () => {
 
       const fundingRate = normalizer.normalizeFundingRate(mockFunding, 2000);
 
-      expect(fundingRate).toBeDefined();
-      expect(fundingRate.fundingRate).toBeDefined();
+      expect(fundingRate).toHaveProperty('symbol');
+      expect(fundingRate).toHaveProperty('fundingRate');
+      expect(fundingRate).toHaveProperty('fundingTimestamp');
+      expect(typeof fundingRate.fundingRate).toBe('number');
+      expect(typeof fundingRate.symbol).toBe('string');
     });
   });
 });
 
 describe('GMX Constants', () => {
   test('GMX_MARKETS should contain expected markets', () => {
-    expect(GMX_MARKETS).toBeDefined();
+    expect(typeof GMX_MARKETS).toBe('object');
     expect(Object.keys(GMX_MARKETS).length).toBeGreaterThan(0);
+    expect(GMX_MARKETS).toHaveProperty('ETH/USD:ETH');
   });
 
   test('GMX_PRECISION should have expected values', () => {
-    expect(GMX_PRECISION).toBeDefined();
-    expect(GMX_PRECISION.USD).toBeGreaterThan(0);
-    expect(GMX_PRECISION.PRICE).toBeGreaterThan(0);
+    expect(typeof GMX_PRECISION).toBe('object');
+    expect(GMX_PRECISION.USD).toBe(1e30);
+    expect(GMX_PRECISION.PRICE).toBe(1e30);
   });
 
   test('GMX_API_URLS should have arbitrum and avalanche', () => {
-    expect(GMX_API_URLS.arbitrum).toBeDefined();
-    expect(GMX_API_URLS.avalanche).toBeDefined();
-    expect(GMX_API_URLS.arbitrum.api).toContain('arbitrum');
-    expect(GMX_API_URLS.avalanche.api).toContain('avalanche');
+    expect(GMX_API_URLS.arbitrum).toEqual(expect.objectContaining({
+      api: expect.stringContaining('arbitrum'),
+      chainId: 42161
+    }));
+    expect(GMX_API_URLS.avalanche).toEqual(expect.objectContaining({
+      api: expect.stringContaining('avalanche'),
+      chainId: 43114
+    }));
   });
 
   test('GMX_API_URLS should have testnet config', () => {
-    expect(GMX_API_URLS.arbitrumSepolia).toBeDefined();
-    expect(GMX_API_URLS.arbitrumSepolia.chainId).toBe(421614);
+    expect(GMX_API_URLS.arbitrumSepolia).toEqual(expect.objectContaining({
+      chainId: 421614
+    }));
   });
 });
 
@@ -624,8 +646,8 @@ describe('GMX Symbol Conversion', () => {
 
     test('should find market by base asset', () => {
       const result = unifiedToGmx('ETH/USD');
-      expect(result).toBeDefined();
-      expect(result).toContain('ETH');
+      expect(typeof result).toBe('string');
+      expect(result).toMatch(/ETH/);
     });
 
     test('should return undefined for unknown market', () => {
@@ -639,7 +661,8 @@ describe('GMX Symbol Conversion', () => {
 
     test('should handle case-insensitive base asset', () => {
       const result = unifiedToGmx('eth/usd');
-      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+      expect(result).toMatch(/ETH/i);
     });
   });
 
@@ -654,14 +677,18 @@ describe('GMX Symbol Conversion', () => {
   describe('getMarketByAddress', () => {
     test('should find market by address', () => {
       const market = getMarketByAddress('0x70d95587d40A2caf56bd97485aB3Eec10Bee6336');
-      expect(market).toBeDefined();
-      expect(market?.baseAsset).toBe('ETH');
+      expect(market).toEqual(expect.objectContaining({
+        baseAsset: 'ETH',
+        symbol: expect.stringMatching(/ETH/)
+      }));
     });
 
     test('should find market with lowercase address', () => {
       const market = getMarketByAddress('0x70d95587d40a2caf56bd97485ab3eec10bee6336');
-      expect(market).toBeDefined();
-      expect(market?.baseAsset).toBe('ETH');
+      expect(market).toEqual(expect.objectContaining({
+        baseAsset: 'ETH',
+        marketAddress: expect.stringMatching(/^0x[a-fA-F0-9]{40}$/)
+      }));
     });
 
     test('should return undefined for unknown address', () => {
@@ -730,19 +757,19 @@ describe('GMX Symbol Conversion', () => {
 
   describe('GMX_CONTRACTS', () => {
     test('should have arbitrum contract addresses', () => {
-      expect(GMX_CONTRACTS.arbitrum.exchangeRouter).toBeDefined();
-      expect(GMX_CONTRACTS.arbitrum.router).toBeDefined();
-      expect(GMX_CONTRACTS.arbitrum.dataStore).toBeDefined();
-      expect(GMX_CONTRACTS.arbitrum.reader).toBeDefined();
-      expect(GMX_CONTRACTS.arbitrum.orderVault).toBeDefined();
+      expect(GMX_CONTRACTS.arbitrum.exchangeRouter).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(GMX_CONTRACTS.arbitrum.router).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(GMX_CONTRACTS.arbitrum.dataStore).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(GMX_CONTRACTS.arbitrum.reader).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(GMX_CONTRACTS.arbitrum.orderVault).toMatch(/^0x[a-fA-F0-9]{40}$/);
     });
 
     test('should have avalanche contract addresses', () => {
-      expect(GMX_CONTRACTS.avalanche.exchangeRouter).toBeDefined();
-      expect(GMX_CONTRACTS.avalanche.router).toBeDefined();
-      expect(GMX_CONTRACTS.avalanche.dataStore).toBeDefined();
-      expect(GMX_CONTRACTS.avalanche.reader).toBeDefined();
-      expect(GMX_CONTRACTS.avalanche.orderVault).toBeDefined();
+      expect(GMX_CONTRACTS.avalanche.exchangeRouter).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(GMX_CONTRACTS.avalanche.router).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(GMX_CONTRACTS.avalanche.dataStore).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(GMX_CONTRACTS.avalanche.reader).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(GMX_CONTRACTS.avalanche.orderVault).toMatch(/^0x[a-fA-F0-9]{40}$/);
     });
 
     test('contract addresses should be valid ethereum addresses', () => {
@@ -1403,7 +1430,7 @@ describe('GMX Additional Constants Tests', () => {
     });
 
     test('should have TOKEN_DECIMALS mapping', () => {
-      expect(GMX_PRECISION.TOKEN_DECIMALS).toBeDefined();
+      expect(typeof GMX_PRECISION.TOKEN_DECIMALS).toBe('object');
       expect(GMX_PRECISION.TOKEN_DECIMALS.ETH).toBe(18);
       expect(GMX_PRECISION.TOKEN_DECIMALS.USDC).toBe(6);
       expect(GMX_PRECISION.TOKEN_DECIMALS.BTC).toBe(8);
@@ -1420,8 +1447,8 @@ describe('GMX Additional Constants Tests', () => {
 
   describe('GMX_ERROR_MESSAGES', () => {
     test('should have error message mappings', () => {
-      expect(GMX_ERROR_MESSAGES).toBeDefined();
       expect(typeof GMX_ERROR_MESSAGES).toBe('object');
+      expect(Object.keys(GMX_ERROR_MESSAGES).length).toBeGreaterThan(0);
     });
 
     test('should map common error patterns', () => {
@@ -1439,7 +1466,7 @@ describe('GMX Additional Constants Tests', () => {
     });
 
     test('should have base rate factor', () => {
-      expect(GMX_FUNDING.baseRateFactor).toBeDefined();
+      expect(typeof GMX_FUNDING.baseRateFactor).toBe('number');
       expect(GMX_FUNDING.baseRateFactor).toBeGreaterThan(0);
     });
   });
@@ -1451,7 +1478,7 @@ describe('GMX Additional Constants Tests', () => {
     });
 
     test('should have weight config', () => {
-      expect(GMX_RATE_LIMIT.weights).toBeDefined();
+      expect(typeof GMX_RATE_LIMIT.weights).toBe('object');
       expect(GMX_RATE_LIMIT.weights.fetchMarkets).toBe(1);
       expect(GMX_RATE_LIMIT.weights.fetchPositions).toBe(3);
     });
@@ -1494,17 +1521,17 @@ describe('GmxContracts', () => {
   describe('constructor', () => {
     test('should create with chain, provider, and signer', () => {
       const contracts = new GmxContracts('arbitrum', mockProvider as any, mockSigner as any);
-      expect(contracts).toBeDefined();
+      expect(contracts).toBeInstanceOf(GmxContracts);
     });
 
     test('should create without signer (read-only mode)', () => {
       const contracts = new GmxContracts('arbitrum', mockProvider as any);
-      expect(contracts).toBeDefined();
+      expect(contracts).toBeInstanceOf(GmxContracts);
     });
 
     test('should accept avalanche chain', () => {
       const contracts = new GmxContracts('avalanche', mockProvider as any);
-      expect(contracts).toBeDefined();
+      expect(contracts).toBeInstanceOf(GmxContracts);
     });
   });
 
@@ -1512,17 +1539,17 @@ describe('GmxContracts', () => {
     test('should return arbitrum contract addresses', () => {
       const contracts = new GmxContracts('arbitrum', mockProvider as any);
       const addresses = contracts.getAddresses();
-      expect(addresses.exchangeRouter).toBeDefined();
-      expect(addresses.reader).toBeDefined();
-      expect(addresses.dataStore).toBeDefined();
-      expect(addresses.orderVault).toBeDefined();
+      expect(addresses.exchangeRouter).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(addresses.reader).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(addresses.dataStore).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(addresses.orderVault).toMatch(/^0x[a-fA-F0-9]{40}$/);
     });
 
     test('should return avalanche contract addresses', () => {
       const contracts = new GmxContracts('avalanche', mockProvider as any);
       const addresses = contracts.getAddresses();
-      expect(addresses.exchangeRouter).toBeDefined();
-      expect(addresses.reader).toBeDefined();
+      expect(addresses.exchangeRouter).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(addresses.reader).toMatch(/^0x[a-fA-F0-9]{40}$/);
     });
   });
 
@@ -1542,25 +1569,29 @@ describe('GmxContracts', () => {
     test('getExchangeRouter should return a contract instance', () => {
       const contracts = new GmxContracts('arbitrum', mockProvider as any, mockSigner as any);
       const router = contracts.getExchangeRouter();
-      expect(router).toBeDefined();
+      expect(router).toHaveProperty('interface');
+      expect(router).toHaveProperty('target');
     });
 
     test('getReader should return a contract instance', () => {
       const contracts = new GmxContracts('arbitrum', mockProvider as any);
       const reader = contracts.getReader();
-      expect(reader).toBeDefined();
+      expect(reader).toHaveProperty('interface');
+      expect(reader).toHaveProperty('target');
     });
 
     test('getDataStore should return a contract instance', () => {
       const contracts = new GmxContracts('arbitrum', mockProvider as any);
       const dataStore = contracts.getDataStore();
-      expect(dataStore).toBeDefined();
+      expect(dataStore).toHaveProperty('interface');
+      expect(dataStore).toHaveProperty('target');
     });
 
     test('getOrderVault should return a contract instance', () => {
       const contracts = new GmxContracts('arbitrum', mockProvider as any, mockSigner as any);
       const vault = contracts.getOrderVault();
-      expect(vault).toBeDefined();
+      expect(vault).toHaveProperty('interface');
+      expect(vault).toHaveProperty('target');
     });
 
     test('should cache contract instances (returns same object)', () => {
@@ -1587,7 +1618,7 @@ describe('GmxContracts', () => {
         '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
         true
       );
-      expect(key).toBeDefined();
+      expect(typeof key).toBe('string');
       expect(key).toMatch(/^0x[a-f0-9]{64}$/);
     });
 
@@ -1698,7 +1729,8 @@ describe('GmxAdapter HTTP Methods', () => {
   describe('symbolFromExchange', () => {
     test('should pass through valid GMX market key', () => {
       const result = (adapter as any).symbolFromExchange('ETH/USD:ETH');
-      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
     });
 
     test('should return exchange symbol unchanged for unknown keys', () => {

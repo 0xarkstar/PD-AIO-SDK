@@ -164,7 +164,8 @@ describe('GmxAuth', () => {
         chain: 'arbitrum',
       });
 
-      expect(auth.getRpcEndpoint()).toBeTruthy();
+      expect(typeof auth.getRpcEndpoint()).toBe('string');
+      expect(auth.getRpcEndpoint().length).toBeGreaterThan(0);
     });
   });
 
@@ -207,8 +208,10 @@ describe('GmxAuth', () => {
         chain: 'arbitrum',
       });
 
-      expect(auth.getWallet()).toBeDefined();
-      expect(auth.getSigner()).toBeDefined();
+      const wallet = auth.getWallet();
+      expect(wallet).toHaveProperty('address');
+      expect(wallet?.address).toBe(TEST_ADDRESS);
+      expect(auth.getSigner()).toHaveProperty('provider');
     });
 
     it('should return undefined when no private key', () => {
@@ -229,7 +232,9 @@ describe('GmxAuth', () => {
         chain: 'arbitrum',
       });
 
-      expect(auth.getProvider()).toBeDefined();
+      const provider = auth.getProvider();
+      expect(provider).toHaveProperty('getNetwork');
+      expect(typeof provider.getNetwork).toBe('function');
     });
   });
 
@@ -241,8 +246,9 @@ describe('GmxAuth', () => {
       });
 
       const signature = await auth.signMessage('Hello GMX');
-      expect(signature).toBeTruthy();
-      expect(signature.startsWith('0x')).toBe(true);
+      expect(typeof signature).toBe('string');
+      expect(signature).toMatch(/^0x[a-fA-F0-9]+$/);
+      expect(signature.length).toBeGreaterThan(130); // Ethereum signatures are ~132 chars
     });
 
     it('should throw when no wallet', async () => {
@@ -273,8 +279,9 @@ describe('GmxAuth', () => {
       const value = { content: 'Hello' };
 
       const signature = await auth.signTypedData(domain, types, value);
-      expect(signature).toBeTruthy();
-      expect(signature.startsWith('0x')).toBe(true);
+      expect(typeof signature).toBe('string');
+      expect(signature).toMatch(/^0x[a-fA-F0-9]+$/);
+      expect(signature.length).toBeGreaterThan(130);
     });
 
     it('should throw when no wallet', async () => {

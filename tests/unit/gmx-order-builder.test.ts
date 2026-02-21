@@ -44,28 +44,28 @@ describe('GmxOrderBuilder', () => {
 
   describe('constructor', () => {
     test('should create builder with default config', () => {
-      expect(orderBuilder).toBeDefined();
+      expect(orderBuilder).toBeInstanceOf(GmxOrderBuilder);
     });
 
     test('should create builder with custom slippage', () => {
       const customBuilder = new GmxOrderBuilder('arbitrum', mockAuth, mockContracts, {
         slippageTolerance: 0.01,
       });
-      expect(customBuilder).toBeDefined();
+      expect(customBuilder).toBeInstanceOf(GmxOrderBuilder);
     });
 
     test('should create builder with custom callback gas limit', () => {
       const customBuilder = new GmxOrderBuilder('arbitrum', mockAuth, mockContracts, {
         callbackGasLimit: 100000n,
       });
-      expect(customBuilder).toBeDefined();
+      expect(customBuilder).toBeInstanceOf(GmxOrderBuilder);
     });
 
     test('should create builder with referral code', () => {
       const customBuilder = new GmxOrderBuilder('arbitrum', mockAuth, mockContracts, {
         referralCode: 'MYREF',
       });
-      expect(customBuilder).toBeDefined();
+      expect(customBuilder).toBeInstanceOf(GmxOrderBuilder);
     });
   });
 
@@ -80,11 +80,12 @@ describe('GmxOrderBuilder', () => {
 
       const params = orderBuilder.buildCreateOrderParams(request, mockPrices);
 
-      expect(params).toBeDefined();
       expect(params.receiver).toBe(mockWalletAddress);
       expect(params.orderType).toBe(GMX_ORDER_TYPES.MARKET_INCREASE);
       expect(params.isLong).toBe(true);
       expect(params.sizeDeltaUsd).toBeGreaterThan(0n);
+      expect(params).toHaveProperty('market');
+      expect(params).toHaveProperty('initialCollateralToken');
     });
 
     test('should build market sell order params', () => {
@@ -268,11 +269,12 @@ describe('GmxOrderBuilder', () => {
     test('should build close params for long position', () => {
       const params = orderBuilder.buildClosePositionParams('ETH/USD:ETH', 100000, true, mockPrices);
 
-      expect(params).toBeDefined();
       expect(params.orderType).toBe(GMX_ORDER_TYPES.MARKET_DECREASE);
       expect(params.isLong).toBe(true);
       expect(params.sizeDeltaUsd).toBe(BigInt(Math.floor(100000 * GMX_PRECISION.USD)));
       expect(params.initialCollateralDeltaAmount).toBe(0n);
+      expect(params).toHaveProperty('market');
+      expect(params).toHaveProperty('receiver');
     });
 
     test('should build close params for short position', () => {
@@ -432,8 +434,9 @@ describe('GmxOrderBuilder', () => {
     test('should return market config for valid symbol', () => {
       const config = orderBuilder.getMarketConfig('ETH/USD:ETH');
 
-      expect(config).toBeDefined();
       expect(config.baseAsset).toBe('ETH');
+      expect(config).toHaveProperty('marketAddress');
+      expect(config).toHaveProperty('maxLeverage');
     });
 
     test('should throw for invalid symbol', () => {
