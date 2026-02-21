@@ -13,7 +13,7 @@ import { z } from 'zod';
 const PositiveNumberSchema = z.number().positive();
 const NonNegativeNumberSchema = z.number().nonnegative();
 const TimestampSchema = z.number().int().positive();
-const SymbolSchema = z.string().min(1);
+const SymbolSchema = z.string().min(1).regex(/^[A-Z0-9]{1,10}\/[A-Z0-9]{1,10}(:[A-Z0-9]{1,10})?$/, 'Invalid symbol format');
 
 // =============================================================================
 // Order Schemas
@@ -74,6 +74,42 @@ export const OrderRequestSchema = z
     {
       message: 'Stop orders require a valid stopPrice',
       path: ['stopPrice'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Price must not exceed safe precision
+      if (data.price !== undefined) {
+        return data.price <= Number.MAX_SAFE_INTEGER;
+      }
+      return true;
+    },
+    {
+      message: 'Price exceeds safe precision',
+      path: ['price'],
+    }
+  )
+  .refine(
+    (data) => {
+      // StopPrice must not exceed safe precision
+      if (data.stopPrice !== undefined) {
+        return data.stopPrice <= Number.MAX_SAFE_INTEGER;
+      }
+      return true;
+    },
+    {
+      message: 'Stop price exceeds safe precision',
+      path: ['stopPrice'],
+    }
+  )
+  .refine(
+    (data) => {
+      // Amount must not exceed safe precision
+      return data.amount <= Number.MAX_SAFE_INTEGER;
+    },
+    {
+      message: 'Amount exceeds safe precision',
+      path: ['amount'],
     }
   );
 

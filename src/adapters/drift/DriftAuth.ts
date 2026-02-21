@@ -73,9 +73,8 @@ export class DriftAuth implements IAuthStrategy {
       // Lazy import to handle ESM module - void prefix for intentional fire-and-forget
       void this.initKeypairAsync(bytes);
     } catch (error) {
-      this.logger.warn(
-        `Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`
-      );
+      const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, '[REDACTED]');
+      this.logger.warn(`Failed to initialize keypair: ${sanitized}`);
     }
   }
 
@@ -91,9 +90,8 @@ export class DriftAuth implements IAuthStrategy {
       this.connection = new Connection(this.rpcEndpoint, 'confirmed');
       this.isInitialized = true;
     } catch (error) {
-      this.logger.warn(
-        `Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`
-      );
+      const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, '[REDACTED]');
+      this.logger.warn(`Failed to initialize Solana keypair: ${sanitized}`);
     }
   }
 

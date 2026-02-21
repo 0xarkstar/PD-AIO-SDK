@@ -37,7 +37,11 @@ export class PerpDEXError extends Error {
       code: this.code,
       exchange: this.exchange,
       correlationId: this.correlationId,
-      originalError: this.originalError,
+      originalError: this.originalError instanceof Error
+        ? { name: this.originalError.name, message: this.originalError.message }
+        : typeof this.originalError === 'string'
+          ? this.originalError
+          : undefined,
     };
   }
 }

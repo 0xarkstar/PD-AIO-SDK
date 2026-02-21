@@ -84,8 +84,32 @@ describe('PerpDEXError', () => {
       code: 'CODE',
       exchange: 'exchange',
       correlationId: 'corr-456',
-      originalError: originalError,
+      originalError: { name: 'Error', message: 'Original' },
     });
+  });
+
+  test('toJSON sanitizes Error originalError to prevent sensitive data leakage', () => {
+    const originalError = new Error('API key: sk-live-123456');
+    const error = new PerpDEXError('Test', 'CODE', 'exchange', originalError);
+    const json = error.toJSON();
+    expect(json.originalError).toEqual({
+      name: 'Error',
+      message: 'API key: sk-live-123456',
+    });
+    expect(json.originalError).not.toBe(originalError);
+  });
+
+  test('toJSON handles string originalError', () => {
+    const error = new PerpDEXError('Test', 'CODE', 'exchange', 'simple string error');
+    const json = error.toJSON();
+    expect(json.originalError).toBe('simple string error');
+  });
+
+  test('toJSON sanitizes non-Error, non-string originalError to undefined', () => {
+    const sensitiveData = { apiKey: 'sk-live-123', signature: '0xabcd' };
+    const error = new PerpDEXError('Test', 'CODE', 'exchange', sensitiveData);
+    const json = error.toJSON();
+    expect(json.originalError).toBeUndefined();
   });
 });
 

@@ -16,7 +16,8 @@ import type {
   FundingRate,
 } from '../../types/common.js';
 import type {
-  ExtendedMarket,
+  ExtendedMarketRaw,
+  ExtendedMarketApiFormat,
   ExtendedOrder,
   ExtendedPosition,
   ExtendedBalance,
@@ -26,6 +27,13 @@ import type {
   ExtendedFundingRate,
 } from './types.js';
 import { safeParseFloat } from './utils.js';
+
+/**
+ * Type guard: Check if market data is in API format
+ */
+function isApiFormat(market: ExtendedMarketRaw): market is ExtendedMarketApiFormat {
+  return 'name' in market && 'assetName' in market;
+}
 
 export class ExtendedNormalizer {
   /**
@@ -86,31 +94,43 @@ export class ExtendedNormalizer {
    * - API returns: {name, assetName, collateralAssetName, tradingConfig, active, ...}
    * - Legacy type: {symbol, marketId, baseAsset, quoteAsset, ...}
    */
-  normalizeMarket(market: ExtendedMarket): Market {
-    // Handle actual API format: name field like "BTC-USD"
-    const rawSymbol = (market as any).name || market.symbol;
+  normalizeMarket(market: ExtendedMarketRaw): Market {
+    // Handle actual API format vs legacy format
+    const rawSymbol = isApiFormat(market) ? market.name : market.symbol;
     const unifiedSymbol = this.symbolToCCXT(rawSymbol);
 
     // Extract base/quote from API or legacy format
-    const base = (market as any).assetName || market.baseAsset;
-    const quote = (market as any).collateralAssetName || market.quoteAsset || 'USD';
-    const settle = market.settleAsset || quote;
+    const base = isApiFormat(market) ? market.assetName : market.baseAsset;
+    const quote = isApiFormat(market)
+      ? market.collateralAssetName
+      : market.quoteAsset || 'USD';
+    const settle = isApiFormat(market) ? quote : market.settleAsset || quote;
 
     // Handle active flag from API or legacy
-    const isActive = (market as any).active ?? market.isActive ?? true;
+    const isActive = isApiFormat(market) ? market.active : market.isActive ?? true;
 
-    // Extract trading config from actual API response
-    const tradingConfig = (market as any).tradingConfig;
-    const minOrderSize = tradingConfig?.minOrderSize || market.minOrderQuantity || '0';
-    const maxLeverage = tradingConfig?.maxLeverage || market.maxLeverage || '1';
-    const minPriceChange = tradingConfig?.minPriceChange || market.minPrice || '0.01';
+    // Extract trading config from actual API response or legacy format
+    const tradingConfig = isApiFormat(market) ? market.tradingConfig : undefined;
+    const minOrderSize = tradingConfig?.minOrderSize ||
+      (isApiFormat(market) ? '0' : market.minOrderQuantity || '0');
+    const maxLeverage = tradingConfig?.maxLeverage ||
+      (isApiFormat(market) ? '1' : market.maxLeverage || '1');
+    const minPriceChange = tradingConfig?.minPriceChange ||
+      (isApiFormat(market) ? '0.01' : market.minPrice || '0.01');
 
     // Extract precision from API or legacy
-    const pricePrecision = (market as any).collateralAssetPrecision ?? market.pricePrecision ?? 2;
-    const amountPrecision = (market as any).assetPrecision ?? market.quantityPrecision ?? 0;
+    const pricePrecision = isApiFormat(market)
+      ? market.collateralAssetPrecision ?? 2
+      : market.pricePrecision ?? 2;
+    const amountPrecision = isApiFormat(market)
+      ? market.assetPrecision ?? 0
+      : market.quantityPrecision ?? 0;
+
+    // Market ID: prefer name (API) or marketId (legacy) over symbol
+    const id = isApiFormat(market) ? market.name : market.marketId;
 
     return {
-      id: (market as any).name || market.marketId || rawSymbol,
+      id,
       symbol: unifiedSymbol,
       base,
       quote,
@@ -120,7 +140,7 @@ export class ExtendedNormalizer {
       minAmount: safeParseFloat(minOrderSize),
       maxAmount: tradingConfig
         ? safeParseFloat(tradingConfig.maxPositionValue)
-        : safeParseFloat(market.maxOrderQuantity),
+        : safeParseFloat(isApiFormat(market) ? '0' : market.maxOrderQuantity || '0'),
       pricePrecision,
       amountPrecision,
       priceTickSize: safeParseFloat(minPriceChange),
@@ -360,7 +380,7 @@ export class ExtendedNormalizer {
   /**
    * Batch normalize markets
    */
-  normalizeMarkets(markets: ExtendedMarket[]): Market[] {
+  normalizeMarkets(markets: ExtendedMarketRaw[]): Market[] {
     return markets.map((market) => this.normalizeMarket(market));
   }
 

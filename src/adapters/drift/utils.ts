@@ -10,7 +10,14 @@ import {
   DRIFT_MARKET_INDEX_MAP,
   unifiedToDrift,
 } from './constants.js';
-import type { DriftOrderType, DriftDirection, DriftPostOnlyParams } from './types.js';
+import type {
+  DriftOrderType,
+  DriftDirection,
+  DriftPostOnlyParams,
+  DriftOrderStatus,
+  DriftTriggerCondition,
+  DriftPositionDirection,
+} from './types.js';
 
 // =============================================================================
 // Market Utilities
@@ -444,4 +451,106 @@ export function slotToTimestamp(
   // Approximate based on mainnet genesis
   const genesisTime = 1584282000000; // March 15, 2020
   return genesisTime + slot * slotDuration;
+}
+
+// =============================================================================
+// Enum Mapping Utilities
+// =============================================================================
+
+/**
+ * Map API string to DriftOrderType
+ */
+export function mapDriftOrderType(type: string): DriftOrderType {
+  const normalized = type.toLowerCase();
+  switch (normalized) {
+    case 'market':
+      return 'market';
+    case 'limit':
+      return 'limit';
+    case 'triggermarket':
+    case 'trigger_market':
+      return 'triggerMarket';
+    case 'triggerlimit':
+    case 'trigger_limit':
+      return 'triggerLimit';
+    case 'oracle':
+      return 'oracle';
+    default:
+      return 'limit';
+  }
+}
+
+/**
+ * Map API string to DriftOrderStatus
+ */
+export function mapDriftOrderStatus(status: string): DriftOrderStatus {
+  const normalized = status.toLowerCase();
+  switch (normalized) {
+    case 'open':
+      return 'open';
+    case 'filled':
+      return 'filled';
+    case 'canceled':
+    case 'cancelled':
+      return 'canceled';
+    case 'expired':
+      return 'expired';
+    default:
+      return 'open';
+  }
+}
+
+/**
+ * Map API string to DriftTriggerCondition
+ */
+export function mapDriftTriggerCondition(condition: string): DriftTriggerCondition {
+  const normalized = condition.toLowerCase();
+  switch (normalized) {
+    case 'above':
+      return 'above';
+    case 'below':
+      return 'below';
+    default:
+      return 'above';
+  }
+}
+
+/**
+ * Map API string/boolean to DriftPostOnlyParams
+ */
+export function mapDriftPostOnly(postOnly: string | boolean): DriftPostOnlyParams {
+  if (typeof postOnly === 'boolean') {
+    return postOnly ? 'mustPostOnly' : 'none';
+  }
+  const normalized = postOnly.toLowerCase();
+  switch (normalized) {
+    case 'none':
+    case 'false':
+      return 'none';
+    case 'mustpostonly':
+    case 'must_post_only':
+      return 'mustPostOnly';
+    case 'trypostonly':
+    case 'try_post_only':
+      return 'tryPostOnly';
+    case 'slide':
+      return 'slide';
+    default:
+      return 'none';
+  }
+}
+
+/**
+ * Map API string to DriftPositionDirection
+ */
+export function mapDriftPositionDirection(direction: string): DriftPositionDirection {
+  const normalized = direction.toLowerCase();
+  switch (normalized) {
+    case 'long':
+      return 'long';
+    case 'short':
+      return 'short';
+    default:
+      return 'long';
+  }
 }

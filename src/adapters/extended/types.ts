@@ -7,7 +7,7 @@
 import { z } from 'zod';
 
 /**
- * Extended market data type
+ * Extended market data type (Legacy SDK format)
  */
 export interface ExtendedMarket {
   marketId: string;
@@ -27,6 +27,34 @@ export interface ExtendedMarket {
   fundingInterval: number;
   settlementPeriod?: number;
 }
+
+/**
+ * Extended market data type (Actual API format)
+ */
+export interface ExtendedMarketApiFormat {
+  name: string;
+  assetName: string;
+  collateralAssetName: string;
+  active: boolean;
+  tradingConfig?: {
+    minOrderSize?: string;
+    maxPositionValue?: string;
+    maxLeverage?: string;
+    minPriceChange?: string;
+    minOrderSizeChange?: string;
+  };
+  assetPrecision?: number;
+  collateralAssetPrecision?: number;
+  contractMultiplier?: string;
+  fundingInterval?: number;
+  settlementPeriod?: number;
+}
+
+/**
+ * Union type for Extended market data
+ * Handles both legacy SDK type and actual API response format
+ */
+export type ExtendedMarketRaw = ExtendedMarket | ExtendedMarketApiFormat;
 
 /**
  * Extended ticker data type

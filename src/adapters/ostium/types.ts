@@ -39,6 +39,11 @@ export interface OstiumPriceResponse {
   price: string;
   timestamp: number;
   source: string;
+  // Additional fields that may be present in actual API responses
+  mid?: string | number;
+  bid?: string | number;
+  ask?: string | number;
+  timestampSeconds?: number;
 }
 
 // --- Contract Types ---

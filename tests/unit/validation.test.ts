@@ -133,6 +133,93 @@ describe('OrderRequestSchema', () => {
       /Stop orders require a valid stopPrice/
     );
   });
+
+  test('rejects invalid symbol format', () => {
+    const invalidOrder = {
+      symbol: '../../admin/users',
+      type: 'market' as const,
+      side: 'buy' as const,
+      amount: 0.1,
+    };
+
+    expect(() => OrderRequestSchema.parse(invalidOrder)).toThrow(/Invalid symbol format/);
+  });
+
+  test('rejects symbol with SQL injection attempt', () => {
+    const invalidOrder = {
+      symbol: "BTC-USD'; DROP TABLE orders--",
+      type: 'market' as const,
+      side: 'buy' as const,
+      amount: 0.1,
+    };
+
+    expect(() => OrderRequestSchema.parse(invalidOrder)).toThrow(/Invalid symbol format/);
+  });
+
+  test('accepts valid symbol formats', () => {
+    const validSymbols = ['BTC/USDT', 'BTC/USDT:USDT', 'ETH/USD', 'AVAX/USDC:USDC'];
+
+    validSymbols.forEach((symbol) => {
+      const order = {
+        symbol,
+        type: 'market' as const,
+        side: 'buy' as const,
+        amount: 0.1,
+      };
+      expect(() => OrderRequestSchema.parse(order)).not.toThrow();
+    });
+  });
+
+  test('rejects price exceeding safe precision', () => {
+    const invalidOrder = {
+      symbol: 'BTC/USDT',
+      type: 'limit' as const,
+      side: 'buy' as const,
+      amount: 0.1,
+      price: Number.MAX_SAFE_INTEGER + 1,
+    };
+
+    expect(() => OrderRequestSchema.parse(invalidOrder)).toThrow(/Price exceeds safe precision/);
+  });
+
+  test('rejects stopPrice exceeding safe precision', () => {
+    const invalidOrder = {
+      symbol: 'BTC/USDT',
+      type: 'stopMarket' as const,
+      side: 'buy' as const,
+      amount: 0.1,
+      stopPrice: Number.MAX_SAFE_INTEGER + 1,
+    };
+
+    expect(() => OrderRequestSchema.parse(invalidOrder)).toThrow(
+      /Stop price exceeds safe precision/
+    );
+  });
+
+  test('rejects amount exceeding safe precision', () => {
+    const invalidOrder = {
+      symbol: 'BTC/USDT',
+      type: 'market' as const,
+      side: 'buy' as const,
+      amount: Number.MAX_SAFE_INTEGER + 1,
+    };
+
+    expect(() => OrderRequestSchema.parse(invalidOrder)).toThrow(
+      /Amount exceeds safe precision/
+    );
+  });
+
+  test('accepts prices and amounts within safe precision', () => {
+    const validOrder = {
+      symbol: 'BTC/USDT',
+      type: 'limit' as const,
+      side: 'buy' as const,
+      amount: 1000,
+      price: 50000,
+    };
+
+    expect(() => OrderRequestSchema.parse(validOrder)).not.toThrow();
+  });
 });
 
 describe('OrderSchema', () => {

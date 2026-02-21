@@ -189,6 +189,542 @@ describe('DriftAdapter', () => {
     });
   });
 
+  describe('order lifecycle (mocked SDK)', () => {
+    let adapter: DriftAdapter;
+    let mockDriftClient: any;
+    let mockConnection: any;
+
+    beforeEach(() => {
+      // Create mock Drift SDK client
+      mockDriftClient = {
+        placePerpOrder: jest.fn(),
+        cancelOrder: jest.fn(),
+        cancelOrders: jest.fn(),
+        getUser: jest.fn(),
+        subscribe: jest.fn(),
+        unsubscribe: jest.fn(),
+        getUserAccountExists: jest.fn(),
+        addUser: jest.fn(),
+      };
+
+      mockConnection = {
+        confirmTransaction: jest.fn(),
+      };
+
+      // Create adapter with private key to enable trading
+      adapter = new DriftAdapter({
+        privateKey: new Uint8Array(64).fill(1),
+        testnet: true,
+      });
+
+      // Mock auth to allow signing
+      (adapter as any).auth = {
+        canSign: jest.fn().mockReturnValue(true),
+        canRead: jest.fn().mockReturnValue(true),
+        getWalletAddress: jest.fn().mockReturnValue('DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK'),
+        getSubAccountId: jest.fn().mockReturnValue(0),
+      };
+
+      // Inject mocked Drift client after initialization
+      (adapter as any).driftClient = {
+        initialize: jest.fn().mockResolvedValue(undefined),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        placePerpOrder: jest.fn(),
+        cancelOrder: jest.fn(),
+        cancelOrdersForMarket: jest.fn(),
+        cancelAllPerpOrders: jest.fn(),
+      };
+
+      // Mock orderBuilder
+      (adapter as any).orderBuilder = {
+        buildOrderParams: jest.fn().mockImplementation((request) => ({
+          orderType: request.type === 'market' ? 'market' : 'limit',
+          marketIndex: 0,
+          marketType: 'perp',
+          direction: request.side === 'buy' ? 'long' : 'short',
+          baseAssetAmount: BigInt(Math.floor(request.amount * 1e9)),
+          price: request.price ? BigInt(Math.floor(request.price * 1e6)) : undefined,
+          reduceOnly: request.reduceOnly || false,
+          postOnly: request.postOnly || false,
+          immediateOrCancel: request.timeInForce === 'IOC',
+        })),
+      };
+
+      // Mock _isReady
+      (adapter as any)._isReady = true;
+
+      // Mock HTTP request for oracle price (used by createOrder)
+      (adapter as any).request = jest.fn().mockResolvedValue({
+        bids: [{ price: '99500000', size: '1000000000' }],
+        asks: [{ price: '100500000', size: '1500000000' }],
+        oraclePrice: '100000000', // 100
+        slot: 123456,
+      });
+    });
+
+    describe('createOrder', () => {
+      test('should create market buy order', async () => {
+        const mockOrderResult = {
+          txSig: '5J8yJxQzxKqTzJ...',
+          orderId: 123,
+          slot: 987654,
+        };
+
+        (adapter as any).driftClient.placePerpOrder = jest.fn().mockResolvedValue(mockOrderResult);
+
+        const order = await adapter.createOrder({
+          symbol: 'SOL/USD:USD',
+          side: 'buy',
+          type: 'market',
+          amount: 1,
+        });
+
+        expect(order).toMatchObject({
+          id: expect.any(String),
+          symbol: 'SOL/USD:USD',
+          type: 'market',
+          side: 'buy',
+          amount: 1,
+          status: 'open',
+        });
+
+        expect((adapter as any).driftClient.placePerpOrder).toHaveBeenCalledWith(
+          expect.objectContaining({
+            orderType: 'market',
+            direction: 'long',
+            marketIndex: 0,
+            baseAssetAmount: expect.any(BigInt),
+          })
+        );
+      });
+
+      test('should create limit sell order', async () => {
+        const mockOrderResult = {
+          txSig: '5J8yJxQzxKqTzJ...',
+          orderId: 124,
+          slot: 987655,
+        };
+
+        (adapter as any).driftClient.placePerpOrder = jest.fn().mockResolvedValue(mockOrderResult);
+
+        const order = await adapter.createOrder({
+          symbol: 'SOL/USD:USD',
+          side: 'sell',
+          type: 'limit',
+          amount: 1,
+          price: 105.5,
+        });
+
+        expect(order).toMatchObject({
+          symbol: 'SOL/USD:USD',
+          type: 'limit',
+          side: 'sell',
+          amount: 1,
+          price: 105.5,
+        });
+
+        expect((adapter as any).driftClient.placePerpOrder).toHaveBeenCalledWith(
+          expect.objectContaining({
+            orderType: 'limit',
+            direction: 'short',
+            price: expect.any(BigInt),
+          })
+        );
+      });
+
+      test('should create IOC order', async () => {
+        const mockOrderResult = {
+          txSig: '5J8yJxQzxKqTzJ...',
+          orderId: 125,
+          slot: 987656,
+        };
+
+        (adapter as any).driftClient.placePerpOrder = jest.fn().mockResolvedValue(mockOrderResult);
+
+        await adapter.createOrder({
+          symbol: 'SOL/USD:USD',
+          side: 'buy',
+          type: 'limit',
+          amount: 1,
+          price: 100,
+          timeInForce: 'IOC',
+        });
+
+        expect((adapter as any).driftClient.placePerpOrder).toHaveBeenCalledWith(
+          expect.objectContaining({
+            immediateOrCancel: true,
+          })
+        );
+      });
+
+      test('should create post-only order', async () => {
+        const mockOrderResult = {
+          txSig: '5J8yJxQzxKqTzJ...',
+          orderId: 126,
+          slot: 987657,
+        };
+
+        (adapter as any).driftClient.placePerpOrder = jest.fn().mockResolvedValue(mockOrderResult);
+
+        await adapter.createOrder({
+          symbol: 'SOL/USD:USD',
+          side: 'buy',
+          type: 'limit',
+          amount: 1,
+          price: 100,
+          postOnly: true,
+        });
+
+        expect((adapter as any).driftClient.placePerpOrder).toHaveBeenCalledWith(
+          expect.objectContaining({
+            postOnly: true,
+          })
+        );
+      });
+
+      test('should throw when private key not provided', async () => {
+        const adapterNoKey = new DriftAdapter({
+          walletAddress: 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK',
+        });
+
+        (adapterNoKey as any)._isReady = true;
+
+        await expect(
+          adapterNoKey.createOrder({
+            symbol: 'SOL/USD:USD',
+            side: 'buy',
+            type: 'market',
+            amount: 1,
+          })
+        ).rejects.toThrow(/Private key required/);
+      });
+
+      test('should throw when Drift client not initialized', async () => {
+        (adapter as any).driftClient = undefined;
+        (adapter as any)._isReady = true;
+
+        await expect(
+          adapter.createOrder({
+            symbol: 'SOL/USD:USD',
+            side: 'buy',
+            type: 'market',
+            amount: 1,
+          })
+        ).rejects.toThrow(/Drift SDK client not initialized/);
+      });
+    });
+
+    describe('cancelOrder', () => {
+      test('should cancel order by ID', async () => {
+        const mockResult = {
+          txSig: '5J8yJxQzxKqTzJ...',
+          orderId: 123,
+        };
+
+        (adapter as any).driftClient.cancelOrder = jest.fn().mockResolvedValue(mockResult);
+        (adapter as any)._isReady = true;
+
+        const order = await adapter.cancelOrder('123', 'SOL/USD:USD');
+
+        expect(order).toMatchObject({
+          id: '123',
+          status: 'canceled',
+        });
+
+        expect((adapter as any).driftClient.cancelOrder).toHaveBeenCalledWith(123);
+      });
+
+      test('should throw when private key not provided', async () => {
+        const adapterNoKey = new DriftAdapter({
+          walletAddress: 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK',
+        });
+
+        (adapterNoKey as any)._isReady = true;
+
+        await expect(adapterNoKey.cancelOrder('123')).rejects.toThrow(/Private key required/);
+      });
+    });
+
+    describe('cancelAllOrders', () => {
+      test('should cancel all orders for a symbol', async () => {
+        const mockResults = [
+          { orderId: 123, txSig: 'tx1' },
+          { orderId: 124, txSig: 'tx2' },
+        ];
+
+        (adapter as any).driftClient.cancelOrdersForMarket = jest
+          .fn()
+          .mockResolvedValue(mockResults);
+        (adapter as any)._isReady = true;
+
+        const orders = await adapter.cancelAllOrders('SOL/USD:USD');
+
+        expect(orders).toHaveLength(2);
+        expect(orders[0]).toMatchObject({
+          id: '123',
+          symbol: 'SOL/USD:USD',
+          status: 'canceled',
+        });
+
+        expect((adapter as any).driftClient.cancelOrdersForMarket).toHaveBeenCalledWith(0);
+      });
+
+      test('should cancel all perp orders when no symbol provided', async () => {
+        const mockTxSig = 'tx-all-canceled';
+
+        (adapter as any).driftClient.cancelAllPerpOrders = jest.fn().mockResolvedValue(mockTxSig);
+        (adapter as any)._isReady = true;
+
+        const orders = await adapter.cancelAllOrders();
+
+        expect(orders).toHaveLength(1);
+        expect(orders[0]).toMatchObject({
+          id: 'all',
+          symbol: 'ALL',
+          status: 'canceled',
+        });
+
+        expect((adapter as any).driftClient.cancelAllPerpOrders).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('account data (mocked API)', () => {
+    let adapter: DriftAdapter;
+
+    beforeEach(() => {
+      adapter = new DriftAdapter({
+        walletAddress: 'DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK',
+        subAccountId: 0,
+      });
+
+      // Mock auth to allow reading account data
+      (adapter as any).auth = {
+        canRead: jest.fn().mockReturnValue(true),
+        canSign: jest.fn().mockReturnValue(false),
+        getWalletAddress: jest.fn().mockReturnValue('DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK'),
+        getSubAccountId: jest.fn().mockReturnValue(0),
+      };
+
+      (adapter as any)._isReady = true;
+    });
+
+    describe('fetchPositions', () => {
+      test('should fetch empty positions', async () => {
+        const originalRequest = (adapter as any).request;
+        (adapter as any).request = jest.fn().mockResolvedValue({
+          perpPositions: [],
+        });
+
+        const positions = await adapter.fetchPositions();
+
+        expect(positions).toHaveLength(0);
+        expect((adapter as any).request).toHaveBeenCalledWith(
+          'GET',
+          expect.stringContaining('/user?userAccount=')
+        );
+
+        (adapter as any).request = originalRequest;
+      });
+
+      test('should fetch single position', async () => {
+        const mockUserData = {
+          perpPositions: [
+            {
+              marketIndex: 0,
+              baseAssetAmount: '1000000000', // 1 SOL
+              quoteAssetAmount: '100000000',
+              quoteEntryAmount: '95000000',
+              quoteBreakEvenAmount: '95000000',
+              settledPnl: '0',
+              lpShares: '0',
+              openOrders: 0,
+            },
+          ],
+        };
+
+        const mockOrderbook = {
+          bids: [{ price: '100000000', size: '1000000000' }],
+          asks: [{ price: '100500000', size: '1500000000' }],
+          oraclePrice: '100000000', // 100
+          slot: 123456,
+        };
+
+        const originalRequest = (adapter as any).request;
+        let callCount = 0;
+        (adapter as any).request = jest.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) return Promise.resolve(mockUserData);
+          return Promise.resolve(mockOrderbook);
+        });
+
+        const positions = await adapter.fetchPositions();
+
+        expect(positions).toHaveLength(1);
+        expect(positions[0]).toMatchObject({
+          symbol: 'SOL/USD:USD',
+          side: 'long',
+          size: 1,
+          markPrice: 100,
+        });
+
+        (adapter as any).request = originalRequest;
+      });
+
+      test('should filter positions by symbols', async () => {
+        const mockUserData = {
+          perpPositions: [
+            {
+              marketIndex: 0,
+              baseAssetAmount: '1000000000',
+              quoteAssetAmount: '100000000',
+              quoteEntryAmount: '95000000',
+              quoteBreakEvenAmount: '95000000',
+              settledPnl: '0',
+              lpShares: '0',
+              openOrders: 0,
+            },
+            {
+              marketIndex: 1,
+              baseAssetAmount: '100000000', // 0.1 BTC
+              quoteAssetAmount: '5000000000',
+              quoteEntryAmount: '4900000000',
+              quoteBreakEvenAmount: '4900000000',
+              settledPnl: '0',
+              lpShares: '0',
+              openOrders: 0,
+            },
+          ],
+        };
+
+        const mockOrderbook = {
+          bids: [],
+          asks: [],
+          oraclePrice: '100000000',
+          slot: 123456,
+        };
+
+        const originalRequest = (adapter as any).request;
+        let callCount = 0;
+        (adapter as any).request = jest.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) return Promise.resolve(mockUserData);
+          return Promise.resolve(mockOrderbook);
+        });
+
+        const positions = await adapter.fetchPositions(['SOL/USD:USD']);
+
+        expect(positions).toHaveLength(1);
+        expect(positions[0].symbol).toBe('SOL/USD:USD');
+
+        (adapter as any).request = originalRequest;
+      });
+
+      test('should skip positions with zero size', async () => {
+        const mockUserData = {
+          perpPositions: [
+            {
+              marketIndex: 0,
+              baseAssetAmount: '0', // Zero position
+              quoteAssetAmount: '0',
+              quoteEntryAmount: '0',
+              quoteBreakEvenAmount: '0',
+              settledPnl: '0',
+              lpShares: '0',
+              openOrders: 0,
+            },
+          ],
+        };
+
+        const originalRequest = (adapter as any).request;
+        (adapter as any).request = jest.fn().mockResolvedValue(mockUserData);
+
+        const positions = await adapter.fetchPositions();
+
+        expect(positions).toHaveLength(0);
+
+        (adapter as any).request = originalRequest;
+      });
+
+      test('should require wallet address', async () => {
+        const adapterNoWallet = new DriftAdapter();
+        (adapterNoWallet as any)._isReady = true;
+
+        await expect(adapterNoWallet.fetchPositions()).rejects.toThrow(
+          /Wallet address required/
+        );
+      });
+    });
+
+    describe('fetchBalance', () => {
+      test('should fetch USDC balance', async () => {
+        const mockUserData = {
+          spotPositions: [
+            {
+              marketIndex: 0,
+              scaledBalance: '10000000000', // 10,000 USDC in scaled format
+              balanceType: 'deposit',
+              cumulativeDeposits: '10000000000',
+              openOrders: 0,
+            },
+          ],
+          totalCollateral: '10000000000',
+          freeCollateral: '5000000000',
+        };
+
+        const originalRequest = (adapter as any).request;
+        (adapter as any).request = jest.fn().mockResolvedValue(mockUserData);
+
+        const balances = await adapter.fetchBalance();
+
+        expect(balances).toHaveLength(1);
+        expect(balances[0]).toMatchObject({
+          currency: 'USDC',
+          total: 10000,
+          free: 5000,
+          used: 5000,
+          usdValue: 10000,
+        });
+
+        (adapter as any).request = originalRequest;
+      });
+
+      test('should handle borrow balance (negative)', async () => {
+        const mockUserData = {
+          spotPositions: [
+            {
+              marketIndex: 0,
+              scaledBalance: '1000000000', // 1,000 USDC borrowed
+              balanceType: 'borrow',
+              cumulativeDeposits: '0',
+              openOrders: 0,
+            },
+          ],
+          totalCollateral: '0',
+          freeCollateral: '0',
+        };
+
+        const originalRequest = (adapter as any).request;
+        (adapter as any).request = jest.fn().mockResolvedValue(mockUserData);
+
+        const balances = await adapter.fetchBalance();
+
+        expect(balances).toHaveLength(1);
+        expect(balances[0].total).toBe(-1000);
+        expect(balances[0].usdValue).toBe(-1000);
+
+        (adapter as any).request = originalRequest;
+      });
+
+      test('should require wallet address', async () => {
+        const adapterNoWallet = new DriftAdapter();
+        (adapterNoWallet as any)._isReady = true;
+
+        await expect(adapterNoWallet.fetchBalance()).rejects.toThrow(/Wallet address required/);
+      });
+    });
+  });
+
   describe('market validation', () => {
     test('fetchMarkets requires initialization', async () => {
       const adapter = new DriftAdapter();

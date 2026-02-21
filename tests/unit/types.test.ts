@@ -69,7 +69,8 @@ describe('Error Classes', () => {
       message: 'Test',
       code: 'CODE',
       exchange: 'exchange',
-      originalError,
+      correlationId: undefined,
+      originalError: { name: 'Error', message: 'Original' },
     });
   });
 });

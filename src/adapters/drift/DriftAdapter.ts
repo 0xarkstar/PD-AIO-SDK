@@ -43,7 +43,16 @@ import {
   getMarketIndex,
 } from './constants.js';
 import { mapDriftError } from './error-codes.js';
-import { isValidMarket, getMarketConfig, buildOrderbookUrl } from './utils.js';
+import {
+  isValidMarket,
+  getMarketConfig,
+  buildOrderbookUrl,
+  mapDriftOrderType,
+  mapDriftOrderStatus,
+  mapDriftTriggerCondition,
+  mapDriftPostOnly,
+  mapDriftPositionDirection,
+} from './utils.js';
 import type { DriftL2OrderBook, DriftFundingRateRecord } from './types.js';
 import { DriftAuth } from './DriftAuth.js';
 import { DriftClientWrapper } from './DriftClientWrapper.js';
@@ -622,12 +631,12 @@ export class DriftAdapter extends BaseAdapter {
         .map((o) =>
           this.normalizer.normalizeOrder({
             ...o,
-            orderType: o.orderType as any,
+            orderType: mapDriftOrderType(o.orderType),
             direction: o.direction,
-            status: o.status as any,
-            triggerCondition: o.triggerCondition as any,
-            postOnly: o.postOnly as any,
-            existingPositionDirection: o.existingPositionDirection as any,
+            status: mapDriftOrderStatus(o.status),
+            triggerCondition: mapDriftTriggerCondition(o.triggerCondition),
+            postOnly: mapDriftPostOnly(o.postOnly),
+            existingPositionDirection: mapDriftPositionDirection(o.existingPositionDirection),
           })
         );
 

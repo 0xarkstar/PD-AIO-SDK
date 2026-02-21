@@ -330,10 +330,10 @@ export class ParadexAuth implements IAuthStrategy {
       // Return the public key as the address (StarkNet format)
       return publicKey;
     } catch (error) {
-      this.logger.error(
-        'Failed to derive StarkNet address',
-        error instanceof Error ? error : undefined
-      );
+      const sanitizedError = error instanceof Error
+        ? new Error(error.message.replace(/0x[0-9a-fA-F]{64,}/g, '[REDACTED]'))
+        : undefined;
+      this.logger.error('Failed to derive StarkNet address', sanitizedError);
       return undefined;
     }
   }
