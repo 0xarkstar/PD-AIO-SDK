@@ -24,6 +24,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `NotSupportedError` now reported as SKIP instead of ERROR for accurate pass/fail counts
 - **Pacifica**: Marked as Closed Beta — public API unavailable, `fetchOHLCV` set to `false` in feature map
 
+### Security (Cycle 15)
+- `PerpDEXError.toJSON()` sanitizes originalError (no stack/internal data leakage)
+- Symbol regex whitelist + order parameter `MAX_SAFE_INTEGER` validation
+- Logger hex key redaction in Jupiter/Drift/Paradex auth modules
+
+### Improved (Cycle 15)
+
+#### Type Safety
+- `as any` count: 23 → 9 (14 removed)
+- ExtendedNormalizer: union type `ExtendedMarketRaw` + type guard replaces unsafe casts
+- DriftAdapter: 5 enum mapping functions replace unsafe casts
+- OstiumNormalizer: typed optional fields replace cast
+
+#### Test Quality
+- NEW `base-adapter-core.test.ts` (52 tests for BaseAdapterCore)
+- Drift adapter tests expanded: 89 → 184 tests (order lifecycle, error paths)
+- GMX test assertions: 104 weak `toBeDefined()`/`toBeTruthy()` → 0 (concrete value checks)
+- Error sanitization tests (4 new), input validation tests (7 new)
+
+#### Architecture
+- BaseAdapter split: 1394 lines → BaseAdapterCore (646) + BaseAdapter (768)
+  - Core: constructor, properties, logger, cache, metrics, HTTP, health check
+  - BaseAdapter: extends Core, adds API surface (market data, trading, WebSocket, aliases)
+  - Zero breaking changes — all 16 adapters unchanged
+
 ---
 
 ## [0.2.0] - 2026-02-14
