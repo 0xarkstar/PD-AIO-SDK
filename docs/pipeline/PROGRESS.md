@@ -369,4 +369,74 @@ Date: 2026-02-14
 
 ### Verdict: PASS
 
+---
+
+## Cycle 15: OHLCV Fixes + Comprehensive Review & Improvement (COMPLETED)
+Date: 2026-02-22
+
+### Phase 1: OHLCV Fixes
+| Fix | Exchange | Root Cause | Change |
+|-----|----------|------------|--------|
+| 404 on fetchOHLCV | dYdX | API uses plural `perpetualMarkets` for candles | Path fix |
+| Unknown exchange error | GMX | API wraps candles in `{period, candles: [...]}` | Unwrap + tuple normalizer |
+| 400 on fetchOHLCV | GRVT | SDK sends wrong format; needs CI_* enum + nanoseconds | Direct POST bypass |
+| Pacifica offline | Pacifica | Closed Beta — public API disabled | Status update |
+
+Live API Result: **67 PASS** (+11), 0 FAIL, 21 SKIP, 8 ERROR
+
+### Phase 2: Comprehensive Review (3 expert agents)
+| Agent | Scope | Grade | Output |
+|-------|-------|-------|--------|
+| p-architect | Architecture & code quality | A- | REVIEW_ARCHITECTURE.md |
+| p-sec-reviewer | Security audit | 7.5/10 | REVIEW_SECURITY.md |
+| p-cov-reviewer | Test coverage analysis | — | REVIEW_TESTING.md |
+
+### Phase 3: Improvement Implementation
+
+#### Batch 1: Security + Type Safety + Coverage (team: c15-improve)
+| Agent | Task | Result |
+|-------|------|--------|
+| p-impl-security | Error sanitization, input validation, logger redaction | 11 new tests |
+| p-impl-types | `as any` 23→9 via union types + enum mapping | 0 new tests needed |
+| p-impl-tests | BaseAdapterCore 52 tests, Drift 89→184 tests | 109 new tests |
+
+#### Batch 2: Assertion Quality + Audit
+| Task | Result |
+|------|--------|
+| GMX assertion strengthening | 104 weak `toBeDefined()`→0 (concrete value checks) |
+| npm audit fix | 55→53 vulns (remaining are upstream SDK dependencies) |
+
+#### Batch 3: Architecture
+| Task | Result |
+|------|--------|
+| BaseAdapter composition (mixin approach) | FAILED — TypeScript can't infer deep mixin chains |
+| BaseAdapter inheritance split | PASS — 1394→768 lines (+ Core 646 lines) |
+
+### Quality Gates
+- [x] `npx tsc --noEmit` — 0 errors
+- [x] `npx jest --forceExit` — 6117 tests, 0 failures (+80 from C14)
+- [x] Live API: 67 PASS, 0 FAIL, 21 SKIP, 8 ERROR
+- [x] `as any` count: 13 → 9 (-4)
+- [x] BaseAdapter.ts: 1394 → 768 lines (under 800 guideline)
+- [x] 0 `toBeDefined()` in GMX tests (was 104)
+
+### Cumulative Metrics Update
+| Metric | C14 | C15 | Delta |
+|--------|-----|-----|-------|
+| Tests passed | 6037 | 6117 | +80 |
+| Tests total | 6115 | 6195 | +80 |
+| `as any` | 13 | 9 | -4 |
+| Live API PASS | 56 | 67 | +11 |
+| BaseAdapter lines | 1394 | 768 | -626 |
+
+### Agents Used: 6 + lead
+| Phase | Agents |
+|-------|--------|
+| P0.5 Review | p-architect, p-sec-reviewer, p-cov-reviewer |
+| P1 Batch 1 | p-impl-security, p-impl-types, p-impl-tests |
+| P1 Batch 2 | background agent (GMX assertions) |
+| P1 Batch 3 | background agent (BaseAdapter split) |
+
+### Verdict: PASS
+
 ## Pipeline Complete
