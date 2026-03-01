@@ -43,7 +43,8 @@ export class JupiterAuth {
             void this.initKeypairAsync(bytes);
         }
         catch (error) {
-            this.logger.warn(`Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`);
+            const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, '[REDACTED]');
+            this.logger.warn(`Failed to initialize keypair: ${sanitized}`);
         }
     }
     /**
@@ -59,7 +60,8 @@ export class JupiterAuth {
             this.isInitialized = true;
         }
         catch (error) {
-            this.logger.warn(`Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`);
+            const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, '[REDACTED]');
+            this.logger.warn(`Failed to initialize Solana keypair: ${sanitized}`);
         }
     }
     /**

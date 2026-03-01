@@ -4,6 +4,7 @@
  * Transforms Drift on-chain account data and API responses
  * to unified SDK format.
  */
+import { DriftPerpPositionSchema, DriftSpotPositionSchema, DriftOrderSchema, DriftPerpMarketAccountSchema, DriftL2OrderBookSchema, DriftTradeSchema, DriftFundingRateSchema, DriftFundingRateRecordSchema, DriftMarketStatsSchema, DriftCandleSchema, } from './types.js';
 import { driftToUnified, DRIFT_PERP_MARKETS, DRIFT_MARKET_INDEX_MAP, DRIFT_PRECISION, } from './constants.js';
 /**
  * Normalizer for Drift Protocol data
@@ -13,39 +14,50 @@ export class DriftNormalizer {
      * Normalize perp market account to unified Market
      */
     normalizeMarket(market) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[market.marketIndex];
+        const validated = DriftPerpMarketAccountSchema.parse(market);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex ?? 0];
         const config = marketKey
             ? DRIFT_PERP_MARKETS[marketKey]
             : undefined;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${market.marketIndex}`);
-        const tickSize = config?.tickSize || parseFloat(market.amm.orderTickSize) / DRIFT_PRECISION.PRICE;
-        const stepSize = config?.stepSize || parseFloat(market.amm.orderStepSize) / DRIFT_PRECISION.BASE;
-        const minOrderSize = config?.minOrderSize || parseFloat(market.amm.minOrderSize) / DRIFT_PRECISION.BASE;
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex ?? 0}`);
+        // AMM might be any type due to schema flexibility, provide defaults
+        const amm = validated.amm;
+        const tickSize = config?.tickSize ||
+            (amm?.orderTickSize ? parseFloat(amm.orderTickSize) / DRIFT_PRECISION.PRICE : 0.01);
+        const stepSize = config?.stepSize ||
+            (amm?.orderStepSize ? parseFloat(amm.orderStepSize) / DRIFT_PRECISION.BASE : 0.001);
+        const minOrderSize = config?.minOrderSize ||
+            (amm?.minOrderSize ? parseFloat(amm.minOrderSize) / DRIFT_PRECISION.BASE : 0.001);
         return {
-            id: marketKey || `PERP-${market.marketIndex}`,
+            id: marketKey || `PERP-${validated.marketIndex ?? 0}`,
             symbol,
-            base: config?.baseAsset || market.name?.split('-')[0] || `ASSET${market.marketIndex}`,
+            base: config?.baseAsset ||
+                validated.name?.split('-')[0] ||
+                `ASSET${validated.marketIndex ?? 0}`,
             quote: 'USD',
             settle: 'USD',
-            active: market.status === 'active',
+            active: validated.status === 'active',
             minAmount: minOrderSize,
-            maxAmount: parseFloat(market.amm.maxPositionSize) / DRIFT_PRECISION.BASE,
+            maxAmount: amm?.maxPositionSize
+                ? parseFloat(amm.maxPositionSize) / DRIFT_PRECISION.BASE
+                : Number.MAX_SAFE_INTEGER,
             pricePrecision: this.getPrecisionFromTickSize(tickSize),
             amountPrecision: this.getPrecisionFromTickSize(stepSize),
             priceTickSize: tickSize,
             amountStepSize: stepSize,
             makerFee: -0.0002, // Drift rebates makers (-0.02%)
             takerFee: 0.001, // 0.1% taker fee (varies by tier)
-            maxLeverage: config?.maxLeverage || Math.floor(DRIFT_PRECISION.MARGIN / market.marginRatioInitial),
+            maxLeverage: config?.maxLeverage ||
+                Math.floor(DRIFT_PRECISION.MARGIN / validated.marginRatioInitial),
             fundingIntervalHours: 1,
             contractSize: 1,
             info: {
-                marketIndex: market.marketIndex,
-                contractTier: config?.contractTier || market.contractTier,
-                marginRatioInitial: market.marginRatioInitial / DRIFT_PRECISION.MARGIN,
-                marginRatioMaintenance: market.marginRatioMaintenance / DRIFT_PRECISION.MARGIN,
-                imfFactor: market.imfFactor,
-                numberOfUsers: market.numberOfUsers,
+                marketIndex: validated.marketIndex,
+                contractTier: config?.contractTier || validated.contractTier,
+                marginRatioInitial: validated.marginRatioInitial / DRIFT_PRECISION.MARGIN,
+                marginRatioMaintenance: validated.marginRatioMaintenance / DRIFT_PRECISION.MARGIN,
+                imfFactor: validated.imfFactor,
+                numberOfUsers: validated.numberOfUsers,
             },
         };
     }
@@ -59,15 +71,16 @@ export class DriftNormalizer {
      * Normalize perp position to unified Position
      */
     normalizePosition(position, markPrice, _oraclePrice) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[position.marketIndex];
+        const validated = DriftPerpPositionSchema.parse(position);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex];
         const config = marketKey
             ? DRIFT_PERP_MARKETS[marketKey]
             : undefined;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${position.marketIndex}`);
-        const baseAmount = parseFloat(position.baseAssetAmount) / DRIFT_PRECISION.BASE;
-        const quoteAmount = parseFloat(position.quoteAssetAmount) / DRIFT_PRECISION.QUOTE;
-        const quoteEntry = parseFloat(position.quoteEntryAmount) / DRIFT_PRECISION.QUOTE;
-        const settledPnl = parseFloat(position.settledPnl) / DRIFT_PRECISION.QUOTE;
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+        const baseAmount = parseFloat(validated.baseAssetAmount) / DRIFT_PRECISION.BASE;
+        const quoteAmount = parseFloat(validated.quoteAssetAmount) / DRIFT_PRECISION.QUOTE;
+        const quoteEntry = parseFloat(validated.quoteEntryAmount) / DRIFT_PRECISION.QUOTE;
+        const settledPnl = parseFloat(validated.settledPnl) / DRIFT_PRECISION.QUOTE;
         const side = baseAmount >= 0 ? 'long' : 'short';
         const size = Math.abs(baseAmount);
         const entryPrice = size > 0 ? Math.abs(quoteEntry) / size : 0;
@@ -98,11 +111,11 @@ export class DriftNormalizer {
             realizedPnl: settledPnl,
             timestamp: Date.now(),
             info: {
-                marketIndex: position.marketIndex,
-                baseAssetAmount: position.baseAssetAmount,
-                quoteAssetAmount: position.quoteAssetAmount,
-                lpShares: position.lpShares,
-                openOrders: position.openOrders,
+                marketIndex: validated.marketIndex,
+                baseAssetAmount: validated.baseAssetAmount,
+                quoteAssetAmount: validated.quoteAssetAmount,
+                lpShares: validated.lpShares,
+                openOrders: validated.openOrders,
             },
         };
     }
@@ -110,57 +123,58 @@ export class DriftNormalizer {
      * Normalize order to unified Order
      */
     normalizeOrder(order, marketPrice) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[order.marketIndex];
+        const validated = DriftOrderSchema.parse(order);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex];
         const config = marketKey
             ? DRIFT_PERP_MARKETS[marketKey]
             : undefined;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${order.marketIndex}`);
-        const baseAmount = parseFloat(order.baseAssetAmount) / DRIFT_PRECISION.BASE;
-        const filledAmount = parseFloat(order.baseAssetAmountFilled) / DRIFT_PRECISION.BASE;
-        const price = parseFloat(order.price) / DRIFT_PRECISION.PRICE;
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+        const baseAmount = parseFloat(validated.baseAssetAmount) / DRIFT_PRECISION.BASE;
+        const filledAmount = parseFloat(validated.baseAssetAmountFilled) / DRIFT_PRECISION.BASE;
+        const price = parseFloat(validated.price) / DRIFT_PRECISION.PRICE;
         // Map order type
         let type = 'limit';
-        if (order.orderType === 'market')
+        if (validated.orderType === 'market')
             type = 'market';
-        else if (order.orderType === 'triggerMarket')
+        else if (validated.orderType === 'triggerMarket')
             type = 'stopMarket';
-        else if (order.orderType === 'triggerLimit')
+        else if (validated.orderType === 'triggerLimit')
             type = 'stopLimit';
         // Map status
         let status = 'open';
-        if (order.status === 'filled')
+        if (validated.status === 'filled')
             status = filledAmount >= baseAmount ? 'filled' : 'partiallyFilled';
-        else if (order.status === 'canceled')
+        else if (validated.status === 'canceled')
             status = 'canceled';
-        else if (order.status === 'expired')
+        else if (validated.status === 'expired')
             status = 'expired';
         return {
-            id: order.orderId.toString(),
+            id: validated.orderId.toString(),
             symbol,
             type,
-            side: order.direction === 'long' ? 'buy' : 'sell',
+            side: validated.direction === 'long' ? 'buy' : 'sell',
             amount: baseAmount,
             price: price > 0 ? price : marketPrice,
-            stopPrice: order.triggerPrice !== '0'
-                ? parseFloat(order.triggerPrice) / DRIFT_PRECISION.PRICE
+            stopPrice: validated.triggerPrice !== '0'
+                ? parseFloat(validated.triggerPrice) / DRIFT_PRECISION.PRICE
                 : undefined,
             status,
             filled: filledAmount,
             remaining: baseAmount - filledAmount,
             averagePrice: filledAmount > 0
-                ? parseFloat(order.quoteAssetAmountFilled) / DRIFT_PRECISION.QUOTE / filledAmount
+                ? parseFloat(validated.quoteAssetAmountFilled) / DRIFT_PRECISION.QUOTE / filledAmount
                 : undefined,
-            reduceOnly: order.reduceOnly,
-            postOnly: order.postOnly !== 'none',
-            clientOrderId: order.userOrderId > 0 ? order.userOrderId.toString() : undefined,
-            timestamp: order.slot * 400, // Approximate ms from slot
+            reduceOnly: validated.reduceOnly,
+            postOnly: validated.postOnly !== 'none',
+            clientOrderId: validated.userOrderId > 0 ? validated.userOrderId.toString() : undefined,
+            timestamp: validated.slot * 400, // Approximate ms from slot
             info: {
-                orderId: order.orderId,
-                userOrderId: order.userOrderId,
-                marketIndex: order.marketIndex,
-                orderType: order.orderType,
-                auctionDuration: order.auctionDuration,
-                oraclePriceOffset: order.oraclePriceOffset,
+                orderId: validated.orderId,
+                userOrderId: validated.userOrderId,
+                marketIndex: validated.marketIndex,
+                orderType: validated.orderType,
+                auctionDuration: validated.auctionDuration,
+                oraclePriceOffset: validated.oraclePriceOffset,
             },
         };
     }
@@ -168,16 +182,17 @@ export class DriftNormalizer {
      * Normalize L2 orderbook
      */
     normalizeOrderBook(orderbook) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[orderbook.marketIndex];
+        const validated = DriftL2OrderBookSchema.parse(orderbook);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex];
         const config = marketKey
             ? DRIFT_PERP_MARKETS[marketKey]
             : undefined;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${orderbook.marketIndex}`);
-        const bids = orderbook.bids.map((b) => [
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+        const bids = validated.bids.map((b) => [
             parseFloat(b.price) / DRIFT_PRECISION.PRICE,
             parseFloat(b.size) / DRIFT_PRECISION.BASE,
         ]);
-        const asks = orderbook.asks.map((a) => [
+        const asks = validated.asks.map((a) => [
             parseFloat(a.price) / DRIFT_PRECISION.PRICE,
             parseFloat(a.size) / DRIFT_PRECISION.BASE,
         ]);
@@ -187,34 +202,35 @@ export class DriftNormalizer {
             bids,
             asks,
             timestamp: Date.now(),
-            sequenceId: orderbook.slot,
+            sequenceId: validated.slot,
         };
     }
     /**
      * Normalize trade
      */
     normalizeTrade(trade) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[trade.marketIndex];
+        const validated = DriftTradeSchema.parse(trade);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex ?? 0];
         const config = marketKey
             ? DRIFT_PERP_MARKETS[marketKey]
             : undefined;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${trade.marketIndex}`);
-        const amount = parseFloat(trade.baseAssetAmount) / DRIFT_PRECISION.BASE;
-        const price = parseFloat(trade.fillPrice) / DRIFT_PRECISION.PRICE;
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex ?? 0}`);
+        const amount = parseFloat(validated.baseAssetAmount ?? '0') / DRIFT_PRECISION.BASE;
+        const price = parseFloat(validated.fillPrice ?? '0') / DRIFT_PRECISION.PRICE;
         return {
-            id: trade.fillRecordId,
+            id: String(validated.fillRecordId ?? validated.recordId ?? ''),
             symbol,
-            side: trade.takerOrderDirection === 'long' ? 'buy' : 'sell',
+            side: validated.takerOrderDirection === 'long' ? 'buy' : 'sell',
             price,
             amount,
             cost: amount * price,
-            timestamp: trade.ts * 1000,
+            timestamp: (validated.ts ?? 0) * 1000,
             info: {
-                recordId: trade.recordId,
-                taker: trade.taker,
-                maker: trade.maker,
-                txSig: trade.txSig,
-                slot: trade.slot,
+                recordId: validated.recordId,
+                taker: validated.taker,
+                maker: validated.maker,
+                txSig: validated.txSig,
+                slot: validated.slot,
             },
         };
     }
@@ -222,20 +238,26 @@ export class DriftNormalizer {
      * Normalize funding rate
      */
     normalizeFundingRate(funding, oraclePrice) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[funding.marketIndex];
+        // Try both schemas since this accepts a union type
+        const validated = 'oraclePrice' in funding
+            ? DriftFundingRateSchema.parse(funding)
+            : DriftFundingRateRecordSchema.parse(funding);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex];
         const config = marketKey
             ? DRIFT_PERP_MARKETS[marketKey]
             : undefined;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${funding.marketIndex}`);
-        const fundingRate = parseFloat(funding.fundingRate) / DRIFT_PRECISION.FUNDING_RATE;
-        const markPrice = 'markPriceTwap' in funding
-            ? parseFloat(funding.markPriceTwap) / DRIFT_PRECISION.PRICE
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+        const fundingRate = parseFloat(validated.fundingRate) / DRIFT_PRECISION.FUNDING_RATE;
+        const markPrice = 'markPriceTwap' in validated && typeof validated.markPriceTwap === 'string'
+            ? parseFloat(validated.markPriceTwap) / DRIFT_PRECISION.PRICE
             : oraclePrice || 0;
         // DriftFundingRate has oraclePrice, DriftFundingRateRecord has oraclePriceTwap
-        const indexPrice = 'oraclePrice' in funding
-            ? parseFloat(funding.oraclePrice) / DRIFT_PRECISION.PRICE
-            : parseFloat(funding.oraclePriceTwap) / DRIFT_PRECISION.PRICE;
-        const ts = funding.ts * 1000;
+        const indexPrice = 'oraclePrice' in validated && typeof validated.oraclePrice === 'string'
+            ? parseFloat(validated.oraclePrice) / DRIFT_PRECISION.PRICE
+            : 'oraclePriceTwap' in validated && typeof validated.oraclePriceTwap === 'string'
+                ? parseFloat(validated.oraclePriceTwap) / DRIFT_PRECISION.PRICE
+                : 0;
+        const ts = validated.ts * 1000;
         return {
             symbol,
             fundingRate,
@@ -245,11 +267,11 @@ export class DriftNormalizer {
             indexPrice,
             fundingIntervalHours: 1,
             info: {
-                marketIndex: funding.marketIndex,
-                fundingRateLong: funding.fundingRateLong,
-                fundingRateShort: funding.fundingRateShort,
-                cumulativeFundingRateLong: funding.cumulativeFundingRateLong,
-                cumulativeFundingRateShort: funding.cumulativeFundingRateShort,
+                marketIndex: validated.marketIndex,
+                fundingRateLong: validated.fundingRateLong,
+                fundingRateShort: validated.fundingRateShort,
+                cumulativeFundingRateLong: validated.cumulativeFundingRateLong,
+                cumulativeFundingRateShort: validated.cumulativeFundingRateShort,
             },
         };
     }
@@ -257,19 +279,20 @@ export class DriftNormalizer {
      * Normalize ticker from market stats
      */
     normalizeTicker(stats) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[stats.marketIndex];
+        const validated = DriftMarketStatsSchema.parse(stats);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex];
         const config = marketKey
             ? DRIFT_PERP_MARKETS[marketKey]
             : undefined;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${stats.marketIndex}`);
-        const markPrice = parseFloat(stats.markPrice) / DRIFT_PRECISION.PRICE;
-        const oraclePrice = parseFloat(stats.oraclePrice) / DRIFT_PRECISION.PRICE;
-        const bidPrice = parseFloat(stats.bidPrice) / DRIFT_PRECISION.PRICE;
-        const askPrice = parseFloat(stats.askPrice) / DRIFT_PRECISION.PRICE;
-        const volume = parseFloat(stats.volume24h) / DRIFT_PRECISION.QUOTE;
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+        const markPrice = parseFloat(validated.markPrice) / DRIFT_PRECISION.PRICE;
+        const oraclePrice = parseFloat(validated.oraclePrice) / DRIFT_PRECISION.PRICE;
+        const bidPrice = parseFloat(validated.bidPrice) / DRIFT_PRECISION.PRICE;
+        const askPrice = parseFloat(validated.askPrice) / DRIFT_PRECISION.PRICE;
+        const volume = parseFloat(validated.volume24h) / DRIFT_PRECISION.QUOTE;
         return {
             symbol,
-            timestamp: stats.ts * 1000,
+            timestamp: validated.ts * 1000,
             last: markPrice,
             bid: bidPrice,
             ask: askPrice,
@@ -282,13 +305,14 @@ export class DriftNormalizer {
             baseVolume: volume / markPrice,
             quoteVolume: volume,
             info: {
-                marketIndex: stats.marketIndex,
+                marketIndex: validated.marketIndex,
                 oraclePrice,
-                openInterest: parseFloat(stats.openInterest) / DRIFT_PRECISION.BASE,
-                openInterestLong: parseFloat(stats.openInterestLong) / DRIFT_PRECISION.BASE,
-                openInterestShort: parseFloat(stats.openInterestShort) / DRIFT_PRECISION.BASE,
-                fundingRate: parseFloat(stats.fundingRate) / DRIFT_PRECISION.FUNDING_RATE,
-                nextFundingTs: stats.nextFundingTs,
+                openInterest: parseFloat(validated.openInterest) / DRIFT_PRECISION.BASE,
+                openInterestLong: parseFloat(validated.openInterestLong) / DRIFT_PRECISION.BASE,
+                openInterestShort: parseFloat(validated.openInterestShort) / DRIFT_PRECISION.BASE,
+                fundingRate: parseFloat(validated.fundingRate) / DRIFT_PRECISION.FUNDING_RATE,
+                nextFundingTs: validated.nextFundingTs,
+                _bidAskSource: 'orderbook',
             },
         };
     }
@@ -296,8 +320,9 @@ export class DriftNormalizer {
      * Normalize balance from spot position
      */
     normalizeBalance(position, tokenPrice, tokenSymbol) {
-        const scaledBalance = parseFloat(position.scaledBalance);
-        const isDeposit = position.balanceType === 'deposit';
+        const validated = DriftSpotPositionSchema.parse(position);
+        const scaledBalance = parseFloat(validated.scaledBalance);
+        const isDeposit = validated.balanceType === 'deposit';
         // For deposits, positive balance; for borrows, negative
         const total = isDeposit ? scaledBalance : -scaledBalance;
         return {
@@ -307,9 +332,9 @@ export class DriftNormalizer {
             used: isDeposit ? 0 : Math.abs(total),
             usdValue: total * tokenPrice,
             info: {
-                marketIndex: position.marketIndex,
-                balanceType: position.balanceType,
-                cumulativeDeposits: position.cumulativeDeposits,
+                marketIndex: validated.marketIndex,
+                balanceType: validated.balanceType,
+                cumulativeDeposits: validated.cumulativeDeposits,
             },
         };
     }
@@ -317,13 +342,14 @@ export class DriftNormalizer {
      * Normalize candle to OHLCV
      */
     normalizeCandle(candle) {
+        const validated = DriftCandleSchema.parse(candle);
         return [
-            candle.start * 1000,
-            parseFloat(candle.open) / DRIFT_PRECISION.PRICE,
-            parseFloat(candle.high) / DRIFT_PRECISION.PRICE,
-            parseFloat(candle.low) / DRIFT_PRECISION.PRICE,
-            parseFloat(candle.close) / DRIFT_PRECISION.PRICE,
-            parseFloat(candle.volume) / DRIFT_PRECISION.QUOTE,
+            validated.start * 1000,
+            parseFloat(validated.open) / DRIFT_PRECISION.PRICE,
+            parseFloat(validated.high) / DRIFT_PRECISION.PRICE,
+            parseFloat(validated.low) / DRIFT_PRECISION.PRICE,
+            parseFloat(validated.close) / DRIFT_PRECISION.PRICE,
+            parseFloat(validated.volume) / DRIFT_PRECISION.QUOTE,
         ];
     }
     // ==========================================================================

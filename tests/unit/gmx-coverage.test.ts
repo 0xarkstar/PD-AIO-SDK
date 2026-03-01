@@ -580,6 +580,77 @@ describe('GmxSubgraph Query Methods', () => {
 // GmxAdapter — initialized state methods
 // =============================================================================
 
+/**
+ * Default values for GmxMarketInfo fields required by GmxMarketInfoSchema.
+ * All string fields default to '0', booleans to false.
+ */
+const GMX_MARKET_INFO_DEFAULTS = {
+  maxLongPoolAmount: '0',
+  maxShortPoolAmount: '0',
+  maxLongPoolUsdForDeposit: '0',
+  maxShortPoolUsdForDeposit: '0',
+  longPoolAmountAdjustment: '0',
+  shortPoolAmountAdjustment: '0',
+  poolValueMin: '0',
+  poolValueMax: '0',
+  reserveFactorLong: '0',
+  reserveFactorShort: '0',
+  openInterestReserveFactorLong: '0',
+  openInterestReserveFactorShort: '0',
+  totalBorrowingFees: '0',
+  positionImpactPoolAmount: '0',
+  minPositionImpactPoolAmount: '0',
+  positionImpactPoolDistributionRate: '0',
+  swapImpactPoolAmountLong: '0',
+  swapImpactPoolAmountShort: '0',
+  borrowingExponentFactorLong: '0',
+  borrowingExponentFactorShort: '0',
+  fundingExponentFactor: '0',
+  fundingIncreaseFactorPerSecond: '0',
+  fundingDecreaseFactorPerSecond: '0',
+  thresholdForStableFunding: '0',
+  thresholdForDecreaseFunding: '0',
+  minFundingFactorPerSecond: '0',
+  maxFundingFactorPerSecond: '0',
+  pnlLongMax: '0',
+  pnlLongMin: '0',
+  pnlShortMax: '0',
+  pnlShortMin: '0',
+  netPnlMax: '0',
+  netPnlMin: '0',
+  maxPnlFactorForTradersLong: '0',
+  maxPnlFactorForTradersShort: '0',
+  minCollateralFactor: '0',
+  minCollateralFactorForOpenInterestLong: '0',
+  minCollateralFactorForOpenInterestShort: '0',
+  claimableFundingAmountLong: '0',
+  claimableFundingAmountShort: '0',
+  positionFeeFactorForPositiveImpact: '0',
+  positionFeeFactorForNegativeImpact: '0',
+  positionImpactFactorPositive: '0',
+  positionImpactFactorNegative: '0',
+  maxPositionImpactFactorPositive: '0',
+  maxPositionImpactFactorNegativePrice: '0',
+  positionImpactExponentFactor: '0',
+  swapFeeFactorForPositiveImpact: '0',
+  swapFeeFactorForNegativeImpact: '0',
+  swapImpactFactorPositive: '0',
+  swapImpactFactorNegative: '0',
+  swapImpactExponentFactor: '0',
+  longInterestInTokens: '0',
+  shortInterestInTokens: '0',
+  longInterestInTokensUsingLongToken: '0',
+  longInterestInTokensUsingShortToken: '0',
+  shortInterestInTokensUsingLongToken: '0',
+  shortInterestInTokensUsingShortToken: '0',
+  virtualPoolAmountForLongToken: '0',
+  virtualPoolAmountForShortToken: '0',
+  virtualInventoryForPositions: '0',
+  virtualMarketId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+  virtualLongTokenId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+  virtualShortTokenId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+};
+
 describe('GmxAdapter Initialized Methods', () => {
   const originalFetch = global.fetch;
   let adapter: GmxAdapter;
@@ -587,6 +658,7 @@ describe('GmxAdapter Initialized Methods', () => {
   const mockMarketsInfoResponse = {
     markets: [
       {
+        ...GMX_MARKET_INFO_DEFAULTS,
         marketToken: '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
         indexToken: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
         longToken: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',

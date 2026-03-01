@@ -35,6 +35,28 @@ describe('DriftNormalizer', () => {
       marginRatioMaintenance: 500, // 5%
       imfFactor: 0,
       numberOfUsers: 1000,
+      numberOfUsersWithBase: 500,
+      pnlPool: { scaledBalance: '0', marketIndex: 0 },
+      nextFillRecordId: '1',
+      nextFundingRateRecordId: '1',
+      nextCurveRecordId: '1',
+      unrealizedPnlImfFactor: 0,
+      liquidatorFee: 0,
+      ifLiquidationFee: 0,
+      unrealizedPnlMaxImbalance: '0',
+      expiryTs: '0',
+      expiryPrice: '0',
+      insuranceClaim: {
+        revenueWithdrawSinceLastSettle: '0',
+        maxRevenueWithdrawPerPeriod: '0',
+        lastRevenueWithdrawTs: '0',
+        quoteSettledInsurance: '0',
+        quoteMaxInsurance: '0',
+      },
+      contractType: 'perpetual',
+      pausedOperations: 0,
+      quoteSpotMarketIndex: 0,
+      feeAdjustment: 0,
       amm: {
         orderTickSize: '1000000', // Price precision
         orderStepSize: '100000000', // Amount precision
@@ -201,6 +223,7 @@ describe('DriftNormalizer', () => {
   test('should handle perp vs spot markets', () => {
     const orderbook: DriftL2OrderBook = {
       marketIndex: 0,
+      marketType: 'perp',
       slot: 12345,
       oraclePrice: '50000000000',
       bids: [
@@ -249,13 +272,20 @@ describe('DriftNormalizer', () => {
       recordId: 'trade-123',
       fillRecordId: 'fill-123',
       marketIndex: 0,
+      marketType: 'perp',
       ts: 1704067200,
       slot: 12345,
       baseAssetAmount: '1000000000',
       fillPrice: '50000000000',
+      takerOrderId: 1,
       takerOrderDirection: 'long',
       taker: 'taker-pubkey',
       maker: 'maker-pubkey',
+      makerOrderId: 2,
+      makerOrderDirection: 'short',
+      quoteAssetAmount: '50000000000',
+      action: 'fill',
+      actionExplanation: 'orderFilledWithMatch',
       txSig: 'signature-xyz',
     };
 
@@ -297,6 +327,7 @@ describe('DriftNormalizer', () => {
   test('should convert Drift symbols to unified', () => {
     const orderbook: DriftL2OrderBook = {
       marketIndex: 1, // ETH-PERP
+      marketType: 'perp',
       slot: 12345,
       oraclePrice: '3000000000000',
       bids: [],

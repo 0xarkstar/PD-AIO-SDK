@@ -736,7 +736,10 @@ describe('JupiterNormalizer', () => {
         owner: 'owner-address',
         pool: 'pool-address',
         custody: 'custody-address',
+        collateralCustody: 'collateral-custody-address',
         cumulativeInterestSnapshot: '0',
+        lockedAmount: '0',
+        bump: 255,
       };
 
       const position = normalizer.normalizePosition(
@@ -770,7 +773,10 @@ describe('JupiterNormalizer', () => {
         owner: 'owner-address',
         pool: 'pool-address',
         custody: 'custody-address',
+        collateralCustody: 'collateral-custody-address',
         cumulativeInterestSnapshot: '0',
+        lockedAmount: '0',
+        bump: 255,
       };
 
       const position = normalizer.normalizePosition(
@@ -884,14 +890,49 @@ describe('JupiterNormalizer', () => {
   describe('normalizeFundingRate', () => {
     test('normalizes funding rate (borrow fee)', () => {
       const mockCustody = {
+        pool: 'pool-address',
+        mint: 'token-mint',
+        tokenAccount: 'token-account-address',
+        decimals: 9,
+        isStable: false,
+        oracle: {
+          oracleType: 'Pyth',
+          oracleAccount: 'oracle-address',
+          maxPriceAge: 60,
+          maxPriceDeviation: 100,
+        },
+        pricing: {
+          useEma: true,
+          tradeSpread: 10,
+          swapSpread: 20,
+          minInitialLeverage: 11000,
+          maxInitialLeverage: 2500000,
+          maxLeverage: 250,
+          maxPositionLockedUsd: 10000000,
+          maxUtilization: 80,
+        },
+        trading: {
+          tradingEnabled: true,
+          allowOpenPosition: true,
+          allowClosePosition: true,
+          allowAddCollateral: true,
+          allowRemoveCollateral: true,
+          allowIncreaseSize: true,
+          allowDecreaseSize: true,
+        },
         fundingRateState: {
           hourlyBorrowRate: '0.0001',
           lastUpdate: Math.floor(Date.now() / 1000),
           cumulativeInterestRate: '1.05',
         },
-        mint: 'token-mint',
-        trading: { tradingEnabled: true },
-        pricing: { maxLeverage: 250 },
+        assets: {
+          owned: '1000000000',
+          locked: '500000000',
+          guaranteedUsd: '100000000',
+          globalShortSizes: '200000000',
+          globalShortAveragePrices: '100000000',
+        },
+        bump: 255,
       };
 
       const fundingRate = normalizer.normalizeFundingRate(
@@ -973,24 +1014,69 @@ describe('JupiterNormalizer', () => {
   describe('normalizeMarket', () => {
     test('normalizes market correctly', () => {
       const mockCustody = {
+        pool: 'pool-address',
         mint: 'So11111111111111111111111111111111111111112',
-        trading: { tradingEnabled: true },
+        tokenAccount: 'token-account-address',
+        decimals: 9,
+        isStable: false,
+        oracle: {
+          oracleType: 'Pyth',
+          oracleAccount: 'oracle-address',
+          maxPriceAge: 60,
+          maxPriceDeviation: 100,
+        },
         pricing: {
+          useEma: true,
+          tradeSpread: 10,
+          swapSpread: 20,
+          minInitialLeverage: 11000,
+          maxInitialLeverage: 2500000,
           maxLeverage: 250,
           maxPositionLockedUsd: 10000000,
           maxUtilization: 0.8,
         },
-        oracle: {
-          oracleAccount: 'oracle-address',
+        trading: {
+          tradingEnabled: true,
+          allowOpenPosition: true,
+          allowClosePosition: true,
+          allowAddCollateral: true,
+          allowRemoveCollateral: true,
+          allowIncreaseSize: true,
+          allowDecreaseSize: true,
         },
-        isStable: false,
+        fundingRateState: {
+          cumulativeInterestRate: '1.0',
+          lastUpdate: Math.floor(Date.now() / 1000),
+          hourlyBorrowRate: '0.0001',
+        },
+        assets: {
+          owned: '1000000000',
+          locked: '500000000',
+          guaranteedUsd: '100000000',
+          globalShortSizes: '200000000',
+          globalShortAveragePrices: '100000000',
+        },
+        bump: 255,
       };
 
       const mockPool = {
         name: 'JLP',
+        admin: 'admin-address',
+        lpMint: 'lp-mint-address',
+        aumUsd: '500000000',
+        totalFees: '1000000',
+        custodies: ['custody-1', 'custody-2'],
+        maxAumUsd: '1000000000',
+        bump: 254,
+        lpTokenBump: 253,
         fees: {
+          swapFee: 10,
+          addLiquidityFee: 20,
+          removeLiquidityFee: 20,
           openPositionFee: 6, // 0.06%
           closePositionFee: 6,
+          liquidationFee: 50,
+          protocolShare: 25,
         },
       };
 
@@ -1013,24 +1099,69 @@ describe('JupiterNormalizer', () => {
 
     test('normalizes inactive market', () => {
       const mockCustody = {
+        pool: 'pool-address',
         mint: 'token-mint',
-        trading: { tradingEnabled: false },
+        tokenAccount: 'token-account-address',
+        decimals: 9,
+        isStable: false,
+        oracle: {
+          oracleType: 'Pyth',
+          oracleAccount: 'oracle-address',
+          maxPriceAge: 60,
+          maxPriceDeviation: 100,
+        },
         pricing: {
+          useEma: true,
+          tradeSpread: 10,
+          swapSpread: 20,
+          minInitialLeverage: 11000,
+          maxInitialLeverage: 1000000,
           maxLeverage: 100,
           maxPositionLockedUsd: 5000000,
           maxUtilization: 0.5,
         },
-        oracle: {
-          oracleAccount: 'oracle-address',
+        trading: {
+          tradingEnabled: false,
+          allowOpenPosition: false,
+          allowClosePosition: false,
+          allowAddCollateral: false,
+          allowRemoveCollateral: false,
+          allowIncreaseSize: false,
+          allowDecreaseSize: false,
         },
-        isStable: false,
+        fundingRateState: {
+          cumulativeInterestRate: '1.0',
+          lastUpdate: Math.floor(Date.now() / 1000),
+          hourlyBorrowRate: '0.0001',
+        },
+        assets: {
+          owned: '1000000000',
+          locked: '500000000',
+          guaranteedUsd: '100000000',
+          globalShortSizes: '200000000',
+          globalShortAveragePrices: '100000000',
+        },
+        bump: 255,
       };
 
       const mockPool = {
         name: 'JLP',
+        admin: 'admin-address',
+        lpMint: 'lp-mint-address',
+        aumUsd: '500000000',
+        totalFees: '1000000',
+        custodies: ['custody-1', 'custody-2'],
+        maxAumUsd: '1000000000',
+        bump: 254,
+        lpTokenBump: 253,
         fees: {
+          swapFee: 10,
+          addLiquidityFee: 20,
+          removeLiquidityFee: 20,
           openPositionFee: 10,
           closePositionFee: 10,
+          liquidationFee: 50,
+          protocolShare: 25,
         },
       };
 

@@ -173,6 +173,7 @@ describe('LighterNormalizer', () => {
         size: 0.1,
         filledSize: 0.05,
         status: 'open',
+        reduceOnly: false,
         timestamp: 1700000000000,
       };
 
@@ -200,6 +201,7 @@ describe('LighterNormalizer', () => {
         size: 10,
         filledSize: 10,
         status: 'filled',
+        reduceOnly: false,
         timestamp: 1700001000000,
       };
 
@@ -220,6 +222,7 @@ describe('LighterNormalizer', () => {
         size: 50,
         filledSize: 0,
         status: 'cancelled',
+        reduceOnly: false,
         timestamp: 1700002000000,
       };
 
@@ -239,6 +242,7 @@ describe('LighterNormalizer', () => {
         filledSize: 0,
         status: 'open',
         postOnly: true,
+        reduceOnly: false,
         timestamp: 1700003000000,
       };
 

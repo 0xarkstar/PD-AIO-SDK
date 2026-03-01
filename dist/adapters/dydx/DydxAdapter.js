@@ -223,7 +223,7 @@ export class DydxAdapter extends BaseAdapter {
             if (params?.since) {
                 queryParams.createdBeforeOrAtHeight = undefined; // dYdX uses block height, not timestamp directly
             }
-            const url = buildUrl(this.apiUrl, '/trades', { market: exchangeSymbol, ...queryParams });
+            const url = buildUrl(this.apiUrl, `/trades/perpetualMarket/${exchangeSymbol}`, queryParams);
             const response = await this.request('GET', url);
             return this.normalizer.normalizeTrades(response.trades, exchangeSymbol);
         }
@@ -271,10 +271,7 @@ export class DydxAdapter extends BaseAdapter {
             if (since) {
                 queryParams.effectiveBeforeOrAt = new Date(since).toISOString();
             }
-            const url = buildUrl(this.apiUrl, '/historicalFunding', {
-                market: exchangeSymbol,
-                ...queryParams,
-            });
+            const url = buildUrl(this.apiUrl, `/historicalFunding/${exchangeSymbol}`, queryParams);
             const response = await this.request('GET', url);
             // Get current oracle price
             const oraclePrice = await this.getOraclePrice(exchangeSymbol);
@@ -301,7 +298,7 @@ export class DydxAdapter extends BaseAdapter {
                 toISO,
                 limit: params?.limit ?? 100,
             };
-            const url = buildUrl(this.apiUrl, '/candles', { market: exchangeSymbol, ...queryParams });
+            const url = buildUrl(this.apiUrl, `/candles/perpetualMarkets/${exchangeSymbol}`, queryParams);
             const response = await this.request('GET', url);
             return this.normalizer.normalizeCandles(response.candles);
         }

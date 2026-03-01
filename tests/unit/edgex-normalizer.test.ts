@@ -514,7 +514,7 @@ describe('EdgeXNormalizer', () => {
     });
 
     it('should handle empty order book', () => {
-      const depthData = {};
+      const depthData = { bids: [], asks: [] };
 
       const orderBook = normalizer.normalizeOrderBook(depthData, 'BTC/USD:USD');
 

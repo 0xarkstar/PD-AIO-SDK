@@ -29,14 +29,25 @@ import type {
   AsterPriceFilter,
   AsterLotSizeFilter,
 } from './types.js';
+import {
+  AsterSymbolInfoSchema,
+  AsterTicker24hrSchema,
+  AsterOrderBookResponseSchema,
+  AsterTradeResponseSchema,
+  AsterPremiumIndexSchema,
+  AsterOrderResponseSchema,
+  AsterPositionRiskSchema,
+  AsterAccountBalanceSchema,
+} from './types.js';
 import { toUnifiedSymbol } from './utils.js';
 
 export class AsterNormalizer {
   normalizeMarket(info: AsterSymbolInfo): Market {
-    const priceFilter = info.filters.find(
+    const validated = AsterSymbolInfoSchema.parse(info);
+    const priceFilter = validated.filters.find(
       (f: AsterFilter): f is AsterPriceFilter => f.filterType === 'PRICE_FILTER'
     );
-    const lotFilter = info.filters.find(
+    const lotFilter = validated.filters.find(
       (f: AsterFilter): f is AsterLotSizeFilter => f.filterType === 'LOT_SIZE'
     );
 
@@ -45,82 +56,86 @@ export class AsterNormalizer {
     const minQty = lotFilter ? parseFloat(lotFilter.minQty) : 0;
 
     return {
-      id: info.symbol,
-      symbol: toUnifiedSymbol(info.symbol, info.baseAsset, info.quoteAsset),
-      base: info.baseAsset,
-      quote: info.quoteAsset,
-      settle: info.marginAsset,
-      active: info.status === 'TRADING',
+      id: validated.symbol,
+      symbol: toUnifiedSymbol(validated.symbol, validated.baseAsset, validated.quoteAsset),
+      base: validated.baseAsset,
+      quote: validated.quoteAsset,
+      settle: validated.marginAsset,
+      active: validated.status === 'TRADING',
       minAmount: minQty,
-      pricePrecision: info.pricePrecision,
-      amountPrecision: info.quantityPrecision,
+      pricePrecision: validated.pricePrecision,
+      amountPrecision: validated.quantityPrecision,
       priceTickSize: tickSize,
       amountStepSize: stepSize,
       makerFee: 0.0002,
       takerFee: 0.0005,
       maxLeverage: 125,
       fundingIntervalHours: 8,
-      info: info as unknown as Record<string, unknown>,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
   normalizeTicker(raw: AsterTicker24hr, symbol?: string): Ticker {
-    const last = parseFloat(raw.lastPrice);
+    const validated = AsterTicker24hrSchema.parse(raw);
+    const last = parseFloat(validated.lastPrice);
 
     return {
-      symbol: symbol ?? raw.symbol,
+      symbol: symbol ?? validated.symbol,
       last,
       bid: last,
       ask: last,
-      high: parseFloat(raw.highPrice),
-      low: parseFloat(raw.lowPrice),
-      open: parseFloat(raw.openPrice),
+      high: parseFloat(validated.highPrice),
+      low: parseFloat(validated.lowPrice),
+      open: parseFloat(validated.openPrice),
       close: last,
-      change: parseFloat(raw.priceChange),
-      percentage: parseFloat(raw.priceChangePercent),
-      baseVolume: parseFloat(raw.volume),
-      quoteVolume: parseFloat(raw.quoteVolume),
-      timestamp: raw.closeTime,
+      change: parseFloat(validated.priceChange),
+      percentage: parseFloat(validated.priceChangePercent),
+      baseVolume: parseFloat(validated.volume),
+      quoteVolume: parseFloat(validated.quoteVolume),
+      timestamp: validated.closeTime,
       info: {
-        ...(raw as unknown as Record<string, unknown>),
+        ...(validated as unknown as Record<string, unknown>),
         _bidAskSource: 'last_price',
       },
     };
   }
 
   normalizeOrderBook(raw: AsterOrderBookResponse, symbol: string): OrderBook {
+    const validated = AsterOrderBookResponseSchema.parse(raw);
     return {
       symbol,
-      timestamp: raw.T ?? Date.now(),
-      bids: raw.bids.map(([p, s]) => [parseFloat(p), parseFloat(s)] as [number, number]),
-      asks: raw.asks.map(([p, s]) => [parseFloat(p), parseFloat(s)] as [number, number]),
+      timestamp: validated.T ?? Date.now(),
+      bids: validated.bids.map(([p, s]) => [parseFloat(p), parseFloat(s)] as [number, number]),
+      asks: validated.asks.map(([p, s]) => [parseFloat(p), parseFloat(s)] as [number, number]),
       exchange: 'aster',
     };
   }
 
   normalizeTrade(raw: AsterTradeResponse, symbol: string): Trade {
+    const validated = AsterTradeResponseSchema.parse(raw);
     return {
-      id: String(raw.id),
+      id: String(validated.id),
       symbol,
-      side: raw.isBuyerMaker ? 'sell' : 'buy',
-      price: parseFloat(raw.price),
-      amount: parseFloat(raw.qty),
-      cost: parseFloat(raw.quoteQty),
-      timestamp: raw.time,
-      info: raw as unknown as Record<string, unknown>,
+      side: validated.isBuyerMaker ? 'sell' : 'buy',
+      price: parseFloat(validated.price),
+      amount: parseFloat(validated.qty),
+      cost: parseFloat(validated.quoteQty),
+      timestamp: validated.time,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
   normalizeFundingRate(raw: AsterPremiumIndex, symbol: string): FundingRate {
+    const validated = AsterPremiumIndexSchema.parse(raw);
     return {
       symbol,
-      fundingRate: parseFloat(raw.lastFundingRate),
-      fundingTimestamp: raw.time,
-      nextFundingTimestamp: raw.nextFundingTime,
-      markPrice: parseFloat(raw.markPrice),
-      indexPrice: parseFloat(raw.indexPrice),
+      fundingRate: parseFloat(validated.lastFundingRate),
+      fundingTimestamp: validated.time,
+      nextFundingTimestamp: validated.nextFundingTime,
+      markPrice: parseFloat(validated.markPrice),
+      indexPrice: parseFloat(validated.indexPrice),
       fundingIntervalHours: 8,
-      info: raw as unknown as Record<string, unknown>,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -136,56 +151,58 @@ export class AsterNormalizer {
   }
 
   normalizeOrder(raw: AsterOrderResponse, symbol?: string): Order {
-    const filled = parseFloat(raw.executedQty);
-    const amount = parseFloat(raw.origQty);
-    const price = parseFloat(raw.price);
-    const avgPrice = parseFloat(raw.avgPrice);
+    const validated = AsterOrderResponseSchema.parse(raw);
+    const filled = parseFloat(validated.executedQty);
+    const amount = parseFloat(validated.origQty);
+    const price = parseFloat(validated.price);
+    const avgPrice = parseFloat(validated.avgPrice);
 
     return {
-      id: String(raw.orderId),
-      symbol: symbol ?? raw.symbol,
-      type: raw.origType?.toLowerCase() === 'market' ? 'market' : 'limit',
-      side: raw.side === 'BUY' ? 'buy' : 'sell',
+      id: String(validated.orderId),
+      symbol: symbol ?? validated.symbol,
+      type: validated.origType?.toLowerCase() === 'market' ? 'market' : 'limit',
+      side: validated.side === 'BUY' ? 'buy' : 'sell',
       amount,
       price: price || undefined,
-      status: (ASTER_ORDER_STATUS[raw.status] ?? 'open') as OrderStatus,
+      status: (ASTER_ORDER_STATUS[validated.status] ?? 'open') as OrderStatus,
       filled,
       remaining: amount - filled,
       averagePrice: avgPrice || undefined,
       cost: filled * (avgPrice || price),
-      reduceOnly: raw.reduceOnly ?? false,
-      postOnly: raw.timeInForce === 'GTX',
-      clientOrderId: raw.clientOrderId,
-      timestamp: raw.updateTime,
-      info: raw as unknown as Record<string, unknown>,
+      reduceOnly: validated.reduceOnly ?? false,
+      postOnly: validated.timeInForce === 'GTX',
+      clientOrderId: validated.clientOrderId,
+      timestamp: validated.updateTime,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
   normalizePosition(raw: AsterPositionRisk, symbol?: string): Position {
-    const size = parseFloat(raw.positionAmt);
+    const validated = AsterPositionRiskSchema.parse(raw);
+    const size = parseFloat(validated.positionAmt);
     const absSize = Math.abs(size);
-    const leverage = parseFloat(raw.leverage);
-    const entryPrice = parseFloat(raw.entryPrice);
-    const markPrice = parseFloat(raw.markPrice);
-    const notional = Math.abs(parseFloat(raw.notional));
+    const leverage = parseFloat(validated.leverage);
+    const entryPrice = parseFloat(validated.entryPrice);
+    const markPrice = parseFloat(validated.markPrice);
+    const notional = Math.abs(parseFloat(validated.notional));
 
     return {
-      symbol: symbol ?? raw.symbol,
+      symbol: symbol ?? validated.symbol,
       side: size >= 0 ? 'long' : 'short',
       size: absSize,
       entryPrice,
       markPrice,
-      liquidationPrice: parseFloat(raw.liquidationPrice) || 0,
-      unrealizedPnl: parseFloat(raw.unRealizedProfit),
+      liquidationPrice: parseFloat(validated.liquidationPrice) || 0,
+      unrealizedPnl: parseFloat(validated.unRealizedProfit),
       realizedPnl: 0,
       leverage,
-      marginMode: raw.marginType === 'isolated' ? 'isolated' : 'cross',
+      marginMode: validated.marginType === 'isolated' ? 'isolated' : 'cross',
       margin: notional / leverage,
       maintenanceMargin: 0,
       marginRatio: 0,
-      timestamp: raw.updateTime,
+      timestamp: validated.updateTime,
       info: {
-        ...(raw as unknown as Record<string, unknown>),
+        ...(validated as unknown as Record<string, unknown>),
         _realizedPnlSource: 'not_available',
         _marginRatioSource: 'not_available',
       },
@@ -193,12 +210,13 @@ export class AsterNormalizer {
   }
 
   normalizeBalance(raw: AsterAccountBalance): Balance {
+    const validated = AsterAccountBalanceSchema.parse(raw);
     return {
-      currency: raw.asset,
-      total: parseFloat(raw.balance),
-      free: parseFloat(raw.availableBalance),
-      used: parseFloat(raw.balance) - parseFloat(raw.availableBalance),
-      info: raw as unknown as Record<string, unknown>,
+      currency: validated.asset,
+      total: parseFloat(validated.balance),
+      free: parseFloat(validated.availableBalance),
+      used: parseFloat(validated.balance) - parseFloat(validated.availableBalance),
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 }

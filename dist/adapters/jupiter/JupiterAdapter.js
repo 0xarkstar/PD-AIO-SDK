@@ -613,7 +613,10 @@ export class JupiterAdapter extends BaseAdapter {
         return price;
     }
     /**
-     * Fetch prices for multiple tokens
+     * Fetch prices for multiple tokens via Pyth Network Hermes API
+     *
+     * Jupiter's price API (v2/v3) now requires authentication.
+     * Uses Pyth Network as price source since Jupiter Perps uses Pyth oracles on-chain.
      */
     async fetchPrices(tokenMints) {
         // Map token symbols to mints if needed
@@ -625,11 +628,45 @@ export class JupiterAdapter extends BaseAdapter {
         });
         const url = buildPriceApiUrl(mints);
         const response = await this.request('GET', url);
-        // Cache results
-        for (const [id, data] of Object.entries(response.data)) {
-            this.priceCache.set(id, { price: data, timestamp: Date.now() });
+        // Convert Pyth response to JupiterPriceData keyed by mint address
+        const result = {};
+        // Guard: if response.parsed is empty/undefined, return empty result
+        if (!response.parsed || response.parsed.length === 0) {
+            return result;
         }
-        return response.data;
+        const { JUPITER_PYTH_FEED_IDS } = await import('./constants.js');
+        // Build reverse map: feedId -> token name -> mint address
+        const feedToMint = {};
+        for (const [tokenName, feedId] of Object.entries(JUPITER_PYTH_FEED_IDS)) {
+            const mint = JUPITER_TOKEN_MINTS[tokenName];
+            if (mint) {
+                // Pyth returns IDs without 0x prefix
+                const normalizedId = feedId.replace('0x', '');
+                feedToMint[normalizedId] = mint;
+            }
+        }
+        for (const parsed of response.parsed) {
+            const mint = feedToMint[parsed.id];
+            if (!mint)
+                continue;
+            const priceNum = parseInt(parsed.price.price, 10) * Math.pow(10, parsed.price.expo);
+            const priceStr = priceNum.toString();
+            const priceData = {
+                id: mint,
+                type: 'derivedPrice',
+                price: priceStr,
+                extraInfo: {
+                    confidenceLevel: 'high',
+                    quotedPrice: {
+                        buyPrice: priceStr,
+                        sellPrice: priceStr,
+                    },
+                },
+            };
+            result[mint] = priceData;
+            this.priceCache.set(mint, { price: priceData, timestamp: Date.now() });
+        }
+        return result;
     }
     /**
      * Filter markets by params

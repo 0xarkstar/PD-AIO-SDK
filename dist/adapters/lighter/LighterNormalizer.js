@@ -3,6 +3,7 @@
  *
  * Transforms Lighter-specific data structures to unified SDK format
  */
+import { LighterOrderSchema, LighterPositionSchema, LighterBalanceSchema, LighterFundingRateSchema, LighterAPIMarketSchema, LighterAPITickerSchema, } from './types.js';
 export class LighterNormalizer {
     /**
      * Convert unified symbol to Lighter format
@@ -27,25 +28,26 @@ export class LighterNormalizer {
      * Handles real Lighter API response format from /api/v1/orderBookDetails
      */
     normalizeMarket(lighterMarket) {
+        const validated = LighterAPIMarketSchema.parse(lighterMarket);
         // Real API returns: { symbol: "BTC", market_type: "perp", ... }
-        const base = lighterMarket.symbol;
+        const base = validated.symbol;
         const quote = 'USDC'; // Lighter uses USDC as quote currency
         const symbol = `${base}/${quote}:${quote}`;
         // Extract precision from API response
-        const pricePrecision = lighterMarket.supported_price_decimals || lighterMarket.price_decimals || 2;
-        const amountPrecision = lighterMarket.supported_size_decimals || lighterMarket.size_decimals || 4;
+        const pricePrecision = Number(validated.supported_price_decimals || validated.price_decimals || 2);
+        const amountPrecision = Number(validated.supported_size_decimals || validated.size_decimals || 4);
         // Parse min amounts from string values
-        const minAmount = parseFloat(lighterMarket.min_base_amount || '0');
+        const minAmount = parseFloat(validated.min_base_amount || '0');
         // Parse fees
-        const makerFee = parseFloat(lighterMarket.maker_fee || '0');
-        const takerFee = parseFloat(lighterMarket.taker_fee || '0');
+        const makerFee = parseFloat(validated.maker_fee || '0');
+        const takerFee = parseFloat(validated.taker_fee || '0');
         return {
-            id: lighterMarket.symbol,
+            id: validated.symbol,
             symbol,
             base,
             quote,
             settle: quote,
-            active: lighterMarket.status === 'active',
+            active: validated.status === 'active',
             minAmount,
             maxAmount: undefined,
             pricePrecision,
@@ -54,66 +56,76 @@ export class LighterNormalizer {
             amountStepSize: Math.pow(10, -amountPrecision),
             makerFee,
             takerFee,
-            maxLeverage: lighterMarket.default_initial_margin_fraction
-                ? Math.floor(10000 / lighterMarket.default_initial_margin_fraction)
+            maxLeverage: validated.default_initial_margin_fraction
+                ? Math.floor(10000 / validated.default_initial_margin_fraction)
                 : 20,
             fundingIntervalHours: 8,
-            info: lighterMarket,
+            info: validated,
         };
     }
     /**
      * Normalize Lighter order to unified format
      */
     normalizeOrder(lighterOrder) {
+        const validated = LighterOrderSchema.parse(lighterOrder);
+        const size = validated.size ?? 0;
+        const filledSize = validated.filledSize ?? 0;
         return {
-            id: lighterOrder.orderId,
-            clientOrderId: lighterOrder.clientOrderId,
-            symbol: this.normalizeSymbol(lighterOrder.symbol),
-            type: lighterOrder.type,
-            side: lighterOrder.side,
-            price: lighterOrder.price,
-            amount: lighterOrder.size,
-            filled: lighterOrder.filledSize,
-            remaining: lighterOrder.size - lighterOrder.filledSize,
-            status: this.mapOrderStatus(lighterOrder.status),
-            timestamp: lighterOrder.timestamp,
-            reduceOnly: lighterOrder.reduceOnly,
+            id: validated.orderId,
+            clientOrderId: validated.clientOrderId,
+            symbol: this.normalizeSymbol(validated.symbol),
+            type: validated.type ?? 'limit',
+            side: validated.side ?? 'buy',
+            price: validated.price,
+            amount: size,
+            filled: filledSize,
+            remaining: size - filledSize,
+            status: this.mapOrderStatus(validated.status ?? 'open'),
+            timestamp: validated.timestamp ?? Date.now(),
+            reduceOnly: validated.reduceOnly ?? false,
             postOnly: false,
-            info: lighterOrder,
+            info: validated,
         };
     }
     /**
      * Normalize Lighter position to unified format
      */
     normalizePosition(lighterPosition) {
+        const validated = LighterPositionSchema.parse(lighterPosition);
+        const margin = validated.margin ?? 0;
+        const unrealizedPnl = validated.unrealizedPnl ?? 0;
         return {
-            symbol: this.normalizeSymbol(lighterPosition.symbol),
-            side: lighterPosition.side,
-            size: lighterPosition.size,
-            entryPrice: lighterPosition.entryPrice,
-            markPrice: lighterPosition.markPrice,
-            liquidationPrice: lighterPosition.liquidationPrice,
-            unrealizedPnl: lighterPosition.unrealizedPnl,
-            realizedPnl: 0, // Not provided by Lighter
-            margin: lighterPosition.margin,
-            leverage: lighterPosition.leverage,
-            marginMode: 'cross', // Not provided by Lighter, default to cross
-            maintenanceMargin: lighterPosition.margin * 0.5, // Estimate as 50% of margin
-            marginRatio: lighterPosition.unrealizedPnl / lighterPosition.margin, // Calculate from available data
+            symbol: this.normalizeSymbol(validated.symbol),
+            side: validated.side ?? 'long',
+            size: validated.size ?? 0,
+            entryPrice: validated.entryPrice ?? 0,
+            markPrice: validated.markPrice ?? 0,
+            liquidationPrice: validated.liquidationPrice ?? 0,
+            unrealizedPnl,
+            realizedPnl: 0,
+            margin,
+            leverage: validated.leverage ?? 1,
+            marginMode: 'cross',
+            maintenanceMargin: margin * 0.5,
+            marginRatio: margin > 0 ? unrealizedPnl / margin : 0,
             timestamp: Date.now(),
-            info: lighterPosition,
+            info: {
+                ...validated,
+                _realizedPnlSource: 'not_available',
+            },
         };
     }
     /**
      * Normalize Lighter balance to unified format
      */
     normalizeBalance(lighterBalance) {
+        const validated = LighterBalanceSchema.parse(lighterBalance);
         return {
-            currency: lighterBalance.currency,
-            total: lighterBalance.total,
-            free: lighterBalance.available,
-            used: lighterBalance.reserved,
-            info: lighterBalance,
+            currency: validated.currency,
+            total: validated.total,
+            free: validated.available,
+            used: validated.reserved,
+            info: validated,
         };
     }
     /**
@@ -148,15 +160,16 @@ export class LighterNormalizer {
      * Handles real API response from /api/v1/orderBookDetails
      */
     normalizeTicker(lighterTicker) {
+        const validated = LighterAPITickerSchema.parse(lighterTicker);
         // Real API format: { symbol, last_trade_price, daily_price_high, daily_price_low, ... }
-        const last = parseFloat(lighterTicker.last_trade_price || '0');
-        const high = parseFloat(lighterTicker.daily_price_high || '0');
-        const low = parseFloat(lighterTicker.daily_price_low || '0');
-        const baseVolume = parseFloat(lighterTicker.daily_base_token_volume || '0');
-        const quoteVolume = parseFloat(lighterTicker.daily_quote_token_volume || '0');
-        const change = parseFloat(lighterTicker.daily_price_change || '0');
+        const last = parseFloat(validated.last_trade_price || '0');
+        const high = parseFloat(validated.daily_price_high || '0');
+        const low = parseFloat(validated.daily_price_low || '0');
+        const baseVolume = parseFloat(validated.daily_base_token_volume || '0');
+        const quoteVolume = parseFloat(validated.daily_quote_token_volume || '0');
+        const change = parseFloat(validated.daily_price_change || '0');
         return {
-            symbol: this.normalizeSymbol(lighterTicker.symbol),
+            symbol: this.normalizeSymbol(validated.symbol),
             last,
             bid: last, // Not directly provided, use last as approximation
             ask: last, // Not directly provided, use last as approximation
@@ -169,19 +182,23 @@ export class LighterNormalizer {
             baseVolume,
             quoteVolume,
             timestamp: Date.now(),
-            info: lighterTicker,
+            info: {
+                ...validated,
+                _bidAskSource: 'last_price',
+            },
         };
     }
     /**
      * Normalize Lighter funding rate to unified format
      */
     normalizeFundingRate(lighterFundingRate) {
+        const validated = LighterFundingRateSchema.parse(lighterFundingRate);
         return {
-            symbol: this.normalizeSymbol(lighterFundingRate.symbol),
-            fundingRate: lighterFundingRate.fundingRate,
-            fundingTimestamp: lighterFundingRate.nextFundingTime,
-            nextFundingTimestamp: lighterFundingRate.nextFundingTime,
-            markPrice: lighterFundingRate.markPrice,
+            symbol: this.normalizeSymbol(validated.symbol),
+            fundingRate: validated.fundingRate,
+            fundingTimestamp: validated.nextFundingTime,
+            nextFundingTimestamp: validated.nextFundingTime,
+            markPrice: validated.markPrice,
             indexPrice: lighterFundingRate.markPrice, // Not provided by Lighter, use mark price as fallback
             fundingIntervalHours: 8,
             info: lighterFundingRate,

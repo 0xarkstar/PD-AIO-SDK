@@ -269,6 +269,77 @@ describe('GmxAdapter Integration-ready', () => {
   });
 });
 
+/**
+ * Default values for GmxMarketInfo fields required by GmxMarketInfoSchema.
+ * All string fields default to '0', booleans to false.
+ */
+const GMX_MARKET_INFO_DEFAULTS = {
+  maxLongPoolAmount: '0',
+  maxShortPoolAmount: '0',
+  maxLongPoolUsdForDeposit: '0',
+  maxShortPoolUsdForDeposit: '0',
+  longPoolAmountAdjustment: '0',
+  shortPoolAmountAdjustment: '0',
+  poolValueMin: '0',
+  poolValueMax: '0',
+  reserveFactorLong: '0',
+  reserveFactorShort: '0',
+  openInterestReserveFactorLong: '0',
+  openInterestReserveFactorShort: '0',
+  totalBorrowingFees: '0',
+  positionImpactPoolAmount: '0',
+  minPositionImpactPoolAmount: '0',
+  positionImpactPoolDistributionRate: '0',
+  swapImpactPoolAmountLong: '0',
+  swapImpactPoolAmountShort: '0',
+  borrowingExponentFactorLong: '0',
+  borrowingExponentFactorShort: '0',
+  fundingExponentFactor: '0',
+  fundingIncreaseFactorPerSecond: '0',
+  fundingDecreaseFactorPerSecond: '0',
+  thresholdForStableFunding: '0',
+  thresholdForDecreaseFunding: '0',
+  minFundingFactorPerSecond: '0',
+  maxFundingFactorPerSecond: '0',
+  pnlLongMax: '0',
+  pnlLongMin: '0',
+  pnlShortMax: '0',
+  pnlShortMin: '0',
+  netPnlMax: '0',
+  netPnlMin: '0',
+  maxPnlFactorForTradersLong: '0',
+  maxPnlFactorForTradersShort: '0',
+  minCollateralFactor: '0',
+  minCollateralFactorForOpenInterestLong: '0',
+  minCollateralFactorForOpenInterestShort: '0',
+  claimableFundingAmountLong: '0',
+  claimableFundingAmountShort: '0',
+  positionFeeFactorForPositiveImpact: '0',
+  positionFeeFactorForNegativeImpact: '0',
+  positionImpactFactorPositive: '0',
+  positionImpactFactorNegative: '0',
+  maxPositionImpactFactorPositive: '0',
+  maxPositionImpactFactorNegativePrice: '0',
+  positionImpactExponentFactor: '0',
+  swapFeeFactorForPositiveImpact: '0',
+  swapFeeFactorForNegativeImpact: '0',
+  swapImpactFactorPositive: '0',
+  swapImpactFactorNegative: '0',
+  swapImpactExponentFactor: '0',
+  longInterestInTokens: '0',
+  shortInterestInTokens: '0',
+  longInterestInTokensUsingLongToken: '0',
+  longInterestInTokensUsingShortToken: '0',
+  shortInterestInTokensUsingLongToken: '0',
+  shortInterestInTokensUsingShortToken: '0',
+  virtualPoolAmountForLongToken: '0',
+  virtualPoolAmountForShortToken: '0',
+  virtualInventoryForPositions: '0',
+  virtualMarketId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+  virtualLongTokenId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+  virtualShortTokenId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+};
+
 describe('GmxNormalizer Unit Tests', () => {
   let normalizer: GmxNormalizer;
 
@@ -279,6 +350,7 @@ describe('GmxNormalizer Unit Tests', () => {
   describe('normalizeMarket', () => {
     test('should normalize market info', () => {
       const mockMarketInfo = {
+        ...GMX_MARKET_INFO_DEFAULTS,
         marketToken: '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
         indexToken: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
         longToken: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
@@ -309,6 +381,7 @@ describe('GmxNormalizer Unit Tests', () => {
 
     test('should handle disabled market', () => {
       const mockMarketInfo = {
+        ...GMX_MARKET_INFO_DEFAULTS,
         marketToken: '0xtest',
         indexToken: '0xtest',
         longToken: '0xtest',
@@ -336,6 +409,7 @@ describe('GmxNormalizer Unit Tests', () => {
     test('should normalize multiple markets', () => {
       const mockMarkets = [
         {
+          ...GMX_MARKET_INFO_DEFAULTS,
           marketToken: '0xmarket1',
           indexToken: '0xindex1',
           longToken: '0xlong1',
@@ -353,6 +427,7 @@ describe('GmxNormalizer Unit Tests', () => {
           borrowingFactorShort: '0',
         },
         {
+          ...GMX_MARKET_INFO_DEFAULTS,
           marketToken: '0xmarket2',
           indexToken: '0xindex2',
           longToken: '0xlong2',
@@ -380,6 +455,7 @@ describe('GmxNormalizer Unit Tests', () => {
   describe('normalizeTicker', () => {
     test('should normalize ticker with price data', () => {
       const mockMarketInfo = {
+        ...GMX_MARKET_INFO_DEFAULTS,
         marketToken: '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
         indexToken: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
         longToken: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
@@ -412,6 +488,7 @@ describe('GmxNormalizer Unit Tests', () => {
 
     test('should normalize ticker without price data', () => {
       const mockMarketInfo = {
+        ...GMX_MARKET_INFO_DEFAULTS,
         marketToken: '0xtest',
         indexToken: '0xtest',
         longToken: '0xtest',
@@ -460,6 +537,7 @@ describe('GmxNormalizer Unit Tests', () => {
   describe('normalizePosition', () => {
     test('should normalize long position', () => {
       const mockPosition = {
+        account: '0xaccount',
         market: '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
         isLong: true,
         sizeInUsd: '100000000000000000000000000000000', // $100k
@@ -468,6 +546,11 @@ describe('GmxNormalizer Unit Tests', () => {
         collateralToken: '0xtoken',
         entryPrice: '0',
         borrowingFactor: '0',
+        fundingFeeAmountPerSize: '0',
+        longTokenClaimableFundingAmountPerSize: '0',
+        shortTokenClaimableFundingAmountPerSize: '0',
+        increasedAtBlock: '1000',
+        decreasedAtBlock: '0',
         lastIncreasedTime: Date.now(),
       };
 
@@ -482,6 +565,7 @@ describe('GmxNormalizer Unit Tests', () => {
 
     test('should normalize short position', () => {
       const mockPosition = {
+        account: '0xaccount',
         market: '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
         isLong: false,
         sizeInUsd: '50000000000000000000000000000000', // $50k
@@ -490,6 +574,11 @@ describe('GmxNormalizer Unit Tests', () => {
         collateralToken: '0xtoken',
         entryPrice: '0',
         borrowingFactor: '0',
+        fundingFeeAmountPerSize: '0',
+        longTokenClaimableFundingAmountPerSize: '0',
+        shortTokenClaimableFundingAmountPerSize: '0',
+        increasedAtBlock: '1000',
+        decreasedAtBlock: '0',
         lastIncreasedTime: Date.now(),
       };
 
@@ -512,9 +601,11 @@ describe('GmxNormalizer Unit Tests', () => {
         callbackContract: '0xcallback',
         uiFeeReceiver: '0xuifee',
         orderType: 0, // MarketIncrease
+        decreasePositionSwapType: 0,
         isLong: true,
         shouldUnwrapNativeToken: false,
         initialCollateralToken: '0xcollateral',
+        swapPath: [],
         sizeDeltaUsd: '100000000000000000000000000000000', // $100k
         initialCollateralDeltaAmount: '10000000000000000000',
         triggerPrice: '0',
@@ -522,9 +613,12 @@ describe('GmxNormalizer Unit Tests', () => {
         executionFee: '100000000000000',
         callbackGasLimit: '0',
         minOutputAmount: '0',
+        updatedAtBlock: '1000',
         validFromTime: 0,
         updatedAtTime: Date.now(),
         isFrozen: false,
+        status: 'Created',
+        createdTxn: '0xtx',
         autoCancel: false,
       };
 
@@ -548,6 +642,8 @@ describe('GmxNormalizer Unit Tests', () => {
         sizeDeltaUsd: '50000000000000000000000000000000', // $50k
         sizeDeltaInTokens: '25000000000000000000', // 25 tokens
         collateralDeltaAmount: '5000000000000000000',
+        borrowingFactor: '0',
+        fundingFeeAmountPerSize: '0',
         isLong: true,
         executionPrice: '2000000000000000000000000000000', // $2000
         pnlUsd: '1000000000000000000000000000000', // $1000 profit
@@ -571,6 +667,9 @@ describe('GmxNormalizer Unit Tests', () => {
       const mockFunding = {
         market: '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
         fundingFactorPerSecond: '1000000000000', // Per second funding factor
+        longsPayShorts: true,
+        fundingFeeAmountPerSizeLong: '0',
+        fundingFeeAmountPerSizeShort: '0',
         timestamp: Date.now(),
       };
 

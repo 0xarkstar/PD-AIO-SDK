@@ -1,6 +1,7 @@
 /**
  * GRVT-specific type definitions
  */
+import { z } from 'zod';
 /**
  * GRVT market information
  */
@@ -25,6 +26,67 @@ export interface GRVTMarket {
     next_funding_time?: number;
     open_interest?: string;
 }
+export declare const GRVTMarketSchema: z.ZodObject<{
+    instrument_id: z.ZodString;
+    instrument: z.ZodString;
+    base_currency: z.ZodString;
+    quote_currency: z.ZodString;
+    settlement_currency: z.ZodString;
+    instrument_type: z.ZodString;
+    is_active: z.ZodBoolean;
+    maker_fee: z.ZodString;
+    taker_fee: z.ZodString;
+    max_leverage: z.ZodString;
+    min_size: z.ZodString;
+    max_size: z.ZodString;
+    tick_size: z.ZodString;
+    step_size: z.ZodString;
+    mark_price: z.ZodString;
+    index_price: z.ZodString;
+    funding_rate: z.ZodOptional<z.ZodString>;
+    next_funding_time: z.ZodOptional<z.ZodNumber>;
+    open_interest: z.ZodOptional<z.ZodString>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    instrument_id: z.ZodString;
+    instrument: z.ZodString;
+    base_currency: z.ZodString;
+    quote_currency: z.ZodString;
+    settlement_currency: z.ZodString;
+    instrument_type: z.ZodString;
+    is_active: z.ZodBoolean;
+    maker_fee: z.ZodString;
+    taker_fee: z.ZodString;
+    max_leverage: z.ZodString;
+    min_size: z.ZodString;
+    max_size: z.ZodString;
+    tick_size: z.ZodString;
+    step_size: z.ZodString;
+    mark_price: z.ZodString;
+    index_price: z.ZodString;
+    funding_rate: z.ZodOptional<z.ZodString>;
+    next_funding_time: z.ZodOptional<z.ZodNumber>;
+    open_interest: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    instrument_id: z.ZodString;
+    instrument: z.ZodString;
+    base_currency: z.ZodString;
+    quote_currency: z.ZodString;
+    settlement_currency: z.ZodString;
+    instrument_type: z.ZodString;
+    is_active: z.ZodBoolean;
+    maker_fee: z.ZodString;
+    taker_fee: z.ZodString;
+    max_leverage: z.ZodString;
+    min_size: z.ZodString;
+    max_size: z.ZodString;
+    tick_size: z.ZodString;
+    step_size: z.ZodString;
+    mark_price: z.ZodString;
+    index_price: z.ZodString;
+    funding_rate: z.ZodOptional<z.ZodString>;
+    next_funding_time: z.ZodOptional<z.ZodNumber>;
+    open_interest: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * GRVT order book snapshot
  */
@@ -35,6 +97,25 @@ export interface GRVTOrderBook {
     timestamp: number;
     sequence: number;
 }
+export declare const GRVTOrderBookSchema: z.ZodObject<{
+    instrument: z.ZodString;
+    bids: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    asks: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    timestamp: z.ZodNumber;
+    sequence: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    instrument: z.ZodString;
+    bids: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    asks: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    timestamp: z.ZodNumber;
+    sequence: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    instrument: z.ZodString;
+    bids: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    asks: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    timestamp: z.ZodNumber;
+    sequence: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * GRVT order
  */
@@ -55,6 +136,55 @@ export interface GRVTOrder {
     created_at: number;
     updated_at: number;
 }
+export declare const GRVTOrderSchema: z.ZodObject<{
+    order_id: z.ZodString;
+    client_order_id: z.ZodOptional<z.ZodString>;
+    instrument: z.ZodString;
+    order_type: z.ZodString;
+    side: z.ZodString;
+    size: z.ZodString;
+    price: z.ZodOptional<z.ZodString>;
+    time_in_force: z.ZodString;
+    reduce_only: z.ZodBoolean;
+    post_only: z.ZodBoolean;
+    status: z.ZodString;
+    filled_size: z.ZodString;
+    average_fill_price: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodNumber;
+    updated_at: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    order_id: z.ZodString;
+    client_order_id: z.ZodOptional<z.ZodString>;
+    instrument: z.ZodString;
+    order_type: z.ZodString;
+    side: z.ZodString;
+    size: z.ZodString;
+    price: z.ZodOptional<z.ZodString>;
+    time_in_force: z.ZodString;
+    reduce_only: z.ZodBoolean;
+    post_only: z.ZodBoolean;
+    status: z.ZodString;
+    filled_size: z.ZodString;
+    average_fill_price: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodNumber;
+    updated_at: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    order_id: z.ZodString;
+    client_order_id: z.ZodOptional<z.ZodString>;
+    instrument: z.ZodString;
+    order_type: z.ZodString;
+    side: z.ZodString;
+    size: z.ZodString;
+    price: z.ZodOptional<z.ZodString>;
+    time_in_force: z.ZodString;
+    reduce_only: z.ZodBoolean;
+    post_only: z.ZodBoolean;
+    status: z.ZodString;
+    filled_size: z.ZodString;
+    average_fill_price: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodNumber;
+    updated_at: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * GRVT position
  */
@@ -71,6 +201,43 @@ export interface GRVTPosition {
     leverage: string;
     timestamp: number;
 }
+export declare const GRVTPositionSchema: z.ZodObject<{
+    instrument: z.ZodString;
+    side: z.ZodString;
+    size: z.ZodString;
+    entry_price: z.ZodString;
+    mark_price: z.ZodString;
+    liquidation_price: z.ZodOptional<z.ZodString>;
+    unrealized_pnl: z.ZodString;
+    realized_pnl: z.ZodString;
+    margin: z.ZodString;
+    leverage: z.ZodString;
+    timestamp: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    instrument: z.ZodString;
+    side: z.ZodString;
+    size: z.ZodString;
+    entry_price: z.ZodString;
+    mark_price: z.ZodString;
+    liquidation_price: z.ZodOptional<z.ZodString>;
+    unrealized_pnl: z.ZodString;
+    realized_pnl: z.ZodString;
+    margin: z.ZodString;
+    leverage: z.ZodString;
+    timestamp: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    instrument: z.ZodString;
+    side: z.ZodString;
+    size: z.ZodString;
+    entry_price: z.ZodString;
+    mark_price: z.ZodString;
+    liquidation_price: z.ZodOptional<z.ZodString>;
+    unrealized_pnl: z.ZodString;
+    realized_pnl: z.ZodString;
+    margin: z.ZodString;
+    leverage: z.ZodString;
+    timestamp: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * GRVT balance
  */
@@ -81,6 +248,25 @@ export interface GRVTBalance {
     reserved: string;
     unrealized_pnl: string;
 }
+export declare const GRVTBalanceSchema: z.ZodObject<{
+    currency: z.ZodString;
+    total: z.ZodString;
+    available: z.ZodString;
+    reserved: z.ZodString;
+    unrealized_pnl: z.ZodString;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    currency: z.ZodString;
+    total: z.ZodString;
+    available: z.ZodString;
+    reserved: z.ZodString;
+    unrealized_pnl: z.ZodString;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    currency: z.ZodString;
+    total: z.ZodString;
+    available: z.ZodString;
+    reserved: z.ZodString;
+    unrealized_pnl: z.ZodString;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * GRVT trade
  */
@@ -93,6 +279,31 @@ export interface GRVTTrade {
     timestamp: number;
     is_buyer_maker: boolean;
 }
+export declare const GRVTTradeSchema: z.ZodObject<{
+    trade_id: z.ZodString;
+    instrument: z.ZodString;
+    side: z.ZodString;
+    price: z.ZodString;
+    size: z.ZodString;
+    timestamp: z.ZodNumber;
+    is_buyer_maker: z.ZodBoolean;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    trade_id: z.ZodString;
+    instrument: z.ZodString;
+    side: z.ZodString;
+    price: z.ZodString;
+    size: z.ZodString;
+    timestamp: z.ZodNumber;
+    is_buyer_maker: z.ZodBoolean;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    trade_id: z.ZodString;
+    instrument: z.ZodString;
+    side: z.ZodString;
+    price: z.ZodString;
+    size: z.ZodString;
+    timestamp: z.ZodNumber;
+    is_buyer_maker: z.ZodBoolean;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * GRVT ticker
  */
@@ -107,6 +318,37 @@ export interface GRVTTicker {
     price_change_24h: string;
     timestamp: number;
 }
+export declare const GRVTTickerSchema: z.ZodObject<{
+    instrument: z.ZodString;
+    last_price: z.ZodString;
+    best_bid: z.ZodString;
+    best_ask: z.ZodString;
+    volume_24h: z.ZodString;
+    high_24h: z.ZodString;
+    low_24h: z.ZodString;
+    price_change_24h: z.ZodString;
+    timestamp: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    instrument: z.ZodString;
+    last_price: z.ZodString;
+    best_bid: z.ZodString;
+    best_ask: z.ZodString;
+    volume_24h: z.ZodString;
+    high_24h: z.ZodString;
+    low_24h: z.ZodString;
+    price_change_24h: z.ZodString;
+    timestamp: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    instrument: z.ZodString;
+    last_price: z.ZodString;
+    best_bid: z.ZodString;
+    best_ask: z.ZodString;
+    volume_24h: z.ZodString;
+    high_24h: z.ZodString;
+    low_24h: z.ZodString;
+    price_change_24h: z.ZodString;
+    timestamp: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * GRVT order request
  */

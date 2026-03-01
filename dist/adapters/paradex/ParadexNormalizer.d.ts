@@ -7,7 +7,7 @@
  * @see https://docs.paradex.trade
  */
 import type { Market, Order, Position, Balance, OrderBook, Trade, Ticker, FundingRate, OrderSide, OrderType, TimeInForce } from '../../types/common.js';
-import type { ParadexMarket, ParadexOrder, ParadexPosition, ParadexBalance, ParadexOrderBook, ParadexTrade, ParadexTicker, ParadexFundingRate } from './types.js';
+import type { ParadexMarket, ParadexAPIMarket, ParadexOrder, ParadexPosition, ParadexBalance, ParadexOrderBook, ParadexTrade, ParadexTicker, ParadexFundingRate } from './types.js';
 /**
  * Paradex Data Normalizer
  *
@@ -77,7 +77,7 @@ export declare class ParadexNormalizer {
      * @param paradexMarket - Paradex market data from API
      * @returns Unified market
      */
-    normalizeMarket(paradexMarket: any): Market;
+    normalizeMarket(paradexMarket: ParadexAPIMarket): Market;
     /**
      * Batch normalize markets
      */

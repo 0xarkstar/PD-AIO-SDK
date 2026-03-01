@@ -3,7 +3,8 @@
  *
  * Transforms GMX API responses and on-chain data to unified SDK format.
  */
-import { GMX_MARKETS, GMX_PRECISION, GMX_MARKET_ADDRESS_MAP, gmxToUnified, } from './constants.js';
+import { GmxMarketInfoSchema, GmxPositionSchema, GmxOrderSchema, GmxTradeSchema, GmxFundingRateSchema, GmxCandleTupleSchema, } from './types.js';
+import { GMX_MARKETS, GMX_PRECISION, GMX_MARKET_ADDRESS_MAP, gmxToUnified, getTokenDecimals, getTokenDecimalsByAddress, } from './constants.js';
 /**
  * Normalizer for GMX v2 data
  */
@@ -23,21 +24,23 @@ export class GmxNormalizer {
      * Normalize market info to unified Market
      */
     normalizeMarket(market, chain) {
-        const marketKey = GMX_MARKET_ADDRESS_MAP[market.marketToken.toLowerCase()];
+        const validated = GmxMarketInfoSchema.parse(market);
+        const marketToken = validated.marketToken ?? '';
+        const marketKey = GMX_MARKET_ADDRESS_MAP[marketToken.toLowerCase()];
         const config = marketKey ? GMX_MARKETS[marketKey] : undefined;
         // Get base symbol from config or extract from market name
-        const baseSymbol = config?.baseAsset || this.extractBaseFromName(market.name);
+        const baseSymbol = config?.baseAsset || this.extractBaseFromName(validated.name);
         const symbol = config?.symbol || `${baseSymbol}/USD`;
         // Price info may not be available in markets/info response
         // Use a reasonable default for calculations
-        const maxOI = parseFloat(market.maxOpenInterestLong) / GMX_PRECISION.USD;
+        const maxOI = parseFloat(validated.maxOpenInterestLong ?? '0') / GMX_PRECISION.USD;
         return {
-            id: market.marketToken,
+            id: marketToken,
             symbol,
             base: baseSymbol,
             quote: 'USD',
             settle: config?.settleAsset || 'USD',
-            active: !market.isDisabled,
+            active: !(validated.isDisabled ?? false),
             minAmount: config?.minOrderSize || 0.001,
             maxAmount: maxOI > 0 ? maxOI : 1000000, // Fallback if price unavailable
             pricePrecision: this.getPrecisionFromTickSize(config?.tickSize || 0.01),
@@ -50,18 +53,18 @@ export class GmxNormalizer {
             fundingIntervalHours: 1, // Continuous funding, normalized to 1h
             contractSize: 1,
             info: {
-                marketToken: market.marketToken,
-                indexToken: market.indexToken,
-                longToken: market.longToken,
-                shortToken: market.shortToken,
+                marketToken: validated.marketToken ?? '',
+                indexToken: validated.indexToken ?? '',
+                longToken: validated.longToken ?? '',
+                shortToken: validated.shortToken ?? '',
                 chain,
-                longPoolAmount: market.longPoolAmount,
-                shortPoolAmount: market.shortPoolAmount,
-                longInterestUsd: market.longInterestUsd,
-                shortInterestUsd: market.shortInterestUsd,
-                fundingFactor: market.fundingFactor,
-                borrowingFactorLong: market.borrowingFactorLong,
-                borrowingFactorShort: market.borrowingFactorShort,
+                longPoolAmount: validated.longPoolAmount ?? '0',
+                shortPoolAmount: validated.shortPoolAmount ?? '0',
+                longInterestUsd: validated.longInterestUsd ?? '0',
+                shortInterestUsd: validated.shortInterestUsd ?? '0',
+                fundingFactor: validated.fundingFactor ?? '0',
+                borrowingFactorLong: validated.borrowingFactorLong ?? '0',
+                borrowingFactorShort: validated.borrowingFactorShort ?? '0',
             },
         };
     }
@@ -75,13 +78,17 @@ export class GmxNormalizer {
      * Normalize position to unified Position
      */
     normalizePosition(position, markPrice, chain) {
-        const marketKey = GMX_MARKET_ADDRESS_MAP[position.market.toLowerCase()];
+        const validated = GmxPositionSchema.parse(position);
+        const market = validated.market ?? '';
+        const marketKey = GMX_MARKET_ADDRESS_MAP[market.toLowerCase()];
         const config = marketKey ? GMX_MARKETS[marketKey] : undefined;
         const symbol = config?.symbol || gmxToUnified(marketKey);
-        const sizeInUsd = parseFloat(position.sizeInUsd) / GMX_PRECISION.USD;
-        const sizeInTokens = parseFloat(position.sizeInTokens) / 10 ** 18; // Assume 18 decimals
-        const collateral = parseFloat(position.collateralAmount) / 10 ** 18;
-        const side = position.isLong ? 'long' : 'short';
+        const sizeInUsd = parseFloat(validated.sizeInUsd ?? '0') / GMX_PRECISION.USD;
+        const indexTokenDecimals = config ? getTokenDecimals(config.baseAsset) : 18;
+        const sizeInTokens = parseFloat(validated.sizeInTokens ?? '0') / 10 ** indexTokenDecimals;
+        const collateralDecimals = getTokenDecimalsByAddress(validated.collateralToken ?? '');
+        const collateral = parseFloat(validated.collateralAmount ?? '0') / 10 ** collateralDecimals;
+        const side = (validated.isLong ?? true) ? 'long' : 'short';
         const entryPrice = sizeInTokens > 0 ? sizeInUsd / sizeInTokens : markPrice;
         const notional = sizeInTokens * markPrice;
         // Calculate unrealized PnL
@@ -105,14 +112,15 @@ export class GmxNormalizer {
             maintenanceMargin: notional * maintenanceMargin,
             marginRatio: this.calculateMarginRatio(side, entryPrice, markPrice, leverage, maintenanceMargin),
             unrealizedPnl,
-            realizedPnl: 0, // Would need historical data
+            realizedPnl: 0,
             timestamp: Date.now(),
             info: {
-                marketAddress: position.market,
-                collateralToken: position.collateralToken,
-                borrowingFactor: position.borrowingFactor,
-                fundingFeeAmountPerSize: position.fundingFeeAmountPerSize,
+                marketAddress: validated.market ?? '',
+                collateralToken: validated.collateralToken ?? '',
+                borrowingFactor: validated.borrowingFactor ?? '0',
+                fundingFeeAmountPerSize: validated.fundingFeeAmountPerSize ?? '0',
                 chain,
+                _realizedPnlSource: 'not_available',
             },
         };
     }
@@ -120,61 +128,66 @@ export class GmxNormalizer {
      * Normalize order to unified Order
      */
     normalizeOrder(order, marketPrice) {
-        const marketKey = GMX_MARKET_ADDRESS_MAP[order.market.toLowerCase()];
+        const validated = GmxOrderSchema.parse(order);
+        const market = validated.market ?? '';
+        const marketKey = GMX_MARKET_ADDRESS_MAP[market.toLowerCase()];
         const config = marketKey ? GMX_MARKETS[marketKey] : undefined;
         const symbol = config?.symbol || gmxToUnified(marketKey);
-        const sizeDeltaUsd = parseFloat(order.sizeDeltaUsd) / GMX_PRECISION.USD;
-        const triggerPrice = parseFloat(order.triggerPrice) / GMX_PRECISION.PRICE;
-        const acceptablePrice = parseFloat(order.acceptablePrice) / GMX_PRECISION.PRICE;
+        const sizeDeltaUsd = parseFloat(validated.sizeDeltaUsd ?? '0') / GMX_PRECISION.USD;
+        const triggerPrice = parseFloat(validated.triggerPrice ?? '0') / GMX_PRECISION.PRICE;
+        const acceptablePrice = parseFloat(validated.acceptablePrice ?? '0') / GMX_PRECISION.PRICE;
         // Map order type
+        const orderType = validated.orderType ?? 0;
         let type = 'market';
-        if (order.orderType === 0 || order.orderType === 1) {
+        if (orderType === 0 || orderType === 1) {
             type = 'market';
         }
-        else if (order.orderType === 2 || order.orderType === 3) {
+        else if (orderType === 2 || orderType === 3) {
             type = 'limit';
         }
-        else if (order.orderType === 4) {
+        else if (orderType === 4) {
             type = 'stopMarket';
         }
         // Determine side
-        const isIncrease = order.orderType === 0 || order.orderType === 2;
-        const side = (isIncrease && order.isLong) || (!isIncrease && !order.isLong) ? 'buy' : 'sell';
+        const isLong = validated.isLong ?? true;
+        const isIncrease = orderType === 0 || orderType === 2;
+        const side = (isIncrease && isLong) || (!isIncrease && !isLong) ? 'buy' : 'sell';
         // Map status
         let status = 'open';
-        if (order.status === 'Executed')
+        const statusStr = validated.status ?? '';
+        if (statusStr === 'Executed')
             status = 'filled';
-        else if (order.status === 'Cancelled')
+        else if (statusStr === 'Cancelled')
             status = 'canceled';
-        else if (order.status === 'Expired')
+        else if (statusStr === 'Expired')
             status = 'expired';
-        else if (order.isFrozen)
+        else if (validated.isFrozen)
             status = 'rejected';
         const price = triggerPrice > 0 ? triggerPrice : marketPrice || acceptablePrice;
         const amount = price > 0 ? sizeDeltaUsd / price : 0;
         return {
-            id: order.key,
+            id: validated.key ?? '',
             symbol,
             type,
             side,
             amount,
             price,
-            stopPrice: order.orderType === 4 ? triggerPrice : undefined,
+            stopPrice: orderType === 4 ? triggerPrice : undefined,
             status,
             filled: status === 'filled' ? amount : 0,
             remaining: status === 'filled' ? 0 : amount,
             averagePrice: undefined,
-            reduceOnly: order.orderType === 1 || order.orderType === 3 || order.orderType === 4,
+            reduceOnly: orderType === 1 || orderType === 3 || orderType === 4,
             postOnly: false,
-            timestamp: parseInt(order.updatedAtBlock) * 1000, // Approximate
+            timestamp: parseInt(validated.updatedAtBlock) * 1000, // Approximate
             info: {
-                orderKey: order.key,
-                orderType: order.orderType,
-                marketAddress: order.market,
-                isLong: order.isLong,
-                decreasePositionSwapType: order.decreasePositionSwapType,
-                executionFee: order.executionFee,
-                acceptablePrice: order.acceptablePrice,
+                orderKey: validated.key,
+                orderType: validated.orderType,
+                marketAddress: validated.market,
+                isLong: validated.isLong,
+                decreasePositionSwapType: validated.decreasePositionSwapType,
+                executionFee: validated.executionFee,
+                acceptablePrice: validated.acceptablePrice,
             },
         };
     }
@@ -182,30 +195,31 @@ export class GmxNormalizer {
      * Normalize trade to unified Trade
      */
     normalizeTrade(trade) {
-        const marketKey = GMX_MARKET_ADDRESS_MAP[trade.market.toLowerCase()];
+        const validated = GmxTradeSchema.parse(trade);
+        const marketKey = GMX_MARKET_ADDRESS_MAP[validated.market.toLowerCase()];
         const config = marketKey ? GMX_MARKETS[marketKey] : undefined;
         const symbol = config?.symbol || gmxToUnified(marketKey);
-        const sizeDeltaUsd = parseFloat(trade.sizeDeltaUsd) / GMX_PRECISION.USD;
-        const executionPrice = parseFloat(trade.executionPrice) / GMX_PRECISION.PRICE;
-        const sizeDeltaInTokens = parseFloat(trade.sizeDeltaInTokens) / 10 ** 18;
+        const sizeDeltaUsd = parseFloat(validated.sizeDeltaUsd) / GMX_PRECISION.USD;
+        const executionPrice = parseFloat(validated.executionPrice) / GMX_PRECISION.PRICE;
+        const sizeDeltaInTokens = parseFloat(validated.sizeDeltaInTokens) / 10 ** 18;
         // Determine side
-        const isIncrease = trade.orderType === 0 || trade.orderType === 2;
-        const side = (isIncrease && trade.isLong) || (!isIncrease && !trade.isLong) ? 'buy' : 'sell';
+        const isIncrease = validated.orderType === 0 || validated.orderType === 2;
+        const side = (isIncrease && validated.isLong) || (!isIncrease && !validated.isLong) ? 'buy' : 'sell';
         return {
-            id: trade.id,
+            id: validated.id,
             symbol,
             side,
             price: executionPrice,
             amount: Math.abs(sizeDeltaInTokens),
             cost: sizeDeltaUsd,
-            timestamp: trade.timestamp * 1000,
+            timestamp: validated.timestamp * 1000,
             info: {
-                marketAddress: trade.market,
-                isLong: trade.isLong,
-                orderType: trade.orderType,
-                pnlUsd: trade.pnlUsd,
-                priceImpactUsd: trade.priceImpactUsd,
-                transactionHash: trade.transactionHash,
+                marketAddress: validated.market,
+                isLong: validated.isLong,
+                orderType: validated.orderType,
+                pnlUsd: validated.pnlUsd,
+                priceImpactUsd: validated.priceImpactUsd,
+                transactionHash: validated.transactionHash,
             },
         };
     }
@@ -213,28 +227,29 @@ export class GmxNormalizer {
      * Normalize funding rate
      */
     normalizeFundingRate(funding, indexPrice) {
-        const marketKey = GMX_MARKET_ADDRESS_MAP[funding.market.toLowerCase()];
+        const validated = GmxFundingRateSchema.parse(funding);
+        const marketKey = GMX_MARKET_ADDRESS_MAP[validated.market.toLowerCase()];
         const config = marketKey ? GMX_MARKETS[marketKey] : undefined;
         const symbol = config?.symbol || gmxToUnified(marketKey);
         // GMX funding rate is per second, convert to hourly
-        const fundingFactorPerSecond = parseFloat(funding.fundingFactorPerSecond) / GMX_PRECISION.FACTOR;
+        const fundingFactorPerSecond = parseFloat(validated.fundingFactorPerSecond) / GMX_PRECISION.FACTOR;
         const hourlyRate = fundingFactorPerSecond * 3600;
         // Adjust sign based on direction
-        const fundingRate = funding.longsPayShorts ? hourlyRate : -hourlyRate;
+        const fundingRate = validated.longsPayShorts ? hourlyRate : -hourlyRate;
         return {
             symbol,
             fundingRate,
-            fundingTimestamp: funding.timestamp * 1000,
-            nextFundingTimestamp: (funding.timestamp + 3600) * 1000, // Next hour (continuous)
+            fundingTimestamp: validated.timestamp * 1000,
+            nextFundingTimestamp: (validated.timestamp + 3600) * 1000, // Next hour (continuous)
             markPrice: indexPrice,
             indexPrice,
             fundingIntervalHours: 1,
             info: {
-                marketAddress: funding.market,
-                fundingFactorPerSecond: funding.fundingFactorPerSecond,
-                longsPayShorts: funding.longsPayShorts,
-                fundingFeeAmountPerSizeLong: funding.fundingFeeAmountPerSizeLong,
-                fundingFeeAmountPerSizeShort: funding.fundingFeeAmountPerSizeShort,
+                marketAddress: validated.market,
+                fundingFactorPerSecond: validated.fundingFactorPerSecond,
+                longsPayShorts: validated.longsPayShorts,
+                fundingFeeAmountPerSizeLong: validated.fundingFeeAmountPerSizeLong,
+                fundingFeeAmountPerSizeShort: validated.fundingFeeAmountPerSizeShort,
             },
         };
     }
@@ -279,19 +294,22 @@ export class GmxNormalizer {
                 shortOpenInterestUsd: shortOI,
                 totalOpenInterestUsd: longOI + shortOI,
                 imbalance: longOI - shortOI,
+                _bidAskSource: 'calculated',
             },
         };
     }
     /**
-     * Normalize candlesticks to OHLCV
+     * Normalize candlestick tuple to OHLCV
+     * Input: [timestamp_seconds, open, high, low, close]
      */
     normalizeCandle(candle) {
+        const validated = GmxCandleTupleSchema.parse(candle);
         return [
-            candle.timestamp * 1000,
-            candle.open,
-            candle.high,
-            candle.low,
-            candle.close,
+            (validated[0] ?? 0) * 1000,
+            validated[1] ?? 0,
+            validated[2] ?? 0,
+            validated[3] ?? 0,
+            validated[4] ?? 0,
             0, // GMX candlestick endpoint doesn't include volume
         ];
     }

@@ -20,7 +20,7 @@ import { GmxAuth } from './GmxAuth.js';
 import { GmxContracts } from './GmxContracts.js';
 import { GmxSubgraph } from './GmxSubgraph.js';
 import { GmxOrderBuilder } from './GmxOrderBuilder.js';
-import { GMX_API_URLS, GMX_MARKETS, GMX_PRECISION, unifiedToGmx, gmxToUnified, } from './constants.js';
+import { GMX_API_URLS, GMX_MARKETS, GMX_PRECISION, unifiedToGmx, gmxToUnified, getOraclePriceDivisor, } from './constants.js';
 import { mapGmxError } from './error-codes.js';
 /**
  * GMX v2 Exchange Adapter
@@ -212,11 +212,13 @@ export class GmxAdapter extends BaseAdapter {
                 throw new Error(`Market info not found for ${symbol}`);
             }
             // Get price for the index token
+            // GMX oracle prices are stored as: price * 10^(30 - tokenDecimals)
             const indexTokenPrice = prices.get(config.indexToken.toLowerCase());
+            const priceDivisor = getOraclePriceDivisor(config.baseAsset);
             const priceData = indexTokenPrice
                 ? {
-                    minPrice: parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE,
-                    maxPrice: parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE,
+                    minPrice: parseFloat(indexTokenPrice.minPrice) / priceDivisor,
+                    maxPrice: parseFloat(indexTokenPrice.maxPrice) / priceDivisor,
                 }
                 : undefined;
             return this.normalizer.normalizeTicker(marketInfo, priceData);
@@ -250,24 +252,27 @@ export class GmxAdapter extends BaseAdapter {
                 throw new Error(`Market info not found for ${symbol}`);
             }
             // Get price for calculations from prices endpoint
+            // GMX oracle prices are stored as: price * 10^(30 - tokenDecimals)
             const indexTokenPrice = prices.get(config.indexToken.toLowerCase());
+            const priceDivisor = getOraclePriceDivisor(config.baseAsset);
             let indexPrice = 0;
             if (indexTokenPrice) {
-                const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
-                const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+                const minPrice = parseFloat(indexTokenPrice.minPrice) / priceDivisor;
+                const maxPrice = parseFloat(indexTokenPrice.maxPrice) / priceDivisor;
                 indexPrice = (minPrice + maxPrice) / 2;
             }
             // Calculate funding rate from market info
             const longOI = parseFloat(marketInfo.longInterestUsd) / GMX_PRECISION.USD;
             const shortOI = parseFloat(marketInfo.shortInterestUsd) / GMX_PRECISION.USD;
-            const fundingFactor = parseFloat(marketInfo.fundingFactor) / GMX_PRECISION.FACTOR;
+            const rawFundingFactor = parseFloat(marketInfo.fundingFactor);
+            const fundingFactor = isNaN(rawFundingFactor) ? 0 : rawFundingFactor / GMX_PRECISION.FACTOR;
             // GMX funding rate is based on OI imbalance
             const imbalance = longOI - shortOI;
             const totalOI = longOI + shortOI;
             const imbalanceRatio = totalOI > 0 ? Math.abs(imbalance) / totalOI : 0;
             // Hourly funding rate (approximate)
             const hourlyRate = fundingFactor * imbalanceRatio * 3600;
-            const fundingRate = imbalance > 0 ? hourlyRate : -hourlyRate;
+            const fundingRate = isNaN(hourlyRate) ? 0 : imbalance > 0 ? hourlyRate : -hourlyRate;
             return {
                 symbol: config.symbol,
                 fundingRate,
@@ -316,8 +321,8 @@ export class GmxAdapter extends BaseAdapter {
                 queryParams.set('limit', params.limit.toString());
             }
             const url = `${this.apiBaseUrl}/prices/candles?${queryParams.toString()}`;
-            const candles = await this.request('GET', url);
-            return this.normalizer.normalizeCandles(candles);
+            const response = await this.request('GET', url);
+            return this.normalizer.normalizeCandles(response.candles);
         }
         catch (error) {
             throw mapGmxError(error);
@@ -347,10 +352,11 @@ export class GmxAdapter extends BaseAdapter {
                 if (!marketConfig)
                     continue;
                 const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
+                const posPriceDivisor = getOraclePriceDivisor(marketConfig.baseAsset);
                 let markPrice = 0;
                 if (indexTokenPrice) {
-                    const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
-                    const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+                    const minPrice = parseFloat(indexTokenPrice.minPrice) / posPriceDivisor;
+                    const maxPrice = parseFloat(indexTokenPrice.maxPrice) / posPriceDivisor;
                     markPrice = (minPrice + maxPrice) / 2;
                 }
                 const position = this.normalizer.normalizePosition(pos, markPrice, this.chain);
@@ -380,10 +386,13 @@ export class GmxAdapter extends BaseAdapter {
                 ? '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'
                 : '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7';
             const ethPriceData = prices.get(wethAddress.toLowerCase());
+            // ETH/AVAX are 18-decimal tokens, divisor = 10^(30-18) = 10^12
+            const nativeAsset = this.chain === 'arbitrum' ? 'ETH' : 'AVAX';
+            const nativePriceDivisor = getOraclePriceDivisor(nativeAsset);
             let ethPrice = 0;
             if (ethPriceData) {
-                const minPrice = parseFloat(ethPriceData.minPrice) / GMX_PRECISION.PRICE;
-                const maxPrice = parseFloat(ethPriceData.maxPrice) / GMX_PRECISION.PRICE;
+                const minPrice = parseFloat(ethPriceData.minPrice) / nativePriceDivisor;
+                const maxPrice = parseFloat(ethPriceData.maxPrice) / nativePriceDivisor;
                 ethPrice = (minPrice + maxPrice) / 2;
             }
             const balances = [
@@ -433,8 +442,9 @@ export class GmxAdapter extends BaseAdapter {
                 if (marketConfig) {
                     const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
                     if (indexTokenPrice) {
-                        const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
-                        const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+                        const orderPriceDivisor = getOraclePriceDivisor(marketConfig.baseAsset);
+                        const minPrice = parseFloat(indexTokenPrice.minPrice) / orderPriceDivisor;
+                        const maxPrice = parseFloat(indexTokenPrice.maxPrice) / orderPriceDivisor;
                         marketPrice = (minPrice + maxPrice) / 2;
                     }
                 }
@@ -469,8 +479,9 @@ export class GmxAdapter extends BaseAdapter {
                 if (marketConfig) {
                     const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
                     if (indexTokenPrice) {
-                        const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
-                        const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+                        const orderPriceDivisor = getOraclePriceDivisor(marketConfig.baseAsset);
+                        const minPrice = parseFloat(indexTokenPrice.minPrice) / orderPriceDivisor;
+                        const maxPrice = parseFloat(indexTokenPrice.maxPrice) / orderPriceDivisor;
                         marketPrice = (minPrice + maxPrice) / 2;
                     }
                 }
@@ -519,8 +530,9 @@ export class GmxAdapter extends BaseAdapter {
             if (!indexTokenPrice) {
                 throw new Error(`Price not available for ${request.symbol}`);
             }
-            const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
-            const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+            const createOrderPriceDivisor = getOraclePriceDivisor(marketConfig.baseAsset);
+            const minPrice = parseFloat(indexTokenPrice.minPrice) / createOrderPriceDivisor;
+            const maxPrice = parseFloat(indexTokenPrice.maxPrice) / createOrderPriceDivisor;
             const indexPrice = (minPrice + maxPrice) / 2;
             const priceData = {
                 indexPrice,

@@ -10,11 +10,11 @@ import { z } from 'zod';
 const PositiveNumberSchema = z.number().positive();
 const NonNegativeNumberSchema = z.number().nonnegative();
 const TimestampSchema = z.number().int().positive();
-const SymbolSchema = z.string().min(1);
+const SymbolSchema = z.string().min(1).regex(/^[A-Z0-9]{1,10}\/[A-Z0-9]{1,10}(:[A-Z0-9]{1,10})?$/, 'Invalid symbol format');
 // =============================================================================
 // Order Schemas
 // =============================================================================
-export const OrderTypeSchema = z.enum(['market', 'limit', 'stopMarket', 'stopLimit']);
+export const OrderTypeSchema = z.enum(['market', 'limit', 'stopMarket', 'stopLimit', 'takeProfit', 'trailingStop']);
 export const OrderSideSchema = z.enum(['buy', 'sell']);
 export const OrderStatusSchema = z.enum([
     'open',
@@ -38,7 +38,7 @@ export const OrderRequestSchema = z
     reduceOnly: z.boolean().default(false),
     postOnly: z.boolean().default(false),
     clientOrderId: z.string().optional(),
-    leverage: z.number().int().min(1).max(100).optional(),
+    leverage: z.number().positive().max(200).optional(),
     params: z.record(z.unknown()).optional(),
 })
     .refine((data) => {
@@ -52,14 +52,41 @@ export const OrderRequestSchema = z
     path: ['price'],
 })
     .refine((data) => {
-    // Stop orders must have stopPrice
-    if (data.type === 'stopMarket' || data.type === 'stopLimit') {
+    // Stop and takeProfit orders must have stopPrice
+    if (data.type === 'stopMarket' || data.type === 'stopLimit' || data.type === 'takeProfit') {
         return data.stopPrice !== undefined && data.stopPrice > 0;
     }
     return true;
 }, {
     message: 'Stop orders require a valid stopPrice',
     path: ['stopPrice'],
+})
+    .refine((data) => {
+    // Price must not exceed safe precision
+    if (data.price !== undefined) {
+        return data.price <= Number.MAX_SAFE_INTEGER;
+    }
+    return true;
+}, {
+    message: 'Price exceeds safe precision',
+    path: ['price'],
+})
+    .refine((data) => {
+    // StopPrice must not exceed safe precision
+    if (data.stopPrice !== undefined) {
+        return data.stopPrice <= Number.MAX_SAFE_INTEGER;
+    }
+    return true;
+}, {
+    message: 'Stop price exceeds safe precision',
+    path: ['stopPrice'],
+})
+    .refine((data) => {
+    // Amount must not exceed safe precision
+    return data.amount <= Number.MAX_SAFE_INTEGER;
+}, {
+    message: 'Amount exceeds safe precision',
+    path: ['amount'],
 });
 export const OrderSchema = z.object({
     id: z.string(),
@@ -95,7 +122,7 @@ export const PositionSchema = z.object({
     liquidationPrice: PositiveNumberSchema,
     unrealizedPnl: z.number(),
     realizedPnl: z.number(),
-    leverage: z.number().int().positive(),
+    leverage: z.number().positive(),
     marginMode: MarginModeSchema,
     margin: NonNegativeNumberSchema,
     maintenanceMargin: NonNegativeNumberSchema,

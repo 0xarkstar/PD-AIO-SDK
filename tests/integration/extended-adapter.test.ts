@@ -409,7 +409,11 @@ describe('ExtendedAdapter Integration Tests', () => {
       mockSuccessResponse({
         orderId: 'order123',
         symbol: 'BTC-USD-PERP',
+        type: 'limit',
+        side: 'buy',
+        quantity: '1',
         status: 'cancelled',
+        timestamp: 1234567890,
       });
 
       const result = await adapter.cancelOrder('order123');
@@ -430,6 +434,9 @@ describe('ExtendedAdapter Integration Tests', () => {
           {
             orderId: 'order1',
             symbol: 'BTC-USD-PERP',
+            type: 'limit',
+            side: 'buy',
+            quantity: '1',
             status: 'cancelled',
             timestamp: 1234567890,
             updateTime: 1234567890,
@@ -437,6 +444,9 @@ describe('ExtendedAdapter Integration Tests', () => {
           {
             orderId: 'order2',
             symbol: 'ETH-USD-PERP',
+            type: 'limit',
+            side: 'sell',
+            quantity: '2',
             status: 'cancelled',
             timestamp: 1234567890,
             updateTime: 1234567890,
@@ -444,6 +454,9 @@ describe('ExtendedAdapter Integration Tests', () => {
           {
             orderId: 'order3',
             symbol: 'BTC-USD-PERP',
+            type: 'market',
+            side: 'buy',
+            quantity: '0.5',
             status: 'cancelled',
             timestamp: 1234567890,
             updateTime: 1234567890,
@@ -463,6 +476,9 @@ describe('ExtendedAdapter Integration Tests', () => {
           {
             orderId: 'order1',
             symbol: 'BTC-USD-PERP',
+            type: 'limit',
+            side: 'buy',
+            quantity: '1',
             status: 'cancelled',
             timestamp: 1234567890,
             updateTime: 1234567890,
@@ -470,6 +486,9 @@ describe('ExtendedAdapter Integration Tests', () => {
           {
             orderId: 'order2',
             symbol: 'BTC-USD-PERP',
+            type: 'limit',
+            side: 'sell',
+            quantity: '2',
             status: 'cancelled',
             timestamp: 1234567890,
             updateTime: 1234567890,
@@ -539,6 +558,9 @@ describe('ExtendedAdapter Integration Tests', () => {
           {
             orderId: 'order1',
             symbol: 'BTC-USD-PERP',
+            type: 'limit',
+            side: 'buy',
+            quantity: '1',
             status: 'cancelled',
             timestamp: 1234567890,
             updateTime: 1234567890,
@@ -546,6 +568,9 @@ describe('ExtendedAdapter Integration Tests', () => {
           {
             orderId: 'order2',
             symbol: 'ETH-USD-PERP',
+            type: 'limit',
+            side: 'sell',
+            quantity: '2',
             status: 'cancelled',
             timestamp: 1234567890,
             updateTime: 1234567890,
@@ -659,7 +684,9 @@ describe('ExtendedAdapter Integration Tests', () => {
             entryPrice: '48000',
             markPrice: '50000',
             liquidationPrice: '45000',
+            margin: '12000',
             unrealizedPnl: '5000',
+            realizedPnl: '0',
             leverage: '10',
             initialMargin: '12000',
             maintenanceMargin: '600',
@@ -689,7 +716,9 @@ describe('ExtendedAdapter Integration Tests', () => {
             entryPrice: '50000',
             markPrice: '50000',
             liquidationPrice: '45000',
+            margin: '5000',
             unrealizedPnl: '0',
+            realizedPnl: '0',
             leverage: '10',
             initialMargin: '5000',
             maintenanceMargin: '250',
@@ -713,12 +742,16 @@ describe('ExtendedAdapter Integration Tests', () => {
             free: '10000',
             locked: '2000',
             total: '12000',
+            availableMargin: '10000',
+            usedMargin: '2000',
           },
           {
             asset: 'BTC',
             free: '0.5',
             locked: '0.1',
             total: '0.6',
+            availableMargin: '0.5',
+            usedMargin: '0.1',
           },
         ],
       });

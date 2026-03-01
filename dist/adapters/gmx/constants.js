@@ -260,6 +260,35 @@ export const GMX_MARKET_ADDRESS_MAP = Object.entries(GMX_MARKETS).reduce((acc, [
     acc[config.marketAddress.toLowerCase()] = key;
     return acc;
 }, {});
+/**
+ * Map from token address to decimals for position size/collateral parsing.
+ * All addresses are lowercased for consistent lookup.
+ */
+export const GMX_TOKEN_ADDRESS_DECIMALS = {
+    // Arbitrum
+    '0x82af49447d8a07e3bd95bd0d56f35241523fbab1': 18, // WETH
+    '0x47904963fc8b2340414262125af798b9655e58cd': 8, // WBTC
+    '0xaf88d065e77c8cc2239327c5edb3a432268e5831': 6, // USDC (native)
+    '0x912ce59144191c1204e64559fe8253a0e49e6548': 18, // ARB
+    '0x2bcc6d6cdbbdc0a4071e48bb3b969b06b3330c07': 9, // SOL
+    '0xf97f4df75117a78c1a5a0dbb814af92458539fb4': 18, // LINK
+    '0xc4da4c24fd591125c3f47b340b6f4f76111883d8': 18, // DOGE
+    '0xc14e065b0067de91534e032868f5ac6ecf2c6868': 18, // XRP
+    '0xb46a094bc4b0adbd801e14b9db95e05e28962764': 18, // LTC
+    '0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0': 18, // UNI
+    // Avalanche
+    '0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7': 18, // WAVAX
+    '0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e': 6, // USDC (Avalanche)
+    '0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab': 18, // WETH.e
+    '0x152b9d0fdc40c096757f570a51e494bd4b943e50': 8, // BTC.b
+};
+/**
+ * Get token decimals by contract address.
+ * Falls back to 18 for unknown addresses.
+ */
+export function getTokenDecimalsByAddress(tokenAddress) {
+    return GMX_TOKEN_ADDRESS_DECIMALS[tokenAddress.toLowerCase()] ?? 18;
+}
 // =============================================================================
 // Order Types and Directions
 // =============================================================================
@@ -321,6 +350,24 @@ export function getMarketByAddress(address) {
 export function getBaseToken(symbol) {
     const parts = symbol.split('/');
     return parts[0]?.toUpperCase() || '';
+}
+/**
+ * Get token decimals for a base asset
+ * GMX oracle prices are stored as: price * 10^(30 - tokenDecimals)
+ * So to convert raw price to USD: raw / 10^(30 - tokenDecimals)
+ */
+export function getTokenDecimals(baseAsset) {
+    const decimals = GMX_PRECISION.TOKEN_DECIMALS[baseAsset];
+    return decimals ?? 18; // Default to 18 decimals
+}
+/**
+ * Get the price divisor for a token's oracle price
+ * Oracle prices = price_usd * 10^(30 - tokenDecimals)
+ * Divisor = 10^(30 - tokenDecimals)
+ */
+export function getOraclePriceDivisor(baseAsset) {
+    const tokenDecimals = getTokenDecimals(baseAsset);
+    return Math.pow(10, 30 - tokenDecimals);
 }
 /**
  * Get markets for a specific chain

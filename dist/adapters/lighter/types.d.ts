@@ -1,6 +1,7 @@
 /**
  * Lighter-specific type definitions
  */
+import { z } from 'zod';
 /**
  * Lighter API configuration
  *
@@ -60,6 +61,43 @@ export interface LighterOrder {
     timestamp: number;
     reduceOnly: boolean;
 }
+export declare const LighterOrderSchema: z.ZodObject<{
+    orderId: z.ZodString;
+    clientOrderId: z.ZodOptional<z.ZodString>;
+    symbol: z.ZodString;
+    side: z.ZodEnum<["buy", "sell"]>;
+    type: z.ZodEnum<["market", "limit"]>;
+    price: z.ZodOptional<z.ZodNumber>;
+    size: z.ZodNumber;
+    filledSize: z.ZodNumber;
+    status: z.ZodEnum<["open", "filled", "cancelled", "partially_filled"]>;
+    timestamp: z.ZodNumber;
+    reduceOnly: z.ZodBoolean;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    orderId: z.ZodString;
+    clientOrderId: z.ZodOptional<z.ZodString>;
+    symbol: z.ZodString;
+    side: z.ZodEnum<["buy", "sell"]>;
+    type: z.ZodEnum<["market", "limit"]>;
+    price: z.ZodOptional<z.ZodNumber>;
+    size: z.ZodNumber;
+    filledSize: z.ZodNumber;
+    status: z.ZodEnum<["open", "filled", "cancelled", "partially_filled"]>;
+    timestamp: z.ZodNumber;
+    reduceOnly: z.ZodBoolean;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    orderId: z.ZodString;
+    clientOrderId: z.ZodOptional<z.ZodString>;
+    symbol: z.ZodString;
+    side: z.ZodEnum<["buy", "sell"]>;
+    type: z.ZodEnum<["market", "limit"]>;
+    price: z.ZodOptional<z.ZodNumber>;
+    size: z.ZodNumber;
+    filledSize: z.ZodNumber;
+    status: z.ZodEnum<["open", "filled", "cancelled", "partially_filled"]>;
+    timestamp: z.ZodNumber;
+    reduceOnly: z.ZodBoolean;
+}, z.ZodTypeAny, "passthrough">>;
 export interface LighterPosition {
     symbol: string;
     side: 'long' | 'short';
@@ -71,12 +109,59 @@ export interface LighterPosition {
     margin: number;
     leverage: number;
 }
+export declare const LighterPositionSchema: z.ZodObject<{
+    symbol: z.ZodString;
+    side: z.ZodEnum<["long", "short"]>;
+    size: z.ZodNumber;
+    entryPrice: z.ZodNumber;
+    markPrice: z.ZodNumber;
+    liquidationPrice: z.ZodNumber;
+    unrealizedPnl: z.ZodNumber;
+    margin: z.ZodNumber;
+    leverage: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    side: z.ZodEnum<["long", "short"]>;
+    size: z.ZodNumber;
+    entryPrice: z.ZodNumber;
+    markPrice: z.ZodNumber;
+    liquidationPrice: z.ZodNumber;
+    unrealizedPnl: z.ZodNumber;
+    margin: z.ZodNumber;
+    leverage: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    side: z.ZodEnum<["long", "short"]>;
+    size: z.ZodNumber;
+    entryPrice: z.ZodNumber;
+    markPrice: z.ZodNumber;
+    liquidationPrice: z.ZodNumber;
+    unrealizedPnl: z.ZodNumber;
+    margin: z.ZodNumber;
+    leverage: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 export interface LighterBalance {
     currency: string;
     total: number;
     available: number;
     reserved: number;
 }
+export declare const LighterBalanceSchema: z.ZodObject<{
+    currency: z.ZodString;
+    total: z.ZodNumber;
+    available: z.ZodNumber;
+    reserved: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    currency: z.ZodString;
+    total: z.ZodNumber;
+    available: z.ZodNumber;
+    reserved: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    currency: z.ZodString;
+    total: z.ZodNumber;
+    available: z.ZodNumber;
+    reserved: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 export interface LighterOrderBook {
     symbol: string;
     bids: Array<[number, number]>;
@@ -107,4 +192,121 @@ export interface LighterFundingRate {
     markPrice: number;
     nextFundingTime: number;
 }
+export declare const LighterFundingRateSchema: z.ZodObject<{
+    symbol: z.ZodString;
+    fundingRate: z.ZodNumber;
+    markPrice: z.ZodNumber;
+    nextFundingTime: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    fundingRate: z.ZodNumber;
+    markPrice: z.ZodNumber;
+    nextFundingTime: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    fundingRate: z.ZodNumber;
+    markPrice: z.ZodNumber;
+    nextFundingTime: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
+/**
+ * Lighter API market response from /api/v1/orderBookDetails
+ * This represents the actual API response format (snake_case string values),
+ * distinct from the normalized LighterMarket interface above.
+ */
+export interface LighterAPIMarket {
+    symbol: string;
+    market_type?: string;
+    status?: string;
+    supported_price_decimals?: string | number;
+    price_decimals?: string | number;
+    supported_size_decimals?: string | number;
+    size_decimals?: string | number;
+    min_base_amount?: string;
+    maker_fee?: string;
+    taker_fee?: string;
+    max_leverage?: string;
+    default_initial_margin_fraction?: number;
+    is_active?: boolean;
+}
+export declare const LighterAPIMarketSchema: z.ZodObject<{
+    symbol: z.ZodString;
+    market_type: z.ZodOptional<z.ZodString>;
+    status: z.ZodOptional<z.ZodString>;
+    supported_price_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    price_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    supported_size_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    size_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    min_base_amount: z.ZodOptional<z.ZodString>;
+    maker_fee: z.ZodOptional<z.ZodString>;
+    taker_fee: z.ZodOptional<z.ZodString>;
+    max_leverage: z.ZodOptional<z.ZodString>;
+    default_initial_margin_fraction: z.ZodOptional<z.ZodNumber>;
+    is_active: z.ZodOptional<z.ZodBoolean>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    market_type: z.ZodOptional<z.ZodString>;
+    status: z.ZodOptional<z.ZodString>;
+    supported_price_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    price_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    supported_size_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    size_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    min_base_amount: z.ZodOptional<z.ZodString>;
+    maker_fee: z.ZodOptional<z.ZodString>;
+    taker_fee: z.ZodOptional<z.ZodString>;
+    max_leverage: z.ZodOptional<z.ZodString>;
+    default_initial_margin_fraction: z.ZodOptional<z.ZodNumber>;
+    is_active: z.ZodOptional<z.ZodBoolean>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    market_type: z.ZodOptional<z.ZodString>;
+    status: z.ZodOptional<z.ZodString>;
+    supported_price_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    price_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    supported_size_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    size_decimals: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    min_base_amount: z.ZodOptional<z.ZodString>;
+    maker_fee: z.ZodOptional<z.ZodString>;
+    taker_fee: z.ZodOptional<z.ZodString>;
+    max_leverage: z.ZodOptional<z.ZodString>;
+    default_initial_margin_fraction: z.ZodOptional<z.ZodNumber>;
+    is_active: z.ZodOptional<z.ZodBoolean>;
+}, z.ZodTypeAny, "passthrough">>;
+/**
+ * Lighter API ticker response from /api/v1/orderBookDetails
+ * Real API returns ticker data alongside order book details.
+ */
+export interface LighterAPITicker {
+    symbol: string;
+    last_trade_price?: string;
+    daily_price_high?: string;
+    daily_price_low?: string;
+    daily_base_token_volume?: string;
+    daily_quote_token_volume?: string;
+    daily_price_change?: string;
+}
+export declare const LighterAPITickerSchema: z.ZodObject<{
+    symbol: z.ZodString;
+    last_trade_price: z.ZodOptional<z.ZodString>;
+    daily_price_high: z.ZodOptional<z.ZodString>;
+    daily_price_low: z.ZodOptional<z.ZodString>;
+    daily_base_token_volume: z.ZodOptional<z.ZodString>;
+    daily_quote_token_volume: z.ZodOptional<z.ZodString>;
+    daily_price_change: z.ZodOptional<z.ZodString>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    last_trade_price: z.ZodOptional<z.ZodString>;
+    daily_price_high: z.ZodOptional<z.ZodString>;
+    daily_price_low: z.ZodOptional<z.ZodString>;
+    daily_base_token_volume: z.ZodOptional<z.ZodString>;
+    daily_quote_token_volume: z.ZodOptional<z.ZodString>;
+    daily_price_change: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    last_trade_price: z.ZodOptional<z.ZodString>;
+    daily_price_high: z.ZodOptional<z.ZodString>;
+    daily_price_low: z.ZodOptional<z.ZodString>;
+    daily_base_token_volume: z.ZodOptional<z.ZodString>;
+    daily_quote_token_volume: z.ZodOptional<z.ZodString>;
+    daily_price_change: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">>;
 //# sourceMappingURL=types.d.ts.map

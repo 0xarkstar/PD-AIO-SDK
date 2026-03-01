@@ -146,6 +146,7 @@ describe('ParadexAdapter', () => {
             symbol: 'BTC-USD-PERP',
             base_currency: 'BTC',
             quote_currency: 'USD',
+            settlement_currency: 'USDC',
           },
         ],
       };
@@ -206,6 +207,7 @@ describe('ParadexAdapter', () => {
           ['50002.00', '3.0'],
         ],
         timestamp: Date.now(),
+        sequence: 12345,
       };
 
       mockClient.get.mockResolvedValue(mockOrderBook);
@@ -223,6 +225,7 @@ describe('ParadexAdapter', () => {
         bids: [['50000.00', '1.5']],
         asks: [['50001.00', '1.0']],
         timestamp: Date.now(),
+        sequence: 12346,
       };
 
       mockClient.get.mockResolvedValue(mockOrderBook);
@@ -243,7 +246,7 @@ describe('ParadexAdapter', () => {
             price: '50000.00',
             size: '0.1',
             side: 'BUY',
-            created_at: Date.now(),
+            timestamp: Date.now(),
           },
           {
             id: 'trade-2',
@@ -251,7 +254,7 @@ describe('ParadexAdapter', () => {
             price: '50001.00',
             size: '0.2',
             side: 'SELL',
-            created_at: Date.now(),
+            timestamp: Date.now(),
           },
         ],
       };
@@ -437,9 +440,14 @@ describe('ParadexAdapter', () => {
               market: 'BTC-USD-PERP',
               side: 'LONG',
               size: '1.5',
-              avg_entry_price: '50000',
+              entry_price: '50000',
+              mark_price: '50100',
               unrealized_pnl: '100',
+              realized_pnl: '50',
+              margin: '5000',
+              leverage: '10',
               liquidation_price: '45000',
+              last_updated: Date.now(),
             },
           ],
         };
@@ -500,7 +508,7 @@ describe('ParadexAdapter', () => {
       test('fetchBalance returns balances', async () => {
         const mockBalance = {
           balances: [
-            { currency: 'USDC', free: '10000', used: '500', total: '10500' },
+            { asset: 'USDC', available: '10000', locked: '500', total: '10500' },
           ],
         };
 
@@ -527,7 +535,13 @@ describe('ParadexAdapter', () => {
               type: 'LIMIT',
               price: '50000',
               size: '0.1',
+              filled_size: '0',
               status: 'OPEN',
+              time_in_force: 'GTC',
+              post_only: false,
+              reduce_only: false,
+              created_at: Date.now(),
+              updated_at: Date.now(),
             },
           ],
         };

@@ -575,6 +575,7 @@ describe('ParadexNormalizer', () => {
           ['50020', '1.5'],
         ],
         timestamp: 1234567890000,
+        sequence: 12345,
       };
 
       const orderBook = normalizer.normalizeOrderBook(paradexOrderBook);
@@ -596,6 +597,7 @@ describe('ParadexNormalizer', () => {
         bids: [],
         asks: [],
         timestamp: 1234567890000,
+        sequence: 0,
       };
 
       const orderBook = normalizer.normalizeOrderBook(paradexOrderBook);

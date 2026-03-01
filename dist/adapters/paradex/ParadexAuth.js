@@ -54,20 +54,24 @@ export class ParadexAuth {
         const headers = {
             'Content-Type': 'application/json',
         };
-        // Add API key if available
-        if (this.apiKey) {
-            headers['X-API-KEY'] = this.apiKey;
-        }
-        // Add JWT token if available and valid
-        if (this.jwtToken && this.isTokenValid()) {
-            headers['Authorization'] = `Bearer ${this.jwtToken.accessToken}`;
-        }
-        // Add timestamp for all requests
-        headers['X-Timestamp'] = Date.now().toString();
-        // Add signature for trading operations
-        if (this.requiresSignature(request.method, request.path)) {
-            const signature = await this.signRequest(request);
-            headers['X-Signature'] = signature;
+        // Only add auth headers if credentials are configured
+        // Public endpoints (markets, trades, orderbook, funding, bbo, summary) work without auth
+        if (this.hasCredentials()) {
+            // Add API key if available
+            if (this.apiKey) {
+                headers['X-API-KEY'] = this.apiKey;
+            }
+            // Add JWT token if available and valid
+            if (this.jwtToken && this.isTokenValid()) {
+                headers['Authorization'] = `Bearer ${this.jwtToken.accessToken}`;
+            }
+            // Add timestamp for authenticated requests
+            headers['X-Timestamp'] = Date.now().toString();
+            // Add signature for trading operations
+            if (this.requiresSignature(request.method, request.path)) {
+                const signature = await this.signRequest(request);
+                headers['X-Signature'] = signature;
+            }
         }
         return {
             ...request,
@@ -260,7 +264,10 @@ export class ParadexAuth {
             return publicKey;
         }
         catch (error) {
-            this.logger.error('Failed to derive StarkNet address', error instanceof Error ? error : undefined);
+            const sanitizedError = error instanceof Error
+                ? new Error(error.message.replace(/0x[0-9a-fA-F]{64,}/g, '[REDACTED]'))
+                : undefined;
+            this.logger.error('Failed to derive StarkNet address', sanitizedError);
             return undefined;
         }
     }

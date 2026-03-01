@@ -4,14 +4,14 @@
  * Transforms EdgeX-specific data structures to unified SDK format
  */
 import type { Market, Order, Position, Balance, OrderBook, Trade, Ticker, FundingRate } from '../../types/common.js';
-import type { EdgeXOrder, EdgeXPosition, EdgeXBalance, EdgeXTrade } from './types.js';
+import type { EdgeXMarket, EdgeXOrder, EdgeXPosition, EdgeXBalance, EdgeXTrade, EdgeXAPIContract, EdgeXDepthData, EdgeXAPITicker, EdgeXAPIFundingData } from './types.js';
 export declare class EdgeXNormalizer {
     private symbolToContractId;
     private contractIdToSymbol;
     /**
      * Initialize mapping from market data
      */
-    initializeMappings(contracts: any[]): void;
+    initializeMappings(contracts: EdgeXAPIContract[]): void;
     /**
      * Normalize EdgeX symbol to unified format
      *
@@ -39,7 +39,7 @@ export declare class EdgeXNormalizer {
      * Normalize EdgeX market to unified format
      * Handles both old test format and new API format
      */
-    normalizeMarket(contract: any): Market;
+    normalizeMarket(contract: EdgeXAPIContract | EdgeXMarket): Market;
     /**
      * Normalize EdgeX order to unified format
      */
@@ -56,7 +56,7 @@ export declare class EdgeXNormalizer {
      * Normalize EdgeX order book to unified format
      * Handles new API format from /api/v1/public/quote/getDepth
      */
-    normalizeOrderBook(depthData: any, symbol: string): OrderBook;
+    normalizeOrderBook(depthData: EdgeXDepthData, symbol: string): OrderBook;
     /**
      * Normalize EdgeX trade to unified format
      */
@@ -65,12 +65,12 @@ export declare class EdgeXNormalizer {
      * Normalize EdgeX ticker to unified format
      * Handles new API format from /api/v1/public/quote/getTicker
      */
-    normalizeTicker(tickerData: any): Ticker;
+    normalizeTicker(tickerData: EdgeXAPITicker): Ticker;
     /**
      * Normalize EdgeX funding rate to unified format
      * Handles new API format from /api/v1/public/funding/getLatestFundingRate
      */
-    normalizeFundingRate(fundingData: any, symbol: string): FundingRate;
+    normalizeFundingRate(fundingData: EdgeXAPIFundingData, symbol: string): FundingRate;
     /**
      * Normalize EdgeX order type to unified format
      */

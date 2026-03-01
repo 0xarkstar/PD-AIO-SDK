@@ -1,6 +1,7 @@
 /**
  * Aster Exchange-Specific Types
  */
+import { z } from 'zod';
 import type { ExchangeConfig } from '../../types/adapter.js';
 export interface AsterConfig extends ExchangeConfig {
     apiKey?: string;
@@ -38,6 +39,73 @@ export interface AsterSymbolInfo {
     liquidationFee: string;
     marketTakeBound: string;
 }
+export declare const AsterSymbolInfoSchema: z.ZodObject<{
+    symbol: z.ZodString;
+    pair: z.ZodString;
+    contractType: z.ZodString;
+    deliveryDate: z.ZodNumber;
+    onboardDate: z.ZodNumber;
+    status: z.ZodString;
+    baseAsset: z.ZodString;
+    quoteAsset: z.ZodString;
+    marginAsset: z.ZodString;
+    pricePrecision: z.ZodNumber;
+    quantityPrecision: z.ZodNumber;
+    baseAssetPrecision: z.ZodNumber;
+    quotePrecision: z.ZodNumber;
+    underlyingType: z.ZodString;
+    settlePlan: z.ZodNumber;
+    triggerProtect: z.ZodString;
+    filters: z.ZodArray<z.ZodAny, "many">;
+    orderTypes: z.ZodArray<z.ZodString, "many">;
+    timeInForce: z.ZodArray<z.ZodString, "many">;
+    liquidationFee: z.ZodString;
+    marketTakeBound: z.ZodString;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    pair: z.ZodString;
+    contractType: z.ZodString;
+    deliveryDate: z.ZodNumber;
+    onboardDate: z.ZodNumber;
+    status: z.ZodString;
+    baseAsset: z.ZodString;
+    quoteAsset: z.ZodString;
+    marginAsset: z.ZodString;
+    pricePrecision: z.ZodNumber;
+    quantityPrecision: z.ZodNumber;
+    baseAssetPrecision: z.ZodNumber;
+    quotePrecision: z.ZodNumber;
+    underlyingType: z.ZodString;
+    settlePlan: z.ZodNumber;
+    triggerProtect: z.ZodString;
+    filters: z.ZodArray<z.ZodAny, "many">;
+    orderTypes: z.ZodArray<z.ZodString, "many">;
+    timeInForce: z.ZodArray<z.ZodString, "many">;
+    liquidationFee: z.ZodString;
+    marketTakeBound: z.ZodString;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    pair: z.ZodString;
+    contractType: z.ZodString;
+    deliveryDate: z.ZodNumber;
+    onboardDate: z.ZodNumber;
+    status: z.ZodString;
+    baseAsset: z.ZodString;
+    quoteAsset: z.ZodString;
+    marginAsset: z.ZodString;
+    pricePrecision: z.ZodNumber;
+    quantityPrecision: z.ZodNumber;
+    baseAssetPrecision: z.ZodNumber;
+    quotePrecision: z.ZodNumber;
+    underlyingType: z.ZodString;
+    settlePlan: z.ZodNumber;
+    triggerProtect: z.ZodString;
+    filters: z.ZodArray<z.ZodAny, "many">;
+    orderTypes: z.ZodArray<z.ZodString, "many">;
+    timeInForce: z.ZodArray<z.ZodString, "many">;
+    liquidationFee: z.ZodString;
+    marketTakeBound: z.ZodString;
+}, z.ZodTypeAny, "passthrough">>;
 export type AsterFilter = AsterPriceFilter | AsterLotSizeFilter | AsterMinNotionalFilter | AsterMaxOrdersFilter | AsterPercentPriceFilter;
 export interface AsterPriceFilter {
     filterType: 'PRICE_FILTER';
@@ -83,12 +151,80 @@ export interface AsterTicker24hr {
     lastId: number;
     count: number;
 }
+export declare const AsterTicker24hrSchema: z.ZodObject<{
+    symbol: z.ZodString;
+    priceChange: z.ZodString;
+    priceChangePercent: z.ZodString;
+    weightedAvgPrice: z.ZodString;
+    lastPrice: z.ZodString;
+    lastQty: z.ZodString;
+    openPrice: z.ZodString;
+    highPrice: z.ZodString;
+    lowPrice: z.ZodString;
+    volume: z.ZodString;
+    quoteVolume: z.ZodString;
+    openTime: z.ZodNumber;
+    closeTime: z.ZodNumber;
+    firstId: z.ZodNumber;
+    lastId: z.ZodNumber;
+    count: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    priceChange: z.ZodString;
+    priceChangePercent: z.ZodString;
+    weightedAvgPrice: z.ZodString;
+    lastPrice: z.ZodString;
+    lastQty: z.ZodString;
+    openPrice: z.ZodString;
+    highPrice: z.ZodString;
+    lowPrice: z.ZodString;
+    volume: z.ZodString;
+    quoteVolume: z.ZodString;
+    openTime: z.ZodNumber;
+    closeTime: z.ZodNumber;
+    firstId: z.ZodNumber;
+    lastId: z.ZodNumber;
+    count: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    priceChange: z.ZodString;
+    priceChangePercent: z.ZodString;
+    weightedAvgPrice: z.ZodString;
+    lastPrice: z.ZodString;
+    lastQty: z.ZodString;
+    openPrice: z.ZodString;
+    highPrice: z.ZodString;
+    lowPrice: z.ZodString;
+    volume: z.ZodString;
+    quoteVolume: z.ZodString;
+    openTime: z.ZodNumber;
+    closeTime: z.ZodNumber;
+    firstId: z.ZodNumber;
+    lastId: z.ZodNumber;
+    count: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 export interface AsterOrderBookResponse {
     lastUpdateId: number;
     bids: [string, string][];
     asks: [string, string][];
     T: number;
 }
+export declare const AsterOrderBookResponseSchema: z.ZodObject<{
+    lastUpdateId: z.ZodNumber;
+    bids: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    asks: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    T: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    lastUpdateId: z.ZodNumber;
+    bids: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    asks: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    T: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    lastUpdateId: z.ZodNumber;
+    bids: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    asks: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    T: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 export interface AsterTradeResponse {
     id: number;
     price: string;
@@ -97,6 +233,28 @@ export interface AsterTradeResponse {
     time: number;
     isBuyerMaker: boolean;
 }
+export declare const AsterTradeResponseSchema: z.ZodObject<{
+    id: z.ZodNumber;
+    price: z.ZodString;
+    qty: z.ZodString;
+    quoteQty: z.ZodString;
+    time: z.ZodNumber;
+    isBuyerMaker: z.ZodBoolean;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    id: z.ZodNumber;
+    price: z.ZodString;
+    qty: z.ZodString;
+    quoteQty: z.ZodString;
+    time: z.ZodNumber;
+    isBuyerMaker: z.ZodBoolean;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    id: z.ZodNumber;
+    price: z.ZodString;
+    qty: z.ZodString;
+    quoteQty: z.ZodString;
+    time: z.ZodNumber;
+    isBuyerMaker: z.ZodBoolean;
+}, z.ZodTypeAny, "passthrough">>;
 export interface AsterPremiumIndex {
     symbol: string;
     markPrice: string;
@@ -107,6 +265,34 @@ export interface AsterPremiumIndex {
     interestRate: string;
     time: number;
 }
+export declare const AsterPremiumIndexSchema: z.ZodObject<{
+    symbol: z.ZodString;
+    markPrice: z.ZodString;
+    indexPrice: z.ZodString;
+    estimatedSettlePrice: z.ZodString;
+    lastFundingRate: z.ZodString;
+    nextFundingTime: z.ZodNumber;
+    interestRate: z.ZodString;
+    time: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    markPrice: z.ZodString;
+    indexPrice: z.ZodString;
+    estimatedSettlePrice: z.ZodString;
+    lastFundingRate: z.ZodString;
+    nextFundingTime: z.ZodNumber;
+    interestRate: z.ZodString;
+    time: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    markPrice: z.ZodString;
+    indexPrice: z.ZodString;
+    estimatedSettlePrice: z.ZodString;
+    lastFundingRate: z.ZodString;
+    nextFundingTime: z.ZodNumber;
+    interestRate: z.ZodString;
+    time: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 export interface AsterKlineResponse {
     0: number;
     1: string;
@@ -142,6 +328,67 @@ export interface AsterOrderResponse {
     origType: string;
     updateTime: number;
 }
+export declare const AsterOrderResponseSchema: z.ZodObject<{
+    orderId: z.ZodNumber;
+    symbol: z.ZodString;
+    status: z.ZodString;
+    clientOrderId: z.ZodString;
+    price: z.ZodString;
+    avgPrice: z.ZodString;
+    origQty: z.ZodString;
+    executedQty: z.ZodString;
+    cumQuote: z.ZodString;
+    timeInForce: z.ZodString;
+    type: z.ZodString;
+    reduceOnly: z.ZodBoolean;
+    closePosition: z.ZodBoolean;
+    side: z.ZodString;
+    positionSide: z.ZodString;
+    stopPrice: z.ZodString;
+    workingType: z.ZodString;
+    origType: z.ZodString;
+    updateTime: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    orderId: z.ZodNumber;
+    symbol: z.ZodString;
+    status: z.ZodString;
+    clientOrderId: z.ZodString;
+    price: z.ZodString;
+    avgPrice: z.ZodString;
+    origQty: z.ZodString;
+    executedQty: z.ZodString;
+    cumQuote: z.ZodString;
+    timeInForce: z.ZodString;
+    type: z.ZodString;
+    reduceOnly: z.ZodBoolean;
+    closePosition: z.ZodBoolean;
+    side: z.ZodString;
+    positionSide: z.ZodString;
+    stopPrice: z.ZodString;
+    workingType: z.ZodString;
+    origType: z.ZodString;
+    updateTime: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    orderId: z.ZodNumber;
+    symbol: z.ZodString;
+    status: z.ZodString;
+    clientOrderId: z.ZodString;
+    price: z.ZodString;
+    avgPrice: z.ZodString;
+    origQty: z.ZodString;
+    executedQty: z.ZodString;
+    cumQuote: z.ZodString;
+    timeInForce: z.ZodString;
+    type: z.ZodString;
+    reduceOnly: z.ZodBoolean;
+    closePosition: z.ZodBoolean;
+    side: z.ZodString;
+    positionSide: z.ZodString;
+    stopPrice: z.ZodString;
+    workingType: z.ZodString;
+    origType: z.ZodString;
+    updateTime: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 export interface AsterPositionRisk {
     symbol: string;
     positionAmt: string;
@@ -159,6 +406,55 @@ export interface AsterPositionRisk {
     isolatedWallet: string;
     updateTime: number;
 }
+export declare const AsterPositionRiskSchema: z.ZodObject<{
+    symbol: z.ZodString;
+    positionAmt: z.ZodString;
+    entryPrice: z.ZodString;
+    markPrice: z.ZodString;
+    unRealizedProfit: z.ZodString;
+    liquidationPrice: z.ZodString;
+    leverage: z.ZodString;
+    maxNotionalValue: z.ZodString;
+    marginType: z.ZodString;
+    isolatedMargin: z.ZodString;
+    isAutoAddMargin: z.ZodString;
+    positionSide: z.ZodString;
+    notional: z.ZodString;
+    isolatedWallet: z.ZodString;
+    updateTime: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    positionAmt: z.ZodString;
+    entryPrice: z.ZodString;
+    markPrice: z.ZodString;
+    unRealizedProfit: z.ZodString;
+    liquidationPrice: z.ZodString;
+    leverage: z.ZodString;
+    maxNotionalValue: z.ZodString;
+    marginType: z.ZodString;
+    isolatedMargin: z.ZodString;
+    isAutoAddMargin: z.ZodString;
+    positionSide: z.ZodString;
+    notional: z.ZodString;
+    isolatedWallet: z.ZodString;
+    updateTime: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    positionAmt: z.ZodString;
+    entryPrice: z.ZodString;
+    markPrice: z.ZodString;
+    unRealizedProfit: z.ZodString;
+    liquidationPrice: z.ZodString;
+    leverage: z.ZodString;
+    maxNotionalValue: z.ZodString;
+    marginType: z.ZodString;
+    isolatedMargin: z.ZodString;
+    isAutoAddMargin: z.ZodString;
+    positionSide: z.ZodString;
+    notional: z.ZodString;
+    isolatedWallet: z.ZodString;
+    updateTime: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 export interface AsterAccountBalance {
     accountAlias: string;
     asset: string;
@@ -170,4 +466,35 @@ export interface AsterAccountBalance {
     marginAvailable: boolean;
     updateTime: number;
 }
+export declare const AsterAccountBalanceSchema: z.ZodObject<{
+    accountAlias: z.ZodString;
+    asset: z.ZodString;
+    balance: z.ZodString;
+    crossWalletBalance: z.ZodString;
+    crossUnPnl: z.ZodString;
+    availableBalance: z.ZodString;
+    maxWithdrawAmount: z.ZodString;
+    marginAvailable: z.ZodBoolean;
+    updateTime: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    accountAlias: z.ZodString;
+    asset: z.ZodString;
+    balance: z.ZodString;
+    crossWalletBalance: z.ZodString;
+    crossUnPnl: z.ZodString;
+    availableBalance: z.ZodString;
+    maxWithdrawAmount: z.ZodString;
+    marginAvailable: z.ZodBoolean;
+    updateTime: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    accountAlias: z.ZodString;
+    asset: z.ZodString;
+    balance: z.ZodString;
+    crossWalletBalance: z.ZodString;
+    crossUnPnl: z.ZodString;
+    availableBalance: z.ZodString;
+    maxWithdrawAmount: z.ZodString;
+    marginAvailable: z.ZodBoolean;
+    updateTime: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 //# sourceMappingURL=types.d.ts.map

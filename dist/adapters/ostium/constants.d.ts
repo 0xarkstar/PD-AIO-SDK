@@ -8,6 +8,15 @@ export declare const OSTIUM_RPC_URLS: {
     mainnet: string;
     testnet: string;
 };
+/**
+ * Ostium contract addresses on Arbitrum One.
+ *
+ * WARNING: trading, storage, pairInfo, nftRewards, vault are PLACEHOLDER addresses
+ * and must be replaced with actual deployed contract addresses before on-chain usage.
+ * Only `collateral` (USDC on Arbitrum) is a verified address.
+ *
+ * @see https://arbiscan.io for address verification
+ */
 export declare const OSTIUM_CONTRACTS: OstiumContractAddresses;
 export declare const OSTIUM_RATE_LIMITS: {
     metadata: {

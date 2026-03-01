@@ -22,6 +22,18 @@ import type { OrderSide, OrderStatus, OrderType, TimeInForce } from '../../types
  */
 export declare function parseDecimal(value: string | number | null | undefined, defaultValue?: number): number;
 /**
+ * Strictly parse a numeric value, throwing on null/undefined/empty.
+ * Use for critical financial fields (entryPrice, markPrice, size) where
+ * silently defaulting to 0 would produce incorrect results.
+ *
+ * @param value - Value to parse (string, number, null, undefined)
+ * @param fieldName - Name of the field (for error messages)
+ * @param exchange - Exchange name (for error messages)
+ * @returns Parsed number
+ * @throws PerpDEXError if value is null, undefined, empty, or NaN
+ */
+export declare function parseDecimalStrict(value: string | number | null | undefined, fieldName: string, exchange: string): number;
+/**
  * Safely parse a numeric string to bigint
  *
  * @param value - Value to parse
@@ -109,6 +121,26 @@ export declare function mapTimeInForce(tif: string | undefined): TimeInForce;
  * @returns Timestamp in milliseconds
  */
 export declare function normalizeTimestamp(timestamp: number | string | Date | null | undefined): number;
+/**
+ * Strict timestamp normalization — throws on null/undefined.
+ *
+ * Use this for fields where the exchange is expected to provide a timestamp
+ * (e.g., order creation time, trade time). Falls back to `normalizeTimestamp`
+ * for format handling (seconds→ms, ISO→ms).
+ *
+ * @param timestamp - Timestamp value from exchange
+ * @param fieldName - Name of the field (for error messages)
+ * @param exchange - Exchange name (for error context)
+ * @throws PerpDEXError if timestamp is null/undefined/empty
+ */
+export declare function normalizeTimestampStrict(timestamp: number | string | Date | null | undefined, fieldName: string, exchange: string): number;
+/**
+ * Bid/ask data source indicator for ticker transparency.
+ *
+ * Added to the `info` bag of ticker results so consumers know
+ * the quality/source of bid/ask pricing data.
+ */
+export type BidAskSource = 'orderbook' | 'last_price' | 'oracle_price' | 'mid_price' | 'calculated';
 /**
  * Format timestamp to ISO string
  */

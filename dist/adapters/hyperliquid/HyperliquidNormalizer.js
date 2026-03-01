@@ -7,6 +7,7 @@
  * @see https://hyperliquid.gitbook.io
  */
 import { HYPERLIQUID_DEFAULT_PRECISION, HYPERLIQUID_FUNDING_INTERVAL_HOURS, hyperliquidToUnified, } from './constants.js';
+import { HyperliquidAssetSchema, HyperliquidOpenOrderSchema, HyperliquidPositionSchema, HyperliquidL2BookSchema, HyperliquidWsTradeSchema, HyperliquidFillSchema, HyperliquidUserFillSchema, HyperliquidHistoricalOrderSchema, HyperliquidFundingRateSchema, HyperliquidUserStateSchema, } from './types.js';
 /**
  * Hyperliquid Data Normalizer
  *
@@ -76,6 +77,7 @@ export class HyperliquidNormalizer {
      * @returns Unified order
      */
     normalizeOrder(order, _symbol) {
+        HyperliquidOpenOrderSchema.parse(order);
         const unifiedSymbol = hyperliquidToUnified(order.coin);
         const isBuy = order.side === 'B';
         return {
@@ -111,6 +113,7 @@ export class HyperliquidNormalizer {
      * @returns Unified order
      */
     normalizeHistoricalOrder(historicalOrder) {
+        HyperliquidHistoricalOrderSchema.parse(historicalOrder);
         const order = historicalOrder.order;
         const unifiedSymbol = hyperliquidToUnified(order.coin);
         const isBuy = order.side === 'B';
@@ -164,6 +167,7 @@ export class HyperliquidNormalizer {
      * @returns Unified position
      */
     normalizePosition(hlPosition) {
+        HyperliquidPositionSchema.parse(hlPosition);
         const pos = hlPosition.position;
         const unifiedSymbol = hyperliquidToUnified(pos.coin);
         const size = Math.abs(parseFloat(pos.szi));
@@ -176,13 +180,17 @@ export class HyperliquidNormalizer {
             markPrice: 0, // Need to fetch separately
             liquidationPrice: pos.liquidationPx ? parseFloat(pos.liquidationPx) : 0,
             unrealizedPnl: parseFloat(pos.unrealizedPnl),
-            realizedPnl: 0, // Not provided in position data
+            realizedPnl: 0,
             leverage: pos.leverage.value,
             marginMode: pos.leverage.type,
             margin: parseFloat(pos.marginUsed),
-            maintenanceMargin: 0, // Not directly provided
-            marginRatio: 0, // Calculate if needed
+            maintenanceMargin: 0,
+            marginRatio: 0,
             timestamp: Date.now(),
+            info: {
+                _realizedPnlSource: 'not_available',
+                _marginRatioSource: 'not_available',
+            },
         };
     }
     /**
@@ -205,6 +213,7 @@ export class HyperliquidNormalizer {
      * @returns Unified market
      */
     normalizeMarket(asset, index) {
+        HyperliquidAssetSchema.parse(asset);
         const unifiedSymbol = hyperliquidToUnified(asset.name);
         const [base = '', rest = ''] = unifiedSymbol.split('/');
         const [quote = '', settle = ''] = rest.split(':');
@@ -248,6 +257,7 @@ export class HyperliquidNormalizer {
      * @returns Unified order book
      */
     normalizeOrderBook(book) {
+        HyperliquidL2BookSchema.parse(book);
         const unifiedSymbol = hyperliquidToUnified(book.coin);
         // book.levels[0] = bids, book.levels[1] = asks
         // Each level is { px: string, sz: string, n: number }
@@ -273,6 +283,7 @@ export class HyperliquidNormalizer {
      * @returns Unified trade
      */
     normalizeTrade(trade) {
+        HyperliquidWsTradeSchema.parse(trade);
         const unifiedSymbol = hyperliquidToUnified(trade.coin);
         const price = parseFloat(trade.px);
         const amount = parseFloat(trade.sz);
@@ -293,6 +304,7 @@ export class HyperliquidNormalizer {
      * @returns Unified trade
      */
     normalizeFill(fill) {
+        HyperliquidFillSchema.parse(fill);
         const unifiedSymbol = hyperliquidToUnified(fill.coin);
         const price = parseFloat(fill.px);
         const amount = parseFloat(fill.sz);
@@ -318,6 +330,7 @@ export class HyperliquidNormalizer {
      * @returns Unified trade
      */
     normalizeUserFill(fill) {
+        HyperliquidUserFillSchema.parse(fill);
         // User fills have the same structure as regular fills, plus cloid
         return this.normalizeFill(fill);
     }
@@ -341,6 +354,7 @@ export class HyperliquidNormalizer {
      * @returns Unified funding rate
      */
     normalizeFundingRate(fundingData, markPrice) {
+        HyperliquidFundingRateSchema.parse(fundingData);
         const unifiedSymbol = hyperliquidToUnified(fundingData.coin);
         return {
             symbol: unifiedSymbol,
@@ -362,6 +376,7 @@ export class HyperliquidNormalizer {
      * @returns Array of unified balances
      */
     normalizeBalance(userState) {
+        HyperliquidUserStateSchema.parse(userState);
         const accountValue = parseFloat(userState.marginSummary.accountValue);
         const totalMarginUsed = parseFloat(userState.marginSummary.totalMarginUsed);
         const withdrawable = parseFloat(userState.withdrawable);
@@ -402,6 +417,9 @@ export class HyperliquidNormalizer {
             baseVolume: 0,
             quoteVolume: 0,
             timestamp: Date.now(),
+            info: {
+                _bidAskSource: 'mid_price',
+            },
         };
     }
 }

@@ -94,23 +94,33 @@ export async function fetchOrderBookData(deps, symbol, limit, fetchMarkets) {
 }
 /**
  * Fetch trades for a specific symbol
+ * Uses /api/v1/recentTrades with market_id parameter
  */
-export async function fetchTradesData(deps, symbol, limit) {
+export async function fetchTradesData(deps, symbol, limit, fetchMarkets) {
     try {
         const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
-        const response = await deps.request('GET', `/api/v1/trades?symbol=${lighterSymbol}&limit=${limit}`);
+        // Get market_id from cache, or fetch markets first to populate cache
+        let marketId = deps.marketIdCache.get(lighterSymbol);
+        if (marketId === undefined) {
+            await fetchMarkets();
+            marketId = deps.marketIdCache.get(lighterSymbol);
+            if (marketId === undefined) {
+                throw new PerpDEXError(`Market not found: ${symbol}`, 'INVALID_SYMBOL', 'lighter');
+            }
+        }
+        const response = await deps.request('GET', `/api/v1/recentTrades?market_id=${marketId}&limit=${limit}`);
         const trades = response.trades || [];
         if (!Array.isArray(trades)) {
             throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'lighter');
         }
         return trades.map((trade) => {
             const normalizedTrade = {
-                id: trade.id || trade.trade_id || String(Date.now()),
+                id: String(trade.trade_id || trade.id || Date.now()),
                 symbol: lighterSymbol,
-                side: (trade.side || 'buy').toLowerCase(),
+                side: trade.is_maker_ask ? 'sell' : 'buy',
                 price: parseFloat(trade.price || '0'),
                 amount: parseFloat(trade.size || trade.amount || '0'),
-                timestamp: trade.timestamp || trade.created_at || Date.now(),
+                timestamp: typeof trade.timestamp === 'number' ? trade.timestamp : Date.now(),
             };
             return deps.normalizer.normalizeTrade(normalizedTrade);
         });
@@ -121,12 +131,32 @@ export async function fetchTradesData(deps, symbol, limit) {
 }
 /**
  * Fetch funding rate for a specific symbol
+ * The API returns funding rates from multiple exchanges; we use the first match.
  */
-export async function fetchFundingRateData(deps, symbol) {
+export async function fetchFundingRateData(deps, symbol, fetchMarkets) {
     try {
         const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
+        // Get market_id for filtering
+        let marketId = deps.marketIdCache.get(lighterSymbol);
+        if (marketId === undefined) {
+            await fetchMarkets();
+            marketId = deps.marketIdCache.get(lighterSymbol);
+        }
         const response = await deps.request('GET', `/api/v1/funding-rates?symbol=${lighterSymbol}`);
-        return deps.normalizer.normalizeFundingRate(response);
+        const rates = response.funding_rates || [];
+        // Find the rate matching our market_id, or the first rate for this symbol
+        const matchingRate = marketId !== undefined
+            ? rates.find((r) => r.market_id === marketId)
+            : rates.find((r) => r.symbol === lighterSymbol);
+        // Build a LighterFundingRate from the API response
+        const fundingRate = matchingRate?.rate ?? 0;
+        const lighterFundingRate = {
+            symbol: lighterSymbol,
+            fundingRate: typeof fundingRate === 'number' && !isNaN(fundingRate) ? fundingRate : 0,
+            markPrice: 0, // Not provided by this endpoint
+            nextFundingTime: Date.now() + 8 * 3600 * 1000, // Estimated next funding
+        };
+        return deps.normalizer.normalizeFundingRate(lighterFundingRate);
     }
     catch (error) {
         throw mapError(error);

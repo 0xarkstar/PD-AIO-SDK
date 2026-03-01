@@ -9,12 +9,17 @@
  */
 export declare const JUPITER_API_URLS: {
     readonly mainnet: {
-        readonly price: "https://api.jup.ag/price/v3";
+        readonly price: "https://hermes.pyth.network/v2/updates/price/latest";
         readonly stats: "https://perp-api.jup.ag";
     };
 };
-export declare const JUPITER_MAINNET_PRICE_API: "https://api.jup.ag/price/v3";
+export declare const JUPITER_MAINNET_PRICE_API: "https://hermes.pyth.network/v2/updates/price/latest";
 export declare const JUPITER_MAINNET_STATS_API: "https://perp-api.jup.ag";
+/**
+ * Pyth Network price feed IDs for Jupiter markets
+ * @see https://pyth.network/developers/price-feed-ids
+ */
+export declare const JUPITER_PYTH_FEED_IDS: Record<string, string>;
 /**
  * Jupiter Perpetuals Program ID on Solana mainnet
  */

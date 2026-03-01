@@ -3,7 +3,7 @@
  *
  * Helper functions for Jupiter Perps adapter operations.
  */
-import { JUPITER_MARKETS, JUPITER_TOKEN_MINTS, unifiedToJupiter, getBaseToken, } from './constants.js';
+import { JUPITER_MARKETS, JUPITER_TOKEN_MINTS, JUPITER_PYTH_FEED_IDS, unifiedToJupiter, getBaseToken, } from './constants.js';
 // =============================================================================
 // Token Utilities
 // =============================================================================
@@ -110,14 +110,37 @@ export function getPositionPDASeeds(owner, pool, custody, side) {
 // URL Builders
 // =============================================================================
 /**
- * Build Jupiter Price API URL
+ * Build Pyth Network Price API URL for Jupiter price feeds
+ *
+ * Jupiter's price API (v2/v3) now requires authentication.
+ * We use Pyth Network's Hermes API as the price source instead,
+ * since Jupiter Perps uses Pyth oracles on-chain.
  */
 export function buildPriceApiUrl(tokenIds) {
-    const baseUrl = 'https://api.jup.ag/price/v3';
-    const params = new URLSearchParams({
-        ids: tokenIds.join(','),
-    });
-    return `${baseUrl}?${params.toString()}`;
+    // Map token mints to Pyth feed IDs
+    const feedIds = [];
+    for (const tokenId of tokenIds) {
+        // Check if tokenId is a mint address — resolve to base token name
+        let baseToken;
+        for (const [name, mint] of Object.entries(JUPITER_TOKEN_MINTS)) {
+            if (mint === tokenId) {
+                baseToken = name;
+                break;
+            }
+        }
+        // If it's already a token name (SOL, ETH, BTC), use it directly
+        if (!baseToken && tokenId in JUPITER_PYTH_FEED_IDS) {
+            baseToken = tokenId;
+        }
+        const rawFeedId = baseToken ? JUPITER_PYTH_FEED_IDS[baseToken] : undefined;
+        if (rawFeedId) {
+            // Pyth Hermes API requires feed IDs without 0x prefix
+            feedIds.push(rawFeedId.replace(/^0x/, ''));
+        }
+    }
+    const baseUrl = 'https://hermes.pyth.network/v2/updates/price/latest';
+    const params = feedIds.map((id) => `ids[]=${id}`).join('&');
+    return `${baseUrl}?${params}`;
 }
 /**
  * Build Solana RPC request body

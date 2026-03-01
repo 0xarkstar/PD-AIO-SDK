@@ -10,7 +10,8 @@ import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { BACKPACK_API_URLS, BACKPACK_RATE_LIMITS, BACKPACK_ENDPOINT_WEIGHTS } from './constants.js';
 import { BackpackNormalizer } from './BackpackNormalizer.js';
 import { BackpackAuth } from './BackpackAuth.js';
-import { toBackpackOrderType, toBackpackOrderSide, toBackpackTimeInForce, mapBackpackError, } from './utils.js';
+import { toBackpackOrderType, toBackpackOrderSide, toBackpackTimeInForce, } from './utils.js';
+import { mapBackpackError, extractBackpackError } from './error-codes.js';
 /**
  * Backpack adapter implementation
  */
@@ -408,8 +409,8 @@ export class BackpackAdapter extends BaseAdapter {
             if (error instanceof PerpDEXError) {
                 throw error;
             }
-            const { code } = mapBackpackError(error);
-            throw new PerpDEXError('Request failed', code, 'backpack', error);
+            const { code, message } = extractBackpackError(error);
+            throw mapBackpackError(code, message, error);
         }
     }
 }

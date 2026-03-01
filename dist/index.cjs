@@ -474,7 +474,7 @@ var init_errors = __esm({
           code: this.code,
           exchange: this.exchange,
           correlationId: this.correlationId,
-          originalError: this.originalError
+          originalError: this.originalError instanceof Error ? { name: this.originalError.name, message: this.originalError.message } : typeof this.originalError === "string" ? this.originalError : void 0
         };
       }
     };
@@ -6216,8 +6216,8 @@ var init_schemas = __esm({
     PositiveNumberSchema = external_exports.number().positive();
     NonNegativeNumberSchema = external_exports.number().nonnegative();
     TimestampSchema = external_exports.number().int().positive();
-    SymbolSchema = external_exports.string().min(1);
-    OrderTypeSchema = external_exports.enum(["market", "limit", "stopMarket", "stopLimit"]);
+    SymbolSchema = external_exports.string().min(1).regex(/^[A-Z0-9]{1,10}\/[A-Z0-9]{1,10}(:[A-Z0-9]{1,10})?$/, "Invalid symbol format");
+    OrderTypeSchema = external_exports.enum(["market", "limit", "stopMarket", "stopLimit", "takeProfit", "trailingStop"]);
     OrderSideSchema = external_exports.enum(["buy", "sell"]);
     OrderStatusSchema = external_exports.enum([
       "open",
@@ -6240,7 +6240,7 @@ var init_schemas = __esm({
       reduceOnly: external_exports.boolean().default(false),
       postOnly: external_exports.boolean().default(false),
       clientOrderId: external_exports.string().optional(),
-      leverage: external_exports.number().int().min(1).max(100).optional(),
+      leverage: external_exports.number().positive().max(200).optional(),
       params: external_exports.record(external_exports.unknown()).optional()
     }).refine(
       (data) => {
@@ -6255,7 +6255,7 @@ var init_schemas = __esm({
       }
     ).refine(
       (data) => {
-        if (data.type === "stopMarket" || data.type === "stopLimit") {
+        if (data.type === "stopMarket" || data.type === "stopLimit" || data.type === "takeProfit") {
           return data.stopPrice !== void 0 && data.stopPrice > 0;
         }
         return true;
@@ -6263,6 +6263,36 @@ var init_schemas = __esm({
       {
         message: "Stop orders require a valid stopPrice",
         path: ["stopPrice"]
+      }
+    ).refine(
+      (data) => {
+        if (data.price !== void 0) {
+          return data.price <= Number.MAX_SAFE_INTEGER;
+        }
+        return true;
+      },
+      {
+        message: "Price exceeds safe precision",
+        path: ["price"]
+      }
+    ).refine(
+      (data) => {
+        if (data.stopPrice !== void 0) {
+          return data.stopPrice <= Number.MAX_SAFE_INTEGER;
+        }
+        return true;
+      },
+      {
+        message: "Stop price exceeds safe precision",
+        path: ["stopPrice"]
+      }
+    ).refine(
+      (data) => {
+        return data.amount <= Number.MAX_SAFE_INTEGER;
+      },
+      {
+        message: "Amount exceeds safe precision",
+        path: ["amount"]
       }
     );
     OrderSchema = external_exports.object({
@@ -6296,7 +6326,7 @@ var init_schemas = __esm({
       liquidationPrice: PositiveNumberSchema,
       unrealizedPnl: external_exports.number(),
       realizedPnl: external_exports.number(),
-      leverage: external_exports.number().int().positive(),
+      leverage: external_exports.number().positive(),
       marginMode: MarginModeSchema,
       margin: NonNegativeNumberSchema,
       maintenanceMargin: NonNegativeNumberSchema,
@@ -6610,10 +6640,10 @@ var init_middleware = __esm({
   }
 });
 
-// src/adapters/base/BaseAdapter.ts
-var BaseAdapter;
-var init_BaseAdapter = __esm({
-  "src/adapters/base/BaseAdapter.ts"() {
+// src/adapters/base/BaseAdapterCore.ts
+var BaseAdapterCore;
+var init_BaseAdapterCore = __esm({
+  "src/adapters/base/BaseAdapterCore.ts"() {
     "use strict";
     init_errors();
     init_health();
@@ -6622,7 +6652,7 @@ var init_BaseAdapter = __esm({
     init_CircuitBreaker();
     init_prometheus();
     init_middleware();
-    BaseAdapter = class {
+    BaseAdapterCore = class {
       _isReady = false;
       _isDisconnected = false;
       config;
@@ -6695,7 +6725,7 @@ var init_BaseAdapter = __esm({
         });
       }
       // ===========================================================================
-      // Logger Methods (from LoggerMixin)
+      // Logger Methods
       // ===========================================================================
       get logger() {
         if (!this._logger) {
@@ -6753,7 +6783,7 @@ var init_BaseAdapter = __esm({
         this.debug("Disconnected and cleanup complete");
       }
       // ===========================================================================
-      // Cache Management (from CacheManagerMixin)
+      // Cache Management
       // ===========================================================================
       clearCache() {
         this.marketCache = null;
@@ -6786,7 +6816,7 @@ var init_BaseAdapter = __esm({
         return this.fetchMarkets(params);
       }
       // ===========================================================================
-      // Health Check (from HealthCheckMixin)
+      // Health Check
       // ===========================================================================
       async healthCheck(config = {}) {
         const {
@@ -6859,7 +6889,7 @@ var init_BaseAdapter = __esm({
         return void 0;
       }
       // ===========================================================================
-      // Metrics (from MetricsTrackerMixin)
+      // Metrics
       // ===========================================================================
       updateEndpointMetrics(endpointKey, latency, isError) {
         let stats = this.metrics.endpointStats.get(endpointKey);
@@ -6910,7 +6940,7 @@ var init_BaseAdapter = __esm({
         this.metrics.rateLimitHits++;
       }
       // ===========================================================================
-      // HTTP Request (from HttpRequestMixin)
+      // HTTP Request
       // ===========================================================================
       async request(method, url, body, headers) {
         const maxAttempts = 3;
@@ -7001,8 +7031,8 @@ var init_BaseAdapter = __esm({
               clearTimeout(timeout);
               this.timers.delete(timeout);
               this.abortControllers.delete(controller);
-              const isNetworkError5 = error instanceof Error && (error.name === "AbortError" || error.message.includes("fetch") || error.message.includes("network"));
-              if (attempt < maxAttempts - 1 && isNetworkError5) {
+              const isNetworkError6 = error instanceof Error && (error.name === "AbortError" || error.message.includes("fetch") || error.message.includes("network"));
+              if (attempt < maxAttempts - 1 && isNetworkError6) {
                 lastError = error;
                 const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
                 await new Promise((resolve) => setTimeout(resolve, delay));
@@ -7039,6 +7069,64 @@ var init_BaseAdapter = __esm({
           return url;
         }
       }
+      // ===========================================================================
+      // Utility Methods
+      // ===========================================================================
+      supportsFeature(feature) {
+        return this.has[feature] === true;
+      }
+      assertFeatureSupported(feature) {
+        if (!this.has[feature]) {
+          throw new PerpDEXError(
+            `Feature '${feature}' is not supported by ${this.name}`,
+            "NOT_SUPPORTED",
+            this.id
+          );
+        }
+      }
+      ensureInitialized() {
+        if (!this._isReady) {
+          throw new PerpDEXError(
+            `${this.name} adapter not initialized. Call initialize() first.`,
+            "NOT_INITIALIZED",
+            this.id
+          );
+        }
+      }
+      validateOrder(request, correlationId) {
+        return validateOrderRequest(request, {
+          exchange: this.id,
+          context: correlationId ? { correlationId } : void 0
+        });
+      }
+      getValidator() {
+        return createValidator(this.id);
+      }
+      attachCorrelationId(error, correlationId) {
+        if (error instanceof PerpDEXError) {
+          error.withCorrelationId(correlationId);
+          return error;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        return new PerpDEXError(message, "REQUEST_ERROR", this.id, error).withCorrelationId(
+          correlationId
+        );
+      }
+    };
+  }
+});
+
+// src/adapters/base/BaseAdapter.ts
+var BaseAdapter;
+var init_BaseAdapter = __esm({
+  "src/adapters/base/BaseAdapter.ts"() {
+    "use strict";
+    init_errors();
+    init_BaseAdapterCore();
+    BaseAdapter = class extends BaseAdapterCore {
+      // ===========================================================================
+      // Market Data (Public) - Optional implementations
+      // ===========================================================================
       async fetchOHLCV(_symbol, _timeframe, _params) {
         if (!this.has.fetchOHLCV) {
           throw new NotSupportedError(
@@ -7119,6 +7207,9 @@ var init_BaseAdapter = __esm({
           this.id
         );
       }
+      // ===========================================================================
+      // Trading & Account History (implemented by concrete adapters)
+      // ===========================================================================
       async fetchDeposits(_currency, _since, _limit) {
         if (!this.has.fetchDeposits) {
           throw new NotSupportedError(
@@ -7364,6 +7455,9 @@ var init_BaseAdapter = __esm({
           ...params
         });
       }
+      // ===========================================================================
+      // Positions & Balance
+      // ===========================================================================
       async setMarginMode(_symbol, _marginMode) {
         if (!this.has.setMarginMode || this.has.setMarginMode === "emulated") {
           throw new NotSupportedError(
@@ -7574,52 +7668,6 @@ var init_BaseAdapter = __esm({
           "fetchRateLimitStatus must be implemented by subclass",
           "NOT_IMPLEMENTED",
           this.id
-        );
-      }
-      // ===========================================================================
-      // Utility Methods
-      // ===========================================================================
-      supportsFeature(feature) {
-        return this.has[feature] === true;
-      }
-      assertFeatureSupported(feature) {
-        if (!this.has[feature]) {
-          throw new NotSupportedError(
-            `Feature '${feature}' is not supported by ${this.name}`,
-            "NOT_SUPPORTED",
-            this.id
-          );
-        }
-      }
-      ensureInitialized() {
-        if (!this._isReady) {
-          throw new PerpDEXError(
-            `${this.name} adapter not initialized. Call initialize() first.`,
-            "NOT_INITIALIZED",
-            this.id
-          );
-        }
-      }
-      // ===========================================================================
-      // Input Validation
-      // ===========================================================================
-      validateOrder(request, correlationId) {
-        return validateOrderRequest(request, {
-          exchange: this.id,
-          context: correlationId ? { correlationId } : void 0
-        });
-      }
-      getValidator() {
-        return createValidator(this.id);
-      }
-      attachCorrelationId(error, correlationId) {
-        if (error instanceof PerpDEXError) {
-          error.withCorrelationId(correlationId);
-          return error;
-        }
-        const message = error instanceof Error ? error.message : String(error);
-        return new PerpDEXError(message, "REQUEST_ERROR", this.id, error).withCorrelationId(
-          correlationId
         );
       }
       // ===========================================================================
@@ -7847,12 +7895,144 @@ var init_HyperliquidAuth = __esm({
   }
 });
 
+// src/adapters/hyperliquid/types.ts
+var HyperliquidMetaSchema, HyperliquidAssetSchema, HyperliquidOrderResponseSchema, HyperliquidOpenOrderSchema, HyperliquidUserStateSchema, HyperliquidPositionSchema, HyperliquidL2LevelSchema, HyperliquidL2BookSchema, HyperliquidAllMidsSchema, HyperliquidAllMidsWsMessageSchema, HyperliquidFundingRateSchema, HyperliquidWsTradeSchema, HyperliquidFillSchema, HyperliquidHistoricalOrderSchema, HyperliquidUserFillSchema;
+var init_types2 = __esm({
+  "src/adapters/hyperliquid/types.ts"() {
+    "use strict";
+    init_zod();
+    HyperliquidMetaSchema = external_exports.object({
+      universe: external_exports.array(external_exports.any())
+    }).passthrough();
+    HyperliquidAssetSchema = external_exports.object({
+      name: external_exports.string(),
+      szDecimals: external_exports.number(),
+      maxLeverage: external_exports.number(),
+      onlyIsolated: external_exports.boolean()
+    }).passthrough();
+    HyperliquidOrderResponseSchema = external_exports.object({
+      status: external_exports.enum(["ok", "err"]),
+      response: external_exports.object({
+        type: external_exports.literal("order"),
+        data: external_exports.object({
+          statuses: external_exports.array(external_exports.any())
+        }).passthrough()
+      }).passthrough()
+    }).passthrough();
+    HyperliquidOpenOrderSchema = external_exports.object({
+      coin: external_exports.string(),
+      side: external_exports.string(),
+      limitPx: external_exports.string(),
+      sz: external_exports.string(),
+      oid: external_exports.number(),
+      timestamp: external_exports.number(),
+      origSz: external_exports.string(),
+      cloid: external_exports.string().optional()
+    }).passthrough();
+    HyperliquidUserStateSchema = external_exports.object({
+      assetPositions: external_exports.array(external_exports.any()).optional(),
+      crossMarginSummary: external_exports.any().optional(),
+      marginSummary: external_exports.any().optional(),
+      withdrawable: external_exports.string().optional()
+    }).passthrough();
+    HyperliquidPositionSchema = external_exports.object({
+      position: external_exports.object({
+        coin: external_exports.string(),
+        entryPx: external_exports.string().optional(),
+        leverage: external_exports.any().optional(),
+        liquidationPx: external_exports.string().nullable().optional(),
+        marginUsed: external_exports.string().optional(),
+        positionValue: external_exports.string().optional(),
+        returnOnEquity: external_exports.string().optional(),
+        szi: external_exports.string().optional(),
+        unrealizedPnl: external_exports.string().optional()
+      }).passthrough(),
+      type: external_exports.any().optional()
+    }).passthrough();
+    HyperliquidL2LevelSchema = external_exports.object({
+      px: external_exports.string(),
+      sz: external_exports.string(),
+      n: external_exports.number()
+    }).passthrough();
+    HyperliquidL2BookSchema = external_exports.object({
+      coin: external_exports.string(),
+      levels: external_exports.tuple([external_exports.array(HyperliquidL2LevelSchema), external_exports.array(HyperliquidL2LevelSchema)]),
+      time: external_exports.number()
+    }).passthrough();
+    HyperliquidAllMidsSchema = external_exports.record(external_exports.string(), external_exports.string());
+    HyperliquidAllMidsWsMessageSchema = external_exports.object({
+      mids: external_exports.record(external_exports.string(), external_exports.string())
+    }).passthrough();
+    HyperliquidFundingRateSchema = external_exports.object({
+      coin: external_exports.string(),
+      fundingRate: external_exports.string(),
+      premium: external_exports.string(),
+      time: external_exports.number()
+    }).passthrough();
+    HyperliquidWsTradeSchema = external_exports.object({
+      coin: external_exports.string(),
+      side: external_exports.string(),
+      px: external_exports.string(),
+      sz: external_exports.string(),
+      time: external_exports.number(),
+      hash: external_exports.string()
+    }).passthrough();
+    HyperliquidFillSchema = external_exports.object({
+      coin: external_exports.string(),
+      px: external_exports.string(),
+      sz: external_exports.string(),
+      side: external_exports.string(),
+      time: external_exports.number(),
+      startPosition: external_exports.string(),
+      dir: external_exports.string(),
+      closedPnl: external_exports.string(),
+      hash: external_exports.string(),
+      oid: external_exports.number(),
+      crossed: external_exports.boolean(),
+      fee: external_exports.string(),
+      tid: external_exports.number()
+    }).passthrough();
+    HyperliquidHistoricalOrderSchema = external_exports.object({
+      order: external_exports.object({
+        coin: external_exports.string(),
+        side: external_exports.string(),
+        limitPx: external_exports.string(),
+        sz: external_exports.string(),
+        oid: external_exports.number(),
+        timestamp: external_exports.number(),
+        origSz: external_exports.string(),
+        cloid: external_exports.string().optional(),
+        orderType: external_exports.string().optional()
+      }).passthrough(),
+      status: external_exports.string(),
+      statusTimestamp: external_exports.number()
+    }).passthrough();
+    HyperliquidUserFillSchema = external_exports.object({
+      coin: external_exports.string(),
+      px: external_exports.string(),
+      sz: external_exports.string(),
+      side: external_exports.string(),
+      time: external_exports.number(),
+      startPosition: external_exports.string(),
+      dir: external_exports.string(),
+      closedPnl: external_exports.string(),
+      hash: external_exports.string(),
+      oid: external_exports.number(),
+      crossed: external_exports.boolean(),
+      fee: external_exports.string(),
+      tid: external_exports.number(),
+      feeToken: external_exports.string()
+    }).passthrough();
+  }
+});
+
 // src/adapters/hyperliquid/HyperliquidNormalizer.ts
 var HyperliquidNormalizer;
 var init_HyperliquidNormalizer = __esm({
   "src/adapters/hyperliquid/HyperliquidNormalizer.ts"() {
     "use strict";
     init_constants();
+    init_types2();
     HyperliquidNormalizer = class {
       // ===========================================================================
       // Symbol Conversion
@@ -7899,6 +8079,7 @@ var init_HyperliquidNormalizer = __esm({
        * @returns Unified order
        */
       normalizeOrder(order, _symbol) {
+        HyperliquidOpenOrderSchema.parse(order);
         const unifiedSymbol = hyperliquidToUnified(order.coin);
         const isBuy = order.side === "B";
         return {
@@ -7935,6 +8116,7 @@ var init_HyperliquidNormalizer = __esm({
        * @returns Unified order
        */
       normalizeHistoricalOrder(historicalOrder) {
+        HyperliquidHistoricalOrderSchema.parse(historicalOrder);
         const order = historicalOrder.order;
         const unifiedSymbol = hyperliquidToUnified(order.coin);
         const isBuy = order.side === "B";
@@ -7988,6 +8170,7 @@ var init_HyperliquidNormalizer = __esm({
        * @returns Unified position
        */
       normalizePosition(hlPosition) {
+        HyperliquidPositionSchema.parse(hlPosition);
         const pos = hlPosition.position;
         const unifiedSymbol = hyperliquidToUnified(pos.coin);
         const size = Math.abs(parseFloat(pos.szi));
@@ -8002,15 +8185,16 @@ var init_HyperliquidNormalizer = __esm({
           liquidationPrice: pos.liquidationPx ? parseFloat(pos.liquidationPx) : 0,
           unrealizedPnl: parseFloat(pos.unrealizedPnl),
           realizedPnl: 0,
-          // Not provided in position data
           leverage: pos.leverage.value,
           marginMode: pos.leverage.type,
           margin: parseFloat(pos.marginUsed),
           maintenanceMargin: 0,
-          // Not directly provided
           marginRatio: 0,
-          // Calculate if needed
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          info: {
+            _realizedPnlSource: "not_available",
+            _marginRatioSource: "not_available"
+          }
         };
       }
       /**
@@ -8033,6 +8217,7 @@ var init_HyperliquidNormalizer = __esm({
        * @returns Unified market
        */
       normalizeMarket(asset, index) {
+        HyperliquidAssetSchema.parse(asset);
         const unifiedSymbol = hyperliquidToUnified(asset.name);
         const [base = "", rest = ""] = unifiedSymbol.split("/");
         const [quote = "", settle = ""] = rest.split(":");
@@ -8078,6 +8263,7 @@ var init_HyperliquidNormalizer = __esm({
        * @returns Unified order book
        */
       normalizeOrderBook(book) {
+        HyperliquidL2BookSchema.parse(book);
         const unifiedSymbol = hyperliquidToUnified(book.coin);
         const bids = book.levels[0]?.map((level) => [parseFloat(level.px), parseFloat(level.sz)]) || [];
         const asks = book.levels[1]?.map((level) => [parseFloat(level.px), parseFloat(level.sz)]) || [];
@@ -8099,6 +8285,7 @@ var init_HyperliquidNormalizer = __esm({
        * @returns Unified trade
        */
       normalizeTrade(trade) {
+        HyperliquidWsTradeSchema.parse(trade);
         const unifiedSymbol = hyperliquidToUnified(trade.coin);
         const price = parseFloat(trade.px);
         const amount = parseFloat(trade.sz);
@@ -8119,6 +8306,7 @@ var init_HyperliquidNormalizer = __esm({
        * @returns Unified trade
        */
       normalizeFill(fill) {
+        HyperliquidFillSchema.parse(fill);
         const unifiedSymbol = hyperliquidToUnified(fill.coin);
         const price = parseFloat(fill.px);
         const amount = parseFloat(fill.sz);
@@ -8144,6 +8332,7 @@ var init_HyperliquidNormalizer = __esm({
        * @returns Unified trade
        */
       normalizeUserFill(fill) {
+        HyperliquidUserFillSchema.parse(fill);
         return this.normalizeFill(fill);
       }
       /**
@@ -8166,6 +8355,7 @@ var init_HyperliquidNormalizer = __esm({
        * @returns Unified funding rate
        */
       normalizeFundingRate(fundingData, markPrice) {
+        HyperliquidFundingRateSchema.parse(fundingData);
         const unifiedSymbol = hyperliquidToUnified(fundingData.coin);
         return {
           symbol: unifiedSymbol,
@@ -8188,6 +8378,7 @@ var init_HyperliquidNormalizer = __esm({
        * @returns Array of unified balances
        */
       normalizeBalance(userState) {
+        HyperliquidUserStateSchema.parse(userState);
         const accountValue = parseFloat(userState.marginSummary.accountValue);
         const totalMarginUsed = parseFloat(userState.marginSummary.totalMarginUsed);
         const withdrawable = parseFloat(userState.withdrawable);
@@ -8227,7 +8418,10 @@ var init_HyperliquidNormalizer = __esm({
           percentage: 0,
           baseVolume: 0,
           quoteVolume: 0,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          info: {
+            _bidAskSource: "mid_price"
+          }
         };
       }
     };
@@ -8740,7 +8934,7 @@ var init_HyperliquidAdapter = __esm({
         fetchMarkets: true,
         fetchTicker: true,
         fetchOrderBook: true,
-        fetchTrades: true,
+        fetchTrades: false,
         fetchOHLCV: true,
         fetchFundingRate: true,
         fetchFundingRateHistory: true,
@@ -10300,11 +10494,81 @@ var init_constants2 = __esm({
   }
 });
 
+// src/adapters/lighter/types.ts
+var LighterOrderSchema, LighterPositionSchema, LighterBalanceSchema, LighterFundingRateSchema, LighterAPIMarketSchema, LighterAPITickerSchema;
+var init_types3 = __esm({
+  "src/adapters/lighter/types.ts"() {
+    "use strict";
+    init_zod();
+    LighterOrderSchema = external_exports.object({
+      orderId: external_exports.string(),
+      clientOrderId: external_exports.string().optional(),
+      symbol: external_exports.string(),
+      side: external_exports.enum(["buy", "sell"]),
+      type: external_exports.enum(["market", "limit"]),
+      price: external_exports.number().optional(),
+      size: external_exports.number(),
+      filledSize: external_exports.number(),
+      status: external_exports.enum(["open", "filled", "cancelled", "partially_filled"]),
+      timestamp: external_exports.number(),
+      reduceOnly: external_exports.boolean()
+    }).passthrough();
+    LighterPositionSchema = external_exports.object({
+      symbol: external_exports.string(),
+      side: external_exports.enum(["long", "short"]),
+      size: external_exports.number(),
+      entryPrice: external_exports.number(),
+      markPrice: external_exports.number(),
+      liquidationPrice: external_exports.number(),
+      unrealizedPnl: external_exports.number(),
+      margin: external_exports.number(),
+      leverage: external_exports.number()
+    }).passthrough();
+    LighterBalanceSchema = external_exports.object({
+      currency: external_exports.string(),
+      total: external_exports.number(),
+      available: external_exports.number(),
+      reserved: external_exports.number()
+    }).passthrough();
+    LighterFundingRateSchema = external_exports.object({
+      symbol: external_exports.string(),
+      fundingRate: external_exports.number(),
+      markPrice: external_exports.number(),
+      nextFundingTime: external_exports.number()
+    }).passthrough();
+    LighterAPIMarketSchema = external_exports.object({
+      symbol: external_exports.string(),
+      market_type: external_exports.string().optional(),
+      status: external_exports.string().optional(),
+      supported_price_decimals: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      price_decimals: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      supported_size_decimals: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      size_decimals: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      min_base_amount: external_exports.string().optional(),
+      maker_fee: external_exports.string().optional(),
+      taker_fee: external_exports.string().optional(),
+      max_leverage: external_exports.string().optional(),
+      default_initial_margin_fraction: external_exports.number().optional(),
+      is_active: external_exports.boolean().optional()
+    }).passthrough();
+    LighterAPITickerSchema = external_exports.object({
+      symbol: external_exports.string(),
+      last_trade_price: external_exports.string().optional(),
+      daily_price_high: external_exports.string().optional(),
+      daily_price_low: external_exports.string().optional(),
+      daily_base_token_volume: external_exports.string().optional(),
+      daily_quote_token_volume: external_exports.string().optional(),
+      daily_price_change: external_exports.string().optional()
+    }).passthrough();
+  }
+});
+
 // src/adapters/lighter/LighterNormalizer.ts
 var LighterNormalizer;
 var init_LighterNormalizer = __esm({
   "src/adapters/lighter/LighterNormalizer.ts"() {
     "use strict";
+    init_types3();
     LighterNormalizer = class {
       /**
        * Convert unified symbol to Lighter format
@@ -10327,21 +10591,26 @@ var init_LighterNormalizer = __esm({
        * Handles real Lighter API response format from /api/v1/orderBookDetails
        */
       normalizeMarket(lighterMarket) {
-        const base = lighterMarket.symbol;
+        const validated = LighterAPIMarketSchema.parse(lighterMarket);
+        const base = validated.symbol;
         const quote = "USDC";
         const symbol = `${base}/${quote}:${quote}`;
-        const pricePrecision = lighterMarket.supported_price_decimals || lighterMarket.price_decimals || 2;
-        const amountPrecision = lighterMarket.supported_size_decimals || lighterMarket.size_decimals || 4;
-        const minAmount = parseFloat(lighterMarket.min_base_amount || "0");
-        const makerFee = parseFloat(lighterMarket.maker_fee || "0");
-        const takerFee = parseFloat(lighterMarket.taker_fee || "0");
+        const pricePrecision = Number(
+          validated.supported_price_decimals || validated.price_decimals || 2
+        );
+        const amountPrecision = Number(
+          validated.supported_size_decimals || validated.size_decimals || 4
+        );
+        const minAmount = parseFloat(validated.min_base_amount || "0");
+        const makerFee = parseFloat(validated.maker_fee || "0");
+        const takerFee = parseFloat(validated.taker_fee || "0");
         return {
-          id: lighterMarket.symbol,
+          id: validated.symbol,
           symbol,
           base,
           quote,
           settle: quote,
-          active: lighterMarket.status === "active",
+          active: validated.status === "active",
           minAmount,
           maxAmount: void 0,
           pricePrecision,
@@ -10350,68 +10619,74 @@ var init_LighterNormalizer = __esm({
           amountStepSize: Math.pow(10, -amountPrecision),
           makerFee,
           takerFee,
-          maxLeverage: lighterMarket.default_initial_margin_fraction ? Math.floor(1e4 / lighterMarket.default_initial_margin_fraction) : 20,
+          maxLeverage: validated.default_initial_margin_fraction ? Math.floor(1e4 / validated.default_initial_margin_fraction) : 20,
           fundingIntervalHours: 8,
-          info: lighterMarket
+          info: validated
         };
       }
       /**
        * Normalize Lighter order to unified format
        */
       normalizeOrder(lighterOrder) {
+        const validated = LighterOrderSchema.parse(lighterOrder);
+        const size = validated.size ?? 0;
+        const filledSize = validated.filledSize ?? 0;
         return {
-          id: lighterOrder.orderId,
-          clientOrderId: lighterOrder.clientOrderId,
-          symbol: this.normalizeSymbol(lighterOrder.symbol),
-          type: lighterOrder.type,
-          side: lighterOrder.side,
-          price: lighterOrder.price,
-          amount: lighterOrder.size,
-          filled: lighterOrder.filledSize,
-          remaining: lighterOrder.size - lighterOrder.filledSize,
-          status: this.mapOrderStatus(lighterOrder.status),
-          timestamp: lighterOrder.timestamp,
-          reduceOnly: lighterOrder.reduceOnly,
+          id: validated.orderId,
+          clientOrderId: validated.clientOrderId,
+          symbol: this.normalizeSymbol(validated.symbol),
+          type: validated.type ?? "limit",
+          side: validated.side ?? "buy",
+          price: validated.price,
+          amount: size,
+          filled: filledSize,
+          remaining: size - filledSize,
+          status: this.mapOrderStatus(validated.status ?? "open"),
+          timestamp: validated.timestamp ?? Date.now(),
+          reduceOnly: validated.reduceOnly ?? false,
           postOnly: false,
-          info: lighterOrder
+          info: validated
         };
       }
       /**
        * Normalize Lighter position to unified format
        */
       normalizePosition(lighterPosition) {
+        const validated = LighterPositionSchema.parse(lighterPosition);
+        const margin = validated.margin ?? 0;
+        const unrealizedPnl = validated.unrealizedPnl ?? 0;
         return {
-          symbol: this.normalizeSymbol(lighterPosition.symbol),
-          side: lighterPosition.side,
-          size: lighterPosition.size,
-          entryPrice: lighterPosition.entryPrice,
-          markPrice: lighterPosition.markPrice,
-          liquidationPrice: lighterPosition.liquidationPrice,
-          unrealizedPnl: lighterPosition.unrealizedPnl,
+          symbol: this.normalizeSymbol(validated.symbol),
+          side: validated.side ?? "long",
+          size: validated.size ?? 0,
+          entryPrice: validated.entryPrice ?? 0,
+          markPrice: validated.markPrice ?? 0,
+          liquidationPrice: validated.liquidationPrice ?? 0,
+          unrealizedPnl,
           realizedPnl: 0,
-          // Not provided by Lighter
-          margin: lighterPosition.margin,
-          leverage: lighterPosition.leverage,
+          margin,
+          leverage: validated.leverage ?? 1,
           marginMode: "cross",
-          // Not provided by Lighter, default to cross
-          maintenanceMargin: lighterPosition.margin * 0.5,
-          // Estimate as 50% of margin
-          marginRatio: lighterPosition.unrealizedPnl / lighterPosition.margin,
-          // Calculate from available data
+          maintenanceMargin: margin * 0.5,
+          marginRatio: margin > 0 ? unrealizedPnl / margin : 0,
           timestamp: Date.now(),
-          info: lighterPosition
+          info: {
+            ...validated,
+            _realizedPnlSource: "not_available"
+          }
         };
       }
       /**
        * Normalize Lighter balance to unified format
        */
       normalizeBalance(lighterBalance) {
+        const validated = LighterBalanceSchema.parse(lighterBalance);
         return {
-          currency: lighterBalance.currency,
-          total: lighterBalance.total,
-          free: lighterBalance.available,
-          used: lighterBalance.reserved,
-          info: lighterBalance
+          currency: validated.currency,
+          total: validated.total,
+          free: validated.available,
+          used: validated.reserved,
+          info: validated
         };
       }
       /**
@@ -10446,14 +10721,15 @@ var init_LighterNormalizer = __esm({
        * Handles real API response from /api/v1/orderBookDetails
        */
       normalizeTicker(lighterTicker) {
-        const last = parseFloat(lighterTicker.last_trade_price || "0");
-        const high = parseFloat(lighterTicker.daily_price_high || "0");
-        const low = parseFloat(lighterTicker.daily_price_low || "0");
-        const baseVolume = parseFloat(lighterTicker.daily_base_token_volume || "0");
-        const quoteVolume = parseFloat(lighterTicker.daily_quote_token_volume || "0");
-        const change = parseFloat(lighterTicker.daily_price_change || "0");
+        const validated = LighterAPITickerSchema.parse(lighterTicker);
+        const last = parseFloat(validated.last_trade_price || "0");
+        const high = parseFloat(validated.daily_price_high || "0");
+        const low = parseFloat(validated.daily_price_low || "0");
+        const baseVolume = parseFloat(validated.daily_base_token_volume || "0");
+        const quoteVolume = parseFloat(validated.daily_quote_token_volume || "0");
+        const change = parseFloat(validated.daily_price_change || "0");
         return {
-          symbol: this.normalizeSymbol(lighterTicker.symbol),
+          symbol: this.normalizeSymbol(validated.symbol),
           last,
           bid: last,
           // Not directly provided, use last as approximation
@@ -10469,19 +10745,23 @@ var init_LighterNormalizer = __esm({
           baseVolume,
           quoteVolume,
           timestamp: Date.now(),
-          info: lighterTicker
+          info: {
+            ...validated,
+            _bidAskSource: "last_price"
+          }
         };
       }
       /**
        * Normalize Lighter funding rate to unified format
        */
       normalizeFundingRate(lighterFundingRate) {
+        const validated = LighterFundingRateSchema.parse(lighterFundingRate);
         return {
-          symbol: this.normalizeSymbol(lighterFundingRate.symbol),
-          fundingRate: lighterFundingRate.fundingRate,
-          fundingTimestamp: lighterFundingRate.nextFundingTime,
-          nextFundingTimestamp: lighterFundingRate.nextFundingTime,
-          markPrice: lighterFundingRate.markPrice,
+          symbol: this.normalizeSymbol(validated.symbol),
+          fundingRate: validated.fundingRate,
+          fundingTimestamp: validated.nextFundingTime,
+          nextFundingTimestamp: validated.nextFundingTime,
+          markPrice: validated.markPrice,
           indexPrice: lighterFundingRate.markPrice,
           // Not provided by Lighter, use mark price as fallback
           fundingIntervalHours: 8,
@@ -10768,7 +11048,7 @@ var init_utils2 = __esm({
 
 // src/adapters/lighter/signer/types.ts
 var OrderType, TimeInForce, TxType;
-var init_types2 = __esm({
+var init_types4 = __esm({
   "src/adapters/lighter/signer/types.ts"() {
     "use strict";
     OrderType = /* @__PURE__ */ ((OrderType2) => {
@@ -11336,7 +11616,7 @@ var init_signer = __esm({
     "use strict";
     init_LighterWasmSigner();
     init_LighterSigner();
-    init_types2();
+    init_types4();
   }
 });
 
@@ -11916,12 +12196,20 @@ async function fetchOrderBookData(deps, symbol, limit, fetchMarkets) {
     throw mapError2(error);
   }
 }
-async function fetchTradesData(deps, symbol, limit) {
+async function fetchTradesData(deps, symbol, limit, fetchMarkets) {
   try {
     const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
+    let marketId = deps.marketIdCache.get(lighterSymbol);
+    if (marketId === void 0) {
+      await fetchMarkets();
+      marketId = deps.marketIdCache.get(lighterSymbol);
+      if (marketId === void 0) {
+        throw new PerpDEXError(`Market not found: ${symbol}`, "INVALID_SYMBOL", "lighter");
+      }
+    }
     const response = await deps.request(
       "GET",
-      `/api/v1/trades?symbol=${lighterSymbol}&limit=${limit}`
+      `/api/v1/recentTrades?market_id=${marketId}&limit=${limit}`
     );
     const trades = response.trades || [];
     if (!Array.isArray(trades)) {
@@ -11929,12 +12217,12 @@ async function fetchTradesData(deps, symbol, limit) {
     }
     return trades.map((trade) => {
       const normalizedTrade = {
-        id: trade.id || trade.trade_id || String(Date.now()),
+        id: String(trade.trade_id || trade.id || Date.now()),
         symbol: lighterSymbol,
-        side: (trade.side || "buy").toLowerCase(),
+        side: trade.is_maker_ask ? "sell" : "buy",
         price: parseFloat(trade.price || "0"),
         amount: parseFloat(trade.size || trade.amount || "0"),
-        timestamp: trade.timestamp || trade.created_at || Date.now()
+        timestamp: typeof trade.timestamp === "number" ? trade.timestamp : Date.now()
       };
       return deps.normalizer.normalizeTrade(normalizedTrade);
     });
@@ -11942,14 +12230,27 @@ async function fetchTradesData(deps, symbol, limit) {
     throw mapError2(error);
   }
 }
-async function fetchFundingRateData(deps, symbol) {
+async function fetchFundingRateData(deps, symbol, fetchMarkets) {
   try {
     const lighterSymbol = deps.normalizer.toLighterSymbol(symbol);
-    const response = await deps.request(
-      "GET",
-      `/api/v1/funding-rates?symbol=${lighterSymbol}`
-    );
-    return deps.normalizer.normalizeFundingRate(response);
+    let marketId = deps.marketIdCache.get(lighterSymbol);
+    if (marketId === void 0) {
+      await fetchMarkets();
+      marketId = deps.marketIdCache.get(lighterSymbol);
+    }
+    const response = await deps.request("GET", `/api/v1/funding-rates?symbol=${lighterSymbol}`);
+    const rates = response.funding_rates || [];
+    const matchingRate = marketId !== void 0 ? rates.find((r) => r.market_id === marketId) : rates.find((r) => r.symbol === lighterSymbol);
+    const fundingRate = matchingRate?.rate ?? 0;
+    const lighterFundingRate = {
+      symbol: lighterSymbol,
+      fundingRate: typeof fundingRate === "number" && !isNaN(fundingRate) ? fundingRate : 0,
+      markPrice: 0,
+      // Not provided by this endpoint
+      nextFundingTime: Date.now() + 8 * 3600 * 1e3
+      // Estimated next funding
+    };
+    return deps.normalizer.normalizeFundingRate(lighterFundingRate);
   } catch (error) {
     throw mapError2(error);
   }
@@ -12279,11 +12580,16 @@ var init_LighterAdapter = __esm({
       }
       async fetchTrades(symbol, params) {
         await this.rateLimiter.acquire("fetchTrades");
-        return fetchTradesData(this.getMarketDataDeps(), symbol, params?.limit || 100);
+        return fetchTradesData(
+          this.getMarketDataDeps(),
+          symbol,
+          params?.limit || 100,
+          () => this.fetchMarkets()
+        );
       }
       async fetchFundingRate(symbol) {
         await this.rateLimiter.acquire("fetchFundingRate");
-        return fetchFundingRateData(this.getMarketDataDeps(), symbol);
+        return fetchFundingRateData(this.getMarketDataDeps(), symbol, () => this.fetchMarkets());
       }
       async fetchFundingRateHistory(_symbol, _since, _limit) {
         throw new Error("Lighter does not support funding rate history");
@@ -12588,13 +12894,6 @@ var init_LighterAdapter = __esm({
   }
 });
 
-// src/adapters/lighter/types.ts
-var init_types3 = __esm({
-  "src/adapters/lighter/types.ts"() {
-    "use strict";
-  }
-});
-
 // src/adapters/lighter/LighterAuth.ts
 var LighterAuth;
 var init_LighterAuth = __esm({
@@ -12844,8 +13143,14 @@ __export(lighter_exports, {
   LIGHTER_RATE_LIMITS: () => LIGHTER_RATE_LIMITS,
   LIGHTER_WS_CHANNELS: () => LIGHTER_WS_CHANNELS,
   LIGHTER_WS_CONFIG: () => LIGHTER_WS_CONFIG,
+  LighterAPIMarketSchema: () => LighterAPIMarketSchema,
+  LighterAPITickerSchema: () => LighterAPITickerSchema,
   LighterAdapter: () => LighterAdapter,
   LighterAuth: () => LighterAuth,
+  LighterBalanceSchema: () => LighterBalanceSchema,
+  LighterFundingRateSchema: () => LighterFundingRateSchema,
+  LighterOrderSchema: () => LighterOrderSchema,
+  LighterPositionSchema: () => LighterPositionSchema,
   LighterSigner: () => LighterSigner,
   LighterWasmSigner: () => LighterWasmSigner,
   NonceManager: () => NonceManager,
@@ -13906,7 +14211,10 @@ var init_GRVTNormalizer = __esm({
           baseVolume: buyVolumeB + sellVolumeB,
           quoteVolume: 0,
           timestamp: grvtTicker.event_time ? parseInt(grvtTicker.event_time) : Date.now(),
-          info: grvtTicker
+          info: {
+            ...grvtTicker,
+            _bidAskSource: "orderbook"
+          }
         };
       }
       /**
@@ -13945,6 +14253,9 @@ var init_GRVTNormalizer = __esm({
 
 // src/utils/type-guards.ts
 function includesValue(values, code) {
+  return values.includes(code);
+}
+function includesNumericValue(values, code) {
   return values.includes(code);
 }
 var init_type_guards = __esm({
@@ -14866,46 +15177,57 @@ var init_GRVTAdapter = __esm({
         await this.rateLimiter.acquire("fetchOHLCV");
         try {
           const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
+          if (timeframe === "1M") {
+            throw new NotSupportedError(
+              "GRVT does not support monthly (1M) candlestick intervals",
+              "UNSUPPORTED_TIMEFRAME",
+              "grvt"
+            );
+          }
           const intervalMap = {
-            "1m": 60,
-            "3m": 180,
-            "5m": 300,
-            "15m": 900,
-            "30m": 1800,
-            "1h": 3600,
-            "2h": 7200,
-            "4h": 14400,
-            "6h": 21600,
-            "8h": 28800,
-            "12h": 43200,
-            "1d": 86400,
-            "3d": 259200,
-            "1w": 604800,
-            "1M": 2592e3
+            "1m": "CI_1_M",
+            "3m": "CI_3_M",
+            "5m": "CI_5_M",
+            "15m": "CI_15_M",
+            "30m": "CI_30_M",
+            "1h": "CI_1_H",
+            "2h": "CI_2_H",
+            "4h": "CI_4_H",
+            "6h": "CI_6_H",
+            "8h": "CI_8_H",
+            "12h": "CI_12_H",
+            "1d": "CI_1_D",
+            "3d": "CI_3_D",
+            "1w": "CI_1_W"
           };
-          const interval = intervalMap[timeframe] || 3600;
+          const interval = intervalMap[timeframe] || "CI_1_H";
           const now = Date.now();
           const defaultDuration = this.getDefaultDuration(timeframe);
           const startTime = params?.since ?? now - defaultDuration;
           const endTime = params?.until ?? now;
-          const response = await this.sdk.getCandlestick({
+          const startTimeNs = (BigInt(startTime) * 1000000n).toString();
+          const endTimeNs = (BigInt(endTime) * 1000000n).toString();
+          const restUrl = this.testnet ? GRVT_API_URLS.testnet.rest : GRVT_API_URLS.mainnet.rest;
+          const response = await this.sdk.mdgAxios.post(`${restUrl}/full/v1/kline`, {
             instrument: grvtSymbol,
             interval,
-            start_time: startTime,
-            end_time: endTime,
-            limit: params?.limit
+            type: "TRADE",
+            start_time: startTimeNs,
+            end_time: endTimeNs,
+            limit: params?.limit ?? 100
           });
-          if (!response.result || !Array.isArray(response.result)) {
+          const result = response.data?.result;
+          if (!result || !Array.isArray(result)) {
             return [];
           }
-          return response.result.map(
+          return result.map(
             (candle) => [
-              candle.time || candle.t,
-              parseFloat(candle.open || candle.o || "0"),
-              parseFloat(candle.high || candle.h || "0"),
-              parseFloat(candle.low || candle.l || "0"),
-              parseFloat(candle.close || candle.c || "0"),
-              parseFloat(candle.volume || candle.v || "0")
+              Number(BigInt(candle.open_time || "0") / 1000000n),
+              parseFloat(candle.open || "0"),
+              parseFloat(candle.high || "0"),
+              parseFloat(candle.low || "0"),
+              parseFloat(candle.close || "0"),
+              parseFloat(candle.volume_b || candle.volume || "0")
             ]
           );
         } catch (error) {
@@ -15353,9 +15675,96 @@ var init_GRVTAdapter = __esm({
 });
 
 // src/adapters/grvt/types.ts
-var init_types4 = __esm({
+var GRVTMarketSchema, GRVTOrderBookSchema, GRVTOrderSchema, GRVTPositionSchema, GRVTBalanceSchema, GRVTTradeSchema, GRVTTickerSchema;
+var init_types5 = __esm({
   "src/adapters/grvt/types.ts"() {
     "use strict";
+    init_zod();
+    GRVTMarketSchema = external_exports.object({
+      instrument_id: external_exports.string(),
+      instrument: external_exports.string(),
+      base_currency: external_exports.string(),
+      quote_currency: external_exports.string(),
+      settlement_currency: external_exports.string(),
+      instrument_type: external_exports.string(),
+      is_active: external_exports.boolean(),
+      maker_fee: external_exports.string(),
+      taker_fee: external_exports.string(),
+      max_leverage: external_exports.string(),
+      min_size: external_exports.string(),
+      max_size: external_exports.string(),
+      tick_size: external_exports.string(),
+      step_size: external_exports.string(),
+      mark_price: external_exports.string(),
+      index_price: external_exports.string(),
+      funding_rate: external_exports.string().optional(),
+      next_funding_time: external_exports.number().optional(),
+      open_interest: external_exports.string().optional()
+    }).passthrough();
+    GRVTOrderBookSchema = external_exports.object({
+      instrument: external_exports.string(),
+      bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      timestamp: external_exports.number(),
+      sequence: external_exports.number()
+    }).passthrough();
+    GRVTOrderSchema = external_exports.object({
+      order_id: external_exports.string(),
+      client_order_id: external_exports.string().optional(),
+      instrument: external_exports.string(),
+      order_type: external_exports.string(),
+      side: external_exports.string(),
+      size: external_exports.string(),
+      price: external_exports.string().optional(),
+      time_in_force: external_exports.string(),
+      reduce_only: external_exports.boolean(),
+      post_only: external_exports.boolean(),
+      status: external_exports.string(),
+      filled_size: external_exports.string(),
+      average_fill_price: external_exports.string().optional(),
+      created_at: external_exports.number(),
+      updated_at: external_exports.number()
+    }).passthrough();
+    GRVTPositionSchema = external_exports.object({
+      instrument: external_exports.string(),
+      side: external_exports.string(),
+      size: external_exports.string(),
+      entry_price: external_exports.string(),
+      mark_price: external_exports.string(),
+      liquidation_price: external_exports.string().optional(),
+      unrealized_pnl: external_exports.string(),
+      realized_pnl: external_exports.string(),
+      margin: external_exports.string(),
+      leverage: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    GRVTBalanceSchema = external_exports.object({
+      currency: external_exports.string(),
+      total: external_exports.string(),
+      available: external_exports.string(),
+      reserved: external_exports.string(),
+      unrealized_pnl: external_exports.string()
+    }).passthrough();
+    GRVTTradeSchema = external_exports.object({
+      trade_id: external_exports.string(),
+      instrument: external_exports.string(),
+      side: external_exports.string(),
+      price: external_exports.string(),
+      size: external_exports.string(),
+      timestamp: external_exports.number(),
+      is_buyer_maker: external_exports.boolean()
+    }).passthrough();
+    GRVTTickerSchema = external_exports.object({
+      instrument: external_exports.string(),
+      last_price: external_exports.string(),
+      best_bid: external_exports.string(),
+      best_ask: external_exports.string(),
+      volume_24h: external_exports.string(),
+      high_24h: external_exports.string(),
+      low_24h: external_exports.string(),
+      price_change_24h: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
   }
 });
 
@@ -15622,6 +16031,13 @@ var grvt_exports = {};
 __export(grvt_exports, {
   GRVTAdapter: () => GRVTAdapter,
   GRVTAuth: () => GRVTAuth,
+  GRVTBalanceSchema: () => GRVTBalanceSchema,
+  GRVTMarketSchema: () => GRVTMarketSchema,
+  GRVTOrderBookSchema: () => GRVTOrderBookSchema,
+  GRVTOrderSchema: () => GRVTOrderSchema,
+  GRVTPositionSchema: () => GRVTPositionSchema,
+  GRVTTickerSchema: () => GRVTTickerSchema,
+  GRVTTradeSchema: () => GRVTTradeSchema,
   GRVT_API_URLS: () => GRVT_API_URLS,
   GRVT_EIP712_DOMAIN: () => GRVT_EIP712_DOMAIN,
   GRVT_EIP712_ORDER_TYPE: () => GRVT_EIP712_ORDER_TYPE,
@@ -15655,7 +16071,7 @@ var init_grvt = __esm({
     "use strict";
     init_GRVTAdapter();
     init_GRVTAuth();
-    init_types4();
+    init_types5();
     init_constants3();
     init_utils3();
   }
@@ -15772,16 +16188,18 @@ var init_ParadexAuth = __esm({
         const headers = {
           "Content-Type": "application/json"
         };
-        if (this.apiKey) {
-          headers["X-API-KEY"] = this.apiKey;
-        }
-        if (this.jwtToken && this.isTokenValid()) {
-          headers["Authorization"] = `Bearer ${this.jwtToken.accessToken}`;
-        }
-        headers["X-Timestamp"] = Date.now().toString();
-        if (this.requiresSignature(request.method, request.path)) {
-          const signature = await this.signRequest(request);
-          headers["X-Signature"] = signature;
+        if (this.hasCredentials()) {
+          if (this.apiKey) {
+            headers["X-API-KEY"] = this.apiKey;
+          }
+          if (this.jwtToken && this.isTokenValid()) {
+            headers["Authorization"] = `Bearer ${this.jwtToken.accessToken}`;
+          }
+          headers["X-Timestamp"] = Date.now().toString();
+          if (this.requiresSignature(request.method, request.path)) {
+            const signature = await this.signRequest(request);
+            headers["X-Signature"] = signature;
+          }
         }
         return {
           ...request,
@@ -15964,10 +16382,8 @@ var init_ParadexAuth = __esm({
           const publicKey = import_starknet.ec.starkCurve.getStarkKey(this.starkPrivateKey);
           return publicKey;
         } catch (error) {
-          this.logger.error(
-            "Failed to derive StarkNet address",
-            error instanceof Error ? error : void 0
-          );
+          const sanitizedError = error instanceof Error ? new Error(error.message.replace(/0x[0-9a-fA-F]{64,}/g, "[REDACTED]")) : void 0;
+          this.logger.error("Failed to derive StarkNet address", sanitizedError);
           return void 0;
         }
       }
@@ -16365,12 +16781,137 @@ var init_ParadexHTTPClient = __esm({
   }
 });
 
+// src/adapters/paradex/types.ts
+var ParadexMarketSchema, ParadexOrderSchema, ParadexPositionSchema, ParadexBalanceSchema, ParadexOrderBookSchema, ParadexTradeSchema, ParadexTickerSchema, ParadexFundingRateSchema, ParadexAPIMarketSchema;
+var init_types6 = __esm({
+  "src/adapters/paradex/types.ts"() {
+    "use strict";
+    init_zod();
+    ParadexMarketSchema = external_exports.object({
+      symbol: external_exports.string(),
+      base_currency: external_exports.string(),
+      quote_currency: external_exports.string(),
+      settlement_currency: external_exports.string(),
+      status: external_exports.string(),
+      min_order_size: external_exports.string(),
+      max_order_size: external_exports.string(),
+      tick_size: external_exports.string(),
+      step_size: external_exports.string(),
+      maker_fee_rate: external_exports.string(),
+      taker_fee_rate: external_exports.string(),
+      max_leverage: external_exports.string(),
+      is_active: external_exports.boolean()
+    }).passthrough();
+    ParadexOrderSchema = external_exports.object({
+      id: external_exports.string(),
+      client_id: external_exports.string().optional(),
+      market: external_exports.string(),
+      side: external_exports.string(),
+      type: external_exports.string(),
+      size: external_exports.string(),
+      price: external_exports.string().optional(),
+      filled_size: external_exports.string(),
+      avg_fill_price: external_exports.string().optional(),
+      status: external_exports.string(),
+      time_in_force: external_exports.string(),
+      post_only: external_exports.boolean(),
+      reduce_only: external_exports.boolean(),
+      created_at: external_exports.number(),
+      updated_at: external_exports.number()
+    }).passthrough();
+    ParadexPositionSchema = external_exports.object({
+      market: external_exports.string(),
+      side: external_exports.string(),
+      size: external_exports.string(),
+      entry_price: external_exports.string(),
+      mark_price: external_exports.string(),
+      liquidation_price: external_exports.string().optional(),
+      unrealized_pnl: external_exports.string(),
+      realized_pnl: external_exports.string(),
+      margin: external_exports.string(),
+      leverage: external_exports.string(),
+      last_updated: external_exports.number()
+    }).passthrough();
+    ParadexBalanceSchema = external_exports.object({
+      asset: external_exports.string(),
+      total: external_exports.string(),
+      available: external_exports.string(),
+      locked: external_exports.string()
+    }).passthrough();
+    ParadexOrderBookSchema = external_exports.object({
+      market: external_exports.string(),
+      bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      timestamp: external_exports.number(),
+      sequence: external_exports.number()
+    }).passthrough();
+    ParadexTradeSchema = external_exports.object({
+      id: external_exports.string(),
+      market: external_exports.string(),
+      side: external_exports.string(),
+      price: external_exports.string(),
+      size: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    ParadexTickerSchema = external_exports.object({
+      market: external_exports.string(),
+      last_price: external_exports.string(),
+      bid: external_exports.string(),
+      ask: external_exports.string(),
+      high_24h: external_exports.string(),
+      low_24h: external_exports.string(),
+      volume_24h: external_exports.string(),
+      price_change_24h: external_exports.string(),
+      price_change_percent_24h: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    ParadexFundingRateSchema = external_exports.object({
+      market: external_exports.string(),
+      rate: external_exports.string(),
+      timestamp: external_exports.number(),
+      next_funding_time: external_exports.number(),
+      mark_price: external_exports.string(),
+      index_price: external_exports.string()
+    }).passthrough();
+    ParadexAPIMarketSchema = external_exports.object({
+      symbol: external_exports.string(),
+      base_currency: external_exports.string(),
+      quote_currency: external_exports.string(),
+      settlement_currency: external_exports.string(),
+      status: external_exports.string().optional(),
+      is_active: external_exports.boolean().optional(),
+      open_at: external_exports.number().optional(),
+      price_tick_size: external_exports.string().optional(),
+      order_size_increment: external_exports.string().optional(),
+      min_notional: external_exports.string().optional(),
+      funding_period_hours: external_exports.number().optional(),
+      fee_config: external_exports.object({
+        api_fee: external_exports.object({
+          maker_fee: external_exports.object({ fee: external_exports.string().optional() }).passthrough().optional(),
+          taker_fee: external_exports.object({ fee: external_exports.string().optional() }).passthrough().optional()
+        }).passthrough().optional()
+      }).passthrough().optional(),
+      delta1_cross_margin_params: external_exports.object({
+        imf_base: external_exports.string().optional()
+      }).passthrough().optional(),
+      tick_size: external_exports.string().optional(),
+      step_size: external_exports.string().optional(),
+      min_order_size: external_exports.string().optional(),
+      max_order_size: external_exports.string().optional(),
+      maker_fee_rate: external_exports.string().optional(),
+      taker_fee_rate: external_exports.string().optional(),
+      max_leverage: external_exports.string().optional()
+    }).passthrough();
+  }
+});
+
 // src/adapters/paradex/ParadexNormalizer.ts
 var ParadexNormalizer;
 var init_ParadexNormalizer = __esm({
   "src/adapters/paradex/ParadexNormalizer.ts"() {
     "use strict";
     init_constants4();
+    init_types6();
     ParadexNormalizer = class {
       // ===========================================================================
       // Symbol Conversion
@@ -16446,35 +16987,36 @@ var init_ParadexNormalizer = __esm({
        * @returns Unified market
        */
       normalizeMarket(paradexMarket) {
-        const symbol = this.symbolToCCXT(paradexMarket.symbol);
-        const tickSize = paradexMarket.price_tick_size || paradexMarket.tick_size || "0.01";
-        const stepSize = paradexMarket.order_size_increment || paradexMarket.step_size || "0.001";
-        const minOrderSize = paradexMarket.min_notional || paradexMarket.min_order_size || "100";
+        const validated = ParadexAPIMarketSchema.parse(paradexMarket);
+        const symbol = this.symbolToCCXT(validated.symbol);
+        const tickSize = validated.price_tick_size || validated.tick_size || "0.01";
+        const stepSize = validated.order_size_increment || validated.step_size || "0.001";
+        const minOrderSize = validated.min_notional || validated.min_order_size || "100";
         let makerFee = 3e-5;
         let takerFee = 2e-4;
-        if (paradexMarket.fee_config?.api_fee) {
-          makerFee = parseFloat(paradexMarket.fee_config.api_fee.maker_fee?.fee || "0.00003");
-          takerFee = parseFloat(paradexMarket.fee_config.api_fee.taker_fee?.fee || "0.0002");
-        } else if (paradexMarket.maker_fee_rate) {
-          makerFee = parseFloat(paradexMarket.maker_fee_rate);
-          takerFee = parseFloat(paradexMarket.taker_fee_rate);
+        if (validated.fee_config?.api_fee) {
+          makerFee = parseFloat(validated.fee_config.api_fee.maker_fee?.fee || "0.00003");
+          takerFee = parseFloat(validated.fee_config.api_fee.taker_fee?.fee || "0.0002");
+        } else if (validated.maker_fee_rate) {
+          makerFee = parseFloat(validated.maker_fee_rate);
+          takerFee = parseFloat(validated.taker_fee_rate || "0.0002");
         }
         let maxLeverage = 50;
-        if (paradexMarket.delta1_cross_margin_params?.imf_base) {
-          const imfBase = parseFloat(paradexMarket.delta1_cross_margin_params.imf_base);
+        if (validated.delta1_cross_margin_params?.imf_base) {
+          const imfBase = parseFloat(validated.delta1_cross_margin_params.imf_base);
           if (imfBase > 0) {
             maxLeverage = Math.round(1 / imfBase);
           }
-        } else if (paradexMarket.max_leverage) {
-          maxLeverage = parseFloat(paradexMarket.max_leverage);
+        } else if (validated.max_leverage) {
+          maxLeverage = parseFloat(validated.max_leverage);
         }
-        const isActive = paradexMarket.is_active ?? (paradexMarket.open_at ? paradexMarket.open_at <= Date.now() : true);
+        const isActive = validated.is_active ?? (validated.open_at ? validated.open_at <= Date.now() : true);
         return {
-          id: paradexMarket.symbol,
+          id: validated.symbol,
           symbol,
-          base: paradexMarket.base_currency,
-          quote: paradexMarket.quote_currency,
-          settle: paradexMarket.settlement_currency,
+          base: validated.base_currency,
+          quote: validated.quote_currency,
+          settle: validated.settlement_currency,
           active: isActive,
           minAmount: parseFloat(minOrderSize),
           pricePrecision: this.countDecimals(tickSize),
@@ -16484,8 +17026,8 @@ var init_ParadexNormalizer = __esm({
           makerFee,
           takerFee,
           maxLeverage,
-          fundingIntervalHours: paradexMarket.funding_period_hours || 8,
-          info: paradexMarket
+          fundingIntervalHours: validated.funding_period_hours || 8,
+          info: validated
         };
       }
       /**
@@ -16552,25 +17094,26 @@ var init_ParadexNormalizer = __esm({
        * Normalize Paradex order to unified format
        */
       normalizeOrder(paradexOrder) {
-        const symbol = this.symbolToCCXT(paradexOrder.market);
+        const validated = ParadexOrderSchema.parse(paradexOrder);
+        const symbol = this.symbolToCCXT(validated.market);
         return {
-          id: paradexOrder.id,
-          clientOrderId: paradexOrder.client_id,
+          id: validated.id,
+          clientOrderId: validated.client_id,
           symbol,
-          type: this.normalizeOrderType(paradexOrder.type),
-          side: this.normalizeOrderSide(paradexOrder.side),
-          amount: parseFloat(paradexOrder.size),
-          price: paradexOrder.price ? parseFloat(paradexOrder.price) : void 0,
-          filled: parseFloat(paradexOrder.filled_size),
-          remaining: parseFloat(paradexOrder.size) - parseFloat(paradexOrder.filled_size),
-          averagePrice: paradexOrder.avg_fill_price ? parseFloat(paradexOrder.avg_fill_price) : void 0,
-          status: this.normalizeOrderStatus(paradexOrder.status),
-          timeInForce: this.normalizeTimeInForce(paradexOrder.time_in_force),
-          postOnly: paradexOrder.post_only,
-          reduceOnly: paradexOrder.reduce_only,
-          timestamp: paradexOrder.created_at,
-          lastUpdateTimestamp: paradexOrder.updated_at,
-          info: paradexOrder
+          type: this.normalizeOrderType(validated.type),
+          side: this.normalizeOrderSide(validated.side),
+          amount: parseFloat(validated.size),
+          price: validated.price ? parseFloat(validated.price) : void 0,
+          filled: parseFloat(validated.filled_size),
+          remaining: parseFloat(validated.size) - parseFloat(validated.filled_size),
+          averagePrice: validated.avg_fill_price ? parseFloat(validated.avg_fill_price) : void 0,
+          status: this.normalizeOrderStatus(validated.status),
+          timeInForce: this.normalizeTimeInForce(validated.time_in_force),
+          postOnly: validated.post_only,
+          reduceOnly: validated.reduce_only,
+          timestamp: validated.created_at,
+          lastUpdateTimestamp: validated.updated_at,
+          info: validated
         };
       }
       /**
@@ -16586,28 +17129,31 @@ var init_ParadexNormalizer = __esm({
        * Normalize Paradex position to unified format
        */
       normalizePosition(paradexPosition) {
-        const symbol = this.symbolToCCXT(paradexPosition.market);
-        const size = parseFloat(paradexPosition.size);
-        const side = paradexPosition.side === "LONG" ? "long" : "short";
+        const validated = ParadexPositionSchema.parse(paradexPosition);
+        const symbol = this.symbolToCCXT(validated.market);
+        const size = parseFloat(validated.size);
+        const side = validated.side === "LONG" ? "long" : "short";
+        const absSize = Math.abs(size);
+        const markPrice = parseFloat(validated.mark_price);
+        const maintenanceMargin = parseFloat(validated.margin) * 0.025;
+        const notional = absSize * markPrice;
         return {
           symbol,
           side,
           marginMode: "cross",
           // Paradex uses cross margin
-          size: Math.abs(size),
-          entryPrice: parseFloat(paradexPosition.entry_price),
-          markPrice: parseFloat(paradexPosition.mark_price),
-          liquidationPrice: paradexPosition.liquidation_price ? parseFloat(paradexPosition.liquidation_price) : 0,
-          unrealizedPnl: parseFloat(paradexPosition.unrealized_pnl),
-          realizedPnl: parseFloat(paradexPosition.realized_pnl),
-          margin: parseFloat(paradexPosition.margin),
-          leverage: parseFloat(paradexPosition.leverage),
-          maintenanceMargin: parseFloat(paradexPosition.margin) * 0.025,
-          // Estimate 2.5%
-          marginRatio: 0,
-          // Not provided by Paradex
-          timestamp: paradexPosition.last_updated,
-          info: paradexPosition
+          size: absSize,
+          entryPrice: parseFloat(validated.entry_price),
+          markPrice,
+          liquidationPrice: validated.liquidation_price ? parseFloat(validated.liquidation_price) : 0,
+          unrealizedPnl: parseFloat(validated.unrealized_pnl),
+          realizedPnl: parseFloat(validated.realized_pnl),
+          margin: parseFloat(validated.margin),
+          leverage: parseFloat(validated.leverage),
+          maintenanceMargin,
+          marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
+          timestamp: validated.last_updated,
+          info: validated
         };
       }
       /**
@@ -16623,12 +17169,13 @@ var init_ParadexNormalizer = __esm({
        * Normalize Paradex balance to unified format
        */
       normalizeBalance(paradexBalance) {
+        const validated = ParadexBalanceSchema.parse(paradexBalance);
         return {
-          currency: paradexBalance.asset,
-          total: parseFloat(paradexBalance.total),
-          free: parseFloat(paradexBalance.available),
-          used: parseFloat(paradexBalance.locked),
-          info: paradexBalance
+          currency: validated.asset,
+          total: parseFloat(validated.total),
+          free: parseFloat(validated.available),
+          used: parseFloat(validated.locked),
+          info: validated
         };
       }
       /**
@@ -16644,12 +17191,13 @@ var init_ParadexNormalizer = __esm({
        * Normalize Paradex order book to unified format
        */
       normalizeOrderBook(paradexOrderBook) {
+        const validated = ParadexOrderBookSchema.parse(paradexOrderBook);
         return {
-          symbol: this.symbolToCCXT(paradexOrderBook.market),
+          symbol: this.symbolToCCXT(validated.market),
           exchange: "paradex",
-          bids: paradexOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-          asks: paradexOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-          timestamp: paradexOrderBook.timestamp
+          bids: validated.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+          asks: validated.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+          timestamp: validated.timestamp
         };
       }
       // ===========================================================================
@@ -16659,17 +17207,19 @@ var init_ParadexNormalizer = __esm({
        * Normalize Paradex trade to unified format
        */
       normalizeTrade(paradexTrade) {
-        const price = parseFloat(paradexTrade.price);
-        const amount = parseFloat(paradexTrade.size);
+        const validated = ParadexTradeSchema.parse(paradexTrade);
+        const price = parseFloat(validated.price);
+        const amount = parseFloat(validated.size);
+        const timestamp = validated.timestamp || validated.created_at || 0;
         return {
-          id: paradexTrade.id,
-          symbol: this.symbolToCCXT(paradexTrade.market),
-          side: this.normalizeOrderSide(paradexTrade.side),
+          id: validated.id,
+          symbol: this.symbolToCCXT(validated.market),
+          side: this.normalizeOrderSide(validated.side),
           price,
           amount,
           cost: price * amount,
-          timestamp: paradexTrade.timestamp,
-          info: paradexTrade
+          timestamp,
+          info: validated
         };
       }
       /**
@@ -16685,25 +17235,29 @@ var init_ParadexNormalizer = __esm({
        * Normalize Paradex ticker to unified format
        */
       normalizeTicker(paradexTicker) {
-        const last = parseFloat(paradexTicker.last_price);
-        const change = parseFloat(paradexTicker.price_change_24h);
-        const percentage = parseFloat(paradexTicker.price_change_percent_24h);
+        const validated = ParadexTickerSchema.parse(paradexTicker);
+        const last = parseFloat(validated.last_price);
+        const change = parseFloat(validated.price_change_24h);
+        const percentage = parseFloat(validated.price_change_percent_24h);
         return {
-          symbol: this.symbolToCCXT(paradexTicker.market),
+          symbol: this.symbolToCCXT(validated.market),
           last,
           open: last - change,
           close: last,
-          bid: parseFloat(paradexTicker.bid),
-          ask: parseFloat(paradexTicker.ask),
-          high: parseFloat(paradexTicker.high_24h),
-          low: parseFloat(paradexTicker.low_24h),
+          bid: parseFloat(validated.bid),
+          ask: parseFloat(validated.ask),
+          high: parseFloat(validated.high_24h),
+          low: parseFloat(validated.low_24h),
           change,
           percentage,
-          baseVolume: parseFloat(paradexTicker.volume_24h),
+          baseVolume: parseFloat(validated.volume_24h),
           quoteVolume: 0,
           // Not provided by Paradex
-          timestamp: paradexTicker.timestamp,
-          info: paradexTicker
+          timestamp: validated.timestamp,
+          info: {
+            ...validated,
+            _bidAskSource: "orderbook"
+          }
         };
       }
       /**
@@ -16719,15 +17273,16 @@ var init_ParadexNormalizer = __esm({
        * Normalize Paradex funding rate to unified format
        */
       normalizeFundingRate(paradexFunding) {
+        const validated = ParadexFundingRateSchema.parse(paradexFunding);
         return {
-          symbol: this.symbolToCCXT(paradexFunding.market),
-          fundingRate: parseFloat(paradexFunding.rate),
-          fundingTimestamp: paradexFunding.timestamp,
-          markPrice: parseFloat(paradexFunding.mark_price),
-          indexPrice: parseFloat(paradexFunding.index_price),
-          nextFundingTimestamp: paradexFunding.next_funding_time,
+          symbol: this.symbolToCCXT(validated.market),
+          fundingRate: parseFloat(validated.rate),
+          fundingTimestamp: validated.timestamp,
+          markPrice: parseFloat(validated.mark_price),
+          indexPrice: parseFloat(validated.index_price),
+          nextFundingTimestamp: validated.next_funding_time,
           fundingIntervalHours: 8,
-          info: paradexFunding
+          info: validated
         };
       }
       /**
@@ -17785,13 +18340,34 @@ var init_ParadexAdapter = __esm({
       }
       /**
        * Fetch ticker for a symbol
+       *
+       * Uses /markets/summary endpoint which is publicly accessible (no JWT required)
        */
       async fetchTicker(symbol) {
         await this.rateLimiter.acquire("fetchTicker");
         try {
           const market = this.normalizer.symbolFromCCXT(symbol);
-          const response = await this.client.get(`/markets/${market}/ticker`);
-          return this.normalizer.normalizeTicker(response);
+          const response = await this.client.get(
+            `/markets/summary?market=${market}`
+          );
+          const results = response.results;
+          if (!Array.isArray(results) || results.length === 0) {
+            throw new PerpDEXError("No ticker data", "INVALID_RESPONSE", "paradex");
+          }
+          const summary = results[0];
+          const tickerData = {
+            market,
+            last_price: summary.last_traded_price || "0",
+            bid: summary.bid || "0",
+            ask: summary.ask || "0",
+            high_24h: summary.last_traded_price || "0",
+            low_24h: summary.last_traded_price || "0",
+            volume_24h: summary.volume_24h || "0",
+            price_change_24h: "0",
+            price_change_percent_24h: summary.price_change_rate_24h || "0",
+            timestamp: summary.created_at || Date.now()
+          };
+          return this.normalizer.normalizeTicker(tickerData);
         } catch (error) {
           throw mapAxiosError2(error);
         }
@@ -17815,55 +18391,91 @@ var init_ParadexAdapter = __esm({
       }
       /**
        * Fetch recent trades for a symbol
+       *
+       * Uses /trades?market=X query param format (publicly accessible, no JWT)
        */
       async fetchTrades(symbol, params) {
         await this.rateLimiter.acquire("fetchTrades");
         try {
           const market = this.normalizer.symbolFromCCXT(symbol);
           const limit = params?.limit ?? 100;
-          const response = await this.client.get(`/trades/${market}?limit=${limit}`);
-          if (!Array.isArray(response.trades)) {
+          const response = await this.client.get(
+            `/trades?market=${market}&limit=${limit}`
+          );
+          const trades = response.results;
+          if (!Array.isArray(trades)) {
             throw new PerpDEXError("Invalid trades response", "INVALID_RESPONSE", "paradex");
           }
-          return this.normalizer.normalizeTrades(response.trades);
+          return this.normalizer.normalizeTrades(trades);
         } catch (error) {
           throw mapAxiosError2(error);
         }
       }
       /**
        * Fetch current funding rate
+       *
+       * Uses /funding/data?market=X endpoint (publicly accessible, no JWT)
        */
       async fetchFundingRate(symbol) {
         await this.rateLimiter.acquire("fetchFundingRate");
         try {
           const market = this.normalizer.symbolFromCCXT(symbol);
-          const response = await this.client.get(`/markets/${market}/funding`);
-          return this.normalizer.normalizeFundingRate(response);
+          const response = await this.client.get(
+            `/funding/data?market=${market}&limit=1`
+          );
+          const results = response.results;
+          if (!Array.isArray(results) || results.length === 0) {
+            throw new PerpDEXError("No funding rate data", "INVALID_RESPONSE", "paradex");
+          }
+          const fundingData = results[0];
+          const fundingRate = {
+            market,
+            rate: fundingData.funding_rate || "0",
+            mark_price: fundingData.funding_premium || "0",
+            index_price: "0",
+            timestamp: fundingData.created_at || Date.now(),
+            next_funding_time: 0
+          };
+          return this.normalizer.normalizeFundingRate(fundingRate);
         } catch (error) {
           throw mapAxiosError2(error);
         }
       }
       /**
        * Fetch funding rate history
+       *
+       * Uses /funding/data?market=X endpoint with pagination
        */
       async fetchFundingRateHistory(symbol, since, limit) {
         await this.rateLimiter.acquire("fetchFundingRateHistory");
         try {
           const market = this.normalizer.symbolFromCCXT(symbol);
           const params = new URLSearchParams();
-          if (since) params.append("start_time", since.toString());
-          if (limit) params.append("limit", limit.toString());
+          params.append("market", market);
+          if (since) params.append("start_at", since.toString());
+          if (limit) params.append("page_size", limit.toString());
           const queryString = params.toString();
-          const path = `/markets/${market}/funding/history${queryString ? `?${queryString}` : ""}`;
+          const path = `/funding/data?${queryString}`;
           const response = await this.client.get(path);
-          if (!Array.isArray(response.history)) {
+          const results = response.results;
+          if (!Array.isArray(results)) {
             throw new PerpDEXError(
               "Invalid funding rate history response",
               "INVALID_RESPONSE",
               "paradex"
             );
           }
-          return this.normalizer.normalizeFundingRates(response.history);
+          return results.map((item) => {
+            const fundingRate = {
+              market,
+              rate: item.funding_rate || "0",
+              mark_price: item.funding_premium || "0",
+              index_price: "0",
+              timestamp: item.created_at || 0,
+              next_funding_time: 0
+            };
+            return this.normalizer.normalizeFundingRate(fundingRate);
+          });
         } catch (error) {
           throw mapAxiosError2(error);
         }
@@ -18321,11 +18933,158 @@ var init_constants5 = __esm({
   }
 });
 
+// src/adapters/edgex/types.ts
+var EdgeXMarketSchema, EdgeXOrderSchema, EdgeXPositionSchema, EdgeXBalanceSchema, EdgeXOrderBookSchema, EdgeXTradeSchema, EdgeXTickerSchema, EdgeXFundingRateSchema, EdgeXAPIContractSchema, EdgeXDepthDataSchema, EdgeXAPITickerSchema, EdgeXAPIFundingDataSchema;
+var init_types7 = __esm({
+  "src/adapters/edgex/types.ts"() {
+    "use strict";
+    init_zod();
+    EdgeXMarketSchema = external_exports.object({
+      market_id: external_exports.string(),
+      symbol: external_exports.string(),
+      base_asset: external_exports.string(),
+      quote_asset: external_exports.string(),
+      settlement_asset: external_exports.string(),
+      status: external_exports.string(),
+      min_order_size: external_exports.string(),
+      max_order_size: external_exports.string(),
+      tick_size: external_exports.string(),
+      step_size: external_exports.string(),
+      maker_fee: external_exports.string(),
+      taker_fee: external_exports.string(),
+      max_leverage: external_exports.string(),
+      is_active: external_exports.boolean()
+    }).passthrough();
+    EdgeXOrderSchema = external_exports.object({
+      order_id: external_exports.string(),
+      client_order_id: external_exports.string().optional(),
+      market: external_exports.string(),
+      side: external_exports.string(),
+      type: external_exports.string(),
+      size: external_exports.string(),
+      price: external_exports.union([external_exports.string(), external_exports.null()]).optional(),
+      filled_size: external_exports.string(),
+      average_price: external_exports.union([external_exports.string(), external_exports.null()]).optional(),
+      status: external_exports.string(),
+      time_in_force: external_exports.string(),
+      post_only: external_exports.boolean(),
+      reduce_only: external_exports.boolean(),
+      created_at: external_exports.number(),
+      updated_at: external_exports.number()
+    }).passthrough();
+    EdgeXPositionSchema = external_exports.object({
+      market: external_exports.string(),
+      side: external_exports.string(),
+      size: external_exports.string(),
+      entry_price: external_exports.string(),
+      mark_price: external_exports.string(),
+      liquidation_price: external_exports.union([external_exports.string(), external_exports.null()]).optional(),
+      unrealized_pnl: external_exports.string(),
+      realized_pnl: external_exports.string(),
+      margin: external_exports.string(),
+      leverage: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    EdgeXBalanceSchema = external_exports.object({
+      asset: external_exports.string(),
+      total: external_exports.string(),
+      available: external_exports.string(),
+      locked: external_exports.string()
+    }).passthrough();
+    EdgeXOrderBookSchema = external_exports.object({
+      market: external_exports.string(),
+      bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      timestamp: external_exports.number()
+    }).passthrough();
+    EdgeXTradeSchema = external_exports.object({
+      trade_id: external_exports.string(),
+      market: external_exports.string(),
+      side: external_exports.string(),
+      price: external_exports.string(),
+      size: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    EdgeXTickerSchema = external_exports.object({
+      market: external_exports.string(),
+      last_price: external_exports.string(),
+      bid: external_exports.string(),
+      ask: external_exports.string(),
+      high_24h: external_exports.string(),
+      low_24h: external_exports.string(),
+      volume_24h: external_exports.string(),
+      price_change_24h: external_exports.string(),
+      price_change_percent_24h: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    EdgeXFundingRateSchema = external_exports.object({
+      market: external_exports.string(),
+      rate: external_exports.string(),
+      timestamp: external_exports.number(),
+      next_funding_time: external_exports.number(),
+      mark_price: external_exports.string(),
+      index_price: external_exports.string()
+    }).passthrough();
+    EdgeXAPIContractSchema = external_exports.object({
+      contractId: external_exports.string(),
+      contractName: external_exports.string(),
+      enableTrade: external_exports.boolean().optional(),
+      minOrderSize: external_exports.string().optional(),
+      tickSize: external_exports.string().optional(),
+      stepSize: external_exports.string().optional(),
+      defaultMakerFeeRate: external_exports.string().optional(),
+      defaultTakerFeeRate: external_exports.string().optional(),
+      riskTierList: external_exports.array(
+        external_exports.object({
+          maxLeverage: external_exports.string().optional()
+        }).passthrough()
+      ).optional()
+    }).passthrough();
+    EdgeXDepthDataSchema = external_exports.object({
+      bids: external_exports.array(
+        external_exports.object({
+          price: external_exports.string(),
+          size: external_exports.string()
+        }).passthrough()
+      ),
+      asks: external_exports.array(
+        external_exports.object({
+          price: external_exports.string(),
+          size: external_exports.string()
+        }).passthrough()
+      )
+    }).passthrough();
+    EdgeXAPITickerSchema = external_exports.object({
+      contractName: external_exports.string().optional(),
+      lastPrice: external_exports.string().optional(),
+      close: external_exports.string().optional(),
+      open: external_exports.string().optional(),
+      high: external_exports.string().optional(),
+      low: external_exports.string().optional(),
+      priceChange: external_exports.string().optional(),
+      priceChangePercent: external_exports.string().optional(),
+      size: external_exports.string().optional(),
+      volume: external_exports.string().optional(),
+      value: external_exports.string().optional(),
+      endTime: external_exports.string().optional()
+    }).passthrough();
+    EdgeXAPIFundingDataSchema = external_exports.object({
+      fundingRate: external_exports.string().optional(),
+      fundingTime: external_exports.coerce.string().optional(),
+      fundingTimestamp: external_exports.coerce.string().optional(),
+      markPrice: external_exports.string().optional(),
+      indexPrice: external_exports.string().optional(),
+      nextFundingTime: external_exports.coerce.string().optional()
+    }).passthrough();
+  }
+});
+
 // src/adapters/edgex/EdgeXNormalizer.ts
 var EdgeXNormalizer;
 var init_EdgeXNormalizer = __esm({
   "src/adapters/edgex/EdgeXNormalizer.ts"() {
     "use strict";
+    init_types7();
     EdgeXNormalizer = class {
       // Cache for symbol -> contractId mapping
       symbolToContractId = /* @__PURE__ */ new Map();
@@ -18409,7 +19168,7 @@ var init_EdgeXNormalizer = __esm({
        * Handles both old test format and new API format
        */
       normalizeMarket(contract) {
-        if (contract.contractName) {
+        if ("contractName" in contract) {
           const contractName = contract.contractName;
           const base = contractName.replace(/USD$/, "");
           const symbol2 = `${base}/USD:USD`;
@@ -18458,62 +19217,69 @@ var init_EdgeXNormalizer = __esm({
        * Normalize EdgeX order to unified format
        */
       normalizeOrder(edgexOrder) {
-        const symbol = this.normalizeSymbol(edgexOrder.market);
+        const validated = EdgeXOrderSchema.parse(edgexOrder);
+        const symbol = this.normalizeSymbol(validated.market);
         return {
-          id: edgexOrder.order_id,
-          clientOrderId: edgexOrder.client_order_id,
+          id: validated.order_id,
+          clientOrderId: validated.client_order_id,
           symbol,
-          type: this.normalizeOrderType(edgexOrder.type),
-          side: this.normalizeOrderSide(edgexOrder.side),
-          amount: parseFloat(edgexOrder.size),
-          price: edgexOrder.price ? parseFloat(edgexOrder.price) : void 0,
-          filled: parseFloat(edgexOrder.filled_size),
-          remaining: parseFloat(edgexOrder.size) - parseFloat(edgexOrder.filled_size),
-          averagePrice: edgexOrder.average_price ? parseFloat(edgexOrder.average_price) : void 0,
-          status: this.normalizeOrderStatus(edgexOrder.status),
-          timeInForce: this.normalizeTimeInForce(edgexOrder.time_in_force),
-          postOnly: edgexOrder.post_only,
-          reduceOnly: edgexOrder.reduce_only,
-          timestamp: edgexOrder.created_at,
-          lastUpdateTimestamp: edgexOrder.updated_at,
-          info: edgexOrder
+          type: this.normalizeOrderType(validated.type),
+          side: this.normalizeOrderSide(validated.side),
+          amount: parseFloat(validated.size),
+          price: validated.price ? parseFloat(validated.price) : void 0,
+          filled: parseFloat(validated.filled_size),
+          remaining: parseFloat(validated.size) - parseFloat(validated.filled_size),
+          averagePrice: validated.average_price ? parseFloat(validated.average_price) : void 0,
+          status: this.normalizeOrderStatus(validated.status),
+          timeInForce: this.normalizeTimeInForce(validated.time_in_force),
+          postOnly: validated.post_only,
+          reduceOnly: validated.reduce_only,
+          timestamp: validated.created_at,
+          lastUpdateTimestamp: validated.updated_at,
+          info: validated
         };
       }
       /**
        * Normalize EdgeX position to unified format
        */
       normalizePosition(edgexPosition) {
-        const symbol = this.normalizeSymbol(edgexPosition.market);
-        const size = parseFloat(edgexPosition.size);
-        const side = edgexPosition.side === "LONG" ? "long" : "short";
+        const validated = EdgeXPositionSchema.parse(edgexPosition);
+        const symbol = this.normalizeSymbol(validated.market);
+        const size = parseFloat(validated.size);
+        const side = validated.side === "LONG" ? "long" : "short";
+        const absSize = Math.abs(size);
+        const markPrice = parseFloat(validated.mark_price);
+        const maintenanceMargin = parseFloat(validated.margin) * 0.04;
+        const notional = absSize * markPrice;
         return {
           symbol,
           side,
           marginMode: "cross",
-          size: Math.abs(size),
-          entryPrice: parseFloat(edgexPosition.entry_price),
-          markPrice: parseFloat(edgexPosition.mark_price),
-          liquidationPrice: edgexPosition.liquidation_price ? parseFloat(edgexPosition.liquidation_price) : 0,
-          unrealizedPnl: parseFloat(edgexPosition.unrealized_pnl),
-          realizedPnl: parseFloat(edgexPosition.realized_pnl),
-          margin: parseFloat(edgexPosition.margin),
-          leverage: parseFloat(edgexPosition.leverage),
-          maintenanceMargin: parseFloat(edgexPosition.margin) * 0.04,
-          marginRatio: 0,
-          timestamp: edgexPosition.timestamp,
-          info: edgexPosition
+          size: absSize,
+          entryPrice: parseFloat(validated.entry_price),
+          markPrice,
+          liquidationPrice: validated.liquidation_price ? parseFloat(validated.liquidation_price) : 0,
+          unrealizedPnl: parseFloat(validated.unrealized_pnl),
+          realizedPnl: parseFloat(validated.realized_pnl),
+          margin: parseFloat(validated.margin),
+          leverage: parseFloat(validated.leverage),
+          maintenanceMargin,
+          marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
+          timestamp: validated.timestamp,
+          info: validated
         };
       }
       /**
        * Normalize EdgeX balance to unified format
        */
       normalizeBalance(edgexBalance) {
+        const validated = EdgeXBalanceSchema.parse(edgexBalance);
         return {
-          currency: edgexBalance.asset,
-          total: parseFloat(edgexBalance.total),
-          free: parseFloat(edgexBalance.available),
-          used: parseFloat(edgexBalance.locked),
-          info: edgexBalance
+          currency: validated.asset,
+          total: parseFloat(validated.total),
+          free: parseFloat(validated.available),
+          used: parseFloat(validated.locked),
+          info: validated
         };
       }
       /**
@@ -18521,14 +19287,15 @@ var init_EdgeXNormalizer = __esm({
        * Handles new API format from /api/v1/public/quote/getDepth
        */
       normalizeOrderBook(depthData, symbol) {
+        const validated = EdgeXDepthDataSchema.parse(depthData);
         return {
           symbol,
           exchange: "edgex",
-          bids: (depthData.bids || []).map((level) => [
+          bids: (validated.bids || []).map((level) => [
             parseFloat(level.price),
             parseFloat(level.size)
           ]),
-          asks: (depthData.asks || []).map((level) => [
+          asks: (validated.asks || []).map((level) => [
             parseFloat(level.price),
             parseFloat(level.size)
           ]),
@@ -18539,17 +19306,18 @@ var init_EdgeXNormalizer = __esm({
        * Normalize EdgeX trade to unified format
        */
       normalizeTrade(edgexTrade) {
-        const price = parseFloat(edgexTrade.price);
-        const amount = parseFloat(edgexTrade.size);
+        const validated = EdgeXTradeSchema.parse(edgexTrade);
+        const price = parseFloat(validated.price);
+        const amount = parseFloat(validated.size);
         return {
-          id: edgexTrade.trade_id,
-          symbol: this.normalizeSymbol(edgexTrade.market),
-          side: this.normalizeOrderSide(edgexTrade.side),
+          id: validated.trade_id,
+          symbol: this.normalizeSymbol(validated.market),
+          side: this.normalizeOrderSide(validated.side),
           price,
           amount,
           cost: price * amount,
-          timestamp: edgexTrade.timestamp,
-          info: edgexTrade
+          timestamp: validated.timestamp,
+          info: validated
         };
       }
       /**
@@ -18557,11 +19325,12 @@ var init_EdgeXNormalizer = __esm({
        * Handles new API format from /api/v1/public/quote/getTicker
        */
       normalizeTicker(tickerData) {
-        const last = parseFloat(tickerData.lastPrice || tickerData.close || "0");
-        const open = parseFloat(tickerData.open || "0");
-        const change = parseFloat(tickerData.priceChange || "0");
-        const percentage = parseFloat(tickerData.priceChangePercent || "0");
-        const symbol = this.normalizeSymbol(tickerData.contractName || "");
+        const validated = EdgeXAPITickerSchema.parse(tickerData);
+        const last = parseFloat(validated.lastPrice || validated.close || "0");
+        const open = parseFloat(validated.open || "0");
+        const change = parseFloat(validated.priceChange || "0");
+        const percentage = parseFloat(validated.priceChangePercent || "0");
+        const symbol = this.normalizeSymbol(validated.contractName || "");
         return {
           symbol,
           last,
@@ -18571,14 +19340,17 @@ var init_EdgeXNormalizer = __esm({
           // No separate bid in ticker response
           ask: last,
           // No separate ask in ticker response
-          high: parseFloat(tickerData.high || "0"),
-          low: parseFloat(tickerData.low || "0"),
+          high: parseFloat(validated.high || "0"),
+          low: parseFloat(validated.low || "0"),
           change,
           percentage,
-          baseVolume: parseFloat(tickerData.size || tickerData.volume || "0"),
-          quoteVolume: parseFloat(tickerData.value || "0"),
-          timestamp: parseInt(tickerData.endTime || Date.now().toString(), 10),
-          info: tickerData
+          baseVolume: parseFloat(validated.size || validated.volume || "0"),
+          quoteVolume: parseFloat(validated.value || "0"),
+          timestamp: parseInt(validated.endTime || Date.now().toString(), 10),
+          info: {
+            ...validated,
+            _bidAskSource: "last_price"
+          }
         };
       }
       /**
@@ -18586,19 +19358,20 @@ var init_EdgeXNormalizer = __esm({
        * Handles new API format from /api/v1/public/funding/getLatestFundingRate
        */
       normalizeFundingRate(fundingData, symbol) {
+        const validated = EdgeXAPIFundingDataSchema.parse(fundingData);
         return {
           symbol,
-          fundingRate: parseFloat(fundingData.fundingRate || "0"),
+          fundingRate: parseFloat(validated.fundingRate || "0"),
           fundingTimestamp: parseInt(
-            fundingData.fundingTime || fundingData.fundingTimestamp || "0",
+            validated.fundingTime || validated.fundingTimestamp || "0",
             10
           ),
-          markPrice: parseFloat(fundingData.markPrice || "0"),
-          indexPrice: parseFloat(fundingData.indexPrice || "0"),
-          nextFundingTimestamp: parseInt(fundingData.nextFundingTime || "0", 10),
+          markPrice: parseFloat(validated.markPrice || "0"),
+          indexPrice: parseFloat(validated.indexPrice || "0"),
+          nextFundingTimestamp: parseInt(validated.nextFundingTime || "0", 10),
           fundingIntervalHours: 4,
           // EdgeX uses 4h funding intervals
-          info: fundingData
+          info: validated
         };
       }
       /**
@@ -19375,11 +20148,112 @@ var init_constants6 = __esm({
   }
 });
 
+// src/adapters/backpack/types.ts
+var BackpackMarketSchema, BackpackOrderSchema, BackpackPositionSchema, BackpackBalanceSchema, BackpackOrderBookSchema, BackpackTradeSchema, BackpackTickerSchema, BackpackFundingRateSchema;
+var init_types8 = __esm({
+  "src/adapters/backpack/types.ts"() {
+    "use strict";
+    init_zod();
+    BackpackMarketSchema = external_exports.object({
+      symbol: external_exports.string(),
+      baseSymbol: external_exports.string().optional(),
+      quoteSymbol: external_exports.string().optional(),
+      marketType: external_exports.enum(["SPOT", "PERP"]).optional(),
+      orderBookState: external_exports.string().optional(),
+      visible: external_exports.boolean().optional(),
+      filters: external_exports.object({
+        price: external_exports.object({
+          tickSize: external_exports.string(),
+          minPrice: external_exports.string().optional(),
+          maxPrice: external_exports.string().nullable().optional()
+        }).optional(),
+        quantity: external_exports.object({
+          stepSize: external_exports.string(),
+          minQuantity: external_exports.string(),
+          maxQuantity: external_exports.string().nullable().optional()
+        }).optional()
+      }).optional(),
+      fundingInterval: external_exports.number().nullable().optional(),
+      imfFunction: external_exports.unknown().optional(),
+      mmfFunction: external_exports.unknown().optional(),
+      positionLimitWeight: external_exports.unknown().optional(),
+      openInterestLimit: external_exports.string().optional()
+    }).passthrough();
+    BackpackOrderSchema = external_exports.object({
+      order_id: external_exports.string(),
+      client_order_id: external_exports.string().optional(),
+      market: external_exports.string(),
+      side: external_exports.string(),
+      type: external_exports.string(),
+      size: external_exports.string(),
+      price: external_exports.string().optional(),
+      filled_size: external_exports.string(),
+      avg_price: external_exports.string().optional(),
+      status: external_exports.string(),
+      time_in_force: external_exports.string().optional(),
+      post_only: external_exports.boolean().optional(),
+      reduce_only: external_exports.boolean().optional(),
+      created_at: external_exports.number().optional(),
+      updated_at: external_exports.number().optional()
+    }).passthrough();
+    BackpackPositionSchema = external_exports.object({
+      market: external_exports.string(),
+      side: external_exports.string().optional(),
+      size: external_exports.string().optional(),
+      entry_price: external_exports.string().optional(),
+      mark_price: external_exports.string().optional(),
+      liquidation_price: external_exports.string().optional(),
+      unrealized_pnl: external_exports.string().optional(),
+      realized_pnl: external_exports.string().optional(),
+      margin: external_exports.string().optional(),
+      leverage: external_exports.string().optional(),
+      timestamp: external_exports.number().optional()
+    }).passthrough();
+    BackpackBalanceSchema = external_exports.object({
+      asset: external_exports.string(),
+      total: external_exports.string(),
+      available: external_exports.string(),
+      locked: external_exports.string()
+    }).passthrough();
+    BackpackOrderBookSchema = external_exports.object({
+      bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      lastUpdateId: external_exports.union([external_exports.string(), external_exports.number()]).optional()
+    }).passthrough();
+    BackpackTradeSchema = external_exports.object({
+      id: external_exports.union([external_exports.number(), external_exports.string()]),
+      price: external_exports.string(),
+      quantity: external_exports.string(),
+      quoteQuantity: external_exports.string().optional(),
+      timestamp: external_exports.number().optional(),
+      isBuyerMaker: external_exports.boolean()
+    }).passthrough();
+    BackpackTickerSchema = external_exports.object({
+      symbol: external_exports.string(),
+      firstPrice: external_exports.string().optional(),
+      lastPrice: external_exports.string().optional(),
+      high: external_exports.string().optional(),
+      low: external_exports.string().optional(),
+      volume: external_exports.string().optional(),
+      quoteVolume: external_exports.string().optional(),
+      priceChange: external_exports.string().optional(),
+      priceChangePercent: external_exports.string().optional(),
+      trades: external_exports.string().optional()
+    }).passthrough();
+    BackpackFundingRateSchema = external_exports.object({
+      symbol: external_exports.string(),
+      fundingRate: external_exports.string(),
+      intervalEndTimestamp: external_exports.string()
+    }).passthrough();
+  }
+});
+
 // src/adapters/backpack/BackpackNormalizer.ts
 var BackpackNormalizer;
 var init_BackpackNormalizer = __esm({
   "src/adapters/backpack/BackpackNormalizer.ts"() {
     "use strict";
+    init_types8();
     BackpackNormalizer = class {
       /**
        * Normalize Backpack symbol to unified format
@@ -19452,20 +20326,21 @@ var init_BackpackNormalizer = __esm({
        * Normalize Backpack market to unified format
        */
       normalizeMarket(backpackMarket) {
-        const symbol = this.normalizeSymbol(backpackMarket.symbol);
-        const isPerpetual2 = backpackMarket.marketType === "PERP" || backpackMarket.symbol.endsWith("_PERP");
-        const priceFilters = backpackMarket.filters?.price ?? { tickSize: "0.01" };
-        const quantityFilters = backpackMarket.filters?.quantity ?? {
+        const validated = BackpackMarketSchema.parse(backpackMarket);
+        const symbol = this.normalizeSymbol(validated.symbol);
+        const isPerpetual2 = validated.marketType === "PERP" || validated.symbol.endsWith("_PERP");
+        const priceFilters = validated.filters?.price ?? { tickSize: "0.01" };
+        const quantityFilters = validated.filters?.quantity ?? {
           stepSize: "0.001",
           minQuantity: "0.001"
         };
         return {
-          id: backpackMarket.symbol,
+          id: validated.symbol,
           symbol,
-          base: backpackMarket.baseSymbol || symbol.split("/")[0] || "",
-          quote: backpackMarket.quoteSymbol || symbol.split("/")[1]?.split(":")[0] || "",
-          settle: backpackMarket.quoteSymbol || symbol.split("/")[1]?.split(":")[0] || "",
-          active: backpackMarket.visible !== false && backpackMarket.orderBookState !== "Closed",
+          base: validated.baseSymbol || symbol.split("/")[0] || "",
+          quote: validated.quoteSymbol || symbol.split("/")[1]?.split(":")[0] || "",
+          settle: validated.quoteSymbol || symbol.split("/")[1]?.split(":")[0] || "",
+          active: validated.visible !== false && validated.orderBookState !== "Closed",
           minAmount: parseFloat(quantityFilters.minQuantity || "0"),
           pricePrecision: this.countDecimals(priceFilters.tickSize || "0.01"),
           amountPrecision: this.countDecimals(quantityFilters.stepSize || "0.001"),
@@ -19477,80 +20352,88 @@ var init_BackpackNormalizer = __esm({
           // Not provided in market endpoint
           maxLeverage: isPerpetual2 ? 20 : 1,
           // Perpetuals support leverage
-          fundingIntervalHours: backpackMarket.fundingInterval ? backpackMarket.fundingInterval / 36e5 : 1
+          fundingIntervalHours: validated.fundingInterval ? validated.fundingInterval / 36e5 : 1
         };
       }
       /**
        * Normalize Backpack order to unified format
        */
       normalizeOrder(backpackOrder) {
-        const symbol = this.normalizeSymbol(backpackOrder.market);
+        const validated = BackpackOrderSchema.parse(backpackOrder);
+        const symbol = this.normalizeSymbol(validated.market);
         return {
-          id: backpackOrder.order_id,
-          clientOrderId: backpackOrder.client_order_id,
+          id: validated.order_id,
+          clientOrderId: validated.client_order_id,
           symbol,
-          type: this.normalizeOrderType(backpackOrder.type),
-          side: this.normalizeOrderSide(backpackOrder.side),
-          amount: parseFloat(backpackOrder.size),
-          price: backpackOrder.price ? parseFloat(backpackOrder.price) : void 0,
-          filled: parseFloat(backpackOrder.filled_size),
-          remaining: parseFloat(backpackOrder.size) - parseFloat(backpackOrder.filled_size),
-          averagePrice: backpackOrder.avg_price ? parseFloat(backpackOrder.avg_price) : void 0,
-          status: this.normalizeOrderStatus(backpackOrder.status),
-          timeInForce: this.normalizeTimeInForce(backpackOrder.time_in_force),
-          postOnly: backpackOrder.post_only,
-          reduceOnly: backpackOrder.reduce_only,
-          timestamp: backpackOrder.created_at,
-          lastUpdateTimestamp: backpackOrder.updated_at,
-          info: backpackOrder
+          type: this.normalizeOrderType(validated.type),
+          side: this.normalizeOrderSide(validated.side),
+          amount: parseFloat(validated.size),
+          price: validated.price ? parseFloat(validated.price) : void 0,
+          filled: parseFloat(validated.filled_size),
+          remaining: parseFloat(validated.size) - parseFloat(validated.filled_size),
+          averagePrice: validated.avg_price ? parseFloat(validated.avg_price) : void 0,
+          status: this.normalizeOrderStatus(validated.status),
+          timeInForce: validated.time_in_force ? this.normalizeTimeInForce(validated.time_in_force) : void 0,
+          postOnly: validated.post_only ?? false,
+          reduceOnly: validated.reduce_only ?? false,
+          timestamp: validated.created_at ?? Date.now(),
+          lastUpdateTimestamp: validated.updated_at,
+          info: validated
         };
       }
       /**
        * Normalize Backpack position to unified format
        */
       normalizePosition(backpackPosition) {
-        const symbol = this.normalizeSymbol(backpackPosition.market);
-        const size = parseFloat(backpackPosition.size);
-        const side = backpackPosition.side === "LONG" ? "long" : "short";
+        const validated = BackpackPositionSchema.parse(backpackPosition);
+        const symbol = this.normalizeSymbol(validated.market);
+        const size = Math.abs(parseFloat(validated.size ?? "0"));
+        const markPrice = parseFloat(validated.mark_price ?? "0");
+        const margin = validated.margin ? parseFloat(validated.margin) : 0;
+        const maintenanceMargin = margin * 0.05;
+        const side = validated.side === "LONG" ? "long" : "short";
+        const notional = size * markPrice;
         return {
           symbol,
           side,
           marginMode: "cross",
-          size: Math.abs(size),
-          entryPrice: parseFloat(backpackPosition.entry_price),
-          markPrice: parseFloat(backpackPosition.mark_price),
-          liquidationPrice: backpackPosition.liquidation_price ? parseFloat(backpackPosition.liquidation_price) : 0,
-          unrealizedPnl: parseFloat(backpackPosition.unrealized_pnl),
-          realizedPnl: parseFloat(backpackPosition.realized_pnl),
-          margin: parseFloat(backpackPosition.margin),
-          leverage: parseFloat(backpackPosition.leverage),
-          maintenanceMargin: parseFloat(backpackPosition.margin) * 0.05,
-          marginRatio: 0,
-          timestamp: backpackPosition.timestamp,
-          info: backpackPosition
+          size,
+          entryPrice: parseFloat(validated.entry_price ?? "0"),
+          markPrice,
+          liquidationPrice: validated.liquidation_price ? parseFloat(validated.liquidation_price) : 0,
+          unrealizedPnl: parseFloat(validated.unrealized_pnl ?? "0"),
+          realizedPnl: validated.realized_pnl ? parseFloat(validated.realized_pnl) : 0,
+          margin,
+          leverage: validated.leverage ? parseFloat(validated.leverage) : 1,
+          maintenanceMargin,
+          marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
+          timestamp: validated.timestamp ?? Date.now(),
+          info: validated
         };
       }
       /**
        * Normalize Backpack balance to unified format
        */
       normalizeBalance(backpackBalance) {
+        const validated = BackpackBalanceSchema.parse(backpackBalance);
         return {
-          currency: backpackBalance.asset,
-          total: parseFloat(backpackBalance.total),
-          free: parseFloat(backpackBalance.available),
-          used: parseFloat(backpackBalance.locked),
-          info: backpackBalance
+          currency: validated.asset,
+          total: parseFloat(validated.total),
+          free: parseFloat(validated.available),
+          used: parseFloat(validated.locked),
+          info: validated
         };
       }
       /**
        * Normalize Backpack order book to unified format
        */
       normalizeOrderBook(backpackOrderBook, symbol) {
+        const validated = BackpackOrderBookSchema.parse(backpackOrderBook);
         return {
           symbol: symbol || "",
           exchange: "backpack",
-          bids: backpackOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-          asks: backpackOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+          bids: validated.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+          asks: validated.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
           timestamp: Date.now()
         };
       }
@@ -19558,55 +20441,61 @@ var init_BackpackNormalizer = __esm({
        * Normalize Backpack trade to unified format
        */
       normalizeTrade(backpackTrade, symbol) {
-        const price = parseFloat(backpackTrade.price);
-        const amount = parseFloat(backpackTrade.quantity);
+        const validated = BackpackTradeSchema.parse(backpackTrade);
+        const price = parseFloat(validated.price);
+        const amount = parseFloat(validated.quantity);
         return {
-          id: backpackTrade.id.toString(),
+          id: validated.id.toString(),
           symbol: symbol || "",
           // isBuyerMaker = true means the maker was a buyer, so the taker (aggressor) was selling
-          side: backpackTrade.isBuyerMaker ? "sell" : "buy",
+          side: validated.isBuyerMaker ? "sell" : "buy",
           price,
           amount,
-          cost: parseFloat(backpackTrade.quoteQuantity),
-          timestamp: backpackTrade.timestamp,
-          info: backpackTrade
+          cost: validated.quoteQuantity ? parseFloat(validated.quoteQuantity) : price * amount,
+          timestamp: validated.timestamp ?? Date.now(),
+          info: validated
         };
       }
       /**
        * Normalize Backpack ticker to unified format
        */
       normalizeTicker(backpackTicker) {
-        const last = parseFloat(backpackTicker.lastPrice);
-        const first = parseFloat(backpackTicker.firstPrice);
-        const change = parseFloat(backpackTicker.priceChange);
-        const percentage = parseFloat(backpackTicker.priceChangePercent) * 100;
+        const validated = BackpackTickerSchema.parse(backpackTicker);
+        const last = parseFloat(validated.lastPrice || "0");
+        const first = parseFloat(validated.firstPrice || "0");
+        const change = parseFloat(validated.priceChange || "0");
+        const percentage = parseFloat(validated.priceChangePercent || "0") * 100;
         return {
-          symbol: this.normalizeSymbol(backpackTicker.symbol),
+          symbol: this.normalizeSymbol(validated.symbol),
           last,
           open: first,
           close: last,
-          bid: 0,
-          // Not provided in ticker endpoint
-          ask: 0,
-          // Not provided in ticker endpoint
-          high: parseFloat(backpackTicker.high),
-          low: parseFloat(backpackTicker.low),
+          bid: last,
+          // Backpack ticker doesn't provide bid; use last price as fallback
+          ask: last,
+          // Backpack ticker doesn't provide ask; use last price as fallback
+          high: parseFloat(validated.high || "0"),
+          low: parseFloat(validated.low || "0"),
           change,
           percentage,
-          baseVolume: parseFloat(backpackTicker.volume),
-          quoteVolume: parseFloat(backpackTicker.quoteVolume),
+          baseVolume: parseFloat(validated.volume || "0"),
+          quoteVolume: parseFloat(validated.quoteVolume || "0"),
           timestamp: Date.now(),
-          info: backpackTicker
+          info: {
+            ...validated,
+            _bidAskSource: "last_price"
+          }
         };
       }
       /**
        * Normalize Backpack funding rate to unified format
        */
       normalizeFundingRate(backpackFunding) {
-        const fundingTimestamp = new Date(backpackFunding.intervalEndTimestamp).getTime();
+        const validated = BackpackFundingRateSchema.parse(backpackFunding);
+        const fundingTimestamp = new Date(validated.intervalEndTimestamp).getTime();
         return {
-          symbol: this.normalizeSymbol(backpackFunding.symbol),
-          fundingRate: parseFloat(backpackFunding.fundingRate),
+          symbol: this.normalizeSymbol(validated.symbol),
+          fundingRate: parseFloat(validated.fundingRate),
           fundingTimestamp,
           nextFundingTimestamp: fundingTimestamp + 36e5,
           // Hourly funding
@@ -20485,41 +21374,102 @@ function toBackpackTimeInForce(tif, postOnly) {
       return BACKPACK_TIME_IN_FORCE.GTC;
   }
 }
-function mapBackpackError(error) {
-  if (typeof error === "object" && error !== null) {
-    const err2 = error;
-    switch (err2.code) {
-      case 1001:
-        return { code: "INVALID_ORDER", message: "Invalid order parameters" };
-      case 1002:
-        return { code: "INSUFFICIENT_MARGIN", message: "Insufficient margin" };
-      case 1003:
-        return { code: "ORDER_NOT_FOUND", message: "Order not found" };
-      case 1004:
-        return { code: "POSITION_NOT_FOUND", message: "Position not found" };
-      case 2001:
-        return { code: "INVALID_SIGNATURE", message: "Invalid signature" };
-      case 2002:
-        return { code: "EXPIRED_AUTH", message: "Authentication expired" };
-      case 2003:
-        return { code: "INVALID_API_KEY", message: "Invalid API key" };
-      case 4001:
-        return { code: "RATE_LIMIT_EXCEEDED", message: "Rate limit exceeded" };
-      case 5001:
-        return { code: "EXCHANGE_UNAVAILABLE", message: "Exchange unavailable" };
-      default:
-        return {
-          code: "UNKNOWN_ERROR",
-          message: err2.message ?? "Unknown error occurred"
-        };
-    }
-  }
-  return { code: "UNKNOWN_ERROR", message: "Unknown error occurred" };
-}
 var init_utils5 = __esm({
   "src/adapters/backpack/utils.ts"() {
     "use strict";
     init_constants6();
+  }
+});
+
+// src/adapters/backpack/error-codes.ts
+function isServerError3(errorCode) {
+  const code = typeof errorCode === "number" ? errorCode : parseInt(errorCode, 10);
+  return includesNumericValue(Object.values(BACKPACK_SERVER_ERRORS), code) || code >= 5e3;
+}
+function isNetworkError3(errorCode) {
+  return includesValue(Object.values(BACKPACK_NETWORK_ERRORS), errorCode);
+}
+function mapBackpackError(errorCode, message, originalError) {
+  const code = typeof errorCode === "number" ? errorCode : parseInt(errorCode, 10);
+  if (code === BACKPACK_CLIENT_ERRORS.INSUFFICIENT_MARGIN) {
+    return new InsufficientMarginError(message, code.toString(), "backpack", originalError);
+  }
+  if (code === BACKPACK_CLIENT_ERRORS.ORDER_NOT_FOUND) {
+    return new OrderNotFoundError(message, code.toString(), "backpack", originalError);
+  }
+  if (code === BACKPACK_CLIENT_ERRORS.POSITION_NOT_FOUND) {
+    return new PositionNotFoundError(message, code.toString(), "backpack", originalError);
+  }
+  if (code === BACKPACK_CLIENT_ERRORS.INVALID_ORDER || code === BACKPACK_CLIENT_ERRORS.INVALID_PRICE || code === BACKPACK_CLIENT_ERRORS.INVALID_AMOUNT || code === BACKPACK_CLIENT_ERRORS.MIN_SIZE_NOT_MET || code === BACKPACK_CLIENT_ERRORS.MAX_SIZE_EXCEEDED) {
+    return new InvalidOrderError(message, code.toString(), "backpack", originalError);
+  }
+  if (code === BACKPACK_CLIENT_ERRORS.INVALID_SIGNATURE) {
+    return new InvalidSignatureError(message, code.toString(), "backpack", originalError);
+  }
+  if (code === BACKPACK_CLIENT_ERRORS.EXPIRED_AUTH) {
+    return new ExpiredAuthError(message, code.toString(), "backpack", originalError);
+  }
+  if (code === BACKPACK_RATE_LIMIT_ERROR) {
+    return new RateLimitError(message, code.toString(), "backpack", void 0, originalError);
+  }
+  if (isServerError3(code)) {
+    return new ExchangeUnavailableError(message, code.toString(), "backpack", originalError);
+  }
+  if (typeof errorCode === "string" && isNetworkError3(errorCode)) {
+    return new ExchangeUnavailableError(message, errorCode, "backpack", originalError);
+  }
+  return new PerpDEXError(message, code.toString(), "backpack", originalError);
+}
+function extractBackpackError(response) {
+  const code = response.code ?? response.error_code ?? "UNKNOWN_ERROR";
+  const message = response.message || response.error || "Unknown error occurred";
+  return { code, message };
+}
+var BACKPACK_CLIENT_ERRORS, BACKPACK_RATE_LIMIT_ERROR, BACKPACK_SERVER_ERRORS, BACKPACK_NETWORK_ERRORS;
+var init_error_codes = __esm({
+  "src/adapters/backpack/error-codes.ts"() {
+    "use strict";
+    init_type_guards();
+    init_errors();
+    BACKPACK_CLIENT_ERRORS = {
+      // Order Errors (1xxx)
+      INVALID_ORDER: 1001,
+      INSUFFICIENT_MARGIN: 1002,
+      ORDER_NOT_FOUND: 1003,
+      POSITION_NOT_FOUND: 1004,
+      INVALID_PRICE: 1005,
+      INVALID_AMOUNT: 1006,
+      MIN_SIZE_NOT_MET: 1007,
+      MAX_SIZE_EXCEEDED: 1008,
+      MARKET_CLOSED: 1009,
+      INVALID_SYMBOL: 1010,
+      // Authentication Errors (2xxx)
+      INVALID_SIGNATURE: 2001,
+      EXPIRED_AUTH: 2002,
+      INVALID_API_KEY: 2003,
+      MISSING_API_KEY: 2004,
+      INSUFFICIENT_PERMISSIONS: 2005,
+      INVALID_NONCE: 2006,
+      // Validation Errors (3xxx)
+      INVALID_PARAMS: 3001,
+      MISSING_REQUIRED_FIELD: 3002,
+      INVALID_FIELD_VALUE: 3003
+    };
+    BACKPACK_RATE_LIMIT_ERROR = 4001;
+    BACKPACK_SERVER_ERRORS = {
+      EXCHANGE_UNAVAILABLE: 5001,
+      INTERNAL_ERROR: 5002,
+      SERVICE_UNAVAILABLE: 5003,
+      TIMEOUT: 5004,
+      DATABASE_ERROR: 5005
+    };
+    BACKPACK_NETWORK_ERRORS = {
+      ECONNRESET: "ECONNRESET",
+      ETIMEDOUT: "ETIMEDOUT",
+      ENOTFOUND: "ENOTFOUND",
+      ECONNREFUSED: "ECONNREFUSED",
+      NETWORK_ERROR: "NETWORK_ERROR"
+    };
   }
 });
 
@@ -20536,6 +21486,7 @@ var init_BackpackAdapter = __esm({
     init_BackpackNormalizer();
     init_BackpackAuth();
     init_utils5();
+    init_error_codes();
     BackpackAdapter = class _BackpackAdapter extends BaseAdapter {
       id = "backpack";
       name = "Backpack";
@@ -20943,8 +21894,8 @@ var init_BackpackAdapter = __esm({
           if (error instanceof PerpDEXError) {
             throw error;
           }
-          const { code } = mapBackpackError(error);
-          throw new PerpDEXError("Request failed", code, "backpack", error);
+          const { code, message } = extractBackpackError(error);
+          throw mapBackpackError(code, message, error);
         }
       }
     };
@@ -21082,7 +22033,7 @@ var init_constants7 = __esm({
 
 // src/adapters/nado/types.ts
 var NadoResponseSchema, NadoSymbolSchema, NadoProductSchema, NadoOrderBookSchema, NadoOrderSchema, NadoPositionSchema, NadoBalanceSchema, NadoTradeSchema, NadoTickerSchema, NadoContractsSchema;
-var init_types5 = __esm({
+var init_types9 = __esm({
   "src/adapters/nado/types.ts"() {
     "use strict";
     init_zod();
@@ -21501,14 +22452,14 @@ var init_NadoAuth = __esm({
 });
 
 // src/adapters/nado/error-codes.ts
-function isServerError3(errorCode) {
+function isServerError4(errorCode) {
   return includesValue(Object.values(NADO_SERVER_ERRORS), errorCode);
 }
-function isNetworkError3(errorCode) {
+function isNetworkError4(errorCode) {
   return includesValue(Object.values(NADO_NETWORK_ERRORS), errorCode);
 }
 function isRetryableError(errorCode) {
-  return isServerError3(errorCode) || isNetworkError3(errorCode) || errorCode === NADO_RATE_LIMIT_ERROR;
+  return isServerError4(errorCode) || isNetworkError4(errorCode) || errorCode === NADO_RATE_LIMIT_ERROR;
 }
 function mapNadoError(errorCode, message, originalError) {
   const code = errorCode.toString();
@@ -21527,7 +22478,7 @@ function mapNadoError(errorCode, message, originalError) {
   if (code === NADO_RATE_LIMIT_ERROR) {
     return new RateLimitError(message, code, "nado", void 0, originalError);
   }
-  if (isServerError3(code) || isNetworkError3(code)) {
+  if (isServerError4(code) || isNetworkError4(code)) {
     return new ExchangeUnavailableError(message, code, "nado", originalError);
   }
   return new PerpDEXError(message, code, "nado", originalError);
@@ -21564,7 +22515,7 @@ function mapHttpError3(status, statusText) {
   return new PerpDEXError(`HTTP error (${status}): ${statusText}`, `HTTP_${status}`, "nado");
 }
 var NADO_CLIENT_ERRORS, NADO_SERVER_ERRORS, NADO_RATE_LIMIT_ERROR, NADO_NETWORK_ERRORS;
-var init_error_codes = __esm({
+var init_error_codes2 = __esm({
   "src/adapters/nado/error-codes.ts"() {
     "use strict";
     init_type_guards();
@@ -21618,7 +22569,7 @@ var init_NadoAPIClient = __esm({
   "src/adapters/nado/NadoAPIClient.ts"() {
     "use strict";
     init_constants7();
-    init_error_codes();
+    init_error_codes2();
     init_errors();
     DEFAULT_RETRY_CONFIG = {
       maxAttempts: 3,
@@ -21887,7 +22838,7 @@ var init_NadoNormalizer = __esm({
   "src/adapters/nado/NadoNormalizer.ts"() {
     "use strict";
     import_ethers4 = require("ethers");
-    init_types5();
+    init_types9();
     init_constants7();
     init_errors();
     init_logger();
@@ -22211,7 +23162,10 @@ var init_NadoNormalizer = __esm({
           percentage: 0,
           baseVolume: 0,
           quoteVolume: 0,
-          info: validated
+          info: {
+            ...validated,
+            _bidAskSource: "orderbook"
+          }
         };
       }
       /**
@@ -22527,7 +23481,7 @@ var init_NadoAdapter = __esm({
     init_websocket();
     init_BaseAdapter();
     init_constants7();
-    init_types5();
+    init_types9();
     init_NadoAuth();
     init_NadoAPIClient();
     init_NadoNormalizer();
@@ -23170,7 +24124,7 @@ var init_nado = __esm({
     "use strict";
     init_NadoAdapter();
     init_constants7();
-    init_types5();
+    init_types9();
   }
 });
 
@@ -23278,6 +24232,157 @@ var init_constants8 = __esm({
   }
 });
 
+// src/adapters/variational/types.ts
+var VariationalMarketSchema, VariationalTickerSchema, VariationalOrderBookSchema, VariationalTradeSchema, VariationalQuoteSchema, VariationalOrderSchema, VariationalPositionSchema, VariationalBalanceSchema, VariationalFundingRateSchema, VariationalQuoteDataSchema, VariationalQuotesSchema, VariationalOpenInterestSchema, VariationalListingSchema, VariationalLossRefundSchema, VariationalMetadataStatsSchema;
+var init_types10 = __esm({
+  "src/adapters/variational/types.ts"() {
+    "use strict";
+    init_zod();
+    VariationalMarketSchema = external_exports.object({
+      symbol: external_exports.string(),
+      baseAsset: external_exports.string(),
+      quoteAsset: external_exports.string(),
+      status: external_exports.string(),
+      minOrderSize: external_exports.union([external_exports.string(), external_exports.number()]),
+      maxOrderSize: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      tickSize: external_exports.union([external_exports.string(), external_exports.number()]),
+      contractSize: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      maxLeverage: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      fundingInterval: external_exports.number().optional(),
+      settlementTime: external_exports.number().optional()
+    }).passthrough();
+    VariationalTickerSchema = external_exports.object({
+      symbol: external_exports.string(),
+      lastPrice: external_exports.string(),
+      bidPrice: external_exports.string(),
+      askPrice: external_exports.string(),
+      volume24h: external_exports.string(),
+      high24h: external_exports.string(),
+      low24h: external_exports.string(),
+      priceChange24h: external_exports.string(),
+      priceChangePercent24h: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    VariationalOrderBookSchema = external_exports.object({
+      symbol: external_exports.string(),
+      bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      timestamp: external_exports.number(),
+      sequence: external_exports.number().optional()
+    }).passthrough();
+    VariationalTradeSchema = external_exports.object({
+      id: external_exports.string(),
+      symbol: external_exports.string(),
+      price: external_exports.union([external_exports.string(), external_exports.number()]),
+      amount: external_exports.union([external_exports.string(), external_exports.number()]),
+      side: external_exports.string(),
+      timestamp: external_exports.number(),
+      isMaker: external_exports.boolean().optional()
+    }).passthrough();
+    VariationalQuoteSchema = external_exports.object({
+      quoteId: external_exports.string(),
+      symbol: external_exports.string(),
+      side: external_exports.string(),
+      price: external_exports.union([external_exports.string(), external_exports.number()]),
+      amount: external_exports.union([external_exports.string(), external_exports.number()]),
+      expiresAt: external_exports.number(),
+      marketMaker: external_exports.string(),
+      spread: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    VariationalOrderSchema = external_exports.object({
+      orderId: external_exports.string(),
+      clientOrderId: external_exports.string().optional(),
+      symbol: external_exports.string(),
+      type: external_exports.string(),
+      side: external_exports.string(),
+      status: external_exports.string(),
+      price: external_exports.string().optional(),
+      amount: external_exports.union([external_exports.string(), external_exports.number()]),
+      filledAmount: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      remainingAmount: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      averagePrice: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      timestamp: external_exports.number(),
+      updateTime: external_exports.number().optional(),
+      postOnly: external_exports.boolean().optional(),
+      reduceOnly: external_exports.boolean().optional(),
+      quoteId: external_exports.string().optional(),
+      fees: external_exports.object({
+        asset: external_exports.string(),
+        amount: external_exports.string()
+      }).passthrough().optional()
+    }).passthrough();
+    VariationalPositionSchema = external_exports.object({
+      symbol: external_exports.string(),
+      side: external_exports.string(),
+      size: external_exports.union([external_exports.string(), external_exports.number()]),
+      entryPrice: external_exports.union([external_exports.string(), external_exports.number()]),
+      markPrice: external_exports.union([external_exports.string(), external_exports.number()]),
+      liquidationPrice: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      margin: external_exports.union([external_exports.string(), external_exports.number()]),
+      leverage: external_exports.union([external_exports.string(), external_exports.number()]),
+      unrealizedPnl: external_exports.union([external_exports.string(), external_exports.number()]),
+      realizedPnl: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    VariationalBalanceSchema = external_exports.object({
+      asset: external_exports.string(),
+      free: external_exports.string(),
+      locked: external_exports.string(),
+      total: external_exports.string(),
+      availableMargin: external_exports.string().optional(),
+      usedMargin: external_exports.string().optional(),
+      timestamp: external_exports.number().optional()
+    }).passthrough();
+    VariationalFundingRateSchema = external_exports.object({
+      symbol: external_exports.string(),
+      fundingRate: external_exports.string(),
+      fundingTime: external_exports.number(),
+      nextFundingTime: external_exports.number().optional(),
+      indexPrice: external_exports.string().optional(),
+      markPrice: external_exports.string().optional()
+    }).passthrough();
+    VariationalQuoteDataSchema = external_exports.object({
+      bid: external_exports.string(),
+      ask: external_exports.string()
+    }).passthrough();
+    VariationalQuotesSchema = external_exports.object({
+      updated_at: external_exports.string(),
+      size_1k: VariationalQuoteDataSchema,
+      size_100k: VariationalQuoteDataSchema,
+      size_1m: VariationalQuoteDataSchema.optional()
+    }).passthrough();
+    VariationalOpenInterestSchema = external_exports.object({
+      long_open_interest: external_exports.string(),
+      short_open_interest: external_exports.string()
+    }).passthrough();
+    VariationalListingSchema = external_exports.object({
+      ticker: external_exports.string(),
+      name: external_exports.string(),
+      mark_price: external_exports.string(),
+      volume_24h: external_exports.string(),
+      open_interest: VariationalOpenInterestSchema,
+      funding_rate: external_exports.string(),
+      funding_interval_s: external_exports.number(),
+      base_spread_bps: external_exports.string(),
+      quotes: VariationalQuotesSchema
+    }).passthrough();
+    VariationalLossRefundSchema = external_exports.object({
+      pool_size: external_exports.string(),
+      refunded_24h: external_exports.string()
+    }).passthrough();
+    VariationalMetadataStatsSchema = external_exports.object({
+      total_volume_24h: external_exports.string(),
+      cumulative_volume: external_exports.string(),
+      tvl: external_exports.string(),
+      open_interest: external_exports.string(),
+      num_markets: external_exports.number(),
+      loss_refund: VariationalLossRefundSchema,
+      listings: external_exports.array(VariationalListingSchema)
+    }).passthrough();
+  }
+});
+
 // src/adapters/variational/error-codes.ts
 function extractErrorCodeFromStatus(status) {
   return VARIATIONAL_HTTP_ERROR_CODES[status] || "UNKNOWN_ERROR";
@@ -23313,7 +24418,7 @@ function mapVariationalError(code, message, context) {
   }
 }
 var VARIATIONAL_CLIENT_ERRORS, VARIATIONAL_SERVER_ERRORS, VARIATIONAL_RATE_LIMIT_ERROR, VARIATIONAL_HTTP_ERROR_CODES, VARIATIONAL_ERROR_MESSAGES;
-var init_error_codes2 = __esm({
+var init_error_codes3 = __esm({
   "src/adapters/variational/error-codes.ts"() {
     "use strict";
     init_errors();
@@ -23433,7 +24538,7 @@ var init_utils6 = __esm({
   "src/adapters/variational/utils.ts"() {
     "use strict";
     init_errors();
-    init_error_codes2();
+    init_error_codes3();
   }
 });
 
@@ -23442,6 +24547,7 @@ var VariationalNormalizer;
 var init_VariationalNormalizer = __esm({
   "src/adapters/variational/VariationalNormalizer.ts"() {
     "use strict";
+    init_types10();
     init_utils6();
     VariationalNormalizer = class {
       /**
@@ -23475,11 +24581,12 @@ var init_VariationalNormalizer = __esm({
        * Normalize market data from listing (from /metadata/stats)
        */
       normalizeMarketFromListing(listing) {
-        const unifiedSymbol = `${listing.ticker}/USDC:USDC`;
+        const validated = VariationalListingSchema.parse(listing);
+        const unifiedSymbol = `${validated.ticker}/USDC:USDC`;
         return {
-          id: listing.ticker,
+          id: validated.ticker,
           symbol: unifiedSymbol,
-          base: listing.ticker,
+          base: validated.ticker,
           quote: "USDC",
           settle: "USDC",
           contractSize: 1,
@@ -23497,43 +24604,45 @@ var init_VariationalNormalizer = __esm({
           takerFee: 0,
           maxLeverage: 50,
           // Default leverage
-          fundingIntervalHours: listing.funding_interval_s / 3600,
-          info: listing
+          fundingIntervalHours: validated.funding_interval_s / 3600,
+          info: validated
         };
       }
       /**
        * Normalize market data
        */
       normalizeMarket(market) {
-        const unifiedSymbol = this.symbolToCCXT(market.symbol);
+        const validated = VariationalMarketSchema.parse(market);
+        const unifiedSymbol = this.symbolToCCXT(validated.symbol);
         return {
-          id: market.symbol,
+          id: validated.symbol,
           symbol: unifiedSymbol,
-          base: market.baseAsset,
-          quote: market.quoteAsset,
-          settle: market.quoteAsset,
-          contractSize: safeParseFloat(market.contractSize || "1"),
-          active: market.status === "active",
-          minAmount: safeParseFloat(market.minOrderSize),
-          maxAmount: market.maxOrderSize ? safeParseFloat(market.maxOrderSize) : void 0,
-          pricePrecision: countDecimals2(market.tickSize),
-          amountPrecision: countDecimals2(market.minOrderSize),
-          priceTickSize: safeParseFloat(market.tickSize),
-          amountStepSize: safeParseFloat(market.minOrderSize),
+          base: validated.baseAsset,
+          quote: validated.quoteAsset,
+          settle: validated.quoteAsset,
+          contractSize: safeParseFloat(validated.contractSize || "1"),
+          active: validated.status === "active",
+          minAmount: safeParseFloat(typeof validated.minOrderSize === "number" ? String(validated.minOrderSize) : validated.minOrderSize),
+          maxAmount: validated.maxOrderSize ? safeParseFloat(typeof validated.maxOrderSize === "number" ? String(validated.maxOrderSize) : validated.maxOrderSize) : void 0,
+          pricePrecision: countDecimals2(typeof validated.tickSize === "number" ? String(validated.tickSize) : validated.tickSize),
+          amountPrecision: countDecimals2(typeof validated.minOrderSize === "number" ? String(validated.minOrderSize) : validated.minOrderSize),
+          priceTickSize: safeParseFloat(typeof validated.tickSize === "number" ? String(validated.tickSize) : validated.tickSize),
+          amountStepSize: safeParseFloat(typeof validated.minOrderSize === "number" ? String(validated.minOrderSize) : validated.minOrderSize),
           makerFee: 2e-4,
           takerFee: 5e-4,
-          maxLeverage: market.maxLeverage ? safeParseFloat(market.maxLeverage) : 50,
+          maxLeverage: validated.maxLeverage ? safeParseFloat(validated.maxLeverage) : 50,
           fundingIntervalHours: 8,
-          info: market
+          info: validated
         };
       }
       /**
        * Normalize ticker data from listing (from /metadata/stats)
        */
       normalizeTickerFromListing(listing) {
-        const unifiedSymbol = `${listing.ticker}/USDC:USDC`;
+        const validated = VariationalListingSchema.parse(listing);
+        const unifiedSymbol = `${validated.ticker}/USDC:USDC`;
         const timestamp = Date.now();
-        const markPrice = safeParseFloat(listing.mark_price);
+        const markPrice = safeParseFloat(validated.mark_price);
         return {
           symbol: unifiedSymbol,
           timestamp,
@@ -23541,119 +24650,133 @@ var init_VariationalNormalizer = __esm({
           // Not available from /metadata/stats
           low: markPrice,
           // Not available from /metadata/stats
-          bid: safeParseFloat(listing.quotes.size_100k.bid),
-          ask: safeParseFloat(listing.quotes.size_100k.ask),
+          bid: safeParseFloat(validated.quotes.size_100k.bid),
+          ask: safeParseFloat(validated.quotes.size_100k.ask),
           last: markPrice,
           open: markPrice,
           // Not available from /metadata/stats
           close: markPrice,
-          baseVolume: safeParseFloat(listing.volume_24h),
-          quoteVolume: safeParseFloat(listing.volume_24h),
+          baseVolume: safeParseFloat(validated.volume_24h),
+          quoteVolume: safeParseFloat(validated.volume_24h),
           change: 0,
           // Not available from /metadata/stats
           percentage: 0,
           // Not available from /metadata/stats
-          info: listing
+          info: {
+            ...validated,
+            _bidAskSource: "orderbook"
+          }
         };
       }
       /**
        * Normalize ticker data
        */
       normalizeTicker(ticker) {
-        const unifiedSymbol = this.symbolToCCXT(ticker.symbol);
+        const validated = VariationalTickerSchema.parse(ticker);
+        const unifiedSymbol = this.symbolToCCXT(validated.symbol);
         return {
           symbol: unifiedSymbol,
-          timestamp: ticker.timestamp,
-          high: safeParseFloat(ticker.high24h),
-          low: safeParseFloat(ticker.low24h),
-          bid: safeParseFloat(ticker.bidPrice),
-          ask: safeParseFloat(ticker.askPrice),
-          last: safeParseFloat(ticker.lastPrice),
-          open: safeParseFloat(ticker.lastPrice),
-          close: safeParseFloat(ticker.lastPrice),
-          baseVolume: safeParseFloat(ticker.volume24h),
+          timestamp: validated.timestamp,
+          high: safeParseFloat(validated.high24h),
+          low: safeParseFloat(validated.low24h),
+          bid: safeParseFloat(validated.bidPrice),
+          ask: safeParseFloat(validated.askPrice),
+          last: safeParseFloat(validated.lastPrice),
+          open: safeParseFloat(validated.lastPrice),
+          close: safeParseFloat(validated.lastPrice),
+          baseVolume: safeParseFloat(validated.volume24h),
           quoteVolume: 0,
-          change: safeParseFloat(ticker.priceChange24h),
-          percentage: safeParseFloat(ticker.priceChangePercent24h),
-          info: ticker
+          change: safeParseFloat(validated.priceChange24h),
+          percentage: safeParseFloat(validated.priceChangePercent24h),
+          info: {
+            ...validated,
+            _bidAskSource: "orderbook"
+          }
         };
       }
       /**
        * Normalize order book data
        */
       normalizeOrderBook(orderbook) {
-        const unifiedSymbol = this.symbolToCCXT(orderbook.symbol);
+        const validated = VariationalOrderBookSchema.parse(orderbook);
+        const unifiedSymbol = this.symbolToCCXT(validated.symbol);
         return {
           exchange: "variational",
           symbol: unifiedSymbol,
-          bids: orderbook.bids.map(([price, amount]) => [
+          bids: validated.bids.map(([price, amount]) => [
             safeParseFloat(price),
             safeParseFloat(amount)
           ]),
-          asks: orderbook.asks.map(([price, amount]) => [
+          asks: validated.asks.map(([price, amount]) => [
             safeParseFloat(price),
             safeParseFloat(amount)
           ]),
-          timestamp: orderbook.timestamp
+          timestamp: validated.timestamp
         };
       }
       /**
        * Normalize trade data
        */
       normalizeTrade(trade) {
-        const unifiedSymbol = this.symbolToCCXT(trade.symbol);
+        const validated = VariationalTradeSchema.parse(trade);
+        const unifiedSymbol = this.symbolToCCXT(validated.symbol);
         return {
-          id: trade.id,
+          id: validated.id,
           orderId: void 0,
           symbol: unifiedSymbol,
-          side: trade.side,
-          price: safeParseFloat(trade.price),
-          amount: safeParseFloat(trade.amount),
-          cost: safeParseFloat(trade.price) * safeParseFloat(trade.amount),
-          timestamp: trade.timestamp,
-          info: trade
+          side: validated.side,
+          price: safeParseFloat(typeof validated.price === "number" ? String(validated.price) : validated.price),
+          amount: safeParseFloat(typeof validated.amount === "number" ? String(validated.amount) : validated.amount),
+          cost: safeParseFloat(typeof validated.price === "number" ? String(validated.price) : validated.price) * safeParseFloat(typeof validated.amount === "number" ? String(validated.amount) : validated.amount),
+          timestamp: validated.timestamp,
+          info: validated
         };
       }
       /**
        * Normalize funding rate data
        */
       normalizeFundingRate(fundingRate) {
-        const unifiedSymbol = this.symbolToCCXT(fundingRate.symbol);
+        const validated = VariationalFundingRateSchema.parse(fundingRate);
+        const unifiedSymbol = this.symbolToCCXT(validated.symbol);
         return {
           symbol: unifiedSymbol,
-          fundingRate: safeParseFloat(fundingRate.fundingRate),
-          fundingTimestamp: fundingRate.fundingTime,
-          nextFundingTimestamp: fundingRate.nextFundingTime || 0,
-          markPrice: fundingRate.markPrice ? safeParseFloat(fundingRate.markPrice) : 0,
-          indexPrice: fundingRate.indexPrice ? safeParseFloat(fundingRate.indexPrice) : 0,
+          fundingRate: safeParseFloat(validated.fundingRate),
+          fundingTimestamp: validated.fundingTime,
+          nextFundingTimestamp: validated.nextFundingTime || 0,
+          markPrice: validated.markPrice ? safeParseFloat(validated.markPrice) : 0,
+          indexPrice: validated.indexPrice ? safeParseFloat(validated.indexPrice) : 0,
           fundingIntervalHours: 8,
-          info: fundingRate
+          info: validated
         };
       }
       /**
        * Normalize order data
        */
       normalizeOrder(order) {
-        const unifiedSymbol = this.symbolToCCXT(order.symbol);
-        const filled = safeParseFloat(order.filledAmount || "0");
-        const amount = safeParseFloat(order.amount);
-        const remaining = safeParseFloat(order.remainingAmount || String(amount - filled));
+        const validated = VariationalOrderSchema.parse(order);
+        const unifiedSymbol = this.symbolToCCXT(validated.symbol);
+        const filledAmount = typeof validated.filledAmount === "number" ? String(validated.filledAmount) : validated.filledAmount || "0";
+        const filled = safeParseFloat(filledAmount);
+        const amountValue = typeof validated.amount === "number" ? String(validated.amount) : validated.amount;
+        const amount = safeParseFloat(amountValue);
+        const remainingAmount = validated.remainingAmount ? typeof validated.remainingAmount === "number" ? String(validated.remainingAmount) : validated.remainingAmount : String(amount - filled);
+        const remaining = safeParseFloat(remainingAmount);
         return {
-          id: order.orderId,
-          clientOrderId: order.clientOrderId,
+          id: validated.orderId,
+          clientOrderId: validated.clientOrderId,
           symbol: unifiedSymbol,
-          type: order.type === "rfq" ? "market" : order.type,
-          side: order.side,
-          price: order.price ? safeParseFloat(order.price) : void 0,
+          type: validated.type === "rfq" ? "market" : validated.type,
+          side: validated.side,
+          price: validated.price ? safeParseFloat(validated.price) : void 0,
           amount,
           filled,
           remaining,
           reduceOnly: false,
           postOnly: false,
-          status: this.normalizeOrderStatus(order.status),
-          timestamp: order.timestamp,
-          lastUpdateTimestamp: order.updateTime,
-          info: order
+          status: this.normalizeOrderStatus(validated.status),
+          timestamp: validated.timestamp,
+          lastUpdateTimestamp: validated.updateTime,
+          info: validated
         };
       }
       /**
@@ -23682,36 +24805,44 @@ var init_VariationalNormalizer = __esm({
        * Normalize position data
        */
       normalizePosition(position) {
-        const unifiedSymbol = this.symbolToCCXT(position.symbol);
-        const size = safeParseFloat(position.size);
-        const entryPrice = safeParseFloat(position.entryPrice);
+        const validated = VariationalPositionSchema.parse(position);
+        const unifiedSymbol = this.symbolToCCXT(validated.symbol);
+        const sizeValue = typeof validated.size === "number" ? String(validated.size) : validated.size;
+        const size = safeParseFloat(sizeValue);
+        const entryPriceValue = typeof validated.entryPrice === "number" ? String(validated.entryPrice) : validated.entryPrice;
+        const entryPrice = safeParseFloat(entryPriceValue);
         return {
           symbol: unifiedSymbol,
-          side: position.side,
+          side: validated.side,
           size,
           entryPrice,
-          markPrice: safeParseFloat(position.markPrice),
-          leverage: safeParseFloat(position.leverage),
-          liquidationPrice: position.liquidationPrice ? safeParseFloat(position.liquidationPrice) : 0,
-          unrealizedPnl: safeParseFloat(position.unrealizedPnl),
+          markPrice: safeParseFloat(typeof validated.markPrice === "number" ? String(validated.markPrice) : validated.markPrice),
+          leverage: safeParseFloat(typeof validated.leverage === "number" ? String(validated.leverage) : validated.leverage),
+          liquidationPrice: validated.liquidationPrice ? safeParseFloat(typeof validated.liquidationPrice === "number" ? String(validated.liquidationPrice) : validated.liquidationPrice) : 0,
+          unrealizedPnl: safeParseFloat(typeof validated.unrealizedPnl === "number" ? String(validated.unrealizedPnl) : validated.unrealizedPnl),
           realizedPnl: 0,
-          margin: safeParseFloat(position.margin),
+          margin: safeParseFloat(typeof validated.margin === "number" ? String(validated.margin) : validated.margin),
           maintenanceMargin: 0,
           marginRatio: 0,
           marginMode: "cross",
-          timestamp: position.timestamp,
-          info: position
+          timestamp: validated.timestamp,
+          info: {
+            ...validated,
+            _realizedPnlSource: "not_available",
+            _marginRatioSource: "not_available"
+          }
         };
       }
       /**
        * Normalize balance data
        */
       normalizeBalance(balance) {
+        const validated = VariationalBalanceSchema.parse(balance);
         return {
-          currency: balance.asset,
-          free: safeParseFloat(balance.free),
-          used: safeParseFloat(balance.locked),
-          total: safeParseFloat(balance.total)
+          currency: validated.asset,
+          free: safeParseFloat(validated.free),
+          used: safeParseFloat(validated.locked),
+          total: safeParseFloat(validated.total)
         };
       }
       /**
@@ -23719,17 +24850,18 @@ var init_VariationalNormalizer = __esm({
        * This is not part of the standard unified format, but useful for RFQ trading
        */
       normalizeQuote(quote) {
-        const unifiedSymbol = this.symbolToCCXT(quote.symbol);
+        const validated = VariationalQuoteSchema.parse(quote);
+        const unifiedSymbol = this.symbolToCCXT(validated.symbol);
         return {
-          id: quote.quoteId,
+          id: validated.quoteId,
           symbol: unifiedSymbol,
-          side: quote.side,
-          price: safeParseFloat(quote.price),
-          amount: safeParseFloat(quote.amount),
-          expiresAt: quote.expiresAt,
-          marketMaker: quote.marketMaker,
-          spread: quote.spread ? safeParseFloat(quote.spread) : void 0,
-          timestamp: quote.timestamp
+          side: validated.side,
+          price: safeParseFloat(typeof validated.price === "number" ? String(validated.price) : validated.price),
+          amount: safeParseFloat(typeof validated.amount === "number" ? String(validated.amount) : validated.amount),
+          expiresAt: validated.expiresAt,
+          marketMaker: validated.marketMaker,
+          spread: validated.spread ? safeParseFloat(typeof validated.spread === "number" ? String(validated.spread) : validated.spread) : void 0,
+          timestamp: validated.timestamp
         };
       }
       /**
@@ -23778,23 +24910,24 @@ var init_VariationalNormalizer = __esm({
        * Normalize funding rate from listing (from /metadata/stats)
        */
       normalizeFundingRateFromListing(listing) {
-        const unifiedSymbol = `${listing.ticker}/USDC:USDC`;
-        const markPrice = safeParseFloat(listing.mark_price);
-        const fundingIntervalSeconds = listing.funding_interval_s;
+        const validated = VariationalListingSchema.parse(listing);
+        const unifiedSymbol = `${validated.ticker}/USDC:USDC`;
+        const markPrice = safeParseFloat(validated.mark_price);
+        const fundingIntervalSeconds = validated.funding_interval_s;
         const fundingIntervalHours = fundingIntervalSeconds / 3600;
         const now = Date.now();
         const intervalMs = fundingIntervalSeconds * 1e3;
         const nextFundingTimestamp = Math.ceil(now / intervalMs) * intervalMs;
         return {
           symbol: unifiedSymbol,
-          fundingRate: safeParseFloat(listing.funding_rate),
+          fundingRate: safeParseFloat(validated.funding_rate),
           fundingTimestamp: now,
           nextFundingTimestamp,
           markPrice,
           indexPrice: markPrice,
           // Variational uses mark price as index
           fundingIntervalHours,
-          info: listing
+          info: validated
         };
       }
       /**
@@ -23804,9 +24937,10 @@ var init_VariationalNormalizer = __esm({
        * from the quotes at different notional sizes.
        */
       normalizeOrderBookFromListing(listing) {
-        const unifiedSymbol = `${listing.ticker}/USDC:USDC`;
-        const quotes = listing.quotes;
-        const markPrice = safeParseFloat(listing.mark_price);
+        const validated = VariationalListingSchema.parse(listing);
+        const unifiedSymbol = `${validated.ticker}/USDC:USDC`;
+        const quotes = validated.quotes;
+        const markPrice = safeParseFloat(validated.mark_price);
         const bids = [];
         const asks = [];
         const bid1k = safeParseFloat(quotes.size_1k.bid);
@@ -24399,7 +25533,7 @@ var init_variational = __esm({
     "use strict";
     init_VariationalAdapter();
     init_constants8();
-    init_error_codes2();
+    init_error_codes3();
   }
 });
 
@@ -24530,12 +25664,158 @@ var init_constants9 = __esm({
     EXTENDED_STARKNET_CONFIG = {
       chainId: {
         mainnet: "SN_MAIN",
-        testnet: "SN_GOERLI"
+        testnet: "SN_SEPOLIA"
       },
       blockTime: 6e5,
       // 10 minutes in milliseconds
       confirmations: 1
     };
+  }
+});
+
+// src/adapters/extended/types.ts
+var ExtendedMarketApiFormatSchema, ExtendedFundingRateSchema, ExtendedMarketSchema, ExtendedTickerSchema, ExtendedOrderBookSchema, ExtendedTradeSchema, ExtendedOrderSchema, ExtendedPositionSchema, ExtendedBalanceSchema;
+var init_types11 = __esm({
+  "src/adapters/extended/types.ts"() {
+    "use strict";
+    init_zod();
+    ExtendedMarketApiFormatSchema = external_exports.object({
+      name: external_exports.string(),
+      assetName: external_exports.string(),
+      collateralAssetName: external_exports.string(),
+      active: external_exports.boolean(),
+      tradingConfig: external_exports.object({
+        minOrderSize: external_exports.string().optional(),
+        maxPositionValue: external_exports.string().optional(),
+        maxLeverage: external_exports.string().optional(),
+        minPriceChange: external_exports.string().optional(),
+        minOrderSizeChange: external_exports.string().optional()
+      }).passthrough().optional(),
+      assetPrecision: external_exports.number().optional(),
+      collateralAssetPrecision: external_exports.number().optional(),
+      contractMultiplier: external_exports.string().optional(),
+      fundingInterval: external_exports.number().optional(),
+      settlementPeriod: external_exports.number().optional()
+    }).passthrough();
+    ExtendedFundingRateSchema = external_exports.object({
+      symbol: external_exports.string(),
+      fundingRate: external_exports.string(),
+      fundingTime: external_exports.number(),
+      nextFundingTime: external_exports.number().optional(),
+      indexPrice: external_exports.string(),
+      markPrice: external_exports.string(),
+      premiumRate: external_exports.string().optional()
+    }).passthrough();
+    ExtendedMarketSchema = external_exports.object({
+      marketId: external_exports.string().optional(),
+      symbol: external_exports.string(),
+      baseAsset: external_exports.string().optional(),
+      quoteAsset: external_exports.string().optional(),
+      settleAsset: external_exports.string().optional(),
+      isActive: external_exports.boolean().optional(),
+      minOrderQuantity: external_exports.string().optional(),
+      maxOrderQuantity: external_exports.string().optional(),
+      minPrice: external_exports.string().optional(),
+      maxPrice: external_exports.string().optional(),
+      quantityPrecision: external_exports.number().optional(),
+      pricePrecision: external_exports.number().optional(),
+      contractMultiplier: external_exports.string().optional(),
+      maxLeverage: external_exports.string().optional(),
+      fundingInterval: external_exports.number().optional(),
+      settlementPeriod: external_exports.number().optional()
+    }).passthrough();
+    ExtendedTickerSchema = external_exports.object({
+      symbol: external_exports.string(),
+      lastPrice: external_exports.string().optional(),
+      bidPrice: external_exports.string().optional(),
+      askPrice: external_exports.string().optional(),
+      volume24h: external_exports.string().optional(),
+      quoteVolume24h: external_exports.string().optional(),
+      high24h: external_exports.string().optional(),
+      low24h: external_exports.string().optional(),
+      priceChange24h: external_exports.string().optional(),
+      priceChangePercent24h: external_exports.string().optional(),
+      openInterest: external_exports.string().optional(),
+      indexPrice: external_exports.string().optional(),
+      markPrice: external_exports.string().optional(),
+      fundingRate: external_exports.string().optional(),
+      nextFundingTime: external_exports.number().optional(),
+      timestamp: external_exports.number().optional()
+    }).passthrough();
+    ExtendedOrderBookSchema = external_exports.object({
+      symbol: external_exports.string(),
+      bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])).optional(),
+      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])).optional(),
+      timestamp: external_exports.number().optional(),
+      sequence: external_exports.number().optional(),
+      checksum: external_exports.string().optional()
+    }).passthrough();
+    ExtendedTradeSchema = external_exports.object({
+      id: external_exports.string(),
+      symbol: external_exports.string(),
+      price: external_exports.string().optional(),
+      quantity: external_exports.string().optional(),
+      side: external_exports.string().optional(),
+      timestamp: external_exports.number().optional(),
+      isMaker: external_exports.boolean().optional(),
+      tradeId: external_exports.string().optional()
+    }).passthrough();
+    ExtendedOrderSchema = external_exports.object({
+      orderId: external_exports.string(),
+      clientOrderId: external_exports.string().optional(),
+      symbol: external_exports.string(),
+      type: external_exports.enum(["market", "limit", "stop", "stop_limit"]),
+      side: external_exports.enum(["buy", "sell"]),
+      status: external_exports.enum(["pending", "open", "filled", "partially_filled", "cancelled", "rejected", "expired"]),
+      price: external_exports.string().optional(),
+      stopPrice: external_exports.string().optional(),
+      quantity: external_exports.string(),
+      filledQuantity: external_exports.string().optional(),
+      remainingQuantity: external_exports.string().optional(),
+      averagePrice: external_exports.string().optional(),
+      leverage: external_exports.string().optional(),
+      marginMode: external_exports.string().optional(),
+      timestamp: external_exports.number(),
+      updateTime: external_exports.number().optional(),
+      postOnly: external_exports.boolean().optional(),
+      reduceOnly: external_exports.boolean().optional(),
+      timeInForce: external_exports.string().optional(),
+      fees: external_exports.object({
+        asset: external_exports.string(),
+        amount: external_exports.string()
+      }).passthrough().optional(),
+      starknetTxHash: external_exports.string().optional()
+    }).passthrough();
+    ExtendedPositionSchema = external_exports.object({
+      symbol: external_exports.string(),
+      side: external_exports.enum(["long", "short"]),
+      size: external_exports.string(),
+      entryPrice: external_exports.string(),
+      markPrice: external_exports.string(),
+      indexPrice: external_exports.string().optional(),
+      liquidationPrice: external_exports.string(),
+      margin: external_exports.string(),
+      initialMargin: external_exports.string(),
+      maintenanceMargin: external_exports.string(),
+      leverage: external_exports.string(),
+      marginMode: external_exports.enum(["cross", "isolated"]),
+      unrealizedPnl: external_exports.string(),
+      realizedPnl: external_exports.string(),
+      roi: external_exports.string().optional(),
+      adlLevel: external_exports.number().optional(),
+      timestamp: external_exports.number(),
+      starknetPosition: external_exports.any().optional()
+    }).passthrough();
+    ExtendedBalanceSchema = external_exports.object({
+      asset: external_exports.string(),
+      free: external_exports.string(),
+      locked: external_exports.string(),
+      total: external_exports.string(),
+      availableMargin: external_exports.string(),
+      usedMargin: external_exports.string(),
+      equity: external_exports.string().optional(),
+      timestamp: external_exports.number().optional()
+    }).passthrough();
   }
 });
 
@@ -24613,7 +25893,7 @@ function mapStarkNetError(error) {
   });
 }
 var EXTENDED_CLIENT_ERRORS, EXTENDED_SERVER_ERRORS, EXTENDED_RATE_LIMIT_ERROR, EXTENDED_STARKNET_ERRORS, EXTENDED_HTTP_ERROR_CODES, EXTENDED_ERROR_MESSAGES;
-var init_error_codes3 = __esm({
+var init_error_codes4 = __esm({
   "src/adapters/extended/error-codes.ts"() {
     "use strict";
     init_errors();
@@ -24782,16 +26062,20 @@ var init_utils7 = __esm({
   "src/adapters/extended/utils.ts"() {
     "use strict";
     init_errors();
-    init_error_codes3();
+    init_error_codes4();
     init_constants9();
   }
 });
 
 // src/adapters/extended/ExtendedNormalizer.ts
+function isApiFormat(market) {
+  return "name" in market && "assetName" in market;
+}
 var ExtendedNormalizer;
 var init_ExtendedNormalizer = __esm({
   "src/adapters/extended/ExtendedNormalizer.ts"() {
     "use strict";
+    init_types11();
     init_utils7();
     ExtendedNormalizer = class {
       /**
@@ -24801,6 +26085,9 @@ var init_ExtendedNormalizer = __esm({
        * "BTCUSD" → "BTC/USD:USD"
        */
       symbolToCCXT(extendedSymbol) {
+        if (!extendedSymbol) {
+          return extendedSymbol ?? "";
+        }
         if (extendedSymbol.includes("-")) {
           const parts = extendedSymbol.split("-");
           if (parts.length >= 2) {
@@ -24817,7 +26104,7 @@ var init_ExtendedNormalizer = __esm({
       }
       /**
        * Convert unified CCXT symbol to Extended format
-       * "BTC/USD:USD" → "BTC-USD-PERP"
+       * "BTC/USD:USD" → "BTC-USD"
        */
       symbolFromCCXT(ccxtSymbol) {
         const [pair] = ccxtSymbol.split(":");
@@ -24828,133 +26115,185 @@ var init_ExtendedNormalizer = __esm({
         if (!base || !quote) {
           return ccxtSymbol;
         }
-        return `${base}-${quote}-PERP`;
+        return `${base}-${quote}`;
       }
       /**
        * Normalize market data
+       *
+       * Handles both legacy SDK type format and actual API response format:
+       * - API returns: {name, assetName, collateralAssetName, tradingConfig, active, ...}
+       * - Legacy type: {symbol, marketId, baseAsset, quoteAsset, ...}
        */
       normalizeMarket(market) {
-        const unifiedSymbol = this.symbolToCCXT(market.symbol);
+        const rawSymbol = isApiFormat(market) ? market.name : market.symbol;
+        const unifiedSymbol = this.symbolToCCXT(rawSymbol);
+        const base = isApiFormat(market) ? market.assetName : market.baseAsset;
+        const quote = isApiFormat(market) ? market.collateralAssetName : market.quoteAsset || "USD";
+        const settle = isApiFormat(market) ? quote : market.settleAsset || quote;
+        const isActive = isApiFormat(market) ? market.active : market.isActive ?? true;
+        const tradingConfig = isApiFormat(market) ? market.tradingConfig : void 0;
+        const minOrderSize = tradingConfig?.minOrderSize || (isApiFormat(market) ? "0" : market.minOrderQuantity || "0");
+        const maxLeverage = tradingConfig?.maxLeverage || (isApiFormat(market) ? "1" : market.maxLeverage || "1");
+        const minPriceChange = tradingConfig?.minPriceChange || (isApiFormat(market) ? "0.01" : market.minPrice || "0.01");
+        const pricePrecision = isApiFormat(market) ? market.collateralAssetPrecision ?? 2 : market.pricePrecision ?? 2;
+        const amountPrecision = isApiFormat(market) ? market.assetPrecision ?? 0 : market.quantityPrecision ?? 0;
+        const id = isApiFormat(market) ? market.name : market.marketId;
         return {
-          id: market.marketId,
+          id,
           symbol: unifiedSymbol,
-          base: market.baseAsset,
-          quote: market.quoteAsset,
-          settle: market.settleAsset,
+          base,
+          quote,
+          settle,
           contractSize: safeParseFloat2(market.contractMultiplier) || 1,
-          active: market.isActive,
-          minAmount: safeParseFloat2(market.minOrderQuantity),
-          maxAmount: safeParseFloat2(market.maxOrderQuantity),
-          pricePrecision: market.pricePrecision,
-          amountPrecision: market.quantityPrecision,
-          priceTickSize: safeParseFloat2(market.minPrice),
-          amountStepSize: safeParseFloat2(market.minOrderQuantity),
+          active: isActive,
+          minAmount: safeParseFloat2(minOrderSize),
+          maxAmount: tradingConfig ? safeParseFloat2(tradingConfig.maxPositionValue) : safeParseFloat2(isApiFormat(market) ? "0" : market.maxOrderQuantity || "0"),
+          pricePrecision,
+          amountPrecision,
+          priceTickSize: safeParseFloat2(minPriceChange),
+          amountStepSize: safeParseFloat2(tradingConfig?.minOrderSizeChange || minOrderSize),
           makerFee: 2e-4,
           takerFee: 5e-4,
-          maxLeverage: market.maxLeverage ? safeParseFloat2(market.maxLeverage) : 1,
+          maxLeverage: safeParseFloat2(maxLeverage),
           fundingIntervalHours: 8,
           info: market
         };
       }
       /**
        * Normalize ticker data
+       *
+       * Handles both legacy SDK type and actual API response format:
+       * - API returns: {lastPrice, bidPrice, askPrice, dailyHigh, dailyLow, dailyVolume, dailyPriceChange, ...}
+       * - Legacy type: {lastPrice, bidPrice, askPrice, high24h, low24h, volume24h, priceChange24h, ...}
        */
       normalizeTicker(ticker) {
-        const unifiedSymbol = this.symbolToCCXT(ticker.symbol);
+        const validated = ExtendedTickerSchema.parse(ticker);
+        const raw = validated;
+        const unifiedSymbol = this.symbolToCCXT(raw.symbol || raw.market || "");
         return {
           symbol: unifiedSymbol,
-          timestamp: ticker.timestamp,
-          high: safeParseFloat2(ticker.high24h),
-          low: safeParseFloat2(ticker.low24h),
-          bid: safeParseFloat2(ticker.bidPrice),
-          ask: safeParseFloat2(ticker.askPrice),
-          last: safeParseFloat2(ticker.lastPrice),
-          open: safeParseFloat2(ticker.lastPrice),
-          close: safeParseFloat2(ticker.lastPrice),
-          baseVolume: safeParseFloat2(ticker.volume24h),
-          quoteVolume: safeParseFloat2(ticker.quoteVolume24h),
-          change: safeParseFloat2(ticker.priceChange24h),
-          percentage: safeParseFloat2(ticker.priceChangePercent24h),
-          info: ticker
+          timestamp: raw.timestamp || Date.now(),
+          high: safeParseFloat2(raw.dailyHigh || raw.high24h),
+          low: safeParseFloat2(raw.dailyLow || raw.low24h),
+          bid: safeParseFloat2(raw.bidPrice),
+          ask: safeParseFloat2(raw.askPrice),
+          last: safeParseFloat2(raw.lastPrice),
+          open: safeParseFloat2(raw.lastPrice),
+          close: safeParseFloat2(raw.lastPrice),
+          baseVolume: safeParseFloat2(raw.dailyVolumeBase || raw.volume24h),
+          quoteVolume: safeParseFloat2(raw.dailyVolume || raw.quoteVolume24h),
+          change: safeParseFloat2(raw.dailyPriceChange || raw.priceChange24h),
+          percentage: safeParseFloat2(raw.dailyPriceChangePercentage || raw.priceChangePercent24h),
+          info: {
+            ...validated,
+            _bidAskSource: "orderbook"
+          }
         };
       }
       /**
        * Normalize order book data
+       *
+       * Handles both legacy SDK type and actual API response format:
+       * - API returns: {market, bid: [{qty, price}], ask: [{qty, price}]}
+       * - Legacy type: {symbol, bids: [[price, size]], asks: [[price, size]]}
        */
       normalizeOrderBook(orderbook) {
-        const unifiedSymbol = this.symbolToCCXT(orderbook.symbol);
+        const validated = ExtendedOrderBookSchema.parse(orderbook);
+        const raw = validated;
+        const unifiedSymbol = this.symbolToCCXT(raw.symbol || raw.market || "");
+        const rawBids = raw.bid || raw.bids || [];
+        const rawAsks = raw.ask || raw.asks || [];
+        const parseSide = (entries) => entries.map((entry) => {
+          if (Array.isArray(entry)) {
+            return [safeParseFloat2(entry[0]), safeParseFloat2(entry[1])];
+          }
+          return [safeParseFloat2(entry.price), safeParseFloat2(entry.qty)];
+        });
         return {
           exchange: "extended",
           symbol: unifiedSymbol,
-          bids: orderbook.bids.map(([price, amount]) => [
-            safeParseFloat2(price),
-            safeParseFloat2(amount)
-          ]),
-          asks: orderbook.asks.map(([price, amount]) => [
-            safeParseFloat2(price),
-            safeParseFloat2(amount)
-          ]),
-          timestamp: orderbook.timestamp
+          bids: parseSide(rawBids),
+          asks: parseSide(rawAsks),
+          timestamp: raw.timestamp || Date.now()
         };
       }
       /**
        * Normalize trade data
+       *
+       * Handles both legacy SDK type and actual API response format:
+       * - API returns: {i (id), m (market), S (side), tT (tradeType), T (timestamp), p (price), q (qty)}
+       * - Legacy type: {id, symbol, side, price, quantity, timestamp}
        */
       normalizeTrade(trade) {
-        const unifiedSymbol = this.symbolToCCXT(trade.symbol);
+        const validated = ExtendedTradeSchema.parse(trade);
+        const raw = validated;
+        const symbol = raw.symbol || raw.m || "";
+        const unifiedSymbol = this.symbolToCCXT(symbol);
+        const rawSide = raw.side || (raw.S === "BUY" ? "buy" : raw.S === "SELL" ? "sell" : raw.S?.toLowerCase());
+        const side = rawSide;
+        const price = safeParseFloat2(raw.price || raw.p);
+        const amount = safeParseFloat2(raw.quantity || raw.q);
         return {
-          id: trade.id,
+          id: String(raw.id || raw.i || ""),
           orderId: void 0,
           symbol: unifiedSymbol,
-          side: trade.side,
-          price: safeParseFloat2(trade.price),
-          amount: safeParseFloat2(trade.quantity),
-          cost: safeParseFloat2(trade.price) * safeParseFloat2(trade.quantity),
-          timestamp: trade.timestamp,
-          info: trade
+          side,
+          price,
+          amount,
+          cost: price * amount,
+          timestamp: raw.timestamp || raw.T,
+          info: validated
         };
       }
       /**
        * Normalize funding rate data
+       *
+       * Handles both legacy SDK type and actual API response format:
+       * - API returns: {m (market), f (fundingRate), T (timestamp)}
+       * - Legacy type: {symbol, fundingRate, fundingTime, markPrice, indexPrice}
        */
       normalizeFundingRate(fundingRate) {
-        const unifiedSymbol = this.symbolToCCXT(fundingRate.symbol);
+        const validated = ExtendedFundingRateSchema.parse(fundingRate);
+        const raw = validated;
+        const symbol = raw.symbol || raw.m || "";
+        const unifiedSymbol = this.symbolToCCXT(symbol);
         return {
           symbol: unifiedSymbol,
-          fundingRate: safeParseFloat2(fundingRate.fundingRate),
-          fundingTimestamp: fundingRate.fundingTime,
-          nextFundingTimestamp: fundingRate.nextFundingTime || 0,
-          markPrice: safeParseFloat2(fundingRate.markPrice),
-          indexPrice: safeParseFloat2(fundingRate.indexPrice),
-          fundingIntervalHours: 8,
-          info: fundingRate
+          fundingRate: safeParseFloat2(raw.fundingRate || raw.f),
+          fundingTimestamp: raw.fundingTime || raw.T || 0,
+          nextFundingTimestamp: raw.nextFundingTime || 0,
+          markPrice: safeParseFloat2(raw.markPrice),
+          indexPrice: safeParseFloat2(raw.indexPrice),
+          fundingIntervalHours: 1,
+          info: validated
         };
       }
       /**
        * Normalize order data
        */
       normalizeOrder(order) {
-        const unifiedSymbol = this.symbolToCCXT(order.symbol);
-        const filled = safeParseFloat2(order.filledQuantity || "0");
-        const amount = safeParseFloat2(order.quantity);
-        const remaining = safeParseFloat2(order.remainingQuantity || String(amount - filled));
+        const validated = ExtendedOrderSchema.parse(order);
+        const unifiedSymbol = this.symbolToCCXT(validated.symbol);
+        const filled = safeParseFloat2(validated.filledQuantity || "0");
+        const amount = safeParseFloat2(validated.quantity);
+        const remaining = safeParseFloat2(validated.remainingQuantity || String(amount - filled));
         return {
-          id: order.orderId,
-          clientOrderId: order.clientOrderId,
+          id: validated.orderId,
+          clientOrderId: validated.clientOrderId,
           symbol: unifiedSymbol,
-          type: this.normalizeOrderType(order.type),
-          side: order.side,
-          price: order.price ? safeParseFloat2(order.price) : void 0,
-          stopPrice: order.stopPrice ? safeParseFloat2(order.stopPrice) : void 0,
+          type: this.normalizeOrderType(validated.type),
+          side: validated.side,
+          price: validated.price ? safeParseFloat2(validated.price) : void 0,
+          stopPrice: validated.stopPrice ? safeParseFloat2(validated.stopPrice) : void 0,
           amount,
           filled,
           remaining,
           reduceOnly: false,
           postOnly: false,
-          status: this.normalizeOrderStatus(order.status),
-          timestamp: order.timestamp,
-          lastUpdateTimestamp: order.updateTime,
-          info: order
+          status: this.normalizeOrderStatus(validated.status),
+          timestamp: validated.timestamp,
+          lastUpdateTimestamp: validated.updateTime,
+          info: validated
         };
       }
       /**
@@ -24998,36 +26337,41 @@ var init_ExtendedNormalizer = __esm({
        * Normalize position data
        */
       normalizePosition(position) {
-        const unifiedSymbol = this.symbolToCCXT(position.symbol);
-        const size = safeParseFloat2(position.size);
-        const markPrice = safeParseFloat2(position.markPrice);
+        const validated = ExtendedPositionSchema.parse(position);
+        const unifiedSymbol = this.symbolToCCXT(validated.symbol);
+        const size = safeParseFloat2(validated.size);
+        const markPrice = safeParseFloat2(validated.markPrice);
         return {
           symbol: unifiedSymbol,
-          side: position.side,
+          side: validated.side,
           size,
-          entryPrice: safeParseFloat2(position.entryPrice),
+          entryPrice: safeParseFloat2(validated.entryPrice),
           markPrice,
-          leverage: safeParseFloat2(position.leverage),
-          liquidationPrice: safeParseFloat2(position.liquidationPrice),
-          unrealizedPnl: safeParseFloat2(position.unrealizedPnl),
+          leverage: safeParseFloat2(validated.leverage),
+          liquidationPrice: safeParseFloat2(validated.liquidationPrice),
+          unrealizedPnl: safeParseFloat2(validated.unrealizedPnl),
           realizedPnl: 0,
-          margin: safeParseFloat2(position.initialMargin),
-          maintenanceMargin: safeParseFloat2(position.maintenanceMargin),
-          marginRatio: safeParseFloat2(position.maintenanceMargin) / (size * markPrice),
-          marginMode: position.marginMode,
-          timestamp: position.timestamp,
-          info: position
+          margin: safeParseFloat2(validated.initialMargin),
+          maintenanceMargin: safeParseFloat2(validated.maintenanceMargin),
+          marginRatio: size * markPrice > 0 ? safeParseFloat2(validated.maintenanceMargin) / (size * markPrice) : 0,
+          marginMode: validated.marginMode,
+          timestamp: validated.timestamp,
+          info: {
+            ...validated,
+            _realizedPnlSource: "not_available"
+          }
         };
       }
       /**
        * Normalize balance data
        */
       normalizeBalance(balance) {
+        const validated = ExtendedBalanceSchema.parse(balance);
         return {
-          currency: balance.asset,
-          free: safeParseFloat2(balance.free),
-          used: safeParseFloat2(balance.locked),
-          total: safeParseFloat2(balance.total)
+          currency: validated.asset,
+          free: safeParseFloat2(validated.free),
+          used: safeParseFloat2(validated.locked),
+          total: safeParseFloat2(validated.total)
         };
       }
       /**
@@ -25077,7 +26421,7 @@ var init_ExtendedStarkNetClient = __esm({
     "use strict";
     import_starknet3 = require("starknet");
     init_constants9();
-    init_error_codes3();
+    init_error_codes4();
     init_utils7();
     init_logger();
     ExtendedStarkNetClient = class _ExtendedStarkNetClient {
@@ -26046,11 +27390,8 @@ var init_ExtendedAdapter = __esm({
       async fetchMarkets(_params) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.MARKETS);
         try {
-          const response = await this.httpClient.get(
-            EXTENDED_ENDPOINTS.MARKETS,
-            {}
-          );
-          const markets = response.markets || [];
+          const response = await this.httpClient.get(EXTENDED_ENDPOINTS.MARKETS, {});
+          const markets = response.data || response.markets || [];
           return this.normalizer.normalizeMarkets(markets);
         } catch (error) {
           throw mapError4(error);
@@ -26061,7 +27402,11 @@ var init_ExtendedAdapter = __esm({
         try {
           const market = this.symbolToExchange(symbol);
           const endpoint = EXTENDED_ENDPOINTS.TICKER_SYMBOL.replace("{market}", market);
-          const ticker = await this.httpClient.get(endpoint, {});
+          const response = await this.httpClient.get(
+            endpoint,
+            {}
+          );
+          const ticker = response.data || response;
           return this.normalizer.normalizeTicker(ticker);
         } catch (error) {
           throw mapError4(error);
@@ -26077,7 +27422,11 @@ var init_ExtendedAdapter = __esm({
             queryParams.depth = params.limit;
           }
           endpoint += this.buildQueryString(queryParams);
-          const orderbook = await this.httpClient.get(endpoint, {});
+          const response = await this.httpClient.get(
+            endpoint,
+            {}
+          );
+          const orderbook = response.data || response;
           return this.normalizer.normalizeOrderBook(orderbook);
         } catch (error) {
           throw mapError4(error);
@@ -26096,39 +27445,63 @@ var init_ExtendedAdapter = __esm({
             queryParams.limit = params.limit;
           }
           endpoint += this.buildQueryString(queryParams);
-          const response = await this.httpClient.get(endpoint, {});
-          const trades = response.trades || [];
+          const response = await this.httpClient.get(
+            endpoint,
+            {}
+          );
+          const trades = response.data || [];
           return this.normalizer.normalizeTrades(trades);
         } catch (error) {
           throw mapError4(error);
         }
       }
       async fetchFundingRate(symbol) {
-        await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.FUNDING_RATE);
+        await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.TICKER_SYMBOL);
         try {
           const market = this.symbolToExchange(symbol);
-          const endpoint = EXTENDED_ENDPOINTS.FUNDING_RATE.replace("{market}", market);
-          const fundingRate = await this.httpClient.get(endpoint, {});
-          return this.normalizer.normalizeFundingRate(fundingRate);
+          const endpoint = EXTENDED_ENDPOINTS.TICKER_SYMBOL.replace("{market}", market);
+          const response = await this.httpClient.get(
+            endpoint,
+            {}
+          );
+          const stats = response.data ?? {};
+          return this.normalizer.normalizeFundingRate({
+            symbol: market,
+            fundingRate: String(stats.fundingRate ?? "0"),
+            fundingTime: Date.now(),
+            nextFundingTime: stats.nextFundingRate || 0,
+            markPrice: String(stats.markPrice ?? "0"),
+            indexPrice: String(stats.indexPrice ?? "0")
+          });
         } catch (error) {
           throw mapError4(error);
         }
       }
       async fetchFundingRateHistory(symbol, since, limit) {
-        await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.FUNDING_HISTORY);
+        await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.FUNDING_RATE);
         try {
           const market = this.symbolToExchange(symbol);
-          let endpoint = EXTENDED_ENDPOINTS.FUNDING_HISTORY.replace("{market}", market);
-          const queryParams = {};
-          if (since) {
-            queryParams.startTime = since;
-          }
+          const endpoint = EXTENDED_ENDPOINTS.FUNDING_RATE.replace("{market}", market);
+          const now = Date.now();
+          const queryParams = {
+            startTime: since || now - 7 * 24 * 60 * 60 * 1e3,
+            // default: 7 days ago
+            endTime: now
+          };
           if (limit) {
             queryParams.limit = limit;
           }
-          endpoint += this.buildQueryString(queryParams);
-          const response = await this.httpClient.get(endpoint, {});
-          const rates = response.rates || [];
+          const fullEndpoint = endpoint + this.buildQueryString(queryParams);
+          const response = await this.httpClient.get(fullEndpoint, {});
+          const rates = (response.data || []).map(
+            (r) => ({
+              symbol: r.m || market,
+              fundingRate: r.f || r.fundingRate || "0",
+              fundingTime: r.T || r.fundingTime || 0,
+              markPrice: r.markPrice || "0",
+              indexPrice: r.indexPrice || "0"
+            })
+          );
           return this.normalizer.normalizeFundingRates(rates);
         } catch (error) {
           throw mapError4(error);
@@ -26614,7 +27987,7 @@ var init_extended = __esm({
     init_ExtendedWebSocketWrapper();
     init_ExtendedStarkNetClient();
     init_constants9();
-    init_error_codes3();
+    init_error_codes4();
   }
 });
 
@@ -26928,12 +28301,185 @@ var init_DydxAuth = __esm({
   }
 });
 
+// src/adapters/dydx/types.ts
+var DydxPerpetualMarketSchema, DydxPerpetualMarketsResponseSchema, DydxOrderBookLevelSchema, DydxOrderBookResponseSchema, DydxTradeSchema, DydxTradesResponseSchema, DydxOrderSchema, DydxOrdersResponseSchema, DydxFillSchema, DydxFillsResponseSchema, DydxPerpetualPositionSchema, DydxAssetPositionSchema, DydxSubaccountSchema, DydxSubaccountResponseSchema, DydxSubaccountsResponseSchema, DydxHistoricalFundingSchema, DydxHistoricalFundingResponseSchema, DydxCandleSchema, DydxCandlesResponseSchema;
+var init_types12 = __esm({
+  "src/adapters/dydx/types.ts"() {
+    "use strict";
+    init_zod();
+    DydxPerpetualMarketSchema = external_exports.object({
+      ticker: external_exports.string(),
+      status: external_exports.string().optional(),
+      baseAsset: external_exports.string().optional(),
+      quoteAsset: external_exports.string().optional(),
+      oraclePrice: external_exports.string().optional(),
+      priceChange24H: external_exports.string().optional(),
+      volume24H: external_exports.string().optional(),
+      trades24H: external_exports.union([external_exports.number(), external_exports.string()]).optional(),
+      openInterest: external_exports.string().optional(),
+      openInterestUSDC: external_exports.string().optional(),
+      nextFundingRate: external_exports.string().optional(),
+      nextFundingAt: external_exports.string().optional(),
+      initialMarginFraction: external_exports.string().optional(),
+      maintenanceMarginFraction: external_exports.string().optional(),
+      stepSize: external_exports.string().optional(),
+      stepBaseQuantums: external_exports.number().optional(),
+      subticksPerTick: external_exports.number().optional(),
+      tickSize: external_exports.string().optional(),
+      atomicResolution: external_exports.number().optional(),
+      quantumConversionExponent: external_exports.number().optional(),
+      basePositionNotional: external_exports.string().optional()
+    }).passthrough();
+    DydxPerpetualMarketsResponseSchema = external_exports.object({
+      markets: external_exports.record(external_exports.string(), DydxPerpetualMarketSchema)
+    }).passthrough();
+    DydxOrderBookLevelSchema = external_exports.object({
+      price: external_exports.string(),
+      size: external_exports.string()
+    }).passthrough();
+    DydxOrderBookResponseSchema = external_exports.object({
+      bids: external_exports.array(DydxOrderBookLevelSchema),
+      asks: external_exports.array(DydxOrderBookLevelSchema)
+    }).passthrough();
+    DydxTradeSchema = external_exports.object({
+      id: external_exports.string(),
+      side: external_exports.string(),
+      size: external_exports.string(),
+      price: external_exports.string(),
+      type: external_exports.string(),
+      createdAt: external_exports.string(),
+      createdAtHeight: external_exports.string()
+    }).passthrough();
+    DydxTradesResponseSchema = external_exports.object({
+      trades: external_exports.array(DydxTradeSchema)
+    }).passthrough();
+    DydxOrderSchema = external_exports.object({
+      id: external_exports.string(),
+      subaccountId: external_exports.string().optional(),
+      clientId: external_exports.union([external_exports.string(), external_exports.null()]).optional(),
+      clobPairId: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      side: external_exports.string().optional(),
+      size: external_exports.string().optional(),
+      price: external_exports.union([external_exports.string(), external_exports.null()]).optional(),
+      totalFilled: external_exports.string().optional(),
+      goodTilBlock: external_exports.union([external_exports.string(), external_exports.number(), external_exports.null()]).optional(),
+      goodTilBlockTime: external_exports.union([external_exports.string(), external_exports.number(), external_exports.null()]).optional(),
+      status: external_exports.string().optional(),
+      type: external_exports.string().optional(),
+      timeInForce: external_exports.string().optional(),
+      postOnly: external_exports.boolean().optional(),
+      reduceOnly: external_exports.boolean().optional(),
+      ticker: external_exports.string().optional(),
+      orderFlags: external_exports.string().optional(),
+      triggerPrice: external_exports.union([external_exports.string(), external_exports.null()]).optional(),
+      createdAtHeight: external_exports.string().optional(),
+      updatedAt: external_exports.string().optional(),
+      updatedAtHeight: external_exports.string().optional(),
+      clientMetadata: external_exports.string().optional(),
+      removalReason: external_exports.union([external_exports.string(), external_exports.null()]).optional()
+    }).passthrough();
+    DydxOrdersResponseSchema = external_exports.object({
+      orders: external_exports.array(DydxOrderSchema).optional()
+    }).passthrough();
+    DydxFillSchema = external_exports.object({
+      id: external_exports.string(),
+      side: external_exports.string().optional(),
+      liquidity: external_exports.string().optional(),
+      type: external_exports.string().optional(),
+      market: external_exports.string().optional(),
+      marketType: external_exports.string().optional(),
+      price: external_exports.string().optional(),
+      size: external_exports.string().optional(),
+      fee: external_exports.string().optional(),
+      createdAt: external_exports.string().optional(),
+      createdAtHeight: external_exports.string().optional(),
+      orderId: external_exports.string().optional(),
+      clientMetadata: external_exports.string().optional(),
+      subaccountNumber: external_exports.number().optional()
+    }).passthrough();
+    DydxFillsResponseSchema = external_exports.object({
+      fills: external_exports.array(DydxFillSchema)
+    }).passthrough();
+    DydxPerpetualPositionSchema = external_exports.object({
+      market: external_exports.string(),
+      status: external_exports.string().optional(),
+      side: external_exports.string().optional(),
+      size: external_exports.string().optional(),
+      maxSize: external_exports.string().optional(),
+      entryPrice: external_exports.string().optional(),
+      exitPrice: external_exports.string().optional().nullable(),
+      realizedPnl: external_exports.string().optional(),
+      unrealizedPnl: external_exports.string().optional(),
+      createdAt: external_exports.string().optional(),
+      createdAtHeight: external_exports.string().optional(),
+      closedAt: external_exports.string().optional().nullable(),
+      sumOpen: external_exports.string().optional(),
+      sumClose: external_exports.string().optional(),
+      netFunding: external_exports.string().optional(),
+      subaccountNumber: external_exports.number().optional()
+    }).passthrough();
+    DydxAssetPositionSchema = external_exports.object({
+      symbol: external_exports.string(),
+      side: external_exports.string(),
+      size: external_exports.string(),
+      assetId: external_exports.string(),
+      subaccountNumber: external_exports.number()
+    }).passthrough();
+    DydxSubaccountSchema = external_exports.object({
+      address: external_exports.string().optional(),
+      subaccountNumber: external_exports.number().optional(),
+      equity: external_exports.string().optional(),
+      freeCollateral: external_exports.string().optional(),
+      pendingDeposits: external_exports.string().optional(),
+      pendingWithdrawals: external_exports.string().optional(),
+      marginEnabled: external_exports.boolean().optional(),
+      updatedAtHeight: external_exports.string().optional(),
+      latestProcessedBlockHeight: external_exports.string().optional(),
+      openPerpetualPositions: external_exports.any().optional(),
+      assetPositions: external_exports.any().optional()
+    }).passthrough();
+    DydxSubaccountResponseSchema = external_exports.object({
+      subaccount: DydxSubaccountSchema
+    }).passthrough();
+    DydxSubaccountsResponseSchema = external_exports.object({
+      subaccounts: external_exports.array(DydxSubaccountSchema)
+    }).passthrough();
+    DydxHistoricalFundingSchema = external_exports.object({
+      ticker: external_exports.string(),
+      rate: external_exports.string(),
+      price: external_exports.string(),
+      effectiveAt: external_exports.string(),
+      effectiveAtHeight: external_exports.string()
+    }).passthrough();
+    DydxHistoricalFundingResponseSchema = external_exports.object({
+      historicalFunding: external_exports.array(DydxHistoricalFundingSchema)
+    }).passthrough();
+    DydxCandleSchema = external_exports.object({
+      startedAt: external_exports.string().optional(),
+      ticker: external_exports.string().optional(),
+      resolution: external_exports.string().optional(),
+      low: external_exports.string().optional(),
+      high: external_exports.string().optional(),
+      open: external_exports.string().optional(),
+      close: external_exports.string().optional(),
+      baseTokenVolume: external_exports.string().optional(),
+      usdVolume: external_exports.string().optional(),
+      trades: external_exports.union([external_exports.number(), external_exports.string()]).optional(),
+      startingOpenInterest: external_exports.string().optional()
+    }).passthrough();
+    DydxCandlesResponseSchema = external_exports.object({
+      candles: external_exports.array(DydxCandleSchema)
+    }).passthrough();
+  }
+});
+
 // src/adapters/dydx/DydxNormalizer.ts
 var DydxNormalizer;
 var init_DydxNormalizer = __esm({
   "src/adapters/dydx/DydxNormalizer.ts"() {
     "use strict";
     init_constants10();
+    init_types12();
     DydxNormalizer = class {
       // ===========================================================================
       // Market Normalization
@@ -26945,6 +28491,7 @@ var init_DydxNormalizer = __esm({
        * @returns Unified market
        */
       normalizeMarket(market) {
+        DydxPerpetualMarketSchema.parse(market);
         const unifiedSymbol = dydxToUnified(market.ticker);
         const [base = "", rest = ""] = unifiedSymbol.split("/");
         const [quote = "", settle = ""] = rest.split(":");
@@ -26999,6 +28546,7 @@ var init_DydxNormalizer = __esm({
        * @returns Unified order
        */
       normalizeOrder(order) {
+        DydxOrderSchema.parse(order);
         const unifiedSymbol = dydxToUnified(order.ticker);
         const size = parseFloat(order.size);
         const filled = parseFloat(order.totalFilled);
@@ -27097,6 +28645,7 @@ var init_DydxNormalizer = __esm({
        * @returns Unified position
        */
       normalizePosition(position, oraclePrice = 0) {
+        DydxPerpetualPositionSchema.parse(position);
         const unifiedSymbol = dydxToUnified(position.market);
         const size = Math.abs(parseFloat(position.size));
         const entryPrice = parseFloat(position.entryPrice);
@@ -27128,7 +28677,8 @@ var init_DydxNormalizer = __esm({
             netFunding: position.netFunding,
             sumOpen: position.sumOpen,
             sumClose: position.sumClose,
-            subaccountNumber: position.subaccountNumber
+            subaccountNumber: position.subaccountNumber,
+            _marginRatioSource: "not_available"
           }
         };
       }
@@ -27153,6 +28703,7 @@ var init_DydxNormalizer = __esm({
        * @returns Unified order book
        */
       normalizeOrderBook(orderBook, ticker) {
+        DydxOrderBookResponseSchema.parse(orderBook);
         const unifiedSymbol = dydxToUnified(ticker);
         const bids = orderBook.bids.map((level) => [
           parseFloat(level.price),
@@ -27181,6 +28732,7 @@ var init_DydxNormalizer = __esm({
        * @returns Unified trade
        */
       normalizeTrade(trade, ticker) {
+        DydxTradeSchema.parse(trade);
         const unifiedSymbol = dydxToUnified(ticker);
         const price = parseFloat(trade.price);
         const amount = parseFloat(trade.size);
@@ -27215,6 +28767,7 @@ var init_DydxNormalizer = __esm({
        * @returns Unified trade
        */
       normalizeFill(fill) {
+        DydxFillSchema.parse(fill);
         const unifiedSymbol = dydxToUnified(fill.market);
         const price = parseFloat(fill.price);
         const amount = parseFloat(fill.size);
@@ -27255,6 +28808,7 @@ var init_DydxNormalizer = __esm({
        * @returns Unified funding rate
        */
       normalizeFundingRate(funding, oraclePrice = 0) {
+        DydxHistoricalFundingSchema.parse(funding);
         const unifiedSymbol = dydxToUnified(funding.ticker);
         const fundingTimestamp = new Date(funding.effectiveAt).getTime();
         return {
@@ -27291,6 +28845,7 @@ var init_DydxNormalizer = __esm({
        * @returns Array of unified balances
        */
       normalizeBalance(subaccount) {
+        DydxSubaccountSchema.parse(subaccount);
         const equity = parseFloat(subaccount.equity);
         const freeCollateral = parseFloat(subaccount.freeCollateral);
         const used = equity - freeCollateral;
@@ -27346,7 +28901,8 @@ var init_DydxNormalizer = __esm({
             openInterest: market.openInterest,
             nextFundingRate: market.nextFundingRate,
             nextFundingAt: market.nextFundingAt,
-            trades24H: market.trades24H
+            trades24H: market.trades24H,
+            _bidAskSource: "oracle_price"
           }
         };
       }
@@ -27360,6 +28916,7 @@ var init_DydxNormalizer = __esm({
        * @returns OHLCV tuple
        */
       normalizeCandle(candle) {
+        DydxCandleSchema.parse(candle);
         return [
           new Date(candle.startedAt).getTime(),
           parseFloat(candle.open),
@@ -27441,7 +28998,7 @@ function mapDydxError(error) {
   return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "dydx", error);
 }
 var DydxErrorCodes;
-var init_error_codes4 = __esm({
+var init_error_codes5 = __esm({
   "src/adapters/dydx/error-codes.ts"() {
     "use strict";
     init_errors();
@@ -27533,7 +29090,7 @@ var init_DydxAdapter = __esm({
     init_constants10();
     init_DydxAuth();
     init_DydxNormalizer();
-    init_error_codes4();
+    init_error_codes5();
     init_utils8();
     DydxAdapter = class extends BaseAdapter {
       id = "dydx";
@@ -27711,7 +29268,7 @@ var init_DydxAdapter = __esm({
           if (params?.since) {
             queryParams.createdBeforeOrAtHeight = void 0;
           }
-          const url = buildUrl(this.apiUrl, "/trades", { market: exchangeSymbol, ...queryParams });
+          const url = buildUrl(this.apiUrl, `/trades/perpetualMarket/${exchangeSymbol}`, queryParams);
           const response = await this.request("GET", url);
           return this.normalizer.normalizeTrades(response.trades, exchangeSymbol);
         } catch (error) {
@@ -27759,10 +29316,7 @@ var init_DydxAdapter = __esm({
           if (since) {
             queryParams.effectiveBeforeOrAt = new Date(since).toISOString();
           }
-          const url = buildUrl(this.apiUrl, "/historicalFunding", {
-            market: exchangeSymbol,
-            ...queryParams
-          });
+          const url = buildUrl(this.apiUrl, `/historicalFunding/${exchangeSymbol}`, queryParams);
           const response = await this.request("GET", url);
           const oraclePrice = await this.getOraclePrice(exchangeSymbol);
           return this.normalizer.normalizeFundingHistory(response.historicalFunding, oraclePrice);
@@ -27785,7 +29339,7 @@ var init_DydxAdapter = __esm({
             toISO,
             limit: params?.limit ?? 100
           };
-          const url = buildUrl(this.apiUrl, "/candles", { market: exchangeSymbol, ...queryParams });
+          const url = buildUrl(this.apiUrl, `/candles/perpetualMarkets/${exchangeSymbol}`, queryParams);
           const response = await this.request("GET", url);
           return this.normalizer.normalizeCandles(response.candles);
         } catch (error) {
@@ -28112,11 +29666,159 @@ var init_dydx = __esm({
     init_DydxAuth();
     init_DydxNormalizer();
     init_constants10();
-    init_error_codes4();
+    init_error_codes5();
+  }
+});
+
+// src/adapters/jupiter/types.ts
+var JupiterPositionAccountSchema, JupiterFeeScheduleSchema, JupiterPoolAccountSchema, JupiterOracleConfigSchema, JupiterPricingConfigSchema, JupiterTradingConfigSchema, JupiterFundingRateStateSchema, JupiterCustodyAssetsSchema, JupiterCustodyAccountSchema, JupiterPriceDataSchema, JupiterPoolStatsSchema, JupiterMarketStatsSchema;
+var init_types13 = __esm({
+  "src/adapters/jupiter/types.ts"() {
+    "use strict";
+    init_zod();
+    JupiterPositionAccountSchema = external_exports.object({
+      owner: external_exports.string(),
+      pool: external_exports.string(),
+      custody: external_exports.string(),
+      collateralCustody: external_exports.string(),
+      openTime: external_exports.number(),
+      updateTime: external_exports.number(),
+      side: external_exports.string(),
+      price: external_exports.string(),
+      sizeUsd: external_exports.string(),
+      sizeTokens: external_exports.string(),
+      collateralUsd: external_exports.string(),
+      unrealizedPnl: external_exports.string(),
+      realizedPnl: external_exports.string(),
+      cumulativeInterestSnapshot: external_exports.string(),
+      lockedAmount: external_exports.string(),
+      bump: external_exports.number()
+    }).passthrough();
+    JupiterFeeScheduleSchema = external_exports.object({
+      swapFee: external_exports.number(),
+      addLiquidityFee: external_exports.number(),
+      removeLiquidityFee: external_exports.number(),
+      openPositionFee: external_exports.number(),
+      closePositionFee: external_exports.number(),
+      liquidationFee: external_exports.number(),
+      protocolShare: external_exports.number()
+    }).passthrough();
+    JupiterPoolAccountSchema = external_exports.object({
+      name: external_exports.string(),
+      admin: external_exports.string(),
+      lpMint: external_exports.string(),
+      aumUsd: external_exports.string(),
+      totalFees: external_exports.string(),
+      custodies: external_exports.array(external_exports.string()),
+      maxAumUsd: external_exports.string(),
+      bump: external_exports.number(),
+      lpTokenBump: external_exports.number(),
+      fees: JupiterFeeScheduleSchema
+    }).passthrough();
+    JupiterOracleConfigSchema = external_exports.object({
+      oracleType: external_exports.string(),
+      oracleAccount: external_exports.string(),
+      maxPriceAge: external_exports.number(),
+      maxPriceDeviation: external_exports.number()
+    }).passthrough();
+    JupiterPricingConfigSchema = external_exports.object({
+      useEma: external_exports.boolean(),
+      tradeSpread: external_exports.number(),
+      swapSpread: external_exports.number(),
+      minInitialLeverage: external_exports.number(),
+      maxInitialLeverage: external_exports.number(),
+      maxLeverage: external_exports.number(),
+      maxPositionLockedUsd: external_exports.number(),
+      maxUtilization: external_exports.number()
+    }).passthrough();
+    JupiterTradingConfigSchema = external_exports.object({
+      tradingEnabled: external_exports.boolean(),
+      allowOpenPosition: external_exports.boolean(),
+      allowClosePosition: external_exports.boolean(),
+      allowAddCollateral: external_exports.boolean(),
+      allowRemoveCollateral: external_exports.boolean(),
+      allowIncreaseSize: external_exports.boolean(),
+      allowDecreaseSize: external_exports.boolean()
+    }).passthrough();
+    JupiterFundingRateStateSchema = external_exports.object({
+      cumulativeInterestRate: external_exports.string(),
+      lastUpdate: external_exports.number(),
+      hourlyBorrowRate: external_exports.string()
+    }).passthrough();
+    JupiterCustodyAssetsSchema = external_exports.object({
+      owned: external_exports.string(),
+      locked: external_exports.string(),
+      guaranteedUsd: external_exports.string(),
+      globalShortSizes: external_exports.string(),
+      globalShortAveragePrices: external_exports.string()
+    }).passthrough();
+    JupiterCustodyAccountSchema = external_exports.object({
+      pool: external_exports.string(),
+      mint: external_exports.string(),
+      tokenAccount: external_exports.string(),
+      decimals: external_exports.number(),
+      isStable: external_exports.boolean(),
+      oracle: JupiterOracleConfigSchema,
+      pricing: JupiterPricingConfigSchema,
+      trading: JupiterTradingConfigSchema,
+      fundingRateState: JupiterFundingRateStateSchema,
+      assets: JupiterCustodyAssetsSchema,
+      bump: external_exports.number()
+    }).passthrough();
+    JupiterPriceDataSchema = external_exports.object({
+      id: external_exports.string(),
+      type: external_exports.string(),
+      price: external_exports.string(),
+      extraInfo: external_exports.any().optional()
+    }).passthrough();
+    JupiterPoolStatsSchema = external_exports.object({
+      aumUsd: external_exports.number(),
+      volume24h: external_exports.number(),
+      volume7d: external_exports.number(),
+      fees24h: external_exports.number(),
+      openInterest: external_exports.number(),
+      longOpenInterest: external_exports.number(),
+      shortOpenInterest: external_exports.number(),
+      jlpPrice: external_exports.number(),
+      jlpSupply: external_exports.number()
+    }).passthrough();
+    JupiterMarketStatsSchema = external_exports.object({
+      symbol: external_exports.string(),
+      oraclePrice: external_exports.number(),
+      markPrice: external_exports.number(),
+      high24h: external_exports.number(),
+      low24h: external_exports.number(),
+      volume24h: external_exports.number(),
+      longOpenInterest: external_exports.number(),
+      shortOpenInterest: external_exports.number(),
+      borrowRate: external_exports.number(),
+      maxLeverage: external_exports.number()
+    }).passthrough();
   }
 });
 
 // src/adapters/jupiter/constants.ts
+var constants_exports = {};
+__export(constants_exports, {
+  JLP_TOKEN_MINT: () => JLP_TOKEN_MINT,
+  JUPITER_API_URLS: () => JUPITER_API_URLS,
+  JUPITER_BORROW_FEE: () => JUPITER_BORROW_FEE,
+  JUPITER_DEFAULT_PRECISION: () => JUPITER_DEFAULT_PRECISION,
+  JUPITER_ERROR_MESSAGES: () => JUPITER_ERROR_MESSAGES,
+  JUPITER_MAINNET_PRICE_API: () => JUPITER_MAINNET_PRICE_API,
+  JUPITER_MAINNET_STATS_API: () => JUPITER_MAINNET_STATS_API,
+  JUPITER_MARKETS: () => JUPITER_MARKETS,
+  JUPITER_ORDER_SIDES: () => JUPITER_ORDER_SIDES,
+  JUPITER_PERPS_PROGRAM_ID: () => JUPITER_PERPS_PROGRAM_ID,
+  JUPITER_PYTH_FEED_IDS: () => JUPITER_PYTH_FEED_IDS,
+  JUPITER_RATE_LIMIT: () => JUPITER_RATE_LIMIT,
+  JUPITER_TOKEN_MINTS: () => JUPITER_TOKEN_MINTS,
+  SOLANA_DEFAULT_RPC: () => SOLANA_DEFAULT_RPC,
+  SOLANA_RPC_ENDPOINTS: () => SOLANA_RPC_ENDPOINTS,
+  getBaseToken: () => getBaseToken,
+  jupiterToUnified: () => jupiterToUnified,
+  unifiedToJupiter: () => unifiedToJupiter
+});
 function unifiedToJupiter(symbol) {
   const parts = symbol.split("/");
   const base = parts[0];
@@ -28133,13 +29835,13 @@ function getBaseToken(symbol) {
   const parts = symbol.split("/");
   return parts[0] || "";
 }
-var JUPITER_API_URLS, JUPITER_MAINNET_PRICE_API, JUPITER_MAINNET_STATS_API, JUPITER_PERPS_PROGRAM_ID, JLP_TOKEN_MINT, JUPITER_TOKEN_MINTS, JUPITER_RATE_LIMIT, JUPITER_MARKETS, JUPITER_ORDER_SIDES, JUPITER_DEFAULT_PRECISION, JUPITER_BORROW_FEE, SOLANA_RPC_ENDPOINTS, SOLANA_DEFAULT_RPC, JUPITER_ERROR_MESSAGES;
+var JUPITER_API_URLS, JUPITER_MAINNET_PRICE_API, JUPITER_MAINNET_STATS_API, JUPITER_PYTH_FEED_IDS, JUPITER_PERPS_PROGRAM_ID, JLP_TOKEN_MINT, JUPITER_TOKEN_MINTS, JUPITER_RATE_LIMIT, JUPITER_MARKETS, JUPITER_ORDER_SIDES, JUPITER_DEFAULT_PRECISION, JUPITER_BORROW_FEE, SOLANA_RPC_ENDPOINTS, SOLANA_DEFAULT_RPC, JUPITER_ERROR_MESSAGES;
 var init_constants11 = __esm({
   "src/adapters/jupiter/constants.ts"() {
     "use strict";
     JUPITER_API_URLS = {
       mainnet: {
-        price: "https://api.jup.ag/price/v3",
+        price: "https://hermes.pyth.network/v2/updates/price/latest",
         stats: "https://perp-api.jup.ag"
         // Stats API (unofficial, may change)
       }
@@ -28147,6 +29849,11 @@ var init_constants11 = __esm({
     };
     JUPITER_MAINNET_PRICE_API = JUPITER_API_URLS.mainnet.price;
     JUPITER_MAINNET_STATS_API = JUPITER_API_URLS.mainnet.stats;
+    JUPITER_PYTH_FEED_IDS = {
+      SOL: "0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",
+      ETH: "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
+      BTC: "0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43"
+    };
     JUPITER_PERPS_PROGRAM_ID = "PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2verr";
     JLP_TOKEN_MINT = "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4";
     JUPITER_TOKEN_MINTS = {
@@ -28232,6 +29939,8 @@ var init_constants11 = __esm({
       "max leverage exceeded": "MAX_LEVERAGE_EXCEEDED",
       "min position size": "MIN_POSITION_SIZE",
       "oracle price stale": "ORACLE_ERROR",
+      "price not available": "ORACLE_ERROR",
+      "no price data": "ORACLE_ERROR",
       "pool capacity exceeded": "POOL_CAPACITY_EXCEEDED",
       "rate limit": "RATE_LIMIT_EXCEEDED",
       "transaction failed": "TRANSACTION_FAILED"
@@ -28244,25 +29953,36 @@ var JupiterNormalizer;
 var init_JupiterNormalizer = __esm({
   "src/adapters/jupiter/JupiterNormalizer.ts"() {
     "use strict";
+    init_types13();
     init_constants11();
     JupiterNormalizer = class {
       /**
        * Normalize market data from custody and pool accounts
        */
       normalizeMarket(marketKey, custody, pool, _stats) {
+        const validatedCustody = JupiterCustodyAccountSchema.parse(custody);
+        const validatedPool = JupiterPoolAccountSchema.parse(pool);
         const marketConfig = JUPITER_MARKETS[marketKey];
         const symbol = jupiterToUnified(marketKey);
-        const makerFee = pool.fees.openPositionFee / 1e4;
-        const takerFee = pool.fees.closePositionFee / 1e4;
+        const fees = validatedPool.fees ?? { openPositionFee: 50, closePositionFee: 70 };
+        const makerFee = (fees.openPositionFee ?? 50) / 1e4;
+        const takerFee = (fees.closePositionFee ?? 70) / 1e4;
+        const trading = validatedCustody.trading ?? { tradingEnabled: false };
+        const pricing = validatedCustody.pricing ?? {
+          maxPositionLockedUsd: 1e6,
+          maxLeverage: 100,
+          maxUtilization: 80
+        };
+        const oracle = validatedCustody.oracle ?? { oracleAccount: "" };
         return {
           id: marketKey,
           symbol,
           base: marketConfig?.baseToken || marketKey.replace("-PERP", ""),
           quote: "USD",
           settle: "USD",
-          active: custody.trading.tradingEnabled,
+          active: trading.tradingEnabled ?? false,
           minAmount: marketConfig?.minPositionSize || 1e-3,
-          maxAmount: custody.pricing.maxPositionLockedUsd,
+          maxAmount: pricing.maxPositionLockedUsd ?? 1e6,
           minCost: 10,
           // $10 minimum
           pricePrecision: this.getPricePrecision(marketKey),
@@ -28271,16 +29991,16 @@ var init_JupiterNormalizer = __esm({
           amountStepSize: marketConfig?.stepSize || 1e-3,
           makerFee,
           takerFee,
-          maxLeverage: custody.pricing.maxLeverage,
+          maxLeverage: pricing.maxLeverage ?? 100,
           fundingIntervalHours: 1,
           // Jupiter uses hourly borrow fees
           contractSize: 1,
           info: {
-            custody: custody.mint,
-            pool: pool.name,
-            oracle: custody.oracle.oracleAccount,
-            isStable: custody.isStable,
-            maxUtilization: custody.pricing.maxUtilization,
+            custody: validatedCustody.mint ?? "",
+            pool: validatedPool.name ?? "",
+            oracle: oracle.oracleAccount ?? "",
+            isStable: validatedCustody.isStable ?? false,
+            maxUtilization: pricing.maxUtilization ?? 80,
             marginMode: "isolated",
             positionMode: "one-way"
           }
@@ -28303,13 +30023,15 @@ var init_JupiterNormalizer = __esm({
        * Normalize on-chain position account to unified Position
        */
       normalizePosition(positionAddress, position, currentPrice, marketKey) {
+        const validated = JupiterPositionAccountSchema.parse(position);
         const symbol = jupiterToUnified(marketKey);
-        const side = position.side === "Long" ? "long" : "short";
-        const sizeUsd = parseFloat(position.sizeUsd);
-        const collateralUsd = parseFloat(position.collateralUsd);
-        const entryPrice = parseFloat(position.price);
-        const size = parseFloat(position.sizeTokens);
-        const leverage = sizeUsd / collateralUsd;
+        const sideStr = validated.side ?? "Long";
+        const side = sideStr === "Long" ? "long" : "short";
+        const sizeUsd = parseFloat(validated.sizeUsd ?? "0");
+        const collateralUsd = parseFloat(validated.collateralUsd ?? "0");
+        const entryPrice = parseFloat(validated.price ?? "0");
+        const size = parseFloat(validated.sizeTokens ?? "0");
+        const leverage = collateralUsd > 0 ? sizeUsd / collateralUsd : 1;
         const unrealizedPnl = this.calculateUnrealizedPnl(side, size, entryPrice, currentPrice);
         const liquidationPrice = this.calculateLiquidationPrice(
           side,
@@ -28333,15 +30055,15 @@ var init_JupiterNormalizer = __esm({
           maintenanceMargin,
           marginRatio,
           unrealizedPnl,
-          realizedPnl: parseFloat(position.realizedPnl),
-          timestamp: position.updateTime * 1e3,
+          realizedPnl: parseFloat(validated.realizedPnl ?? "0"),
+          timestamp: (validated.updateTime ?? 0) * 1e3,
           info: {
             positionAddress,
-            owner: position.owner,
-            pool: position.pool,
-            custody: position.custody,
-            openTime: position.openTime,
-            cumulativeInterestSnapshot: position.cumulativeInterestSnapshot,
+            owner: validated.owner ?? "",
+            pool: validated.pool ?? "",
+            custody: validated.custody ?? "",
+            openTime: validated.openTime ?? 0,
+            cumulativeInterestSnapshot: validated.cumulativeInterestSnapshot ?? "0",
             notional: sizeUsd
           }
         };
@@ -28387,11 +30109,12 @@ var init_JupiterNormalizer = __esm({
        * Normalize ticker from price API and stats
        */
       normalizeTicker(marketKey, priceData, stats) {
+        const validated = JupiterPriceDataSchema.parse(priceData);
         const symbol = jupiterToUnified(marketKey);
-        const price = parseFloat(priceData.price);
+        const price = parseFloat(validated.price);
         const now = Date.now();
-        const bid = priceData.extraInfo?.quotedPrice ? parseFloat(priceData.extraInfo.quotedPrice.buyPrice) : price * 0.9995;
-        const ask = priceData.extraInfo?.quotedPrice ? parseFloat(priceData.extraInfo.quotedPrice.sellPrice) : price * 1.0005;
+        const bid = validated.extraInfo?.quotedPrice ? parseFloat(validated.extraInfo.quotedPrice.buyPrice) : price * 0.9995;
+        const ask = validated.extraInfo?.quotedPrice ? parseFloat(validated.extraInfo.quotedPrice.sellPrice) : price * 1.0005;
         return {
           symbol,
           timestamp: now,
@@ -28412,7 +30135,8 @@ var init_JupiterNormalizer = __esm({
             markPrice: stats?.markPrice,
             longOpenInterest: stats?.longOpenInterest,
             shortOpenInterest: stats?.shortOpenInterest,
-            confidenceLevel: priceData.extraInfo?.confidenceLevel
+            confidenceLevel: validated.extraInfo?.confidenceLevel,
+            _bidAskSource: "calculated"
           }
         };
       }
@@ -28433,13 +30157,14 @@ var init_JupiterNormalizer = __esm({
        * We represent borrow fee as a pseudo-funding rate for unified interface
        */
       normalizeFundingRate(marketKey, custody, currentPrice) {
+        const validated = JupiterCustodyAccountSchema.parse(custody);
         const symbol = jupiterToUnified(marketKey);
         const now = Date.now();
-        const hourlyBorrowRate = parseFloat(custody.fundingRateState.hourlyBorrowRate);
+        const hourlyBorrowRate = parseFloat(validated.fundingRateState.hourlyBorrowRate);
         return {
           symbol,
           fundingRate: hourlyBorrowRate,
-          fundingTimestamp: custody.fundingRateState.lastUpdate * 1e3,
+          fundingTimestamp: validated.fundingRateState.lastUpdate * 1e3,
           nextFundingTimestamp: now + 36e5,
           // Next hour
           markPrice: currentPrice,
@@ -28447,7 +30172,7 @@ var init_JupiterNormalizer = __esm({
           // Jupiter uses oracle price as index
           fundingIntervalHours: 1,
           info: {
-            cumulativeInterestRate: custody.fundingRateState.cumulativeInterestRate,
+            cumulativeInterestRate: validated.fundingRateState.cumulativeInterestRate,
             isBorrowFee: true
             // Indicate this is a borrow fee, not traditional funding
           }
@@ -28486,16 +30211,17 @@ var init_JupiterNormalizer = __esm({
        * Normalize pool stats to unified format
        */
       normalizePoolStats(stats) {
+        const validated = JupiterPoolStatsSchema.parse(stats);
         return {
-          aumUsd: stats.aumUsd,
-          volume24h: stats.volume24h,
-          volume7d: stats.volume7d,
-          fees24h: stats.fees24h,
-          openInterest: stats.openInterest,
-          longOpenInterest: stats.longOpenInterest,
-          shortOpenInterest: stats.shortOpenInterest,
-          jlpPrice: stats.jlpPrice,
-          jlpSupply: stats.jlpSupply
+          aumUsd: validated.aumUsd,
+          volume24h: validated.volume24h,
+          volume7d: validated.volume7d,
+          fees24h: validated.fees24h,
+          openInterest: validated.openInterest,
+          longOpenInterest: validated.longOpenInterest,
+          shortOpenInterest: validated.shortOpenInterest,
+          jlpPrice: validated.jlpPrice,
+          jlpSupply: validated.jlpSupply
         };
       }
       // ==========================================================================
@@ -28752,9 +30478,8 @@ var init_JupiterAuth = __esm({
           const bytes = this.parsePrivateKey(privateKey);
           void this.initKeypairAsync(bytes);
         } catch (error) {
-          this.logger.warn(
-            `Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`
-          );
+          const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, "[REDACTED]");
+          this.logger.warn(`Failed to initialize keypair: ${sanitized}`);
         }
       }
       /**
@@ -28769,9 +30494,8 @@ var init_JupiterAuth = __esm({
           this.connection = new Connection(this.rpcEndpoint, "confirmed");
           this.isInitialized = true;
         } catch (error) {
-          this.logger.warn(
-            `Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`
-          );
+          const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, "[REDACTED]");
+          this.logger.warn(`Failed to initialize Solana keypair: ${sanitized}`);
         }
       }
       /**
@@ -29881,6 +31605,14 @@ function mapJupiterError(error) {
         error
       );
     }
+    if (message.includes("price not available") || message.includes("no price data")) {
+      return new ExchangeUnavailableError(
+        "Pyth price data unavailable",
+        "ORACLE_ERROR",
+        "jupiter",
+        error
+      );
+    }
     if (message.includes("account not found") || message.includes("account does not exist")) {
       return new PerpDEXError("Account not found on chain", "ACCOUNT_NOT_FOUND", "jupiter", error);
     }
@@ -29908,7 +31640,7 @@ function mapJupiterError(error) {
   return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "jupiter", error);
 }
 var JupiterErrorCodes;
-var init_error_codes5 = __esm({
+var init_error_codes6 = __esm({
   "src/adapters/jupiter/error-codes.ts"() {
     "use strict";
     init_errors();
@@ -30009,11 +31741,26 @@ function getPositionPDASeeds(owner, pool, custody, side) {
   };
 }
 function buildPriceApiUrl(tokenIds) {
-  const baseUrl = "https://api.jup.ag/price/v3";
-  const params = new URLSearchParams({
-    ids: tokenIds.join(",")
-  });
-  return `${baseUrl}?${params.toString()}`;
+  const feedIds = [];
+  for (const tokenId of tokenIds) {
+    let baseToken;
+    for (const [name, mint] of Object.entries(JUPITER_TOKEN_MINTS)) {
+      if (mint === tokenId) {
+        baseToken = name;
+        break;
+      }
+    }
+    if (!baseToken && tokenId in JUPITER_PYTH_FEED_IDS) {
+      baseToken = tokenId;
+    }
+    const rawFeedId = baseToken ? JUPITER_PYTH_FEED_IDS[baseToken] : void 0;
+    if (rawFeedId) {
+      feedIds.push(rawFeedId.replace(/^0x/, ""));
+    }
+  }
+  const baseUrl = "https://hermes.pyth.network/v2/updates/price/latest";
+  const params = feedIds.map((id) => `ids[]=${id}`).join("&");
+  return `${baseUrl}?${params}`;
 }
 function buildRpcRequestBody(method, params) {
   return {
@@ -30117,7 +31864,7 @@ var init_JupiterAdapter = __esm({
     init_solana();
     init_instructions();
     init_constants11();
-    init_error_codes5();
+    init_error_codes6();
     init_utils9();
     JupiterAdapter = class extends BaseAdapter {
       id = "jupiter";
@@ -30666,7 +32413,10 @@ var init_JupiterAdapter = __esm({
         return price;
       }
       /**
-       * Fetch prices for multiple tokens
+       * Fetch prices for multiple tokens via Pyth Network Hermes API
+       *
+       * Jupiter's price API (v2/v3) now requires authentication.
+       * Uses Pyth Network as price source since Jupiter Perps uses Pyth oracles on-chain.
        */
       async fetchPrices(tokenMints) {
         const mints = tokenMints.map((t) => {
@@ -30677,10 +32427,40 @@ var init_JupiterAdapter = __esm({
         });
         const url = buildPriceApiUrl(mints);
         const response = await this.request("GET", url);
-        for (const [id, data] of Object.entries(response.data)) {
-          this.priceCache.set(id, { price: data, timestamp: Date.now() });
+        const result = {};
+        if (!response.parsed || response.parsed.length === 0) {
+          return result;
         }
-        return response.data;
+        const { JUPITER_PYTH_FEED_IDS: JUPITER_PYTH_FEED_IDS2 } = await Promise.resolve().then(() => (init_constants11(), constants_exports));
+        const feedToMint = {};
+        for (const [tokenName, feedId] of Object.entries(JUPITER_PYTH_FEED_IDS2)) {
+          const mint = JUPITER_TOKEN_MINTS[tokenName];
+          if (mint) {
+            const normalizedId = feedId.replace("0x", "");
+            feedToMint[normalizedId] = mint;
+          }
+        }
+        for (const parsed of response.parsed) {
+          const mint = feedToMint[parsed.id];
+          if (!mint) continue;
+          const priceNum = parseInt(parsed.price.price, 10) * Math.pow(10, parsed.price.expo);
+          const priceStr = priceNum.toString();
+          const priceData = {
+            id: mint,
+            type: "derivedPrice",
+            price: priceStr,
+            extraInfo: {
+              confidenceLevel: "high",
+              quotedPrice: {
+                buyPrice: priceStr,
+                sellPrice: priceStr
+              }
+            }
+          };
+          result[mint] = priceData;
+          this.priceCache.set(mint, { price: priceData, timestamp: Date.now() });
+        }
+        return result;
       }
       /**
        * Filter markets by params
@@ -30921,8 +32701,188 @@ var init_jupiter = __esm({
     init_instructions();
     init_JupiterNormalizer();
     init_constants11();
-    init_error_codes5();
+    init_error_codes6();
     init_utils9();
+  }
+});
+
+// src/adapters/drift/types.ts
+var DriftPerpPositionSchema, DriftSpotPositionSchema, DriftOrderSchema, DriftPerpMarketAccountSchema, DriftL2OrderBookSchema, DriftTradeSchema, DriftFundingRateSchema, DriftFundingRateRecordSchema, DriftMarketStatsSchema, DriftCandleSchema;
+var init_types14 = __esm({
+  "src/adapters/drift/types.ts"() {
+    "use strict";
+    init_zod();
+    DriftPerpPositionSchema = external_exports.object({
+      marketIndex: external_exports.number(),
+      baseAssetAmount: external_exports.string(),
+      quoteAssetAmount: external_exports.string(),
+      quoteEntryAmount: external_exports.string(),
+      quoteBreakEvenAmount: external_exports.string(),
+      openOrders: external_exports.number(),
+      openBids: external_exports.string(),
+      openAsks: external_exports.string(),
+      settledPnl: external_exports.string(),
+      lpShares: external_exports.string(),
+      lastCumulativeFundingRate: external_exports.string(),
+      perLpBase: external_exports.number()
+    }).passthrough();
+    DriftSpotPositionSchema = external_exports.object({
+      marketIndex: external_exports.number(),
+      scaledBalance: external_exports.string(),
+      balanceType: external_exports.string(),
+      openOrders: external_exports.number(),
+      cumulativeDeposits: external_exports.string()
+    }).passthrough();
+    DriftOrderSchema = external_exports.object({
+      status: external_exports.string(),
+      orderType: external_exports.string(),
+      marketType: external_exports.string(),
+      slot: external_exports.number(),
+      orderId: external_exports.number(),
+      userOrderId: external_exports.number(),
+      marketIndex: external_exports.number(),
+      price: external_exports.string(),
+      baseAssetAmount: external_exports.string(),
+      baseAssetAmountFilled: external_exports.string(),
+      quoteAssetAmountFilled: external_exports.string(),
+      direction: external_exports.string(),
+      reduceOnly: external_exports.boolean(),
+      triggerPrice: external_exports.string(),
+      triggerCondition: external_exports.string(),
+      existingPositionDirection: external_exports.string(),
+      postOnly: external_exports.string(),
+      immediateOrCancel: external_exports.boolean(),
+      maxTs: external_exports.string(),
+      oraclePriceOffset: external_exports.number(),
+      auctionDuration: external_exports.number(),
+      auctionStartPrice: external_exports.string(),
+      auctionEndPrice: external_exports.string()
+    }).passthrough();
+    DriftPerpMarketAccountSchema = external_exports.object({
+      status: external_exports.string(),
+      marketIndex: external_exports.number(),
+      pnlPool: external_exports.object({
+        scaledBalance: external_exports.string(),
+        marketIndex: external_exports.number()
+      }).passthrough(),
+      name: external_exports.string(),
+      amm: external_exports.any(),
+      // AMM structure is complex and varies
+      numberOfUsersWithBase: external_exports.number(),
+      numberOfUsers: external_exports.number(),
+      marginRatioInitial: external_exports.coerce.number(),
+      marginRatioMaintenance: external_exports.coerce.number(),
+      nextFillRecordId: external_exports.string(),
+      nextFundingRateRecordId: external_exports.string(),
+      nextCurveRecordId: external_exports.string(),
+      imfFactor: external_exports.coerce.number(),
+      unrealizedPnlImfFactor: external_exports.coerce.number(),
+      liquidatorFee: external_exports.coerce.number(),
+      ifLiquidationFee: external_exports.coerce.number(),
+      unrealizedPnlMaxImbalance: external_exports.string(),
+      expiryTs: external_exports.string(),
+      expiryPrice: external_exports.string(),
+      insuranceClaim: external_exports.any(),
+      contractType: external_exports.string(),
+      contractTier: external_exports.string(),
+      pausedOperations: external_exports.number(),
+      quoteSpotMarketIndex: external_exports.number(),
+      feeAdjustment: external_exports.coerce.number()
+    }).passthrough();
+    DriftL2OrderBookSchema = external_exports.object({
+      marketIndex: external_exports.number(),
+      marketType: external_exports.string(),
+      bids: external_exports.array(
+        external_exports.object({
+          price: external_exports.string(),
+          size: external_exports.string(),
+          sources: external_exports.record(external_exports.string(), external_exports.string()).optional()
+        })
+      ),
+      asks: external_exports.array(
+        external_exports.object({
+          price: external_exports.string(),
+          size: external_exports.string(),
+          sources: external_exports.record(external_exports.string(), external_exports.string()).optional()
+        })
+      ),
+      oraclePrice: external_exports.string(),
+      slot: external_exports.number()
+    }).passthrough();
+    DriftTradeSchema = external_exports.object({
+      recordId: external_exports.union([external_exports.string(), external_exports.number()]),
+      fillRecordId: external_exports.union([external_exports.string(), external_exports.number()]),
+      marketIndex: external_exports.number(),
+      marketType: external_exports.string(),
+      taker: external_exports.string(),
+      takerOrderId: external_exports.number(),
+      takerOrderDirection: external_exports.string(),
+      maker: external_exports.string(),
+      makerOrderId: external_exports.number(),
+      makerOrderDirection: external_exports.string(),
+      baseAssetAmount: external_exports.string(),
+      quoteAssetAmount: external_exports.string(),
+      fillPrice: external_exports.string(),
+      action: external_exports.string(),
+      actionExplanation: external_exports.string(),
+      txSig: external_exports.string(),
+      slot: external_exports.number(),
+      ts: external_exports.number()
+    }).passthrough();
+    DriftFundingRateSchema = external_exports.object({
+      marketIndex: external_exports.number(),
+      fundingRate: external_exports.string(),
+      fundingRateLong: external_exports.string(),
+      fundingRateShort: external_exports.string(),
+      cumulativeFundingRateLong: external_exports.string(),
+      cumulativeFundingRateShort: external_exports.string(),
+      oraclePrice: external_exports.string(),
+      markPriceTwap: external_exports.string(),
+      ts: external_exports.number()
+    }).passthrough();
+    DriftFundingRateRecordSchema = external_exports.object({
+      recordId: external_exports.union([external_exports.string(), external_exports.number()]),
+      marketIndex: external_exports.number(),
+      fundingRate: external_exports.string(),
+      fundingRateLong: external_exports.string(),
+      fundingRateShort: external_exports.string(),
+      cumulativeFundingRateLong: external_exports.string(),
+      cumulativeFundingRateShort: external_exports.string(),
+      oraclePriceTwap: external_exports.string(),
+      markPriceTwap: external_exports.string(),
+      periodRevenue: external_exports.string(),
+      baseAssetAmountWithAmm: external_exports.string(),
+      baseAssetAmountWithUnsettledLp: external_exports.string(),
+      ts: external_exports.number()
+    }).passthrough();
+    DriftMarketStatsSchema = external_exports.object({
+      marketIndex: external_exports.number(),
+      oraclePrice: external_exports.string(),
+      markPrice: external_exports.string(),
+      bidPrice: external_exports.string(),
+      askPrice: external_exports.string(),
+      lastFillPrice: external_exports.string(),
+      volume24h: external_exports.string(),
+      openInterest: external_exports.string(),
+      openInterestLong: external_exports.string(),
+      openInterestShort: external_exports.string(),
+      fundingRate: external_exports.string(),
+      fundingRate24h: external_exports.string(),
+      nextFundingRate: external_exports.string(),
+      nextFundingTs: external_exports.number(),
+      ts: external_exports.number()
+    }).passthrough();
+    DriftCandleSchema = external_exports.object({
+      start: external_exports.number(),
+      end: external_exports.number(),
+      resolution: external_exports.number(),
+      open: external_exports.string(),
+      high: external_exports.string(),
+      low: external_exports.string(),
+      close: external_exports.string(),
+      volume: external_exports.string(),
+      trades: external_exports.number()
+    }).passthrough();
   }
 });
 
@@ -31209,27 +33169,30 @@ var DriftNormalizer;
 var init_DriftNormalizer = __esm({
   "src/adapters/drift/DriftNormalizer.ts"() {
     "use strict";
+    init_types14();
     init_constants12();
     DriftNormalizer = class {
       /**
        * Normalize perp market account to unified Market
        */
       normalizeMarket(market) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[market.marketIndex];
+        const validated = DriftPerpMarketAccountSchema.parse(market);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex ?? 0];
         const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : void 0;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${market.marketIndex}`);
-        const tickSize = config?.tickSize || parseFloat(market.amm.orderTickSize) / DRIFT_PRECISION.PRICE;
-        const stepSize = config?.stepSize || parseFloat(market.amm.orderStepSize) / DRIFT_PRECISION.BASE;
-        const minOrderSize = config?.minOrderSize || parseFloat(market.amm.minOrderSize) / DRIFT_PRECISION.BASE;
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex ?? 0}`);
+        const amm = validated.amm;
+        const tickSize = config?.tickSize || (amm?.orderTickSize ? parseFloat(amm.orderTickSize) / DRIFT_PRECISION.PRICE : 0.01);
+        const stepSize = config?.stepSize || (amm?.orderStepSize ? parseFloat(amm.orderStepSize) / DRIFT_PRECISION.BASE : 1e-3);
+        const minOrderSize = config?.minOrderSize || (amm?.minOrderSize ? parseFloat(amm.minOrderSize) / DRIFT_PRECISION.BASE : 1e-3);
         return {
-          id: marketKey || `PERP-${market.marketIndex}`,
+          id: marketKey || `PERP-${validated.marketIndex ?? 0}`,
           symbol,
-          base: config?.baseAsset || market.name?.split("-")[0] || `ASSET${market.marketIndex}`,
+          base: config?.baseAsset || validated.name?.split("-")[0] || `ASSET${validated.marketIndex ?? 0}`,
           quote: "USD",
           settle: "USD",
-          active: market.status === "active",
+          active: validated.status === "active",
           minAmount: minOrderSize,
-          maxAmount: parseFloat(market.amm.maxPositionSize) / DRIFT_PRECISION.BASE,
+          maxAmount: amm?.maxPositionSize ? parseFloat(amm.maxPositionSize) / DRIFT_PRECISION.BASE : Number.MAX_SAFE_INTEGER,
           pricePrecision: this.getPrecisionFromTickSize(tickSize),
           amountPrecision: this.getPrecisionFromTickSize(stepSize),
           priceTickSize: tickSize,
@@ -31238,16 +33201,16 @@ var init_DriftNormalizer = __esm({
           // Drift rebates makers (-0.02%)
           takerFee: 1e-3,
           // 0.1% taker fee (varies by tier)
-          maxLeverage: config?.maxLeverage || Math.floor(DRIFT_PRECISION.MARGIN / market.marginRatioInitial),
+          maxLeverage: config?.maxLeverage || Math.floor(DRIFT_PRECISION.MARGIN / validated.marginRatioInitial),
           fundingIntervalHours: 1,
           contractSize: 1,
           info: {
-            marketIndex: market.marketIndex,
-            contractTier: config?.contractTier || market.contractTier,
-            marginRatioInitial: market.marginRatioInitial / DRIFT_PRECISION.MARGIN,
-            marginRatioMaintenance: market.marginRatioMaintenance / DRIFT_PRECISION.MARGIN,
-            imfFactor: market.imfFactor,
-            numberOfUsers: market.numberOfUsers
+            marketIndex: validated.marketIndex,
+            contractTier: config?.contractTier || validated.contractTier,
+            marginRatioInitial: validated.marginRatioInitial / DRIFT_PRECISION.MARGIN,
+            marginRatioMaintenance: validated.marginRatioMaintenance / DRIFT_PRECISION.MARGIN,
+            imfFactor: validated.imfFactor,
+            numberOfUsers: validated.numberOfUsers
           }
         };
       }
@@ -31261,13 +33224,14 @@ var init_DriftNormalizer = __esm({
        * Normalize perp position to unified Position
        */
       normalizePosition(position, markPrice, _oraclePrice) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[position.marketIndex];
+        const validated = DriftPerpPositionSchema.parse(position);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex];
         const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : void 0;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${position.marketIndex}`);
-        const baseAmount = parseFloat(position.baseAssetAmount) / DRIFT_PRECISION.BASE;
-        const quoteAmount = parseFloat(position.quoteAssetAmount) / DRIFT_PRECISION.QUOTE;
-        const quoteEntry = parseFloat(position.quoteEntryAmount) / DRIFT_PRECISION.QUOTE;
-        const settledPnl = parseFloat(position.settledPnl) / DRIFT_PRECISION.QUOTE;
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+        const baseAmount = parseFloat(validated.baseAssetAmount) / DRIFT_PRECISION.BASE;
+        const quoteAmount = parseFloat(validated.quoteAssetAmount) / DRIFT_PRECISION.QUOTE;
+        const quoteEntry = parseFloat(validated.quoteEntryAmount) / DRIFT_PRECISION.QUOTE;
+        const settledPnl = parseFloat(validated.settledPnl) / DRIFT_PRECISION.QUOTE;
         const side = baseAmount >= 0 ? "long" : "short";
         const size = Math.abs(baseAmount);
         const entryPrice = size > 0 ? Math.abs(quoteEntry) / size : 0;
@@ -31306,11 +33270,11 @@ var init_DriftNormalizer = __esm({
           realizedPnl: settledPnl,
           timestamp: Date.now(),
           info: {
-            marketIndex: position.marketIndex,
-            baseAssetAmount: position.baseAssetAmount,
-            quoteAssetAmount: position.quoteAssetAmount,
-            lpShares: position.lpShares,
-            openOrders: position.openOrders
+            marketIndex: validated.marketIndex,
+            baseAssetAmount: validated.baseAssetAmount,
+            quoteAssetAmount: validated.quoteAssetAmount,
+            lpShares: validated.lpShares,
+            openOrders: validated.openOrders
           }
         };
       }
@@ -31318,45 +33282,46 @@ var init_DriftNormalizer = __esm({
        * Normalize order to unified Order
        */
       normalizeOrder(order, marketPrice) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[order.marketIndex];
+        const validated = DriftOrderSchema.parse(order);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex];
         const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : void 0;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${order.marketIndex}`);
-        const baseAmount = parseFloat(order.baseAssetAmount) / DRIFT_PRECISION.BASE;
-        const filledAmount = parseFloat(order.baseAssetAmountFilled) / DRIFT_PRECISION.BASE;
-        const price = parseFloat(order.price) / DRIFT_PRECISION.PRICE;
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+        const baseAmount = parseFloat(validated.baseAssetAmount) / DRIFT_PRECISION.BASE;
+        const filledAmount = parseFloat(validated.baseAssetAmountFilled) / DRIFT_PRECISION.BASE;
+        const price = parseFloat(validated.price) / DRIFT_PRECISION.PRICE;
         let type = "limit";
-        if (order.orderType === "market") type = "market";
-        else if (order.orderType === "triggerMarket") type = "stopMarket";
-        else if (order.orderType === "triggerLimit") type = "stopLimit";
+        if (validated.orderType === "market") type = "market";
+        else if (validated.orderType === "triggerMarket") type = "stopMarket";
+        else if (validated.orderType === "triggerLimit") type = "stopLimit";
         let status = "open";
-        if (order.status === "filled")
+        if (validated.status === "filled")
           status = filledAmount >= baseAmount ? "filled" : "partiallyFilled";
-        else if (order.status === "canceled") status = "canceled";
-        else if (order.status === "expired") status = "expired";
+        else if (validated.status === "canceled") status = "canceled";
+        else if (validated.status === "expired") status = "expired";
         return {
-          id: order.orderId.toString(),
+          id: validated.orderId.toString(),
           symbol,
           type,
-          side: order.direction === "long" ? "buy" : "sell",
+          side: validated.direction === "long" ? "buy" : "sell",
           amount: baseAmount,
           price: price > 0 ? price : marketPrice,
-          stopPrice: order.triggerPrice !== "0" ? parseFloat(order.triggerPrice) / DRIFT_PRECISION.PRICE : void 0,
+          stopPrice: validated.triggerPrice !== "0" ? parseFloat(validated.triggerPrice) / DRIFT_PRECISION.PRICE : void 0,
           status,
           filled: filledAmount,
           remaining: baseAmount - filledAmount,
-          averagePrice: filledAmount > 0 ? parseFloat(order.quoteAssetAmountFilled) / DRIFT_PRECISION.QUOTE / filledAmount : void 0,
-          reduceOnly: order.reduceOnly,
-          postOnly: order.postOnly !== "none",
-          clientOrderId: order.userOrderId > 0 ? order.userOrderId.toString() : void 0,
-          timestamp: order.slot * 400,
+          averagePrice: filledAmount > 0 ? parseFloat(validated.quoteAssetAmountFilled) / DRIFT_PRECISION.QUOTE / filledAmount : void 0,
+          reduceOnly: validated.reduceOnly,
+          postOnly: validated.postOnly !== "none",
+          clientOrderId: validated.userOrderId > 0 ? validated.userOrderId.toString() : void 0,
+          timestamp: validated.slot * 400,
           // Approximate ms from slot
           info: {
-            orderId: order.orderId,
-            userOrderId: order.userOrderId,
-            marketIndex: order.marketIndex,
-            orderType: order.orderType,
-            auctionDuration: order.auctionDuration,
-            oraclePriceOffset: order.oraclePriceOffset
+            orderId: validated.orderId,
+            userOrderId: validated.userOrderId,
+            marketIndex: validated.marketIndex,
+            orderType: validated.orderType,
+            auctionDuration: validated.auctionDuration,
+            oraclePriceOffset: validated.oraclePriceOffset
           }
         };
       }
@@ -31364,14 +33329,15 @@ var init_DriftNormalizer = __esm({
        * Normalize L2 orderbook
        */
       normalizeOrderBook(orderbook) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[orderbook.marketIndex];
+        const validated = DriftL2OrderBookSchema.parse(orderbook);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex];
         const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : void 0;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${orderbook.marketIndex}`);
-        const bids = orderbook.bids.map((b) => [
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+        const bids = validated.bids.map((b) => [
           parseFloat(b.price) / DRIFT_PRECISION.PRICE,
           parseFloat(b.size) / DRIFT_PRECISION.BASE
         ]);
-        const asks = orderbook.asks.map((a) => [
+        const asks = validated.asks.map((a) => [
           parseFloat(a.price) / DRIFT_PRECISION.PRICE,
           parseFloat(a.size) / DRIFT_PRECISION.BASE
         ]);
@@ -31381,32 +33347,33 @@ var init_DriftNormalizer = __esm({
           bids,
           asks,
           timestamp: Date.now(),
-          sequenceId: orderbook.slot
+          sequenceId: validated.slot
         };
       }
       /**
        * Normalize trade
        */
       normalizeTrade(trade) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[trade.marketIndex];
+        const validated = DriftTradeSchema.parse(trade);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex ?? 0];
         const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : void 0;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${trade.marketIndex}`);
-        const amount = parseFloat(trade.baseAssetAmount) / DRIFT_PRECISION.BASE;
-        const price = parseFloat(trade.fillPrice) / DRIFT_PRECISION.PRICE;
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex ?? 0}`);
+        const amount = parseFloat(validated.baseAssetAmount ?? "0") / DRIFT_PRECISION.BASE;
+        const price = parseFloat(validated.fillPrice ?? "0") / DRIFT_PRECISION.PRICE;
         return {
-          id: trade.fillRecordId,
+          id: String(validated.fillRecordId ?? validated.recordId ?? ""),
           symbol,
-          side: trade.takerOrderDirection === "long" ? "buy" : "sell",
+          side: validated.takerOrderDirection === "long" ? "buy" : "sell",
           price,
           amount,
           cost: amount * price,
-          timestamp: trade.ts * 1e3,
+          timestamp: (validated.ts ?? 0) * 1e3,
           info: {
-            recordId: trade.recordId,
-            taker: trade.taker,
-            maker: trade.maker,
-            txSig: trade.txSig,
-            slot: trade.slot
+            recordId: validated.recordId,
+            taker: validated.taker,
+            maker: validated.maker,
+            txSig: validated.txSig,
+            slot: validated.slot
           }
         };
       }
@@ -31414,13 +33381,14 @@ var init_DriftNormalizer = __esm({
        * Normalize funding rate
        */
       normalizeFundingRate(funding, oraclePrice) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[funding.marketIndex];
+        const validated = "oraclePrice" in funding ? DriftFundingRateSchema.parse(funding) : DriftFundingRateRecordSchema.parse(funding);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex];
         const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : void 0;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${funding.marketIndex}`);
-        const fundingRate = parseFloat(funding.fundingRate) / DRIFT_PRECISION.FUNDING_RATE;
-        const markPrice = "markPriceTwap" in funding ? parseFloat(funding.markPriceTwap) / DRIFT_PRECISION.PRICE : oraclePrice || 0;
-        const indexPrice = "oraclePrice" in funding ? parseFloat(funding.oraclePrice) / DRIFT_PRECISION.PRICE : parseFloat(funding.oraclePriceTwap) / DRIFT_PRECISION.PRICE;
-        const ts = funding.ts * 1e3;
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+        const fundingRate = parseFloat(validated.fundingRate) / DRIFT_PRECISION.FUNDING_RATE;
+        const markPrice = "markPriceTwap" in validated && typeof validated.markPriceTwap === "string" ? parseFloat(validated.markPriceTwap) / DRIFT_PRECISION.PRICE : oraclePrice || 0;
+        const indexPrice = "oraclePrice" in validated && typeof validated.oraclePrice === "string" ? parseFloat(validated.oraclePrice) / DRIFT_PRECISION.PRICE : "oraclePriceTwap" in validated && typeof validated.oraclePriceTwap === "string" ? parseFloat(validated.oraclePriceTwap) / DRIFT_PRECISION.PRICE : 0;
+        const ts = validated.ts * 1e3;
         return {
           symbol,
           fundingRate,
@@ -31431,11 +33399,11 @@ var init_DriftNormalizer = __esm({
           indexPrice,
           fundingIntervalHours: 1,
           info: {
-            marketIndex: funding.marketIndex,
-            fundingRateLong: funding.fundingRateLong,
-            fundingRateShort: funding.fundingRateShort,
-            cumulativeFundingRateLong: funding.cumulativeFundingRateLong,
-            cumulativeFundingRateShort: funding.cumulativeFundingRateShort
+            marketIndex: validated.marketIndex,
+            fundingRateLong: validated.fundingRateLong,
+            fundingRateShort: validated.fundingRateShort,
+            cumulativeFundingRateLong: validated.cumulativeFundingRateLong,
+            cumulativeFundingRateShort: validated.cumulativeFundingRateShort
           }
         };
       }
@@ -31443,17 +33411,18 @@ var init_DriftNormalizer = __esm({
        * Normalize ticker from market stats
        */
       normalizeTicker(stats) {
-        const marketKey = DRIFT_MARKET_INDEX_MAP[stats.marketIndex];
+        const validated = DriftMarketStatsSchema.parse(stats);
+        const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex];
         const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : void 0;
-        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${stats.marketIndex}`);
-        const markPrice = parseFloat(stats.markPrice) / DRIFT_PRECISION.PRICE;
-        const oraclePrice = parseFloat(stats.oraclePrice) / DRIFT_PRECISION.PRICE;
-        const bidPrice = parseFloat(stats.bidPrice) / DRIFT_PRECISION.PRICE;
-        const askPrice = parseFloat(stats.askPrice) / DRIFT_PRECISION.PRICE;
-        const volume = parseFloat(stats.volume24h) / DRIFT_PRECISION.QUOTE;
+        const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+        const markPrice = parseFloat(validated.markPrice) / DRIFT_PRECISION.PRICE;
+        const oraclePrice = parseFloat(validated.oraclePrice) / DRIFT_PRECISION.PRICE;
+        const bidPrice = parseFloat(validated.bidPrice) / DRIFT_PRECISION.PRICE;
+        const askPrice = parseFloat(validated.askPrice) / DRIFT_PRECISION.PRICE;
+        const volume = parseFloat(validated.volume24h) / DRIFT_PRECISION.QUOTE;
         return {
           symbol,
-          timestamp: stats.ts * 1e3,
+          timestamp: validated.ts * 1e3,
           last: markPrice,
           bid: bidPrice,
           ask: askPrice,
@@ -31467,13 +33436,14 @@ var init_DriftNormalizer = __esm({
           baseVolume: volume / markPrice,
           quoteVolume: volume,
           info: {
-            marketIndex: stats.marketIndex,
+            marketIndex: validated.marketIndex,
             oraclePrice,
-            openInterest: parseFloat(stats.openInterest) / DRIFT_PRECISION.BASE,
-            openInterestLong: parseFloat(stats.openInterestLong) / DRIFT_PRECISION.BASE,
-            openInterestShort: parseFloat(stats.openInterestShort) / DRIFT_PRECISION.BASE,
-            fundingRate: parseFloat(stats.fundingRate) / DRIFT_PRECISION.FUNDING_RATE,
-            nextFundingTs: stats.nextFundingTs
+            openInterest: parseFloat(validated.openInterest) / DRIFT_PRECISION.BASE,
+            openInterestLong: parseFloat(validated.openInterestLong) / DRIFT_PRECISION.BASE,
+            openInterestShort: parseFloat(validated.openInterestShort) / DRIFT_PRECISION.BASE,
+            fundingRate: parseFloat(validated.fundingRate) / DRIFT_PRECISION.FUNDING_RATE,
+            nextFundingTs: validated.nextFundingTs,
+            _bidAskSource: "orderbook"
           }
         };
       }
@@ -31481,8 +33451,9 @@ var init_DriftNormalizer = __esm({
        * Normalize balance from spot position
        */
       normalizeBalance(position, tokenPrice, tokenSymbol) {
-        const scaledBalance = parseFloat(position.scaledBalance);
-        const isDeposit = position.balanceType === "deposit";
+        const validated = DriftSpotPositionSchema.parse(position);
+        const scaledBalance = parseFloat(validated.scaledBalance);
+        const isDeposit = validated.balanceType === "deposit";
         const total = isDeposit ? scaledBalance : -scaledBalance;
         return {
           currency: tokenSymbol,
@@ -31491,9 +33462,9 @@ var init_DriftNormalizer = __esm({
           used: isDeposit ? 0 : Math.abs(total),
           usdValue: total * tokenPrice,
           info: {
-            marketIndex: position.marketIndex,
-            balanceType: position.balanceType,
-            cumulativeDeposits: position.cumulativeDeposits
+            marketIndex: validated.marketIndex,
+            balanceType: validated.balanceType,
+            cumulativeDeposits: validated.cumulativeDeposits
           }
         };
       }
@@ -31501,13 +33472,14 @@ var init_DriftNormalizer = __esm({
        * Normalize candle to OHLCV
        */
       normalizeCandle(candle) {
+        const validated = DriftCandleSchema.parse(candle);
         return [
-          candle.start * 1e3,
-          parseFloat(candle.open) / DRIFT_PRECISION.PRICE,
-          parseFloat(candle.high) / DRIFT_PRECISION.PRICE,
-          parseFloat(candle.low) / DRIFT_PRECISION.PRICE,
-          parseFloat(candle.close) / DRIFT_PRECISION.PRICE,
-          parseFloat(candle.volume) / DRIFT_PRECISION.QUOTE
+          validated.start * 1e3,
+          parseFloat(validated.open) / DRIFT_PRECISION.PRICE,
+          parseFloat(validated.high) / DRIFT_PRECISION.PRICE,
+          parseFloat(validated.low) / DRIFT_PRECISION.PRICE,
+          parseFloat(validated.close) / DRIFT_PRECISION.PRICE,
+          parseFloat(validated.volume) / DRIFT_PRECISION.QUOTE
         ];
       }
       // ==========================================================================
@@ -31921,7 +33893,7 @@ function mapDriftError(error) {
   return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "drift", error);
 }
 var DriftErrorCodes;
-var init_error_codes6 = __esm({
+var init_error_codes7 = __esm({
   "src/adapters/drift/error-codes.ts"() {
     "use strict";
     init_errors();
@@ -32169,6 +34141,84 @@ function slotToTimestamp(slot, referenceSlot, referenceTime) {
   const genesisTime = 1584282e6;
   return genesisTime + slot * slotDuration;
 }
+function mapDriftOrderType(type) {
+  const normalized = type.toLowerCase();
+  switch (normalized) {
+    case "market":
+      return "market";
+    case "limit":
+      return "limit";
+    case "triggermarket":
+    case "trigger_market":
+      return "triggerMarket";
+    case "triggerlimit":
+    case "trigger_limit":
+      return "triggerLimit";
+    case "oracle":
+      return "oracle";
+    default:
+      return "limit";
+  }
+}
+function mapDriftOrderStatus(status) {
+  const normalized = status.toLowerCase();
+  switch (normalized) {
+    case "open":
+      return "open";
+    case "filled":
+      return "filled";
+    case "canceled":
+    case "cancelled":
+      return "canceled";
+    case "expired":
+      return "expired";
+    default:
+      return "open";
+  }
+}
+function mapDriftTriggerCondition(condition) {
+  const normalized = condition.toLowerCase();
+  switch (normalized) {
+    case "above":
+      return "above";
+    case "below":
+      return "below";
+    default:
+      return "above";
+  }
+}
+function mapDriftPostOnly(postOnly) {
+  if (typeof postOnly === "boolean") {
+    return postOnly ? "mustPostOnly" : "none";
+  }
+  const normalized = postOnly.toLowerCase();
+  switch (normalized) {
+    case "none":
+    case "false":
+      return "none";
+    case "mustpostonly":
+    case "must_post_only":
+      return "mustPostOnly";
+    case "trypostonly":
+    case "try_post_only":
+      return "tryPostOnly";
+    case "slide":
+      return "slide";
+    default:
+      return "none";
+  }
+}
+function mapDriftPositionDirection(direction) {
+  const normalized = direction.toLowerCase();
+  switch (normalized) {
+    case "long":
+      return "long";
+    case "short":
+      return "short";
+    default:
+      return "long";
+  }
+}
 var init_utils10 = __esm({
   "src/adapters/drift/utils.ts"() {
     "use strict";
@@ -32236,9 +34286,8 @@ var init_DriftAuth = __esm({
           const bytes = this.parsePrivateKey(privateKey);
           void this.initKeypairAsync(bytes);
         } catch (error) {
-          this.logger.warn(
-            `Failed to initialize keypair: ${error instanceof Error ? error.message : String(error)}`
-          );
+          const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, "[REDACTED]");
+          this.logger.warn(`Failed to initialize keypair: ${sanitized}`);
         }
       }
       /**
@@ -32253,9 +34302,8 @@ var init_DriftAuth = __esm({
           this.connection = new Connection(this.rpcEndpoint, "confirmed");
           this.isInitialized = true;
         } catch (error) {
-          this.logger.warn(
-            `Failed to initialize Solana keypair: ${error instanceof Error ? error.message : String(error)}`
-          );
+          const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, "[REDACTED]");
+          this.logger.warn(`Failed to initialize Solana keypair: ${sanitized}`);
         }
       }
       /**
@@ -32798,7 +34846,7 @@ var init_DriftAdapter = __esm({
     init_DriftNormalizer();
     init_orderBuilder();
     init_constants12();
-    init_error_codes6();
+    init_error_codes7();
     init_utils10();
     init_DriftAuth();
     init_DriftClientWrapper();
@@ -32810,7 +34858,8 @@ var init_DriftAdapter = __esm({
         fetchMarkets: true,
         fetchTicker: true,
         fetchOrderBook: true,
-        fetchTrades: true,
+        fetchTrades: false,
+        // DLOB trades endpoint removed; requires on-chain indexing
         fetchFundingRate: true,
         fetchFundingRateHistory: true,
         fetchOHLCV: false,
@@ -32845,6 +34894,7 @@ var init_DriftAdapter = __esm({
       driftClient;
       orderBuilder;
       dlobBaseUrl;
+      dataBaseUrl;
       isTestnet;
       constructor(config = {}) {
         super({
@@ -32853,6 +34903,7 @@ var init_DriftAdapter = __esm({
         });
         this.isTestnet = config.testnet || false;
         this.dlobBaseUrl = this.isTestnet ? DRIFT_API_URLS.devnet.dlob : DRIFT_API_URLS.mainnet.dlob;
+        this.dataBaseUrl = this.isTestnet ? DRIFT_API_URLS.devnet.data : DRIFT_API_URLS.mainnet.data;
         this.normalizer = new DriftNormalizer();
         if (config.privateKey || config.walletAddress) {
           this.auth = new DriftAuth({
@@ -33038,21 +35089,10 @@ var init_DriftAdapter = __esm({
           throw mapDriftError(error);
         }
       }
-      async fetchTrades(symbol, params) {
-        this.ensureInitialized();
-        const driftSymbol = this.symbolToExchange(symbol);
-        if (!isValidMarket2(driftSymbol)) {
-          throw new Error(`Invalid market: ${symbol}`);
-        }
-        try {
-          const marketIndex = getMarketIndex(symbol);
-          const limit = params?.limit || 50;
-          const url = buildTradesUrl(this.dlobBaseUrl, marketIndex, "perp", limit);
-          const trades = await this.request("GET", url);
-          return trades.map((t) => this.normalizer.normalizeTrade(t));
-        } catch (error) {
-          throw mapDriftError(error);
-        }
+      async fetchTrades(_symbol, _params) {
+        throw new Error(
+          "fetchTrades is not available via the Drift REST API. Trade data requires on-chain indexing or the historical data archive."
+        );
       }
       async fetchFundingRate(symbol) {
         this.ensureInitialized();
@@ -33062,9 +35102,14 @@ var init_DriftAdapter = __esm({
         }
         try {
           const marketIndex = getMarketIndex(symbol);
-          const url = `${this.dlobBaseUrl}/fundingRate?marketIndex=${marketIndex}`;
-          const funding = await this.request("GET", url);
-          return this.normalizer.normalizeFundingRate(funding);
+          const url = `${this.dataBaseUrl}/fundingRates?marketIndex=${marketIndex}&limit=1`;
+          const response = await this.request("GET", url);
+          const fundingRates = response.fundingRates || [];
+          if (fundingRates.length === 0) {
+            throw new Error(`No funding rate data available for ${symbol}`);
+          }
+          const latestRate = fundingRates[0];
+          return this.normalizer.normalizeFundingRate(latestRate);
         } catch (error) {
           throw mapDriftError(error);
         }
@@ -33081,9 +35126,9 @@ var init_DriftAdapter = __esm({
             marketIndex: marketIndex.toString()
           });
           if (limit) params.set("limit", limit.toString());
-          const url = `${this.dlobBaseUrl}/fundingRateHistory?${params.toString()}`;
-          const history = await this.request("GET", url);
-          return history.map((f) => this.normalizer.normalizeFundingRate(f));
+          const url = `${this.dataBaseUrl}/fundingRates?${params.toString()}`;
+          const response = await this.request("GET", url);
+          return (response.fundingRates || []).map((f) => this.normalizer.normalizeFundingRate(f));
         } catch (error) {
           throw mapDriftError(error);
         }
@@ -33178,12 +35223,12 @@ var init_DriftAdapter = __esm({
           const orders = ordersData.orders.filter((o) => o.marketType === "perp").map(
             (o) => this.normalizer.normalizeOrder({
               ...o,
-              orderType: o.orderType,
+              orderType: mapDriftOrderType(o.orderType),
               direction: o.direction,
-              status: o.status,
-              triggerCondition: o.triggerCondition,
-              postOnly: o.postOnly,
-              existingPositionDirection: o.existingPositionDirection
+              status: mapDriftOrderStatus(o.status),
+              triggerCondition: mapDriftTriggerCondition(o.triggerCondition),
+              postOnly: mapDriftPostOnly(o.postOnly),
+              existingPositionDirection: mapDriftPositionDirection(o.existingPositionDirection)
             })
           );
           if (symbol) {
@@ -33451,12 +35496,190 @@ var init_drift = __esm({
     init_orderBuilder();
     init_DriftNormalizer();
     init_constants12();
-    init_error_codes6();
+    init_error_codes7();
     init_utils10();
   }
 });
 
+// src/adapters/gmx/types.ts
+var GmxTokenInfoSchema, GmxMarketInfoSchema, GmxCandleTupleSchema, GmxCandlesResponseSchema, GmxPositionSchema, GmxOrderSchema, GmxTradeSchema, GmxFundingRateSchema;
+var init_types15 = __esm({
+  "src/adapters/gmx/types.ts"() {
+    "use strict";
+    init_zod();
+    GmxTokenInfoSchema = external_exports.object({
+      address: external_exports.string(),
+      symbol: external_exports.string(),
+      decimals: external_exports.number(),
+      prices: external_exports.object({
+        minPrice: external_exports.string(),
+        maxPrice: external_exports.string()
+      }).passthrough()
+    }).passthrough();
+    GmxMarketInfoSchema = external_exports.object({
+      marketToken: external_exports.string(),
+      indexToken: external_exports.string(),
+      longToken: external_exports.string(),
+      shortToken: external_exports.string(),
+      name: external_exports.string().optional(),
+      isListed: external_exports.boolean().optional(),
+      indexTokenInfo: GmxTokenInfoSchema.optional(),
+      longTokenInfo: GmxTokenInfoSchema.optional(),
+      shortTokenInfo: GmxTokenInfoSchema.optional(),
+      longPoolAmount: external_exports.string(),
+      shortPoolAmount: external_exports.string(),
+      maxLongPoolAmount: external_exports.string(),
+      maxShortPoolAmount: external_exports.string(),
+      maxLongPoolUsdForDeposit: external_exports.string(),
+      maxShortPoolUsdForDeposit: external_exports.string(),
+      longPoolAmountAdjustment: external_exports.string(),
+      shortPoolAmountAdjustment: external_exports.string(),
+      poolValueMin: external_exports.string(),
+      poolValueMax: external_exports.string(),
+      reserveFactorLong: external_exports.string(),
+      reserveFactorShort: external_exports.string(),
+      openInterestReserveFactorLong: external_exports.string(),
+      openInterestReserveFactorShort: external_exports.string(),
+      maxOpenInterestLong: external_exports.string(),
+      maxOpenInterestShort: external_exports.string(),
+      totalBorrowingFees: external_exports.string(),
+      positionImpactPoolAmount: external_exports.string(),
+      minPositionImpactPoolAmount: external_exports.string(),
+      positionImpactPoolDistributionRate: external_exports.string(),
+      swapImpactPoolAmountLong: external_exports.string(),
+      swapImpactPoolAmountShort: external_exports.string(),
+      borrowingFactorLong: external_exports.string(),
+      borrowingFactorShort: external_exports.string(),
+      borrowingExponentFactorLong: external_exports.string(),
+      borrowingExponentFactorShort: external_exports.string(),
+      fundingFactor: external_exports.string(),
+      fundingExponentFactor: external_exports.string(),
+      fundingIncreaseFactorPerSecond: external_exports.string(),
+      fundingDecreaseFactorPerSecond: external_exports.string(),
+      thresholdForStableFunding: external_exports.string(),
+      thresholdForDecreaseFunding: external_exports.string(),
+      minFundingFactorPerSecond: external_exports.string(),
+      maxFundingFactorPerSecond: external_exports.string(),
+      pnlLongMax: external_exports.string(),
+      pnlLongMin: external_exports.string(),
+      pnlShortMax: external_exports.string(),
+      pnlShortMin: external_exports.string(),
+      netPnlMax: external_exports.string(),
+      netPnlMin: external_exports.string(),
+      maxPnlFactorForTradersLong: external_exports.string(),
+      maxPnlFactorForTradersShort: external_exports.string(),
+      minCollateralFactor: external_exports.string(),
+      minCollateralFactorForOpenInterestLong: external_exports.string(),
+      minCollateralFactorForOpenInterestShort: external_exports.string(),
+      claimableFundingAmountLong: external_exports.string(),
+      claimableFundingAmountShort: external_exports.string(),
+      positionFeeFactorForPositiveImpact: external_exports.string(),
+      positionFeeFactorForNegativeImpact: external_exports.string(),
+      positionImpactFactorPositive: external_exports.string(),
+      positionImpactFactorNegative: external_exports.string(),
+      maxPositionImpactFactorPositive: external_exports.string(),
+      maxPositionImpactFactorNegativePrice: external_exports.string(),
+      positionImpactExponentFactor: external_exports.string(),
+      swapFeeFactorForPositiveImpact: external_exports.string(),
+      swapFeeFactorForNegativeImpact: external_exports.string(),
+      swapImpactFactorPositive: external_exports.string(),
+      swapImpactFactorNegative: external_exports.string(),
+      swapImpactExponentFactor: external_exports.string(),
+      longInterestInTokens: external_exports.string(),
+      shortInterestInTokens: external_exports.string(),
+      longInterestUsd: external_exports.string(),
+      shortInterestUsd: external_exports.string(),
+      longInterestInTokensUsingLongToken: external_exports.string(),
+      longInterestInTokensUsingShortToken: external_exports.string(),
+      shortInterestInTokensUsingLongToken: external_exports.string(),
+      shortInterestInTokensUsingShortToken: external_exports.string(),
+      isDisabled: external_exports.boolean(),
+      virtualPoolAmountForLongToken: external_exports.string(),
+      virtualPoolAmountForShortToken: external_exports.string(),
+      virtualInventoryForPositions: external_exports.string(),
+      virtualMarketId: external_exports.string(),
+      virtualLongTokenId: external_exports.string(),
+      virtualShortTokenId: external_exports.string()
+    }).passthrough();
+    GmxCandleTupleSchema = external_exports.array(external_exports.number());
+    GmxCandlesResponseSchema = external_exports.object({
+      period: external_exports.string(),
+      candles: external_exports.array(GmxCandleTupleSchema)
+    }).passthrough();
+    GmxPositionSchema = external_exports.object({
+      account: external_exports.string(),
+      market: external_exports.string(),
+      collateralToken: external_exports.string(),
+      sizeInUsd: external_exports.string(),
+      sizeInTokens: external_exports.string(),
+      collateralAmount: external_exports.string(),
+      borrowingFactor: external_exports.string(),
+      fundingFeeAmountPerSize: external_exports.string(),
+      longTokenClaimableFundingAmountPerSize: external_exports.string(),
+      shortTokenClaimableFundingAmountPerSize: external_exports.string(),
+      increasedAtBlock: external_exports.string(),
+      decreasedAtBlock: external_exports.string(),
+      isLong: external_exports.boolean()
+    }).passthrough();
+    GmxOrderSchema = external_exports.object({
+      key: external_exports.string(),
+      account: external_exports.string(),
+      receiver: external_exports.string(),
+      callbackContract: external_exports.string(),
+      uiFeeReceiver: external_exports.string(),
+      market: external_exports.string(),
+      initialCollateralToken: external_exports.string(),
+      swapPath: external_exports.array(external_exports.string()),
+      orderType: external_exports.number(),
+      decreasePositionSwapType: external_exports.number(),
+      sizeDeltaUsd: external_exports.string(),
+      initialCollateralDeltaAmount: external_exports.string(),
+      triggerPrice: external_exports.string(),
+      acceptablePrice: external_exports.string(),
+      executionFee: external_exports.string(),
+      callbackGasLimit: external_exports.string(),
+      minOutputAmount: external_exports.string(),
+      updatedAtBlock: external_exports.string(),
+      isLong: external_exports.boolean(),
+      isFrozen: external_exports.boolean(),
+      status: external_exports.string(),
+      createdTxn: external_exports.string(),
+      cancelledTxn: external_exports.string().optional(),
+      executedTxn: external_exports.string().optional()
+    }).passthrough();
+    GmxTradeSchema = external_exports.object({
+      id: external_exports.string(),
+      account: external_exports.string(),
+      market: external_exports.string(),
+      collateralToken: external_exports.string(),
+      sizeDeltaUsd: external_exports.string(),
+      sizeDeltaInTokens: external_exports.string(),
+      collateralDeltaAmount: external_exports.string(),
+      borrowingFactor: external_exports.string(),
+      fundingFeeAmountPerSize: external_exports.string(),
+      pnlUsd: external_exports.string(),
+      priceImpactUsd: external_exports.string(),
+      orderType: external_exports.number(),
+      isLong: external_exports.boolean(),
+      executionPrice: external_exports.string(),
+      timestamp: external_exports.number(),
+      transactionHash: external_exports.string()
+    }).passthrough();
+    GmxFundingRateSchema = external_exports.object({
+      market: external_exports.string(),
+      fundingFactorPerSecond: external_exports.string(),
+      longsPayShorts: external_exports.boolean(),
+      fundingFeeAmountPerSizeLong: external_exports.string(),
+      fundingFeeAmountPerSizeShort: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
+  }
+});
+
 // src/adapters/gmx/constants.ts
+function getTokenDecimalsByAddress(tokenAddress) {
+  return GMX_TOKEN_ADDRESS_DECIMALS[tokenAddress.toLowerCase()] ?? 18;
+}
 function unifiedToGmx(symbol) {
   if (symbol in GMX_MARKETS) {
     return symbol;
@@ -33482,10 +35705,18 @@ function getBaseToken3(symbol) {
   const parts = symbol.split("/");
   return parts[0]?.toUpperCase() || "";
 }
+function getTokenDecimals(baseAsset) {
+  const decimals = GMX_PRECISION.TOKEN_DECIMALS[baseAsset];
+  return decimals ?? 18;
+}
+function getOraclePriceDivisor(baseAsset) {
+  const tokenDecimals = getTokenDecimals(baseAsset);
+  return Math.pow(10, 30 - tokenDecimals);
+}
 function getMarketsForChain(chain) {
   return Object.values(GMX_MARKETS).filter((m) => m.chain === chain);
 }
-var GMX_API_URLS, GMX_ARBITRUM_API, GMX_AVALANCHE_API, GMX_PRECISION, GMX_RATE_LIMIT, GMX_MARKETS, GMX_MARKET_ADDRESS_MAP, GMX_ORDER_TYPES, GMX_DECREASE_POSITION_SWAP_TYPES, GMX_FUNDING, GMX_CONTRACTS, GMX_ERROR_MESSAGES;
+var GMX_API_URLS, GMX_ARBITRUM_API, GMX_AVALANCHE_API, GMX_PRECISION, GMX_RATE_LIMIT, GMX_MARKETS, GMX_MARKET_ADDRESS_MAP, GMX_TOKEN_ADDRESS_DECIMALS, GMX_ORDER_TYPES, GMX_DECREASE_POSITION_SWAP_TYPES, GMX_FUNDING, GMX_CONTRACTS, GMX_ERROR_MESSAGES;
 var init_constants13 = __esm({
   "src/adapters/gmx/constants.ts"() {
     "use strict";
@@ -33763,6 +35994,38 @@ var init_constants13 = __esm({
       },
       {}
     );
+    GMX_TOKEN_ADDRESS_DECIMALS = {
+      // Arbitrum
+      "0x82af49447d8a07e3bd95bd0d56f35241523fbab1": 18,
+      // WETH
+      "0x47904963fc8b2340414262125af798b9655e58cd": 8,
+      // WBTC
+      "0xaf88d065e77c8cc2239327c5edb3a432268e5831": 6,
+      // USDC (native)
+      "0x912ce59144191c1204e64559fe8253a0e49e6548": 18,
+      // ARB
+      "0x2bcc6d6cdbbdc0a4071e48bb3b969b06b3330c07": 9,
+      // SOL
+      "0xf97f4df75117a78c1a5a0dbb814af92458539fb4": 18,
+      // LINK
+      "0xc4da4c24fd591125c3f47b340b6f4f76111883d8": 18,
+      // DOGE
+      "0xc14e065b0067de91534e032868f5ac6ecf2c6868": 18,
+      // XRP
+      "0xb46a094bc4b0adbd801e14b9db95e05e28962764": 18,
+      // LTC
+      "0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0": 18,
+      // UNI
+      // Avalanche
+      "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": 18,
+      // WAVAX
+      "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e": 6,
+      // USDC (Avalanche)
+      "0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab": 18,
+      // WETH.e
+      "0x152b9d0fdc40c096757f570a51e494bd4b943e50": 8
+      // BTC.b
+    };
     GMX_ORDER_TYPES = {
       MARKET_INCREASE: 0,
       // Open/increase position at market
@@ -33831,6 +36094,7 @@ var GmxNormalizer;
 var init_GmxNormalizer = __esm({
   "src/adapters/gmx/GmxNormalizer.ts"() {
     "use strict";
+    init_types15();
     init_constants13();
     GmxNormalizer = class {
       /**
@@ -33847,18 +36111,20 @@ var init_GmxNormalizer = __esm({
        * Normalize market info to unified Market
        */
       normalizeMarket(market, chain) {
-        const marketKey = GMX_MARKET_ADDRESS_MAP[market.marketToken.toLowerCase()];
+        const validated = GmxMarketInfoSchema.parse(market);
+        const marketToken = validated.marketToken ?? "";
+        const marketKey = GMX_MARKET_ADDRESS_MAP[marketToken.toLowerCase()];
         const config = marketKey ? GMX_MARKETS[marketKey] : void 0;
-        const baseSymbol = config?.baseAsset || this.extractBaseFromName(market.name);
+        const baseSymbol = config?.baseAsset || this.extractBaseFromName(validated.name);
         const symbol = config?.symbol || `${baseSymbol}/USD`;
-        const maxOI = parseFloat(market.maxOpenInterestLong) / GMX_PRECISION.USD;
+        const maxOI = parseFloat(validated.maxOpenInterestLong ?? "0") / GMX_PRECISION.USD;
         return {
-          id: market.marketToken,
+          id: marketToken,
           symbol,
           base: baseSymbol,
           quote: "USD",
           settle: config?.settleAsset || "USD",
-          active: !market.isDisabled,
+          active: !(validated.isDisabled ?? false),
           minAmount: config?.minOrderSize || 1e-3,
           maxAmount: maxOI > 0 ? maxOI : 1e6,
           // Fallback if price unavailable
@@ -33875,18 +36141,18 @@ var init_GmxNormalizer = __esm({
           // Continuous funding, normalized to 1h
           contractSize: 1,
           info: {
-            marketToken: market.marketToken,
-            indexToken: market.indexToken,
-            longToken: market.longToken,
-            shortToken: market.shortToken,
+            marketToken: validated.marketToken ?? "",
+            indexToken: validated.indexToken ?? "",
+            longToken: validated.longToken ?? "",
+            shortToken: validated.shortToken ?? "",
             chain,
-            longPoolAmount: market.longPoolAmount,
-            shortPoolAmount: market.shortPoolAmount,
-            longInterestUsd: market.longInterestUsd,
-            shortInterestUsd: market.shortInterestUsd,
-            fundingFactor: market.fundingFactor,
-            borrowingFactorLong: market.borrowingFactorLong,
-            borrowingFactorShort: market.borrowingFactorShort
+            longPoolAmount: validated.longPoolAmount ?? "0",
+            shortPoolAmount: validated.shortPoolAmount ?? "0",
+            longInterestUsd: validated.longInterestUsd ?? "0",
+            shortInterestUsd: validated.shortInterestUsd ?? "0",
+            fundingFactor: validated.fundingFactor ?? "0",
+            borrowingFactorLong: validated.borrowingFactorLong ?? "0",
+            borrowingFactorShort: validated.borrowingFactorShort ?? "0"
           }
         };
       }
@@ -33900,13 +36166,17 @@ var init_GmxNormalizer = __esm({
        * Normalize position to unified Position
        */
       normalizePosition(position, markPrice, chain) {
-        const marketKey = GMX_MARKET_ADDRESS_MAP[position.market.toLowerCase()];
+        const validated = GmxPositionSchema.parse(position);
+        const market = validated.market ?? "";
+        const marketKey = GMX_MARKET_ADDRESS_MAP[market.toLowerCase()];
         const config = marketKey ? GMX_MARKETS[marketKey] : void 0;
         const symbol = config?.symbol || gmxToUnified(marketKey);
-        const sizeInUsd = parseFloat(position.sizeInUsd) / GMX_PRECISION.USD;
-        const sizeInTokens = parseFloat(position.sizeInTokens) / 10 ** 18;
-        const collateral = parseFloat(position.collateralAmount) / 10 ** 18;
-        const side = position.isLong ? "long" : "short";
+        const sizeInUsd = parseFloat(validated.sizeInUsd ?? "0") / GMX_PRECISION.USD;
+        const indexTokenDecimals = config ? getTokenDecimals(config.baseAsset) : 18;
+        const sizeInTokens = parseFloat(validated.sizeInTokens ?? "0") / 10 ** indexTokenDecimals;
+        const collateralDecimals = getTokenDecimalsByAddress(validated.collateralToken ?? "");
+        const collateral = parseFloat(validated.collateralAmount ?? "0") / 10 ** collateralDecimals;
+        const side = validated.isLong ?? true ? "long" : "short";
         const entryPrice = sizeInTokens > 0 ? sizeInUsd / sizeInTokens : markPrice;
         const notional = sizeInTokens * markPrice;
         const unrealizedPnl = this.calculateUnrealizedPnl(side, sizeInTokens, entryPrice, markPrice);
@@ -33940,14 +36210,14 @@ var init_GmxNormalizer = __esm({
           ),
           unrealizedPnl,
           realizedPnl: 0,
-          // Would need historical data
           timestamp: Date.now(),
           info: {
-            marketAddress: position.market,
-            collateralToken: position.collateralToken,
-            borrowingFactor: position.borrowingFactor,
-            fundingFeeAmountPerSize: position.fundingFeeAmountPerSize,
-            chain
+            marketAddress: validated.market ?? "",
+            collateralToken: validated.collateralToken ?? "",
+            borrowingFactor: validated.borrowingFactor ?? "0",
+            fundingFeeAmountPerSize: validated.fundingFeeAmountPerSize ?? "0",
+            chain,
+            _realizedPnlSource: "not_available"
           }
         };
       }
@@ -33955,53 +36225,58 @@ var init_GmxNormalizer = __esm({
        * Normalize order to unified Order
        */
       normalizeOrder(order, marketPrice) {
-        const marketKey = GMX_MARKET_ADDRESS_MAP[order.market.toLowerCase()];
+        const validated = GmxOrderSchema.parse(order);
+        const market = validated.market ?? "";
+        const marketKey = GMX_MARKET_ADDRESS_MAP[market.toLowerCase()];
         const config = marketKey ? GMX_MARKETS[marketKey] : void 0;
         const symbol = config?.symbol || gmxToUnified(marketKey);
-        const sizeDeltaUsd = parseFloat(order.sizeDeltaUsd) / GMX_PRECISION.USD;
-        const triggerPrice = parseFloat(order.triggerPrice) / GMX_PRECISION.PRICE;
-        const acceptablePrice = parseFloat(order.acceptablePrice) / GMX_PRECISION.PRICE;
+        const sizeDeltaUsd = parseFloat(validated.sizeDeltaUsd ?? "0") / GMX_PRECISION.USD;
+        const triggerPrice = parseFloat(validated.triggerPrice ?? "0") / GMX_PRECISION.PRICE;
+        const acceptablePrice = parseFloat(validated.acceptablePrice ?? "0") / GMX_PRECISION.PRICE;
+        const orderType = validated.orderType ?? 0;
         let type = "market";
-        if (order.orderType === 0 || order.orderType === 1) {
+        if (orderType === 0 || orderType === 1) {
           type = "market";
-        } else if (order.orderType === 2 || order.orderType === 3) {
+        } else if (orderType === 2 || orderType === 3) {
           type = "limit";
-        } else if (order.orderType === 4) {
+        } else if (orderType === 4) {
           type = "stopMarket";
         }
-        const isIncrease = order.orderType === 0 || order.orderType === 2;
-        const side = isIncrease && order.isLong || !isIncrease && !order.isLong ? "buy" : "sell";
+        const isLong = validated.isLong ?? true;
+        const isIncrease = orderType === 0 || orderType === 2;
+        const side = isIncrease && isLong || !isIncrease && !isLong ? "buy" : "sell";
         let status = "open";
-        if (order.status === "Executed") status = "filled";
-        else if (order.status === "Cancelled") status = "canceled";
-        else if (order.status === "Expired") status = "expired";
-        else if (order.isFrozen) status = "rejected";
+        const statusStr = validated.status ?? "";
+        if (statusStr === "Executed") status = "filled";
+        else if (statusStr === "Cancelled") status = "canceled";
+        else if (statusStr === "Expired") status = "expired";
+        else if (validated.isFrozen) status = "rejected";
         const price = triggerPrice > 0 ? triggerPrice : marketPrice || acceptablePrice;
         const amount = price > 0 ? sizeDeltaUsd / price : 0;
         return {
-          id: order.key,
+          id: validated.key ?? "",
           symbol,
           type,
           side,
           amount,
           price,
-          stopPrice: order.orderType === 4 ? triggerPrice : void 0,
+          stopPrice: orderType === 4 ? triggerPrice : void 0,
           status,
           filled: status === "filled" ? amount : 0,
           remaining: status === "filled" ? 0 : amount,
           averagePrice: void 0,
-          reduceOnly: order.orderType === 1 || order.orderType === 3 || order.orderType === 4,
+          reduceOnly: orderType === 1 || orderType === 3 || orderType === 4,
           postOnly: false,
-          timestamp: parseInt(order.updatedAtBlock) * 1e3,
+          timestamp: parseInt(validated.updatedAtBlock) * 1e3,
           // Approximate
           info: {
-            orderKey: order.key,
-            orderType: order.orderType,
-            marketAddress: order.market,
-            isLong: order.isLong,
-            decreasePositionSwapType: order.decreasePositionSwapType,
-            executionFee: order.executionFee,
-            acceptablePrice: order.acceptablePrice
+            orderKey: validated.key,
+            orderType: validated.orderType,
+            marketAddress: validated.market,
+            isLong: validated.isLong,
+            decreasePositionSwapType: validated.decreasePositionSwapType,
+            executionFee: validated.executionFee,
+            acceptablePrice: validated.acceptablePrice
           }
         };
       }
@@ -34009,29 +36284,30 @@ var init_GmxNormalizer = __esm({
        * Normalize trade to unified Trade
        */
       normalizeTrade(trade) {
-        const marketKey = GMX_MARKET_ADDRESS_MAP[trade.market.toLowerCase()];
+        const validated = GmxTradeSchema.parse(trade);
+        const marketKey = GMX_MARKET_ADDRESS_MAP[validated.market.toLowerCase()];
         const config = marketKey ? GMX_MARKETS[marketKey] : void 0;
         const symbol = config?.symbol || gmxToUnified(marketKey);
-        const sizeDeltaUsd = parseFloat(trade.sizeDeltaUsd) / GMX_PRECISION.USD;
-        const executionPrice = parseFloat(trade.executionPrice) / GMX_PRECISION.PRICE;
-        const sizeDeltaInTokens = parseFloat(trade.sizeDeltaInTokens) / 10 ** 18;
-        const isIncrease = trade.orderType === 0 || trade.orderType === 2;
-        const side = isIncrease && trade.isLong || !isIncrease && !trade.isLong ? "buy" : "sell";
+        const sizeDeltaUsd = parseFloat(validated.sizeDeltaUsd) / GMX_PRECISION.USD;
+        const executionPrice = parseFloat(validated.executionPrice) / GMX_PRECISION.PRICE;
+        const sizeDeltaInTokens = parseFloat(validated.sizeDeltaInTokens) / 10 ** 18;
+        const isIncrease = validated.orderType === 0 || validated.orderType === 2;
+        const side = isIncrease && validated.isLong || !isIncrease && !validated.isLong ? "buy" : "sell";
         return {
-          id: trade.id,
+          id: validated.id,
           symbol,
           side,
           price: executionPrice,
           amount: Math.abs(sizeDeltaInTokens),
           cost: sizeDeltaUsd,
-          timestamp: trade.timestamp * 1e3,
+          timestamp: validated.timestamp * 1e3,
           info: {
-            marketAddress: trade.market,
-            isLong: trade.isLong,
-            orderType: trade.orderType,
-            pnlUsd: trade.pnlUsd,
-            priceImpactUsd: trade.priceImpactUsd,
-            transactionHash: trade.transactionHash
+            marketAddress: validated.market,
+            isLong: validated.isLong,
+            orderType: validated.orderType,
+            pnlUsd: validated.pnlUsd,
+            priceImpactUsd: validated.priceImpactUsd,
+            transactionHash: validated.transactionHash
           }
         };
       }
@@ -34039,27 +36315,28 @@ var init_GmxNormalizer = __esm({
        * Normalize funding rate
        */
       normalizeFundingRate(funding, indexPrice) {
-        const marketKey = GMX_MARKET_ADDRESS_MAP[funding.market.toLowerCase()];
+        const validated = GmxFundingRateSchema.parse(funding);
+        const marketKey = GMX_MARKET_ADDRESS_MAP[validated.market.toLowerCase()];
         const config = marketKey ? GMX_MARKETS[marketKey] : void 0;
         const symbol = config?.symbol || gmxToUnified(marketKey);
-        const fundingFactorPerSecond = parseFloat(funding.fundingFactorPerSecond) / GMX_PRECISION.FACTOR;
+        const fundingFactorPerSecond = parseFloat(validated.fundingFactorPerSecond) / GMX_PRECISION.FACTOR;
         const hourlyRate = fundingFactorPerSecond * 3600;
-        const fundingRate = funding.longsPayShorts ? hourlyRate : -hourlyRate;
+        const fundingRate = validated.longsPayShorts ? hourlyRate : -hourlyRate;
         return {
           symbol,
           fundingRate,
-          fundingTimestamp: funding.timestamp * 1e3,
-          nextFundingTimestamp: (funding.timestamp + 3600) * 1e3,
+          fundingTimestamp: validated.timestamp * 1e3,
+          nextFundingTimestamp: (validated.timestamp + 3600) * 1e3,
           // Next hour (continuous)
           markPrice: indexPrice,
           indexPrice,
           fundingIntervalHours: 1,
           info: {
-            marketAddress: funding.market,
-            fundingFactorPerSecond: funding.fundingFactorPerSecond,
-            longsPayShorts: funding.longsPayShorts,
-            fundingFeeAmountPerSizeLong: funding.fundingFeeAmountPerSizeLong,
-            fundingFeeAmountPerSizeShort: funding.fundingFeeAmountPerSizeShort
+            marketAddress: validated.market,
+            fundingFactorPerSecond: validated.fundingFactorPerSecond,
+            longsPayShorts: validated.longsPayShorts,
+            fundingFeeAmountPerSizeLong: validated.fundingFeeAmountPerSizeLong,
+            fundingFeeAmountPerSizeShort: validated.fundingFeeAmountPerSizeShort
           }
         };
       }
@@ -34104,20 +36381,23 @@ var init_GmxNormalizer = __esm({
             longOpenInterestUsd: longOI,
             shortOpenInterestUsd: shortOI,
             totalOpenInterestUsd: longOI + shortOI,
-            imbalance: longOI - shortOI
+            imbalance: longOI - shortOI,
+            _bidAskSource: "calculated"
           }
         };
       }
       /**
-       * Normalize candlesticks to OHLCV
+       * Normalize candlestick tuple to OHLCV
+       * Input: [timestamp_seconds, open, high, low, close]
        */
       normalizeCandle(candle) {
+        const validated = GmxCandleTupleSchema.parse(candle);
         return [
-          candle.timestamp * 1e3,
-          candle.open,
-          candle.high,
-          candle.low,
-          candle.close,
+          (validated[0] ?? 0) * 1e3,
+          validated[1] ?? 0,
+          validated[2] ?? 0,
+          validated[3] ?? 0,
+          validated[4] ?? 0,
           0
           // GMX candlestick endpoint doesn't include volume
         ];
@@ -35427,7 +37707,7 @@ function mapGmxError(error) {
   return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "gmx", error);
 }
 var GmxErrorCodes;
-var init_error_codes7 = __esm({
+var init_error_codes8 = __esm({
   "src/adapters/gmx/error-codes.ts"() {
     "use strict";
     init_errors();
@@ -35490,7 +37770,7 @@ var init_GmxAdapter = __esm({
     init_GmxSubgraph();
     init_GmxOrderBuilder();
     init_constants13();
-    init_error_codes7();
+    init_error_codes8();
     GmxAdapter = class extends BaseAdapter {
       id = "gmx";
       name = "GMX v2";
@@ -35653,9 +37933,10 @@ var init_GmxAdapter = __esm({
             throw new Error(`Market info not found for ${symbol}`);
           }
           const indexTokenPrice = prices.get(config.indexToken.toLowerCase());
+          const priceDivisor = getOraclePriceDivisor(config.baseAsset);
           const priceData = indexTokenPrice ? {
-            minPrice: parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE,
-            maxPrice: parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE
+            minPrice: parseFloat(indexTokenPrice.minPrice) / priceDivisor,
+            maxPrice: parseFloat(indexTokenPrice.maxPrice) / priceDivisor
           } : void 0;
           return this.normalizer.normalizeTicker(marketInfo, priceData);
         } catch (error) {
@@ -35687,20 +37968,22 @@ var init_GmxAdapter = __esm({
             throw new Error(`Market info not found for ${symbol}`);
           }
           const indexTokenPrice = prices.get(config.indexToken.toLowerCase());
+          const priceDivisor = getOraclePriceDivisor(config.baseAsset);
           let indexPrice = 0;
           if (indexTokenPrice) {
-            const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
-            const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+            const minPrice = parseFloat(indexTokenPrice.minPrice) / priceDivisor;
+            const maxPrice = parseFloat(indexTokenPrice.maxPrice) / priceDivisor;
             indexPrice = (minPrice + maxPrice) / 2;
           }
           const longOI = parseFloat(marketInfo.longInterestUsd) / GMX_PRECISION.USD;
           const shortOI = parseFloat(marketInfo.shortInterestUsd) / GMX_PRECISION.USD;
-          const fundingFactor = parseFloat(marketInfo.fundingFactor) / GMX_PRECISION.FACTOR;
+          const rawFundingFactor = parseFloat(marketInfo.fundingFactor);
+          const fundingFactor = isNaN(rawFundingFactor) ? 0 : rawFundingFactor / GMX_PRECISION.FACTOR;
           const imbalance = longOI - shortOI;
           const totalOI = longOI + shortOI;
           const imbalanceRatio = totalOI > 0 ? Math.abs(imbalance) / totalOI : 0;
           const hourlyRate = fundingFactor * imbalanceRatio * 3600;
-          const fundingRate = imbalance > 0 ? hourlyRate : -hourlyRate;
+          const fundingRate = isNaN(hourlyRate) ? 0 : imbalance > 0 ? hourlyRate : -hourlyRate;
           return {
             symbol: config.symbol,
             fundingRate,
@@ -35748,8 +38031,8 @@ var init_GmxAdapter = __esm({
             queryParams.set("limit", params.limit.toString());
           }
           const url = `${this.apiBaseUrl}/prices/candles?${queryParams.toString()}`;
-          const candles = await this.request("GET", url);
-          return this.normalizer.normalizeCandles(candles);
+          const response = await this.request("GET", url);
+          return this.normalizer.normalizeCandles(response.candles);
         } catch (error) {
           throw mapGmxError(error);
         }
@@ -35775,10 +38058,11 @@ var init_GmxAdapter = __esm({
             );
             if (!marketConfig) continue;
             const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
+            const posPriceDivisor = getOraclePriceDivisor(marketConfig.baseAsset);
             let markPrice = 0;
             if (indexTokenPrice) {
-              const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
-              const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+              const minPrice = parseFloat(indexTokenPrice.minPrice) / posPriceDivisor;
+              const maxPrice = parseFloat(indexTokenPrice.maxPrice) / posPriceDivisor;
               markPrice = (minPrice + maxPrice) / 2;
             }
             const position = this.normalizer.normalizePosition(pos, markPrice, this.chain);
@@ -35802,10 +38086,12 @@ var init_GmxAdapter = __esm({
           const prices = await this.fetchPrices();
           const wethAddress = this.chain === "arbitrum" ? "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1" : "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7";
           const ethPriceData = prices.get(wethAddress.toLowerCase());
+          const nativeAsset = this.chain === "arbitrum" ? "ETH" : "AVAX";
+          const nativePriceDivisor = getOraclePriceDivisor(nativeAsset);
           let ethPrice = 0;
           if (ethPriceData) {
-            const minPrice = parseFloat(ethPriceData.minPrice) / GMX_PRECISION.PRICE;
-            const maxPrice = parseFloat(ethPriceData.maxPrice) / GMX_PRECISION.PRICE;
+            const minPrice = parseFloat(ethPriceData.minPrice) / nativePriceDivisor;
+            const maxPrice = parseFloat(ethPriceData.maxPrice) / nativePriceDivisor;
             ethPrice = (minPrice + maxPrice) / 2;
           }
           const balances = [
@@ -35852,8 +38138,9 @@ var init_GmxAdapter = __esm({
             if (marketConfig) {
               const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
               if (indexTokenPrice) {
-                const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
-                const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+                const orderPriceDivisor = getOraclePriceDivisor(marketConfig.baseAsset);
+                const minPrice = parseFloat(indexTokenPrice.minPrice) / orderPriceDivisor;
+                const maxPrice = parseFloat(indexTokenPrice.maxPrice) / orderPriceDivisor;
                 marketPrice = (minPrice + maxPrice) / 2;
               }
             }
@@ -35887,8 +38174,9 @@ var init_GmxAdapter = __esm({
             if (marketConfig) {
               const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
               if (indexTokenPrice) {
-                const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
-                const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+                const orderPriceDivisor = getOraclePriceDivisor(marketConfig.baseAsset);
+                const minPrice = parseFloat(indexTokenPrice.minPrice) / orderPriceDivisor;
+                const maxPrice = parseFloat(indexTokenPrice.maxPrice) / orderPriceDivisor;
                 marketPrice = (minPrice + maxPrice) / 2;
               }
             }
@@ -35931,8 +38219,9 @@ var init_GmxAdapter = __esm({
           if (!indexTokenPrice) {
             throw new Error(`Price not available for ${request.symbol}`);
           }
-          const minPrice = parseFloat(indexTokenPrice.minPrice) / GMX_PRECISION.PRICE;
-          const maxPrice = parseFloat(indexTokenPrice.maxPrice) / GMX_PRECISION.PRICE;
+          const createOrderPriceDivisor = getOraclePriceDivisor(marketConfig.baseAsset);
+          const minPrice = parseFloat(indexTokenPrice.minPrice) / createOrderPriceDivisor;
+          const maxPrice = parseFloat(indexTokenPrice.maxPrice) / createOrderPriceDivisor;
           const indexPrice = (minPrice + maxPrice) / 2;
           const priceData = {
             indexPrice,
@@ -36208,7 +38497,7 @@ var init_gmx = __esm({
     init_GmxOrderBuilder();
     init_GmxNormalizer();
     init_constants13();
-    init_error_codes7();
+    init_error_codes8();
   }
 });
 
@@ -36357,6 +38646,130 @@ var init_AsterAuth = __esm({
   }
 });
 
+// src/adapters/aster/types.ts
+var AsterSymbolInfoSchema, AsterTicker24hrSchema, AsterOrderBookResponseSchema, AsterTradeResponseSchema, AsterPremiumIndexSchema, AsterOrderResponseSchema, AsterPositionRiskSchema, AsterAccountBalanceSchema;
+var init_types16 = __esm({
+  "src/adapters/aster/types.ts"() {
+    "use strict";
+    init_zod();
+    AsterSymbolInfoSchema = external_exports.object({
+      symbol: external_exports.string(),
+      pair: external_exports.string(),
+      contractType: external_exports.string(),
+      deliveryDate: external_exports.number(),
+      onboardDate: external_exports.number(),
+      status: external_exports.string(),
+      baseAsset: external_exports.string(),
+      quoteAsset: external_exports.string(),
+      marginAsset: external_exports.string(),
+      pricePrecision: external_exports.number(),
+      quantityPrecision: external_exports.number(),
+      baseAssetPrecision: external_exports.number(),
+      quotePrecision: external_exports.number(),
+      underlyingType: external_exports.string(),
+      settlePlan: external_exports.number(),
+      triggerProtect: external_exports.string(),
+      filters: external_exports.array(external_exports.any()),
+      // AsterFilter is a union type
+      orderTypes: external_exports.array(external_exports.string()),
+      timeInForce: external_exports.array(external_exports.string()),
+      liquidationFee: external_exports.string(),
+      marketTakeBound: external_exports.string()
+    }).passthrough();
+    AsterTicker24hrSchema = external_exports.object({
+      symbol: external_exports.string(),
+      priceChange: external_exports.string(),
+      priceChangePercent: external_exports.string(),
+      weightedAvgPrice: external_exports.string(),
+      lastPrice: external_exports.string(),
+      lastQty: external_exports.string(),
+      openPrice: external_exports.string(),
+      highPrice: external_exports.string(),
+      lowPrice: external_exports.string(),
+      volume: external_exports.string(),
+      quoteVolume: external_exports.string(),
+      openTime: external_exports.number(),
+      closeTime: external_exports.number(),
+      firstId: external_exports.number(),
+      lastId: external_exports.number(),
+      count: external_exports.number()
+    }).passthrough();
+    AsterOrderBookResponseSchema = external_exports.object({
+      lastUpdateId: external_exports.number(),
+      bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      T: external_exports.number()
+    }).passthrough();
+    AsterTradeResponseSchema = external_exports.object({
+      id: external_exports.number(),
+      price: external_exports.string(),
+      qty: external_exports.string(),
+      quoteQty: external_exports.string(),
+      time: external_exports.number(),
+      isBuyerMaker: external_exports.boolean()
+    }).passthrough();
+    AsterPremiumIndexSchema = external_exports.object({
+      symbol: external_exports.string(),
+      markPrice: external_exports.string(),
+      indexPrice: external_exports.string(),
+      estimatedSettlePrice: external_exports.string(),
+      lastFundingRate: external_exports.string(),
+      nextFundingTime: external_exports.number(),
+      interestRate: external_exports.string(),
+      time: external_exports.number()
+    }).passthrough();
+    AsterOrderResponseSchema = external_exports.object({
+      orderId: external_exports.number(),
+      symbol: external_exports.string(),
+      status: external_exports.string(),
+      clientOrderId: external_exports.string(),
+      price: external_exports.string(),
+      avgPrice: external_exports.string(),
+      origQty: external_exports.string(),
+      executedQty: external_exports.string(),
+      cumQuote: external_exports.string(),
+      timeInForce: external_exports.string(),
+      type: external_exports.string(),
+      reduceOnly: external_exports.boolean(),
+      closePosition: external_exports.boolean(),
+      side: external_exports.string(),
+      positionSide: external_exports.string(),
+      stopPrice: external_exports.string(),
+      workingType: external_exports.string(),
+      origType: external_exports.string(),
+      updateTime: external_exports.number()
+    }).passthrough();
+    AsterPositionRiskSchema = external_exports.object({
+      symbol: external_exports.string(),
+      positionAmt: external_exports.string(),
+      entryPrice: external_exports.string(),
+      markPrice: external_exports.string(),
+      unRealizedProfit: external_exports.string(),
+      liquidationPrice: external_exports.string(),
+      leverage: external_exports.string(),
+      maxNotionalValue: external_exports.string(),
+      marginType: external_exports.string(),
+      isolatedMargin: external_exports.string(),
+      isAutoAddMargin: external_exports.string(),
+      positionSide: external_exports.string(),
+      notional: external_exports.string(),
+      isolatedWallet: external_exports.string(),
+      updateTime: external_exports.number()
+    }).passthrough();
+    AsterAccountBalanceSchema = external_exports.object({
+      accountAlias: external_exports.string(),
+      asset: external_exports.string(),
+      balance: external_exports.string(),
+      crossWalletBalance: external_exports.string(),
+      crossUnPnl: external_exports.string(),
+      availableBalance: external_exports.string(),
+      maxWithdrawAmount: external_exports.string(),
+      marginAvailable: external_exports.boolean(),
+      updateTime: external_exports.number()
+    }).passthrough();
+  }
+});
+
 // src/adapters/aster/utils.ts
 function toAsterSymbol(unified) {
   const parts = unified.split(/[/:]/);
@@ -36417,87 +38830,96 @@ var init_AsterNormalizer = __esm({
   "src/adapters/aster/AsterNormalizer.ts"() {
     "use strict";
     init_constants14();
+    init_types16();
     init_utils11();
     AsterNormalizer = class {
       normalizeMarket(info) {
-        const priceFilter = info.filters.find(
+        const validated = AsterSymbolInfoSchema.parse(info);
+        const priceFilter = validated.filters.find(
           (f) => f.filterType === "PRICE_FILTER"
         );
-        const lotFilter = info.filters.find(
+        const lotFilter = validated.filters.find(
           (f) => f.filterType === "LOT_SIZE"
         );
         const tickSize = priceFilter ? parseFloat(priceFilter.tickSize) : 0.01;
         const stepSize = lotFilter ? parseFloat(lotFilter.stepSize) : 1e-3;
         const minQty = lotFilter ? parseFloat(lotFilter.minQty) : 0;
         return {
-          id: info.symbol,
-          symbol: toUnifiedSymbol(info.symbol, info.baseAsset, info.quoteAsset),
-          base: info.baseAsset,
-          quote: info.quoteAsset,
-          settle: info.marginAsset,
-          active: info.status === "TRADING",
+          id: validated.symbol,
+          symbol: toUnifiedSymbol(validated.symbol, validated.baseAsset, validated.quoteAsset),
+          base: validated.baseAsset,
+          quote: validated.quoteAsset,
+          settle: validated.marginAsset,
+          active: validated.status === "TRADING",
           minAmount: minQty,
-          pricePrecision: info.pricePrecision,
-          amountPrecision: info.quantityPrecision,
+          pricePrecision: validated.pricePrecision,
+          amountPrecision: validated.quantityPrecision,
           priceTickSize: tickSize,
           amountStepSize: stepSize,
           makerFee: 2e-4,
           takerFee: 5e-4,
           maxLeverage: 125,
           fundingIntervalHours: 8,
-          info
+          info: validated
         };
       }
       normalizeTicker(raw, symbol) {
-        const last = parseFloat(raw.lastPrice);
+        const validated = AsterTicker24hrSchema.parse(raw);
+        const last = parseFloat(validated.lastPrice);
         return {
-          symbol: symbol ?? raw.symbol,
+          symbol: symbol ?? validated.symbol,
           last,
           bid: last,
           ask: last,
-          high: parseFloat(raw.highPrice),
-          low: parseFloat(raw.lowPrice),
-          open: parseFloat(raw.openPrice),
+          high: parseFloat(validated.highPrice),
+          low: parseFloat(validated.lowPrice),
+          open: parseFloat(validated.openPrice),
           close: last,
-          change: parseFloat(raw.priceChange),
-          percentage: parseFloat(raw.priceChangePercent),
-          baseVolume: parseFloat(raw.volume),
-          quoteVolume: parseFloat(raw.quoteVolume),
-          timestamp: raw.closeTime,
-          info: raw
+          change: parseFloat(validated.priceChange),
+          percentage: parseFloat(validated.priceChangePercent),
+          baseVolume: parseFloat(validated.volume),
+          quoteVolume: parseFloat(validated.quoteVolume),
+          timestamp: validated.closeTime,
+          info: {
+            ...validated,
+            _bidAskSource: "last_price"
+          }
         };
       }
       normalizeOrderBook(raw, symbol) {
+        const validated = AsterOrderBookResponseSchema.parse(raw);
         return {
           symbol,
-          timestamp: raw.T ?? Date.now(),
-          bids: raw.bids.map(([p, s]) => [parseFloat(p), parseFloat(s)]),
-          asks: raw.asks.map(([p, s]) => [parseFloat(p), parseFloat(s)]),
+          timestamp: validated.T ?? Date.now(),
+          bids: validated.bids.map(([p, s]) => [parseFloat(p), parseFloat(s)]),
+          asks: validated.asks.map(([p, s]) => [parseFloat(p), parseFloat(s)]),
           exchange: "aster"
         };
       }
       normalizeTrade(raw, symbol) {
+        const validated = AsterTradeResponseSchema.parse(raw);
         return {
-          id: String(raw.id),
+          id: String(validated.id),
           symbol,
-          side: raw.isBuyerMaker ? "sell" : "buy",
-          price: parseFloat(raw.price),
-          amount: parseFloat(raw.qty),
-          cost: parseFloat(raw.quoteQty),
-          timestamp: raw.time,
-          info: raw
+          side: validated.isBuyerMaker ? "sell" : "buy",
+          price: parseFloat(validated.price),
+          amount: parseFloat(validated.qty),
+          cost: parseFloat(validated.quoteQty),
+          timestamp: validated.time,
+          info: validated
         };
       }
       normalizeFundingRate(raw, symbol) {
+        const validated = AsterPremiumIndexSchema.parse(raw);
         return {
           symbol,
-          fundingRate: parseFloat(raw.lastFundingRate),
-          fundingTimestamp: raw.time,
-          nextFundingTimestamp: raw.nextFundingTime,
-          markPrice: parseFloat(raw.markPrice),
-          indexPrice: parseFloat(raw.indexPrice),
+          fundingRate: parseFloat(validated.lastFundingRate),
+          fundingTimestamp: validated.time,
+          nextFundingTimestamp: validated.nextFundingTime,
+          markPrice: parseFloat(validated.markPrice),
+          indexPrice: parseFloat(validated.indexPrice),
           fundingIntervalHours: 8,
-          info: raw
+          info: validated
         };
       }
       normalizeOHLCV(raw) {
@@ -36511,61 +38933,68 @@ var init_AsterNormalizer = __esm({
         ];
       }
       normalizeOrder(raw, symbol) {
-        const filled = parseFloat(raw.executedQty);
-        const amount = parseFloat(raw.origQty);
-        const price = parseFloat(raw.price);
-        const avgPrice = parseFloat(raw.avgPrice);
+        const validated = AsterOrderResponseSchema.parse(raw);
+        const filled = parseFloat(validated.executedQty);
+        const amount = parseFloat(validated.origQty);
+        const price = parseFloat(validated.price);
+        const avgPrice = parseFloat(validated.avgPrice);
         return {
-          id: String(raw.orderId),
-          symbol: symbol ?? raw.symbol,
-          type: raw.origType?.toLowerCase() === "market" ? "market" : "limit",
-          side: raw.side === "BUY" ? "buy" : "sell",
+          id: String(validated.orderId),
+          symbol: symbol ?? validated.symbol,
+          type: validated.origType?.toLowerCase() === "market" ? "market" : "limit",
+          side: validated.side === "BUY" ? "buy" : "sell",
           amount,
           price: price || void 0,
-          status: ASTER_ORDER_STATUS[raw.status] ?? "open",
+          status: ASTER_ORDER_STATUS[validated.status] ?? "open",
           filled,
           remaining: amount - filled,
           averagePrice: avgPrice || void 0,
           cost: filled * (avgPrice || price),
-          reduceOnly: raw.reduceOnly ?? false,
-          postOnly: raw.timeInForce === "GTX",
-          clientOrderId: raw.clientOrderId,
-          timestamp: raw.updateTime,
-          info: raw
+          reduceOnly: validated.reduceOnly ?? false,
+          postOnly: validated.timeInForce === "GTX",
+          clientOrderId: validated.clientOrderId,
+          timestamp: validated.updateTime,
+          info: validated
         };
       }
       normalizePosition(raw, symbol) {
-        const size = parseFloat(raw.positionAmt);
+        const validated = AsterPositionRiskSchema.parse(raw);
+        const size = parseFloat(validated.positionAmt);
         const absSize = Math.abs(size);
-        const leverage = parseFloat(raw.leverage);
-        const entryPrice = parseFloat(raw.entryPrice);
-        const markPrice = parseFloat(raw.markPrice);
-        const notional = Math.abs(parseFloat(raw.notional));
+        const leverage = parseFloat(validated.leverage);
+        const entryPrice = parseFloat(validated.entryPrice);
+        const markPrice = parseFloat(validated.markPrice);
+        const notional = Math.abs(parseFloat(validated.notional));
         return {
-          symbol: symbol ?? raw.symbol,
+          symbol: symbol ?? validated.symbol,
           side: size >= 0 ? "long" : "short",
           size: absSize,
           entryPrice,
           markPrice,
-          liquidationPrice: parseFloat(raw.liquidationPrice) || 0,
-          unrealizedPnl: parseFloat(raw.unRealizedProfit),
+          liquidationPrice: parseFloat(validated.liquidationPrice) || 0,
+          unrealizedPnl: parseFloat(validated.unRealizedProfit),
           realizedPnl: 0,
           leverage,
-          marginMode: raw.marginType === "isolated" ? "isolated" : "cross",
+          marginMode: validated.marginType === "isolated" ? "isolated" : "cross",
           margin: notional / leverage,
           maintenanceMargin: 0,
           marginRatio: 0,
-          timestamp: raw.updateTime,
-          info: raw
+          timestamp: validated.updateTime,
+          info: {
+            ...validated,
+            _realizedPnlSource: "not_available",
+            _marginRatioSource: "not_available"
+          }
         };
       }
       normalizeBalance(raw) {
+        const validated = AsterAccountBalanceSchema.parse(raw);
         return {
-          currency: raw.asset,
-          total: parseFloat(raw.balance),
-          free: parseFloat(raw.availableBalance),
-          used: parseFloat(raw.balance) - parseFloat(raw.availableBalance),
-          info: raw
+          currency: validated.asset,
+          total: parseFloat(validated.balance),
+          free: parseFloat(validated.availableBalance),
+          used: parseFloat(validated.balance) - parseFloat(validated.availableBalance),
+          info: validated
         };
       }
     };
@@ -36598,7 +39027,7 @@ function mapAsterError(code, message) {
   return new PerpDEXError(message, String(code), "aster");
 }
 var ASTER_ERROR_CODES;
-var init_error_codes8 = __esm({
+var init_error_codes9 = __esm({
   "src/adapters/aster/error-codes.ts"() {
     "use strict";
     init_errors();
@@ -36652,7 +39081,7 @@ var init_AsterAdapter = __esm({
     init_AsterAuth();
     init_AsterNormalizer();
     init_utils11();
-    init_error_codes8();
+    init_error_codes9();
     AsterAdapter = class extends BaseAdapter {
       id = "aster";
       name = "Aster";
@@ -36949,7 +39378,7 @@ var init_aster = __esm({
     init_AsterAdapter();
     init_AsterAuth();
     init_AsterNormalizer();
-    init_error_codes8();
+    init_error_codes9();
     init_constants14();
   }
 });
@@ -37063,6 +39492,107 @@ var init_PacificaAuth = __esm({
   }
 });
 
+// src/adapters/pacifica/types.ts
+var PacificaMarketSchema, PacificaTickerSchema, PacificaOrderBookLevelSchema, PacificaOrderBookSchema, PacificaTradeResponseSchema, PacificaFundingHistorySchema, PacificaOrderResponseSchema, PacificaPositionSchema, PacificaAccountInfoSchema;
+var init_types17 = __esm({
+  "src/adapters/pacifica/types.ts"() {
+    "use strict";
+    init_zod();
+    PacificaMarketSchema = external_exports.object({
+      symbol: external_exports.string(),
+      base_currency: external_exports.string(),
+      quote_currency: external_exports.string(),
+      status: external_exports.string(),
+      price_step: external_exports.string(),
+      size_step: external_exports.string(),
+      min_size: external_exports.string(),
+      max_leverage: external_exports.number(),
+      maker_fee: external_exports.string(),
+      taker_fee: external_exports.string(),
+      funding_interval: external_exports.number()
+    }).passthrough();
+    PacificaTickerSchema = external_exports.object({
+      symbol: external_exports.string(),
+      last_price: external_exports.string(),
+      mark_price: external_exports.string(),
+      index_price: external_exports.string(),
+      bid_price: external_exports.string(),
+      ask_price: external_exports.string(),
+      high_24h: external_exports.string(),
+      low_24h: external_exports.string(),
+      volume_24h: external_exports.string(),
+      quote_volume_24h: external_exports.string(),
+      open_interest: external_exports.string(),
+      funding_rate: external_exports.string(),
+      next_funding_time: external_exports.number(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    PacificaOrderBookLevelSchema = external_exports.object({
+      price: external_exports.string(),
+      size: external_exports.string()
+    }).passthrough();
+    PacificaOrderBookSchema = external_exports.object({
+      bids: external_exports.array(PacificaOrderBookLevelSchema),
+      asks: external_exports.array(PacificaOrderBookLevelSchema),
+      timestamp: external_exports.number(),
+      sequence: external_exports.number()
+    }).passthrough();
+    PacificaTradeResponseSchema = external_exports.object({
+      id: external_exports.string(),
+      symbol: external_exports.string(),
+      price: external_exports.union([external_exports.string(), external_exports.number()]),
+      size: external_exports.union([external_exports.string(), external_exports.number()]),
+      side: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    PacificaFundingHistorySchema = external_exports.object({
+      symbol: external_exports.string(),
+      funding_rate: external_exports.string(),
+      mark_price: external_exports.string(),
+      index_price: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    PacificaOrderResponseSchema = external_exports.object({
+      order_id: external_exports.string(),
+      client_order_id: external_exports.string().optional(),
+      symbol: external_exports.string(),
+      side: external_exports.string(),
+      type: external_exports.string(),
+      price: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      size: external_exports.union([external_exports.string(), external_exports.number()]),
+      filled_size: external_exports.union([external_exports.string(), external_exports.number()]),
+      avg_fill_price: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      status: external_exports.string(),
+      reduce_only: external_exports.boolean(),
+      post_only: external_exports.boolean(),
+      created_at: external_exports.number(),
+      updated_at: external_exports.number()
+    }).passthrough();
+    PacificaPositionSchema = external_exports.object({
+      symbol: external_exports.string(),
+      side: external_exports.string(),
+      size: external_exports.union([external_exports.string(), external_exports.number()]),
+      entry_price: external_exports.union([external_exports.string(), external_exports.number()]),
+      mark_price: external_exports.union([external_exports.string(), external_exports.number()]),
+      liquidation_price: external_exports.union([external_exports.string(), external_exports.number()]),
+      unrealized_pnl: external_exports.union([external_exports.string(), external_exports.number()]),
+      realized_pnl: external_exports.union([external_exports.string(), external_exports.number()]),
+      leverage: external_exports.number(),
+      margin_mode: external_exports.string(),
+      margin: external_exports.union([external_exports.string(), external_exports.number()]),
+      maintenance_margin: external_exports.union([external_exports.string(), external_exports.number()]),
+      timestamp: external_exports.number()
+    }).passthrough();
+    PacificaAccountInfoSchema = external_exports.object({
+      total_equity: external_exports.string(),
+      available_balance: external_exports.string(),
+      used_margin: external_exports.string(),
+      unrealized_pnl: external_exports.string(),
+      currency: external_exports.string()
+    }).passthrough();
+  }
+});
+
 // src/adapters/pacifica/utils.ts
 function toPacificaSymbol(unified) {
   const parts = unified.split(/[/:]/);
@@ -37112,136 +39642,152 @@ var init_PacificaNormalizer = __esm({
   "src/adapters/pacifica/PacificaNormalizer.ts"() {
     "use strict";
     init_constants15();
+    init_types17();
     init_utils12();
     PacificaNormalizer = class {
       normalizeMarket(raw) {
-        const symbol = toUnifiedSymbol2(raw.symbol);
+        const validated = PacificaMarketSchema.parse(raw);
+        const symbol = toUnifiedSymbol2(validated.symbol);
         return {
-          id: raw.symbol,
+          id: validated.symbol,
           symbol,
-          base: raw.base_currency,
-          quote: raw.quote_currency,
-          settle: raw.quote_currency,
-          active: raw.status === "active",
-          minAmount: parseFloat(raw.min_size),
-          pricePrecision: this.countDecimals(raw.price_step),
-          amountPrecision: this.countDecimals(raw.size_step),
-          priceTickSize: parseFloat(raw.price_step),
-          amountStepSize: parseFloat(raw.size_step),
-          makerFee: parseFloat(raw.maker_fee),
-          takerFee: parseFloat(raw.taker_fee),
-          maxLeverage: raw.max_leverage,
-          fundingIntervalHours: raw.funding_interval / 3600,
-          info: raw
+          base: validated.base_currency,
+          quote: validated.quote_currency,
+          settle: validated.quote_currency,
+          active: validated.status === "active",
+          minAmount: parseFloat(validated.min_size),
+          pricePrecision: this.countDecimals(validated.price_step),
+          amountPrecision: this.countDecimals(validated.size_step),
+          priceTickSize: parseFloat(validated.price_step),
+          amountStepSize: parseFloat(validated.size_step),
+          makerFee: parseFloat(validated.maker_fee),
+          takerFee: parseFloat(validated.taker_fee),
+          maxLeverage: validated.max_leverage,
+          fundingIntervalHours: validated.funding_interval / 3600,
+          info: validated
         };
       }
       normalizeTicker(raw, symbol) {
-        const last = parseFloat(raw.last_price);
-        const high = parseFloat(raw.high_24h);
-        const low = parseFloat(raw.low_24h);
+        const validated = PacificaTickerSchema.parse(raw);
+        const last = parseFloat(validated.last_price);
+        const high = parseFloat(validated.high_24h);
+        const low = parseFloat(validated.low_24h);
         return {
-          symbol: symbol ?? toUnifiedSymbol2(raw.symbol),
+          symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
           last,
-          bid: parseFloat(raw.bid_price),
-          ask: parseFloat(raw.ask_price),
+          bid: parseFloat(validated.bid_price),
+          ask: parseFloat(validated.ask_price),
           high,
           low,
           open: last,
           close: last,
           change: 0,
           percentage: 0,
-          baseVolume: parseFloat(raw.volume_24h),
-          quoteVolume: parseFloat(raw.quote_volume_24h),
-          timestamp: raw.timestamp,
-          info: raw
+          baseVolume: parseFloat(validated.volume_24h),
+          quoteVolume: parseFloat(validated.quote_volume_24h),
+          timestamp: validated.timestamp,
+          info: {
+            ...validated,
+            _bidAskSource: "orderbook"
+          }
         };
       }
       normalizeOrderBook(raw, symbol) {
+        const validated = PacificaOrderBookSchema.parse(raw);
         return {
           symbol,
-          timestamp: raw.timestamp,
-          bids: raw.bids.map((b) => [parseFloat(b.price), parseFloat(b.size)]),
-          asks: raw.asks.map((a) => [parseFloat(a.price), parseFloat(a.size)]),
-          sequenceId: raw.sequence,
+          timestamp: validated.timestamp,
+          bids: validated.bids.map((b) => [parseFloat(b.price), parseFloat(b.size)]),
+          asks: validated.asks.map((a) => [parseFloat(a.price), parseFloat(a.size)]),
+          sequenceId: validated.sequence,
           exchange: "pacifica"
         };
       }
       normalizeTrade(raw, symbol) {
-        const price = parseFloat(raw.price);
-        const amount = parseFloat(raw.size);
+        const validated = PacificaTradeResponseSchema.parse(raw);
+        const price = parseFloat(typeof validated.price === "number" ? String(validated.price) : validated.price);
+        const amount = parseFloat(typeof validated.size === "number" ? String(validated.size) : validated.size);
         return {
-          id: raw.id,
-          symbol: symbol ?? toUnifiedSymbol2(raw.symbol),
-          side: raw.side,
+          id: validated.id,
+          symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
+          side: validated.side,
           price,
           amount,
           cost: price * amount,
-          timestamp: raw.timestamp,
-          info: raw
+          timestamp: validated.timestamp,
+          info: validated
         };
       }
       normalizeFundingRate(raw, symbol) {
+        const validated = PacificaFundingHistorySchema.parse(raw);
         return {
           symbol,
-          fundingRate: parseFloat(raw.funding_rate),
-          fundingTimestamp: raw.timestamp,
-          nextFundingTimestamp: raw.timestamp + 36e5,
-          markPrice: parseFloat(raw.mark_price),
-          indexPrice: parseFloat(raw.index_price),
+          fundingRate: parseFloat(validated.funding_rate),
+          fundingTimestamp: validated.timestamp,
+          nextFundingTimestamp: validated.timestamp + 36e5,
+          markPrice: parseFloat(validated.mark_price),
+          indexPrice: parseFloat(validated.index_price),
           fundingIntervalHours: 1,
-          info: raw
+          info: validated
         };
       }
       normalizeOrder(raw, symbol) {
-        const filled = parseFloat(raw.filled_size);
-        const amount = parseFloat(raw.size);
+        const validated = PacificaOrderResponseSchema.parse(raw);
+        const filled = parseFloat(typeof validated.filled_size === "number" ? String(validated.filled_size) : validated.filled_size);
+        const amount = parseFloat(typeof validated.size === "number" ? String(validated.size) : validated.size);
         return {
-          id: raw.order_id,
-          symbol: symbol ?? toUnifiedSymbol2(raw.symbol),
-          type: raw.type === "market" ? "market" : "limit",
-          side: raw.side,
+          id: validated.order_id,
+          symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
+          type: validated.type === "market" ? "market" : "limit",
+          side: validated.side,
           amount,
-          price: raw.price ? parseFloat(raw.price) : void 0,
-          status: PACIFICA_ORDER_STATUS[raw.status] ?? "open",
+          price: validated.price ? parseFloat(typeof validated.price === "number" ? String(validated.price) : validated.price) : void 0,
+          status: PACIFICA_ORDER_STATUS[validated.status] ?? "open",
           filled,
           remaining: amount - filled,
-          averagePrice: raw.avg_fill_price ? parseFloat(raw.avg_fill_price) : void 0,
-          reduceOnly: raw.reduce_only,
-          postOnly: raw.post_only,
-          clientOrderId: raw.client_order_id,
-          timestamp: raw.created_at,
-          lastUpdateTimestamp: raw.updated_at,
-          info: raw
+          averagePrice: validated.avg_fill_price ? parseFloat(typeof validated.avg_fill_price === "number" ? String(validated.avg_fill_price) : validated.avg_fill_price) : void 0,
+          reduceOnly: validated.reduce_only,
+          postOnly: validated.post_only,
+          clientOrderId: validated.client_order_id,
+          timestamp: validated.created_at,
+          lastUpdateTimestamp: validated.updated_at,
+          info: validated
         };
       }
       normalizePosition(raw, symbol) {
+        const validated = PacificaPositionSchema.parse(raw);
+        const size = parseFloat(typeof validated.size === "number" ? String(validated.size) : validated.size);
+        const markPrice = parseFloat(typeof validated.mark_price === "number" ? String(validated.mark_price) : validated.mark_price);
+        const maintenanceMargin = parseFloat(typeof validated.maintenance_margin === "number" ? String(validated.maintenance_margin) : validated.maintenance_margin);
+        const notional = size * markPrice;
         return {
-          symbol: symbol ?? toUnifiedSymbol2(raw.symbol),
-          side: raw.side,
-          size: parseFloat(raw.size),
-          entryPrice: parseFloat(raw.entry_price),
-          markPrice: parseFloat(raw.mark_price),
-          liquidationPrice: parseFloat(raw.liquidation_price),
-          unrealizedPnl: parseFloat(raw.unrealized_pnl),
-          realizedPnl: parseFloat(raw.realized_pnl),
-          leverage: raw.leverage,
-          marginMode: raw.margin_mode,
-          margin: parseFloat(raw.margin),
-          maintenanceMargin: parseFloat(raw.maintenance_margin),
-          marginRatio: 0,
-          timestamp: raw.timestamp,
-          info: raw
+          symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
+          side: validated.side,
+          size,
+          entryPrice: parseFloat(typeof validated.entry_price === "number" ? String(validated.entry_price) : validated.entry_price),
+          markPrice,
+          liquidationPrice: parseFloat(typeof validated.liquidation_price === "number" ? String(validated.liquidation_price) : validated.liquidation_price),
+          unrealizedPnl: parseFloat(typeof validated.unrealized_pnl === "number" ? String(validated.unrealized_pnl) : validated.unrealized_pnl),
+          realizedPnl: parseFloat(typeof validated.realized_pnl === "number" ? String(validated.realized_pnl) : validated.realized_pnl),
+          leverage: validated.leverage,
+          marginMode: validated.margin_mode,
+          margin: parseFloat(typeof validated.margin === "number" ? String(validated.margin) : validated.margin),
+          maintenanceMargin,
+          marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
+          timestamp: validated.timestamp,
+          info: validated
         };
       }
       normalizeBalance(raw) {
-        const total = parseFloat(raw.total_equity);
-        const free = parseFloat(raw.available_balance);
+        const validated = PacificaAccountInfoSchema.parse(raw);
+        const total = parseFloat(validated.total_equity);
+        const free = parseFloat(validated.available_balance);
         return {
-          currency: raw.currency,
+          currency: validated.currency,
           total,
           free,
           used: total - free,
-          info: raw
+          info: validated
         };
       }
       countDecimals(value) {
@@ -37287,7 +39833,7 @@ function mapPacificaError(code, message) {
   }
 }
 var PACIFICA_ERROR_CODES;
-var init_error_codes9 = __esm({
+var init_error_codes10 = __esm({
   "src/adapters/pacifica/error-codes.ts"() {
     "use strict";
     init_errors();
@@ -37326,16 +39872,22 @@ var init_PacificaAdapter = __esm({
     init_PacificaAuth();
     init_PacificaNormalizer();
     init_utils12();
-    init_error_codes9();
+    init_error_codes10();
     PacificaAdapter = class extends BaseAdapter {
       id = "pacifica";
       name = "Pacifica";
+      /**
+       * Feature map.
+       * Note: Pacifica is in Closed Beta (invite only). Public API currently unavailable.
+       * All endpoints at api.pacifica.fi return 404.
+       */
       has = {
         fetchMarkets: true,
         fetchTicker: true,
         fetchOrderBook: true,
         fetchTrades: true,
         fetchFundingRate: true,
+        fetchOHLCV: false,
         createOrder: true,
         cancelOrder: true,
         cancelAllOrders: false,
@@ -37584,7 +40136,7 @@ var init_pacifica = __esm({
     init_PacificaAdapter();
     init_PacificaAuth();
     init_PacificaNormalizer();
-    init_error_codes9();
+    init_error_codes10();
     init_constants15();
   }
 });
@@ -37602,11 +40154,17 @@ var init_constants16 = __esm({
     };
     OSTIUM_CONTRACTS = {
       trading: "0x4f5f2B6a97F0c536E2BF58c3E7e060F81FbA2B06",
+      // PLACEHOLDER
       storage: "0x7E8B4C3c95B4b93D5C0D0F14C1b36a5C7E5C9D5",
+      // PLACEHOLDER
       pairInfo: "0x3D9B5C7E8F0A4D6E9C3B2A1F8D7E6C5B4A3F21e",
+      // PLACEHOLDER
       nftRewards: "0x1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0b",
+      // PLACEHOLDER
       vault: "0x8F9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7a",
+      // PLACEHOLDER
       collateral: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+      // USDC (verified)
     };
     OSTIUM_RATE_LIMITS = {
       metadata: {
@@ -37998,6 +40556,77 @@ var init_OstiumSubgraph = __esm({
   }
 });
 
+// src/adapters/ostium/types.ts
+var OstiumPairInfoSchema, OstiumPriceResponseSchema, OstiumOpenTradeSchema, OstiumSubgraphTradeSchema, OstiumSubgraphPositionSchema;
+var init_types18 = __esm({
+  "src/adapters/ostium/types.ts"() {
+    "use strict";
+    init_zod();
+    OstiumPairInfoSchema = external_exports.object({
+      pairIndex: external_exports.number(),
+      name: external_exports.string(),
+      from: external_exports.string(),
+      to: external_exports.string(),
+      groupIndex: external_exports.number(),
+      groupName: external_exports.string(),
+      spreadP: external_exports.string(),
+      maxLeverage: external_exports.number(),
+      minLeverage: external_exports.number(),
+      maxPositionSize: external_exports.string(),
+      minPositionSize: external_exports.string(),
+      feedId: external_exports.string()
+    }).passthrough();
+    OstiumPriceResponseSchema = external_exports.object({
+      pair: external_exports.string(),
+      price: external_exports.string(),
+      timestamp: external_exports.number(),
+      source: external_exports.string(),
+      mid: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      bid: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      ask: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      timestampSeconds: external_exports.number().optional()
+    }).passthrough();
+    OstiumOpenTradeSchema = external_exports.object({
+      trader: external_exports.string(),
+      pairIndex: external_exports.number(),
+      index: external_exports.number(),
+      positionSizeDai: external_exports.string(),
+      openPrice: external_exports.string(),
+      buy: external_exports.boolean(),
+      leverage: external_exports.number(),
+      tp: external_exports.string(),
+      sl: external_exports.string(),
+      timestamp: external_exports.number()
+    }).passthrough();
+    OstiumSubgraphTradeSchema = external_exports.object({
+      id: external_exports.string(),
+      trader: external_exports.string(),
+      pairIndex: external_exports.string(),
+      action: external_exports.string(),
+      price: external_exports.string(),
+      size: external_exports.string(),
+      buy: external_exports.boolean(),
+      leverage: external_exports.string(),
+      pnl: external_exports.string(),
+      timestamp: external_exports.string(),
+      txHash: external_exports.string()
+    }).passthrough();
+    OstiumSubgraphPositionSchema = external_exports.object({
+      id: external_exports.string(),
+      trader: external_exports.string(),
+      pairIndex: external_exports.string(),
+      index: external_exports.string(),
+      positionSizeDai: external_exports.string(),
+      openPrice: external_exports.string(),
+      buy: external_exports.boolean(),
+      leverage: external_exports.string(),
+      tp: external_exports.string(),
+      sl: external_exports.string(),
+      timestamp: external_exports.string()
+    }).passthrough();
+  }
+});
+
 // src/adapters/ostium/utils.ts
 function toOstiumPairIndex(unified) {
   const parts = unified.split(/[/:]/);
@@ -38040,36 +40669,43 @@ var OstiumNormalizer;
 var init_OstiumNormalizer = __esm({
   "src/adapters/ostium/OstiumNormalizer.ts"() {
     "use strict";
+    init_types18();
     init_utils13();
     OstiumNormalizer = class {
       normalizeMarket(pair) {
+        const validated = OstiumPairInfoSchema.parse(pair);
         return {
-          id: String(pair.pairIndex),
-          symbol: toUnifiedSymbolFromName(pair.name),
-          base: pair.from,
-          quote: pair.to,
+          id: String(validated.pairIndex),
+          symbol: toUnifiedSymbolFromName(validated.name),
+          base: validated.from,
+          quote: validated.to,
           settle: "USDC",
           active: true,
-          minAmount: parseFloat(pair.minPositionSize),
-          maxAmount: parseFloat(pair.maxPositionSize),
+          minAmount: parseFloat(validated.minPositionSize),
+          maxAmount: parseFloat(validated.maxPositionSize),
           pricePrecision: 2,
           amountPrecision: 2,
           priceTickSize: 0.01,
           amountStepSize: 0.01,
           makerFee: 0,
-          takerFee: parseFloat(pair.spreadP) / 100,
-          maxLeverage: pair.maxLeverage,
+          takerFee: parseFloat(validated.spreadP) / 100,
+          maxLeverage: validated.maxLeverage,
           fundingIntervalHours: 1,
-          info: pair
+          info: validated
         };
       }
       normalizeTicker(raw, pair) {
-        const price = parseFloat(raw.price);
+        const validatedRaw = OstiumPriceResponseSchema.parse(raw);
+        const validatedPair = OstiumPairInfoSchema.parse(pair);
+        const price = validatedRaw.mid != null ? parseFloat(String(validatedRaw.mid)) : parseFloat(validatedRaw.price);
+        const bid = validatedRaw.bid != null ? parseFloat(String(validatedRaw.bid)) : price;
+        const ask = validatedRaw.ask != null ? parseFloat(String(validatedRaw.ask)) : price;
+        const timestamp = validatedRaw.timestampSeconds != null ? validatedRaw.timestampSeconds * 1e3 : validatedRaw.timestamp;
         return {
-          symbol: toUnifiedSymbolFromName(pair.name),
+          symbol: toUnifiedSymbolFromName(validatedPair.name),
           last: price,
-          bid: price,
-          ask: price,
+          bid,
+          ask,
           high: price,
           low: price,
           open: price,
@@ -38078,35 +40714,40 @@ var init_OstiumNormalizer = __esm({
           percentage: 0,
           baseVolume: 0,
           quoteVolume: 0,
-          timestamp: raw.timestamp,
-          info: raw
+          timestamp,
+          info: {
+            ...validatedRaw,
+            _bidAskSource: "orderbook"
+          }
         };
       }
       normalizeTrade(raw) {
-        const price = parseFloat(raw.price);
-        const amount = parseFloat(raw.size);
+        const validated = OstiumSubgraphTradeSchema.parse(raw);
+        const price = parseFloat(validated.price);
+        const amount = parseFloat(validated.size);
         return {
-          id: raw.id,
-          symbol: toUnifiedSymbol3(parseInt(raw.pairIndex, 10)),
-          side: raw.buy ? "buy" : "sell",
+          id: validated.id,
+          symbol: toUnifiedSymbol3(parseInt(validated.pairIndex, 10)),
+          side: validated.buy ? "buy" : "sell",
           price,
           amount,
           cost: price * amount,
-          timestamp: parseInt(raw.timestamp, 10) * 1e3,
-          info: raw
+          timestamp: parseInt(validated.timestamp, 10) * 1e3,
+          info: validated
         };
       }
       normalizePosition(raw, currentPrice) {
-        const size = parseCollateral(raw.positionSizeDai);
-        const entryPrice = parsePrice(raw.openPrice);
-        const leverage = parseInt(raw.leverage, 10);
+        const validated = OstiumSubgraphPositionSchema.parse(raw);
+        const size = parseCollateral(validated.positionSizeDai);
+        const entryPrice = parsePrice(validated.openPrice);
+        const leverage = parseInt(validated.leverage, 10);
         const markPrice = currentPrice ?? entryPrice;
         const notional = size * leverage;
-        const pnlMultiplier = raw.buy ? 1 : -1;
+        const pnlMultiplier = validated.buy ? 1 : -1;
         const unrealizedPnl = notional * pnlMultiplier * ((markPrice - entryPrice) / entryPrice);
         return {
-          symbol: toUnifiedSymbol3(parseInt(raw.pairIndex, 10)),
-          side: raw.buy ? "long" : "short",
+          symbol: toUnifiedSymbol3(parseInt(validated.pairIndex, 10)),
+          side: validated.buy ? "long" : "short",
           size,
           entryPrice,
           markPrice,
@@ -38117,9 +40758,12 @@ var init_OstiumNormalizer = __esm({
           marginMode: "isolated",
           margin: size,
           maintenanceMargin: size * 0.05,
-          marginRatio: 0,
-          timestamp: parseInt(raw.timestamp, 10) * 1e3,
-          info: raw
+          marginRatio: size * markPrice > 0 ? size * 0.05 / (size * markPrice) : 0,
+          timestamp: parseInt(validated.timestamp, 10) * 1e3,
+          info: {
+            ...validated,
+            _realizedPnlSource: "not_available"
+          }
         };
       }
       normalizeBalance(rawBalance, currency = "USDC") {
@@ -38133,20 +40777,21 @@ var init_OstiumNormalizer = __esm({
         };
       }
       normalizeOrderFromTrade(raw) {
+        const validated = OstiumOpenTradeSchema.parse(raw);
         return {
-          id: `${raw.pairIndex}-${raw.index}`,
-          symbol: toUnifiedSymbol3(raw.pairIndex),
+          id: `${validated.pairIndex}-${validated.index}`,
+          symbol: toUnifiedSymbol3(validated.pairIndex),
           type: "market",
-          side: raw.buy ? "buy" : "sell",
-          amount: parseCollateral(raw.positionSizeDai),
-          price: parsePrice(raw.openPrice),
+          side: validated.buy ? "buy" : "sell",
+          amount: parseCollateral(validated.positionSizeDai),
+          price: parsePrice(validated.openPrice),
           status: "filled",
-          filled: parseCollateral(raw.positionSizeDai),
+          filled: parseCollateral(validated.positionSizeDai),
           remaining: 0,
           reduceOnly: false,
           postOnly: false,
-          timestamp: raw.timestamp,
-          info: raw
+          timestamp: validated.timestamp,
+          info: validated
         };
       }
     };
@@ -38192,7 +40837,7 @@ function mapOstiumError(error) {
   );
 }
 var OSTIUM_ERROR_PATTERNS;
-var init_error_codes10 = __esm({
+var init_error_codes11 = __esm({
   "src/adapters/ostium/error-codes.ts"() {
     "use strict";
     init_errors();
@@ -38232,7 +40877,7 @@ var init_OstiumAdapter = __esm({
     init_OstiumSubgraph();
     init_OstiumNormalizer();
     init_utils13();
-    init_error_codes10();
+    init_error_codes11();
     OstiumAdapter = class extends BaseAdapter {
       id = "ostium";
       name = "Ostium";
@@ -38240,7 +40885,8 @@ var init_OstiumAdapter = __esm({
         fetchMarkets: true,
         fetchTicker: true,
         fetchOrderBook: false,
-        fetchTrades: true,
+        fetchTrades: false,
+        // Subgraph has been removed from The Graph hosted service
         fetchFundingRate: false,
         createOrder: true,
         cancelOrder: true,
@@ -38308,8 +40954,9 @@ var init_OstiumAdapter = __esm({
         if (!pair) {
           throw new PerpDEXError(`Unknown pair: ${symbol}`, "PAIR_NOT_FOUND", "ostium");
         }
+        const assetParam = `${pair.from}${pair.to}`;
         const response = await this.fetchMetadata(
-          `/PricePublish/latest-price?pair=${pair.name}`,
+          `/PricePublish/latest-price?asset=${assetParam}`,
           "fetchTicker"
         );
         return this.normalizer.normalizeTicker(response, pair);
@@ -38321,15 +40968,12 @@ var init_OstiumAdapter = __esm({
           "ostium"
         );
       }
-      async fetchTrades(symbol, params) {
-        const pairIndex = toOstiumPairIndex(symbol);
-        const limit = params?.limit ?? 100;
-        try {
-          const trades = await this.subgraph.fetchTrades(pairIndex, limit);
-          return trades.map((t) => this.normalizer.normalizeTrade(t));
-        } catch (error) {
-          throw mapOstiumError(error);
-        }
+      async fetchTrades(_symbol, _params) {
+        throw new NotSupportedError(
+          "Ostium subgraph has been removed from The Graph hosted service. Trade data unavailable.",
+          "NOT_SUPPORTED",
+          "ostium"
+        );
       }
       async fetchFundingRate(_symbol) {
         throw new NotSupportedError(
@@ -38491,7 +41135,7 @@ var init_ostium = __esm({
     init_OstiumContracts();
     init_OstiumSubgraph();
     init_OstiumNormalizer();
-    init_error_codes10();
+    init_error_codes11();
     init_constants16();
   }
 });

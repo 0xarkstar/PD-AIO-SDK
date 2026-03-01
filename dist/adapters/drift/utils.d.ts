@@ -4,7 +4,7 @@
  * Helper functions for Drift Protocol adapter operations.
  */
 import { DRIFT_PERP_MARKETS } from './constants.js';
-import type { DriftOrderType, DriftDirection, DriftPostOnlyParams } from './types.js';
+import type { DriftOrderType, DriftDirection, DriftPostOnlyParams, DriftOrderStatus, DriftTriggerCondition, DriftPositionDirection } from './types.js';
 /**
  * Get market configuration by symbol
  */
@@ -151,4 +151,24 @@ export declare function getTimeUntilFunding(): number;
  * (slots are ~400ms each)
  */
 export declare function slotToTimestamp(slot: number, referenceSlot?: number, referenceTime?: number): number;
+/**
+ * Map API string to DriftOrderType
+ */
+export declare function mapDriftOrderType(type: string): DriftOrderType;
+/**
+ * Map API string to DriftOrderStatus
+ */
+export declare function mapDriftOrderStatus(status: string): DriftOrderStatus;
+/**
+ * Map API string to DriftTriggerCondition
+ */
+export declare function mapDriftTriggerCondition(condition: string): DriftTriggerCondition;
+/**
+ * Map API string/boolean to DriftPostOnlyParams
+ */
+export declare function mapDriftPostOnly(postOnly: string | boolean): DriftPostOnlyParams;
+/**
+ * Map API string to DriftPositionDirection
+ */
+export declare function mapDriftPositionDirection(direction: string): DriftPositionDirection;
 //# sourceMappingURL=utils.d.ts.map

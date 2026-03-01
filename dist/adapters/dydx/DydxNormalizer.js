@@ -7,6 +7,7 @@
  * @see https://docs.dydx.exchange/
  */
 import { DYDX_DEFAULT_PRECISION, DYDX_FUNDING_INTERVAL_HOURS, dydxToUnified } from './constants.js';
+import { DydxPerpetualMarketSchema, DydxOrderSchema, DydxPerpetualPositionSchema, DydxOrderBookResponseSchema, DydxTradeSchema, DydxFillSchema, DydxHistoricalFundingSchema, DydxSubaccountSchema, DydxCandleSchema, } from './types.js';
 /**
  * dYdX v4 Data Normalizer
  *
@@ -38,6 +39,7 @@ export class DydxNormalizer {
      * @returns Unified market
      */
     normalizeMarket(market) {
+        DydxPerpetualMarketSchema.parse(market);
         const unifiedSymbol = dydxToUnified(market.ticker);
         const [base = '', rest = ''] = unifiedSymbol.split('/');
         const [quote = '', settle = ''] = rest.split(':');
@@ -91,6 +93,7 @@ export class DydxNormalizer {
      * @returns Unified order
      */
     normalizeOrder(order) {
+        DydxOrderSchema.parse(order);
         const unifiedSymbol = dydxToUnified(order.ticker);
         const size = parseFloat(order.size);
         const filled = parseFloat(order.totalFilled);
@@ -189,6 +192,7 @@ export class DydxNormalizer {
      * @returns Unified position
      */
     normalizePosition(position, oraclePrice = 0) {
+        DydxPerpetualPositionSchema.parse(position);
         const unifiedSymbol = dydxToUnified(position.market);
         const size = Math.abs(parseFloat(position.size));
         const entryPrice = parseFloat(position.entryPrice);
@@ -220,6 +224,7 @@ export class DydxNormalizer {
                 sumOpen: position.sumOpen,
                 sumClose: position.sumClose,
                 subaccountNumber: position.subaccountNumber,
+                _marginRatioSource: 'not_available',
             },
         };
     }
@@ -246,6 +251,7 @@ export class DydxNormalizer {
      * @returns Unified order book
      */
     normalizeOrderBook(orderBook, ticker) {
+        DydxOrderBookResponseSchema.parse(orderBook);
         const unifiedSymbol = dydxToUnified(ticker);
         const bids = orderBook.bids.map((level) => [
             parseFloat(level.price),
@@ -274,6 +280,7 @@ export class DydxNormalizer {
      * @returns Unified trade
      */
     normalizeTrade(trade, ticker) {
+        DydxTradeSchema.parse(trade);
         const unifiedSymbol = dydxToUnified(ticker);
         const price = parseFloat(trade.price);
         const amount = parseFloat(trade.size);
@@ -308,6 +315,7 @@ export class DydxNormalizer {
      * @returns Unified trade
      */
     normalizeFill(fill) {
+        DydxFillSchema.parse(fill);
         const unifiedSymbol = dydxToUnified(fill.market);
         const price = parseFloat(fill.price);
         const amount = parseFloat(fill.size);
@@ -348,6 +356,7 @@ export class DydxNormalizer {
      * @returns Unified funding rate
      */
     normalizeFundingRate(funding, oraclePrice = 0) {
+        DydxHistoricalFundingSchema.parse(funding);
         const unifiedSymbol = dydxToUnified(funding.ticker);
         const fundingTimestamp = new Date(funding.effectiveAt).getTime();
         return {
@@ -384,6 +393,7 @@ export class DydxNormalizer {
      * @returns Array of unified balances
      */
     normalizeBalance(subaccount) {
+        DydxSubaccountSchema.parse(subaccount);
         const equity = parseFloat(subaccount.equity);
         const freeCollateral = parseFloat(subaccount.freeCollateral);
         const used = equity - freeCollateral;
@@ -438,6 +448,7 @@ export class DydxNormalizer {
                 nextFundingRate: market.nextFundingRate,
                 nextFundingAt: market.nextFundingAt,
                 trades24H: market.trades24H,
+                _bidAskSource: 'oracle_price',
             },
         };
     }
@@ -451,6 +462,7 @@ export class DydxNormalizer {
      * @returns OHLCV tuple
      */
     normalizeCandle(candle) {
+        DydxCandleSchema.parse(candle);
         return [
             new Date(candle.startedAt).getTime(),
             parseFloat(candle.open),

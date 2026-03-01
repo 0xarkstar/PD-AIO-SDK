@@ -7,6 +7,7 @@
  * @see https://docs.paradex.trade
  */
 import { PARADEX_ORDER_TYPES, PARADEX_ORDER_SIDES, PARADEX_TIME_IN_FORCE } from './constants.js';
+import { ParadexAPIMarketSchema, ParadexOrderSchema, ParadexPositionSchema, ParadexBalanceSchema, ParadexOrderBookSchema, ParadexTradeSchema, ParadexTickerSchema, ParadexFundingRateSchema, } from './types.js';
 /**
  * Paradex Data Normalizer
  *
@@ -109,42 +110,43 @@ export class ParadexNormalizer {
      * @returns Unified market
      */
     normalizeMarket(paradexMarket) {
-        const symbol = this.symbolToCCXT(paradexMarket.symbol);
+        const validated = ParadexAPIMarketSchema.parse(paradexMarket);
+        const symbol = this.symbolToCCXT(validated.symbol);
         // Handle both actual API format and legacy type format
-        const tickSize = paradexMarket.price_tick_size || paradexMarket.tick_size || '0.01';
-        const stepSize = paradexMarket.order_size_increment || paradexMarket.step_size || '0.001';
-        const minOrderSize = paradexMarket.min_notional || paradexMarket.min_order_size || '100';
+        const tickSize = validated.price_tick_size || validated.tick_size || '0.01';
+        const stepSize = validated.order_size_increment || validated.step_size || '0.001';
+        const minOrderSize = validated.min_notional || validated.min_order_size || '100';
         // Extract maker/taker fees from fee_config or legacy fields
         let makerFee = 0.00003; // Default
         let takerFee = 0.0002; // Default
-        if (paradexMarket.fee_config?.api_fee) {
-            makerFee = parseFloat(paradexMarket.fee_config.api_fee.maker_fee?.fee || '0.00003');
-            takerFee = parseFloat(paradexMarket.fee_config.api_fee.taker_fee?.fee || '0.0002');
+        if (validated.fee_config?.api_fee) {
+            makerFee = parseFloat(validated.fee_config.api_fee.maker_fee?.fee || '0.00003');
+            takerFee = parseFloat(validated.fee_config.api_fee.taker_fee?.fee || '0.0002');
         }
-        else if (paradexMarket.maker_fee_rate) {
-            makerFee = parseFloat(paradexMarket.maker_fee_rate);
-            takerFee = parseFloat(paradexMarket.taker_fee_rate);
+        else if (validated.maker_fee_rate) {
+            makerFee = parseFloat(validated.maker_fee_rate);
+            takerFee = parseFloat(validated.taker_fee_rate || '0.0002');
         }
         // Extract max leverage from delta1_cross_margin_params or legacy field
         let maxLeverage = 50; // Default
-        if (paradexMarket.delta1_cross_margin_params?.imf_base) {
-            const imfBase = parseFloat(paradexMarket.delta1_cross_margin_params.imf_base);
+        if (validated.delta1_cross_margin_params?.imf_base) {
+            const imfBase = parseFloat(validated.delta1_cross_margin_params.imf_base);
             if (imfBase > 0) {
                 maxLeverage = Math.round(1 / imfBase);
             }
         }
-        else if (paradexMarket.max_leverage) {
-            maxLeverage = parseFloat(paradexMarket.max_leverage);
+        else if (validated.max_leverage) {
+            maxLeverage = parseFloat(validated.max_leverage);
         }
         // Determine if market is active
-        const isActive = paradexMarket.is_active ??
-            (paradexMarket.open_at ? paradexMarket.open_at <= Date.now() : true);
+        const isActive = validated.is_active ??
+            (validated.open_at ? validated.open_at <= Date.now() : true);
         return {
-            id: paradexMarket.symbol,
+            id: validated.symbol,
             symbol,
-            base: paradexMarket.base_currency,
-            quote: paradexMarket.quote_currency,
-            settle: paradexMarket.settlement_currency,
+            base: validated.base_currency,
+            quote: validated.quote_currency,
+            settle: validated.settlement_currency,
             active: isActive,
             minAmount: parseFloat(minOrderSize),
             pricePrecision: this.countDecimals(tickSize),
@@ -154,8 +156,8 @@ export class ParadexNormalizer {
             makerFee,
             takerFee,
             maxLeverage,
-            fundingIntervalHours: paradexMarket.funding_period_hours || 8,
-            info: paradexMarket,
+            fundingIntervalHours: validated.funding_period_hours || 8,
+            info: validated,
         };
     }
     /**
@@ -222,27 +224,28 @@ export class ParadexNormalizer {
      * Normalize Paradex order to unified format
      */
     normalizeOrder(paradexOrder) {
-        const symbol = this.symbolToCCXT(paradexOrder.market);
+        const validated = ParadexOrderSchema.parse(paradexOrder);
+        const symbol = this.symbolToCCXT(validated.market);
         return {
-            id: paradexOrder.id,
-            clientOrderId: paradexOrder.client_id,
+            id: validated.id,
+            clientOrderId: validated.client_id,
             symbol,
-            type: this.normalizeOrderType(paradexOrder.type),
-            side: this.normalizeOrderSide(paradexOrder.side),
-            amount: parseFloat(paradexOrder.size),
-            price: paradexOrder.price ? parseFloat(paradexOrder.price) : undefined,
-            filled: parseFloat(paradexOrder.filled_size),
-            remaining: parseFloat(paradexOrder.size) - parseFloat(paradexOrder.filled_size),
-            averagePrice: paradexOrder.avg_fill_price
-                ? parseFloat(paradexOrder.avg_fill_price)
+            type: this.normalizeOrderType(validated.type),
+            side: this.normalizeOrderSide(validated.side),
+            amount: parseFloat(validated.size),
+            price: validated.price ? parseFloat(validated.price) : undefined,
+            filled: parseFloat(validated.filled_size),
+            remaining: parseFloat(validated.size) - parseFloat(validated.filled_size),
+            averagePrice: validated.avg_fill_price
+                ? parseFloat(validated.avg_fill_price)
                 : undefined,
-            status: this.normalizeOrderStatus(paradexOrder.status),
-            timeInForce: this.normalizeTimeInForce(paradexOrder.time_in_force),
-            postOnly: paradexOrder.post_only,
-            reduceOnly: paradexOrder.reduce_only,
-            timestamp: paradexOrder.created_at,
-            lastUpdateTimestamp: paradexOrder.updated_at,
-            info: paradexOrder,
+            status: this.normalizeOrderStatus(validated.status),
+            timeInForce: this.normalizeTimeInForce(validated.time_in_force),
+            postOnly: validated.post_only,
+            reduceOnly: validated.reduce_only,
+            timestamp: validated.created_at,
+            lastUpdateTimestamp: validated.updated_at,
+            info: validated,
         };
     }
     /**
@@ -258,27 +261,32 @@ export class ParadexNormalizer {
      * Normalize Paradex position to unified format
      */
     normalizePosition(paradexPosition) {
-        const symbol = this.symbolToCCXT(paradexPosition.market);
-        const size = parseFloat(paradexPosition.size);
-        const side = paradexPosition.side === 'LONG' ? 'long' : 'short';
+        const validated = ParadexPositionSchema.parse(paradexPosition);
+        const symbol = this.symbolToCCXT(validated.market);
+        const size = parseFloat(validated.size);
+        const side = validated.side === 'LONG' ? 'long' : 'short';
+        const absSize = Math.abs(size);
+        const markPrice = parseFloat(validated.mark_price);
+        const maintenanceMargin = parseFloat(validated.margin) * 0.025;
+        const notional = absSize * markPrice;
         return {
             symbol,
             side,
             marginMode: 'cross', // Paradex uses cross margin
-            size: Math.abs(size),
-            entryPrice: parseFloat(paradexPosition.entry_price),
-            markPrice: parseFloat(paradexPosition.mark_price),
-            liquidationPrice: paradexPosition.liquidation_price
-                ? parseFloat(paradexPosition.liquidation_price)
+            size: absSize,
+            entryPrice: parseFloat(validated.entry_price),
+            markPrice,
+            liquidationPrice: validated.liquidation_price
+                ? parseFloat(validated.liquidation_price)
                 : 0,
-            unrealizedPnl: parseFloat(paradexPosition.unrealized_pnl),
-            realizedPnl: parseFloat(paradexPosition.realized_pnl),
-            margin: parseFloat(paradexPosition.margin),
-            leverage: parseFloat(paradexPosition.leverage),
-            maintenanceMargin: parseFloat(paradexPosition.margin) * 0.025, // Estimate 2.5%
-            marginRatio: 0, // Not provided by Paradex
-            timestamp: paradexPosition.last_updated,
-            info: paradexPosition,
+            unrealizedPnl: parseFloat(validated.unrealized_pnl),
+            realizedPnl: parseFloat(validated.realized_pnl),
+            margin: parseFloat(validated.margin),
+            leverage: parseFloat(validated.leverage),
+            maintenanceMargin,
+            marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
+            timestamp: validated.last_updated,
+            info: validated,
         };
     }
     /**
@@ -294,12 +302,13 @@ export class ParadexNormalizer {
      * Normalize Paradex balance to unified format
      */
     normalizeBalance(paradexBalance) {
+        const validated = ParadexBalanceSchema.parse(paradexBalance);
         return {
-            currency: paradexBalance.asset,
-            total: parseFloat(paradexBalance.total),
-            free: parseFloat(paradexBalance.available),
-            used: parseFloat(paradexBalance.locked),
-            info: paradexBalance,
+            currency: validated.asset,
+            total: parseFloat(validated.total),
+            free: parseFloat(validated.available),
+            used: parseFloat(validated.locked),
+            info: validated,
         };
     }
     /**
@@ -315,12 +324,13 @@ export class ParadexNormalizer {
      * Normalize Paradex order book to unified format
      */
     normalizeOrderBook(paradexOrderBook) {
+        const validated = ParadexOrderBookSchema.parse(paradexOrderBook);
         return {
-            symbol: this.symbolToCCXT(paradexOrderBook.market),
+            symbol: this.symbolToCCXT(validated.market),
             exchange: 'paradex',
-            bids: paradexOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-            asks: paradexOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-            timestamp: paradexOrderBook.timestamp,
+            bids: validated.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+            asks: validated.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+            timestamp: validated.timestamp,
         };
     }
     // ===========================================================================
@@ -330,17 +340,20 @@ export class ParadexNormalizer {
      * Normalize Paradex trade to unified format
      */
     normalizeTrade(paradexTrade) {
-        const price = parseFloat(paradexTrade.price);
-        const amount = parseFloat(paradexTrade.size);
+        const validated = ParadexTradeSchema.parse(paradexTrade);
+        const price = parseFloat(validated.price);
+        const amount = parseFloat(validated.size);
+        // API returns created_at instead of timestamp
+        const timestamp = validated.timestamp || validated.created_at || 0;
         return {
-            id: paradexTrade.id,
-            symbol: this.symbolToCCXT(paradexTrade.market),
-            side: this.normalizeOrderSide(paradexTrade.side),
+            id: validated.id,
+            symbol: this.symbolToCCXT(validated.market),
+            side: this.normalizeOrderSide(validated.side),
             price,
             amount,
             cost: price * amount,
-            timestamp: paradexTrade.timestamp,
-            info: paradexTrade,
+            timestamp,
+            info: validated,
         };
     }
     /**
@@ -356,24 +369,28 @@ export class ParadexNormalizer {
      * Normalize Paradex ticker to unified format
      */
     normalizeTicker(paradexTicker) {
-        const last = parseFloat(paradexTicker.last_price);
-        const change = parseFloat(paradexTicker.price_change_24h);
-        const percentage = parseFloat(paradexTicker.price_change_percent_24h);
+        const validated = ParadexTickerSchema.parse(paradexTicker);
+        const last = parseFloat(validated.last_price);
+        const change = parseFloat(validated.price_change_24h);
+        const percentage = parseFloat(validated.price_change_percent_24h);
         return {
-            symbol: this.symbolToCCXT(paradexTicker.market),
+            symbol: this.symbolToCCXT(validated.market),
             last,
             open: last - change,
             close: last,
-            bid: parseFloat(paradexTicker.bid),
-            ask: parseFloat(paradexTicker.ask),
-            high: parseFloat(paradexTicker.high_24h),
-            low: parseFloat(paradexTicker.low_24h),
+            bid: parseFloat(validated.bid),
+            ask: parseFloat(validated.ask),
+            high: parseFloat(validated.high_24h),
+            low: parseFloat(validated.low_24h),
             change,
             percentage,
-            baseVolume: parseFloat(paradexTicker.volume_24h),
+            baseVolume: parseFloat(validated.volume_24h),
             quoteVolume: 0, // Not provided by Paradex
-            timestamp: paradexTicker.timestamp,
-            info: paradexTicker,
+            timestamp: validated.timestamp,
+            info: {
+                ...validated,
+                _bidAskSource: 'orderbook',
+            },
         };
     }
     /**
@@ -389,15 +406,16 @@ export class ParadexNormalizer {
      * Normalize Paradex funding rate to unified format
      */
     normalizeFundingRate(paradexFunding) {
+        const validated = ParadexFundingRateSchema.parse(paradexFunding);
         return {
-            symbol: this.symbolToCCXT(paradexFunding.market),
-            fundingRate: parseFloat(paradexFunding.rate),
-            fundingTimestamp: paradexFunding.timestamp,
-            markPrice: parseFloat(paradexFunding.mark_price),
-            indexPrice: parseFloat(paradexFunding.index_price),
-            nextFundingTimestamp: paradexFunding.next_funding_time,
+            symbol: this.symbolToCCXT(validated.market),
+            fundingRate: parseFloat(validated.rate),
+            fundingTimestamp: validated.timestamp,
+            markPrice: parseFloat(validated.mark_price),
+            indexPrice: parseFloat(validated.index_price),
+            nextFundingTimestamp: validated.next_funding_time,
             fundingIntervalHours: 8,
-            info: paradexFunding,
+            info: validated,
         };
     }
     /**

@@ -362,7 +362,10 @@ export class NadoNormalizer {
             percentage: 0,
             baseVolume: 0,
             quoteVolume: 0,
-            info: validated,
+            info: {
+                ...validated,
+                _bidAskSource: 'orderbook',
+            },
         };
     }
     /**

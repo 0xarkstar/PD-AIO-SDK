@@ -5,6 +5,7 @@
  *
  * @see https://docs.gmx.io/docs/api/rest-v2/
  */
+import { z } from 'zod';
 /**
  * Market info from /markets/info endpoint
  */
@@ -102,6 +103,637 @@ export interface GmxMarketInfo {
     virtualLongTokenId: string;
     virtualShortTokenId: string;
 }
+export declare const GmxMarketInfoSchema: z.ZodObject<{
+    marketToken: z.ZodString;
+    indexToken: z.ZodString;
+    longToken: z.ZodString;
+    shortToken: z.ZodString;
+    name: z.ZodOptional<z.ZodString>;
+    isListed: z.ZodOptional<z.ZodBoolean>;
+    indexTokenInfo: z.ZodOptional<z.ZodObject<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    longTokenInfo: z.ZodOptional<z.ZodObject<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    shortTokenInfo: z.ZodOptional<z.ZodObject<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    longPoolAmount: z.ZodString;
+    shortPoolAmount: z.ZodString;
+    maxLongPoolAmount: z.ZodString;
+    maxShortPoolAmount: z.ZodString;
+    maxLongPoolUsdForDeposit: z.ZodString;
+    maxShortPoolUsdForDeposit: z.ZodString;
+    longPoolAmountAdjustment: z.ZodString;
+    shortPoolAmountAdjustment: z.ZodString;
+    poolValueMin: z.ZodString;
+    poolValueMax: z.ZodString;
+    reserveFactorLong: z.ZodString;
+    reserveFactorShort: z.ZodString;
+    openInterestReserveFactorLong: z.ZodString;
+    openInterestReserveFactorShort: z.ZodString;
+    maxOpenInterestLong: z.ZodString;
+    maxOpenInterestShort: z.ZodString;
+    totalBorrowingFees: z.ZodString;
+    positionImpactPoolAmount: z.ZodString;
+    minPositionImpactPoolAmount: z.ZodString;
+    positionImpactPoolDistributionRate: z.ZodString;
+    swapImpactPoolAmountLong: z.ZodString;
+    swapImpactPoolAmountShort: z.ZodString;
+    borrowingFactorLong: z.ZodString;
+    borrowingFactorShort: z.ZodString;
+    borrowingExponentFactorLong: z.ZodString;
+    borrowingExponentFactorShort: z.ZodString;
+    fundingFactor: z.ZodString;
+    fundingExponentFactor: z.ZodString;
+    fundingIncreaseFactorPerSecond: z.ZodString;
+    fundingDecreaseFactorPerSecond: z.ZodString;
+    thresholdForStableFunding: z.ZodString;
+    thresholdForDecreaseFunding: z.ZodString;
+    minFundingFactorPerSecond: z.ZodString;
+    maxFundingFactorPerSecond: z.ZodString;
+    pnlLongMax: z.ZodString;
+    pnlLongMin: z.ZodString;
+    pnlShortMax: z.ZodString;
+    pnlShortMin: z.ZodString;
+    netPnlMax: z.ZodString;
+    netPnlMin: z.ZodString;
+    maxPnlFactorForTradersLong: z.ZodString;
+    maxPnlFactorForTradersShort: z.ZodString;
+    minCollateralFactor: z.ZodString;
+    minCollateralFactorForOpenInterestLong: z.ZodString;
+    minCollateralFactorForOpenInterestShort: z.ZodString;
+    claimableFundingAmountLong: z.ZodString;
+    claimableFundingAmountShort: z.ZodString;
+    positionFeeFactorForPositiveImpact: z.ZodString;
+    positionFeeFactorForNegativeImpact: z.ZodString;
+    positionImpactFactorPositive: z.ZodString;
+    positionImpactFactorNegative: z.ZodString;
+    maxPositionImpactFactorPositive: z.ZodString;
+    maxPositionImpactFactorNegativePrice: z.ZodString;
+    positionImpactExponentFactor: z.ZodString;
+    swapFeeFactorForPositiveImpact: z.ZodString;
+    swapFeeFactorForNegativeImpact: z.ZodString;
+    swapImpactFactorPositive: z.ZodString;
+    swapImpactFactorNegative: z.ZodString;
+    swapImpactExponentFactor: z.ZodString;
+    longInterestInTokens: z.ZodString;
+    shortInterestInTokens: z.ZodString;
+    longInterestUsd: z.ZodString;
+    shortInterestUsd: z.ZodString;
+    longInterestInTokensUsingLongToken: z.ZodString;
+    longInterestInTokensUsingShortToken: z.ZodString;
+    shortInterestInTokensUsingLongToken: z.ZodString;
+    shortInterestInTokensUsingShortToken: z.ZodString;
+    isDisabled: z.ZodBoolean;
+    virtualPoolAmountForLongToken: z.ZodString;
+    virtualPoolAmountForShortToken: z.ZodString;
+    virtualInventoryForPositions: z.ZodString;
+    virtualMarketId: z.ZodString;
+    virtualLongTokenId: z.ZodString;
+    virtualShortTokenId: z.ZodString;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    marketToken: z.ZodString;
+    indexToken: z.ZodString;
+    longToken: z.ZodString;
+    shortToken: z.ZodString;
+    name: z.ZodOptional<z.ZodString>;
+    isListed: z.ZodOptional<z.ZodBoolean>;
+    indexTokenInfo: z.ZodOptional<z.ZodObject<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    longTokenInfo: z.ZodOptional<z.ZodObject<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    shortTokenInfo: z.ZodOptional<z.ZodObject<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    longPoolAmount: z.ZodString;
+    shortPoolAmount: z.ZodString;
+    maxLongPoolAmount: z.ZodString;
+    maxShortPoolAmount: z.ZodString;
+    maxLongPoolUsdForDeposit: z.ZodString;
+    maxShortPoolUsdForDeposit: z.ZodString;
+    longPoolAmountAdjustment: z.ZodString;
+    shortPoolAmountAdjustment: z.ZodString;
+    poolValueMin: z.ZodString;
+    poolValueMax: z.ZodString;
+    reserveFactorLong: z.ZodString;
+    reserveFactorShort: z.ZodString;
+    openInterestReserveFactorLong: z.ZodString;
+    openInterestReserveFactorShort: z.ZodString;
+    maxOpenInterestLong: z.ZodString;
+    maxOpenInterestShort: z.ZodString;
+    totalBorrowingFees: z.ZodString;
+    positionImpactPoolAmount: z.ZodString;
+    minPositionImpactPoolAmount: z.ZodString;
+    positionImpactPoolDistributionRate: z.ZodString;
+    swapImpactPoolAmountLong: z.ZodString;
+    swapImpactPoolAmountShort: z.ZodString;
+    borrowingFactorLong: z.ZodString;
+    borrowingFactorShort: z.ZodString;
+    borrowingExponentFactorLong: z.ZodString;
+    borrowingExponentFactorShort: z.ZodString;
+    fundingFactor: z.ZodString;
+    fundingExponentFactor: z.ZodString;
+    fundingIncreaseFactorPerSecond: z.ZodString;
+    fundingDecreaseFactorPerSecond: z.ZodString;
+    thresholdForStableFunding: z.ZodString;
+    thresholdForDecreaseFunding: z.ZodString;
+    minFundingFactorPerSecond: z.ZodString;
+    maxFundingFactorPerSecond: z.ZodString;
+    pnlLongMax: z.ZodString;
+    pnlLongMin: z.ZodString;
+    pnlShortMax: z.ZodString;
+    pnlShortMin: z.ZodString;
+    netPnlMax: z.ZodString;
+    netPnlMin: z.ZodString;
+    maxPnlFactorForTradersLong: z.ZodString;
+    maxPnlFactorForTradersShort: z.ZodString;
+    minCollateralFactor: z.ZodString;
+    minCollateralFactorForOpenInterestLong: z.ZodString;
+    minCollateralFactorForOpenInterestShort: z.ZodString;
+    claimableFundingAmountLong: z.ZodString;
+    claimableFundingAmountShort: z.ZodString;
+    positionFeeFactorForPositiveImpact: z.ZodString;
+    positionFeeFactorForNegativeImpact: z.ZodString;
+    positionImpactFactorPositive: z.ZodString;
+    positionImpactFactorNegative: z.ZodString;
+    maxPositionImpactFactorPositive: z.ZodString;
+    maxPositionImpactFactorNegativePrice: z.ZodString;
+    positionImpactExponentFactor: z.ZodString;
+    swapFeeFactorForPositiveImpact: z.ZodString;
+    swapFeeFactorForNegativeImpact: z.ZodString;
+    swapImpactFactorPositive: z.ZodString;
+    swapImpactFactorNegative: z.ZodString;
+    swapImpactExponentFactor: z.ZodString;
+    longInterestInTokens: z.ZodString;
+    shortInterestInTokens: z.ZodString;
+    longInterestUsd: z.ZodString;
+    shortInterestUsd: z.ZodString;
+    longInterestInTokensUsingLongToken: z.ZodString;
+    longInterestInTokensUsingShortToken: z.ZodString;
+    shortInterestInTokensUsingLongToken: z.ZodString;
+    shortInterestInTokensUsingShortToken: z.ZodString;
+    isDisabled: z.ZodBoolean;
+    virtualPoolAmountForLongToken: z.ZodString;
+    virtualPoolAmountForShortToken: z.ZodString;
+    virtualInventoryForPositions: z.ZodString;
+    virtualMarketId: z.ZodString;
+    virtualLongTokenId: z.ZodString;
+    virtualShortTokenId: z.ZodString;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    marketToken: z.ZodString;
+    indexToken: z.ZodString;
+    longToken: z.ZodString;
+    shortToken: z.ZodString;
+    name: z.ZodOptional<z.ZodString>;
+    isListed: z.ZodOptional<z.ZodBoolean>;
+    indexTokenInfo: z.ZodOptional<z.ZodObject<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    longTokenInfo: z.ZodOptional<z.ZodObject<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    shortTokenInfo: z.ZodOptional<z.ZodObject<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+        decimals: z.ZodNumber;
+        prices: z.ZodObject<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+            minPrice: z.ZodString;
+            maxPrice: z.ZodString;
+        }, z.ZodTypeAny, "passthrough">>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    longPoolAmount: z.ZodString;
+    shortPoolAmount: z.ZodString;
+    maxLongPoolAmount: z.ZodString;
+    maxShortPoolAmount: z.ZodString;
+    maxLongPoolUsdForDeposit: z.ZodString;
+    maxShortPoolUsdForDeposit: z.ZodString;
+    longPoolAmountAdjustment: z.ZodString;
+    shortPoolAmountAdjustment: z.ZodString;
+    poolValueMin: z.ZodString;
+    poolValueMax: z.ZodString;
+    reserveFactorLong: z.ZodString;
+    reserveFactorShort: z.ZodString;
+    openInterestReserveFactorLong: z.ZodString;
+    openInterestReserveFactorShort: z.ZodString;
+    maxOpenInterestLong: z.ZodString;
+    maxOpenInterestShort: z.ZodString;
+    totalBorrowingFees: z.ZodString;
+    positionImpactPoolAmount: z.ZodString;
+    minPositionImpactPoolAmount: z.ZodString;
+    positionImpactPoolDistributionRate: z.ZodString;
+    swapImpactPoolAmountLong: z.ZodString;
+    swapImpactPoolAmountShort: z.ZodString;
+    borrowingFactorLong: z.ZodString;
+    borrowingFactorShort: z.ZodString;
+    borrowingExponentFactorLong: z.ZodString;
+    borrowingExponentFactorShort: z.ZodString;
+    fundingFactor: z.ZodString;
+    fundingExponentFactor: z.ZodString;
+    fundingIncreaseFactorPerSecond: z.ZodString;
+    fundingDecreaseFactorPerSecond: z.ZodString;
+    thresholdForStableFunding: z.ZodString;
+    thresholdForDecreaseFunding: z.ZodString;
+    minFundingFactorPerSecond: z.ZodString;
+    maxFundingFactorPerSecond: z.ZodString;
+    pnlLongMax: z.ZodString;
+    pnlLongMin: z.ZodString;
+    pnlShortMax: z.ZodString;
+    pnlShortMin: z.ZodString;
+    netPnlMax: z.ZodString;
+    netPnlMin: z.ZodString;
+    maxPnlFactorForTradersLong: z.ZodString;
+    maxPnlFactorForTradersShort: z.ZodString;
+    minCollateralFactor: z.ZodString;
+    minCollateralFactorForOpenInterestLong: z.ZodString;
+    minCollateralFactorForOpenInterestShort: z.ZodString;
+    claimableFundingAmountLong: z.ZodString;
+    claimableFundingAmountShort: z.ZodString;
+    positionFeeFactorForPositiveImpact: z.ZodString;
+    positionFeeFactorForNegativeImpact: z.ZodString;
+    positionImpactFactorPositive: z.ZodString;
+    positionImpactFactorNegative: z.ZodString;
+    maxPositionImpactFactorPositive: z.ZodString;
+    maxPositionImpactFactorNegativePrice: z.ZodString;
+    positionImpactExponentFactor: z.ZodString;
+    swapFeeFactorForPositiveImpact: z.ZodString;
+    swapFeeFactorForNegativeImpact: z.ZodString;
+    swapImpactFactorPositive: z.ZodString;
+    swapImpactFactorNegative: z.ZodString;
+    swapImpactExponentFactor: z.ZodString;
+    longInterestInTokens: z.ZodString;
+    shortInterestInTokens: z.ZodString;
+    longInterestUsd: z.ZodString;
+    shortInterestUsd: z.ZodString;
+    longInterestInTokensUsingLongToken: z.ZodString;
+    longInterestInTokensUsingShortToken: z.ZodString;
+    shortInterestInTokensUsingLongToken: z.ZodString;
+    shortInterestInTokensUsingShortToken: z.ZodString;
+    isDisabled: z.ZodBoolean;
+    virtualPoolAmountForLongToken: z.ZodString;
+    virtualPoolAmountForShortToken: z.ZodString;
+    virtualInventoryForPositions: z.ZodString;
+    virtualMarketId: z.ZodString;
+    virtualLongTokenId: z.ZodString;
+    virtualShortTokenId: z.ZodString;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Token info
  */
@@ -115,7 +747,30 @@ export interface GmxTokenInfo {
     };
 }
 /**
- * Candlestick data from /candlesticks endpoint
+ * Candlestick data tuple from /prices/candles endpoint
+ * Format: [timestamp_seconds, open, high, low, close]
+ */
+export type GmxCandleTuple = number[];
+export declare const GmxCandleTupleSchema: z.ZodArray<z.ZodNumber, "many">;
+/**
+ * Response wrapper from /prices/candles endpoint
+ */
+export interface GmxCandlesResponse {
+    period: string;
+    candles: GmxCandleTuple[];
+}
+export declare const GmxCandlesResponseSchema: z.ZodObject<{
+    period: z.ZodString;
+    candles: z.ZodArray<z.ZodArray<z.ZodNumber, "many">, "many">;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    period: z.ZodString;
+    candles: z.ZodArray<z.ZodArray<z.ZodNumber, "many">, "many">;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    period: z.ZodString;
+    candles: z.ZodArray<z.ZodArray<z.ZodNumber, "many">, "many">;
+}, z.ZodTypeAny, "passthrough">>;
+/**
+ * @deprecated Use GmxCandleTuple instead — API returns tuples, not objects
  */
 export interface GmxCandlestick {
     timestamp: number;
@@ -142,6 +797,49 @@ export interface GmxPosition {
     decreasedAtBlock: string;
     isLong: boolean;
 }
+export declare const GmxPositionSchema: z.ZodObject<{
+    account: z.ZodString;
+    market: z.ZodString;
+    collateralToken: z.ZodString;
+    sizeInUsd: z.ZodString;
+    sizeInTokens: z.ZodString;
+    collateralAmount: z.ZodString;
+    borrowingFactor: z.ZodString;
+    fundingFeeAmountPerSize: z.ZodString;
+    longTokenClaimableFundingAmountPerSize: z.ZodString;
+    shortTokenClaimableFundingAmountPerSize: z.ZodString;
+    increasedAtBlock: z.ZodString;
+    decreasedAtBlock: z.ZodString;
+    isLong: z.ZodBoolean;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    account: z.ZodString;
+    market: z.ZodString;
+    collateralToken: z.ZodString;
+    sizeInUsd: z.ZodString;
+    sizeInTokens: z.ZodString;
+    collateralAmount: z.ZodString;
+    borrowingFactor: z.ZodString;
+    fundingFeeAmountPerSize: z.ZodString;
+    longTokenClaimableFundingAmountPerSize: z.ZodString;
+    shortTokenClaimableFundingAmountPerSize: z.ZodString;
+    increasedAtBlock: z.ZodString;
+    decreasedAtBlock: z.ZodString;
+    isLong: z.ZodBoolean;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    account: z.ZodString;
+    market: z.ZodString;
+    collateralToken: z.ZodString;
+    sizeInUsd: z.ZodString;
+    sizeInTokens: z.ZodString;
+    collateralAmount: z.ZodString;
+    borrowingFactor: z.ZodString;
+    fundingFeeAmountPerSize: z.ZodString;
+    longTokenClaimableFundingAmountPerSize: z.ZodString;
+    shortTokenClaimableFundingAmountPerSize: z.ZodString;
+    increasedAtBlock: z.ZodString;
+    decreasedAtBlock: z.ZodString;
+    isLong: z.ZodBoolean;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Order data from subgraph
  */
@@ -171,6 +869,82 @@ export interface GmxOrder {
     cancelledTxn?: string;
     executedTxn?: string;
 }
+export declare const GmxOrderSchema: z.ZodObject<{
+    key: z.ZodString;
+    account: z.ZodString;
+    receiver: z.ZodString;
+    callbackContract: z.ZodString;
+    uiFeeReceiver: z.ZodString;
+    market: z.ZodString;
+    initialCollateralToken: z.ZodString;
+    swapPath: z.ZodArray<z.ZodString, "many">;
+    orderType: z.ZodNumber;
+    decreasePositionSwapType: z.ZodNumber;
+    sizeDeltaUsd: z.ZodString;
+    initialCollateralDeltaAmount: z.ZodString;
+    triggerPrice: z.ZodString;
+    acceptablePrice: z.ZodString;
+    executionFee: z.ZodString;
+    callbackGasLimit: z.ZodString;
+    minOutputAmount: z.ZodString;
+    updatedAtBlock: z.ZodString;
+    isLong: z.ZodBoolean;
+    isFrozen: z.ZodBoolean;
+    status: z.ZodString;
+    createdTxn: z.ZodString;
+    cancelledTxn: z.ZodOptional<z.ZodString>;
+    executedTxn: z.ZodOptional<z.ZodString>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    key: z.ZodString;
+    account: z.ZodString;
+    receiver: z.ZodString;
+    callbackContract: z.ZodString;
+    uiFeeReceiver: z.ZodString;
+    market: z.ZodString;
+    initialCollateralToken: z.ZodString;
+    swapPath: z.ZodArray<z.ZodString, "many">;
+    orderType: z.ZodNumber;
+    decreasePositionSwapType: z.ZodNumber;
+    sizeDeltaUsd: z.ZodString;
+    initialCollateralDeltaAmount: z.ZodString;
+    triggerPrice: z.ZodString;
+    acceptablePrice: z.ZodString;
+    executionFee: z.ZodString;
+    callbackGasLimit: z.ZodString;
+    minOutputAmount: z.ZodString;
+    updatedAtBlock: z.ZodString;
+    isLong: z.ZodBoolean;
+    isFrozen: z.ZodBoolean;
+    status: z.ZodString;
+    createdTxn: z.ZodString;
+    cancelledTxn: z.ZodOptional<z.ZodString>;
+    executedTxn: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    key: z.ZodString;
+    account: z.ZodString;
+    receiver: z.ZodString;
+    callbackContract: z.ZodString;
+    uiFeeReceiver: z.ZodString;
+    market: z.ZodString;
+    initialCollateralToken: z.ZodString;
+    swapPath: z.ZodArray<z.ZodString, "many">;
+    orderType: z.ZodNumber;
+    decreasePositionSwapType: z.ZodNumber;
+    sizeDeltaUsd: z.ZodString;
+    initialCollateralDeltaAmount: z.ZodString;
+    triggerPrice: z.ZodString;
+    acceptablePrice: z.ZodString;
+    executionFee: z.ZodString;
+    callbackGasLimit: z.ZodString;
+    minOutputAmount: z.ZodString;
+    updatedAtBlock: z.ZodString;
+    isLong: z.ZodBoolean;
+    isFrozen: z.ZodBoolean;
+    status: z.ZodString;
+    createdTxn: z.ZodString;
+    cancelledTxn: z.ZodOptional<z.ZodString>;
+    executedTxn: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Trade/Fill data from subgraph
  */
@@ -192,6 +966,58 @@ export interface GmxTrade {
     timestamp: number;
     transactionHash: string;
 }
+export declare const GmxTradeSchema: z.ZodObject<{
+    id: z.ZodString;
+    account: z.ZodString;
+    market: z.ZodString;
+    collateralToken: z.ZodString;
+    sizeDeltaUsd: z.ZodString;
+    sizeDeltaInTokens: z.ZodString;
+    collateralDeltaAmount: z.ZodString;
+    borrowingFactor: z.ZodString;
+    fundingFeeAmountPerSize: z.ZodString;
+    pnlUsd: z.ZodString;
+    priceImpactUsd: z.ZodString;
+    orderType: z.ZodNumber;
+    isLong: z.ZodBoolean;
+    executionPrice: z.ZodString;
+    timestamp: z.ZodNumber;
+    transactionHash: z.ZodString;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    id: z.ZodString;
+    account: z.ZodString;
+    market: z.ZodString;
+    collateralToken: z.ZodString;
+    sizeDeltaUsd: z.ZodString;
+    sizeDeltaInTokens: z.ZodString;
+    collateralDeltaAmount: z.ZodString;
+    borrowingFactor: z.ZodString;
+    fundingFeeAmountPerSize: z.ZodString;
+    pnlUsd: z.ZodString;
+    priceImpactUsd: z.ZodString;
+    orderType: z.ZodNumber;
+    isLong: z.ZodBoolean;
+    executionPrice: z.ZodString;
+    timestamp: z.ZodNumber;
+    transactionHash: z.ZodString;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    id: z.ZodString;
+    account: z.ZodString;
+    market: z.ZodString;
+    collateralToken: z.ZodString;
+    sizeDeltaUsd: z.ZodString;
+    sizeDeltaInTokens: z.ZodString;
+    collateralDeltaAmount: z.ZodString;
+    borrowingFactor: z.ZodString;
+    fundingFeeAmountPerSize: z.ZodString;
+    pnlUsd: z.ZodString;
+    priceImpactUsd: z.ZodString;
+    orderType: z.ZodNumber;
+    isLong: z.ZodBoolean;
+    executionPrice: z.ZodString;
+    timestamp: z.ZodNumber;
+    transactionHash: z.ZodString;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Funding rate data
  */
@@ -203,6 +1029,28 @@ export interface GmxFundingRate {
     fundingFeeAmountPerSizeShort: string;
     timestamp: number;
 }
+export declare const GmxFundingRateSchema: z.ZodObject<{
+    market: z.ZodString;
+    fundingFactorPerSecond: z.ZodString;
+    longsPayShorts: z.ZodBoolean;
+    fundingFeeAmountPerSizeLong: z.ZodString;
+    fundingFeeAmountPerSizeShort: z.ZodString;
+    timestamp: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    market: z.ZodString;
+    fundingFactorPerSecond: z.ZodString;
+    longsPayShorts: z.ZodBoolean;
+    fundingFeeAmountPerSizeLong: z.ZodString;
+    fundingFeeAmountPerSizeShort: z.ZodString;
+    timestamp: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    market: z.ZodString;
+    fundingFactorPerSecond: z.ZodString;
+    longsPayShorts: z.ZodBoolean;
+    fundingFeeAmountPerSizeLong: z.ZodString;
+    fundingFeeAmountPerSizeShort: z.ZodString;
+    timestamp: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Price data from oracle
  */

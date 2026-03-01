@@ -52,6 +52,10 @@ export function mapJupiterError(error) {
         if (message.includes('insufficient lamports') || message.includes('insufficient sol')) {
             return new InsufficientBalanceError('Insufficient SOL for transaction fees', 'INSUFFICIENT_SOL', 'jupiter', undefined, undefined, error);
         }
+        // Pyth-specific errors
+        if (message.includes('price not available') || message.includes('no price data')) {
+            return new ExchangeUnavailableError('Pyth price data unavailable', 'ORACLE_ERROR', 'jupiter', error);
+        }
         if (message.includes('account not found') || message.includes('account does not exist')) {
             return new PerpDEXError('Account not found on chain', 'ACCOUNT_NOT_FOUND', 'jupiter', error);
         }

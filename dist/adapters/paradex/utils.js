@@ -93,13 +93,17 @@ export function normalizePosition(paradexPosition) {
     const symbol = normalizeSymbol(paradexPosition.market);
     const size = parseFloat(paradexPosition.size);
     const side = paradexPosition.side === 'LONG' ? 'long' : 'short';
+    const absSize = Math.abs(size);
+    const markPrice = parseFloat(paradexPosition.mark_price);
+    const maintenanceMargin = parseFloat(paradexPosition.margin) * 0.025;
+    const notional = absSize * markPrice;
     return {
         symbol,
         side,
         marginMode: 'cross',
-        size: Math.abs(size),
+        size: absSize,
         entryPrice: parseFloat(paradexPosition.entry_price),
-        markPrice: parseFloat(paradexPosition.mark_price),
+        markPrice,
         liquidationPrice: paradexPosition.liquidation_price
             ? parseFloat(paradexPosition.liquidation_price)
             : 0,
@@ -107,8 +111,8 @@ export function normalizePosition(paradexPosition) {
         realizedPnl: parseFloat(paradexPosition.realized_pnl),
         margin: parseFloat(paradexPosition.margin),
         leverage: parseFloat(paradexPosition.leverage),
-        maintenanceMargin: parseFloat(paradexPosition.margin) * 0.025,
-        marginRatio: 0,
+        maintenanceMargin,
+        marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
         timestamp: paradexPosition.last_updated,
         info: paradexPosition,
     };

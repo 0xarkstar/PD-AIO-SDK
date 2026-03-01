@@ -34,10 +34,12 @@ export declare function fetchTickerData(deps: MarketDataDeps, symbol: string): P
 export declare function fetchOrderBookData(deps: MarketDataDeps, symbol: string, limit: number, fetchMarkets: () => Promise<unknown>): Promise<OrderBook>;
 /**
  * Fetch trades for a specific symbol
+ * Uses /api/v1/recentTrades with market_id parameter
  */
-export declare function fetchTradesData(deps: MarketDataDeps, symbol: string, limit: number): Promise<Trade[]>;
+export declare function fetchTradesData(deps: MarketDataDeps, symbol: string, limit: number, fetchMarkets: () => Promise<unknown>): Promise<Trade[]>;
 /**
  * Fetch funding rate for a specific symbol
+ * The API returns funding rates from multiple exchanges; we use the first match.
  */
-export declare function fetchFundingRateData(deps: MarketDataDeps, symbol: string): Promise<FundingRate>;
+export declare function fetchFundingRateData(deps: MarketDataDeps, symbol: string, fetchMarkets: () => Promise<unknown>): Promise<FundingRate>;
 //# sourceMappingURL=LighterMarketData.d.ts.map

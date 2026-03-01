@@ -244,7 +244,7 @@ describe('ParadexAdapter - Integration Tests', () => {
               price: '50000.00',
               size: '1.5',
               side: 'BUY',
-              created_at: 1234567890000,
+              timestamp: 1234567890000,
             },
             {
               id: 'trade-2',
@@ -252,7 +252,7 @@ describe('ParadexAdapter - Integration Tests', () => {
               price: '50005.00',
               size: '2.0',
               side: 'SELL',
-              created_at: 1234567891000,
+              timestamp: 1234567891000,
             },
           ],
         };
@@ -373,6 +373,7 @@ describe('ParadexAdapter - Integration Tests', () => {
               realized_pnl: '0.00',
               margin: '10000.00',
               leverage: '5.0',
+              last_updated: 1234567890000,
             },
             {
               market: 'ETH-USD-PERP',
@@ -385,6 +386,7 @@ describe('ParadexAdapter - Integration Tests', () => {
               realized_pnl: '50.00',
               margin: '6000.00',
               leverage: '5.0',
+              last_updated: 1234567890000,
             },
           ],
         };
@@ -414,6 +416,7 @@ describe('ParadexAdapter - Integration Tests', () => {
               realized_pnl: '0.00',
               margin: '10000.00',
               leverage: '5.0',
+              last_updated: 1234567890000,
             },
             {
               market: 'ETH-USD-PERP',
@@ -426,6 +429,7 @@ describe('ParadexAdapter - Integration Tests', () => {
               realized_pnl: '50.00',
               margin: '6000.00',
               leverage: '5.0',
+              last_updated: 1234567890000,
             },
           ],
         };
@@ -494,6 +498,7 @@ describe('ParadexAdapter - Integration Tests', () => {
           post_only: false,
           reduce_only: false,
           created_at: 1234567890000,
+          updated_at: 1234567890000,
         };
 
         mockHttpClient.post.mockResolvedValue(mockResponse);
@@ -541,6 +546,7 @@ describe('ParadexAdapter - Integration Tests', () => {
           post_only: true,
           reduce_only: false,
           created_at: 1234567890000,
+          updated_at: 1234567890000,
         });
 
         await adapter.createOrder(orderRequest);
@@ -575,6 +581,7 @@ describe('ParadexAdapter - Integration Tests', () => {
           post_only: false,
           reduce_only: true,
           created_at: 1234567890000,
+          updated_at: 1234567890000,
         });
 
         await adapter.createOrder(orderRequest);
@@ -603,6 +610,7 @@ describe('ParadexAdapter - Integration Tests', () => {
           post_only: false,
           reduce_only: false,
           created_at: 1234567890000,
+          updated_at: 1234567890000,
         };
 
         mockHttpClient.delete.mockResolvedValue(mockResponse);
@@ -632,6 +640,7 @@ describe('ParadexAdapter - Integration Tests', () => {
               post_only: false,
               reduce_only: false,
               created_at: 1234567890000,
+              updated_at: 1234567890000,
             },
             {
               id: 'order-2',
@@ -646,6 +655,7 @@ describe('ParadexAdapter - Integration Tests', () => {
               post_only: false,
               reduce_only: false,
               created_at: 1234567890000,
+              updated_at: 1234567890000,
             },
           ],
         };
@@ -687,6 +697,7 @@ describe('ParadexAdapter - Integration Tests', () => {
               post_only: false,
               reduce_only: false,
               created_at: 1234567890000,
+              updated_at: 1234567890000,
             },
           ],
         };
@@ -724,6 +735,7 @@ describe('ParadexAdapter - Integration Tests', () => {
           post_only: false,
           reduce_only: false,
           created_at: 1234567890000,
+          updated_at: 1234567890000,
         };
 
         mockHttpClient.get.mockResolvedValue(mockResponse);
@@ -766,6 +778,7 @@ describe('ParadexAdapter - Integration Tests', () => {
               post_only: false,
               reduce_only: false,
               created_at: 1234567890000,
+              updated_at: 1234567890000,
             },
           ],
         };

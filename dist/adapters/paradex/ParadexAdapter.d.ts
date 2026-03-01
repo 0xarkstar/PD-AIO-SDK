@@ -49,6 +49,8 @@ export declare class ParadexAdapter extends BaseAdapter {
     fetchMarkets(_params?: MarketParams): Promise<Market[]>;
     /**
      * Fetch ticker for a symbol
+     *
+     * Uses /markets/summary endpoint which is publicly accessible (no JWT required)
      */
     fetchTicker(symbol: string): Promise<Ticker>;
     /**
@@ -57,14 +59,20 @@ export declare class ParadexAdapter extends BaseAdapter {
     fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
     /**
      * Fetch recent trades for a symbol
+     *
+     * Uses /trades?market=X query param format (publicly accessible, no JWT)
      */
     fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
     /**
      * Fetch current funding rate
+     *
+     * Uses /funding/data?market=X endpoint (publicly accessible, no JWT)
      */
     fetchFundingRate(symbol: string): Promise<FundingRate>;
     /**
      * Fetch funding rate history
+     *
+     * Uses /funding/data?market=X endpoint with pagination
      */
     fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
     /**

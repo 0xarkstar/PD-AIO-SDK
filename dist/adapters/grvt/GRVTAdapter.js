@@ -13,7 +13,7 @@
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
-import { InvalidSignatureError, PerpDEXError } from '../../types/errors.js';
+import { InvalidSignatureError, NotSupportedError, PerpDEXError } from '../../types/errors.js';
 // New components
 import { GRVTSDKWrapper } from './GRVTSDKWrapper.js';
 import { GRVTAuth } from './GRVTAuth.js';
@@ -169,49 +169,58 @@ export class GRVTAdapter extends BaseAdapter {
         await this.rateLimiter.acquire('fetchOHLCV');
         try {
             const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-            // Map unified timeframe to GRVT interval
-            // GRVT uses seconds-based intervals
+            // Map unified timeframe to GRVT CandlestickInterval enum
+            // GRVT API does not support monthly candles — only minute through weekly
+            if (timeframe === '1M') {
+                throw new NotSupportedError('GRVT does not support monthly (1M) candlestick intervals', 'UNSUPPORTED_TIMEFRAME', 'grvt');
+            }
             const intervalMap = {
-                '1m': 60,
-                '3m': 180,
-                '5m': 300,
-                '15m': 900,
-                '30m': 1800,
-                '1h': 3600,
-                '2h': 7200,
-                '4h': 14400,
-                '6h': 21600,
-                '8h': 28800,
-                '12h': 43200,
-                '1d': 86400,
-                '3d': 259200,
-                '1w': 604800,
-                '1M': 2592000,
+                '1m': 'CI_1_M',
+                '3m': 'CI_3_M',
+                '5m': 'CI_5_M',
+                '15m': 'CI_15_M',
+                '30m': 'CI_30_M',
+                '1h': 'CI_1_H',
+                '2h': 'CI_2_H',
+                '4h': 'CI_4_H',
+                '6h': 'CI_6_H',
+                '8h': 'CI_8_H',
+                '12h': 'CI_12_H',
+                '1d': 'CI_1_D',
+                '3d': 'CI_3_D',
+                '1w': 'CI_1_W',
             };
-            const interval = intervalMap[timeframe] || 3600;
-            // Calculate time range
+            const interval = intervalMap[timeframe] || 'CI_1_H';
+            // Calculate time range — GRVT requires nanosecond timestamps as strings
             const now = Date.now();
             const defaultDuration = this.getDefaultDuration(timeframe);
             const startTime = params?.since ?? now - defaultDuration;
             const endTime = params?.until ?? now;
-            const response = await this.sdk.getCandlestick({
+            const startTimeNs = (BigInt(startTime) * 1000000n).toString();
+            const endTimeNs = (BigInt(endTime) * 1000000n).toString();
+            // Direct POST to /full/v1/kline — SDK's getCandlestick sends wrong format
+            const restUrl = this.testnet ? GRVT_API_URLS.testnet.rest : GRVT_API_URLS.mainnet.rest;
+            const response = await this.sdk.mdgAxios.post(`${restUrl}/full/v1/kline`, {
                 instrument: grvtSymbol,
                 interval,
-                start_time: startTime,
-                end_time: endTime,
-                limit: params?.limit,
+                type: 'TRADE',
+                start_time: startTimeNs,
+                end_time: endTimeNs,
+                limit: params?.limit ?? 100,
             });
-            if (!response.result || !Array.isArray(response.result)) {
+            const result = response.data?.result;
+            if (!result || !Array.isArray(result)) {
                 return [];
             }
             // Convert GRVT candle format to OHLCV tuple
-            return response.result.map((candle) => [
-                candle.time || candle.t,
-                parseFloat(candle.open || candle.o || '0'),
-                parseFloat(candle.high || candle.h || '0'),
-                parseFloat(candle.low || candle.l || '0'),
-                parseFloat(candle.close || candle.c || '0'),
-                parseFloat(candle.volume || candle.v || '0'),
+            // Response: { open_time (ns string), open, high, low, close, volume_b, ... }
+            return result.map((candle) => [
+                Number(BigInt(candle.open_time || '0') / 1000000n),
+                parseFloat(candle.open || '0'),
+                parseFloat(candle.high || '0'),
+                parseFloat(candle.low || '0'),
+                parseFloat(candle.close || '0'),
+                parseFloat(candle.volume_b || candle.volume || '0'),
             ]);
         }
         catch (error) {

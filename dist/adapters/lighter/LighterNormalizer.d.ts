@@ -4,7 +4,7 @@
  * Transforms Lighter-specific data structures to unified SDK format
  */
 import type { Market, Order, Position, Balance, OrderBook, Trade, Ticker, FundingRate } from '../../types/common.js';
-import type { LighterOrder, LighterPosition, LighterBalance, LighterOrderBook, LighterTrade, LighterFundingRate } from './types.js';
+import type { LighterOrder, LighterPosition, LighterBalance, LighterOrderBook, LighterTrade, LighterFundingRate, LighterAPIMarket, LighterAPITicker } from './types.js';
 export declare class LighterNormalizer {
     /**
      * Convert unified symbol to Lighter format
@@ -20,7 +20,7 @@ export declare class LighterNormalizer {
      * Normalize Lighter market to unified format
      * Handles real Lighter API response format from /api/v1/orderBookDetails
      */
-    normalizeMarket(lighterMarket: any): Market;
+    normalizeMarket(lighterMarket: LighterAPIMarket): Market;
     /**
      * Normalize Lighter order to unified format
      */
@@ -45,7 +45,7 @@ export declare class LighterNormalizer {
      * Normalize Lighter ticker to unified format
      * Handles real API response from /api/v1/orderBookDetails
      */
-    normalizeTicker(lighterTicker: any): Ticker;
+    normalizeTicker(lighterTicker: LighterAPITicker): Ticker;
     /**
      * Normalize Lighter funding rate to unified format
      */

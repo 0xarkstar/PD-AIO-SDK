@@ -377,7 +377,10 @@ export class GRVTNormalizer {
             baseVolume: buyVolumeB + sellVolumeB,
             quoteVolume: 0,
             timestamp: grvtTicker.event_time ? parseInt(grvtTicker.event_time) : Date.now(),
-            info: grvtTicker,
+            info: {
+                ...grvtTicker,
+                _bidAskSource: 'orderbook',
+            },
         };
     }
     /**

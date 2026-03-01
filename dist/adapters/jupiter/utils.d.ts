@@ -63,7 +63,11 @@ export interface PositionPDASeeds {
  */
 export declare function getPositionPDASeeds(owner: string, pool: string, custody: string, side: 'long' | 'short'): PositionPDASeeds;
 /**
- * Build Jupiter Price API URL
+ * Build Pyth Network Price API URL for Jupiter price feeds
+ *
+ * Jupiter's price API (v2/v3) now requires authentication.
+ * We use Pyth Network's Hermes API as the price source instead,
+ * since Jupiter Perps uses Pyth oracles on-chain.
  */
 export declare function buildPriceApiUrl(tokenIds: string[]): string;
 /**

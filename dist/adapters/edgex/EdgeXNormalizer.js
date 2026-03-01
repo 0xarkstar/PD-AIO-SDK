@@ -3,6 +3,7 @@
  *
  * Transforms EdgeX-specific data structures to unified SDK format
  */
+import { EdgeXOrderSchema, EdgeXPositionSchema, EdgeXBalanceSchema, EdgeXTradeSchema, EdgeXDepthDataSchema, EdgeXAPITickerSchema, EdgeXAPIFundingDataSchema, } from './types.js';
 export class EdgeXNormalizer {
     // Cache for symbol -> contractId mapping
     symbolToContractId = new Map();
@@ -98,7 +99,7 @@ export class EdgeXNormalizer {
      */
     normalizeMarket(contract) {
         // New API format: has contractName (e.g., "BTCUSD")
-        if (contract.contractName) {
+        if ('contractName' in contract) {
             const contractName = contract.contractName;
             const base = contractName.replace(/USD$/, '');
             const symbol = `${base}/USD:USD`;
@@ -151,64 +152,71 @@ export class EdgeXNormalizer {
      * Normalize EdgeX order to unified format
      */
     normalizeOrder(edgexOrder) {
-        const symbol = this.normalizeSymbol(edgexOrder.market);
+        const validated = EdgeXOrderSchema.parse(edgexOrder);
+        const symbol = this.normalizeSymbol(validated.market);
         return {
-            id: edgexOrder.order_id,
-            clientOrderId: edgexOrder.client_order_id,
+            id: validated.order_id,
+            clientOrderId: validated.client_order_id,
             symbol,
-            type: this.normalizeOrderType(edgexOrder.type),
-            side: this.normalizeOrderSide(edgexOrder.side),
-            amount: parseFloat(edgexOrder.size),
-            price: edgexOrder.price ? parseFloat(edgexOrder.price) : undefined,
-            filled: parseFloat(edgexOrder.filled_size),
-            remaining: parseFloat(edgexOrder.size) - parseFloat(edgexOrder.filled_size),
-            averagePrice: edgexOrder.average_price ? parseFloat(edgexOrder.average_price) : undefined,
-            status: this.normalizeOrderStatus(edgexOrder.status),
-            timeInForce: this.normalizeTimeInForce(edgexOrder.time_in_force),
-            postOnly: edgexOrder.post_only,
-            reduceOnly: edgexOrder.reduce_only,
-            timestamp: edgexOrder.created_at,
-            lastUpdateTimestamp: edgexOrder.updated_at,
-            info: edgexOrder,
+            type: this.normalizeOrderType(validated.type),
+            side: this.normalizeOrderSide(validated.side),
+            amount: parseFloat(validated.size),
+            price: validated.price ? parseFloat(validated.price) : undefined,
+            filled: parseFloat(validated.filled_size),
+            remaining: parseFloat(validated.size) - parseFloat(validated.filled_size),
+            averagePrice: validated.average_price ? parseFloat(validated.average_price) : undefined,
+            status: this.normalizeOrderStatus(validated.status),
+            timeInForce: this.normalizeTimeInForce(validated.time_in_force),
+            postOnly: validated.post_only,
+            reduceOnly: validated.reduce_only,
+            timestamp: validated.created_at,
+            lastUpdateTimestamp: validated.updated_at,
+            info: validated,
         };
     }
     /**
      * Normalize EdgeX position to unified format
      */
     normalizePosition(edgexPosition) {
-        const symbol = this.normalizeSymbol(edgexPosition.market);
-        const size = parseFloat(edgexPosition.size);
-        const side = edgexPosition.side === 'LONG' ? 'long' : 'short';
+        const validated = EdgeXPositionSchema.parse(edgexPosition);
+        const symbol = this.normalizeSymbol(validated.market);
+        const size = parseFloat(validated.size);
+        const side = validated.side === 'LONG' ? 'long' : 'short';
+        const absSize = Math.abs(size);
+        const markPrice = parseFloat(validated.mark_price);
+        const maintenanceMargin = parseFloat(validated.margin) * 0.04;
+        const notional = absSize * markPrice;
         return {
             symbol,
             side,
             marginMode: 'cross',
-            size: Math.abs(size),
-            entryPrice: parseFloat(edgexPosition.entry_price),
-            markPrice: parseFloat(edgexPosition.mark_price),
-            liquidationPrice: edgexPosition.liquidation_price
-                ? parseFloat(edgexPosition.liquidation_price)
+            size: absSize,
+            entryPrice: parseFloat(validated.entry_price),
+            markPrice,
+            liquidationPrice: validated.liquidation_price
+                ? parseFloat(validated.liquidation_price)
                 : 0,
-            unrealizedPnl: parseFloat(edgexPosition.unrealized_pnl),
-            realizedPnl: parseFloat(edgexPosition.realized_pnl),
-            margin: parseFloat(edgexPosition.margin),
-            leverage: parseFloat(edgexPosition.leverage),
-            maintenanceMargin: parseFloat(edgexPosition.margin) * 0.04,
-            marginRatio: 0,
-            timestamp: edgexPosition.timestamp,
-            info: edgexPosition,
+            unrealizedPnl: parseFloat(validated.unrealized_pnl),
+            realizedPnl: parseFloat(validated.realized_pnl),
+            margin: parseFloat(validated.margin),
+            leverage: parseFloat(validated.leverage),
+            maintenanceMargin,
+            marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
+            timestamp: validated.timestamp,
+            info: validated,
         };
     }
     /**
      * Normalize EdgeX balance to unified format
      */
     normalizeBalance(edgexBalance) {
+        const validated = EdgeXBalanceSchema.parse(edgexBalance);
         return {
-            currency: edgexBalance.asset,
-            total: parseFloat(edgexBalance.total),
-            free: parseFloat(edgexBalance.available),
-            used: parseFloat(edgexBalance.locked),
-            info: edgexBalance,
+            currency: validated.asset,
+            total: parseFloat(validated.total),
+            free: parseFloat(validated.available),
+            used: parseFloat(validated.locked),
+            info: validated,
         };
     }
     /**
@@ -216,15 +224,16 @@ export class EdgeXNormalizer {
      * Handles new API format from /api/v1/public/quote/getDepth
      */
     normalizeOrderBook(depthData, symbol) {
+        const validated = EdgeXDepthDataSchema.parse(depthData);
         // New format: { asks: [{price, size}], bids: [{price, size}] }
         return {
             symbol,
             exchange: 'edgex',
-            bids: (depthData.bids || []).map((level) => [
+            bids: (validated.bids || []).map((level) => [
                 parseFloat(level.price),
                 parseFloat(level.size),
             ]),
-            asks: (depthData.asks || []).map((level) => [
+            asks: (validated.asks || []).map((level) => [
                 parseFloat(level.price),
                 parseFloat(level.size),
             ]),
@@ -235,17 +244,18 @@ export class EdgeXNormalizer {
      * Normalize EdgeX trade to unified format
      */
     normalizeTrade(edgexTrade) {
-        const price = parseFloat(edgexTrade.price);
-        const amount = parseFloat(edgexTrade.size);
+        const validated = EdgeXTradeSchema.parse(edgexTrade);
+        const price = parseFloat(validated.price);
+        const amount = parseFloat(validated.size);
         return {
-            id: edgexTrade.trade_id,
-            symbol: this.normalizeSymbol(edgexTrade.market),
-            side: this.normalizeOrderSide(edgexTrade.side),
+            id: validated.trade_id,
+            symbol: this.normalizeSymbol(validated.market),
+            side: this.normalizeOrderSide(validated.side),
             price,
             amount,
             cost: price * amount,
-            timestamp: edgexTrade.timestamp,
-            info: edgexTrade,
+            timestamp: validated.timestamp,
+            info: validated,
         };
     }
     /**
@@ -253,11 +263,12 @@ export class EdgeXNormalizer {
      * Handles new API format from /api/v1/public/quote/getTicker
      */
     normalizeTicker(tickerData) {
-        const last = parseFloat(tickerData.lastPrice || tickerData.close || '0');
-        const open = parseFloat(tickerData.open || '0');
-        const change = parseFloat(tickerData.priceChange || '0');
-        const percentage = parseFloat(tickerData.priceChangePercent || '0');
-        const symbol = this.normalizeSymbol(tickerData.contractName || '');
+        const validated = EdgeXAPITickerSchema.parse(tickerData);
+        const last = parseFloat(validated.lastPrice || validated.close || '0');
+        const open = parseFloat(validated.open || '0');
+        const change = parseFloat(validated.priceChange || '0');
+        const percentage = parseFloat(validated.priceChangePercent || '0');
+        const symbol = this.normalizeSymbol(validated.contractName || '');
         return {
             symbol,
             last,
@@ -265,14 +276,17 @@ export class EdgeXNormalizer {
             close: last,
             bid: last, // No separate bid in ticker response
             ask: last, // No separate ask in ticker response
-            high: parseFloat(tickerData.high || '0'),
-            low: parseFloat(tickerData.low || '0'),
+            high: parseFloat(validated.high || '0'),
+            low: parseFloat(validated.low || '0'),
             change,
             percentage,
-            baseVolume: parseFloat(tickerData.size || tickerData.volume || '0'),
-            quoteVolume: parseFloat(tickerData.value || '0'),
-            timestamp: parseInt(tickerData.endTime || Date.now().toString(), 10),
-            info: tickerData,
+            baseVolume: parseFloat(validated.size || validated.volume || '0'),
+            quoteVolume: parseFloat(validated.value || '0'),
+            timestamp: parseInt(validated.endTime || Date.now().toString(), 10),
+            info: {
+                ...validated,
+                _bidAskSource: 'last_price',
+            },
         };
     }
     /**
@@ -280,15 +294,16 @@ export class EdgeXNormalizer {
      * Handles new API format from /api/v1/public/funding/getLatestFundingRate
      */
     normalizeFundingRate(fundingData, symbol) {
+        const validated = EdgeXAPIFundingDataSchema.parse(fundingData);
         return {
             symbol,
-            fundingRate: parseFloat(fundingData.fundingRate || '0'),
-            fundingTimestamp: parseInt(fundingData.fundingTime || fundingData.fundingTimestamp || '0', 10),
-            markPrice: parseFloat(fundingData.markPrice || '0'),
-            indexPrice: parseFloat(fundingData.indexPrice || '0'),
-            nextFundingTimestamp: parseInt(fundingData.nextFundingTime || '0', 10),
+            fundingRate: parseFloat(validated.fundingRate || '0'),
+            fundingTimestamp: parseInt(validated.fundingTime || validated.fundingTimestamp || '0', 10),
+            markPrice: parseFloat(validated.markPrice || '0'),
+            indexPrice: parseFloat(validated.indexPrice || '0'),
+            nextFundingTimestamp: parseInt(validated.nextFundingTime || '0', 10),
             fundingIntervalHours: 4, // EdgeX uses 4h funding intervals
-            info: fundingData,
+            info: validated,
         };
     }
     /**

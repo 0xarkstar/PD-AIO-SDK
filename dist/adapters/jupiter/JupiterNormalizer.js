@@ -4,6 +4,7 @@
  * Transforms Jupiter on-chain account data and API responses
  * to unified SDK format.
  */
+import { JupiterPositionAccountSchema, JupiterPoolAccountSchema, JupiterCustodyAccountSchema, JupiterPoolStatsSchema, JupiterPriceDataSchema, } from './types.js';
 import { jupiterToUnified, JUPITER_MARKETS } from './constants.js';
 /**
  * Normalizer for Jupiter Perps data
@@ -13,19 +14,29 @@ export class JupiterNormalizer {
      * Normalize market data from custody and pool accounts
      */
     normalizeMarket(marketKey, custody, pool, _stats) {
+        const validatedCustody = JupiterCustodyAccountSchema.parse(custody);
+        const validatedPool = JupiterPoolAccountSchema.parse(pool);
         const marketConfig = JUPITER_MARKETS[marketKey];
         const symbol = jupiterToUnified(marketKey);
-        const makerFee = pool.fees.openPositionFee / 10000;
-        const takerFee = pool.fees.closePositionFee / 10000;
+        const fees = validatedPool.fees ?? { openPositionFee: 50, closePositionFee: 70 };
+        const makerFee = (fees.openPositionFee ?? 50) / 10000;
+        const takerFee = (fees.closePositionFee ?? 70) / 10000;
+        const trading = validatedCustody.trading ?? { tradingEnabled: false };
+        const pricing = validatedCustody.pricing ?? {
+            maxPositionLockedUsd: 1000000,
+            maxLeverage: 100,
+            maxUtilization: 80,
+        };
+        const oracle = validatedCustody.oracle ?? { oracleAccount: '' };
         return {
             id: marketKey,
             symbol,
             base: marketConfig?.baseToken || marketKey.replace('-PERP', ''),
             quote: 'USD',
             settle: 'USD',
-            active: custody.trading.tradingEnabled,
+            active: trading.tradingEnabled ?? false,
             minAmount: marketConfig?.minPositionSize || 0.001,
-            maxAmount: custody.pricing.maxPositionLockedUsd,
+            maxAmount: pricing.maxPositionLockedUsd ?? 1000000,
             minCost: 10, // $10 minimum
             pricePrecision: this.getPricePrecision(marketKey),
             amountPrecision: this.getAmountPrecision(marketKey),
@@ -33,15 +44,15 @@ export class JupiterNormalizer {
             amountStepSize: marketConfig?.stepSize || 0.001,
             makerFee,
             takerFee,
-            maxLeverage: custody.pricing.maxLeverage,
+            maxLeverage: pricing.maxLeverage ?? 100,
             fundingIntervalHours: 1, // Jupiter uses hourly borrow fees
             contractSize: 1,
             info: {
-                custody: custody.mint,
-                pool: pool.name,
-                oracle: custody.oracle.oracleAccount,
-                isStable: custody.isStable,
-                maxUtilization: custody.pricing.maxUtilization,
+                custody: validatedCustody.mint ?? '',
+                pool: validatedPool.name ?? '',
+                oracle: oracle.oracleAccount ?? '',
+                isStable: validatedCustody.isStable ?? false,
+                maxUtilization: pricing.maxUtilization ?? 80,
                 marginMode: 'isolated',
                 positionMode: 'one-way',
             },
@@ -64,13 +75,15 @@ export class JupiterNormalizer {
      * Normalize on-chain position account to unified Position
      */
     normalizePosition(positionAddress, position, currentPrice, marketKey) {
+        const validated = JupiterPositionAccountSchema.parse(position);
         const symbol = jupiterToUnified(marketKey);
-        const side = position.side === 'Long' ? 'long' : 'short';
-        const sizeUsd = parseFloat(position.sizeUsd);
-        const collateralUsd = parseFloat(position.collateralUsd);
-        const entryPrice = parseFloat(position.price);
-        const size = parseFloat(position.sizeTokens);
-        const leverage = sizeUsd / collateralUsd;
+        const sideStr = validated.side ?? 'Long';
+        const side = sideStr === 'Long' ? 'long' : 'short';
+        const sizeUsd = parseFloat(validated.sizeUsd ?? '0');
+        const collateralUsd = parseFloat(validated.collateralUsd ?? '0');
+        const entryPrice = parseFloat(validated.price ?? '0');
+        const size = parseFloat(validated.sizeTokens ?? '0');
+        const leverage = collateralUsd > 0 ? sizeUsd / collateralUsd : 1;
         // Calculate unrealized PnL
         const unrealizedPnl = this.calculateUnrealizedPnl(side, size, entryPrice, currentPrice);
         // Calculate liquidation price
@@ -91,15 +104,15 @@ export class JupiterNormalizer {
             maintenanceMargin,
             marginRatio,
             unrealizedPnl,
-            realizedPnl: parseFloat(position.realizedPnl),
-            timestamp: position.updateTime * 1000,
+            realizedPnl: parseFloat(validated.realizedPnl ?? '0'),
+            timestamp: (validated.updateTime ?? 0) * 1000,
             info: {
                 positionAddress,
-                owner: position.owner,
-                pool: position.pool,
-                custody: position.custody,
-                openTime: position.openTime,
-                cumulativeInterestSnapshot: position.cumulativeInterestSnapshot,
+                owner: validated.owner ?? '',
+                pool: validated.pool ?? '',
+                custody: validated.custody ?? '',
+                openTime: validated.openTime ?? 0,
+                cumulativeInterestSnapshot: validated.cumulativeInterestSnapshot ?? '0',
                 notional: sizeUsd,
             },
         };
@@ -139,15 +152,16 @@ export class JupiterNormalizer {
      * Normalize ticker from price API and stats
      */
     normalizeTicker(marketKey, priceData, stats) {
+        const validated = JupiterPriceDataSchema.parse(priceData);
         const symbol = jupiterToUnified(marketKey);
-        const price = parseFloat(priceData.price);
+        const price = parseFloat(validated.price);
         const now = Date.now();
         // Use price as fallback for required fields when no stats available
-        const bid = priceData.extraInfo?.quotedPrice
-            ? parseFloat(priceData.extraInfo.quotedPrice.buyPrice)
+        const bid = validated.extraInfo?.quotedPrice
+            ? parseFloat(validated.extraInfo.quotedPrice.buyPrice)
             : price * 0.9995; // Approximate 0.05% spread
-        const ask = priceData.extraInfo?.quotedPrice
-            ? parseFloat(priceData.extraInfo.quotedPrice.sellPrice)
+        const ask = validated.extraInfo?.quotedPrice
+            ? parseFloat(validated.extraInfo.quotedPrice.sellPrice)
             : price * 1.0005;
         return {
             symbol,
@@ -168,7 +182,8 @@ export class JupiterNormalizer {
                 markPrice: stats?.markPrice,
                 longOpenInterest: stats?.longOpenInterest,
                 shortOpenInterest: stats?.shortOpenInterest,
-                confidenceLevel: priceData.extraInfo?.confidenceLevel,
+                confidenceLevel: validated.extraInfo?.confidenceLevel,
+                _bidAskSource: 'calculated',
             },
         };
     }
@@ -189,19 +204,20 @@ export class JupiterNormalizer {
      * We represent borrow fee as a pseudo-funding rate for unified interface
      */
     normalizeFundingRate(marketKey, custody, currentPrice) {
+        const validated = JupiterCustodyAccountSchema.parse(custody);
         const symbol = jupiterToUnified(marketKey);
         const now = Date.now();
-        const hourlyBorrowRate = parseFloat(custody.fundingRateState.hourlyBorrowRate);
+        const hourlyBorrowRate = parseFloat(validated.fundingRateState.hourlyBorrowRate);
         return {
             symbol,
             fundingRate: hourlyBorrowRate,
-            fundingTimestamp: custody.fundingRateState.lastUpdate * 1000,
+            fundingTimestamp: validated.fundingRateState.lastUpdate * 1000,
             nextFundingTimestamp: now + 3600000, // Next hour
             markPrice: currentPrice,
             indexPrice: currentPrice, // Jupiter uses oracle price as index
             fundingIntervalHours: 1,
             info: {
-                cumulativeInterestRate: custody.fundingRateState.cumulativeInterestRate,
+                cumulativeInterestRate: validated.fundingRateState.cumulativeInterestRate,
                 isBorrowFee: true, // Indicate this is a borrow fee, not traditional funding
             },
         };
@@ -242,16 +258,17 @@ export class JupiterNormalizer {
      * Normalize pool stats to unified format
      */
     normalizePoolStats(stats) {
+        const validated = JupiterPoolStatsSchema.parse(stats);
         return {
-            aumUsd: stats.aumUsd,
-            volume24h: stats.volume24h,
-            volume7d: stats.volume7d,
-            fees24h: stats.fees24h,
-            openInterest: stats.openInterest,
-            longOpenInterest: stats.longOpenInterest,
-            shortOpenInterest: stats.shortOpenInterest,
-            jlpPrice: stats.jlpPrice,
-            jlpSupply: stats.jlpSupply,
+            aumUsd: validated.aumUsd,
+            volume24h: validated.volume24h,
+            volume7d: validated.volume7d,
+            fees24h: validated.fees24h,
+            openInterest: validated.openInterest,
+            longOpenInterest: validated.longOpenInterest,
+            shortOpenInterest: validated.shortOpenInterest,
+            jlpPrice: validated.jlpPrice,
+            jlpSupply: validated.jlpSupply,
         };
     }
     // ==========================================================================

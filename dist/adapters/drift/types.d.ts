@@ -7,6 +7,7 @@
  * @see https://docs.drift.trade/
  * @see https://drift-labs.github.io/v2-teacher/
  */
+import { z } from 'zod';
 export type DriftOrderType = 'market' | 'limit' | 'triggerMarket' | 'triggerLimit' | 'oracle';
 export type DriftDirection = 'long' | 'short';
 export type DriftMarketType = 'perp' | 'spot';
@@ -43,6 +44,46 @@ export interface DriftPerpPosition {
     /** Per LP base */
     perLpBase: number;
 }
+export declare const DriftPerpPositionSchema: z.ZodObject<{
+    marketIndex: z.ZodNumber;
+    baseAssetAmount: z.ZodString;
+    quoteAssetAmount: z.ZodString;
+    quoteEntryAmount: z.ZodString;
+    quoteBreakEvenAmount: z.ZodString;
+    openOrders: z.ZodNumber;
+    openBids: z.ZodString;
+    openAsks: z.ZodString;
+    settledPnl: z.ZodString;
+    lpShares: z.ZodString;
+    lastCumulativeFundingRate: z.ZodString;
+    perLpBase: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    marketIndex: z.ZodNumber;
+    baseAssetAmount: z.ZodString;
+    quoteAssetAmount: z.ZodString;
+    quoteEntryAmount: z.ZodString;
+    quoteBreakEvenAmount: z.ZodString;
+    openOrders: z.ZodNumber;
+    openBids: z.ZodString;
+    openAsks: z.ZodString;
+    settledPnl: z.ZodString;
+    lpShares: z.ZodString;
+    lastCumulativeFundingRate: z.ZodString;
+    perLpBase: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    marketIndex: z.ZodNumber;
+    baseAssetAmount: z.ZodString;
+    quoteAssetAmount: z.ZodString;
+    quoteEntryAmount: z.ZodString;
+    quoteBreakEvenAmount: z.ZodString;
+    openOrders: z.ZodNumber;
+    openBids: z.ZodString;
+    openAsks: z.ZodString;
+    settledPnl: z.ZodString;
+    lpShares: z.ZodString;
+    lastCumulativeFundingRate: z.ZodString;
+    perLpBase: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Spot position account data
  */
@@ -58,6 +99,25 @@ export interface DriftSpotPosition {
     /** Cumulative deposits */
     cumulativeDeposits: string;
 }
+export declare const DriftSpotPositionSchema: z.ZodObject<{
+    marketIndex: z.ZodNumber;
+    scaledBalance: z.ZodString;
+    balanceType: z.ZodString;
+    openOrders: z.ZodNumber;
+    cumulativeDeposits: z.ZodString;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    marketIndex: z.ZodNumber;
+    scaledBalance: z.ZodString;
+    balanceType: z.ZodString;
+    openOrders: z.ZodNumber;
+    cumulativeDeposits: z.ZodString;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    marketIndex: z.ZodNumber;
+    scaledBalance: z.ZodString;
+    balanceType: z.ZodString;
+    openOrders: z.ZodNumber;
+    cumulativeDeposits: z.ZodString;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Order account data
  */
@@ -109,6 +169,79 @@ export interface DriftOrder {
     /** Auction end price */
     auctionEndPrice: string;
 }
+export declare const DriftOrderSchema: z.ZodObject<{
+    status: z.ZodString;
+    orderType: z.ZodString;
+    marketType: z.ZodString;
+    slot: z.ZodNumber;
+    orderId: z.ZodNumber;
+    userOrderId: z.ZodNumber;
+    marketIndex: z.ZodNumber;
+    price: z.ZodString;
+    baseAssetAmount: z.ZodString;
+    baseAssetAmountFilled: z.ZodString;
+    quoteAssetAmountFilled: z.ZodString;
+    direction: z.ZodString;
+    reduceOnly: z.ZodBoolean;
+    triggerPrice: z.ZodString;
+    triggerCondition: z.ZodString;
+    existingPositionDirection: z.ZodString;
+    postOnly: z.ZodString;
+    immediateOrCancel: z.ZodBoolean;
+    maxTs: z.ZodString;
+    oraclePriceOffset: z.ZodNumber;
+    auctionDuration: z.ZodNumber;
+    auctionStartPrice: z.ZodString;
+    auctionEndPrice: z.ZodString;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    status: z.ZodString;
+    orderType: z.ZodString;
+    marketType: z.ZodString;
+    slot: z.ZodNumber;
+    orderId: z.ZodNumber;
+    userOrderId: z.ZodNumber;
+    marketIndex: z.ZodNumber;
+    price: z.ZodString;
+    baseAssetAmount: z.ZodString;
+    baseAssetAmountFilled: z.ZodString;
+    quoteAssetAmountFilled: z.ZodString;
+    direction: z.ZodString;
+    reduceOnly: z.ZodBoolean;
+    triggerPrice: z.ZodString;
+    triggerCondition: z.ZodString;
+    existingPositionDirection: z.ZodString;
+    postOnly: z.ZodString;
+    immediateOrCancel: z.ZodBoolean;
+    maxTs: z.ZodString;
+    oraclePriceOffset: z.ZodNumber;
+    auctionDuration: z.ZodNumber;
+    auctionStartPrice: z.ZodString;
+    auctionEndPrice: z.ZodString;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    status: z.ZodString;
+    orderType: z.ZodString;
+    marketType: z.ZodString;
+    slot: z.ZodNumber;
+    orderId: z.ZodNumber;
+    userOrderId: z.ZodNumber;
+    marketIndex: z.ZodNumber;
+    price: z.ZodString;
+    baseAssetAmount: z.ZodString;
+    baseAssetAmountFilled: z.ZodString;
+    quoteAssetAmountFilled: z.ZodString;
+    direction: z.ZodString;
+    reduceOnly: z.ZodBoolean;
+    triggerPrice: z.ZodString;
+    triggerCondition: z.ZodString;
+    existingPositionDirection: z.ZodString;
+    postOnly: z.ZodString;
+    immediateOrCancel: z.ZodBoolean;
+    maxTs: z.ZodString;
+    oraclePriceOffset: z.ZodNumber;
+    auctionDuration: z.ZodNumber;
+    auctionStartPrice: z.ZodString;
+    auctionEndPrice: z.ZodString;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * User account data
  */
@@ -362,6 +495,112 @@ export interface DriftPerpMarketAccount {
     /** Fee adjustment */
     feeAdjustment: number;
 }
+export declare const DriftPerpMarketAccountSchema: z.ZodObject<{
+    status: z.ZodString;
+    marketIndex: z.ZodNumber;
+    pnlPool: z.ZodObject<{
+        scaledBalance: z.ZodString;
+        marketIndex: z.ZodNumber;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        scaledBalance: z.ZodString;
+        marketIndex: z.ZodNumber;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        scaledBalance: z.ZodString;
+        marketIndex: z.ZodNumber;
+    }, z.ZodTypeAny, "passthrough">>;
+    name: z.ZodString;
+    amm: z.ZodAny;
+    numberOfUsersWithBase: z.ZodNumber;
+    numberOfUsers: z.ZodNumber;
+    marginRatioInitial: z.ZodNumber;
+    marginRatioMaintenance: z.ZodNumber;
+    nextFillRecordId: z.ZodString;
+    nextFundingRateRecordId: z.ZodString;
+    nextCurveRecordId: z.ZodString;
+    imfFactor: z.ZodNumber;
+    unrealizedPnlImfFactor: z.ZodNumber;
+    liquidatorFee: z.ZodNumber;
+    ifLiquidationFee: z.ZodNumber;
+    unrealizedPnlMaxImbalance: z.ZodString;
+    expiryTs: z.ZodString;
+    expiryPrice: z.ZodString;
+    insuranceClaim: z.ZodAny;
+    contractType: z.ZodString;
+    contractTier: z.ZodString;
+    pausedOperations: z.ZodNumber;
+    quoteSpotMarketIndex: z.ZodNumber;
+    feeAdjustment: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    status: z.ZodString;
+    marketIndex: z.ZodNumber;
+    pnlPool: z.ZodObject<{
+        scaledBalance: z.ZodString;
+        marketIndex: z.ZodNumber;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        scaledBalance: z.ZodString;
+        marketIndex: z.ZodNumber;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        scaledBalance: z.ZodString;
+        marketIndex: z.ZodNumber;
+    }, z.ZodTypeAny, "passthrough">>;
+    name: z.ZodString;
+    amm: z.ZodAny;
+    numberOfUsersWithBase: z.ZodNumber;
+    numberOfUsers: z.ZodNumber;
+    marginRatioInitial: z.ZodNumber;
+    marginRatioMaintenance: z.ZodNumber;
+    nextFillRecordId: z.ZodString;
+    nextFundingRateRecordId: z.ZodString;
+    nextCurveRecordId: z.ZodString;
+    imfFactor: z.ZodNumber;
+    unrealizedPnlImfFactor: z.ZodNumber;
+    liquidatorFee: z.ZodNumber;
+    ifLiquidationFee: z.ZodNumber;
+    unrealizedPnlMaxImbalance: z.ZodString;
+    expiryTs: z.ZodString;
+    expiryPrice: z.ZodString;
+    insuranceClaim: z.ZodAny;
+    contractType: z.ZodString;
+    contractTier: z.ZodString;
+    pausedOperations: z.ZodNumber;
+    quoteSpotMarketIndex: z.ZodNumber;
+    feeAdjustment: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    status: z.ZodString;
+    marketIndex: z.ZodNumber;
+    pnlPool: z.ZodObject<{
+        scaledBalance: z.ZodString;
+        marketIndex: z.ZodNumber;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        scaledBalance: z.ZodString;
+        marketIndex: z.ZodNumber;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        scaledBalance: z.ZodString;
+        marketIndex: z.ZodNumber;
+    }, z.ZodTypeAny, "passthrough">>;
+    name: z.ZodString;
+    amm: z.ZodAny;
+    numberOfUsersWithBase: z.ZodNumber;
+    numberOfUsers: z.ZodNumber;
+    marginRatioInitial: z.ZodNumber;
+    marginRatioMaintenance: z.ZodNumber;
+    nextFillRecordId: z.ZodString;
+    nextFundingRateRecordId: z.ZodString;
+    nextCurveRecordId: z.ZodString;
+    imfFactor: z.ZodNumber;
+    unrealizedPnlImfFactor: z.ZodNumber;
+    liquidatorFee: z.ZodNumber;
+    ifLiquidationFee: z.ZodNumber;
+    unrealizedPnlMaxImbalance: z.ZodString;
+    expiryTs: z.ZodString;
+    expiryPrice: z.ZodString;
+    insuranceClaim: z.ZodAny;
+    contractType: z.ZodString;
+    contractTier: z.ZodString;
+    pausedOperations: z.ZodNumber;
+    quoteSpotMarketIndex: z.ZodNumber;
+    feeAdjustment: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * L2 Order book response
  */
@@ -387,6 +626,100 @@ export interface DriftL2OrderBook {
     /** Slot */
     slot: number;
 }
+export declare const DriftL2OrderBookSchema: z.ZodObject<{
+    marketIndex: z.ZodNumber;
+    marketType: z.ZodString;
+    bids: z.ZodArray<z.ZodObject<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }>, "many">;
+    asks: z.ZodArray<z.ZodObject<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }>, "many">;
+    oraclePrice: z.ZodString;
+    slot: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    marketIndex: z.ZodNumber;
+    marketType: z.ZodString;
+    bids: z.ZodArray<z.ZodObject<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }>, "many">;
+    asks: z.ZodArray<z.ZodObject<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }>, "many">;
+    oraclePrice: z.ZodString;
+    slot: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    marketIndex: z.ZodNumber;
+    marketType: z.ZodString;
+    bids: z.ZodArray<z.ZodObject<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }>, "many">;
+    asks: z.ZodArray<z.ZodObject<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }, {
+        price: string;
+        size: string;
+        sources?: Record<string, string> | undefined;
+    }>, "many">;
+    oraclePrice: z.ZodString;
+    slot: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Trade response from DLOB
  */
@@ -428,6 +761,64 @@ export interface DriftTrade {
     /** Timestamp (Unix seconds) */
     ts: number;
 }
+export declare const DriftTradeSchema: z.ZodObject<{
+    recordId: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    fillRecordId: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    marketIndex: z.ZodNumber;
+    marketType: z.ZodString;
+    taker: z.ZodString;
+    takerOrderId: z.ZodNumber;
+    takerOrderDirection: z.ZodString;
+    maker: z.ZodString;
+    makerOrderId: z.ZodNumber;
+    makerOrderDirection: z.ZodString;
+    baseAssetAmount: z.ZodString;
+    quoteAssetAmount: z.ZodString;
+    fillPrice: z.ZodString;
+    action: z.ZodString;
+    actionExplanation: z.ZodString;
+    txSig: z.ZodString;
+    slot: z.ZodNumber;
+    ts: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    recordId: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    fillRecordId: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    marketIndex: z.ZodNumber;
+    marketType: z.ZodString;
+    taker: z.ZodString;
+    takerOrderId: z.ZodNumber;
+    takerOrderDirection: z.ZodString;
+    maker: z.ZodString;
+    makerOrderId: z.ZodNumber;
+    makerOrderDirection: z.ZodString;
+    baseAssetAmount: z.ZodString;
+    quoteAssetAmount: z.ZodString;
+    fillPrice: z.ZodString;
+    action: z.ZodString;
+    actionExplanation: z.ZodString;
+    txSig: z.ZodString;
+    slot: z.ZodNumber;
+    ts: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    recordId: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    fillRecordId: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    marketIndex: z.ZodNumber;
+    marketType: z.ZodString;
+    taker: z.ZodString;
+    takerOrderId: z.ZodNumber;
+    takerOrderDirection: z.ZodString;
+    maker: z.ZodString;
+    makerOrderId: z.ZodNumber;
+    makerOrderDirection: z.ZodString;
+    baseAssetAmount: z.ZodString;
+    quoteAssetAmount: z.ZodString;
+    fillPrice: z.ZodString;
+    action: z.ZodString;
+    actionExplanation: z.ZodString;
+    txSig: z.ZodString;
+    slot: z.ZodNumber;
+    ts: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Funding rate response
  */
@@ -451,6 +842,37 @@ export interface DriftFundingRate {
     /** Timestamp */
     ts: number;
 }
+export declare const DriftFundingRateSchema: z.ZodObject<{
+    marketIndex: z.ZodNumber;
+    fundingRate: z.ZodString;
+    fundingRateLong: z.ZodString;
+    fundingRateShort: z.ZodString;
+    cumulativeFundingRateLong: z.ZodString;
+    cumulativeFundingRateShort: z.ZodString;
+    oraclePrice: z.ZodString;
+    markPriceTwap: z.ZodString;
+    ts: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    marketIndex: z.ZodNumber;
+    fundingRate: z.ZodString;
+    fundingRateLong: z.ZodString;
+    fundingRateShort: z.ZodString;
+    cumulativeFundingRateLong: z.ZodString;
+    cumulativeFundingRateShort: z.ZodString;
+    oraclePrice: z.ZodString;
+    markPriceTwap: z.ZodString;
+    ts: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    marketIndex: z.ZodNumber;
+    fundingRate: z.ZodString;
+    fundingRateLong: z.ZodString;
+    fundingRateShort: z.ZodString;
+    cumulativeFundingRateLong: z.ZodString;
+    cumulativeFundingRateShort: z.ZodString;
+    oraclePrice: z.ZodString;
+    markPriceTwap: z.ZodString;
+    ts: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Historical funding rate record
  */
@@ -482,6 +904,49 @@ export interface DriftFundingRateRecord {
     /** Timestamp */
     ts: number;
 }
+export declare const DriftFundingRateRecordSchema: z.ZodObject<{
+    recordId: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    marketIndex: z.ZodNumber;
+    fundingRate: z.ZodString;
+    fundingRateLong: z.ZodString;
+    fundingRateShort: z.ZodString;
+    cumulativeFundingRateLong: z.ZodString;
+    cumulativeFundingRateShort: z.ZodString;
+    oraclePriceTwap: z.ZodString;
+    markPriceTwap: z.ZodString;
+    periodRevenue: z.ZodString;
+    baseAssetAmountWithAmm: z.ZodString;
+    baseAssetAmountWithUnsettledLp: z.ZodString;
+    ts: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    recordId: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    marketIndex: z.ZodNumber;
+    fundingRate: z.ZodString;
+    fundingRateLong: z.ZodString;
+    fundingRateShort: z.ZodString;
+    cumulativeFundingRateLong: z.ZodString;
+    cumulativeFundingRateShort: z.ZodString;
+    oraclePriceTwap: z.ZodString;
+    markPriceTwap: z.ZodString;
+    periodRevenue: z.ZodString;
+    baseAssetAmountWithAmm: z.ZodString;
+    baseAssetAmountWithUnsettledLp: z.ZodString;
+    ts: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    recordId: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    marketIndex: z.ZodNumber;
+    fundingRate: z.ZodString;
+    fundingRateLong: z.ZodString;
+    fundingRateShort: z.ZodString;
+    cumulativeFundingRateLong: z.ZodString;
+    cumulativeFundingRateShort: z.ZodString;
+    oraclePriceTwap: z.ZodString;
+    markPriceTwap: z.ZodString;
+    periodRevenue: z.ZodString;
+    baseAssetAmountWithAmm: z.ZodString;
+    baseAssetAmountWithUnsettledLp: z.ZodString;
+    ts: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Market stats/ticker
  */
@@ -517,6 +982,55 @@ export interface DriftMarketStats {
     /** Timestamp */
     ts: number;
 }
+export declare const DriftMarketStatsSchema: z.ZodObject<{
+    marketIndex: z.ZodNumber;
+    oraclePrice: z.ZodString;
+    markPrice: z.ZodString;
+    bidPrice: z.ZodString;
+    askPrice: z.ZodString;
+    lastFillPrice: z.ZodString;
+    volume24h: z.ZodString;
+    openInterest: z.ZodString;
+    openInterestLong: z.ZodString;
+    openInterestShort: z.ZodString;
+    fundingRate: z.ZodString;
+    fundingRate24h: z.ZodString;
+    nextFundingRate: z.ZodString;
+    nextFundingTs: z.ZodNumber;
+    ts: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    marketIndex: z.ZodNumber;
+    oraclePrice: z.ZodString;
+    markPrice: z.ZodString;
+    bidPrice: z.ZodString;
+    askPrice: z.ZodString;
+    lastFillPrice: z.ZodString;
+    volume24h: z.ZodString;
+    openInterest: z.ZodString;
+    openInterestLong: z.ZodString;
+    openInterestShort: z.ZodString;
+    fundingRate: z.ZodString;
+    fundingRate24h: z.ZodString;
+    nextFundingRate: z.ZodString;
+    nextFundingTs: z.ZodNumber;
+    ts: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    marketIndex: z.ZodNumber;
+    oraclePrice: z.ZodString;
+    markPrice: z.ZodString;
+    bidPrice: z.ZodString;
+    askPrice: z.ZodString;
+    lastFillPrice: z.ZodString;
+    volume24h: z.ZodString;
+    openInterest: z.ZodString;
+    openInterestLong: z.ZodString;
+    openInterestShort: z.ZodString;
+    fundingRate: z.ZodString;
+    fundingRate24h: z.ZodString;
+    nextFundingRate: z.ZodString;
+    nextFundingTs: z.ZodNumber;
+    ts: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Candle data
  */
@@ -540,6 +1054,37 @@ export interface DriftCandle {
     /** Trade count */
     trades: number;
 }
+export declare const DriftCandleSchema: z.ZodObject<{
+    start: z.ZodNumber;
+    end: z.ZodNumber;
+    resolution: z.ZodNumber;
+    open: z.ZodString;
+    high: z.ZodString;
+    low: z.ZodString;
+    close: z.ZodString;
+    volume: z.ZodString;
+    trades: z.ZodNumber;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    start: z.ZodNumber;
+    end: z.ZodNumber;
+    resolution: z.ZodNumber;
+    open: z.ZodString;
+    high: z.ZodString;
+    low: z.ZodString;
+    close: z.ZodString;
+    volume: z.ZodString;
+    trades: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    start: z.ZodNumber;
+    end: z.ZodNumber;
+    resolution: z.ZodNumber;
+    open: z.ZodString;
+    high: z.ZodString;
+    low: z.ZodString;
+    close: z.ZodString;
+    volume: z.ZodString;
+    trades: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Normalized position for SDK
  */

@@ -106,7 +106,10 @@ export declare class JupiterAdapter extends BaseAdapter {
      */
     private fetchPrice;
     /**
-     * Fetch prices for multiple tokens
+     * Fetch prices for multiple tokens via Pyth Network Hermes API
+     *
+     * Jupiter's price API (v2/v3) now requires authentication.
+     * Uses Pyth Network as price source since Jupiter Perps uses Pyth oracles on-chain.
      */
     private fetchPrices;
     /**

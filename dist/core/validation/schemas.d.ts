@@ -4,13 +4,13 @@
  * Runtime validation for all external data
  */
 import { z } from 'zod';
-export declare const OrderTypeSchema: z.ZodEnum<["market", "limit", "stopMarket", "stopLimit"]>;
+export declare const OrderTypeSchema: z.ZodEnum<["market", "limit", "stopMarket", "stopLimit", "takeProfit", "trailingStop"]>;
 export declare const OrderSideSchema: z.ZodEnum<["buy", "sell"]>;
 export declare const OrderStatusSchema: z.ZodEnum<["open", "closed", "canceled", "expired", "rejected", "filled", "partiallyFilled"]>;
 export declare const TimeInForceSchema: z.ZodEnum<["GTC", "IOC", "FOK", "PO"]>;
-export declare const OrderRequestSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
+export declare const OrderRequestSchema: z.ZodEffects<z.ZodEffects<z.ZodEffects<z.ZodEffects<z.ZodEffects<z.ZodObject<{
     symbol: z.ZodString;
-    type: z.ZodEnum<["market", "limit", "stopMarket", "stopLimit"]>;
+    type: z.ZodEnum<["market", "limit", "stopMarket", "stopLimit", "takeProfit", "trailingStop"]>;
     side: z.ZodEnum<["buy", "sell"]>;
     amount: z.ZodNumber;
     price: z.ZodOptional<z.ZodNumber>;
@@ -23,7 +23,7 @@ export declare const OrderRequestSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
     params: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
 }, "strip", z.ZodTypeAny, {
     symbol: string;
-    type: "market" | "limit" | "stopMarket" | "stopLimit";
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
     side: "buy" | "sell";
     amount: number;
     reduceOnly: boolean;
@@ -36,7 +36,7 @@ export declare const OrderRequestSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
     params?: Record<string, unknown> | undefined;
 }, {
     symbol: string;
-    type: "market" | "limit" | "stopMarket" | "stopLimit";
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
     side: "buy" | "sell";
     amount: number;
     price?: number | undefined;
@@ -49,7 +49,7 @@ export declare const OrderRequestSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
     params?: Record<string, unknown> | undefined;
 }>, {
     symbol: string;
-    type: "market" | "limit" | "stopMarket" | "stopLimit";
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
     side: "buy" | "sell";
     amount: number;
     reduceOnly: boolean;
@@ -62,7 +62,7 @@ export declare const OrderRequestSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
     params?: Record<string, unknown> | undefined;
 }, {
     symbol: string;
-    type: "market" | "limit" | "stopMarket" | "stopLimit";
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
     side: "buy" | "sell";
     amount: number;
     price?: number | undefined;
@@ -75,7 +75,7 @@ export declare const OrderRequestSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
     params?: Record<string, unknown> | undefined;
 }>, {
     symbol: string;
-    type: "market" | "limit" | "stopMarket" | "stopLimit";
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
     side: "buy" | "sell";
     amount: number;
     reduceOnly: boolean;
@@ -88,7 +88,85 @@ export declare const OrderRequestSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
     params?: Record<string, unknown> | undefined;
 }, {
     symbol: string;
-    type: "market" | "limit" | "stopMarket" | "stopLimit";
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
+    side: "buy" | "sell";
+    amount: number;
+    price?: number | undefined;
+    stopPrice?: number | undefined;
+    timeInForce?: "GTC" | "IOC" | "FOK" | "PO" | undefined;
+    reduceOnly?: boolean | undefined;
+    postOnly?: boolean | undefined;
+    clientOrderId?: string | undefined;
+    leverage?: number | undefined;
+    params?: Record<string, unknown> | undefined;
+}>, {
+    symbol: string;
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
+    side: "buy" | "sell";
+    amount: number;
+    reduceOnly: boolean;
+    postOnly: boolean;
+    price?: number | undefined;
+    stopPrice?: number | undefined;
+    timeInForce?: "GTC" | "IOC" | "FOK" | "PO" | undefined;
+    clientOrderId?: string | undefined;
+    leverage?: number | undefined;
+    params?: Record<string, unknown> | undefined;
+}, {
+    symbol: string;
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
+    side: "buy" | "sell";
+    amount: number;
+    price?: number | undefined;
+    stopPrice?: number | undefined;
+    timeInForce?: "GTC" | "IOC" | "FOK" | "PO" | undefined;
+    reduceOnly?: boolean | undefined;
+    postOnly?: boolean | undefined;
+    clientOrderId?: string | undefined;
+    leverage?: number | undefined;
+    params?: Record<string, unknown> | undefined;
+}>, {
+    symbol: string;
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
+    side: "buy" | "sell";
+    amount: number;
+    reduceOnly: boolean;
+    postOnly: boolean;
+    price?: number | undefined;
+    stopPrice?: number | undefined;
+    timeInForce?: "GTC" | "IOC" | "FOK" | "PO" | undefined;
+    clientOrderId?: string | undefined;
+    leverage?: number | undefined;
+    params?: Record<string, unknown> | undefined;
+}, {
+    symbol: string;
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
+    side: "buy" | "sell";
+    amount: number;
+    price?: number | undefined;
+    stopPrice?: number | undefined;
+    timeInForce?: "GTC" | "IOC" | "FOK" | "PO" | undefined;
+    reduceOnly?: boolean | undefined;
+    postOnly?: boolean | undefined;
+    clientOrderId?: string | undefined;
+    leverage?: number | undefined;
+    params?: Record<string, unknown> | undefined;
+}>, {
+    symbol: string;
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
+    side: "buy" | "sell";
+    amount: number;
+    reduceOnly: boolean;
+    postOnly: boolean;
+    price?: number | undefined;
+    stopPrice?: number | undefined;
+    timeInForce?: "GTC" | "IOC" | "FOK" | "PO" | undefined;
+    clientOrderId?: string | undefined;
+    leverage?: number | undefined;
+    params?: Record<string, unknown> | undefined;
+}, {
+    symbol: string;
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
     side: "buy" | "sell";
     amount: number;
     price?: number | undefined;
@@ -103,7 +181,7 @@ export declare const OrderRequestSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
 export declare const OrderSchema: z.ZodObject<{
     id: z.ZodString;
     symbol: z.ZodString;
-    type: z.ZodEnum<["market", "limit", "stopMarket", "stopLimit"]>;
+    type: z.ZodEnum<["market", "limit", "stopMarket", "stopLimit", "takeProfit", "trailingStop"]>;
     side: z.ZodEnum<["buy", "sell"]>;
     amount: z.ZodNumber;
     price: z.ZodOptional<z.ZodNumber>;
@@ -123,7 +201,7 @@ export declare const OrderSchema: z.ZodObject<{
     symbol: string;
     filled: number;
     status: "open" | "closed" | "canceled" | "expired" | "rejected" | "filled" | "partiallyFilled";
-    type: "market" | "limit" | "stopMarket" | "stopLimit";
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
     side: "buy" | "sell";
     amount: number;
     reduceOnly: boolean;
@@ -142,7 +220,7 @@ export declare const OrderSchema: z.ZodObject<{
     symbol: string;
     filled: number;
     status: "open" | "closed" | "canceled" | "expired" | "rejected" | "filled" | "partiallyFilled";
-    type: "market" | "limit" | "stopMarket" | "stopLimit";
+    type: "market" | "limit" | "stopMarket" | "stopLimit" | "takeProfit" | "trailingStop";
     side: "buy" | "sell";
     amount: number;
     reduceOnly: boolean;

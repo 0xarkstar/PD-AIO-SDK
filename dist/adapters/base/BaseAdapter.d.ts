@@ -1,102 +1,31 @@
 /**
  * Base Exchange Adapter
  *
- * Abstract base class providing common functionality for all adapters.
- * Composes functionality from multiple mixins while maintaining type safety.
+ * Abstract base class providing API surface methods for all adapters.
+ * Extends BaseAdapterCore to inherit infrastructure functionality.
  */
-import type { Balance, Currency, ExchangeConfig, ExchangeStatus, FeatureMap, FundingPayment, FundingRate, IAuthStrategy, IExchangeAdapter, LedgerEntry, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, OrderSide, OrderType, Portfolio, Position, RateLimitStatus, Ticker, Trade, TradeParams, Transaction, UserFees } from '../../types/index.js';
-import type { HealthCheckConfig, HealthCheckResult, ComponentHealth } from '../../types/health.js';
-import type { APIMetrics, MetricsSnapshot } from '../../types/metrics.js';
-import { Logger } from '../../core/logger.js';
-import { CircuitBreaker } from '../../core/CircuitBreaker.js';
-import type { HTTPClient } from '../../core/http/HTTPClient.js';
-import { PrometheusMetrics } from '../../monitoring/prometheus.js';
-import type { RateLimiter } from '../../core/RateLimiter.js';
-export declare abstract class BaseAdapter implements IExchangeAdapter {
-    abstract readonly id: string;
-    abstract readonly name: string;
-    abstract readonly has: Partial<FeatureMap>;
-    protected _isReady: boolean;
-    protected _isDisconnected: boolean;
-    protected readonly config: ExchangeConfig;
-    protected authStrategy?: IAuthStrategy;
-    protected rateLimiter?: RateLimiter;
-    private _logger?;
-    protected circuitBreaker: CircuitBreaker;
-    protected httpClient?: HTTPClient;
-    protected prometheusMetrics?: PrometheusMetrics;
-    protected timers: Set<NodeJS.Timeout>;
-    protected intervals: Set<NodeJS.Timeout>;
-    protected abortControllers: Set<AbortController>;
-    protected marketCache: Market[] | null;
-    protected marketCacheExpiry: number;
-    protected marketCacheTTL: number;
-    protected metrics: APIMetrics;
-    constructor(config?: ExchangeConfig);
-    protected get logger(): Logger;
-    protected debug(message: string, meta?: Record<string, unknown>): void;
-    protected info(message: string, meta?: Record<string, unknown>): void;
-    protected warn(message: string, meta?: Record<string, unknown>): void;
-    protected error(message: string, error?: Error, meta?: Record<string, unknown>): void;
-    get isReady(): boolean;
-    isDisconnected(): boolean;
-    abstract initialize(): Promise<void>;
-    disconnect(): Promise<void>;
-    clearCache(): void;
-    preloadMarkets(options?: {
-        ttl?: number;
-        params?: MarketParams;
-    }): Promise<void>;
-    getPreloadedMarkets(): Market[] | null;
-    protected fetchMarketsFromAPI(params?: MarketParams): Promise<Market[]>;
-    healthCheck(config?: HealthCheckConfig): Promise<HealthCheckResult>;
-    protected checkApiHealth(timeout: number): Promise<ComponentHealth>;
-    protected performApiHealthCheck(): Promise<void>;
-    protected checkWebSocketHealth(): Promise<{
-        connected: boolean;
-        reconnecting: boolean;
-    }>;
-    protected checkAuthHealth(): Promise<{
-        valid: boolean;
-        expiresAt?: number;
-        expiresIn?: number;
-        needsRefresh?: boolean;
-    }>;
-    protected getRateLimitStatus(): {
-        remaining: number;
-        limit: number;
-        resetAt: number;
-        percentUsed: number;
-    } | undefined;
-    protected updateEndpointMetrics(endpointKey: string, latency: number, isError: boolean): void;
-    protected updateAverageLatency(latency: number): void;
-    getMetrics(): MetricsSnapshot;
-    getCircuitBreakerMetrics(): import("../../core/CircuitBreaker.js").CircuitBreakerMetrics;
-    getCircuitBreakerState(): import("../../core/CircuitBreaker.js").CircuitState;
-    resetMetrics(): void;
-    protected trackRateLimitHit(): void;
-    protected request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, body?: unknown, headers?: Record<string, string>): Promise<T>;
-    protected registerTimer(timer: NodeJS.Timeout): void;
-    protected registerInterval(interval: NodeJS.Timeout): void;
-    protected unregisterTimer(timer: NodeJS.Timeout): void;
-    protected unregisterInterval(interval: NodeJS.Timeout): void;
-    protected extractEndpoint(url: string): string;
-    abstract fetchMarkets(params?: MarketParams): Promise<Market[]>;
-    abstract fetchTicker(symbol: string): Promise<Ticker>;
-    abstract fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    abstract fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
-    abstract fetchFundingRate(symbol: string): Promise<FundingRate>;
-    abstract fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
+import type { Balance, Currency, ExchangeStatus, FundingPayment, FundingRate, LedgerEntry, Market, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderRequest, OrderSide, OrderType, Portfolio, Position, RateLimitStatus, Ticker, Trade, Transaction, UserFees } from '../../types/index.js';
+import { BaseAdapterCore } from './BaseAdapterCore.js';
+export declare abstract class BaseAdapter extends BaseAdapterCore {
+    abstract fetchMarkets(params?: any): Promise<any>;
+    abstract fetchTicker(symbol: string): Promise<any>;
+    abstract fetchOrderBook(symbol: string, params?: any): Promise<any>;
+    abstract fetchTrades(symbol: string, params?: any): Promise<any>;
+    abstract fetchFundingRate(symbol: string): Promise<any>;
+    abstract fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<any>;
+    abstract createOrder(request: OrderRequest): Promise<Order>;
+    abstract cancelOrder(_orderId: string, _symbol?: string): Promise<Order>;
+    abstract cancelAllOrders(_symbol?: string): Promise<Order[]>;
+    abstract fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
+    abstract fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<any>;
+    abstract fetchPositions(symbols?: string[]): Promise<Position[]>;
+    abstract fetchBalance(): Promise<Balance[]>;
+    abstract setLeverage(symbol: string, leverage: number): Promise<void>;
     fetchOHLCV(_symbol: string, _timeframe: OHLCVTimeframe, _params?: OHLCVParams): Promise<OHLCV[]>;
     fetchTickers(symbols?: string[]): Promise<Record<string, Ticker>>;
     fetchCurrencies(): Promise<Record<string, Currency>>;
     fetchStatus(): Promise<ExchangeStatus>;
     fetchTime(): Promise<number>;
-    abstract createOrder(request: OrderRequest): Promise<Order>;
-    abstract cancelOrder(_orderId: string, _symbol?: string): Promise<Order>;
-    abstract cancelAllOrders(_symbol?: string): Promise<Order[]>;
-    abstract fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
-    abstract fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
     fetchDeposits(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]>;
     fetchWithdrawals(_currency?: string, _since?: number, _limit?: number): Promise<Transaction[]>;
     fetchLedger(_currency?: string, _since?: number, _limit?: number, _params?: Record<string, unknown>): Promise<LedgerEntry[]>;
@@ -113,9 +42,6 @@ export declare abstract class BaseAdapter implements IExchangeAdapter {
     createMarketSellOrder(symbol: string, amount: number, params?: Record<string, unknown>): Promise<Order>;
     createStopLossOrder(symbol: string, amount: number, stopPrice: number, params?: Record<string, unknown>): Promise<Order>;
     createTakeProfitOrder(symbol: string, amount: number, takeProfitPrice: number, params?: Record<string, unknown>): Promise<Order>;
-    abstract fetchPositions(symbols?: string[]): Promise<Position[]>;
-    abstract fetchBalance(): Promise<Balance[]>;
-    abstract setLeverage(symbol: string, leverage: number): Promise<void>;
     setMarginMode(_symbol: string, _marginMode: 'cross' | 'isolated'): Promise<void>;
     watchOrderBook(_symbol: string, _limit?: number): AsyncGenerator<OrderBook>;
     watchTrades(_symbol: string): AsyncGenerator<Trade>;
@@ -130,29 +56,12 @@ export declare abstract class BaseAdapter implements IExchangeAdapter {
     fetchUserFees(): Promise<UserFees>;
     fetchPortfolio(): Promise<Portfolio>;
     fetchRateLimitStatus(): Promise<RateLimitStatus>;
-    protected supportsFeature(feature: keyof FeatureMap): boolean;
-    protected assertFeatureSupported(feature: keyof FeatureMap): void;
-    protected ensureInitialized(): void;
-    protected validateOrder(request: OrderRequest, correlationId?: string): OrderRequest;
-    protected getValidator(): {
-        validate: <T>(schema: import("zod").ZodType<T>, data: unknown, context?: import("../../core/logger.js").RequestContext) => T;
-        orderRequest: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../index.js").OrderRequestSchema>;
-        orderBookParams: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../core/index.js").OrderBookParamsSchema> | undefined;
-        tradeParams: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../core/index.js").TradeParamsSchema> | undefined;
-        marketParams: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../core/index.js").MarketParamsSchema> | undefined;
-        ohlcvParams: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../core/validation/schemas.js").OHLCVParamsSchema> | undefined;
-        ohlcvTimeframe: (data: unknown, context?: import("../../core/logger.js").RequestContext) => import("zod").TypeOf<typeof import("../../core/validation/schemas.js").OHLCVTimeframeSchema>;
-        array: <T>(schema: import("zod").ZodType<T>, data: unknown[], context?: import("../../core/logger.js").RequestContext) => T[];
-    };
-    protected attachCorrelationId(error: unknown, correlationId: string): Error;
-    protected abstract symbolToExchange(symbol: string): string;
-    protected abstract symbolFromExchange(exchangeSymbol: string): string;
-    fetch_markets: (params?: MarketParams) => Promise<Market[]>;
-    fetch_ticker: (symbol: string) => Promise<Ticker>;
-    fetch_order_book: (symbol: string, params?: OrderBookParams) => Promise<OrderBook>;
-    fetch_trades: (symbol: string, params?: TradeParams) => Promise<Trade[]>;
-    fetch_funding_rate: (symbol: string) => Promise<FundingRate>;
-    fetch_funding_rate_history: (symbol: string, since?: number, limit?: number) => Promise<FundingRate[]>;
+    fetch_markets: (params?: any) => Promise<any>;
+    fetch_ticker: (symbol: string) => Promise<any>;
+    fetch_order_book: (symbol: string, params?: any) => Promise<any>;
+    fetch_trades: (symbol: string, params?: any) => Promise<any>;
+    fetch_funding_rate: (symbol: string) => Promise<any>;
+    fetch_funding_rate_history: (symbol: string, since?: number, limit?: number) => Promise<any>;
     fetch_ohlcv: (_symbol: string, _timeframe: OHLCVTimeframe, _params?: OHLCVParams) => Promise<OHLCV[]>;
     create_order: (request: OrderRequest) => Promise<Order>;
     cancel_order: (_orderId: string, _symbol?: string) => Promise<Order>;
@@ -164,18 +73,18 @@ export declare abstract class BaseAdapter implements IExchangeAdapter {
     set_leverage: (symbol: string, leverage: number) => Promise<void>;
     set_margin_mode: (_symbol: string, _marginMode: "cross" | "isolated") => Promise<void>;
     fetch_open_orders: (_symbol?: string, _since?: number, _limit?: number) => Promise<Order[]>;
-    health_check: (config?: HealthCheckConfig) => Promise<HealthCheckResult>;
-    get_metrics: () => MetricsSnapshot;
+    health_check: (config?: import("../../types/health.js").HealthCheckConfig) => Promise<import("../../types/health.js").HealthCheckResult>;
+    get_metrics: () => import("../../types/metrics.js").MetricsSnapshot;
     reset_metrics: () => void;
     preload_markets: (options?: {
         ttl?: number;
-        params?: MarketParams;
+        params?: import("../../types/common.js").MarketParams;
     }) => Promise<void>;
     get_preloaded_markets: () => Market[] | null;
     clear_cache: () => void;
     fetch_deposits: (_currency?: string, _since?: number, _limit?: number) => Promise<Transaction[]>;
     fetch_withdrawals: (_currency?: string, _since?: number, _limit?: number) => Promise<Transaction[]>;
     get fetch_order_history(): (_symbol?: string, _since?: number, _limit?: number) => Promise<Order[]>;
-    get fetch_my_trades(): (_symbol?: string, _since?: number, _limit?: number) => Promise<Trade[]>;
+    get fetch_my_trades(): (_symbol?: string, _since?: number, _limit?: number) => Promise<any>;
 }
 //# sourceMappingURL=BaseAdapter.d.ts.map

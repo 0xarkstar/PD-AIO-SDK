@@ -184,7 +184,8 @@ export class ExtendedAdapter extends BaseAdapter {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.MARKETS);
         try {
             const response = await this.httpClient.get(EXTENDED_ENDPOINTS.MARKETS, {});
-            const markets = response.markets || [];
+            // API returns {status: "OK", data: [...]} or legacy {markets: [...]}
+            const markets = response.data || response.markets || [];
             return this.normalizer.normalizeMarkets(markets);
         }
         catch (error) {
@@ -196,7 +197,8 @@ export class ExtendedAdapter extends BaseAdapter {
         try {
             const market = this.symbolToExchange(symbol);
             const endpoint = EXTENDED_ENDPOINTS.TICKER_SYMBOL.replace('{market}', market);
-            const ticker = await this.httpClient.get(endpoint, {});
+            const response = await this.httpClient.get(endpoint, {});
+            const ticker = (response.data || response);
             return this.normalizer.normalizeTicker(ticker);
         }
         catch (error) {
@@ -213,7 +215,8 @@ export class ExtendedAdapter extends BaseAdapter {
                 queryParams.depth = params.limit;
             }
             endpoint += this.buildQueryString(queryParams);
-            const orderbook = await this.httpClient.get(endpoint, {});
+            const response = await this.httpClient.get(endpoint, {});
+            const orderbook = (response.data || response);
             return this.normalizer.normalizeOrderBook(orderbook);
         }
         catch (error) {
@@ -234,7 +237,7 @@ export class ExtendedAdapter extends BaseAdapter {
             }
             endpoint += this.buildQueryString(queryParams);
             const response = await this.httpClient.get(endpoint, {});
-            const trades = response.trades || [];
+            const trades = response.data || [];
             return this.normalizer.normalizeTrades(trades);
         }
         catch (error) {
@@ -242,32 +245,49 @@ export class ExtendedAdapter extends BaseAdapter {
         }
     }
     async fetchFundingRate(symbol) {
-        await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.FUNDING_RATE);
+        await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.TICKER_SYMBOL);
         try {
             const market = this.symbolToExchange(symbol);
-            const endpoint = EXTENDED_ENDPOINTS.FUNDING_RATE.replace('{market}', market);
-            const fundingRate = await this.httpClient.get(endpoint, {});
-            return this.normalizer.normalizeFundingRate(fundingRate);
+            // Use the stats endpoint which includes fundingRate, markPrice, indexPrice
+            const endpoint = EXTENDED_ENDPOINTS.TICKER_SYMBOL.replace('{market}', market);
+            const response = await this.httpClient.get(endpoint, {});
+            const stats = response.data ?? {};
+            return this.normalizer.normalizeFundingRate({
+                symbol: market,
+                fundingRate: String(stats.fundingRate ?? '0'),
+                fundingTime: Date.now(),
+                nextFundingTime: stats.nextFundingRate || 0,
+                markPrice: String(stats.markPrice ?? '0'),
+                indexPrice: String(stats.indexPrice ?? '0'),
+            });
         }
         catch (error) {
             throw mapError(error);
         }
     }
     async fetchFundingRateHistory(symbol, since, limit) {
-        await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.FUNDING_HISTORY);
+        await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.FUNDING_RATE);
         try {
             const market = this.symbolToExchange(symbol);
-            let endpoint = EXTENDED_ENDPOINTS.FUNDING_HISTORY.replace('{market}', market);
-            const queryParams = {};
-            if (since) {
-                queryParams.startTime = since;
-            }
+            const endpoint = EXTENDED_ENDPOINTS.FUNDING_RATE.replace('{market}', market);
+            // API requires both startTime and endTime
+            const now = Date.now();
+            const queryParams = {
+                startTime: since || now - 7 * 24 * 60 * 60 * 1000, // default: 7 days ago
+                endTime: now,
+            };
             if (limit) {
                 queryParams.limit = limit;
             }
-            endpoint += this.buildQueryString(queryParams);
-            const response = await this.httpClient.get(endpoint, {});
-            const rates = response.rates || [];
+            const fullEndpoint = endpoint + this.buildQueryString(queryParams);
+            const response = await this.httpClient.get(fullEndpoint, {});
+            const rates = (response.data || []).map((r) => ({
+                symbol: r.m || market,
+                fundingRate: r.f || r.fundingRate || '0',
+                fundingTime: r.T || r.fundingTime || 0,
+                markPrice: r.markPrice || '0',
+                indexPrice: r.indexPrice || '0',
+            }));
             return this.normalizer.normalizeFundingRates(rates);
         }
         catch (error) {

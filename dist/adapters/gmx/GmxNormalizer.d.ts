@@ -4,7 +4,7 @@
  * Transforms GMX API responses and on-chain data to unified SDK format.
  */
 import type { Market, Order, Position, Trade, FundingRate, Ticker, OHLCV } from '../../types/common.js';
-import type { GmxMarketInfo, GmxPosition, GmxOrder, GmxTrade, GmxFundingRate, GmxCandlestick } from './types.js';
+import type { GmxMarketInfo, GmxPosition, GmxOrder, GmxTrade, GmxFundingRate, GmxCandleTuple } from './types.js';
 /**
  * Normalizer for GMX v2 data
  */
@@ -48,13 +48,14 @@ export declare class GmxNormalizer {
         maxPrice: number;
     }): Ticker;
     /**
-     * Normalize candlesticks to OHLCV
+     * Normalize candlestick tuple to OHLCV
+     * Input: [timestamp_seconds, open, high, low, close]
      */
-    normalizeCandle(candle: GmxCandlestick): OHLCV;
+    normalizeCandle(candle: GmxCandleTuple): OHLCV;
     /**
      * Normalize candlesticks array
      */
-    normalizeCandles(candles: GmxCandlestick[]): OHLCV[];
+    normalizeCandles(candles: GmxCandleTuple[]): OHLCV[];
     /**
      * Calculate unrealized PnL
      */

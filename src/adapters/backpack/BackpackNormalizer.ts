@@ -28,6 +28,16 @@ import type {
   BackpackTicker,
   BackpackFundingRate,
 } from './types.js';
+import {
+  BackpackMarketSchema,
+  BackpackOrderSchema,
+  BackpackPositionSchema,
+  BackpackBalanceSchema,
+  BackpackOrderBookSchema,
+  BackpackTradeSchema,
+  BackpackTickerSchema,
+  BackpackFundingRateSchema,
+} from './types.js';
 
 export class BackpackNormalizer {
   /**
@@ -119,24 +129,25 @@ export class BackpackNormalizer {
    * Normalize Backpack market to unified format
    */
   normalizeMarket(backpackMarket: BackpackMarket): Market {
-    const symbol = this.normalizeSymbol(backpackMarket.symbol);
+    const validated = BackpackMarketSchema.parse(backpackMarket);
+    const symbol = this.normalizeSymbol(validated.symbol);
     const isPerpetual =
-      backpackMarket.marketType === 'PERP' || backpackMarket.symbol.endsWith('_PERP');
+      validated.marketType === 'PERP' || validated.symbol.endsWith('_PERP');
 
     // Handle potentially missing filter fields
-    const priceFilters = backpackMarket.filters?.price ?? { tickSize: '0.01' };
-    const quantityFilters = backpackMarket.filters?.quantity ?? {
+    const priceFilters = validated.filters?.price ?? { tickSize: '0.01' };
+    const quantityFilters = validated.filters?.quantity ?? {
       stepSize: '0.001',
       minQuantity: '0.001',
     };
 
     return {
-      id: backpackMarket.symbol,
+      id: validated.symbol,
       symbol,
-      base: backpackMarket.baseSymbol || symbol.split('/')[0] || '',
-      quote: backpackMarket.quoteSymbol || symbol.split('/')[1]?.split(':')[0] || '',
-      settle: backpackMarket.quoteSymbol || symbol.split('/')[1]?.split(':')[0] || '',
-      active: backpackMarket.visible !== false && backpackMarket.orderBookState !== 'Closed',
+      base: validated.baseSymbol || symbol.split('/')[0] || '',
+      quote: validated.quoteSymbol || symbol.split('/')[1]?.split(':')[0] || '',
+      settle: validated.quoteSymbol || symbol.split('/')[1]?.split(':')[0] || '',
+      active: validated.visible !== false && validated.orderBookState !== 'Closed',
       minAmount: parseFloat(quantityFilters.minQuantity || '0'),
       pricePrecision: this.countDecimals(priceFilters.tickSize || '0.01'),
       amountPrecision: this.countDecimals(quantityFilters.stepSize || '0.001'),
@@ -145,9 +156,7 @@ export class BackpackNormalizer {
       makerFee: 0, // Not provided in market endpoint
       takerFee: 0, // Not provided in market endpoint
       maxLeverage: isPerpetual ? 20 : 1, // Perpetuals support leverage
-      fundingIntervalHours: backpackMarket.fundingInterval
-        ? backpackMarket.fundingInterval / 3600000
-        : 1,
+      fundingIntervalHours: validated.fundingInterval ? validated.fundingInterval / 3600000 : 1,
     };
   }
 
@@ -155,26 +164,29 @@ export class BackpackNormalizer {
    * Normalize Backpack order to unified format
    */
   normalizeOrder(backpackOrder: BackpackOrder): Order {
-    const symbol = this.normalizeSymbol(backpackOrder.market);
+    const validated = BackpackOrderSchema.parse(backpackOrder);
+    const symbol = this.normalizeSymbol(validated.market);
 
     return {
-      id: backpackOrder.order_id,
-      clientOrderId: backpackOrder.client_order_id,
+      id: validated.order_id,
+      clientOrderId: validated.client_order_id,
       symbol,
-      type: this.normalizeOrderType(backpackOrder.type),
-      side: this.normalizeOrderSide(backpackOrder.side),
-      amount: parseFloat(backpackOrder.size),
-      price: backpackOrder.price ? parseFloat(backpackOrder.price) : undefined,
-      filled: parseFloat(backpackOrder.filled_size),
-      remaining: parseFloat(backpackOrder.size) - parseFloat(backpackOrder.filled_size),
-      averagePrice: backpackOrder.avg_price ? parseFloat(backpackOrder.avg_price) : undefined,
-      status: this.normalizeOrderStatus(backpackOrder.status),
-      timeInForce: this.normalizeTimeInForce(backpackOrder.time_in_force),
-      postOnly: backpackOrder.post_only,
-      reduceOnly: backpackOrder.reduce_only,
-      timestamp: backpackOrder.created_at,
-      lastUpdateTimestamp: backpackOrder.updated_at,
-      info: backpackOrder as unknown as Record<string, unknown>,
+      type: this.normalizeOrderType(validated.type),
+      side: this.normalizeOrderSide(validated.side),
+      amount: parseFloat(validated.size),
+      price: validated.price ? parseFloat(validated.price) : undefined,
+      filled: parseFloat(validated.filled_size),
+      remaining: parseFloat(validated.size) - parseFloat(validated.filled_size),
+      averagePrice: validated.avg_price ? parseFloat(validated.avg_price) : undefined,
+      status: this.normalizeOrderStatus(validated.status),
+      timeInForce: validated.time_in_force
+        ? this.normalizeTimeInForce(validated.time_in_force)
+        : undefined,
+      postOnly: validated.post_only ?? false,
+      reduceOnly: validated.reduce_only ?? false,
+      timestamp: validated.created_at ?? Date.now(),
+      lastUpdateTimestamp: validated.updated_at,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -182,11 +194,13 @@ export class BackpackNormalizer {
    * Normalize Backpack position to unified format
    */
   normalizePosition(backpackPosition: BackpackPosition): Position {
-    const symbol = this.normalizeSymbol(backpackPosition.market);
-    const size = Math.abs(parseFloat(backpackPosition.size));
-    const markPrice = parseFloat(backpackPosition.mark_price);
-    const maintenanceMargin = parseFloat(backpackPosition.margin) * 0.05;
-    const side = backpackPosition.side === 'LONG' ? 'long' : 'short';
+    const validated = BackpackPositionSchema.parse(backpackPosition);
+    const symbol = this.normalizeSymbol(validated.market);
+    const size = Math.abs(parseFloat(validated.size ?? '0'));
+    const markPrice = parseFloat(validated.mark_price ?? '0');
+    const margin = validated.margin ? parseFloat(validated.margin) : 0;
+    const maintenanceMargin = margin * 0.05;
+    const side = validated.side === 'LONG' ? 'long' : 'short';
     const notional = size * markPrice;
 
     return {
@@ -194,19 +208,19 @@ export class BackpackNormalizer {
       side,
       marginMode: 'cross',
       size,
-      entryPrice: parseFloat(backpackPosition.entry_price),
+      entryPrice: parseFloat(validated.entry_price ?? '0'),
       markPrice,
-      liquidationPrice: backpackPosition.liquidation_price
-        ? parseFloat(backpackPosition.liquidation_price)
+      liquidationPrice: validated.liquidation_price
+        ? parseFloat(validated.liquidation_price)
         : 0,
-      unrealizedPnl: parseFloat(backpackPosition.unrealized_pnl),
-      realizedPnl: parseFloat(backpackPosition.realized_pnl),
-      margin: parseFloat(backpackPosition.margin),
-      leverage: parseFloat(backpackPosition.leverage),
+      unrealizedPnl: parseFloat(validated.unrealized_pnl ?? '0'),
+      realizedPnl: validated.realized_pnl ? parseFloat(validated.realized_pnl) : 0,
+      margin,
+      leverage: validated.leverage ? parseFloat(validated.leverage) : 1,
       maintenanceMargin,
       marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
-      timestamp: backpackPosition.timestamp,
-      info: backpackPosition as unknown as Record<string, unknown>,
+      timestamp: validated.timestamp ?? Date.now(),
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -214,12 +228,13 @@ export class BackpackNormalizer {
    * Normalize Backpack balance to unified format
    */
   normalizeBalance(backpackBalance: BackpackBalance): Balance {
+    const validated = BackpackBalanceSchema.parse(backpackBalance);
     return {
-      currency: backpackBalance.asset,
-      total: parseFloat(backpackBalance.total),
-      free: parseFloat(backpackBalance.available),
-      used: parseFloat(backpackBalance.locked),
-      info: backpackBalance as unknown as Record<string, unknown>,
+      currency: validated.asset,
+      total: parseFloat(validated.total),
+      free: parseFloat(validated.available),
+      used: parseFloat(validated.locked),
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -227,11 +242,12 @@ export class BackpackNormalizer {
    * Normalize Backpack order book to unified format
    */
   normalizeOrderBook(backpackOrderBook: BackpackOrderBook, symbol?: string): OrderBook {
+    const validated = BackpackOrderBookSchema.parse(backpackOrderBook);
     return {
       symbol: symbol || '',
       exchange: 'backpack',
-      bids: backpackOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-      asks: backpackOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+      bids: validated.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
+      asks: validated.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
       timestamp: Date.now(),
     };
   }
@@ -240,19 +256,20 @@ export class BackpackNormalizer {
    * Normalize Backpack trade to unified format
    */
   normalizeTrade(backpackTrade: BackpackTrade, symbol?: string): Trade {
-    const price = parseFloat(backpackTrade.price);
-    const amount = parseFloat(backpackTrade.quantity);
+    const validated = BackpackTradeSchema.parse(backpackTrade);
+    const price = parseFloat(validated.price);
+    const amount = parseFloat(validated.quantity);
 
     return {
-      id: backpackTrade.id.toString(),
+      id: validated.id.toString(),
       symbol: symbol || '',
       // isBuyerMaker = true means the maker was a buyer, so the taker (aggressor) was selling
-      side: backpackTrade.isBuyerMaker ? 'sell' : 'buy',
+      side: validated.isBuyerMaker ? 'sell' : 'buy',
       price,
       amount,
-      cost: parseFloat(backpackTrade.quoteQuantity),
-      timestamp: backpackTrade.timestamp,
-      info: backpackTrade as unknown as Record<string, unknown>,
+      cost: validated.quoteQuantity ? parseFloat(validated.quoteQuantity) : price * amount,
+      timestamp: validated.timestamp ?? Date.now(),
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -260,27 +277,28 @@ export class BackpackNormalizer {
    * Normalize Backpack ticker to unified format
    */
   normalizeTicker(backpackTicker: BackpackTicker): Ticker {
-    const last = parseFloat(backpackTicker.lastPrice);
-    const first = parseFloat(backpackTicker.firstPrice);
-    const change = parseFloat(backpackTicker.priceChange);
-    const percentage = parseFloat(backpackTicker.priceChangePercent) * 100; // Convert to percentage
+    const validated = BackpackTickerSchema.parse(backpackTicker);
+    const last = parseFloat(validated.lastPrice || '0');
+    const first = parseFloat(validated.firstPrice || '0');
+    const change = parseFloat(validated.priceChange || '0');
+    const percentage = parseFloat(validated.priceChangePercent || '0') * 100; // Convert to percentage
 
     return {
-      symbol: this.normalizeSymbol(backpackTicker.symbol),
+      symbol: this.normalizeSymbol(validated.symbol),
       last,
       open: first,
       close: last,
       bid: last, // Backpack ticker doesn't provide bid; use last price as fallback
       ask: last, // Backpack ticker doesn't provide ask; use last price as fallback
-      high: parseFloat(backpackTicker.high),
-      low: parseFloat(backpackTicker.low),
+      high: parseFloat(validated.high || '0'),
+      low: parseFloat(validated.low || '0'),
       change,
       percentage,
-      baseVolume: parseFloat(backpackTicker.volume),
-      quoteVolume: parseFloat(backpackTicker.quoteVolume),
+      baseVolume: parseFloat(validated.volume || '0'),
+      quoteVolume: parseFloat(validated.quoteVolume || '0'),
       timestamp: Date.now(),
       info: {
-        ...(backpackTicker as unknown as Record<string, unknown>),
+        ...(validated as unknown as Record<string, unknown>),
         _bidAskSource: 'last_price',
       },
     };
@@ -290,12 +308,13 @@ export class BackpackNormalizer {
    * Normalize Backpack funding rate to unified format
    */
   normalizeFundingRate(backpackFunding: BackpackFundingRate): FundingRate {
+    const validated = BackpackFundingRateSchema.parse(backpackFunding);
     // Parse the ISO timestamp to milliseconds
-    const fundingTimestamp = new Date(backpackFunding.intervalEndTimestamp).getTime();
+    const fundingTimestamp = new Date(validated.intervalEndTimestamp).getTime();
 
     return {
-      symbol: this.normalizeSymbol(backpackFunding.symbol),
-      fundingRate: parseFloat(backpackFunding.fundingRate),
+      symbol: this.normalizeSymbol(validated.symbol),
+      fundingRate: parseFloat(validated.fundingRate),
       fundingTimestamp,
       nextFundingTimestamp: fundingTimestamp + 3600000, // Hourly funding
       // Backpack funding rate endpoint doesn't include mark/index price

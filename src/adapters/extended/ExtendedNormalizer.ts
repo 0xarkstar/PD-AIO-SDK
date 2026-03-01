@@ -26,6 +26,15 @@ import type {
   ExtendedTicker,
   ExtendedFundingRate,
 } from './types.js';
+import {
+  ExtendedOrderSchema,
+  ExtendedPositionSchema,
+  ExtendedBalanceSchema,
+  ExtendedTickerSchema,
+  ExtendedOrderBookSchema,
+  ExtendedTradeSchema,
+  ExtendedFundingRateSchema,
+} from './types.js';
 import { safeParseFloat } from './utils.js';
 
 /**
@@ -161,7 +170,8 @@ export class ExtendedNormalizer {
    * - Legacy type: {lastPrice, bidPrice, askPrice, high24h, low24h, volume24h, priceChange24h, ...}
    */
   normalizeTicker(ticker: ExtendedTicker): Ticker {
-    const raw = ticker as unknown as Record<string, any>;
+    const validated = ExtendedTickerSchema.parse(ticker);
+    const raw = validated as unknown as Record<string, any>;
     const unifiedSymbol = this.symbolToCCXT(raw.symbol || raw.market || '');
 
     return {
@@ -179,7 +189,7 @@ export class ExtendedNormalizer {
       change: safeParseFloat(raw.dailyPriceChange || raw.priceChange24h),
       percentage: safeParseFloat(raw.dailyPriceChangePercentage || raw.priceChangePercent24h),
       info: {
-        ...(ticker as unknown as Record<string, unknown>),
+        ...(validated as unknown as Record<string, unknown>),
         _bidAskSource: 'orderbook',
       },
     };
@@ -193,7 +203,8 @@ export class ExtendedNormalizer {
    * - Legacy type: {symbol, bids: [[price, size]], asks: [[price, size]]}
    */
   normalizeOrderBook(orderbook: ExtendedOrderBook): OrderBook {
-    const raw = orderbook as unknown as Record<string, any>;
+    const validated = ExtendedOrderBookSchema.parse(orderbook);
+    const raw = validated as unknown as Record<string, any>;
     const unifiedSymbol = this.symbolToCCXT(raw.symbol || raw.market || '');
 
     // API uses "bid"/"ask" with object arrays; legacy uses "bids"/"asks" with tuples
@@ -225,7 +236,8 @@ export class ExtendedNormalizer {
    * - Legacy type: {id, symbol, side, price, quantity, timestamp}
    */
   normalizeTrade(trade: ExtendedTrade): Trade {
-    const raw = trade as unknown as Record<string, any>;
+    const validated = ExtendedTradeSchema.parse(trade);
+    const raw = validated as unknown as Record<string, any>;
     const symbol = raw.symbol || raw.m || '';
     const unifiedSymbol = this.symbolToCCXT(symbol);
     const rawSide =
@@ -243,7 +255,7 @@ export class ExtendedNormalizer {
       amount,
       cost: price * amount,
       timestamp: raw.timestamp || raw.T,
-      info: trade as unknown as Record<string, unknown>,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -255,7 +267,8 @@ export class ExtendedNormalizer {
    * - Legacy type: {symbol, fundingRate, fundingTime, markPrice, indexPrice}
    */
   normalizeFundingRate(fundingRate: ExtendedFundingRate): FundingRate {
-    const raw = fundingRate as unknown as Record<string, any>;
+    const validated = ExtendedFundingRateSchema.parse(fundingRate);
+    const raw = validated as unknown as Record<string, any>;
     const symbol = raw.symbol || raw.m || '';
     const unifiedSymbol = this.symbolToCCXT(symbol);
 
@@ -267,7 +280,7 @@ export class ExtendedNormalizer {
       markPrice: safeParseFloat(raw.markPrice),
       indexPrice: safeParseFloat(raw.indexPrice),
       fundingIntervalHours: 1,
-      info: fundingRate as unknown as Record<string, unknown>,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -275,28 +288,29 @@ export class ExtendedNormalizer {
    * Normalize order data
    */
   normalizeOrder(order: ExtendedOrder): Order {
-    const unifiedSymbol = this.symbolToCCXT(order.symbol);
-    const filled = safeParseFloat(order.filledQuantity || '0');
-    const amount = safeParseFloat(order.quantity);
-    const remaining = safeParseFloat(order.remainingQuantity || String(amount - filled));
+    const validated = ExtendedOrderSchema.parse(order);
+    const unifiedSymbol = this.symbolToCCXT(validated.symbol);
+    const filled = safeParseFloat(validated.filledQuantity || '0');
+    const amount = safeParseFloat(validated.quantity);
+    const remaining = safeParseFloat(validated.remainingQuantity || String(amount - filled));
 
     return {
-      id: order.orderId,
-      clientOrderId: order.clientOrderId,
+      id: validated.orderId,
+      clientOrderId: validated.clientOrderId,
       symbol: unifiedSymbol,
-      type: this.normalizeOrderType(order.type),
-      side: order.side,
-      price: order.price ? safeParseFloat(order.price) : undefined,
-      stopPrice: order.stopPrice ? safeParseFloat(order.stopPrice) : undefined,
+      type: this.normalizeOrderType(validated.type),
+      side: validated.side,
+      price: validated.price ? safeParseFloat(validated.price) : undefined,
+      stopPrice: validated.stopPrice ? safeParseFloat(validated.stopPrice) : undefined,
       amount: amount,
       filled: filled,
       remaining: remaining,
       reduceOnly: false,
       postOnly: false,
-      status: this.normalizeOrderStatus(order.status),
-      timestamp: order.timestamp,
-      lastUpdateTimestamp: order.updateTime,
-      info: order as unknown as Record<string, unknown>,
+      status: this.normalizeOrderStatus(validated.status),
+      timestamp: validated.timestamp,
+      lastUpdateTimestamp: validated.updateTime,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -345,29 +359,30 @@ export class ExtendedNormalizer {
    * Normalize position data
    */
   normalizePosition(position: ExtendedPosition): Position {
-    const unifiedSymbol = this.symbolToCCXT(position.symbol);
-    const size = safeParseFloat(position.size);
-    const markPrice = safeParseFloat(position.markPrice);
+    const validated = ExtendedPositionSchema.parse(position);
+    const unifiedSymbol = this.symbolToCCXT(validated.symbol);
+    const size = safeParseFloat(validated.size);
+    const markPrice = safeParseFloat(validated.markPrice);
 
     return {
       symbol: unifiedSymbol,
-      side: position.side,
+      side: validated.side,
       size: size,
-      entryPrice: safeParseFloat(position.entryPrice),
+      entryPrice: safeParseFloat(validated.entryPrice),
       markPrice: markPrice,
-      leverage: safeParseFloat(position.leverage),
-      liquidationPrice: safeParseFloat(position.liquidationPrice),
-      unrealizedPnl: safeParseFloat(position.unrealizedPnl),
+      leverage: safeParseFloat(validated.leverage),
+      liquidationPrice: safeParseFloat(validated.liquidationPrice),
+      unrealizedPnl: safeParseFloat(validated.unrealizedPnl),
       realizedPnl: 0,
-      margin: safeParseFloat(position.initialMargin),
-      maintenanceMargin: safeParseFloat(position.maintenanceMargin),
+      margin: safeParseFloat(validated.initialMargin),
+      maintenanceMargin: safeParseFloat(validated.maintenanceMargin),
       marginRatio: size * markPrice > 0
-        ? safeParseFloat(position.maintenanceMargin) / (size * markPrice)
+        ? safeParseFloat(validated.maintenanceMargin) / (size * markPrice)
         : 0,
-      marginMode: position.marginMode,
-      timestamp: position.timestamp,
+      marginMode: validated.marginMode,
+      timestamp: validated.timestamp,
       info: {
-        ...(position as unknown as Record<string, unknown>),
+        ...(validated as unknown as Record<string, unknown>),
         _realizedPnlSource: 'not_available',
       },
     };
@@ -377,11 +392,12 @@ export class ExtendedNormalizer {
    * Normalize balance data
    */
   normalizeBalance(balance: ExtendedBalance): Balance {
+    const validated = ExtendedBalanceSchema.parse(balance);
     return {
-      currency: balance.asset,
-      free: safeParseFloat(balance.free),
-      used: safeParseFloat(balance.locked),
-      total: safeParseFloat(balance.total),
+      currency: validated.asset,
+      free: safeParseFloat(validated.free),
+      used: safeParseFloat(validated.locked),
+      total: safeParseFloat(validated.total),
     };
   }
 

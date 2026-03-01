@@ -21,7 +21,7 @@ export class OstiumAdapter extends BaseAdapter {
         fetchMarkets: true,
         fetchTicker: true,
         fetchOrderBook: false,
-        fetchTrades: true,
+        fetchTrades: false, // Subgraph has been removed from The Graph hosted service
         fetchFundingRate: false,
         createOrder: true,
         cancelOrder: true,
@@ -91,22 +91,18 @@ export class OstiumAdapter extends BaseAdapter {
         if (!pair) {
             throw new PerpDEXError(`Unknown pair: ${symbol}`, 'PAIR_NOT_FOUND', 'ostium');
         }
-        const response = await this.fetchMetadata(`/PricePublish/latest-price?pair=${pair.name}`, 'fetchTicker');
+        // Ostium API uses concatenated asset names (e.g., "BTCUSD" not "BTC/USD")
+        const assetParam = `${pair.from}${pair.to}`;
+        const response = await this.fetchMetadata(`/PricePublish/latest-price?asset=${assetParam}`, 'fetchTicker');
         return this.normalizer.normalizeTicker(response, pair);
     }
     async fetchOrderBook(_symbol, _params) {
         throw new NotSupportedError('Ostium does not have an order book (on-chain DEX)', 'NOT_SUPPORTED', 'ostium');
     }
-    async fetchTrades(symbol, params) {
-        const pairIndex = toOstiumPairIndex(symbol);
-        const limit = params?.limit ?? 100;
-        try {
-            const trades = await this.subgraph.fetchTrades(pairIndex, limit);
-            return trades.map((t) => this.normalizer.normalizeTrade(t));
-        }
-        catch (error) {
-            throw mapOstiumError(error);
-        }
+    async fetchTrades(_symbol, _params) {
+        // The Graph hosted service subgraph has been removed.
+        // Trades require an alternative data source (e.g., Graph Studio with API key).
+        throw new NotSupportedError('Ostium subgraph has been removed from The Graph hosted service. Trade data unavailable.', 'NOT_SUPPORTED', 'ostium');
     }
     async fetchFundingRate(_symbol) {
         throw new NotSupportedError('Ostium uses rollover fees, not funding rates', 'NOT_SUPPORTED', 'ostium');

@@ -1167,7 +1167,29 @@ describe('DriftNormalizer', () => {
         marginRatioMaintenance: 500, // 5%
         imfFactor: 0,
         numberOfUsers: 1000,
+        numberOfUsersWithBase: 500,
         contractTier: 'B',
+        pnlPool: { scaledBalance: '0', marketIndex: 0 },
+        nextFillRecordId: '1',
+        nextFundingRateRecordId: '1',
+        nextCurveRecordId: '1',
+        unrealizedPnlImfFactor: 0,
+        liquidatorFee: 0,
+        ifLiquidationFee: 0,
+        unrealizedPnlMaxImbalance: '0',
+        expiryTs: '0',
+        expiryPrice: '0',
+        insuranceClaim: {
+          revenueWithdrawSinceLastSettle: '0',
+          maxRevenueWithdrawPerPeriod: '0',
+          lastRevenueWithdrawTs: '0',
+          quoteSettledInsurance: '0',
+          quoteMaxInsurance: '0',
+        },
+        contractType: 'perpetual',
+        pausedOperations: 0,
+        quoteSpotMarketIndex: 0,
+        feeAdjustment: 0,
         amm: {
           orderTickSize: '1000', // 0.001 in PRICE_PRECISION
           orderStepSize: '100000000', // 0.1 in BASE_PRECISION
@@ -1197,7 +1219,29 @@ describe('DriftNormalizer', () => {
         marginRatioMaintenance: 500,
         imfFactor: 0,
         numberOfUsers: 0,
+        numberOfUsersWithBase: 0,
         contractTier: 'C',
+        pnlPool: { scaledBalance: '0', marketIndex: 999 },
+        nextFillRecordId: '1',
+        nextFundingRateRecordId: '1',
+        nextCurveRecordId: '1',
+        unrealizedPnlImfFactor: 0,
+        liquidatorFee: 0,
+        ifLiquidationFee: 0,
+        unrealizedPnlMaxImbalance: '0',
+        expiryTs: '0',
+        expiryPrice: '0',
+        insuranceClaim: {
+          revenueWithdrawSinceLastSettle: '0',
+          maxRevenueWithdrawPerPeriod: '0',
+          lastRevenueWithdrawTs: '0',
+          quoteSettledInsurance: '0',
+          quoteMaxInsurance: '0',
+        },
+        contractType: 'perpetual',
+        pausedOperations: 0,
+        quoteSpotMarketIndex: 0,
+        feeAdjustment: 0,
         amm: {
           orderTickSize: '1000',
           orderStepSize: '100000000',
@@ -1220,9 +1264,14 @@ describe('DriftNormalizer', () => {
         baseAssetAmount: '1000000000', // 1 SOL
         quoteAssetAmount: '100000000', // 100 USDC margin
         quoteEntryAmount: '95000000', // 95 USDC entry
+        quoteBreakEvenAmount: '95000000',
         settledPnl: '5000000', // 5 USDC realized PnL
         lpShares: '0',
         openOrders: 0,
+        openBids: '0',
+        openAsks: '0',
+        lastCumulativeFundingRate: '0',
+        perLpBase: 0,
       };
 
       const position = normalizer.normalizePosition(
@@ -1245,9 +1294,14 @@ describe('DriftNormalizer', () => {
         baseAssetAmount: '-1000000000', // -1 SOL (short)
         quoteAssetAmount: '-100000000', // 100 USDC margin
         quoteEntryAmount: '-105000000', // 105 USDC entry
+        quoteBreakEvenAmount: '-105000000',
         settledPnl: '0',
         lpShares: '0',
         openOrders: 0,
+        openBids: '0',
+        openAsks: '0',
+        lastCumulativeFundingRate: '0',
+        perLpBase: 0,
       };
 
       const position = normalizer.normalizePosition(
@@ -1267,6 +1321,7 @@ describe('DriftNormalizer', () => {
         orderId: 12345,
         userOrderId: 1,
         marketIndex: 0,
+        marketType: 'perp',
         orderType: 'limit',
         direction: 'long',
         baseAssetAmount: '1000000000', // 1 SOL
@@ -1274,9 +1329,17 @@ describe('DriftNormalizer', () => {
         quoteAssetAmountFilled: '0',
         price: '100000000', // 100
         triggerPrice: '0',
+        triggerCondition: 'above',
+        existingPositionDirection: 'long',
         status: 'open',
         reduceOnly: false,
         postOnly: 'mustPostOnly',
+        immediateOrCancel: false,
+        maxTs: '0',
+        oraclePriceOffset: 0,
+        auctionDuration: 0,
+        auctionStartPrice: '0',
+        auctionEndPrice: '0',
         slot: 123456,
       };
 
@@ -1298,6 +1361,7 @@ describe('DriftNormalizer', () => {
         orderId: 12346,
         userOrderId: 0,
         marketIndex: 1,
+        marketType: 'perp',
         orderType: 'market',
         direction: 'short',
         baseAssetAmount: '100000000', // 0.1 BTC
@@ -1305,9 +1369,17 @@ describe('DriftNormalizer', () => {
         quoteAssetAmountFilled: '5000000000', // 5000 USDC
         price: '0',
         triggerPrice: '0',
+        triggerCondition: 'above',
+        existingPositionDirection: 'long',
         status: 'filled',
         reduceOnly: true,
         postOnly: 'none',
+        immediateOrCancel: false,
+        maxTs: '0',
+        oraclePriceOffset: 0,
+        auctionDuration: 0,
+        auctionStartPrice: '0',
+        auctionEndPrice: '0',
         slot: 123457,
       };
 
@@ -1327,6 +1399,7 @@ describe('DriftNormalizer', () => {
         orderId: 12347,
         userOrderId: 0,
         marketIndex: 0,
+        marketType: 'perp',
         orderType: 'triggerMarket',
         direction: 'long',
         baseAssetAmount: '1000000000',
@@ -1334,9 +1407,17 @@ describe('DriftNormalizer', () => {
         quoteAssetAmountFilled: '0',
         price: '0',
         triggerPrice: '90000000', // 90
+        triggerCondition: 'below',
+        existingPositionDirection: 'long',
         status: 'open',
         reduceOnly: false,
         postOnly: 'none',
+        immediateOrCancel: false,
+        maxTs: '0',
+        oraclePriceOffset: 0,
+        auctionDuration: 0,
+        auctionStartPrice: '0',
+        auctionEndPrice: '0',
         slot: 123458,
       };
 
@@ -1351,7 +1432,9 @@ describe('DriftNormalizer', () => {
     test('normalizes order book correctly', () => {
       const mockOrderbook = {
         marketIndex: 0,
+        marketType: 'perp',
         slot: 123456,
+        oraclePrice: '100000000',
         bids: [
           { price: '99500000', size: '1000000000' }, // 99.5, 1
           { price: '99000000', size: '2000000000' }, // 99, 2
@@ -1382,11 +1465,18 @@ describe('DriftNormalizer', () => {
         fillRecordId: 'fill-123',
         recordId: 456,
         marketIndex: 0,
+        marketType: 'perp',
         baseAssetAmount: '500000000', // 0.5 SOL
+        quoteAssetAmount: '50000000', // 50 USDC
         fillPrice: '100000000', // 100
+        takerOrderId: 1,
         takerOrderDirection: 'long',
         taker: 'taker-pubkey',
         maker: 'maker-pubkey',
+        makerOrderId: 2,
+        makerOrderDirection: 'short',
+        action: 'fill',
+        actionExplanation: 'orderFilledWithMatch',
         txSig: 'tx-signature',
         slot: 123456,
         ts: 1704067200, // Unix timestamp
@@ -1429,6 +1519,7 @@ describe('DriftNormalizer', () => {
 
     test('normalizes funding rate record (historical) correctly', () => {
       const mockFundingRateRecord = {
+        recordId: '1',
         marketIndex: 0,
         fundingRate: '100000',
         fundingRateLong: '100000',
@@ -1437,6 +1528,9 @@ describe('DriftNormalizer', () => {
         cumulativeFundingRateShort: '-1000000',
         markPriceTwap: '100000000',
         oraclePriceTwap: '99500000', // Historical uses oraclePriceTwap
+        periodRevenue: '0',
+        baseAssetAmountWithAmm: '0',
+        baseAssetAmountWithUnsettledLp: '0',
         ts: 1704067200,
       };
 
@@ -1454,11 +1548,14 @@ describe('DriftNormalizer', () => {
         oraclePrice: '100000000', // 100
         bidPrice: '100400000', // 100.4
         askPrice: '100600000', // 100.6
+        lastFillPrice: '100500000', // 100.5
         volume24h: '1000000000', // 1000 USDC
         openInterest: '5000000000', // 5 SOL
         openInterestLong: '3000000000', // 3 SOL
         openInterestShort: '2000000000', // 2 SOL
         fundingRate: '100000',
+        fundingRate24h: '100000',
+        nextFundingRate: '100000',
         nextFundingTs: 1704070800,
         ts: 1704067200,
       };
@@ -1484,6 +1581,7 @@ describe('DriftNormalizer', () => {
         marketIndex: 0,
         scaledBalance: '1000',
         balanceType: 'deposit',
+        openOrders: 0,
         cumulativeDeposits: '1000',
       };
 
@@ -1501,6 +1599,7 @@ describe('DriftNormalizer', () => {
         marketIndex: 0,
         scaledBalance: '500',
         balanceType: 'borrow',
+        openOrders: 0,
         cumulativeDeposits: '0',
       };
 
@@ -1517,11 +1616,14 @@ describe('DriftNormalizer', () => {
     test('normalizes candle correctly', () => {
       const mockCandle = {
         start: 1704067200, // Unix timestamp
+        end: 1704070800,
+        resolution: 3600,
         open: '100000000', // 100
         high: '105000000', // 105
         low: '98000000', // 98
         close: '103000000', // 103
         volume: '50000000000', // 50000 USDC
+        trades: 150,
       };
 
       const ohlcv = normalizer.normalizeCandle(mockCandle as any);

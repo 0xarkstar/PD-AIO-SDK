@@ -27,6 +27,18 @@ import type {
   VariationalQuote,
   VariationalListing,
 } from './types.js';
+import {
+  VariationalMarketSchema,
+  VariationalOrderSchema,
+  VariationalPositionSchema,
+  VariationalBalanceSchema,
+  VariationalOrderBookSchema,
+  VariationalTradeSchema,
+  VariationalTickerSchema,
+  VariationalFundingRateSchema,
+  VariationalQuoteSchema,
+  VariationalListingSchema,
+} from './types.js';
 import { countDecimals, safeParseFloat } from './utils.js';
 
 export class VariationalNormalizer {
@@ -68,13 +80,14 @@ export class VariationalNormalizer {
    * Normalize market data from listing (from /metadata/stats)
    */
   normalizeMarketFromListing(listing: VariationalListing): Market {
+    const validated = VariationalListingSchema.parse(listing);
     // Variational uses ticker symbols like "BTC", "ETH", convert to unified format
-    const unifiedSymbol = `${listing.ticker}/USDC:USDC`;
+    const unifiedSymbol = `${validated.ticker}/USDC:USDC`;
 
     return {
-      id: listing.ticker,
+      id: validated.ticker,
       symbol: unifiedSymbol,
-      base: listing.ticker,
+      base: validated.ticker,
       quote: 'USDC',
       settle: 'USDC',
       contractSize: 1,
@@ -88,8 +101,8 @@ export class VariationalNormalizer {
       makerFee: 0, // RFQ model, spreads included in quotes
       takerFee: 0,
       maxLeverage: 50, // Default leverage
-      fundingIntervalHours: listing.funding_interval_s / 3600,
-      info: listing as unknown as Record<string, unknown>,
+      fundingIntervalHours: validated.funding_interval_s / 3600,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -97,27 +110,28 @@ export class VariationalNormalizer {
    * Normalize market data
    */
   normalizeMarket(market: VariationalMarket): Market {
-    const unifiedSymbol = this.symbolToCCXT(market.symbol);
+    const validated = VariationalMarketSchema.parse(market);
+    const unifiedSymbol = this.symbolToCCXT(validated.symbol);
 
     return {
-      id: market.symbol,
+      id: validated.symbol,
       symbol: unifiedSymbol,
-      base: market.baseAsset,
-      quote: market.quoteAsset,
-      settle: market.quoteAsset,
-      contractSize: safeParseFloat(market.contractSize || '1'),
-      active: market.status === 'active',
-      minAmount: safeParseFloat(market.minOrderSize),
-      maxAmount: market.maxOrderSize ? safeParseFloat(market.maxOrderSize) : undefined,
-      pricePrecision: countDecimals(market.tickSize),
-      amountPrecision: countDecimals(market.minOrderSize),
-      priceTickSize: safeParseFloat(market.tickSize),
-      amountStepSize: safeParseFloat(market.minOrderSize),
+      base: validated.baseAsset,
+      quote: validated.quoteAsset,
+      settle: validated.quoteAsset,
+      contractSize: safeParseFloat(validated.contractSize || '1'),
+      active: validated.status === 'active',
+      minAmount: safeParseFloat(typeof validated.minOrderSize === 'number' ? String(validated.minOrderSize) : validated.minOrderSize),
+      maxAmount: validated.maxOrderSize ? safeParseFloat(typeof validated.maxOrderSize === 'number' ? String(validated.maxOrderSize) : validated.maxOrderSize) : undefined,
+      pricePrecision: countDecimals(typeof validated.tickSize === 'number' ? String(validated.tickSize) : validated.tickSize),
+      amountPrecision: countDecimals(typeof validated.minOrderSize === 'number' ? String(validated.minOrderSize) : validated.minOrderSize),
+      priceTickSize: safeParseFloat(typeof validated.tickSize === 'number' ? String(validated.tickSize) : validated.tickSize),
+      amountStepSize: safeParseFloat(typeof validated.minOrderSize === 'number' ? String(validated.minOrderSize) : validated.minOrderSize),
       makerFee: 0.0002,
       takerFee: 0.0005,
-      maxLeverage: market.maxLeverage ? safeParseFloat(market.maxLeverage) : 50,
+      maxLeverage: validated.maxLeverage ? safeParseFloat(validated.maxLeverage) : 50,
       fundingIntervalHours: 8,
-      info: market as unknown as Record<string, unknown>,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -125,26 +139,27 @@ export class VariationalNormalizer {
    * Normalize ticker data from listing (from /metadata/stats)
    */
   normalizeTickerFromListing(listing: VariationalListing): Ticker {
-    const unifiedSymbol = `${listing.ticker}/USDC:USDC`;
+    const validated = VariationalListingSchema.parse(listing);
+    const unifiedSymbol = `${validated.ticker}/USDC:USDC`;
     const timestamp = Date.now(); // Real timestamp would come from listing.quotes.updated_at
-    const markPrice = safeParseFloat(listing.mark_price);
+    const markPrice = safeParseFloat(validated.mark_price);
 
     return {
       symbol: unifiedSymbol,
       timestamp,
       high: markPrice, // Not available from /metadata/stats
       low: markPrice, // Not available from /metadata/stats
-      bid: safeParseFloat(listing.quotes.size_100k.bid),
-      ask: safeParseFloat(listing.quotes.size_100k.ask),
+      bid: safeParseFloat(validated.quotes.size_100k.bid),
+      ask: safeParseFloat(validated.quotes.size_100k.ask),
       last: markPrice,
       open: markPrice, // Not available from /metadata/stats
       close: markPrice,
-      baseVolume: safeParseFloat(listing.volume_24h),
-      quoteVolume: safeParseFloat(listing.volume_24h),
+      baseVolume: safeParseFloat(validated.volume_24h),
+      quoteVolume: safeParseFloat(validated.volume_24h),
       change: 0, // Not available from /metadata/stats
       percentage: 0, // Not available from /metadata/stats
       info: {
-        ...(listing as unknown as Record<string, unknown>),
+        ...(validated as unknown as Record<string, unknown>),
         _bidAskSource: 'orderbook',
       },
     };
@@ -154,24 +169,25 @@ export class VariationalNormalizer {
    * Normalize ticker data
    */
   normalizeTicker(ticker: VariationalTicker): Ticker {
-    const unifiedSymbol = this.symbolToCCXT(ticker.symbol);
+    const validated = VariationalTickerSchema.parse(ticker);
+    const unifiedSymbol = this.symbolToCCXT(validated.symbol);
 
     return {
       symbol: unifiedSymbol,
-      timestamp: ticker.timestamp,
-      high: safeParseFloat(ticker.high24h),
-      low: safeParseFloat(ticker.low24h),
-      bid: safeParseFloat(ticker.bidPrice),
-      ask: safeParseFloat(ticker.askPrice),
-      last: safeParseFloat(ticker.lastPrice),
-      open: safeParseFloat(ticker.lastPrice),
-      close: safeParseFloat(ticker.lastPrice),
-      baseVolume: safeParseFloat(ticker.volume24h),
+      timestamp: validated.timestamp,
+      high: safeParseFloat(validated.high24h),
+      low: safeParseFloat(validated.low24h),
+      bid: safeParseFloat(validated.bidPrice),
+      ask: safeParseFloat(validated.askPrice),
+      last: safeParseFloat(validated.lastPrice),
+      open: safeParseFloat(validated.lastPrice),
+      close: safeParseFloat(validated.lastPrice),
+      baseVolume: safeParseFloat(validated.volume24h),
       quoteVolume: 0,
-      change: safeParseFloat(ticker.priceChange24h),
-      percentage: safeParseFloat(ticker.priceChangePercent24h),
+      change: safeParseFloat(validated.priceChange24h),
+      percentage: safeParseFloat(validated.priceChangePercent24h),
       info: {
-        ...(ticker as unknown as Record<string, unknown>),
+        ...(validated as unknown as Record<string, unknown>),
         _bidAskSource: 'orderbook',
       },
     };
@@ -181,20 +197,21 @@ export class VariationalNormalizer {
    * Normalize order book data
    */
   normalizeOrderBook(orderbook: VariationalOrderBook): OrderBook {
-    const unifiedSymbol = this.symbolToCCXT(orderbook.symbol);
+    const validated = VariationalOrderBookSchema.parse(orderbook);
+    const unifiedSymbol = this.symbolToCCXT(validated.symbol);
 
     return {
       exchange: 'variational',
       symbol: unifiedSymbol,
-      bids: orderbook.bids.map(([price, amount]) => [
+      bids: validated.bids.map(([price, amount]) => [
         safeParseFloat(price),
         safeParseFloat(amount),
       ]),
-      asks: orderbook.asks.map(([price, amount]) => [
+      asks: validated.asks.map(([price, amount]) => [
         safeParseFloat(price),
         safeParseFloat(amount),
       ]),
-      timestamp: orderbook.timestamp,
+      timestamp: validated.timestamp,
     };
   }
 
@@ -202,18 +219,19 @@ export class VariationalNormalizer {
    * Normalize trade data
    */
   normalizeTrade(trade: VariationalTrade): Trade {
-    const unifiedSymbol = this.symbolToCCXT(trade.symbol);
+    const validated = VariationalTradeSchema.parse(trade);
+    const unifiedSymbol = this.symbolToCCXT(validated.symbol);
 
     return {
-      id: trade.id,
+      id: validated.id,
       orderId: undefined,
       symbol: unifiedSymbol,
-      side: trade.side,
-      price: safeParseFloat(trade.price),
-      amount: safeParseFloat(trade.amount),
-      cost: safeParseFloat(trade.price) * safeParseFloat(trade.amount),
-      timestamp: trade.timestamp,
-      info: trade as unknown as Record<string, unknown>,
+      side: validated.side as 'buy' | 'sell',
+      price: safeParseFloat(typeof validated.price === 'number' ? String(validated.price) : validated.price),
+      amount: safeParseFloat(typeof validated.amount === 'number' ? String(validated.amount) : validated.amount),
+      cost: safeParseFloat(typeof validated.price === 'number' ? String(validated.price) : validated.price) * safeParseFloat(typeof validated.amount === 'number' ? String(validated.amount) : validated.amount),
+      timestamp: validated.timestamp,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -221,17 +239,18 @@ export class VariationalNormalizer {
    * Normalize funding rate data
    */
   normalizeFundingRate(fundingRate: VariationalFundingRate): FundingRate {
-    const unifiedSymbol = this.symbolToCCXT(fundingRate.symbol);
+    const validated = VariationalFundingRateSchema.parse(fundingRate);
+    const unifiedSymbol = this.symbolToCCXT(validated.symbol);
 
     return {
       symbol: unifiedSymbol,
-      fundingRate: safeParseFloat(fundingRate.fundingRate),
-      fundingTimestamp: fundingRate.fundingTime,
-      nextFundingTimestamp: fundingRate.nextFundingTime || 0,
-      markPrice: fundingRate.markPrice ? safeParseFloat(fundingRate.markPrice) : 0,
-      indexPrice: fundingRate.indexPrice ? safeParseFloat(fundingRate.indexPrice) : 0,
+      fundingRate: safeParseFloat(validated.fundingRate),
+      fundingTimestamp: validated.fundingTime,
+      nextFundingTimestamp: validated.nextFundingTime || 0,
+      markPrice: validated.markPrice ? safeParseFloat(validated.markPrice) : 0,
+      indexPrice: validated.indexPrice ? safeParseFloat(validated.indexPrice) : 0,
       fundingIntervalHours: 8,
-      info: fundingRate as unknown as Record<string, unknown>,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -239,27 +258,31 @@ export class VariationalNormalizer {
    * Normalize order data
    */
   normalizeOrder(order: VariationalOrder): Order {
-    const unifiedSymbol = this.symbolToCCXT(order.symbol);
-    const filled = safeParseFloat(order.filledAmount || '0');
-    const amount = safeParseFloat(order.amount);
-    const remaining = safeParseFloat(order.remainingAmount || String(amount - filled));
+    const validated = VariationalOrderSchema.parse(order);
+    const unifiedSymbol = this.symbolToCCXT(validated.symbol);
+    const filledAmount = typeof validated.filledAmount === 'number' ? String(validated.filledAmount) : (validated.filledAmount || '0');
+    const filled = safeParseFloat(filledAmount);
+    const amountValue = typeof validated.amount === 'number' ? String(validated.amount) : validated.amount;
+    const amount = safeParseFloat(amountValue);
+    const remainingAmount = validated.remainingAmount ? (typeof validated.remainingAmount === 'number' ? String(validated.remainingAmount) : validated.remainingAmount) : String(amount - filled);
+    const remaining = safeParseFloat(remainingAmount);
 
     return {
-      id: order.orderId,
-      clientOrderId: order.clientOrderId,
+      id: validated.orderId,
+      clientOrderId: validated.clientOrderId,
       symbol: unifiedSymbol,
-      type: order.type === 'rfq' ? 'market' : order.type,
-      side: order.side,
-      price: order.price ? safeParseFloat(order.price) : undefined,
+      type: (validated.type === 'rfq' ? 'market' : validated.type) as 'market' | 'limit',
+      side: validated.side as 'buy' | 'sell',
+      price: validated.price ? safeParseFloat(validated.price) : undefined,
       amount: amount,
       filled: filled,
       remaining: remaining,
       reduceOnly: false,
       postOnly: false,
-      status: this.normalizeOrderStatus(order.status),
-      timestamp: order.timestamp,
-      lastUpdateTimestamp: order.updateTime,
-      info: order as unknown as Record<string, unknown>,
+      status: this.normalizeOrderStatus(validated.status as VariationalOrder['status']),
+      timestamp: validated.timestamp,
+      lastUpdateTimestamp: validated.updateTime,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -292,27 +315,30 @@ export class VariationalNormalizer {
    * Normalize position data
    */
   normalizePosition(position: VariationalPosition): Position {
-    const unifiedSymbol = this.symbolToCCXT(position.symbol);
-    const size = safeParseFloat(position.size);
-    const entryPrice = safeParseFloat(position.entryPrice);
+    const validated = VariationalPositionSchema.parse(position);
+    const unifiedSymbol = this.symbolToCCXT(validated.symbol);
+    const sizeValue = typeof validated.size === 'number' ? String(validated.size) : validated.size;
+    const size = safeParseFloat(sizeValue);
+    const entryPriceValue = typeof validated.entryPrice === 'number' ? String(validated.entryPrice) : validated.entryPrice;
+    const entryPrice = safeParseFloat(entryPriceValue);
 
     return {
       symbol: unifiedSymbol,
-      side: position.side,
+      side: validated.side as 'long' | 'short',
       size: size,
       entryPrice: entryPrice,
-      markPrice: safeParseFloat(position.markPrice),
-      leverage: safeParseFloat(position.leverage),
-      liquidationPrice: position.liquidationPrice ? safeParseFloat(position.liquidationPrice) : 0,
-      unrealizedPnl: safeParseFloat(position.unrealizedPnl),
+      markPrice: safeParseFloat(typeof validated.markPrice === 'number' ? String(validated.markPrice) : validated.markPrice),
+      leverage: safeParseFloat(typeof validated.leverage === 'number' ? String(validated.leverage) : validated.leverage),
+      liquidationPrice: validated.liquidationPrice ? safeParseFloat(typeof validated.liquidationPrice === 'number' ? String(validated.liquidationPrice) : validated.liquidationPrice) : 0,
+      unrealizedPnl: safeParseFloat(typeof validated.unrealizedPnl === 'number' ? String(validated.unrealizedPnl) : validated.unrealizedPnl),
       realizedPnl: 0,
-      margin: safeParseFloat(position.margin),
+      margin: safeParseFloat(typeof validated.margin === 'number' ? String(validated.margin) : validated.margin),
       maintenanceMargin: 0,
       marginRatio: 0,
       marginMode: 'cross',
-      timestamp: position.timestamp,
+      timestamp: validated.timestamp,
       info: {
-        ...(position as unknown as Record<string, unknown>),
+        ...(validated as unknown as Record<string, unknown>),
         _realizedPnlSource: 'not_available',
         _marginRatioSource: 'not_available',
       },
@@ -323,11 +349,12 @@ export class VariationalNormalizer {
    * Normalize balance data
    */
   normalizeBalance(balance: VariationalBalance): Balance {
+    const validated = VariationalBalanceSchema.parse(balance);
     return {
-      currency: balance.asset,
-      free: safeParseFloat(balance.free),
-      used: safeParseFloat(balance.locked),
-      total: safeParseFloat(balance.total),
+      currency: validated.asset,
+      free: safeParseFloat(validated.free),
+      used: safeParseFloat(validated.locked),
+      total: safeParseFloat(validated.total),
     };
   }
 
@@ -346,18 +373,19 @@ export class VariationalNormalizer {
     spread?: number;
     timestamp: number;
   } {
-    const unifiedSymbol = this.symbolToCCXT(quote.symbol);
+    const validated = VariationalQuoteSchema.parse(quote);
+    const unifiedSymbol = this.symbolToCCXT(validated.symbol);
 
     return {
-      id: quote.quoteId,
+      id: validated.quoteId,
       symbol: unifiedSymbol,
-      side: quote.side,
-      price: safeParseFloat(quote.price),
-      amount: safeParseFloat(quote.amount),
-      expiresAt: quote.expiresAt,
-      marketMaker: quote.marketMaker,
-      spread: quote.spread ? safeParseFloat(quote.spread) : undefined,
-      timestamp: quote.timestamp,
+      side: validated.side as 'buy' | 'sell',
+      price: safeParseFloat(typeof validated.price === 'number' ? String(validated.price) : validated.price),
+      amount: safeParseFloat(typeof validated.amount === 'number' ? String(validated.amount) : validated.amount),
+      expiresAt: validated.expiresAt,
+      marketMaker: validated.marketMaker,
+      spread: validated.spread ? safeParseFloat(typeof validated.spread === 'number' ? String(validated.spread) : validated.spread) : undefined,
+      timestamp: validated.timestamp,
     };
   }
 
@@ -414,9 +442,10 @@ export class VariationalNormalizer {
    * Normalize funding rate from listing (from /metadata/stats)
    */
   normalizeFundingRateFromListing(listing: VariationalListing): FundingRate {
-    const unifiedSymbol = `${listing.ticker}/USDC:USDC`;
-    const markPrice = safeParseFloat(listing.mark_price);
-    const fundingIntervalSeconds = listing.funding_interval_s;
+    const validated = VariationalListingSchema.parse(listing);
+    const unifiedSymbol = `${validated.ticker}/USDC:USDC`;
+    const markPrice = safeParseFloat(validated.mark_price);
+    const fundingIntervalSeconds = validated.funding_interval_s;
     const fundingIntervalHours = fundingIntervalSeconds / 3600;
 
     // Calculate next funding time based on interval
@@ -426,13 +455,13 @@ export class VariationalNormalizer {
 
     return {
       symbol: unifiedSymbol,
-      fundingRate: safeParseFloat(listing.funding_rate),
+      fundingRate: safeParseFloat(validated.funding_rate),
       fundingTimestamp: now,
       nextFundingTimestamp,
       markPrice,
       indexPrice: markPrice, // Variational uses mark price as index
       fundingIntervalHours,
-      info: listing as unknown as Record<string, unknown>,
+      info: validated as unknown as Record<string, unknown>,
     };
   }
 
@@ -443,9 +472,10 @@ export class VariationalNormalizer {
    * from the quotes at different notional sizes.
    */
   normalizeOrderBookFromListing(listing: VariationalListing): OrderBook {
-    const unifiedSymbol = `${listing.ticker}/USDC:USDC`;
-    const quotes = listing.quotes;
-    const markPrice = safeParseFloat(listing.mark_price);
+    const validated = VariationalListingSchema.parse(listing);
+    const unifiedSymbol = `${validated.ticker}/USDC:USDC`;
+    const quotes = validated.quotes;
+    const markPrice = safeParseFloat(validated.mark_price);
 
     // Build order book from quotes at different sizes
     // Size represents notional value in USD

@@ -5,7 +5,7 @@
  */
 import { z } from 'zod';
 /**
- * Extended market data type
+ * Extended market data type (Legacy SDK format)
  */
 export interface ExtendedMarket {
     marketId: string;
@@ -25,6 +25,120 @@ export interface ExtendedMarket {
     fundingInterval: number;
     settlementPeriod?: number;
 }
+/**
+ * Extended market data type (Actual API format)
+ */
+export interface ExtendedMarketApiFormat {
+    name: string;
+    assetName: string;
+    collateralAssetName: string;
+    active: boolean;
+    tradingConfig?: {
+        minOrderSize?: string;
+        maxPositionValue?: string;
+        maxLeverage?: string;
+        minPriceChange?: string;
+        minOrderSizeChange?: string;
+    };
+    assetPrecision?: number;
+    collateralAssetPrecision?: number;
+    contractMultiplier?: string;
+    fundingInterval?: number;
+    settlementPeriod?: number;
+}
+export declare const ExtendedMarketApiFormatSchema: z.ZodObject<{
+    name: z.ZodString;
+    assetName: z.ZodString;
+    collateralAssetName: z.ZodString;
+    active: z.ZodBoolean;
+    tradingConfig: z.ZodOptional<z.ZodObject<{
+        minOrderSize: z.ZodOptional<z.ZodString>;
+        maxPositionValue: z.ZodOptional<z.ZodString>;
+        maxLeverage: z.ZodOptional<z.ZodString>;
+        minPriceChange: z.ZodOptional<z.ZodString>;
+        minOrderSizeChange: z.ZodOptional<z.ZodString>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        minOrderSize: z.ZodOptional<z.ZodString>;
+        maxPositionValue: z.ZodOptional<z.ZodString>;
+        maxLeverage: z.ZodOptional<z.ZodString>;
+        minPriceChange: z.ZodOptional<z.ZodString>;
+        minOrderSizeChange: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        minOrderSize: z.ZodOptional<z.ZodString>;
+        maxPositionValue: z.ZodOptional<z.ZodString>;
+        maxLeverage: z.ZodOptional<z.ZodString>;
+        minPriceChange: z.ZodOptional<z.ZodString>;
+        minOrderSizeChange: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    assetPrecision: z.ZodOptional<z.ZodNumber>;
+    collateralAssetPrecision: z.ZodOptional<z.ZodNumber>;
+    contractMultiplier: z.ZodOptional<z.ZodString>;
+    fundingInterval: z.ZodOptional<z.ZodNumber>;
+    settlementPeriod: z.ZodOptional<z.ZodNumber>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    name: z.ZodString;
+    assetName: z.ZodString;
+    collateralAssetName: z.ZodString;
+    active: z.ZodBoolean;
+    tradingConfig: z.ZodOptional<z.ZodObject<{
+        minOrderSize: z.ZodOptional<z.ZodString>;
+        maxPositionValue: z.ZodOptional<z.ZodString>;
+        maxLeverage: z.ZodOptional<z.ZodString>;
+        minPriceChange: z.ZodOptional<z.ZodString>;
+        minOrderSizeChange: z.ZodOptional<z.ZodString>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        minOrderSize: z.ZodOptional<z.ZodString>;
+        maxPositionValue: z.ZodOptional<z.ZodString>;
+        maxLeverage: z.ZodOptional<z.ZodString>;
+        minPriceChange: z.ZodOptional<z.ZodString>;
+        minOrderSizeChange: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        minOrderSize: z.ZodOptional<z.ZodString>;
+        maxPositionValue: z.ZodOptional<z.ZodString>;
+        maxLeverage: z.ZodOptional<z.ZodString>;
+        minPriceChange: z.ZodOptional<z.ZodString>;
+        minOrderSizeChange: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    assetPrecision: z.ZodOptional<z.ZodNumber>;
+    collateralAssetPrecision: z.ZodOptional<z.ZodNumber>;
+    contractMultiplier: z.ZodOptional<z.ZodString>;
+    fundingInterval: z.ZodOptional<z.ZodNumber>;
+    settlementPeriod: z.ZodOptional<z.ZodNumber>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    name: z.ZodString;
+    assetName: z.ZodString;
+    collateralAssetName: z.ZodString;
+    active: z.ZodBoolean;
+    tradingConfig: z.ZodOptional<z.ZodObject<{
+        minOrderSize: z.ZodOptional<z.ZodString>;
+        maxPositionValue: z.ZodOptional<z.ZodString>;
+        maxLeverage: z.ZodOptional<z.ZodString>;
+        minPriceChange: z.ZodOptional<z.ZodString>;
+        minOrderSizeChange: z.ZodOptional<z.ZodString>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        minOrderSize: z.ZodOptional<z.ZodString>;
+        maxPositionValue: z.ZodOptional<z.ZodString>;
+        maxLeverage: z.ZodOptional<z.ZodString>;
+        minPriceChange: z.ZodOptional<z.ZodString>;
+        minOrderSizeChange: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        minOrderSize: z.ZodOptional<z.ZodString>;
+        maxPositionValue: z.ZodOptional<z.ZodString>;
+        maxLeverage: z.ZodOptional<z.ZodString>;
+        minPriceChange: z.ZodOptional<z.ZodString>;
+        minOrderSizeChange: z.ZodOptional<z.ZodString>;
+    }, z.ZodTypeAny, "passthrough">>>;
+    assetPrecision: z.ZodOptional<z.ZodNumber>;
+    collateralAssetPrecision: z.ZodOptional<z.ZodNumber>;
+    contractMultiplier: z.ZodOptional<z.ZodString>;
+    fundingInterval: z.ZodOptional<z.ZodNumber>;
+    settlementPeriod: z.ZodOptional<z.ZodNumber>;
+}, z.ZodTypeAny, "passthrough">>;
+/**
+ * Union type for Extended market data
+ * Handles both legacy SDK type and actual API response format
+ */
+export type ExtendedMarketRaw = ExtendedMarket | ExtendedMarketApiFormat;
 /**
  * Extended ticker data type
  */
@@ -82,6 +196,31 @@ export interface ExtendedFundingRate {
     markPrice: string;
     premiumRate?: string;
 }
+export declare const ExtendedFundingRateSchema: z.ZodObject<{
+    symbol: z.ZodString;
+    fundingRate: z.ZodString;
+    fundingTime: z.ZodNumber;
+    nextFundingTime: z.ZodOptional<z.ZodNumber>;
+    indexPrice: z.ZodString;
+    markPrice: z.ZodString;
+    premiumRate: z.ZodOptional<z.ZodString>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    fundingRate: z.ZodString;
+    fundingTime: z.ZodNumber;
+    nextFundingTime: z.ZodOptional<z.ZodNumber>;
+    indexPrice: z.ZodString;
+    markPrice: z.ZodString;
+    premiumRate: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    fundingRate: z.ZodString;
+    fundingTime: z.ZodNumber;
+    nextFundingTime: z.ZodOptional<z.ZodNumber>;
+    indexPrice: z.ZodString;
+    markPrice: z.ZodString;
+    premiumRate: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Extended order data type
  */
@@ -220,159 +359,159 @@ export interface ExtendedStarkNetTransaction {
     timestamp?: number;
 }
 export declare const ExtendedMarketSchema: z.ZodObject<{
-    marketId: z.ZodString;
+    marketId: z.ZodOptional<z.ZodString>;
     symbol: z.ZodString;
-    baseAsset: z.ZodString;
-    quoteAsset: z.ZodString;
-    settleAsset: z.ZodString;
-    isActive: z.ZodBoolean;
-    minOrderQuantity: z.ZodString;
-    maxOrderQuantity: z.ZodString;
-    minPrice: z.ZodString;
-    maxPrice: z.ZodString;
-    quantityPrecision: z.ZodNumber;
-    pricePrecision: z.ZodNumber;
-    contractMultiplier: z.ZodString;
-    maxLeverage: z.ZodString;
-    fundingInterval: z.ZodNumber;
+    baseAsset: z.ZodOptional<z.ZodString>;
+    quoteAsset: z.ZodOptional<z.ZodString>;
+    settleAsset: z.ZodOptional<z.ZodString>;
+    isActive: z.ZodOptional<z.ZodBoolean>;
+    minOrderQuantity: z.ZodOptional<z.ZodString>;
+    maxOrderQuantity: z.ZodOptional<z.ZodString>;
+    minPrice: z.ZodOptional<z.ZodString>;
+    maxPrice: z.ZodOptional<z.ZodString>;
+    quantityPrecision: z.ZodOptional<z.ZodNumber>;
+    pricePrecision: z.ZodOptional<z.ZodNumber>;
+    contractMultiplier: z.ZodOptional<z.ZodString>;
+    maxLeverage: z.ZodOptional<z.ZodString>;
+    fundingInterval: z.ZodOptional<z.ZodNumber>;
     settlementPeriod: z.ZodOptional<z.ZodNumber>;
-}, "strip", z.ZodTypeAny, {
-    symbol: string;
-    pricePrecision: number;
-    maxLeverage: string;
-    baseAsset: string;
-    quoteAsset: string;
-    fundingInterval: number;
-    marketId: string;
-    settleAsset: string;
-    isActive: boolean;
-    minOrderQuantity: string;
-    maxOrderQuantity: string;
-    minPrice: string;
-    maxPrice: string;
-    quantityPrecision: number;
-    contractMultiplier: string;
-    settlementPeriod?: number | undefined;
-}, {
-    symbol: string;
-    pricePrecision: number;
-    maxLeverage: string;
-    baseAsset: string;
-    quoteAsset: string;
-    fundingInterval: number;
-    marketId: string;
-    settleAsset: string;
-    isActive: boolean;
-    minOrderQuantity: string;
-    maxOrderQuantity: string;
-    minPrice: string;
-    maxPrice: string;
-    quantityPrecision: number;
-    contractMultiplier: string;
-    settlementPeriod?: number | undefined;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    marketId: z.ZodOptional<z.ZodString>;
+    symbol: z.ZodString;
+    baseAsset: z.ZodOptional<z.ZodString>;
+    quoteAsset: z.ZodOptional<z.ZodString>;
+    settleAsset: z.ZodOptional<z.ZodString>;
+    isActive: z.ZodOptional<z.ZodBoolean>;
+    minOrderQuantity: z.ZodOptional<z.ZodString>;
+    maxOrderQuantity: z.ZodOptional<z.ZodString>;
+    minPrice: z.ZodOptional<z.ZodString>;
+    maxPrice: z.ZodOptional<z.ZodString>;
+    quantityPrecision: z.ZodOptional<z.ZodNumber>;
+    pricePrecision: z.ZodOptional<z.ZodNumber>;
+    contractMultiplier: z.ZodOptional<z.ZodString>;
+    maxLeverage: z.ZodOptional<z.ZodString>;
+    fundingInterval: z.ZodOptional<z.ZodNumber>;
+    settlementPeriod: z.ZodOptional<z.ZodNumber>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    marketId: z.ZodOptional<z.ZodString>;
+    symbol: z.ZodString;
+    baseAsset: z.ZodOptional<z.ZodString>;
+    quoteAsset: z.ZodOptional<z.ZodString>;
+    settleAsset: z.ZodOptional<z.ZodString>;
+    isActive: z.ZodOptional<z.ZodBoolean>;
+    minOrderQuantity: z.ZodOptional<z.ZodString>;
+    maxOrderQuantity: z.ZodOptional<z.ZodString>;
+    minPrice: z.ZodOptional<z.ZodString>;
+    maxPrice: z.ZodOptional<z.ZodString>;
+    quantityPrecision: z.ZodOptional<z.ZodNumber>;
+    pricePrecision: z.ZodOptional<z.ZodNumber>;
+    contractMultiplier: z.ZodOptional<z.ZodString>;
+    maxLeverage: z.ZodOptional<z.ZodString>;
+    fundingInterval: z.ZodOptional<z.ZodNumber>;
+    settlementPeriod: z.ZodOptional<z.ZodNumber>;
+}, z.ZodTypeAny, "passthrough">>;
 export declare const ExtendedTickerSchema: z.ZodObject<{
     symbol: z.ZodString;
-    lastPrice: z.ZodString;
-    bidPrice: z.ZodString;
-    askPrice: z.ZodString;
-    volume24h: z.ZodString;
-    quoteVolume24h: z.ZodString;
-    high24h: z.ZodString;
-    low24h: z.ZodString;
-    priceChange24h: z.ZodString;
-    priceChangePercent24h: z.ZodString;
+    lastPrice: z.ZodOptional<z.ZodString>;
+    bidPrice: z.ZodOptional<z.ZodString>;
+    askPrice: z.ZodOptional<z.ZodString>;
+    volume24h: z.ZodOptional<z.ZodString>;
+    quoteVolume24h: z.ZodOptional<z.ZodString>;
+    high24h: z.ZodOptional<z.ZodString>;
+    low24h: z.ZodOptional<z.ZodString>;
+    priceChange24h: z.ZodOptional<z.ZodString>;
+    priceChangePercent24h: z.ZodOptional<z.ZodString>;
     openInterest: z.ZodOptional<z.ZodString>;
     indexPrice: z.ZodOptional<z.ZodString>;
     markPrice: z.ZodOptional<z.ZodString>;
     fundingRate: z.ZodOptional<z.ZodString>;
     nextFundingTime: z.ZodOptional<z.ZodNumber>;
-    timestamp: z.ZodNumber;
-}, "strip", z.ZodTypeAny, {
-    symbol: string;
-    timestamp: number;
-    lastPrice: string;
-    bidPrice: string;
-    askPrice: string;
-    volume24h: string;
-    high24h: string;
-    low24h: string;
-    priceChange24h: string;
-    priceChangePercent24h: string;
-    quoteVolume24h: string;
-    markPrice?: string | undefined;
-    fundingRate?: string | undefined;
-    indexPrice?: string | undefined;
-    nextFundingTime?: number | undefined;
-    openInterest?: string | undefined;
-}, {
-    symbol: string;
-    timestamp: number;
-    lastPrice: string;
-    bidPrice: string;
-    askPrice: string;
-    volume24h: string;
-    high24h: string;
-    low24h: string;
-    priceChange24h: string;
-    priceChangePercent24h: string;
-    quoteVolume24h: string;
-    markPrice?: string | undefined;
-    fundingRate?: string | undefined;
-    indexPrice?: string | undefined;
-    nextFundingTime?: number | undefined;
-    openInterest?: string | undefined;
-}>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    lastPrice: z.ZodOptional<z.ZodString>;
+    bidPrice: z.ZodOptional<z.ZodString>;
+    askPrice: z.ZodOptional<z.ZodString>;
+    volume24h: z.ZodOptional<z.ZodString>;
+    quoteVolume24h: z.ZodOptional<z.ZodString>;
+    high24h: z.ZodOptional<z.ZodString>;
+    low24h: z.ZodOptional<z.ZodString>;
+    priceChange24h: z.ZodOptional<z.ZodString>;
+    priceChangePercent24h: z.ZodOptional<z.ZodString>;
+    openInterest: z.ZodOptional<z.ZodString>;
+    indexPrice: z.ZodOptional<z.ZodString>;
+    markPrice: z.ZodOptional<z.ZodString>;
+    fundingRate: z.ZodOptional<z.ZodString>;
+    nextFundingTime: z.ZodOptional<z.ZodNumber>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    lastPrice: z.ZodOptional<z.ZodString>;
+    bidPrice: z.ZodOptional<z.ZodString>;
+    askPrice: z.ZodOptional<z.ZodString>;
+    volume24h: z.ZodOptional<z.ZodString>;
+    quoteVolume24h: z.ZodOptional<z.ZodString>;
+    high24h: z.ZodOptional<z.ZodString>;
+    low24h: z.ZodOptional<z.ZodString>;
+    priceChange24h: z.ZodOptional<z.ZodString>;
+    priceChangePercent24h: z.ZodOptional<z.ZodString>;
+    openInterest: z.ZodOptional<z.ZodString>;
+    indexPrice: z.ZodOptional<z.ZodString>;
+    markPrice: z.ZodOptional<z.ZodString>;
+    fundingRate: z.ZodOptional<z.ZodString>;
+    nextFundingTime: z.ZodOptional<z.ZodNumber>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+}, z.ZodTypeAny, "passthrough">>;
 export declare const ExtendedOrderBookSchema: z.ZodObject<{
     symbol: z.ZodString;
-    bids: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
-    asks: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
-    timestamp: z.ZodNumber;
+    bids: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
+    asks: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
     sequence: z.ZodOptional<z.ZodNumber>;
     checksum: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    symbol: string;
-    timestamp: number;
-    bids: [string, string][];
-    asks: [string, string][];
-    checksum?: string | undefined;
-    sequence?: number | undefined;
-}, {
-    symbol: string;
-    timestamp: number;
-    bids: [string, string][];
-    asks: [string, string][];
-    checksum?: string | undefined;
-    sequence?: number | undefined;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    bids: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
+    asks: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+    sequence: z.ZodOptional<z.ZodNumber>;
+    checksum: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    bids: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
+    asks: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+    sequence: z.ZodOptional<z.ZodNumber>;
+    checksum: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">>;
 export declare const ExtendedTradeSchema: z.ZodObject<{
     id: z.ZodString;
     symbol: z.ZodString;
-    price: z.ZodString;
-    quantity: z.ZodString;
-    side: z.ZodEnum<["buy", "sell"]>;
-    timestamp: z.ZodNumber;
+    price: z.ZodOptional<z.ZodString>;
+    quantity: z.ZodOptional<z.ZodString>;
+    side: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
     isMaker: z.ZodOptional<z.ZodBoolean>;
     tradeId: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    symbol: string;
-    side: "buy" | "sell";
-    price: string;
-    id: string;
-    timestamp: number;
-    quantity: string;
-    tradeId?: string | undefined;
-    isMaker?: boolean | undefined;
-}, {
-    symbol: string;
-    side: "buy" | "sell";
-    price: string;
-    id: string;
-    timestamp: number;
-    quantity: string;
-    tradeId?: string | undefined;
-    isMaker?: boolean | undefined;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    id: z.ZodString;
+    symbol: z.ZodString;
+    price: z.ZodOptional<z.ZodString>;
+    quantity: z.ZodOptional<z.ZodString>;
+    side: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+    isMaker: z.ZodOptional<z.ZodBoolean>;
+    tradeId: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    id: z.ZodString;
+    symbol: z.ZodString;
+    price: z.ZodOptional<z.ZodString>;
+    quantity: z.ZodOptional<z.ZodString>;
+    side: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+    isMaker: z.ZodOptional<z.ZodBoolean>;
+    tradeId: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">>;
 export declare const ExtendedOrderSchema: z.ZodObject<{
     orderId: z.ZodString;
     clientOrderId: z.ZodOptional<z.ZodString>;
@@ -387,74 +526,86 @@ export declare const ExtendedOrderSchema: z.ZodObject<{
     remainingQuantity: z.ZodOptional<z.ZodString>;
     averagePrice: z.ZodOptional<z.ZodString>;
     leverage: z.ZodOptional<z.ZodString>;
-    marginMode: z.ZodOptional<z.ZodEnum<["cross", "isolated"]>>;
+    marginMode: z.ZodOptional<z.ZodString>;
     timestamp: z.ZodNumber;
     updateTime: z.ZodOptional<z.ZodNumber>;
     postOnly: z.ZodOptional<z.ZodBoolean>;
     reduceOnly: z.ZodOptional<z.ZodBoolean>;
-    timeInForce: z.ZodOptional<z.ZodEnum<["GTC", "IOC", "FOK"]>>;
+    timeInForce: z.ZodOptional<z.ZodString>;
     fees: z.ZodOptional<z.ZodObject<{
         asset: z.ZodString;
         amount: z.ZodString;
-    }, "strip", z.ZodTypeAny, {
-        amount: string;
-        asset: string;
-    }, {
-        amount: string;
-        asset: string;
-    }>>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        asset: z.ZodString;
+        amount: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        asset: z.ZodString;
+        amount: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">>>;
     starknetTxHash: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, {
-    symbol: string;
-    status: "open" | "expired" | "rejected" | "filled" | "pending" | "cancelled" | "partially_filled";
-    type: "market" | "limit" | "stop_limit" | "stop";
-    side: "buy" | "sell";
-    timestamp: number;
-    orderId: string;
-    quantity: string;
-    price?: string | undefined;
-    stopPrice?: string | undefined;
-    timeInForce?: "GTC" | "IOC" | "FOK" | undefined;
-    reduceOnly?: boolean | undefined;
-    postOnly?: boolean | undefined;
-    clientOrderId?: string | undefined;
-    leverage?: string | undefined;
-    averagePrice?: string | undefined;
-    marginMode?: "cross" | "isolated" | undefined;
-    updateTime?: number | undefined;
-    fees?: {
-        amount: string;
-        asset: string;
-    } | undefined;
-    filledQuantity?: string | undefined;
-    remainingQuantity?: string | undefined;
-    starknetTxHash?: string | undefined;
-}, {
-    symbol: string;
-    status: "open" | "expired" | "rejected" | "filled" | "pending" | "cancelled" | "partially_filled";
-    type: "market" | "limit" | "stop_limit" | "stop";
-    side: "buy" | "sell";
-    timestamp: number;
-    orderId: string;
-    quantity: string;
-    price?: string | undefined;
-    stopPrice?: string | undefined;
-    timeInForce?: "GTC" | "IOC" | "FOK" | undefined;
-    reduceOnly?: boolean | undefined;
-    postOnly?: boolean | undefined;
-    clientOrderId?: string | undefined;
-    leverage?: string | undefined;
-    averagePrice?: string | undefined;
-    marginMode?: "cross" | "isolated" | undefined;
-    updateTime?: number | undefined;
-    fees?: {
-        amount: string;
-        asset: string;
-    } | undefined;
-    filledQuantity?: string | undefined;
-    remainingQuantity?: string | undefined;
-    starknetTxHash?: string | undefined;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    orderId: z.ZodString;
+    clientOrderId: z.ZodOptional<z.ZodString>;
+    symbol: z.ZodString;
+    type: z.ZodEnum<["market", "limit", "stop", "stop_limit"]>;
+    side: z.ZodEnum<["buy", "sell"]>;
+    status: z.ZodEnum<["pending", "open", "filled", "partially_filled", "cancelled", "rejected", "expired"]>;
+    price: z.ZodOptional<z.ZodString>;
+    stopPrice: z.ZodOptional<z.ZodString>;
+    quantity: z.ZodString;
+    filledQuantity: z.ZodOptional<z.ZodString>;
+    remainingQuantity: z.ZodOptional<z.ZodString>;
+    averagePrice: z.ZodOptional<z.ZodString>;
+    leverage: z.ZodOptional<z.ZodString>;
+    marginMode: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodNumber;
+    updateTime: z.ZodOptional<z.ZodNumber>;
+    postOnly: z.ZodOptional<z.ZodBoolean>;
+    reduceOnly: z.ZodOptional<z.ZodBoolean>;
+    timeInForce: z.ZodOptional<z.ZodString>;
+    fees: z.ZodOptional<z.ZodObject<{
+        asset: z.ZodString;
+        amount: z.ZodString;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        asset: z.ZodString;
+        amount: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        asset: z.ZodString;
+        amount: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">>>;
+    starknetTxHash: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    orderId: z.ZodString;
+    clientOrderId: z.ZodOptional<z.ZodString>;
+    symbol: z.ZodString;
+    type: z.ZodEnum<["market", "limit", "stop", "stop_limit"]>;
+    side: z.ZodEnum<["buy", "sell"]>;
+    status: z.ZodEnum<["pending", "open", "filled", "partially_filled", "cancelled", "rejected", "expired"]>;
+    price: z.ZodOptional<z.ZodString>;
+    stopPrice: z.ZodOptional<z.ZodString>;
+    quantity: z.ZodString;
+    filledQuantity: z.ZodOptional<z.ZodString>;
+    remainingQuantity: z.ZodOptional<z.ZodString>;
+    averagePrice: z.ZodOptional<z.ZodString>;
+    leverage: z.ZodOptional<z.ZodString>;
+    marginMode: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodNumber;
+    updateTime: z.ZodOptional<z.ZodNumber>;
+    postOnly: z.ZodOptional<z.ZodBoolean>;
+    reduceOnly: z.ZodOptional<z.ZodBoolean>;
+    timeInForce: z.ZodOptional<z.ZodString>;
+    fees: z.ZodOptional<z.ZodObject<{
+        asset: z.ZodString;
+        amount: z.ZodString;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        asset: z.ZodString;
+        amount: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        asset: z.ZodString;
+        amount: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">>>;
+    starknetTxHash: z.ZodOptional<z.ZodString>;
+}, z.ZodTypeAny, "passthrough">>;
 export declare const ExtendedPositionSchema: z.ZodObject<{
     symbol: z.ZodString;
     side: z.ZodEnum<["long", "short"]>;
@@ -474,45 +625,45 @@ export declare const ExtendedPositionSchema: z.ZodObject<{
     adlLevel: z.ZodOptional<z.ZodNumber>;
     timestamp: z.ZodNumber;
     starknetPosition: z.ZodOptional<z.ZodAny>;
-}, "strip", z.ZodTypeAny, {
-    symbol: string;
-    margin: string;
-    side: "long" | "short";
-    leverage: string;
-    timestamp: number;
-    size: string;
-    entryPrice: string;
-    markPrice: string;
-    liquidationPrice: string;
-    unrealizedPnl: string;
-    realizedPnl: string;
-    marginMode: "cross" | "isolated";
-    maintenanceMargin: string;
-    initialMargin: string;
-    indexPrice?: string | undefined;
-    roi?: string | undefined;
-    adlLevel?: number | undefined;
-    starknetPosition?: any;
-}, {
-    symbol: string;
-    margin: string;
-    side: "long" | "short";
-    leverage: string;
-    timestamp: number;
-    size: string;
-    entryPrice: string;
-    markPrice: string;
-    liquidationPrice: string;
-    unrealizedPnl: string;
-    realizedPnl: string;
-    marginMode: "cross" | "isolated";
-    maintenanceMargin: string;
-    initialMargin: string;
-    indexPrice?: string | undefined;
-    roi?: string | undefined;
-    adlLevel?: number | undefined;
-    starknetPosition?: any;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    symbol: z.ZodString;
+    side: z.ZodEnum<["long", "short"]>;
+    size: z.ZodString;
+    entryPrice: z.ZodString;
+    markPrice: z.ZodString;
+    indexPrice: z.ZodOptional<z.ZodString>;
+    liquidationPrice: z.ZodString;
+    margin: z.ZodString;
+    initialMargin: z.ZodString;
+    maintenanceMargin: z.ZodString;
+    leverage: z.ZodString;
+    marginMode: z.ZodEnum<["cross", "isolated"]>;
+    unrealizedPnl: z.ZodString;
+    realizedPnl: z.ZodString;
+    roi: z.ZodOptional<z.ZodString>;
+    adlLevel: z.ZodOptional<z.ZodNumber>;
+    timestamp: z.ZodNumber;
+    starknetPosition: z.ZodOptional<z.ZodAny>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    symbol: z.ZodString;
+    side: z.ZodEnum<["long", "short"]>;
+    size: z.ZodString;
+    entryPrice: z.ZodString;
+    markPrice: z.ZodString;
+    indexPrice: z.ZodOptional<z.ZodString>;
+    liquidationPrice: z.ZodString;
+    margin: z.ZodString;
+    initialMargin: z.ZodString;
+    maintenanceMargin: z.ZodString;
+    leverage: z.ZodString;
+    marginMode: z.ZodEnum<["cross", "isolated"]>;
+    unrealizedPnl: z.ZodString;
+    realizedPnl: z.ZodString;
+    roi: z.ZodOptional<z.ZodString>;
+    adlLevel: z.ZodOptional<z.ZodNumber>;
+    timestamp: z.ZodNumber;
+    starknetPosition: z.ZodOptional<z.ZodAny>;
+}, z.ZodTypeAny, "passthrough">>;
 export declare const ExtendedBalanceSchema: z.ZodObject<{
     asset: z.ZodString;
     free: z.ZodString;
@@ -522,25 +673,25 @@ export declare const ExtendedBalanceSchema: z.ZodObject<{
     usedMargin: z.ZodString;
     equity: z.ZodOptional<z.ZodString>;
     timestamp: z.ZodOptional<z.ZodNumber>;
-}, "strip", z.ZodTypeAny, {
-    total: string;
-    free: string;
-    locked: string;
-    asset: string;
-    availableMargin: string;
-    usedMargin: string;
-    timestamp?: number | undefined;
-    equity?: string | undefined;
-}, {
-    total: string;
-    free: string;
-    locked: string;
-    asset: string;
-    availableMargin: string;
-    usedMargin: string;
-    timestamp?: number | undefined;
-    equity?: string | undefined;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    asset: z.ZodString;
+    free: z.ZodString;
+    locked: z.ZodString;
+    total: z.ZodString;
+    availableMargin: z.ZodString;
+    usedMargin: z.ZodString;
+    equity: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    asset: z.ZodString;
+    free: z.ZodString;
+    locked: z.ZodString;
+    total: z.ZodString;
+    availableMargin: z.ZodString;
+    usedMargin: z.ZodString;
+    equity: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * WebSocket order book update
  */

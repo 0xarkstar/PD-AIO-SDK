@@ -73,6 +73,7 @@ export declare class DriftAdapter extends BaseAdapter {
     private driftClient?;
     private orderBuilder?;
     private dlobBaseUrl;
+    private dataBaseUrl;
     private isTestnet;
     constructor(config?: DriftConfig);
     initialize(): Promise<void>;
@@ -86,7 +87,7 @@ export declare class DriftAdapter extends BaseAdapter {
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
     fetchTicker(symbol: string): Promise<Ticker>;
     fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
     fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(symbol: string, _since?: number, limit?: number): Promise<FundingRate[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;

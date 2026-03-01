@@ -2,6 +2,8 @@
  * Lighter-specific type definitions
  */
 
+import { z } from 'zod';
+
 /**
  * Lighter API configuration
  *
@@ -69,6 +71,22 @@ export interface LighterOrder {
   reduceOnly: boolean;
 }
 
+export const LighterOrderSchema = z
+  .object({
+    orderId: z.string(),
+    clientOrderId: z.string().optional(),
+    symbol: z.string(),
+    side: z.enum(['buy', 'sell']),
+    type: z.enum(['market', 'limit']),
+    price: z.number().optional(),
+    size: z.number(),
+    filledSize: z.number(),
+    status: z.enum(['open', 'filled', 'cancelled', 'partially_filled']),
+    timestamp: z.number(),
+    reduceOnly: z.boolean(),
+  })
+  .passthrough();
+
 export interface LighterPosition {
   symbol: string;
   side: 'long' | 'short';
@@ -81,12 +99,35 @@ export interface LighterPosition {
   leverage: number;
 }
 
+export const LighterPositionSchema = z
+  .object({
+    symbol: z.string(),
+    side: z.enum(['long', 'short']),
+    size: z.number(),
+    entryPrice: z.number(),
+    markPrice: z.number(),
+    liquidationPrice: z.number(),
+    unrealizedPnl: z.number(),
+    margin: z.number(),
+    leverage: z.number(),
+  })
+  .passthrough();
+
 export interface LighterBalance {
   currency: string;
   total: number;
   available: number;
   reserved: number;
 }
+
+export const LighterBalanceSchema = z
+  .object({
+    currency: z.string(),
+    total: z.number(),
+    available: z.number(),
+    reserved: z.number(),
+  })
+  .passthrough();
 
 export interface LighterOrderBook {
   symbol: string;
@@ -122,6 +163,15 @@ export interface LighterFundingRate {
   nextFundingTime: number;
 }
 
+export const LighterFundingRateSchema = z
+  .object({
+    symbol: z.string(),
+    fundingRate: z.number(),
+    markPrice: z.number(),
+    nextFundingTime: z.number(),
+  })
+  .passthrough();
+
 /**
  * Lighter API market response from /api/v1/orderBookDetails
  * This represents the actual API response format (snake_case string values),
@@ -143,6 +193,24 @@ export interface LighterAPIMarket {
   is_active?: boolean;
 }
 
+export const LighterAPIMarketSchema = z
+  .object({
+    symbol: z.string(),
+    market_type: z.string().optional(),
+    status: z.string().optional(),
+    supported_price_decimals: z.union([z.string(), z.number()]).optional(),
+    price_decimals: z.union([z.string(), z.number()]).optional(),
+    supported_size_decimals: z.union([z.string(), z.number()]).optional(),
+    size_decimals: z.union([z.string(), z.number()]).optional(),
+    min_base_amount: z.string().optional(),
+    maker_fee: z.string().optional(),
+    taker_fee: z.string().optional(),
+    max_leverage: z.string().optional(),
+    default_initial_margin_fraction: z.number().optional(),
+    is_active: z.boolean().optional(),
+  })
+  .passthrough();
+
 /**
  * Lighter API ticker response from /api/v1/orderBookDetails
  * Real API returns ticker data alongside order book details.
@@ -156,3 +224,15 @@ export interface LighterAPITicker {
   daily_quote_token_volume?: string;
   daily_price_change?: string;
 }
+
+export const LighterAPITickerSchema = z
+  .object({
+    symbol: z.string(),
+    last_trade_price: z.string().optional(),
+    daily_price_high: z.string().optional(),
+    daily_price_low: z.string().optional(),
+    daily_base_token_volume: z.string().optional(),
+    daily_quote_token_volume: z.string().optional(),
+    daily_price_change: z.string().optional(),
+  })
+  .passthrough();

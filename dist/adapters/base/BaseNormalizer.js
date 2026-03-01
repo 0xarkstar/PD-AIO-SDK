@@ -4,6 +4,7 @@
  * Common utility functions for data normalization across all exchange adapters.
  * Provides standardized parsing, formatting, and mapping functions.
  */
+import { PerpDEXError } from '../../types/errors.js';
 // =============================================================================
 // Numeric Parsing
 // =============================================================================
@@ -31,6 +32,33 @@ export function parseDecimal(value, defaultValue = 0) {
     }
     const parsed = parseFloat(value);
     return isNaN(parsed) ? defaultValue : parsed;
+}
+/**
+ * Strictly parse a numeric value, throwing on null/undefined/empty.
+ * Use for critical financial fields (entryPrice, markPrice, size) where
+ * silently defaulting to 0 would produce incorrect results.
+ *
+ * @param value - Value to parse (string, number, null, undefined)
+ * @param fieldName - Name of the field (for error messages)
+ * @param exchange - Exchange name (for error messages)
+ * @returns Parsed number
+ * @throws PerpDEXError if value is null, undefined, empty, or NaN
+ */
+export function parseDecimalStrict(value, fieldName, exchange) {
+    if (value === null || value === undefined || value === '') {
+        throw new PerpDEXError(`Missing required numeric field '${fieldName}'`, 'MISSING_FIELD', exchange);
+    }
+    if (typeof value === 'number') {
+        if (isNaN(value)) {
+            throw new PerpDEXError(`Invalid numeric value for field '${fieldName}': NaN`, 'INVALID_VALUE', exchange);
+        }
+        return value;
+    }
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) {
+        throw new PerpDEXError(`Invalid numeric value for field '${fieldName}': '${value}'`, 'INVALID_VALUE', exchange);
+    }
+    return parsed;
 }
 /**
  * Safely parse a numeric string to bigint
@@ -263,6 +291,41 @@ export function normalizeTimestamp(timestamp) {
         // ISO string
         const parsed = Date.parse(timestamp);
         return isNaN(parsed) ? Date.now() : parsed;
+    }
+    // If timestamp is less than year 2000 in ms, assume it's in seconds
+    if (timestamp < 946684800000) {
+        return timestamp * 1000;
+    }
+    return timestamp;
+}
+/**
+ * Strict timestamp normalization — throws on null/undefined.
+ *
+ * Use this for fields where the exchange is expected to provide a timestamp
+ * (e.g., order creation time, trade time). Falls back to `normalizeTimestamp`
+ * for format handling (seconds→ms, ISO→ms).
+ *
+ * @param timestamp - Timestamp value from exchange
+ * @param fieldName - Name of the field (for error messages)
+ * @param exchange - Exchange name (for error context)
+ * @throws PerpDEXError if timestamp is null/undefined/empty
+ */
+export function normalizeTimestampStrict(timestamp, fieldName, exchange) {
+    if (timestamp === null || timestamp === undefined || timestamp === '') {
+        throw new PerpDEXError(`Missing required timestamp field '${fieldName}'`, 'MISSING_FIELD', exchange);
+    }
+    if (timestamp instanceof Date) {
+        return timestamp.getTime();
+    }
+    if (typeof timestamp === 'string') {
+        const parsed = Date.parse(timestamp);
+        if (isNaN(parsed)) {
+            throw new PerpDEXError(`Invalid timestamp value for field '${fieldName}': '${timestamp}'`, 'INVALID_VALUE', exchange);
+        }
+        return parsed;
+    }
+    if (isNaN(timestamp)) {
+        throw new PerpDEXError(`Invalid timestamp value for field '${fieldName}': NaN`, 'INVALID_VALUE', exchange);
     }
     // If timestamp is less than year 2000 in ms, assume it's in seconds
     if (timestamp < 946684800000) {

@@ -357,7 +357,7 @@ describe('ExtendedNormalizer', () => {
         type: 'limit' as const,
         side: 'buy' as const,
         quantity: '1',
-        status: 'unknown_status' as any, // Test the default case
+        status: 'pending' as const, // Use valid enum value; 'pending' maps to 'open' in normalizer
         timestamp: Date.now(),
         updateTime: Date.now(),
       };
@@ -396,7 +396,9 @@ describe('ExtendedNormalizer', () => {
         markPrice: '50000',
         leverage: '10',
         liquidationPrice: '43200',
+        margin: '12000',
         unrealizedPnl: '5000',
+        realizedPnl: '0',
         initialMargin: '12000',
         maintenanceMargin: '600',
         marginMode: 'cross',
@@ -428,7 +430,9 @@ describe('ExtendedNormalizer', () => {
         markPrice: '3000',
         leverage: '5',
         liquidationPrice: '3410',
+        margin: '3100',
         unrealizedPnl: '500',
+        realizedPnl: '0',
         initialMargin: '3100',
         maintenanceMargin: '155',
         marginMode: 'isolated',
@@ -451,7 +455,9 @@ describe('ExtendedNormalizer', () => {
         markPrice: '50000',
         leverage: '10',
         liquidationPrice: '45000',
+        margin: '5000',
         unrealizedPnl: '0',
+        realizedPnl: '0',
         initialMargin: '5000',
         maintenanceMargin: '250',
         marginMode: 'cross',
@@ -474,7 +480,9 @@ describe('ExtendedNormalizer', () => {
         markPrice: '50000',
         leverage: '10',
         liquidationPrice: '45000',
+        margin: '5000',
         unrealizedPnl: '0',
+        realizedPnl: '0',
         initialMargin: '5000',
         maintenanceMargin: '250',
         marginMode: 'cross',
@@ -496,7 +504,9 @@ describe('ExtendedNormalizer', () => {
         markPrice: '0',
         leverage: '10',
         liquidationPrice: '45000',
+        margin: '5000',
         unrealizedPnl: '0',
+        realizedPnl: '0',
         initialMargin: '5000',
         maintenanceMargin: '250',
         marginMode: 'cross',
@@ -517,6 +527,8 @@ describe('ExtendedNormalizer', () => {
         free: '10000',
         locked: '2000',
         total: '12000',
+        availableMargin: '10000',
+        usedMargin: '2000',
       };
 
       const result = normalizer.normalizeBalance(extendedBalance);
@@ -533,6 +545,8 @@ describe('ExtendedNormalizer', () => {
         free: '0',
         locked: '0',
         total: '0',
+        availableMargin: '0',
+        usedMargin: '0',
       };
 
       const result = normalizer.normalizeBalance(extendedBalance);
@@ -627,7 +641,9 @@ describe('ExtendedNormalizer', () => {
           markPrice: '51000',
           leverage: '10',
           liquidationPrice: '45000',
+          margin: '5000',
           unrealizedPnl: '1000',
+          realizedPnl: '0',
           initialMargin: '5000',
           maintenanceMargin: '250',
           marginMode: 'cross',
@@ -643,8 +659,8 @@ describe('ExtendedNormalizer', () => {
 
     it('should normalize multiple balances', () => {
       const balances: ExtendedBalance[] = [
-        { asset: 'USDT', free: '10000', locked: '0', total: '10000' },
-        { asset: 'BTC', free: '0.5', locked: '0.1', total: '0.6' },
+        { asset: 'USDT', free: '10000', locked: '0', total: '10000', availableMargin: '10000', usedMargin: '0' },
+        { asset: 'BTC', free: '0.5', locked: '0.1', total: '0.6', availableMargin: '0.5', usedMargin: '0.1' },
       ];
 
       const result = normalizer.normalizeBalances(balances);

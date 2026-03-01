@@ -27,7 +27,7 @@ export declare class OstiumAdapter extends BaseAdapter {
     fetchMarkets(_params?: MarketParams): Promise<Market[]>;
     fetchTicker(symbol: string): Promise<Ticker>;
     fetchOrderBook(_symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
     fetchFundingRate(_symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     createOrder(request: OrderRequest): Promise<Order>;

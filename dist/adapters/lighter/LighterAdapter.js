@@ -267,11 +267,11 @@ export class LighterAdapter extends BaseAdapter {
     }
     async fetchTrades(symbol, params) {
         await this.rateLimiter.acquire('fetchTrades');
-        return fetchTradesData(this.getMarketDataDeps(), symbol, params?.limit || 100);
+        return fetchTradesData(this.getMarketDataDeps(), symbol, params?.limit || 100, () => this.fetchMarkets());
     }
     async fetchFundingRate(symbol) {
         await this.rateLimiter.acquire('fetchFundingRate');
-        return fetchFundingRateData(this.getMarketDataDeps(), symbol);
+        return fetchFundingRateData(this.getMarketDataDeps(), symbol, () => this.fetchMarkets());
     }
     async fetchFundingRateHistory(_symbol, _since, _limit) {
         throw new Error('Lighter does not support funding rate history');

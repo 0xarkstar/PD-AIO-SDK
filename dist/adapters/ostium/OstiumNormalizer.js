@@ -1,36 +1,44 @@
 /**
  * Ostium Response Normalizer
  */
+import { OstiumPairInfoSchema, OstiumPriceResponseSchema, OstiumSubgraphTradeSchema, OstiumSubgraphPositionSchema, OstiumOpenTradeSchema, } from './types.js';
 import { toUnifiedSymbolFromName, parseCollateral, parsePrice, toUnifiedSymbol } from './utils.js';
 export class OstiumNormalizer {
     normalizeMarket(pair) {
+        const validated = OstiumPairInfoSchema.parse(pair);
         return {
-            id: String(pair.pairIndex),
-            symbol: toUnifiedSymbolFromName(pair.name),
-            base: pair.from,
-            quote: pair.to,
+            id: String(validated.pairIndex),
+            symbol: toUnifiedSymbolFromName(validated.name),
+            base: validated.from,
+            quote: validated.to,
             settle: 'USDC',
             active: true,
-            minAmount: parseFloat(pair.minPositionSize),
-            maxAmount: parseFloat(pair.maxPositionSize),
+            minAmount: parseFloat(validated.minPositionSize),
+            maxAmount: parseFloat(validated.maxPositionSize),
             pricePrecision: 2,
             amountPrecision: 2,
             priceTickSize: 0.01,
             amountStepSize: 0.01,
             makerFee: 0,
-            takerFee: parseFloat(pair.spreadP) / 100,
-            maxLeverage: pair.maxLeverage,
+            takerFee: parseFloat(validated.spreadP) / 100,
+            maxLeverage: validated.maxLeverage,
             fundingIntervalHours: 1,
-            info: pair,
+            info: validated,
         };
     }
     normalizeTicker(raw, pair) {
-        const price = parseFloat(raw.price);
+        const validatedRaw = OstiumPriceResponseSchema.parse(raw);
+        const validatedPair = OstiumPairInfoSchema.parse(pair);
+        // API returns {bid, mid, ask, timestampSeconds} instead of {price, timestamp}
+        const price = validatedRaw.mid != null ? parseFloat(String(validatedRaw.mid)) : parseFloat(validatedRaw.price);
+        const bid = validatedRaw.bid != null ? parseFloat(String(validatedRaw.bid)) : price;
+        const ask = validatedRaw.ask != null ? parseFloat(String(validatedRaw.ask)) : price;
+        const timestamp = validatedRaw.timestampSeconds != null ? validatedRaw.timestampSeconds * 1000 : validatedRaw.timestamp;
         return {
-            symbol: toUnifiedSymbolFromName(pair.name),
+            symbol: toUnifiedSymbolFromName(validatedPair.name),
             last: price,
-            bid: price,
-            ask: price,
+            bid,
+            ask,
             high: price,
             low: price,
             open: price,
@@ -39,35 +47,40 @@ export class OstiumNormalizer {
             percentage: 0,
             baseVolume: 0,
             quoteVolume: 0,
-            timestamp: raw.timestamp,
-            info: raw,
+            timestamp,
+            info: {
+                ...validatedRaw,
+                _bidAskSource: 'orderbook',
+            },
         };
     }
     normalizeTrade(raw) {
-        const price = parseFloat(raw.price);
-        const amount = parseFloat(raw.size);
+        const validated = OstiumSubgraphTradeSchema.parse(raw);
+        const price = parseFloat(validated.price);
+        const amount = parseFloat(validated.size);
         return {
-            id: raw.id,
-            symbol: toUnifiedSymbol(parseInt(raw.pairIndex, 10)),
-            side: raw.buy ? 'buy' : 'sell',
+            id: validated.id,
+            symbol: toUnifiedSymbol(parseInt(validated.pairIndex, 10)),
+            side: validated.buy ? 'buy' : 'sell',
             price,
             amount,
             cost: price * amount,
-            timestamp: parseInt(raw.timestamp, 10) * 1000,
-            info: raw,
+            timestamp: parseInt(validated.timestamp, 10) * 1000,
+            info: validated,
         };
     }
     normalizePosition(raw, currentPrice) {
-        const size = parseCollateral(raw.positionSizeDai);
-        const entryPrice = parsePrice(raw.openPrice);
-        const leverage = parseInt(raw.leverage, 10);
+        const validated = OstiumSubgraphPositionSchema.parse(raw);
+        const size = parseCollateral(validated.positionSizeDai);
+        const entryPrice = parsePrice(validated.openPrice);
+        const leverage = parseInt(validated.leverage, 10);
         const markPrice = currentPrice ?? entryPrice;
         const notional = size * leverage;
-        const pnlMultiplier = raw.buy ? 1 : -1;
+        const pnlMultiplier = validated.buy ? 1 : -1;
         const unrealizedPnl = notional * pnlMultiplier * ((markPrice - entryPrice) / entryPrice);
         return {
-            symbol: toUnifiedSymbol(parseInt(raw.pairIndex, 10)),
-            side: raw.buy ? 'long' : 'short',
+            symbol: toUnifiedSymbol(parseInt(validated.pairIndex, 10)),
+            side: validated.buy ? 'long' : 'short',
             size,
             entryPrice,
             markPrice,
@@ -78,9 +91,12 @@ export class OstiumNormalizer {
             marginMode: 'isolated',
             margin: size,
             maintenanceMargin: size * 0.05,
-            marginRatio: 0,
-            timestamp: parseInt(raw.timestamp, 10) * 1000,
-            info: raw,
+            marginRatio: size * markPrice > 0 ? (size * 0.05) / (size * markPrice) : 0,
+            timestamp: parseInt(validated.timestamp, 10) * 1000,
+            info: {
+                ...validated,
+                _realizedPnlSource: 'not_available',
+            },
         };
     }
     normalizeBalance(rawBalance, currency = 'USDC') {
@@ -94,20 +110,21 @@ export class OstiumNormalizer {
         };
     }
     normalizeOrderFromTrade(raw) {
+        const validated = OstiumOpenTradeSchema.parse(raw);
         return {
-            id: `${raw.pairIndex}-${raw.index}`,
-            symbol: toUnifiedSymbol(raw.pairIndex),
+            id: `${validated.pairIndex}-${validated.index}`,
+            symbol: toUnifiedSymbol(validated.pairIndex),
             type: 'market',
-            side: raw.buy ? 'buy' : 'sell',
-            amount: parseCollateral(raw.positionSizeDai),
-            price: parsePrice(raw.openPrice),
+            side: validated.buy ? 'buy' : 'sell',
+            amount: parseCollateral(validated.positionSizeDai),
+            price: parsePrice(validated.openPrice),
             status: 'filled',
-            filled: parseCollateral(raw.positionSizeDai),
+            filled: parseCollateral(validated.positionSizeDai),
             remaining: 0,
             reduceOnly: false,
             postOnly: false,
-            timestamp: raw.timestamp,
-            info: raw,
+            timestamp: validated.timestamp,
+            info: validated,
         };
     }
 }

@@ -1,5 +1,9 @@
 /**
  * Pacifica Constants
+ *
+ * Status: Closed Beta (invite only) — public API currently unavailable.
+ * All API endpoints at api.pacifica.fi return 404.
+ * @see https://pacifica.fi
  */
 export declare const PACIFICA_API_URLS: {
     readonly mainnet: {

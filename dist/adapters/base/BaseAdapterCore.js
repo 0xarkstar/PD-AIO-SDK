@@ -1,39 +1,35 @@
 /**
  * Base Adapter Core
  *
- * Abstract base class providing core functionality for all adapters.
- * Contains state management, abstract method declarations, and essential properties.
+ * Abstract base class providing infrastructure functionality for all adapters.
+ * Contains logger, metrics, cache, health check, HTTP request, and connection management.
  */
-import { NotSupportedError } from '../../types/errors.js';
+import { PerpDEXError } from '../../types/errors.js';
+import { determineHealthStatus } from '../../types/health.js';
+import { createMetricsSnapshot } from '../../types/metrics.js';
+import { Logger, LogLevel, generateCorrelationId } from '../../core/logger.js';
 import { CircuitBreaker } from '../../core/CircuitBreaker.js';
 import { isMetricsInitialized, getMetrics, } from '../../monitoring/prometheus.js';
-/**
- * Base Adapter Core
- *
- * Abstract class that forms the foundation for all exchange adapters.
- * Mixins are applied on top of this class to add specific capabilities.
- */
+import { validateOrderRequest, createValidator } from '../../core/validation/middleware.js';
 export class BaseAdapterCore {
-    // ===========================================================================
-    // State Properties
-    // ===========================================================================
     _isReady = false;
     _isDisconnected = false;
     config;
     authStrategy;
     rateLimiter;
+    _logger;
     circuitBreaker;
     httpClient;
     prometheusMetrics;
-    // ===========================================================================
-    // Resource Tracking
-    // ===========================================================================
+    // Resource tracking
     timers = new Set();
     intervals = new Set();
     abortControllers = new Set();
-    // ===========================================================================
-    // Metrics (will be managed by MetricsTrackerMixin)
-    // ===========================================================================
+    // Cache management
+    marketCache = null;
+    marketCacheExpiry = 0;
+    marketCacheTTL = 5 * 60 * 1000; // 5 minutes default
+    // Metrics tracking
     metrics = {
         totalRequests: 0,
         successfulRequests: 0,
@@ -43,9 +39,6 @@ export class BaseAdapterCore {
         endpointStats: new Map(),
         startedAt: Date.now(),
     };
-    // ===========================================================================
-    // Constructor
-    // ===========================================================================
     constructor(config = {}) {
         this.config = {
             timeout: 30000,
@@ -59,254 +52,411 @@ export class BaseAdapterCore {
         }
         // Initialize circuit breaker with config or defaults
         this.circuitBreaker = new CircuitBreaker(config.circuitBreaker);
-        // Circuit breaker event handlers will be set up in the composed class
-        // to have access to logging methods from LoggerMixin
+        // Listen to circuit breaker events for logging and metrics
+        this.circuitBreaker.on('open', () => {
+            this.warn('Circuit breaker OPENED - rejecting requests');
+            if (this.prometheusMetrics) {
+                this.prometheusMetrics.updateCircuitBreakerState(this.id, 'OPEN');
+                this.prometheusMetrics.recordCircuitBreakerTransition(this.id, 'CLOSED', 'OPEN');
+            }
+        });
+        this.circuitBreaker.on('halfOpen', () => {
+            this.info('Circuit breaker HALF_OPEN - testing recovery');
+            if (this.prometheusMetrics) {
+                this.prometheusMetrics.updateCircuitBreakerState(this.id, 'HALF_OPEN');
+                this.prometheusMetrics.recordCircuitBreakerTransition(this.id, 'OPEN', 'HALF_OPEN');
+            }
+        });
+        this.circuitBreaker.on('close', () => {
+            this.info('Circuit breaker CLOSED - normal operation resumed');
+            if (this.prometheusMetrics) {
+                this.prometheusMetrics.updateCircuitBreakerState(this.id, 'CLOSED');
+                // Could be from OPEN or HALF_OPEN, but we'll use HALF_OPEN as it's the most common path
+                this.prometheusMetrics.recordCircuitBreakerTransition(this.id, 'HALF_OPEN', 'CLOSED');
+            }
+        });
+        // Listen to circuit breaker success/failure for metrics
+        this.circuitBreaker.on('success', () => {
+            if (this.prometheusMetrics) {
+                this.prometheusMetrics.recordCircuitBreakerSuccess(this.id);
+            }
+        });
+        this.circuitBreaker.on('failure', () => {
+            if (this.prometheusMetrics) {
+                this.prometheusMetrics.recordCircuitBreakerFailure(this.id);
+            }
+        });
     }
     // ===========================================================================
-    // Getters
+    // Logger Methods
+    // ===========================================================================
+    get logger() {
+        if (!this._logger) {
+            this._logger = new Logger(this.name, {
+                level: this.config.debug ? LogLevel.DEBUG : LogLevel.INFO,
+                enabled: true,
+                maskSensitiveData: true,
+            });
+        }
+        return this._logger;
+    }
+    debug(message, meta) {
+        this.logger.debug(message, meta);
+    }
+    info(message, meta) {
+        this.logger.info(message, meta);
+    }
+    warn(message, meta) {
+        this.logger.warn(message, meta);
+    }
+    error(message, error, meta) {
+        this.logger.error(message, error, meta);
+    }
+    // ===========================================================================
+    // State Getters
     // ===========================================================================
     get isReady() {
         return this._isReady;
     }
-    /**
-     * Check if adapter has been disconnected
-     */
     isDisconnected() {
         return this._isDisconnected;
     }
-    // ===========================================================================
-    // Optional Methods with Default Implementation
-    // ===========================================================================
-    /**
-     * Fetch OHLCV (candlestick) data
-     * Default implementation throws if not supported by exchange
-     */
-    async fetchOHLCV(_symbol, _timeframe, _params) {
-        if (!this.has.fetchOHLCV) {
-            throw new NotSupportedError(`${this.name} does not support OHLCV data`, 'NOT_SUPPORTED', this.id);
+    async disconnect() {
+        if (this._isDisconnected) {
+            this.debug('Already disconnected');
+            return;
         }
-        throw new Error('fetchOHLCV must be implemented by subclass');
+        this.debug('Disconnecting and cleaning up resources...');
+        for (const timer of this.timers) {
+            clearTimeout(timer);
+        }
+        this.timers.clear();
+        for (const interval of this.intervals) {
+            clearInterval(interval);
+        }
+        this.intervals.clear();
+        for (const controller of this.abortControllers) {
+            controller.abort();
+        }
+        this.abortControllers.clear();
+        this.clearCache();
+        this.circuitBreaker.destroy();
+        this._isReady = false;
+        this._isDisconnected = true;
+        this.debug('Disconnected and cleanup complete');
     }
-    /**
-     * Fetch multiple tickers at once
-     * Default implementation fetches tickers sequentially
-     */
-    async fetchTickers(symbols) {
-        if (!this.has.fetchTickers) {
-            // Fallback: fetch tickers one by one
-            const result = {};
-            const symbolsToFetch = symbols ?? (await this.fetchMarkets()).map((m) => m.symbol);
-            for (const symbol of symbolsToFetch) {
-                try {
-                    result[symbol] = await this.fetchTicker(symbol);
-                }
-                catch {
-                    // Skip failed tickers
-                }
+    // ===========================================================================
+    // Cache Management
+    // ===========================================================================
+    clearCache() {
+        this.marketCache = null;
+        this.marketCacheExpiry = 0;
+    }
+    async preloadMarkets(options) {
+        const ttl = options?.ttl ?? this.marketCacheTTL;
+        const params = options?.params;
+        this.debug('Preloading markets...');
+        const markets = await this.fetchMarketsFromAPI(params);
+        this.marketCache = markets;
+        this.marketCacheExpiry = Date.now() + ttl;
+        this.marketCacheTTL = ttl;
+        this.debug('Preloaded markets', { count: markets.length, ttl });
+    }
+    getPreloadedMarkets() {
+        if (!this.marketCache) {
+            return null;
+        }
+        const isExpired = Date.now() >= this.marketCacheExpiry;
+        if (isExpired) {
+            this.debug('Market cache expired');
+            this.marketCache = null;
+            this.marketCacheExpiry = 0;
+            return null;
+        }
+        return this.marketCache;
+    }
+    async fetchMarketsFromAPI(params) {
+        return this.fetchMarkets(params);
+    }
+    // ===========================================================================
+    // Health Check
+    // ===========================================================================
+    async healthCheck(config = {}) {
+        const { timeout = 5000, checkWebSocket = true, checkAuth = true, includeRateLimit = true, } = config;
+        const startTime = Date.now();
+        const timestamp = Date.now();
+        const result = {
+            status: 'unhealthy',
+            latency: 0,
+            exchange: this.id,
+            api: { reachable: false, latency: 0 },
+            timestamp,
+        };
+        try {
+            result.api = await this.checkApiHealth(timeout);
+            if (checkWebSocket && this.has.watchOrderBook) {
+                result.websocket = await this.checkWebSocketHealth();
             }
+            if (checkAuth && this.authStrategy) {
+                result.auth = await this.checkAuthHealth();
+            }
+            if (includeRateLimit && this.rateLimiter) {
+                result.rateLimit = this.getRateLimitStatus();
+            }
+            result.status = determineHealthStatus(result.api.reachable, result.websocket?.connected, result.auth?.valid);
+            result.latency = Date.now() - startTime;
             return result;
         }
-        throw new Error('fetchTickers must be implemented by subclass');
-    }
-    /**
-     * Fetch available currencies
-     * Default implementation throws if not supported
-     */
-    async fetchCurrencies() {
-        if (!this.has.fetchCurrencies) {
-            throw new NotSupportedError(`${this.name} does not support fetching currencies`, 'NOT_SUPPORTED', this.id);
+        catch (error) {
+            result.latency = Date.now() - startTime;
+            result.api.error = error instanceof Error ? error.message : 'Unknown error';
+            return result;
         }
-        throw new Error('fetchCurrencies must be implemented by subclass');
     }
-    /**
-     * Fetch exchange status
-     * Default implementation returns 'ok' if fetchMarkets succeeds
-     */
-    async fetchStatus() {
-        if (!this.has.fetchStatus) {
-            // Default: check if API is responsive
-            try {
-                await this.fetchMarkets();
-                return {
-                    status: 'ok',
-                    updated: Date.now(),
-                };
+    async checkApiHealth(timeout) {
+        const startTime = Date.now();
+        try {
+            await Promise.race([
+                this.performApiHealthCheck(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Health check timeout')), timeout)),
+            ]);
+            return { reachable: true, latency: Date.now() - startTime };
+        }
+        catch (error) {
+            return {
+                reachable: false,
+                latency: Date.now() - startTime,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            };
+        }
+    }
+    async performApiHealthCheck() {
+        await this.fetchMarkets({ active: true });
+    }
+    async checkWebSocketHealth() {
+        return { connected: false, reconnecting: false };
+    }
+    async checkAuthHealth() {
+        return { valid: !!this.authStrategy };
+    }
+    getRateLimitStatus() {
+        return undefined;
+    }
+    // ===========================================================================
+    // Metrics
+    // ===========================================================================
+    updateEndpointMetrics(endpointKey, latency, isError) {
+        let stats = this.metrics.endpointStats.get(endpointKey);
+        if (!stats) {
+            stats = {
+                endpoint: endpointKey,
+                count: 0,
+                totalLatency: 0,
+                errors: 0,
+                minLatency: Infinity,
+                maxLatency: 0,
+            };
+            this.metrics.endpointStats.set(endpointKey, stats);
+        }
+        stats.count++;
+        stats.totalLatency += latency;
+        stats.minLatency = Math.min(stats.minLatency, latency);
+        stats.maxLatency = Math.max(stats.maxLatency, latency);
+        stats.lastRequestAt = Date.now();
+        if (isError) {
+            stats.errors++;
+        }
+    }
+    updateAverageLatency(latency) {
+        const total = this.metrics.totalRequests;
+        const currentAvg = this.metrics.averageLatency;
+        this.metrics.averageLatency = (currentAvg * (total - 1) + latency) / total;
+    }
+    getMetrics() {
+        return createMetricsSnapshot(this.metrics);
+    }
+    getCircuitBreakerMetrics() {
+        return this.circuitBreaker.getMetrics();
+    }
+    getCircuitBreakerState() {
+        return this.circuitBreaker.getState();
+    }
+    resetMetrics() {
+        this.metrics.lastResetAt = Date.now();
+        this.metrics.totalRequests = 0;
+        this.metrics.successfulRequests = 0;
+        this.metrics.failedRequests = 0;
+        this.metrics.rateLimitHits = 0;
+        this.metrics.averageLatency = 0;
+        this.metrics.endpointStats.clear();
+    }
+    trackRateLimitHit() {
+        this.metrics.rateLimitHits++;
+    }
+    // ===========================================================================
+    // HTTP Request
+    // ===========================================================================
+    async request(method, url, body, headers) {
+        const maxAttempts = 3;
+        const initialDelay = 1000;
+        const maxDelay = 10000;
+        const multiplier = 2;
+        const retryableStatuses = [408, 429, 500, 502, 503, 504];
+        const correlationId = generateCorrelationId();
+        return this.circuitBreaker.execute(async () => {
+            let lastError;
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                const startTime = Date.now();
+                const endpoint = this.extractEndpoint(url);
+                const endpointKey = `${method}:${endpoint}`;
+                this.debug(`Request ${correlationId}`, {
+                    method,
+                    endpoint,
+                    attempt: attempt + 1,
+                    correlationId,
+                });
+                this.metrics.totalRequests++;
+                const controller = new AbortController();
+                this.abortControllers.add(controller);
+                const timeout = setTimeout(() => controller.abort(), this.config.timeout);
+                this.registerTimer(timeout);
+                try {
+                    const response = await fetch(url, {
+                        method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Correlation-ID': correlationId,
+                            ...headers,
+                        },
+                        body: body ? JSON.stringify(body) : undefined,
+                        signal: controller.signal,
+                    });
+                    if (!response.ok) {
+                        const shouldRetry = attempt < maxAttempts - 1 && retryableStatuses.includes(response.status);
+                        const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        if (!shouldRetry) {
+                            throw error;
+                        }
+                        const latency = Date.now() - startTime;
+                        this.metrics.failedRequests++;
+                        this.updateEndpointMetrics(endpointKey, latency, true);
+                        this.updateAverageLatency(latency);
+                        lastError = error;
+                        const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
+                        clearTimeout(timeout);
+                        this.timers.delete(timeout);
+                        this.abortControllers.delete(controller);
+                        await new Promise((resolve) => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    const result = (await response.json());
+                    const latency = Date.now() - startTime;
+                    this.metrics.successfulRequests++;
+                    this.updateEndpointMetrics(endpointKey, latency, false);
+                    this.updateAverageLatency(latency);
+                    this.debug(`Request ${correlationId} completed`, {
+                        correlationId,
+                        latency,
+                        status: response.status,
+                    });
+                    if (this.prometheusMetrics) {
+                        this.prometheusMetrics.recordRequest(this.id, endpoint, 'success', latency);
+                    }
+                    clearTimeout(timeout);
+                    this.timers.delete(timeout);
+                    this.abortControllers.delete(controller);
+                    return result;
+                }
+                catch (error) {
+                    const latency = Date.now() - startTime;
+                    this.metrics.failedRequests++;
+                    this.updateEndpointMetrics(endpointKey, latency, true);
+                    this.updateAverageLatency(latency);
+                    this.debug(`Request ${correlationId} failed`, {
+                        correlationId,
+                        latency,
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                        attempt: attempt + 1,
+                    });
+                    if (this.prometheusMetrics) {
+                        this.prometheusMetrics.recordRequest(this.id, endpoint, 'error', latency);
+                        const errorType = error instanceof Error ? error.constructor.name : 'UnknownError';
+                        this.prometheusMetrics.recordRequestError(this.id, endpoint, errorType);
+                    }
+                    clearTimeout(timeout);
+                    this.timers.delete(timeout);
+                    this.abortControllers.delete(controller);
+                    const isNetworkError = error instanceof Error &&
+                        (error.name === 'AbortError' ||
+                            error.message.includes('fetch') ||
+                            error.message.includes('network'));
+                    if (attempt < maxAttempts - 1 && isNetworkError) {
+                        lastError = error;
+                        const delay = Math.min(initialDelay * Math.pow(multiplier, attempt), maxDelay);
+                        await new Promise((resolve) => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    throw this.attachCorrelationId(error, correlationId);
+                }
             }
-            catch (error) {
-                return {
-                    status: 'error',
-                    message: error instanceof Error ? error.message : 'Unknown error',
-                    updated: Date.now(),
-                };
-            }
-        }
-        throw new Error('fetchStatus must be implemented by subclass');
+            throw this.attachCorrelationId(lastError || new Error('Request failed after retries'), correlationId);
+        });
     }
-    /**
-     * Fetch exchange server time
-     * Default implementation throws if not supported
-     */
-    async fetchTime() {
-        if (!this.has.fetchTime) {
-            throw new NotSupportedError(`${this.name} does not support fetching server time`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('fetchTime must be implemented by subclass');
+    registerTimer(timer) {
+        this.timers.add(timer);
     }
-    /**
-     * Fetch deposit history
-     * Default implementation throws if not supported by exchange
-     */
-    async fetchDeposits(_currency, _since, _limit) {
-        if (!this.has.fetchDeposits) {
-            throw new NotSupportedError(`${this.name} does not support fetching deposit history`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('fetchDeposits must be implemented by subclass');
+    registerInterval(interval) {
+        this.intervals.add(interval);
     }
-    /**
-     * Fetch withdrawal history
-     * Default implementation throws if not supported by exchange
-     */
-    async fetchWithdrawals(_currency, _since, _limit) {
-        if (!this.has.fetchWithdrawals) {
-            throw new NotSupportedError(`${this.name} does not support fetching withdrawal history`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('fetchWithdrawals must be implemented by subclass');
+    unregisterTimer(timer) {
+        clearTimeout(timer);
+        this.timers.delete(timer);
     }
-    /**
-     * Fetch account ledger (transaction history)
-     * Default implementation throws if not supported by exchange
-     */
-    async fetchLedger(_currency, _since, _limit, _params) {
-        if (!this.has.fetchLedger) {
-            throw new NotSupportedError(`${this.name} does not support fetching ledger`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('fetchLedger must be implemented by subclass');
+    unregisterInterval(interval) {
+        clearInterval(interval);
+        this.intervals.delete(interval);
     }
-    /**
-     * Fetch funding payment history
-     * Default implementation throws if not supported by exchange
-     */
-    async fetchFundingHistory(_symbol, _since, _limit) {
-        if (!this.has.fetchFundingHistory) {
-            throw new NotSupportedError(`${this.name} does not support fetching funding history`, 'NOT_SUPPORTED', this.id);
+    extractEndpoint(url) {
+        try {
+            const urlObj = new URL(url);
+            return urlObj.pathname;
         }
-        throw new Error('fetchFundingHistory must be implemented by subclass');
-    }
-    /**
-     * Set margin mode
-     * Default implementation throws if not supported
-     */
-    async setMarginMode(_symbol, _marginMode) {
-        if (!this.has.setMarginMode || this.has.setMarginMode === 'emulated') {
-            throw new NotSupportedError(`${this.name} does not support setting margin mode directly`, 'NOT_SUPPORTED', this.id);
+        catch {
+            return url;
         }
-        throw new Error('setMarginMode must be implemented by subclass');
     }
     // ===========================================================================
-    // WebSocket Streams - default implementation throws if not supported
+    // Utility Methods
     // ===========================================================================
-    async *watchOrderBook(_symbol, _limit) {
-        if (!this.has.watchOrderBook) {
-            throw new NotSupportedError(`${this.name} does not support order book streaming`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('watchOrderBook must be implemented by subclass');
-        yield {}; // Type system requirement
+    supportsFeature(feature) {
+        return this.has[feature] === true;
     }
-    async *watchTrades(_symbol) {
-        if (!this.has.watchTrades) {
-            throw new NotSupportedError(`${this.name} does not support trade streaming`, 'NOT_SUPPORTED', this.id);
+    assertFeatureSupported(feature) {
+        if (!this.has[feature]) {
+            throw new PerpDEXError(`Feature '${feature}' is not supported by ${this.name}`, 'NOT_SUPPORTED', this.id);
         }
-        throw new Error('watchTrades must be implemented by subclass');
-        yield {}; // Type system requirement
     }
-    async *watchTicker(_symbol) {
-        if (!this.has.watchTicker) {
-            throw new NotSupportedError(`${this.name} does not support ticker streaming`, 'NOT_SUPPORTED', this.id);
+    ensureInitialized() {
+        if (!this._isReady) {
+            throw new PerpDEXError(`${this.name} adapter not initialized. Call initialize() first.`, 'NOT_INITIALIZED', this.id);
         }
-        throw new Error('watchTicker must be implemented by subclass');
-        yield {}; // Type system requirement
     }
-    async *watchTickers(_symbols) {
-        if (!this.has.watchTickers) {
-            throw new NotSupportedError(`${this.name} does not support multiple ticker streaming`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('watchTickers must be implemented by subclass');
-        yield {}; // Type system requirement
+    validateOrder(request, correlationId) {
+        return validateOrderRequest(request, {
+            exchange: this.id,
+            context: correlationId ? { correlationId } : undefined,
+        });
     }
-    async *watchPositions() {
-        if (!this.has.watchPositions) {
-            throw new NotSupportedError(`${this.name} does not support position streaming`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('watchPositions must be implemented by subclass');
-        yield []; // Type system requirement
+    getValidator() {
+        return createValidator(this.id);
     }
-    async *watchOrders() {
-        if (!this.has.watchOrders) {
-            throw new NotSupportedError(`${this.name} does not support order streaming`, 'NOT_SUPPORTED', this.id);
+    attachCorrelationId(error, correlationId) {
+        if (error instanceof PerpDEXError) {
+            error.withCorrelationId(correlationId);
+            return error;
         }
-        throw new Error('watchOrders must be implemented by subclass');
-        yield []; // Type system requirement
-    }
-    async *watchBalance() {
-        if (!this.has.watchBalance) {
-            throw new NotSupportedError(`${this.name} does not support balance streaming`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('watchBalance must be implemented by subclass');
-        yield []; // Type system requirement
-    }
-    async *watchFundingRate(_symbol) {
-        if (!this.has.watchFundingRate) {
-            throw new NotSupportedError(`${this.name} does not support funding rate streaming`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('watchFundingRate must be implemented by subclass');
-        yield {}; // Type system requirement
-    }
-    async *watchOHLCV(_symbol, _timeframe) {
-        if (!this.has.watchOHLCV) {
-            throw new NotSupportedError(`${this.name} does not support OHLCV streaming`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('watchOHLCV must be implemented by subclass');
-        yield [0, 0, 0, 0, 0, 0]; // Type system requirement
-    }
-    async *watchMyTrades(_symbol) {
-        if (!this.has.watchMyTrades) {
-            throw new NotSupportedError(`${this.name} does not support user trade streaming`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('watchMyTrades must be implemented by subclass');
-        yield {}; // Type system requirement
-    }
-    // ===========================================================================
-    // Additional Info Methods
-    // ===========================================================================
-    /**
-     * Fetch user fee rates
-     * Default implementation throws if not supported by exchange
-     */
-    async fetchUserFees() {
-        if (!this.has.fetchUserFees) {
-            throw new NotSupportedError(`${this.name} does not support fetching user fees`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('fetchUserFees must be implemented by subclass');
-    }
-    /**
-     * Fetch portfolio performance metrics
-     * Default implementation throws if not supported by exchange
-     */
-    async fetchPortfolio() {
-        if (!this.has.fetchPortfolio) {
-            throw new NotSupportedError(`${this.name} does not support fetching portfolio metrics`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('fetchPortfolio must be implemented by subclass');
-    }
-    /**
-     * Fetch current rate limit status
-     * Default implementation throws if not supported by exchange
-     */
-    async fetchRateLimitStatus() {
-        if (!this.has.fetchRateLimitStatus) {
-            throw new NotSupportedError(`${this.name} does not support fetching rate limit status`, 'NOT_SUPPORTED', this.id);
-        }
-        throw new Error('fetchRateLimitStatus must be implemented by subclass');
+        const message = error instanceof Error ? error.message : String(error);
+        return new PerpDEXError(message, 'REQUEST_ERROR', this.id, error).withCorrelationId(correlationId);
     }
 }
 //# sourceMappingURL=BaseAdapterCore.js.map

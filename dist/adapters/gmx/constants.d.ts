@@ -244,6 +244,16 @@ export type GMXMarketKey = keyof typeof GMX_MARKETS;
  * Map from market address to symbol
  */
 export declare const GMX_MARKET_ADDRESS_MAP: Record<string, GMXMarketKey>;
+/**
+ * Map from token address to decimals for position size/collateral parsing.
+ * All addresses are lowercased for consistent lookup.
+ */
+export declare const GMX_TOKEN_ADDRESS_DECIMALS: Record<string, number>;
+/**
+ * Get token decimals by contract address.
+ * Falls back to 18 for unknown addresses.
+ */
+export declare function getTokenDecimalsByAddress(tokenAddress: string): number;
 export declare const GMX_ORDER_TYPES: {
     readonly MARKET_INCREASE: 0;
     readonly MARKET_DECREASE: 1;
@@ -275,6 +285,18 @@ export declare function getMarketByAddress(address: string): (typeof GMX_MARKETS
  * Get base token from symbol
  */
 export declare function getBaseToken(symbol: string): string;
+/**
+ * Get token decimals for a base asset
+ * GMX oracle prices are stored as: price * 10^(30 - tokenDecimals)
+ * So to convert raw price to USD: raw / 10^(30 - tokenDecimals)
+ */
+export declare function getTokenDecimals(baseAsset: string): number;
+/**
+ * Get the price divisor for a token's oracle price
+ * Oracle prices = price_usd * 10^(30 - tokenDecimals)
+ * Divisor = 10^(30 - tokenDecimals)
+ */
+export declare function getOraclePriceDivisor(baseAsset: string): number;
 /**
  * Get markets for a specific chain
  */
