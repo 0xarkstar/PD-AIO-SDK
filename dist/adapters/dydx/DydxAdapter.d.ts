@@ -65,10 +65,10 @@ export declare class DydxAdapter extends BaseAdapter {
     initialize(): Promise<void>;
     disconnect(): Promise<void>;
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
-    fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    _fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
+    _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
     fetchOHLCV(symbol: string, timeframe?: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]>;
     createOrder(_request: OrderRequest): Promise<Order>;
@@ -76,7 +76,7 @@ export declare class DydxAdapter extends BaseAdapter {
     cancelAllOrders(_symbol?: string): Promise<Order[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
-    setLeverage(_symbol: string, _leverage: number): Promise<void>;
+    _setLeverage(_symbol: string, _leverage: number): Promise<void>;
     fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
     fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
     /**

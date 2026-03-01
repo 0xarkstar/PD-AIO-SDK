@@ -29,20 +29,96 @@ import type {
   Transaction,
   UserFees,
 } from '../../types/index.js';
-import { NotSupportedError, PerpDEXError } from '../../types/errors.js';
+import {
+  BadRequestError,
+  InvalidOrderError,
+  NotSupportedError,
+  PerpDEXError,
+} from '../../types/errors.js';
 import { BaseAdapterCore } from './BaseAdapterCore.js';
 
 export abstract class BaseAdapter extends BaseAdapterCore {
+  // ===========================================================================
+  // Input Validation Methods
+  // ===========================================================================
+
+  /**
+   * Validate symbol format at SDK boundary
+   *
+   * @param symbol - Symbol to validate
+   * @throws {BadRequestError} If symbol is invalid
+   */
+  protected validateSymbol(symbol: string): void {
+    if (!symbol || typeof symbol !== 'string') {
+      throw new BadRequestError('Symbol is required', 'INVALID_SYMBOL', this.id);
+    }
+    // Allow formats: BTC/USD, BTC/USD:USD, BTC/USDT, 1000PEPE/USDT:USDT
+    if (!/^[A-Z0-9]{1,20}\/[A-Z0-9]{1,20}(:[A-Z0-9]{1,20})?$/i.test(symbol)) {
+      throw new BadRequestError(`Invalid symbol format: ${symbol}`, 'INVALID_SYMBOL', this.id);
+    }
+  }
+
+  /**
+   * Validate leverage value at SDK boundary
+   *
+   * @param leverage - Leverage value to validate
+   * @throws {InvalidOrderError} If leverage is invalid
+   */
+  protected validateLeverage(leverage: number): void {
+    if (typeof leverage !== 'number' || isNaN(leverage) || leverage <= 0 || leverage > 200) {
+      throw new InvalidOrderError(
+        `Invalid leverage: ${leverage}. Must be between 0 and 200`,
+        'INVALID_LEVERAGE',
+        this.id
+      );
+    }
+  }
+
   // ===========================================================================
   // Abstract Methods - Market Data (Public)
   // ===========================================================================
 
   abstract fetchMarkets(params?: any): Promise<any>;
-  abstract fetchTicker(symbol: string): Promise<any>;
-  abstract fetchOrderBook(symbol: string, params?: any): Promise<any>;
-  abstract fetchTrades(symbol: string, params?: any): Promise<any>;
-  abstract fetchFundingRate(symbol: string): Promise<any>;
+
+  /**
+   * Fetch ticker with validation
+   */
+  async fetchTicker(symbol: string): Promise<any> {
+    this.validateSymbol(symbol);
+    return this._fetchTicker(symbol);
+  }
+
+  /**
+   * Fetch order book with validation
+   */
+  async fetchOrderBook(symbol: string, params?: any): Promise<any> {
+    this.validateSymbol(symbol);
+    return this._fetchOrderBook(symbol, params);
+  }
+
+  /**
+   * Fetch trades with validation
+   */
+  async fetchTrades(symbol: string, params?: any): Promise<any> {
+    this.validateSymbol(symbol);
+    return this._fetchTrades(symbol, params);
+  }
+
+  /**
+   * Fetch funding rate with validation
+   */
+  async fetchFundingRate(symbol: string): Promise<any> {
+    this.validateSymbol(symbol);
+    return this._fetchFundingRate(symbol);
+  }
+
   abstract fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<any>;
+
+  // Protected methods to be implemented by adapters
+  protected abstract _fetchTicker(symbol: string): Promise<any>;
+  protected abstract _fetchOrderBook(symbol: string, params?: any): Promise<any>;
+  protected abstract _fetchTrades(symbol: string, params?: any): Promise<any>;
+  protected abstract _fetchFundingRate(symbol: string): Promise<any>;
 
   // ===========================================================================
   // Abstract Methods - Trading (Private)
@@ -65,7 +141,18 @@ export abstract class BaseAdapter extends BaseAdapterCore {
 
   abstract fetchPositions(symbols?: string[]): Promise<Position[]>;
   abstract fetchBalance(): Promise<Balance[]>;
-  abstract setLeverage(symbol: string, leverage: number): Promise<void>;
+
+  /**
+   * Set leverage with validation
+   */
+  async setLeverage(symbol: string, leverage: number): Promise<void> {
+    this.validateSymbol(symbol);
+    this.validateLeverage(leverage);
+    return this._setLeverage(symbol, leverage);
+  }
+
+  // Protected method to be implemented by adapters
+  protected abstract _setLeverage(symbol: string, leverage: number): Promise<void>;
 
   // ===========================================================================
   // Market Data (Public) - Optional implementations

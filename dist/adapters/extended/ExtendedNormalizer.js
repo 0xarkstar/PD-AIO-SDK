@@ -69,28 +69,39 @@ export class ExtendedNormalizer {
         const rawSymbol = isApiFormat(market) ? market.name : market.symbol;
         const unifiedSymbol = this.symbolToCCXT(rawSymbol);
         // Extract base/quote from API or legacy format
-        const base = isApiFormat(market) ? market.assetName : market.baseAsset;
-        const quote = isApiFormat(market)
-            ? market.collateralAssetName
-            : market.quoteAsset || 'USD';
+        let base = isApiFormat(market) ? market.assetName : market.baseAsset;
+        let quote = isApiFormat(market) ? market.collateralAssetName : market.quoteAsset || 'USD';
+        // Defensive fallback: parse rawSymbol if base/quote are missing
+        if (!base || !quote) {
+            // rawSymbol format: "BTC-USD-PERP" or "BTCUSD"
+            if (rawSymbol.includes('-')) {
+                const parts = rawSymbol.split('-');
+                base = base || parts[0] || '';
+                quote = quote || parts[1] || 'USD';
+            }
+            else {
+                const match = rawSymbol.match(/^([A-Z]+)(USD|USDT|USDC)$/);
+                if (match) {
+                    base = base || match[1] || '';
+                    quote = quote || match[2] || 'USD';
+                }
+            }
+        }
         const settle = isApiFormat(market) ? quote : market.settleAsset || quote;
         // Handle active flag from API or legacy
-        const isActive = isApiFormat(market) ? market.active : market.isActive ?? true;
+        const isActive = isApiFormat(market) ? market.active : (market.isActive ?? true);
         // Extract trading config from actual API response or legacy format
         const tradingConfig = isApiFormat(market) ? market.tradingConfig : undefined;
-        const minOrderSize = tradingConfig?.minOrderSize ||
-            (isApiFormat(market) ? '0' : market.minOrderQuantity || '0');
-        const maxLeverage = tradingConfig?.maxLeverage ||
-            (isApiFormat(market) ? '1' : market.maxLeverage || '1');
-        const minPriceChange = tradingConfig?.minPriceChange ||
-            (isApiFormat(market) ? '0.01' : market.minPrice || '0.01');
+        const minOrderSize = tradingConfig?.minOrderSize || (isApiFormat(market) ? '0' : market.minOrderQuantity || '0');
+        const maxLeverage = tradingConfig?.maxLeverage || (isApiFormat(market) ? '1' : market.maxLeverage || '1');
+        const minPriceChange = tradingConfig?.minPriceChange || (isApiFormat(market) ? '0.01' : market.minPrice || '0.01');
         // Extract precision from API or legacy
         const pricePrecision = isApiFormat(market)
-            ? market.collateralAssetPrecision ?? 2
-            : market.pricePrecision ?? 2;
+            ? (market.collateralAssetPrecision ?? 2)
+            : (market.pricePrecision ?? 2);
         const amountPrecision = isApiFormat(market)
-            ? market.assetPrecision ?? 0
-            : market.quantityPrecision ?? 0;
+            ? (market.assetPrecision ?? 0)
+            : (market.quantityPrecision ?? 0);
         // Market ID: prefer name (API) or marketId (legacy) over symbol
         const id = isApiFormat(market) ? market.name : market.marketId;
         return {
@@ -311,9 +322,7 @@ export class ExtendedNormalizer {
             realizedPnl: 0,
             margin: safeParseFloat(validated.initialMargin),
             maintenanceMargin: safeParseFloat(validated.maintenanceMargin),
-            marginRatio: size * markPrice > 0
-                ? safeParseFloat(validated.maintenanceMargin) / (size * markPrice)
-                : 0,
+            marginRatio: size * markPrice > 0 ? safeParseFloat(validated.maintenanceMargin) / (size * markPrice) : 0,
             marginMode: validated.marginMode,
             timestamp: validated.timestamp,
             info: {

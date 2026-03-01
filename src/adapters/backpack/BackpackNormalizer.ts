@@ -131,8 +131,33 @@ export class BackpackNormalizer {
   normalizeMarket(backpackMarket: BackpackMarket): Market {
     const validated = BackpackMarketSchema.parse(backpackMarket);
     const symbol = this.normalizeSymbol(validated.symbol);
-    const isPerpetual =
-      validated.marketType === 'PERP' || validated.symbol.endsWith('_PERP');
+    const isPerpetual = validated.marketType === 'PERP' || validated.symbol.endsWith('_PERP');
+
+    // Extract base/quote from validated fields or parse raw exchange symbol
+    let base = validated.baseSymbol || '';
+    let quote = validated.quoteSymbol || '';
+
+    // Fallback: parse raw exchange symbol (BTC_USDC_PERP → base=BTC, quote=USDC)
+    if (!base || !quote) {
+      const rawSymbol = validated.symbol.replace('_PERP', '');
+      const parts = rawSymbol.split('_');
+
+      if (parts.length >= 2) {
+        // New format: BTC_USDC(_PERP) → base=BTC, quote=USDC
+        base = base || parts[0] || '';
+        quote = quote || parts[1] || '';
+      } else if (parts.length === 1) {
+        // Legacy format: BTCUSDT → try to extract quote
+        const pair = parts[0] || '';
+        const quoteMatch = pair.match(/(USDT|USDC|USD)$/);
+        if (quoteMatch && quoteMatch[1]) {
+          const extractedQuote = quoteMatch[1];
+          const extractedBase = pair.replace(extractedQuote, '');
+          base = base || extractedBase;
+          quote = quote || extractedQuote;
+        }
+      }
+    }
 
     // Handle potentially missing filter fields
     const priceFilters = validated.filters?.price ?? { tickSize: '0.01' };
@@ -144,9 +169,9 @@ export class BackpackNormalizer {
     return {
       id: validated.symbol,
       symbol,
-      base: validated.baseSymbol || symbol.split('/')[0] || '',
-      quote: validated.quoteSymbol || symbol.split('/')[1]?.split(':')[0] || '',
-      settle: validated.quoteSymbol || symbol.split('/')[1]?.split(':')[0] || '',
+      base,
+      quote,
+      settle: quote,
       active: validated.visible !== false && validated.orderBookState !== 'Closed',
       minAmount: parseFloat(quantityFilters.minQuantity || '0'),
       pricePrecision: this.countDecimals(priceFilters.tickSize || '0.01'),
@@ -210,9 +235,7 @@ export class BackpackNormalizer {
       size,
       entryPrice: parseFloat(validated.entry_price ?? '0'),
       markPrice,
-      liquidationPrice: validated.liquidation_price
-        ? parseFloat(validated.liquidation_price)
-        : 0,
+      liquidationPrice: validated.liquidation_price ? parseFloat(validated.liquidation_price) : 0,
       unrealizedPnl: parseFloat(validated.unrealized_pnl ?? '0'),
       realizedPnl: validated.realized_pnl ? parseFloat(validated.realized_pnl) : 0,
       margin,
@@ -283,17 +306,21 @@ export class BackpackNormalizer {
     const change = parseFloat(validated.priceChange || '0');
     const percentage = parseFloat(validated.priceChangePercent || '0') * 100; // Convert to percentage
 
+    // Backpack ticker doesn't provide bid/ask; use last price as fallback
+    // Ensure bid/ask are valid numbers (not NaN or 0 when last has a valid value)
+    const bidAsk = !isNaN(last) && last > 0 ? last : 0;
+
     return {
       symbol: this.normalizeSymbol(validated.symbol),
-      last,
-      open: first,
-      close: last,
-      bid: last, // Backpack ticker doesn't provide bid; use last price as fallback
-      ask: last, // Backpack ticker doesn't provide ask; use last price as fallback
+      last: !isNaN(last) ? last : 0,
+      open: !isNaN(first) ? first : 0,
+      close: !isNaN(last) ? last : 0,
+      bid: bidAsk,
+      ask: bidAsk,
       high: parseFloat(validated.high || '0'),
       low: parseFloat(validated.low || '0'),
-      change,
-      percentage,
+      change: !isNaN(change) ? change : 0,
+      percentage: !isNaN(percentage) ? percentage : 0,
       baseVolume: parseFloat(validated.volume || '0'),
       quoteVolume: parseFloat(validated.quoteVolume || '0'),
       timestamp: Date.now(),
@@ -309,12 +336,17 @@ export class BackpackNormalizer {
    */
   normalizeFundingRate(backpackFunding: BackpackFundingRate): FundingRate {
     const validated = BackpackFundingRateSchema.parse(backpackFunding);
-    // Parse the ISO timestamp to milliseconds
-    const fundingTimestamp = new Date(validated.intervalEndTimestamp).getTime();
+    // Parse the ISO timestamp to milliseconds, with fallback to current time
+    const fundingTimestamp = validated.intervalEndTimestamp
+      ? new Date(validated.intervalEndTimestamp).getTime()
+      : Date.now();
+
+    // Ensure fundingRate is a valid number
+    const fundingRate = parseFloat(validated.fundingRate || '0');
 
     return {
       symbol: this.normalizeSymbol(validated.symbol),
-      fundingRate: parseFloat(validated.fundingRate),
+      fundingRate: !isNaN(fundingRate) ? fundingRate : 0,
       fundingTimestamp,
       nextFundingTimestamp: fundingTimestamp + 3600000, // Hourly funding
       // Backpack funding rate endpoint doesn't include mark/index price

@@ -265,7 +265,7 @@ export class JupiterAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTicker(symbol: string): Promise<Ticker> {
+  async _fetchTicker(symbol: string): Promise<Ticker> {
     this.ensureInitialized();
 
     const jupiterSymbol = this.symbolToExchange(symbol);
@@ -288,7 +288,7 @@ export class JupiterAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
+  async _fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
     this.ensureInitialized();
 
     const jupiterSymbol = this.symbolToExchange(symbol);
@@ -315,7 +315,7 @@ export class JupiterAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
+  async _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
     throw new NotSupportedError(
       'fetchTrades is not supported. Jupiter Perps trades are on-chain only.',
       'NOT_SUPPORTED',
@@ -323,7 +323,7 @@ export class JupiterAdapter extends BaseAdapter {
     );
   }
 
-  async fetchFundingRate(symbol: string): Promise<FundingRate> {
+  async _fetchFundingRate(symbol: string): Promise<FundingRate> {
     this.ensureInitialized();
 
     const jupiterSymbol = this.symbolToExchange(symbol);
@@ -736,7 +736,7 @@ export class JupiterAdapter extends BaseAdapter {
     return [];
   }
 
-  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
+  async _setLeverage(_symbol: string, _leverage: number): Promise<void> {
     throw new Error('Jupiter leverage is set per-trade, not globally');
   }
 

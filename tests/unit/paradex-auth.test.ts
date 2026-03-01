@@ -412,19 +412,11 @@ describe('ParadexAuth', () => {
   });
 
   describe('StarkNet Key Management', () => {
-    describe('getStarkPrivateKey', () => {
-      it('should return undefined when not set', () => {
+    describe('getStarkPrivateKey (removed in C25 S2)', () => {
+      it('should not be publicly accessible (security)', () => {
         const auth = new ParadexAuth({});
-
-        expect(auth.getStarkPrivateKey()).toBeUndefined();
-      });
-
-      it('should return private key when set', () => {
-        const auth = new ParadexAuth({
-          starkPrivateKey: TEST_STARK_PRIVATE_KEY,
-        });
-
-        expect(auth.getStarkPrivateKey()).toBe(TEST_STARK_PRIVATE_KEY);
+        // getStarkPrivateKey was removed in C25 S2 security hardening
+        expect((auth as any).getStarkPrivateKey).toBeUndefined();
       });
     });
 

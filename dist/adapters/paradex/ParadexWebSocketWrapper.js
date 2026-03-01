@@ -49,6 +49,7 @@ export class ParadexWebSocketWrapper {
     reconnectAttempts = 0;
     subscriptionId = 0;
     subscriptions = new Map();
+    subscriptionParams = new Map();
     messageQueue = new Map();
     /**
      * Push to queue with bounded size (backpressure)
@@ -521,6 +522,8 @@ export class ParadexWebSocketWrapper {
             this.subscriptions.set(channel, new Set());
         }
         this.subscriptions.get(channel).add(callback);
+        // Store subscription params for reconnection
+        this.subscriptionParams.set(channel, params);
         // Send subscription request
         const request = {
             method: 'subscribe',
@@ -542,6 +545,7 @@ export class ParadexWebSocketWrapper {
             // If no more subscribers, unsubscribe from channel
             if (subscribers.size === 0) {
                 this.subscriptions.delete(channel);
+                this.subscriptionParams.delete(channel);
                 if (this.ws && this.isConnected) {
                     this.ws.send(JSON.stringify({
                         method: 'unsubscribe',
@@ -593,10 +597,9 @@ export class ParadexWebSocketWrapper {
         await new Promise((resolve) => setTimeout(resolve, delay));
         try {
             await this.connect();
-            // Resubscribe to all channels
+            // Resubscribe to all channels with original params
             for (const [channel] of this.subscriptions) {
-                // Extract params from channel name (simplified)
-                const params = {};
+                const params = this.subscriptionParams.get(channel) || {};
                 this.ws.send(JSON.stringify({
                     method: 'subscribe',
                     params: { channel, ...params },

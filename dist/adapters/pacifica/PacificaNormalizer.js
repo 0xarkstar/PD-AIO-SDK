@@ -93,7 +93,9 @@ export class PacificaNormalizer {
     }
     normalizeOrder(raw, symbol) {
         const validated = PacificaOrderResponseSchema.parse(raw);
-        const filled = parseFloat(typeof validated.filled_size === 'number' ? String(validated.filled_size) : validated.filled_size);
+        const filled = parseFloat(typeof validated.filled_size === 'number'
+            ? String(validated.filled_size)
+            : validated.filled_size);
         const amount = parseFloat(typeof validated.size === 'number' ? String(validated.size) : validated.size);
         return {
             id: validated.order_id,
@@ -101,11 +103,17 @@ export class PacificaNormalizer {
             type: validated.type === 'market' ? 'market' : 'limit',
             side: validated.side,
             amount,
-            price: validated.price ? parseFloat(typeof validated.price === 'number' ? String(validated.price) : validated.price) : undefined,
+            price: validated.price
+                ? parseFloat(typeof validated.price === 'number' ? String(validated.price) : validated.price)
+                : undefined,
             status: (PACIFICA_ORDER_STATUS[validated.status] ?? 'open'),
             filled,
             remaining: amount - filled,
-            averagePrice: validated.avg_fill_price ? parseFloat(typeof validated.avg_fill_price === 'number' ? String(validated.avg_fill_price) : validated.avg_fill_price) : undefined,
+            averagePrice: validated.avg_fill_price
+                ? parseFloat(typeof validated.avg_fill_price === 'number'
+                    ? String(validated.avg_fill_price)
+                    : validated.avg_fill_price)
+                : undefined,
             reduceOnly: validated.reduce_only,
             postOnly: validated.post_only,
             clientOrderId: validated.client_order_id,
@@ -118,17 +126,27 @@ export class PacificaNormalizer {
         const validated = PacificaPositionSchema.parse(raw);
         const size = parseFloat(typeof validated.size === 'number' ? String(validated.size) : validated.size);
         const markPrice = parseFloat(typeof validated.mark_price === 'number' ? String(validated.mark_price) : validated.mark_price);
-        const maintenanceMargin = parseFloat(typeof validated.maintenance_margin === 'number' ? String(validated.maintenance_margin) : validated.maintenance_margin);
+        const maintenanceMargin = parseFloat(typeof validated.maintenance_margin === 'number'
+            ? String(validated.maintenance_margin)
+            : validated.maintenance_margin);
         const notional = size * markPrice;
         return {
             symbol: symbol ?? toUnifiedSymbol(validated.symbol),
             side: validated.side,
             size,
-            entryPrice: parseFloat(typeof validated.entry_price === 'number' ? String(validated.entry_price) : validated.entry_price),
+            entryPrice: parseFloat(typeof validated.entry_price === 'number'
+                ? String(validated.entry_price)
+                : validated.entry_price),
             markPrice,
-            liquidationPrice: parseFloat(typeof validated.liquidation_price === 'number' ? String(validated.liquidation_price) : validated.liquidation_price),
-            unrealizedPnl: parseFloat(typeof validated.unrealized_pnl === 'number' ? String(validated.unrealized_pnl) : validated.unrealized_pnl),
-            realizedPnl: parseFloat(typeof validated.realized_pnl === 'number' ? String(validated.realized_pnl) : validated.realized_pnl),
+            liquidationPrice: parseFloat(typeof validated.liquidation_price === 'number'
+                ? String(validated.liquidation_price)
+                : validated.liquidation_price),
+            unrealizedPnl: parseFloat(typeof validated.unrealized_pnl === 'number'
+                ? String(validated.unrealized_pnl)
+                : validated.unrealized_pnl),
+            realizedPnl: parseFloat(typeof validated.realized_pnl === 'number'
+                ? String(validated.realized_pnl)
+                : validated.realized_pnl),
             leverage: validated.leverage,
             marginMode: validated.margin_mode,
             margin: parseFloat(typeof validated.margin === 'number' ? String(validated.margin) : validated.margin),

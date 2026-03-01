@@ -114,8 +114,8 @@ export class LighterNormalizer {
       id: validated.orderId,
       clientOrderId: validated.clientOrderId,
       symbol: this.normalizeSymbol(validated.symbol),
-      type: (validated.type as 'market' | 'limit') ?? 'limit',
-      side: (validated.side as 'buy' | 'sell') ?? 'buy',
+      type: validated.type ?? 'limit',
+      side: validated.side ?? 'buy',
       price: validated.price,
       amount: size,
       filled: filledSize,
@@ -137,7 +137,7 @@ export class LighterNormalizer {
     const unrealizedPnl = validated.unrealizedPnl ?? 0;
     return {
       symbol: this.normalizeSymbol(validated.symbol),
-      side: (validated.side as 'long' | 'short') ?? 'long',
+      side: validated.side ?? 'long',
       size: validated.size ?? 0,
       entryPrice: validated.entryPrice ?? 0,
       markPrice: validated.markPrice ?? 0,
@@ -240,13 +240,16 @@ export class LighterNormalizer {
    */
   normalizeFundingRate(lighterFundingRate: LighterFundingRate): FundingRate {
     const validated = LighterFundingRateSchema.parse(lighterFundingRate);
+    const markPrice = validated.markPrice ?? 0;
+    const nextFundingTime = validated.nextFundingTime ?? Date.now() + 8 * 3600 * 1000;
+
     return {
       symbol: this.normalizeSymbol(validated.symbol),
       fundingRate: validated.fundingRate,
-      fundingTimestamp: validated.nextFundingTime,
-      nextFundingTimestamp: validated.nextFundingTime,
-      markPrice: validated.markPrice,
-      indexPrice: lighterFundingRate.markPrice, // Not provided by Lighter, use mark price as fallback
+      fundingTimestamp: nextFundingTime,
+      nextFundingTimestamp: nextFundingTime,
+      markPrice,
+      indexPrice: markPrice, // Not provided by Lighter, use mark price as fallback
       fundingIntervalHours: 8,
       info: lighterFundingRate as unknown as Record<string, unknown>,
     };

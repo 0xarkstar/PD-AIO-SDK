@@ -4,14 +4,24 @@
  * Tests for GmxSubgraph normalizers and data transformation
  */
 
-import { describe, test, expect, beforeEach } from '@jest/globals';
+import { describe, test, expect, beforeEach, jest, afterEach } from '@jest/globals';
 import { GmxSubgraph } from '../../src/adapters/gmx/GmxSubgraph.js';
+import { NetworkError } from '../../src/types/errors.js';
+
+// Mock fetch globally
+const mockFetch = jest.fn();
+global.fetch = mockFetch as any;
 
 describe('GmxSubgraph', () => {
   let subgraph: GmxSubgraph;
 
   beforeEach(() => {
+    mockFetch.mockReset();
     subgraph = new GmxSubgraph('arbitrum');
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('constructor', () => {
@@ -188,6 +198,45 @@ describe('GmxSubgraph', () => {
       const result = subgraph.normalizeTrade(mockTrade);
 
       expect(result.priceImpact).toBe(0);
+    });
+  });
+
+  describe('timeout and error handling', () => {
+    test('should timeout GraphQL requests after 30s', async () => {
+      // Mock fetch that simulates AbortError
+      mockFetch.mockImplementation(() => {
+        const error = new Error('The operation was aborted');
+        error.name = 'AbortError';
+        return Promise.reject(error);
+      });
+
+      await expect(subgraph.fetchPositions('0xtest')).rejects.toBeInstanceOf(NetworkError);
+      await expect(subgraph.fetchPositions('0xtest')).rejects.toMatchObject({
+        code: 'GRAPHQL_TIMEOUT',
+        exchange: 'gmx',
+      });
+    });
+
+    test('should include AbortController signal in fetch request', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: { positions: [] } }),
+      });
+
+      await subgraph.fetchPositions('0xtest');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
+        })
+      );
+    });
+
+    test('should handle non-timeout errors normally', async () => {
+      mockFetch.mockRejectedValue(new Error('Network failure'));
+
+      await expect(subgraph.fetchPositions('0xtest')).rejects.toThrow('Network failure');
     });
   });
 });

@@ -609,6 +609,8 @@ export interface DriftL2OrderBook {
     marketIndex: number;
     /** Market type */
     marketType: DriftMarketType;
+    /** Market name (e.g., "SOL-PERP") */
+    marketName?: string;
     /** Bids - array of [price, size] */
     bids: Array<{
         price: string;
@@ -629,6 +631,7 @@ export interface DriftL2OrderBook {
 export declare const DriftL2OrderBookSchema: z.ZodObject<{
     marketIndex: z.ZodNumber;
     marketType: z.ZodString;
+    marketName: z.ZodOptional<z.ZodString>;
     bids: z.ZodArray<z.ZodObject<{
         price: z.ZodString;
         size: z.ZodString;
@@ -660,6 +663,7 @@ export declare const DriftL2OrderBookSchema: z.ZodObject<{
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
     marketIndex: z.ZodNumber;
     marketType: z.ZodString;
+    marketName: z.ZodOptional<z.ZodString>;
     bids: z.ZodArray<z.ZodObject<{
         price: z.ZodString;
         size: z.ZodString;
@@ -691,6 +695,7 @@ export declare const DriftL2OrderBookSchema: z.ZodObject<{
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
     marketIndex: z.ZodNumber;
     marketType: z.ZodString;
+    marketName: z.ZodOptional<z.ZodString>;
     bids: z.ZodArray<z.ZodObject<{
         price: z.ZodString;
         size: z.ZodString;

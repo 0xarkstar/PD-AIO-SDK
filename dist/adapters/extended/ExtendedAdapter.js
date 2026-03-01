@@ -192,7 +192,7 @@ export class ExtendedAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.TICKER_SYMBOL);
         try {
             const market = this.symbolToExchange(symbol);
@@ -205,7 +205,7 @@ export class ExtendedAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchOrderBook(symbol, params) {
+    async _fetchOrderBook(symbol, params) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.ORDERBOOK);
         try {
             const market = this.symbolToExchange(symbol);
@@ -223,7 +223,7 @@ export class ExtendedAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchTrades(symbol, params) {
+    async _fetchTrades(symbol, params) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.TRADES);
         try {
             const market = this.symbolToExchange(symbol);
@@ -244,7 +244,7 @@ export class ExtendedAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.TICKER_SYMBOL);
         try {
             const market = this.symbolToExchange(symbol);
@@ -475,7 +475,7 @@ export class ExtendedAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async setLeverage(symbol, leverage) {
+    async _setLeverage(symbol, leverage) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.LEVERAGE);
         validateLeverage(leverage);
         if (!this.apiKey) {

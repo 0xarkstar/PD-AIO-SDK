@@ -6,7 +6,9 @@ import {
   ExchangeUnavailableError,
   InsufficientMarginError,
   InvalidOrderError,
+  InvalidSignatureError,
   PerpDEXError,
+  RateLimitError,
   TransactionFailedError,
 } from '../../types/errors.js';
 
@@ -75,6 +77,30 @@ export function mapOstiumError(error: unknown): PerpDEXError {
     return new ExchangeUnavailableError(
       error instanceof Error ? error.message : String(error),
       'EXCHANGE_UNAVAILABLE',
+      'ostium'
+    );
+  }
+
+  if (
+    message.includes('rate limit') ||
+    message.includes('too many requests') ||
+    message.includes('429')
+  ) {
+    return new RateLimitError(
+      error instanceof Error ? error.message : String(error),
+      'RATE_LIMIT',
+      'ostium'
+    );
+  }
+
+  if (
+    message.includes('invalid signature') ||
+    message.includes('bad signature') ||
+    message.includes('unauthorized')
+  ) {
+    return new InvalidSignatureError(
+      error instanceof Error ? error.message : String(error),
+      'INVALID_SIGNATURE',
       'ostium'
     );
   }

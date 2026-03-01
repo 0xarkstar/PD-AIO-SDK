@@ -228,7 +228,7 @@ export class AsterAdapter extends BaseAdapter {
       .map((s) => this.normalizer.normalizeMarket(s));
   }
 
-  async fetchTicker(symbol: string): Promise<Ticker> {
+  async _fetchTicker(symbol: string): Promise<Ticker> {
     const asterSymbol = toAsterSymbol(symbol);
     const response = await this.publicGet<AsterTicker24hr>(
       `/fapi/v1/ticker/24hr?symbol=${asterSymbol}`,
@@ -237,7 +237,7 @@ export class AsterAdapter extends BaseAdapter {
     return this.normalizer.normalizeTicker(response, symbol);
   }
 
-  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
+  async _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     const asterSymbol = toAsterSymbol(symbol);
     const limit = params?.limit ?? 20;
     const response = await this.publicGet<AsterOrderBookResponse>(
@@ -247,7 +247,7 @@ export class AsterAdapter extends BaseAdapter {
     return this.normalizer.normalizeOrderBook(response, symbol);
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+  async _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
     const asterSymbol = toAsterSymbol(symbol);
     const limit = params?.limit ?? 100;
     const response = await this.publicGet<AsterTradeResponse[]>(
@@ -262,7 +262,7 @@ export class AsterAdapter extends BaseAdapter {
     return response.map((t) => this.normalizer.normalizeTrade(t, symbol));
   }
 
-  async fetchFundingRate(symbol: string): Promise<FundingRate> {
+  async _fetchFundingRate(symbol: string): Promise<FundingRate> {
     const asterSymbol = toAsterSymbol(symbol);
     const response = await this.publicGet<AsterPremiumIndex>(
       `/fapi/v1/premiumIndex?symbol=${asterSymbol}`,
@@ -395,7 +395,7 @@ export class AsterAdapter extends BaseAdapter {
       .map((b) => this.normalizer.normalizeBalance(b));
   }
 
-  async setLeverage(symbol: string, leverage: number): Promise<void> {
+  async _setLeverage(symbol: string, leverage: number): Promise<void> {
     const asterSymbol = toAsterSymbol(symbol);
     await this.signedRequest<{
       leverage: number;

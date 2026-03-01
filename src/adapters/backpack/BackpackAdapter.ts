@@ -26,11 +26,7 @@ import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { BACKPACK_API_URLS, BACKPACK_RATE_LIMITS, BACKPACK_ENDPOINT_WEIGHTS } from './constants.js';
 import { BackpackNormalizer } from './BackpackNormalizer.js';
 import { BackpackAuth } from './BackpackAuth.js';
-import {
-  toBackpackOrderType,
-  toBackpackOrderSide,
-  toBackpackTimeInForce,
-} from './utils.js';
+import { toBackpackOrderType, toBackpackOrderSide, toBackpackTimeInForce } from './utils.js';
 import { mapBackpackError, extractBackpackError } from './error-codes.js';
 import type { BackpackConfig } from './types.js';
 
@@ -167,7 +163,7 @@ export class BackpackAdapter extends BaseAdapter {
   /**
    * Fetch ticker for a symbol
    */
-  async fetchTicker(symbol: string): Promise<Ticker> {
+  async _fetchTicker(symbol: string): Promise<Ticker> {
     const market = this.normalizer.toBackpackSymbol(symbol);
     const response = await this.makeRequest('GET', `/ticker?symbol=${market}`, 'fetchTicker');
 
@@ -177,7 +173,7 @@ export class BackpackAdapter extends BaseAdapter {
   /**
    * Fetch order book for a symbol
    */
-  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
+  async _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     const market = this.normalizer.toBackpackSymbol(symbol);
 
     const queryParts = [`symbol=${market}`];
@@ -197,7 +193,7 @@ export class BackpackAdapter extends BaseAdapter {
   /**
    * Fetch recent trades for a symbol
    */
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+  async _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
     const market = this.normalizer.toBackpackSymbol(symbol);
     const limit = params?.limit ?? 100;
 
@@ -219,7 +215,7 @@ export class BackpackAdapter extends BaseAdapter {
    * Fetch current funding rate
    * Returns the most recent funding rate from history
    */
-  async fetchFundingRate(symbol: string): Promise<FundingRate> {
+  async _fetchFundingRate(symbol: string): Promise<FundingRate> {
     const market = this.normalizer.toBackpackSymbol(symbol);
     const response = await this.makeRequest(
       'GET',
@@ -412,7 +408,7 @@ export class BackpackAdapter extends BaseAdapter {
   /**
    * Set leverage for a symbol
    */
-  async setLeverage(symbol: string, leverage: number): Promise<void> {
+  async _setLeverage(symbol: string, leverage: number): Promise<void> {
     this.requireAuth();
     const market = this.normalizer.toBackpackSymbol(symbol);
 

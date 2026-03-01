@@ -271,8 +271,8 @@ export interface BackpackFundingRate {
 export const BackpackFundingRateSchema = z
   .object({
     symbol: z.string(),
-    fundingRate: z.string(),
-    intervalEndTimestamp: z.string(),
+    fundingRate: z.string().default('0'),
+    intervalEndTimestamp: z.string().optional().default(new Date().toISOString()),
   })
   .passthrough();
 

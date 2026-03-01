@@ -7,7 +7,7 @@
  * @see https://docs.edgex.exchange/api/errors
  */
 import { includesValue } from '../../utils/type-guards.js';
-import { PerpDEXError, InvalidOrderError, InsufficientMarginError, OrderNotFoundError, InvalidSignatureError, RateLimitError, ExchangeUnavailableError, } from '../../types/errors.js';
+import { PerpDEXError, InvalidOrderError, InsufficientMarginError, OrderNotFoundError, PositionNotFoundError, InvalidSignatureError, RateLimitError, ExchangeUnavailableError, } from '../../types/errors.js';
 /**
  * EdgeX Client Error Codes
  */
@@ -16,6 +16,7 @@ export const EDGEX_CLIENT_ERRORS = {
     INVALID_ORDER: 'INVALID_ORDER',
     INSUFFICIENT_MARGIN: 'INSUFFICIENT_MARGIN',
     ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
+    POSITION_NOT_FOUND: 'POSITION_NOT_FOUND',
     INVALID_PARAMS: 'INVALID_PARAMS',
     UNAUTHORIZED: 'UNAUTHORIZED',
 };
@@ -46,6 +47,8 @@ export function mapEdgeXError(errorCode, message, originalError) {
             return new InvalidOrderError(message, errorCode, 'edgex', originalError);
         case EDGEX_CLIENT_ERRORS.ORDER_NOT_FOUND:
             return new OrderNotFoundError(message, errorCode, 'edgex', originalError);
+        case EDGEX_CLIENT_ERRORS.POSITION_NOT_FOUND:
+            return new PositionNotFoundError(message, errorCode, 'edgex', originalError);
         case EDGEX_RATE_LIMIT_ERROR:
             return new RateLimitError(message, errorCode, 'edgex', undefined, originalError);
         default:
@@ -72,6 +75,9 @@ export function mapError(error) {
     }
     else if (messageLower.includes('margin') || messageLower.includes('insufficient')) {
         errorCode = EDGEX_CLIENT_ERRORS.INSUFFICIENT_MARGIN;
+    }
+    else if (messageLower.includes('position') && messageLower.includes('not found')) {
+        errorCode = EDGEX_CLIENT_ERRORS.POSITION_NOT_FOUND;
     }
     else if (messageLower.includes('not found')) {
         errorCode = EDGEX_CLIENT_ERRORS.ORDER_NOT_FOUND;

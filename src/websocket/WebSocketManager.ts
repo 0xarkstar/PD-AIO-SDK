@@ -5,7 +5,7 @@
  * with bounded queue and backpressure support
  */
 
-import { EventEmitter } from 'eventemitter3';
+import { EventEmitter } from 'events';
 import { WebSocketDisconnectedError } from '../types/errors.js';
 import type { Subscription, WebSocketConfig, WebSocketMessage } from './types.js';
 import { WebSocketClient } from './WebSocketClient.js';
@@ -13,16 +13,16 @@ import { WebSocketClient } from './WebSocketClient.js';
 /** Maximum queue size for message backpressure */
 const MAX_QUEUE_SIZE = 1000;
 
-interface ManagerEvents {
-  message: (channel: string, data: unknown) => void;
-  error: (error: Error) => void;
-  subscribed: (subscription: Subscription) => void;
-  unsubscribed: (subscriptionId: string) => void;
-  reconnected: () => void;
-  queueOverflow: (channel: string, droppedCount: number) => void;
-}
-
-export class WebSocketManager extends EventEmitter<ManagerEvents> {
+/**
+ * WebSocketManager Events:
+ * - 'message': (channel: string, data: unknown) => void
+ * - 'error': (error: Error) => void
+ * - 'subscribed': (subscription: Subscription) => void
+ * - 'unsubscribed': (subscriptionId: string) => void
+ * - 'reconnected': () => void
+ * - 'queueOverflow': (channel: string, droppedCount: number) => void
+ */
+export class WebSocketManager extends EventEmitter {
   private client: WebSocketClient | null = null;
   private subscriptions = new Map<string, Subscription>();
   private messageQueue: Array<{ channel: string; data: unknown }> = [];
@@ -31,6 +31,8 @@ export class WebSocketManager extends EventEmitter<ManagerEvents> {
 
   constructor(private readonly config: WebSocketConfig) {
     super();
+    // Increase max listeners to prevent warnings with many subscriptions
+    this.setMaxListeners(100);
   }
 
   /**

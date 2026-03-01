@@ -8,6 +8,14 @@
  * Variational is an RFQ (Request For Quote) based perpetual DEX on Arbitrum.
  * This adapter supports public market data, trading, and account operations.
  *
+ * ### Authentication
+ * Uses HMAC-SHA256 signature authentication with these headers:
+ * - `X-API-Key`: Your API key
+ * - `X-Timestamp`: Unix timestamp in milliseconds
+ * - `X-Signature`: HMAC-SHA256(secret, timestamp + method + path + body)
+ *
+ * Note: API key generation is currently limited. Contact hello@variational.io for access.
+ *
  * ### Currently Implemented
  *
  * **Public API:**
@@ -284,7 +292,7 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTicker(symbol: string): Promise<Ticker> {
+  async _fetchTicker(symbol: string): Promise<Ticker> {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
 
     if (!symbol) {
@@ -313,7 +321,7 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
+  async _fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
 
     if (!symbol) {
@@ -343,12 +351,12 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
+  async _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.TRADES);
     throw new PerpDEXError('fetchTrades not implemented', 'NOT_IMPLEMENTED', this.id);
   }
 
-  async fetchFundingRate(symbol: string): Promise<FundingRate> {
+  async _fetchFundingRate(symbol: string): Promise<FundingRate> {
     await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
 
     if (!symbol) {
@@ -501,7 +509,7 @@ export class VariationalAdapter extends BaseAdapter {
     }
   }
 
-  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
+  async _setLeverage(_symbol: string, _leverage: number): Promise<void> {
     throw new PerpDEXError('setLeverage not supported', 'NOT_SUPPORTED', this.id);
   }
 

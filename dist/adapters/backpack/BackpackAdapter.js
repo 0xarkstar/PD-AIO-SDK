@@ -10,7 +10,7 @@ import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { BACKPACK_API_URLS, BACKPACK_RATE_LIMITS, BACKPACK_ENDPOINT_WEIGHTS } from './constants.js';
 import { BackpackNormalizer } from './BackpackNormalizer.js';
 import { BackpackAuth } from './BackpackAuth.js';
-import { toBackpackOrderType, toBackpackOrderSide, toBackpackTimeInForce, } from './utils.js';
+import { toBackpackOrderType, toBackpackOrderSide, toBackpackTimeInForce } from './utils.js';
 import { mapBackpackError, extractBackpackError } from './error-codes.js';
 /**
  * Backpack adapter implementation
@@ -124,7 +124,7 @@ export class BackpackAdapter extends BaseAdapter {
     /**
      * Fetch ticker for a symbol
      */
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         const market = this.normalizer.toBackpackSymbol(symbol);
         const response = await this.makeRequest('GET', `/ticker?symbol=${market}`, 'fetchTicker');
         return this.normalizer.normalizeTicker(response);
@@ -132,7 +132,7 @@ export class BackpackAdapter extends BaseAdapter {
     /**
      * Fetch order book for a symbol
      */
-    async fetchOrderBook(symbol, params) {
+    async _fetchOrderBook(symbol, params) {
         const market = this.normalizer.toBackpackSymbol(symbol);
         const queryParts = [`symbol=${market}`];
         if (params?.limit) {
@@ -144,7 +144,7 @@ export class BackpackAdapter extends BaseAdapter {
     /**
      * Fetch recent trades for a symbol
      */
-    async fetchTrades(symbol, params) {
+    async _fetchTrades(symbol, params) {
         const market = this.normalizer.toBackpackSymbol(symbol);
         const limit = params?.limit ?? 100;
         const response = await this.makeRequest('GET', `/trades?symbol=${market}&limit=${limit}`, 'fetchTrades');
@@ -158,7 +158,7 @@ export class BackpackAdapter extends BaseAdapter {
      * Fetch current funding rate
      * Returns the most recent funding rate from history
      */
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         const market = this.normalizer.toBackpackSymbol(symbol);
         const response = await this.makeRequest('GET', `/fundingRates?symbol=${market}`, 'fetchFundingRate');
         // Backpack returns an array of funding rates, get the most recent one
@@ -299,7 +299,7 @@ export class BackpackAdapter extends BaseAdapter {
     /**
      * Set leverage for a symbol
      */
-    async setLeverage(symbol, leverage) {
+    async _setLeverage(symbol, leverage) {
         this.requireAuth();
         const market = this.normalizer.toBackpackSymbol(symbol);
         await this.makeRequest('POST', '/account/leverage', 'setLeverage', {

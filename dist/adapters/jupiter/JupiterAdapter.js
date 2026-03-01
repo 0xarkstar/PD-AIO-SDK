@@ -194,7 +194,7 @@ export class JupiterAdapter extends BaseAdapter {
             throw mapJupiterError(error);
         }
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
@@ -213,7 +213,7 @@ export class JupiterAdapter extends BaseAdapter {
             throw mapJupiterError(error);
         }
     }
-    async fetchOrderBook(symbol, _params) {
+    async _fetchOrderBook(symbol, _params) {
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
@@ -235,10 +235,10 @@ export class JupiterAdapter extends BaseAdapter {
             throw mapJupiterError(error);
         }
     }
-    async fetchTrades(_symbol, _params) {
+    async _fetchTrades(_symbol, _params) {
         throw new NotSupportedError('fetchTrades is not supported. Jupiter Perps trades are on-chain only.', 'NOT_SUPPORTED', 'jupiter');
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
@@ -570,7 +570,7 @@ export class JupiterAdapter extends BaseAdapter {
         this.warn('Trade history requires indexing on-chain transactions');
         return [];
     }
-    async setLeverage(_symbol, _leverage) {
+    async _setLeverage(_symbol, _leverage) {
         throw new Error('Jupiter leverage is set per-trade, not globally');
     }
     // ==========================================================================

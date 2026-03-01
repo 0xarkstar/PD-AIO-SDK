@@ -9,7 +9,7 @@
 export declare class PerpDEXError extends Error {
     readonly code: string;
     readonly exchange: string;
-    readonly originalError?: unknown;
+    private readonly originalError?;
     /** Correlation ID for request tracing */
     correlationId?: string;
     constructor(message: string, code: string, exchange: string, originalError?: unknown);
@@ -17,6 +17,20 @@ export declare class PerpDEXError extends Error {
      * Set correlation ID for this error
      */
     withCorrelationId(correlationId: string): this;
+    /**
+     * Get sanitized version of original error (safe for logging/serialization)
+     * Redacts sensitive data like API keys, tokens, and hex strings
+     */
+    getOriginalErrorSafe(): {
+        name?: string;
+        message?: string;
+        code?: string;
+    } | undefined;
+    /**
+     * Redact sensitive information from strings
+     * Removes API keys, tokens, private keys, and other credentials
+     */
+    private static redactSensitive;
     toJSON(): Record<string, unknown>;
 }
 /**

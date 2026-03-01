@@ -2,7 +2,7 @@
  * Structured Logging Unit Tests
  */
 
-import { Logger, LogLevel, createChildLogger, formatLogEntry, type LogEntry } from '../../src/core/logger.js';
+import { Logger, LogLevel, createChildLogger, formatLogEntry, redactSensitivePatterns, type LogEntry } from '../../src/core/logger.js';
 
 describe('Logger', () => {
   describe('Basic logging', () => {
@@ -345,6 +345,80 @@ describe('Logger', () => {
 
       expect(logs[0].meta?.error).toBeDefined();
       expect((logs[0].meta?.error as any).message).toBe('Test');
+    });
+
+    test('redacts sensitive patterns in error messages', () => {
+      const logs: LogEntry[] = [];
+      const logger = new Logger('Test', {
+        output: (entry) => logs.push(entry),
+      });
+
+      const error = new Error('API failed with apiKey=sk-1234567890abcdef1234567890');
+      logger.error('Error occurred', error);
+
+      const errorObj = (logs[0].meta?.error as any);
+      expect(errorObj.message).toContain('[REDACTED]');
+      expect(errorObj.message).not.toContain('sk-1234567890abcdef1234567890');
+    });
+
+    test('redacts sensitive patterns in error stack traces', () => {
+      const logs: LogEntry[] = [];
+      const logger = new Logger('Test', {
+        output: (entry) => logs.push(entry),
+      });
+
+      const error = new Error('Test error');
+      error.stack = 'Error: Test error\n  at authenticate (secret=my-secret-key)\n  at main.js:10:5';
+      logger.error('Error occurred', error);
+
+      const errorObj = (logs[0].meta?.error as any);
+      expect(errorObj.stack).toContain('[REDACTED]');
+      expect(errorObj.stack).not.toContain('my-secret-key');
+    });
+  });
+
+  describe('Sensitive pattern redaction', () => {
+    test('redacts key=value patterns', () => {
+      const input = 'API call failed: apiKey=abcdef123456';
+      const output = redactSensitivePatterns(input);
+      expect(output).toBe('API call failed: apiKey=[REDACTED]');
+    });
+
+    test('redacts key:value patterns', () => {
+      const input = 'Config: token: secret-token-value';
+      const output = redactSensitivePatterns(input);
+      expect(output).toContain('token:[REDACTED]');
+    });
+
+    test('redacts API key patterns (sk-, pk-)', () => {
+      const input = 'Using key sk-1234567890abcdef1234567890';
+      const output = redactSensitivePatterns(input);
+      expect(output).toBe('Using key [REDACTED_KEY]');
+    });
+
+    test('redacts hex patterns (40+ chars)', () => {
+      const input = 'Hash: abcdef1234567890abcdef1234567890abcdef1234567890';
+      const output = redactSensitivePatterns(input);
+      expect(output).toContain('[REDACTED_HEX]');
+    });
+
+    test('redacts Bearer tokens', () => {
+      const input = 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+      const output = redactSensitivePatterns(input);
+      expect(output).toBe('Authorization: Bearer [REDACTED]');
+    });
+
+    test('handles multiple sensitive patterns in one string', () => {
+      const input = 'apiKey=sk-abc123 password:secret123 Bearer token123';
+      const output = redactSensitivePatterns(input);
+      expect(output).not.toContain('secret123');
+      expect(output).toContain('[REDACTED]');
+    });
+
+    test('preserves non-sensitive content', () => {
+      const input = 'Normal message without secrets';
+      const output = redactSensitivePatterns(input);
+      expect(output).toBe(input);
     });
   });
 

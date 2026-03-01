@@ -85,10 +85,15 @@ export declare class DriftAdapter extends BaseAdapter {
     protected symbolToExchange(symbol: string): string;
     protected symbolFromExchange(exchangeSymbol: string): string;
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
-    fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    /**
+     * Discover active markets dynamically by probing DLOB API
+     * Probes market indices 0-50 and builds Market objects from responses
+     */
+    private discoverMarketsFromDlob;
+    _fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
+    _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(symbol: string, _since?: number, limit?: number): Promise<FundingRate[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
@@ -98,7 +103,7 @@ export declare class DriftAdapter extends BaseAdapter {
     cancelAllOrders(symbol?: string): Promise<Order[]>;
     fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
     fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
-    setLeverage(_symbol: string, _leverage: number): Promise<void>;
+    _setLeverage(_symbol: string, _leverage: number): Promise<void>;
     protected performApiHealthCheck(): Promise<void>;
     /**
      * Filter markets by params

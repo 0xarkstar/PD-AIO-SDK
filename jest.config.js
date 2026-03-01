@@ -36,14 +36,14 @@ export default {
   ],
   coverageThreshold: {
     // ==========================================================================
-    // Global Thresholds — Cycle 8: 81.31% stmts, 74.56% branch, 86.51% funcs
-    // Roadmap: 51% → 65% → 72% → 78% → 81%
+    // Global Thresholds — C25: 85.87% stmts, 74.93% branch, 89.17% funcs
+    // Roadmap: 51% → 65% → 72% → 78% → 81% → 86%
     // ==========================================================================
     global: {
       branches: 72,
-      functions: 84,
-      lines: 79,
-      statements: 79
+      functions: 87,
+      lines: 81,
+      statements: 81
     },
 
     // ==========================================================================
@@ -109,20 +109,20 @@ export default {
       statements: 60
     },
 
-    // drift: DriftAdapter.ts at 11% stmts, 15% branch, 22% funcs
+    // drift: DriftAdapter.ts at 82.55% stmts, 68.22% branch, 76.31% funcs, 81.78% lines
     './src/adapters/drift/**/*.ts': {
-      branches: 13,
-      functions: 20,
-      lines: 10,
-      statements: 10
+      branches: 63,
+      functions: 71,
+      lines: 77,
+      statements: 77
     },
 
-    // gmx: GmxAdapter.ts at 33% stmts, 25% branch, 81% funcs
+    // gmx: GmxAdapter.ts at 83.59% stmts, 67.21% branch, 100% funcs, 83.48% lines
     './src/adapters/gmx/**/*.ts': {
-      branches: 23,
+      branches: 62,
       functions: 80,
-      lines: 30,
-      statements: 30
+      lines: 78,
+      statements: 78
     },
 
     // jupiter: solana.ts weakest (46% stmts, 37% branch, 77% funcs)
@@ -133,15 +133,15 @@ export default {
       statements: 45
     },
 
-    // extended: types.ts at 0% stmts, WebSocketWrapper at 50%
+    // extended: ExtendedWebSocketWrapper.ts at 50.42% stmts, 40.69% branch, 56.09% funcs, 51.08% lines
     './src/adapters/extended/**/*.ts': {
-      branches: 0,
-      functions: 0,
-      lines: 0,
-      statements: 0
+      branches: 35,
+      functions: 51,
+      lines: 46,
+      statements: 45
     },
 
-    // lighter/signer: LighterWasmSigner.ts weakest (40% stmts, 22% branch, 22% funcs)
+    // lighter/signer: LighterWasmSigner.ts at 40% stmts, 22.44% branch, 22.22% funcs, 39.06% lines
     './src/adapters/lighter/signer/**/*.ts': {
       branches: 20,
       functions: 20,

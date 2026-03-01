@@ -642,5 +642,4 @@ export abstract class BaseAdapterCore {
 
   protected abstract symbolToExchange(symbol: string): string;
   protected abstract symbolFromExchange(exchangeSymbol: string): string;
-
 }

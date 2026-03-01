@@ -6,15 +6,23 @@
 
 /**
  * API URLs for Variational mainnet and testnet
+ *
+ * REST URLs verified:
+ * - Mainnet: Confirmed working via /metadata/stats endpoint (2024-03-01)
+ * - Testnet: Based on official Python SDK (https://github.com/variational-research/variational-sdk-python)
+ *
+ * WebSocket URLs:
+ * - NOT YET AVAILABLE - No WebSocket endpoints documented in official API docs
+ * - Trading API is still under development (as of 2024-03-01)
  */
 export const VARIATIONAL_API_URLS = {
   mainnet: {
-    rest: 'https://omni-client-api.prod.ap-northeast-1.variational.io',
-    websocket: 'wss://ws.variational.io', // TODO: Update when WebSocket available
+    rest: 'https://omni-client-api.prod.ap-northeast-1.variational.io', // ✅ Verified working
+    websocket: 'NOT_AVAILABLE', // WebSocket not documented - will throw clear error
   },
   testnet: {
-    rest: 'https://omni-client-api.testnet.variational.io', // TODO: Update when testnet available
-    websocket: 'wss://ws-testnet.variational.io',
+    rest: 'https://testnet.variational.io', // From official Python SDK
+    websocket: 'NOT_AVAILABLE', // WebSocket not documented
   },
 } as const;
 

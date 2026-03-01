@@ -118,10 +118,10 @@ export declare class NadoAdapter extends BaseAdapter {
      * Uses the /query?type=symbols endpoint which returns market metadata
      */
     protected fetchMarketsFromAPI(_params?: MarketParams): Promise<Market[]>;
-    fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    _fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
+    _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     createOrder(request: OrderRequest): Promise<Order>;
     cancelOrder(orderId: string, _symbol?: string): Promise<Order>;
     cancelAllOrders(symbol?: string): Promise<Order[]>;
@@ -174,6 +174,6 @@ export declare class NadoAdapter extends BaseAdapter {
     fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
     fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
-    setLeverage(_symbol: string, _leverage: number): Promise<void>;
+    _setLeverage(_symbol: string, _leverage: number): Promise<void>;
 }
 //# sourceMappingURL=NadoAdapter.d.ts.map

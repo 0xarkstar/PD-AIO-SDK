@@ -32,9 +32,9 @@ export declare class HyperliquidAdapter extends BaseAdapter {
     initialize(): Promise<void>;
     disconnect(): Promise<void>;
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
-    fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
+    _fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
+    _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
     /**
      * Fetch OHLCV (candlestick) data
      *
@@ -44,7 +44,7 @@ export declare class HyperliquidAdapter extends BaseAdapter {
      * @returns Array of OHLCV tuples [timestamp, open, high, low, close, volume]
      */
     fetchOHLCV(symbol: string, timeframe?: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]>;
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
     createOrder(request: OrderRequest): Promise<Order>;
     cancelOrder(orderId: string, symbol?: string): Promise<Order>;
@@ -53,7 +53,7 @@ export declare class HyperliquidAdapter extends BaseAdapter {
     fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
-    setLeverage(symbol: string, leverage: number): Promise<void>;
+    _setLeverage(symbol: string, leverage: number): Promise<void>;
     /** Ensure authenticated and return auth instance */
     private ensureAuth;
     /** Make authenticated info request */

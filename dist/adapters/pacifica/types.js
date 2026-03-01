@@ -5,7 +5,8 @@ import { z } from 'zod';
 // ============================================================================
 // Zod Schemas for Runtime Validation
 // ============================================================================
-export const PacificaMarketSchema = z.object({
+export const PacificaMarketSchema = z
+    .object({
     symbol: z.string(),
     base_currency: z.string(),
     quote_currency: z.string(),
@@ -17,8 +18,10 @@ export const PacificaMarketSchema = z.object({
     maker_fee: z.string(),
     taker_fee: z.string(),
     funding_interval: z.number(),
-}).passthrough();
-export const PacificaTickerSchema = z.object({
+})
+    .passthrough();
+export const PacificaTickerSchema = z
+    .object({
     symbol: z.string(),
     last_price: z.string(),
     mark_price: z.string(),
@@ -33,33 +36,43 @@ export const PacificaTickerSchema = z.object({
     funding_rate: z.string(),
     next_funding_time: z.number(),
     timestamp: z.number(),
-}).passthrough();
-export const PacificaOrderBookLevelSchema = z.object({
+})
+    .passthrough();
+export const PacificaOrderBookLevelSchema = z
+    .object({
     price: z.string(),
     size: z.string(),
-}).passthrough();
-export const PacificaOrderBookSchema = z.object({
+})
+    .passthrough();
+export const PacificaOrderBookSchema = z
+    .object({
     bids: z.array(PacificaOrderBookLevelSchema),
     asks: z.array(PacificaOrderBookLevelSchema),
     timestamp: z.number(),
     sequence: z.number(),
-}).passthrough();
-export const PacificaTradeResponseSchema = z.object({
+})
+    .passthrough();
+export const PacificaTradeResponseSchema = z
+    .object({
     id: z.string(),
     symbol: z.string(),
     price: z.union([z.string(), z.number()]),
     size: z.union([z.string(), z.number()]),
     side: z.string(),
     timestamp: z.number(),
-}).passthrough();
-export const PacificaFundingHistorySchema = z.object({
+})
+    .passthrough();
+export const PacificaFundingHistorySchema = z
+    .object({
     symbol: z.string(),
     funding_rate: z.string(),
     mark_price: z.string(),
     index_price: z.string(),
     timestamp: z.number(),
-}).passthrough();
-export const PacificaOrderResponseSchema = z.object({
+})
+    .passthrough();
+export const PacificaOrderResponseSchema = z
+    .object({
     order_id: z.string(),
     client_order_id: z.string().optional(),
     symbol: z.string(),
@@ -74,8 +87,10 @@ export const PacificaOrderResponseSchema = z.object({
     post_only: z.boolean(),
     created_at: z.number(),
     updated_at: z.number(),
-}).passthrough();
-export const PacificaPositionSchema = z.object({
+})
+    .passthrough();
+export const PacificaPositionSchema = z
+    .object({
     symbol: z.string(),
     side: z.string(),
     size: z.union([z.string(), z.number()]),
@@ -89,12 +104,15 @@ export const PacificaPositionSchema = z.object({
     margin: z.union([z.string(), z.number()]),
     maintenance_margin: z.union([z.string(), z.number()]),
     timestamp: z.number(),
-}).passthrough();
-export const PacificaAccountInfoSchema = z.object({
+})
+    .passthrough();
+export const PacificaAccountInfoSchema = z
+    .object({
     total_equity: z.string(),
     available_balance: z.string(),
     used_margin: z.string(),
     unrealized_pnl: z.string(),
     currency: z.string(),
-}).passthrough();
+})
+    .passthrough();
 //# sourceMappingURL=types.js.map

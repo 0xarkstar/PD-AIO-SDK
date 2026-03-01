@@ -97,10 +97,10 @@ export declare class ExtendedAdapter extends BaseAdapter {
      */
     protected symbolFromExchange(exchangeSymbol: string): string;
     fetchMarkets(_params?: MarketParams): Promise<Market[]>;
-    fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    _fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
+    _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
     createOrder(request: OrderRequest): Promise<Order>;
     cancelOrder(orderId: string, _symbol?: string): Promise<Order>;
@@ -110,7 +110,7 @@ export declare class ExtendedAdapter extends BaseAdapter {
     editOrder(orderId: string, symbol: string, type: 'market' | 'limit', side: 'buy' | 'sell', amount?: number, price?: number): Promise<Order>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
-    setLeverage(symbol: string, leverage: number): Promise<void>;
+    _setLeverage(symbol: string, leverage: number): Promise<void>;
     setMarginMode(symbol: string, marginMode: 'cross' | 'isolated'): Promise<void>;
     fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
     fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;

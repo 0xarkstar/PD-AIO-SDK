@@ -141,7 +141,7 @@ export class ParadexAdapter extends BaseAdapter {
      *
      * Uses /markets/summary endpoint which is publicly accessible (no JWT required)
      */
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         await this.rateLimiter.acquire('fetchTicker');
         try {
             const market = this.normalizer.symbolFromCCXT(symbol);
@@ -173,7 +173,7 @@ export class ParadexAdapter extends BaseAdapter {
     /**
      * Fetch order book for a symbol
      */
-    async fetchOrderBook(symbol, params) {
+    async _fetchOrderBook(symbol, params) {
         await this.rateLimiter.acquire('fetchOrderBook');
         try {
             const market = this.normalizer.symbolFromCCXT(symbol);
@@ -191,7 +191,7 @@ export class ParadexAdapter extends BaseAdapter {
      *
      * Uses /trades?market=X query param format (publicly accessible, no JWT)
      */
-    async fetchTrades(symbol, params) {
+    async _fetchTrades(symbol, params) {
         await this.rateLimiter.acquire('fetchTrades');
         try {
             const market = this.normalizer.symbolFromCCXT(symbol);
@@ -212,7 +212,7 @@ export class ParadexAdapter extends BaseAdapter {
      *
      * Uses /funding/data?market=X endpoint (publicly accessible, no JWT)
      */
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire('fetchFundingRate');
         try {
             const market = this.normalizer.symbolFromCCXT(symbol);
@@ -226,8 +226,10 @@ export class ParadexAdapter extends BaseAdapter {
             const fundingRate = {
                 market,
                 rate: fundingData.funding_rate || '0',
-                mark_price: fundingData.funding_premium || '0',
-                index_price: '0',
+                // funding_premium is NOT mark_price - it's a small decimal component of funding
+                // Use mark_price field if present, otherwise default to '0'
+                mark_price: fundingData.mark_price || '0',
+                index_price: fundingData.index_price || '0',
                 timestamp: fundingData.created_at || Date.now(),
                 next_funding_time: 0,
             };
@@ -263,8 +265,10 @@ export class ParadexAdapter extends BaseAdapter {
                 const fundingRate = {
                     market,
                     rate: item.funding_rate || '0',
-                    mark_price: item.funding_premium || '0',
-                    index_price: '0',
+                    // funding_premium is NOT mark_price - it's a small decimal component of funding
+                    // Use mark_price field if present, otherwise default to '0'
+                    mark_price: item.mark_price || '0',
+                    index_price: item.index_price || '0',
                     timestamp: item.created_at || 0,
                     next_funding_time: 0,
                 };
@@ -417,7 +421,7 @@ export class ParadexAdapter extends BaseAdapter {
     /**
      * Set leverage for a symbol
      */
-    async setLeverage(symbol, leverage) {
+    async _setLeverage(symbol, leverage) {
         this.requireAuth();
         await this.rateLimiter.acquire('setLeverage');
         try {

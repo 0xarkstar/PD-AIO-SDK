@@ -202,7 +202,12 @@ export class DriftAdapter extends BaseAdapter {
             return this.filterMarkets(cached, params);
         }
         try {
-            // Build markets from constants (actual on-chain data requires SDK)
+            // Try to fetch markets dynamically from DLOB API by probing market indices
+            const discoveredMarkets = await this.discoverMarketsFromDlob();
+            if (discoveredMarkets.length > 0) {
+                return this.filterMarkets(discoveredMarkets, params);
+            }
+            // Fallback to hardcoded constants if API discovery fails
             const markets = Object.entries(DRIFT_PERP_MARKETS).map(([key, config]) => ({
                 id: key,
                 symbol: config.symbol,
@@ -234,7 +239,83 @@ export class DriftAdapter extends BaseAdapter {
             throw mapDriftError(error);
         }
     }
-    async fetchTicker(symbol) {
+    /**
+     * Discover active markets dynamically by probing DLOB API
+     * Probes market indices 0-50 and builds Market objects from responses
+     */
+    async discoverMarketsFromDlob() {
+        const markets = [];
+        const maxMarketIndex = 50; // Probe up to index 50
+        const concurrentRequests = 10; // Limit concurrent requests
+        try {
+            // Probe market indices in batches to avoid overwhelming the API
+            for (let i = 0; i < maxMarketIndex; i += concurrentRequests) {
+                const batch = Array.from({ length: Math.min(concurrentRequests, maxMarketIndex - i) }, (_, idx) => i + idx);
+                const results = await Promise.allSettled(batch.map(async (marketIndex) => {
+                    try {
+                        const url = buildOrderbookUrl(this.dlobBaseUrl, marketIndex, 'perp', 1);
+                        const response = await this.request('GET', url);
+                        if (!response || !response.marketName) {
+                            return null;
+                        }
+                        // Extract market name (e.g., "SOL-PERP")
+                        const marketKey = response.marketName;
+                        const baseAsset = marketKey.replace('-PERP', '');
+                        const unifiedSymbol = driftToUnified(marketKey);
+                        // Get hardcoded config if available, otherwise derive from market name
+                        const hardcodedConfig = DRIFT_PERP_MARKETS[marketKey];
+                        const market = {
+                            id: marketKey,
+                            symbol: unifiedSymbol,
+                            base: baseAsset,
+                            quote: 'USD',
+                            settle: 'USD',
+                            active: true,
+                            minAmount: hardcodedConfig?.minOrderSize || 0.001,
+                            maxAmount: 1000000,
+                            pricePrecision: hardcodedConfig
+                                ? Math.max(0, -Math.floor(Math.log10(hardcodedConfig.tickSize)))
+                                : 4,
+                            amountPrecision: hardcodedConfig
+                                ? Math.max(0, -Math.floor(Math.log10(hardcodedConfig.stepSize)))
+                                : 3,
+                            priceTickSize: hardcodedConfig?.tickSize || 0.01,
+                            amountStepSize: hardcodedConfig?.stepSize || 0.001,
+                            makerFee: -0.0002,
+                            takerFee: 0.001,
+                            maxLeverage: hardcodedConfig?.maxLeverage || 10,
+                            fundingIntervalHours: 1,
+                            contractSize: 1,
+                            info: {
+                                marketIndex,
+                                contractTier: hardcodedConfig?.contractTier || 'B',
+                                initialMarginRatio: hardcodedConfig?.initialMarginRatio || 0.1,
+                                maintenanceMarginRatio: hardcodedConfig?.maintenanceMarginRatio || 0.05,
+                            },
+                        };
+                        return market;
+                    }
+                    catch {
+                        // Market index doesn't exist or API error - skip silently
+                        return null;
+                    }
+                }));
+                // Collect successful results
+                for (const result of results) {
+                    if (result.status === 'fulfilled' && result.value) {
+                        markets.push(result.value);
+                    }
+                }
+            }
+            return markets;
+        }
+        catch (error) {
+            // If discovery fails completely, return empty array to trigger fallback
+            this.debug('Market discovery failed, falling back to constants', { error });
+            return [];
+        }
+    }
+    async _fetchTicker(symbol) {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(driftSymbol)) {
@@ -278,7 +359,7 @@ export class DriftAdapter extends BaseAdapter {
             throw mapDriftError(error);
         }
     }
-    async fetchOrderBook(symbol, params) {
+    async _fetchOrderBook(symbol, params) {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(driftSymbol)) {
@@ -294,13 +375,13 @@ export class DriftAdapter extends BaseAdapter {
             throw mapDriftError(error);
         }
     }
-    async fetchTrades(_symbol, _params) {
+    async _fetchTrades(_symbol, _params) {
         // The DLOB /trades endpoint has been removed from the Drift API.
         // Trade data requires on-chain transaction indexing or historical S3 data.
         throw new Error('fetchTrades is not available via the Drift REST API. ' +
             'Trade data requires on-chain indexing or the historical data archive.');
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(driftSymbol)) {
@@ -597,7 +678,7 @@ export class DriftAdapter extends BaseAdapter {
         this.warn('Trade history requires indexing on-chain transactions');
         return [];
     }
-    async setLeverage(_symbol, _leverage) {
+    async _setLeverage(_symbol, _leverage) {
         throw new Error('Drift uses cross-margin. Leverage is determined by position size relative to collateral.');
     }
     // ==========================================================================

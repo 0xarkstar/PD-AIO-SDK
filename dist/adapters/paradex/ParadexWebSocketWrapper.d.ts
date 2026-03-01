@@ -56,6 +56,7 @@ export declare class ParadexWebSocketWrapper {
     private reconnectAttempts;
     private subscriptionId;
     private readonly subscriptions;
+    private readonly subscriptionParams;
     private readonly messageQueue;
     /**
      * Push to queue with bounded size (backpressure)

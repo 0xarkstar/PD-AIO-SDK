@@ -121,7 +121,7 @@ export class OstiumAdapter extends BaseAdapter {
     return OSTIUM_PAIRS.map((pair) => this.normalizer.normalizeMarket(pair));
   }
 
-  async fetchTicker(symbol: string): Promise<Ticker> {
+  async _fetchTicker(symbol: string): Promise<Ticker> {
     const pairIndex = toOstiumPairIndex(symbol);
     const pair = OSTIUM_PAIRS.find((p) => p.pairIndex === pairIndex);
 
@@ -139,7 +139,7 @@ export class OstiumAdapter extends BaseAdapter {
     return this.normalizer.normalizeTicker(response, pair);
   }
 
-  async fetchOrderBook(_symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
+  async _fetchOrderBook(_symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
     throw new NotSupportedError(
       'Ostium does not have an order book (on-chain DEX)',
       'NOT_SUPPORTED',
@@ -147,7 +147,7 @@ export class OstiumAdapter extends BaseAdapter {
     );
   }
 
-  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
+  async _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
     // The Graph hosted service subgraph has been removed.
     // Trades require an alternative data source (e.g., Graph Studio with API key).
     throw new NotSupportedError(
@@ -157,7 +157,7 @@ export class OstiumAdapter extends BaseAdapter {
     );
   }
 
-  async fetchFundingRate(_symbol: string): Promise<FundingRate> {
+  async _fetchFundingRate(_symbol: string): Promise<FundingRate> {
     throw new NotSupportedError(
       'Ostium uses rollover fees, not funding rates',
       'NOT_SUPPORTED',
@@ -285,7 +285,7 @@ export class OstiumAdapter extends BaseAdapter {
     }
   }
 
-  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
+  async _setLeverage(_symbol: string, _leverage: number): Promise<void> {
     throw new NotSupportedError(
       'Ostium sets leverage per-trade, not per-symbol',
       'NOT_SUPPORTED',

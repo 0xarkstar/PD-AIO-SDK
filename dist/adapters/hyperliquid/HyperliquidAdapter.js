@@ -147,7 +147,7 @@ export class HyperliquidAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         await this.rateLimiter.acquire('fetchTicker');
         try {
             const allMids = await this.request('POST', `${this.apiUrl}/info`, {
@@ -164,7 +164,7 @@ export class HyperliquidAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchOrderBook(symbol, _params) {
+    async _fetchOrderBook(symbol, _params) {
         await this.rateLimiter.acquire('fetchOrderBook');
         try {
             const exchangeSymbol = this.symbolToExchange(symbol);
@@ -178,7 +178,7 @@ export class HyperliquidAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchTrades(_symbol, _params) {
+    async _fetchTrades(_symbol, _params) {
         throw new NotSupportedError('fetchTrades is not supported via REST API. Use watchTrades (WebSocket) instead.', 'NOT_SUPPORTED', 'hyperliquid');
     }
     /**
@@ -204,7 +204,7 @@ export class HyperliquidAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire('fetchFundingRate');
         try {
             const exchangeSymbol = this.symbolToExchange(symbol);
@@ -434,7 +434,7 @@ export class HyperliquidAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async setLeverage(symbol, leverage) {
+    async _setLeverage(symbol, leverage) {
         this.ensureAuth();
         await this.rateLimiter.acquire('setLeverage', 5);
         // Hyperliquid leverage is managed per-position in cross-margin mode

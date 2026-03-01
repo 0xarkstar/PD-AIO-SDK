@@ -16,6 +16,11 @@ export declare class GmxNormalizer {
      */
     private extractBaseFromName;
     /**
+     * Derive market configuration from API data for markets not in hardcoded constants
+     * Uses available API fields to determine sensible defaults
+     */
+    private deriveMarketConfig;
+    /**
      * Normalize market info to unified Market
      */
     normalizeMarket(market: GmxMarketInfo, chain: 'arbitrum' | 'avalanche'): Market;

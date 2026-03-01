@@ -192,24 +192,6 @@ describe('DydxAuth', () => {
     });
   });
 
-  describe('getMnemonic', () => {
-    test('returns mnemonic when available', () => {
-      const auth = new DydxAuth({
-        mnemonic: testMnemonic,
-      });
-
-      expect(auth.getMnemonic()).toBe(testMnemonic);
-    });
-
-    test('returns undefined when using private key', () => {
-      const auth = new DydxAuth({
-        privateKey: '1'.repeat(64),
-      });
-
-      expect(auth.getMnemonic()).toBeUndefined();
-    });
-  });
-
   describe('hasMnemonic', () => {
     test('returns true when mnemonic is provided', () => {
       const auth = new DydxAuth({

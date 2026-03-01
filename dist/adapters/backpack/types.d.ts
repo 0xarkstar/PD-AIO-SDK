@@ -491,16 +491,16 @@ export interface BackpackFundingRate {
 }
 export declare const BackpackFundingRateSchema: z.ZodObject<{
     symbol: z.ZodString;
-    fundingRate: z.ZodString;
-    intervalEndTimestamp: z.ZodString;
+    fundingRate: z.ZodDefault<z.ZodString>;
+    intervalEndTimestamp: z.ZodDefault<z.ZodOptional<z.ZodString>>;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
     symbol: z.ZodString;
-    fundingRate: z.ZodString;
-    intervalEndTimestamp: z.ZodString;
+    fundingRate: z.ZodDefault<z.ZodString>;
+    intervalEndTimestamp: z.ZodDefault<z.ZodOptional<z.ZodString>>;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
     symbol: z.ZodString;
-    fundingRate: z.ZodString;
-    intervalEndTimestamp: z.ZodString;
+    fundingRate: z.ZodDefault<z.ZodString>;
+    intervalEndTimestamp: z.ZodDefault<z.ZodOptional<z.ZodString>>;
 }, z.ZodTypeAny, "passthrough">>;
 /**
  * Backpack order sign payload

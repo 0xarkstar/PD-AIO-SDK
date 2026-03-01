@@ -48,6 +48,12 @@ function createRequestContext(adapter, method, metadata) {
     metadata
   };
 }
+function redactSensitivePatterns(str) {
+  return str.replace(/\b(?:sk|pk)-[A-Za-z0-9_-]+/g, "[REDACTED_KEY]").replace(/\b[0-9a-fA-F]{40,}\b/g, "[REDACTED_HEX]").replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]").replace(/(?:key|secret|token|apikey|password|mnemonic)[\s]*[=:]\s*\S+/gi, (match) => {
+    const separator = match.includes("=") ? "=" : ":";
+    return match.split(separator)[0] + separator + "[REDACTED]";
+  });
+}
 function createChildLogger(parent, childContext) {
   const config = parent.getConfig();
   const fullContext = `${config.context}:${childContext}`;
@@ -221,8 +227,8 @@ var init_logger = __esm({
       serializeError(error) {
         return {
           name: error.name,
-          message: error.message,
-          stack: error.stack,
+          message: redactSensitivePatterns(error.message),
+          stack: error.stack ? redactSensitivePatterns(error.stack) : void 0,
           code: error.code
         };
       }
@@ -445,7 +451,7 @@ function isRateLimitError(error) {
 function isAuthError(error) {
   return error instanceof InvalidSignatureError || error instanceof ExpiredAuthError || error instanceof InsufficientPermissionsError;
 }
-var PerpDEXError, NotSupportedError, InsufficientMarginError, OrderNotFoundError, InvalidOrderError, PositionNotFoundError, NetworkError, RateLimitError, ExchangeUnavailableError, WebSocketDisconnectedError, InvalidSignatureError, ExpiredAuthError, InsufficientPermissionsError, InvalidSymbolError, InsufficientBalanceError, TransactionFailedError, SlippageExceededError, LiquidationError;
+var PerpDEXError, NotSupportedError, BadRequestError, InsufficientMarginError, OrderNotFoundError, InvalidOrderError, PositionNotFoundError, NetworkError, RateLimitError, ExchangeUnavailableError, WebSocketDisconnectedError, InvalidSignatureError, ExpiredAuthError, InsufficientPermissionsError, InvalidSymbolError, InsufficientBalanceError, TransactionFailedError, SlippageExceededError, LiquidationError;
 var init_errors = __esm({
   "src/types/errors.ts"() {
     "use strict";
@@ -467,14 +473,40 @@ var init_errors = __esm({
         this.correlationId = correlationId;
         return this;
       }
+      /**
+       * Get sanitized version of original error (safe for logging/serialization)
+       * Redacts sensitive data like API keys, tokens, and hex strings
+       */
+      getOriginalErrorSafe() {
+        if (!this.originalError) return void 0;
+        if (this.originalError instanceof Error) {
+          return {
+            name: this.originalError.name,
+            message: _PerpDEXError.redactSensitive(this.originalError.message),
+            code: this.originalError.code
+          };
+        }
+        const errorStr = typeof this.originalError === "string" ? this.originalError : JSON.stringify(this.originalError);
+        return { message: _PerpDEXError.redactSensitive(errorStr) };
+      }
+      /**
+       * Redact sensitive information from strings
+       * Removes API keys, tokens, private keys, and other credentials
+       */
+      static redactSensitive(str) {
+        return str.replace(/\b(?:sk|pk)-[A-Za-z0-9_-]+/g, "[REDACTED_KEY]").replace(/\b[0-9a-fA-F]{40,}\b/g, "[REDACTED_HEX]").replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]").replace(/(?:key|secret|token|apikey|password|mnemonic)[\s]*[=:]\s*\S+/gi, (match) => {
+          const parts = match.split(/[=:]/);
+          return `${parts[0]}${match.includes("=") ? "=" : ":"}[REDACTED]`;
+        });
+      }
       toJSON() {
         return {
           name: this.name,
-          message: this.message,
+          message: _PerpDEXError.redactSensitive(this.message),
           code: this.code,
           exchange: this.exchange,
           correlationId: this.correlationId,
-          originalError: this.originalError instanceof Error ? { name: this.originalError.name, message: this.originalError.message } : typeof this.originalError === "string" ? this.originalError : void 0
+          originalError: this.getOriginalErrorSafe()
         };
       }
     };
@@ -483,6 +515,13 @@ var init_errors = __esm({
         super(message, code, exchange, originalError);
         this.name = "NotSupportedError";
         Object.setPrototypeOf(this, _NotSupportedError.prototype);
+      }
+    };
+    BadRequestError = class _BadRequestError extends PerpDEXError {
+      constructor(message, code, exchange, originalError) {
+        super(message, code, exchange, originalError);
+        this.name = "BadRequestError";
+        Object.setPrototypeOf(this, _BadRequestError.prototype);
       }
     };
     InsufficientMarginError = class _InsufficientMarginError extends PerpDEXError {
@@ -637,11 +676,11 @@ var require_eventemitter3 = __commonJS({
       if (--emitter._eventsCount === 0) emitter._events = new Events();
       else delete emitter._events[evt];
     }
-    function EventEmitter2() {
+    function EventEmitter3() {
       this._events = new Events();
       this._eventsCount = 0;
     }
-    EventEmitter2.prototype.eventNames = function eventNames() {
+    EventEmitter3.prototype.eventNames = function eventNames() {
       var names = [], events, name;
       if (this._eventsCount === 0) return names;
       for (name in events = this._events) {
@@ -652,7 +691,7 @@ var require_eventemitter3 = __commonJS({
       }
       return names;
     };
-    EventEmitter2.prototype.listeners = function listeners(event) {
+    EventEmitter3.prototype.listeners = function listeners(event) {
       var evt = prefix ? prefix + event : event, handlers = this._events[evt];
       if (!handlers) return [];
       if (handlers.fn) return [handlers.fn];
@@ -661,13 +700,13 @@ var require_eventemitter3 = __commonJS({
       }
       return ee;
     };
-    EventEmitter2.prototype.listenerCount = function listenerCount(event) {
+    EventEmitter3.prototype.listenerCount = function listenerCount(event) {
       var evt = prefix ? prefix + event : event, listeners = this._events[evt];
       if (!listeners) return 0;
       if (listeners.fn) return 1;
       return listeners.length;
     };
-    EventEmitter2.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
+    EventEmitter3.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
       var evt = prefix ? prefix + event : event;
       if (!this._events[evt]) return false;
       var listeners = this._events[evt], len = arguments.length, args, i;
@@ -718,13 +757,13 @@ var require_eventemitter3 = __commonJS({
       }
       return true;
     };
-    EventEmitter2.prototype.on = function on(event, fn, context) {
+    EventEmitter3.prototype.on = function on(event, fn, context) {
       return addListener(this, event, fn, context, false);
     };
-    EventEmitter2.prototype.once = function once(event, fn, context) {
+    EventEmitter3.prototype.once = function once(event, fn, context) {
       return addListener(this, event, fn, context, true);
     };
-    EventEmitter2.prototype.removeListener = function removeListener(event, fn, context, once) {
+    EventEmitter3.prototype.removeListener = function removeListener(event, fn, context, once) {
       var evt = prefix ? prefix + event : event;
       if (!this._events[evt]) return this;
       if (!fn) {
@@ -747,7 +786,7 @@ var require_eventemitter3 = __commonJS({
       }
       return this;
     };
-    EventEmitter2.prototype.removeAllListeners = function removeAllListeners(event) {
+    EventEmitter3.prototype.removeAllListeners = function removeAllListeners(event) {
       var evt;
       if (event) {
         evt = prefix ? prefix + event : event;
@@ -758,12 +797,12 @@ var require_eventemitter3 = __commonJS({
       }
       return this;
     };
-    EventEmitter2.prototype.off = EventEmitter2.prototype.removeListener;
-    EventEmitter2.prototype.addListener = EventEmitter2.prototype.on;
-    EventEmitter2.prefixed = prefix;
-    EventEmitter2.EventEmitter = EventEmitter2;
+    EventEmitter3.prototype.off = EventEmitter3.prototype.removeListener;
+    EventEmitter3.prototype.addListener = EventEmitter3.prototype.on;
+    EventEmitter3.prefixed = prefix;
+    EventEmitter3.EventEmitter = EventEmitter3;
     if ("undefined" !== typeof module2) {
-      module2.exports = EventEmitter2;
+      module2.exports = EventEmitter3;
     }
   }
 });
@@ -1155,18 +1194,19 @@ var init_WebSocketClient = __esm({
 });
 
 // src/websocket/WebSocketManager.ts
-var MAX_QUEUE_SIZE, WebSocketManager;
+var import_events, MAX_QUEUE_SIZE, WebSocketManager;
 var init_WebSocketManager = __esm({
   "src/websocket/WebSocketManager.ts"() {
     "use strict";
-    init_eventemitter3();
+    import_events = require("events");
     init_errors();
     init_WebSocketClient();
     MAX_QUEUE_SIZE = 1e3;
-    WebSocketManager = class extends import_index.default {
+    WebSocketManager = class extends import_events.EventEmitter {
       constructor(config) {
         super();
         this.config = config;
+        this.setMaxListeners(100);
       }
       client = null;
       subscriptions = /* @__PURE__ */ new Map();
@@ -6217,7 +6257,14 @@ var init_schemas = __esm({
     NonNegativeNumberSchema = external_exports.number().nonnegative();
     TimestampSchema = external_exports.number().int().positive();
     SymbolSchema = external_exports.string().min(1).regex(/^[A-Z0-9]{1,10}\/[A-Z0-9]{1,10}(:[A-Z0-9]{1,10})?$/, "Invalid symbol format");
-    OrderTypeSchema = external_exports.enum(["market", "limit", "stopMarket", "stopLimit", "takeProfit", "trailingStop"]);
+    OrderTypeSchema = external_exports.enum([
+      "market",
+      "limit",
+      "stopMarket",
+      "stopLimit",
+      "takeProfit",
+      "trailingStop"
+    ]);
     OrderSideSchema = external_exports.enum(["buy", "sell"]);
     OrderStatusSchema = external_exports.enum([
       "open",
@@ -7124,6 +7171,74 @@ var init_BaseAdapter = __esm({
     init_errors();
     init_BaseAdapterCore();
     BaseAdapter = class extends BaseAdapterCore {
+      // ===========================================================================
+      // Input Validation Methods
+      // ===========================================================================
+      /**
+       * Validate symbol format at SDK boundary
+       *
+       * @param symbol - Symbol to validate
+       * @throws {BadRequestError} If symbol is invalid
+       */
+      validateSymbol(symbol) {
+        if (!symbol || typeof symbol !== "string") {
+          throw new BadRequestError("Symbol is required", "INVALID_SYMBOL", this.id);
+        }
+        if (!/^[A-Z0-9]{1,20}\/[A-Z0-9]{1,20}(:[A-Z0-9]{1,20})?$/i.test(symbol)) {
+          throw new BadRequestError(`Invalid symbol format: ${symbol}`, "INVALID_SYMBOL", this.id);
+        }
+      }
+      /**
+       * Validate leverage value at SDK boundary
+       *
+       * @param leverage - Leverage value to validate
+       * @throws {InvalidOrderError} If leverage is invalid
+       */
+      validateLeverage(leverage) {
+        if (typeof leverage !== "number" || isNaN(leverage) || leverage <= 0 || leverage > 200) {
+          throw new InvalidOrderError(
+            `Invalid leverage: ${leverage}. Must be between 0 and 200`,
+            "INVALID_LEVERAGE",
+            this.id
+          );
+        }
+      }
+      /**
+       * Fetch ticker with validation
+       */
+      async fetchTicker(symbol) {
+        this.validateSymbol(symbol);
+        return this._fetchTicker(symbol);
+      }
+      /**
+       * Fetch order book with validation
+       */
+      async fetchOrderBook(symbol, params) {
+        this.validateSymbol(symbol);
+        return this._fetchOrderBook(symbol, params);
+      }
+      /**
+       * Fetch trades with validation
+       */
+      async fetchTrades(symbol, params) {
+        this.validateSymbol(symbol);
+        return this._fetchTrades(symbol, params);
+      }
+      /**
+       * Fetch funding rate with validation
+       */
+      async fetchFundingRate(symbol) {
+        this.validateSymbol(symbol);
+        return this._fetchFundingRate(symbol);
+      }
+      /**
+       * Set leverage with validation
+       */
+      async setLeverage(symbol, leverage) {
+        this.validateSymbol(symbol);
+        this.validateLeverage(leverage);
+        return this._setLeverage(symbol, leverage);
+      }
       // ===========================================================================
       // Market Data (Public) - Optional implementations
       // ===========================================================================
@@ -9050,7 +9165,7 @@ var init_HyperliquidAdapter = __esm({
           throw mapError(error);
         }
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         await this.rateLimiter.acquire("fetchTicker");
         try {
           const allMids = await this.request("POST", `${this.apiUrl}/info`, {
@@ -9066,7 +9181,7 @@ var init_HyperliquidAdapter = __esm({
           throw mapError(error);
         }
       }
-      async fetchOrderBook(symbol, _params) {
+      async _fetchOrderBook(symbol, _params) {
         await this.rateLimiter.acquire("fetchOrderBook");
         try {
           const exchangeSymbol = this.symbolToExchange(symbol);
@@ -9079,7 +9194,7 @@ var init_HyperliquidAdapter = __esm({
           throw mapError(error);
         }
       }
-      async fetchTrades(_symbol, _params) {
+      async _fetchTrades(_symbol, _params) {
         throw new NotSupportedError(
           "fetchTrades is not supported via REST API. Use watchTrades (WebSocket) instead.",
           "NOT_SUPPORTED",
@@ -9108,7 +9223,7 @@ var init_HyperliquidAdapter = __esm({
           throw mapError(error);
         }
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire("fetchFundingRate");
         try {
           const exchangeSymbol = this.symbolToExchange(symbol);
@@ -9335,7 +9450,7 @@ var init_HyperliquidAdapter = __esm({
           throw mapError(error);
         }
       }
-      async setLeverage(symbol, leverage) {
+      async _setLeverage(symbol, leverage) {
         this.ensureAuth();
         await this.rateLimiter.acquire("setLeverage", 5);
         this.debug(`setLeverage: Updating leverage for ${symbol} to ${leverage}x`);
@@ -10318,10 +10433,11 @@ var init_HTTPClient = __esm({
               if (attempt === this.retryConfig.maxAttempts - 1) {
                 throw error;
               }
-              const delay = Math.min(
+              const baseDelay = Math.min(
                 this.retryConfig.initialDelay * Math.pow(this.retryConfig.multiplier, attempt),
                 this.retryConfig.maxDelay
               );
+              const delay = baseDelay * (1 + (Math.random() - 0.5) * 0.5);
               await new Promise((resolve) => setTimeout(resolve, delay));
             }
           }
@@ -10533,8 +10649,8 @@ var init_types3 = __esm({
     LighterFundingRateSchema = external_exports.object({
       symbol: external_exports.string(),
       fundingRate: external_exports.number(),
-      markPrice: external_exports.number(),
-      nextFundingTime: external_exports.number()
+      markPrice: external_exports.number().optional().default(0),
+      nextFundingTime: external_exports.number().optional().default(0)
     }).passthrough();
     LighterAPIMarketSchema = external_exports.object({
       symbol: external_exports.string(),
@@ -10756,13 +10872,15 @@ var init_LighterNormalizer = __esm({
        */
       normalizeFundingRate(lighterFundingRate) {
         const validated = LighterFundingRateSchema.parse(lighterFundingRate);
+        const markPrice = validated.markPrice ?? 0;
+        const nextFundingTime = validated.nextFundingTime ?? Date.now() + 8 * 3600 * 1e3;
         return {
           symbol: this.normalizeSymbol(validated.symbol),
           fundingRate: validated.fundingRate,
-          fundingTimestamp: validated.nextFundingTime,
-          nextFundingTimestamp: validated.nextFundingTime,
-          markPrice: validated.markPrice,
-          indexPrice: lighterFundingRate.markPrice,
+          fundingTimestamp: nextFundingTime,
+          nextFundingTimestamp: nextFundingTime,
+          markPrice,
+          indexPrice: markPrice,
           // Not provided by Lighter, use mark price as fallback
           fundingIntervalHours: 8,
           info: lighterFundingRate
@@ -12565,11 +12683,11 @@ var init_LighterAdapter = __esm({
         await this.rateLimiter.acquire("fetchMarkets");
         return fetchMarketsData(this.getMarketDataDeps());
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         await this.rateLimiter.acquire("fetchTicker");
         return fetchTickerData(this.getMarketDataDeps(), symbol);
       }
-      async fetchOrderBook(symbol, params) {
+      async _fetchOrderBook(symbol, params) {
         await this.rateLimiter.acquire("fetchOrderBook");
         return fetchOrderBookData(
           this.getMarketDataDeps(),
@@ -12578,7 +12696,7 @@ var init_LighterAdapter = __esm({
           () => this.fetchMarkets()
         );
       }
-      async fetchTrades(symbol, params) {
+      async _fetchTrades(symbol, params) {
         await this.rateLimiter.acquire("fetchTrades");
         return fetchTradesData(
           this.getMarketDataDeps(),
@@ -12587,7 +12705,7 @@ var init_LighterAdapter = __esm({
           () => this.fetchMarkets()
         );
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire("fetchFundingRate");
         return fetchFundingRateData(this.getMarketDataDeps(), symbol, () => this.fetchMarkets());
       }
@@ -12712,7 +12830,7 @@ var init_LighterAdapter = __esm({
         return fetchOpenOrdersData(this.getAccountDeps(), symbol);
       }
       // ==================== Required BaseAdapter Methods ====================
-      async setLeverage(_symbol, _leverage) {
+      async _setLeverage(_symbol, _leverage) {
         throw new Error("Lighter does not support setLeverage");
       }
       async fetchOrderHistory(symbol, since, limit) {
@@ -15121,7 +15239,7 @@ var init_GRVTAdapter = __esm({
           throw mapAxiosError(error);
         }
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         await this.rateLimiter.acquire("fetchTicker");
         try {
           const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
@@ -15134,7 +15252,7 @@ var init_GRVTAdapter = __esm({
           throw mapAxiosError(error);
         }
       }
-      async fetchOrderBook(symbol, params) {
+      async _fetchOrderBook(symbol, params) {
         await this.rateLimiter.acquire("fetchOrderBook");
         try {
           const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
@@ -15149,7 +15267,7 @@ var init_GRVTAdapter = __esm({
           throw mapAxiosError(error);
         }
       }
-      async fetchTrades(symbol, params) {
+      async _fetchTrades(symbol, params) {
         await this.rateLimiter.acquire("fetchTrades");
         try {
           const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
@@ -15272,7 +15390,7 @@ var init_GRVTAdapter = __esm({
         };
         return durationMap[timeframe] || 30 * 24 * 60 * 60 * 1e3;
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire("fetchFundingRate");
         try {
           const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
@@ -15497,7 +15615,7 @@ var init_GRVTAdapter = __esm({
           "grvt"
         );
       }
-      async setLeverage(symbol, leverage) {
+      async _setLeverage(symbol, leverage) {
         await this.rateLimiter.acquire("modifyOrder");
         try {
           const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
@@ -16286,14 +16404,6 @@ var init_ParadexAuth = __esm({
       // ===========================================================================
       // StarkNet Key Management
       // ===========================================================================
-      /**
-       * Get StarkNet private key
-       *
-       * @returns Private key or undefined
-       */
-      getStarkPrivateKey() {
-        return this.starkPrivateKey;
-      }
       /**
        * Get StarkNet public key derived from private key
        *
@@ -17669,6 +17779,7 @@ var init_ParadexWebSocketWrapper = __esm({
       reconnectAttempts = 0;
       subscriptionId = 0;
       subscriptions = /* @__PURE__ */ new Map();
+      subscriptionParams = /* @__PURE__ */ new Map();
       messageQueue = /* @__PURE__ */ new Map();
       /**
        * Push to queue with bounded size (backpressure)
@@ -18119,6 +18230,7 @@ var init_ParadexWebSocketWrapper = __esm({
           this.subscriptions.set(channel, /* @__PURE__ */ new Set());
         }
         this.subscriptions.get(channel).add(callback);
+        this.subscriptionParams.set(channel, params);
         const request = {
           method: "subscribe",
           params: {
@@ -18138,6 +18250,7 @@ var init_ParadexWebSocketWrapper = __esm({
           subscribers.delete(callback);
           if (subscribers.size === 0) {
             this.subscriptions.delete(channel);
+            this.subscriptionParams.delete(channel);
             if (this.ws && this.isConnected) {
               this.ws.send(
                 JSON.stringify({
@@ -18188,7 +18301,7 @@ var init_ParadexWebSocketWrapper = __esm({
         try {
           await this.connect();
           for (const [channel] of this.subscriptions) {
-            const params = {};
+            const params = this.subscriptionParams.get(channel) || {};
             this.ws.send(
               JSON.stringify({
                 method: "subscribe",
@@ -18343,7 +18456,7 @@ var init_ParadexAdapter = __esm({
        *
        * Uses /markets/summary endpoint which is publicly accessible (no JWT required)
        */
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         await this.rateLimiter.acquire("fetchTicker");
         try {
           const market = this.normalizer.symbolFromCCXT(symbol);
@@ -18375,7 +18488,7 @@ var init_ParadexAdapter = __esm({
       /**
        * Fetch order book for a symbol
        */
-      async fetchOrderBook(symbol, params) {
+      async _fetchOrderBook(symbol, params) {
         await this.rateLimiter.acquire("fetchOrderBook");
         try {
           const market = this.normalizer.symbolFromCCXT(symbol);
@@ -18394,7 +18507,7 @@ var init_ParadexAdapter = __esm({
        *
        * Uses /trades?market=X query param format (publicly accessible, no JWT)
        */
-      async fetchTrades(symbol, params) {
+      async _fetchTrades(symbol, params) {
         await this.rateLimiter.acquire("fetchTrades");
         try {
           const market = this.normalizer.symbolFromCCXT(symbol);
@@ -18416,7 +18529,7 @@ var init_ParadexAdapter = __esm({
        *
        * Uses /funding/data?market=X endpoint (publicly accessible, no JWT)
        */
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire("fetchFundingRate");
         try {
           const market = this.normalizer.symbolFromCCXT(symbol);
@@ -18431,8 +18544,10 @@ var init_ParadexAdapter = __esm({
           const fundingRate = {
             market,
             rate: fundingData.funding_rate || "0",
-            mark_price: fundingData.funding_premium || "0",
-            index_price: "0",
+            // funding_premium is NOT mark_price - it's a small decimal component of funding
+            // Use mark_price field if present, otherwise default to '0'
+            mark_price: fundingData.mark_price || "0",
+            index_price: fundingData.index_price || "0",
             timestamp: fundingData.created_at || Date.now(),
             next_funding_time: 0
           };
@@ -18469,8 +18584,10 @@ var init_ParadexAdapter = __esm({
             const fundingRate = {
               market,
               rate: item.funding_rate || "0",
-              mark_price: item.funding_premium || "0",
-              index_price: "0",
+              // funding_premium is NOT mark_price - it's a small decimal component of funding
+              // Use mark_price field if present, otherwise default to '0'
+              mark_price: item.mark_price || "0",
+              index_price: item.index_price || "0",
               timestamp: item.created_at || 0,
               next_funding_time: 0
             };
@@ -18620,7 +18737,7 @@ var init_ParadexAdapter = __esm({
       /**
        * Set leverage for a symbol
        */
-      async setLeverage(symbol, leverage) {
+      async _setLeverage(symbol, leverage) {
         this.requireAuth();
         await this.rateLimiter.acquire("setLeverage");
         try {
@@ -19362,10 +19479,7 @@ var init_EdgeXNormalizer = __esm({
         return {
           symbol,
           fundingRate: parseFloat(validated.fundingRate || "0"),
-          fundingTimestamp: parseInt(
-            validated.fundingTime || validated.fundingTimestamp || "0",
-            10
-          ),
+          fundingTimestamp: parseInt(validated.fundingTime || validated.fundingTimestamp || "0", 10),
           markPrice: parseFloat(validated.markPrice || "0"),
           indexPrice: parseFloat(validated.indexPrice || "0"),
           nextFundingTimestamp: parseInt(validated.nextFundingTime || "0", 10),
@@ -19681,7 +19795,7 @@ var init_EdgeXAdapter = __esm({
       /**
        * Fetch ticker for a symbol
        */
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         const contractId = this.normalizer.toEdgeXContractId(symbol);
         const response = await this.makeRequest(
           "GET",
@@ -19697,7 +19811,7 @@ var init_EdgeXAdapter = __esm({
        * Fetch order book for a symbol
        * Note: EdgeX only supports level=15 or level=200 for order book depth
        */
-      async fetchOrderBook(symbol, params) {
+      async _fetchOrderBook(symbol, params) {
         const contractId = this.normalizer.toEdgeXContractId(symbol);
         const level = params?.limit && params.limit > 15 ? 200 : 15;
         const response = await this.makeRequest(
@@ -19715,7 +19829,7 @@ var init_EdgeXAdapter = __esm({
        * Note: EdgeX does not expose public trades via REST API.
        * Use WebSocket (watchTrades) for real-time trade data.
        */
-      async fetchTrades(_symbol, _params) {
+      async _fetchTrades(_symbol, _params) {
         throw new PerpDEXError(
           "EdgeX does not support fetchTrades via REST API. Use watchTrades() for WebSocket streaming.",
           "NOT_IMPLEMENTED",
@@ -19725,7 +19839,7 @@ var init_EdgeXAdapter = __esm({
       /**
        * Fetch current funding rate
        */
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         const contractId = this.normalizer.toEdgeXContractId(symbol);
         const response = await this.makeRequest(
           "GET",
@@ -19945,7 +20059,7 @@ var init_EdgeXAdapter = __esm({
       /**
        * Set leverage for a symbol
        */
-      async setLeverage(symbol, leverage) {
+      async _setLeverage(symbol, leverage) {
         const market = this.normalizer.toEdgeXSymbol(symbol);
         await this.makeRequest("POST", "/account/leverage", "setLeverage", {
           market,
@@ -20242,8 +20356,8 @@ var init_types8 = __esm({
     }).passthrough();
     BackpackFundingRateSchema = external_exports.object({
       symbol: external_exports.string(),
-      fundingRate: external_exports.string(),
-      intervalEndTimestamp: external_exports.string()
+      fundingRate: external_exports.string().default("0"),
+      intervalEndTimestamp: external_exports.string().optional().default((/* @__PURE__ */ new Date()).toISOString())
     }).passthrough();
   }
 });
@@ -20329,6 +20443,25 @@ var init_BackpackNormalizer = __esm({
         const validated = BackpackMarketSchema.parse(backpackMarket);
         const symbol = this.normalizeSymbol(validated.symbol);
         const isPerpetual2 = validated.marketType === "PERP" || validated.symbol.endsWith("_PERP");
+        let base = validated.baseSymbol || "";
+        let quote = validated.quoteSymbol || "";
+        if (!base || !quote) {
+          const rawSymbol = validated.symbol.replace("_PERP", "");
+          const parts = rawSymbol.split("_");
+          if (parts.length >= 2) {
+            base = base || parts[0] || "";
+            quote = quote || parts[1] || "";
+          } else if (parts.length === 1) {
+            const pair = parts[0] || "";
+            const quoteMatch = pair.match(/(USDT|USDC|USD)$/);
+            if (quoteMatch && quoteMatch[1]) {
+              const extractedQuote = quoteMatch[1];
+              const extractedBase = pair.replace(extractedQuote, "");
+              base = base || extractedBase;
+              quote = quote || extractedQuote;
+            }
+          }
+        }
         const priceFilters = validated.filters?.price ?? { tickSize: "0.01" };
         const quantityFilters = validated.filters?.quantity ?? {
           stepSize: "0.001",
@@ -20337,9 +20470,9 @@ var init_BackpackNormalizer = __esm({
         return {
           id: validated.symbol,
           symbol,
-          base: validated.baseSymbol || symbol.split("/")[0] || "",
-          quote: validated.quoteSymbol || symbol.split("/")[1]?.split(":")[0] || "",
-          settle: validated.quoteSymbol || symbol.split("/")[1]?.split(":")[0] || "",
+          base,
+          quote,
+          settle: quote,
           active: validated.visible !== false && validated.orderBookState !== "Closed",
           minAmount: parseFloat(quantityFilters.minQuantity || "0"),
           pricePrecision: this.countDecimals(priceFilters.tickSize || "0.01"),
@@ -20465,19 +20598,18 @@ var init_BackpackNormalizer = __esm({
         const first = parseFloat(validated.firstPrice || "0");
         const change = parseFloat(validated.priceChange || "0");
         const percentage = parseFloat(validated.priceChangePercent || "0") * 100;
+        const bidAsk = !isNaN(last) && last > 0 ? last : 0;
         return {
           symbol: this.normalizeSymbol(validated.symbol),
-          last,
-          open: first,
-          close: last,
-          bid: last,
-          // Backpack ticker doesn't provide bid; use last price as fallback
-          ask: last,
-          // Backpack ticker doesn't provide ask; use last price as fallback
+          last: !isNaN(last) ? last : 0,
+          open: !isNaN(first) ? first : 0,
+          close: !isNaN(last) ? last : 0,
+          bid: bidAsk,
+          ask: bidAsk,
           high: parseFloat(validated.high || "0"),
           low: parseFloat(validated.low || "0"),
-          change,
-          percentage,
+          change: !isNaN(change) ? change : 0,
+          percentage: !isNaN(percentage) ? percentage : 0,
           baseVolume: parseFloat(validated.volume || "0"),
           quoteVolume: parseFloat(validated.quoteVolume || "0"),
           timestamp: Date.now(),
@@ -20492,10 +20624,11 @@ var init_BackpackNormalizer = __esm({
        */
       normalizeFundingRate(backpackFunding) {
         const validated = BackpackFundingRateSchema.parse(backpackFunding);
-        const fundingTimestamp = new Date(validated.intervalEndTimestamp).getTime();
+        const fundingTimestamp = validated.intervalEndTimestamp ? new Date(validated.intervalEndTimestamp).getTime() : Date.now();
+        const fundingRate = parseFloat(validated.fundingRate || "0");
         return {
           symbol: this.normalizeSymbol(validated.symbol),
-          fundingRate: parseFloat(validated.fundingRate),
+          fundingRate: !isNaN(fundingRate) ? fundingRate : 0,
           fundingTimestamp,
           nextFundingTimestamp: fundingTimestamp + 36e5,
           // Hourly funding
@@ -21593,7 +21726,7 @@ var init_BackpackAdapter = __esm({
       /**
        * Fetch ticker for a symbol
        */
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         const market = this.normalizer.toBackpackSymbol(symbol);
         const response = await this.makeRequest("GET", `/ticker?symbol=${market}`, "fetchTicker");
         return this.normalizer.normalizeTicker(response);
@@ -21601,7 +21734,7 @@ var init_BackpackAdapter = __esm({
       /**
        * Fetch order book for a symbol
        */
-      async fetchOrderBook(symbol, params) {
+      async _fetchOrderBook(symbol, params) {
         const market = this.normalizer.toBackpackSymbol(symbol);
         const queryParts = [`symbol=${market}`];
         if (params?.limit) {
@@ -21617,7 +21750,7 @@ var init_BackpackAdapter = __esm({
       /**
        * Fetch recent trades for a symbol
        */
-      async fetchTrades(symbol, params) {
+      async _fetchTrades(symbol, params) {
         const market = this.normalizer.toBackpackSymbol(symbol);
         const limit = params?.limit ?? 100;
         const response = await this.makeRequest(
@@ -21634,7 +21767,7 @@ var init_BackpackAdapter = __esm({
        * Fetch current funding rate
        * Returns the most recent funding rate from history
        */
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         const market = this.normalizer.toBackpackSymbol(symbol);
         const response = await this.makeRequest(
           "GET",
@@ -21784,7 +21917,7 @@ var init_BackpackAdapter = __esm({
       /**
        * Set leverage for a symbol
        */
-      async setLeverage(symbol, leverage) {
+      async _setLeverage(symbol, leverage) {
         this.requireAuth();
         const market = this.normalizer.toBackpackSymbol(symbol);
         await this.makeRequest("POST", "/account/leverage", "setLeverage", {
@@ -22766,7 +22899,7 @@ var init_NadoAPIClient = __esm({
           }
           return isRetryableError(error.code);
         }
-        return this.isRetryableNetworkError(error) || this.isRetryableNetworkError(error.originalError);
+        return this.isRetryableNetworkError(error);
       }
       /**
        * Check if error is a retryable network error
@@ -23728,7 +23861,7 @@ var init_NadoAdapter = __esm({
         this.debug("Markets fetched", { count: markets.length });
         return markets;
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         const mapping = this.getProductMapping(symbol);
         const response = await this.apiClient.query(
           NADO_QUERY_TYPES.MARKET_PRICES,
@@ -23742,7 +23875,7 @@ var init_NadoAdapter = __esm({
         }
         return this.normalizer.normalizeTicker(NadoTickerSchema.parse(ticker), symbol);
       }
-      async fetchOrderBook(symbol, params) {
+      async _fetchOrderBook(symbol, params) {
         const mapping = this.getProductMapping(symbol);
         const depth = params?.limit || 20;
         const orderBook = await this.apiClient.query(NADO_QUERY_TYPES.MARKET_LIQUIDITY, {
@@ -23751,14 +23884,14 @@ var init_NadoAdapter = __esm({
         });
         return this.normalizer.normalizeOrderBook(NadoOrderBookSchema.parse(orderBook), symbol);
       }
-      async fetchTrades(_symbol, _params) {
+      async _fetchTrades(_symbol, _params) {
         throw new PerpDEXError(
           "fetchTrades not supported via REST API on Nado. Use watchTrades() for WebSocket streaming.",
           "NOT_SUPPORTED",
           this.id
         );
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         const ticker = await this.fetchTicker(symbol);
         if (!ticker.info?.fundingRate) {
           throw new PerpDEXError(
@@ -24080,7 +24213,7 @@ var init_NadoAdapter = __esm({
           this.id
         );
       }
-      async setLeverage(_symbol, _leverage) {
+      async _setLeverage(_symbol, _leverage) {
         throw new PerpDEXError(
           "setLeverage not supported on Nado (unified cross-margin system)",
           "NOT_SUPPORTED",
@@ -24136,13 +24269,15 @@ var init_constants8 = __esm({
     VARIATIONAL_API_URLS = {
       mainnet: {
         rest: "https://omni-client-api.prod.ap-northeast-1.variational.io",
-        websocket: "wss://ws.variational.io"
-        // TODO: Update when WebSocket available
+        // ✅ Verified working
+        websocket: "NOT_AVAILABLE"
+        // WebSocket not documented - will throw clear error
       },
       testnet: {
-        rest: "https://omni-client-api.testnet.variational.io",
-        // TODO: Update when testnet available
-        websocket: "wss://ws-testnet.variational.io"
+        rest: "https://testnet.variational.io",
+        // From official Python SDK
+        websocket: "NOT_AVAILABLE"
+        // WebSocket not documented
       }
     };
     VARIATIONAL_ENDPOINTS = {
@@ -24622,12 +24757,24 @@ var init_VariationalNormalizer = __esm({
           settle: validated.quoteAsset,
           contractSize: safeParseFloat(validated.contractSize || "1"),
           active: validated.status === "active",
-          minAmount: safeParseFloat(typeof validated.minOrderSize === "number" ? String(validated.minOrderSize) : validated.minOrderSize),
-          maxAmount: validated.maxOrderSize ? safeParseFloat(typeof validated.maxOrderSize === "number" ? String(validated.maxOrderSize) : validated.maxOrderSize) : void 0,
-          pricePrecision: countDecimals2(typeof validated.tickSize === "number" ? String(validated.tickSize) : validated.tickSize),
-          amountPrecision: countDecimals2(typeof validated.minOrderSize === "number" ? String(validated.minOrderSize) : validated.minOrderSize),
-          priceTickSize: safeParseFloat(typeof validated.tickSize === "number" ? String(validated.tickSize) : validated.tickSize),
-          amountStepSize: safeParseFloat(typeof validated.minOrderSize === "number" ? String(validated.minOrderSize) : validated.minOrderSize),
+          minAmount: safeParseFloat(
+            typeof validated.minOrderSize === "number" ? String(validated.minOrderSize) : validated.minOrderSize
+          ),
+          maxAmount: validated.maxOrderSize ? safeParseFloat(
+            typeof validated.maxOrderSize === "number" ? String(validated.maxOrderSize) : validated.maxOrderSize
+          ) : void 0,
+          pricePrecision: countDecimals2(
+            typeof validated.tickSize === "number" ? String(validated.tickSize) : validated.tickSize
+          ),
+          amountPrecision: countDecimals2(
+            typeof validated.minOrderSize === "number" ? String(validated.minOrderSize) : validated.minOrderSize
+          ),
+          priceTickSize: safeParseFloat(
+            typeof validated.tickSize === "number" ? String(validated.tickSize) : validated.tickSize
+          ),
+          amountStepSize: safeParseFloat(
+            typeof validated.minOrderSize === "number" ? String(validated.minOrderSize) : validated.minOrderSize
+          ),
           makerFee: 2e-4,
           takerFee: 5e-4,
           maxLeverage: validated.maxLeverage ? safeParseFloat(validated.maxLeverage) : 50,
@@ -24725,9 +24872,17 @@ var init_VariationalNormalizer = __esm({
           orderId: void 0,
           symbol: unifiedSymbol,
           side: validated.side,
-          price: safeParseFloat(typeof validated.price === "number" ? String(validated.price) : validated.price),
-          amount: safeParseFloat(typeof validated.amount === "number" ? String(validated.amount) : validated.amount),
-          cost: safeParseFloat(typeof validated.price === "number" ? String(validated.price) : validated.price) * safeParseFloat(typeof validated.amount === "number" ? String(validated.amount) : validated.amount),
+          price: safeParseFloat(
+            typeof validated.price === "number" ? String(validated.price) : validated.price
+          ),
+          amount: safeParseFloat(
+            typeof validated.amount === "number" ? String(validated.amount) : validated.amount
+          ),
+          cost: safeParseFloat(
+            typeof validated.price === "number" ? String(validated.price) : validated.price
+          ) * safeParseFloat(
+            typeof validated.amount === "number" ? String(validated.amount) : validated.amount
+          ),
           timestamp: validated.timestamp,
           info: validated
         };
@@ -24816,12 +24971,22 @@ var init_VariationalNormalizer = __esm({
           side: validated.side,
           size,
           entryPrice,
-          markPrice: safeParseFloat(typeof validated.markPrice === "number" ? String(validated.markPrice) : validated.markPrice),
-          leverage: safeParseFloat(typeof validated.leverage === "number" ? String(validated.leverage) : validated.leverage),
-          liquidationPrice: validated.liquidationPrice ? safeParseFloat(typeof validated.liquidationPrice === "number" ? String(validated.liquidationPrice) : validated.liquidationPrice) : 0,
-          unrealizedPnl: safeParseFloat(typeof validated.unrealizedPnl === "number" ? String(validated.unrealizedPnl) : validated.unrealizedPnl),
+          markPrice: safeParseFloat(
+            typeof validated.markPrice === "number" ? String(validated.markPrice) : validated.markPrice
+          ),
+          leverage: safeParseFloat(
+            typeof validated.leverage === "number" ? String(validated.leverage) : validated.leverage
+          ),
+          liquidationPrice: validated.liquidationPrice ? safeParseFloat(
+            typeof validated.liquidationPrice === "number" ? String(validated.liquidationPrice) : validated.liquidationPrice
+          ) : 0,
+          unrealizedPnl: safeParseFloat(
+            typeof validated.unrealizedPnl === "number" ? String(validated.unrealizedPnl) : validated.unrealizedPnl
+          ),
           realizedPnl: 0,
-          margin: safeParseFloat(typeof validated.margin === "number" ? String(validated.margin) : validated.margin),
+          margin: safeParseFloat(
+            typeof validated.margin === "number" ? String(validated.margin) : validated.margin
+          ),
           maintenanceMargin: 0,
           marginRatio: 0,
           marginMode: "cross",
@@ -24856,11 +25021,17 @@ var init_VariationalNormalizer = __esm({
           id: validated.quoteId,
           symbol: unifiedSymbol,
           side: validated.side,
-          price: safeParseFloat(typeof validated.price === "number" ? String(validated.price) : validated.price),
-          amount: safeParseFloat(typeof validated.amount === "number" ? String(validated.amount) : validated.amount),
+          price: safeParseFloat(
+            typeof validated.price === "number" ? String(validated.price) : validated.price
+          ),
+          amount: safeParseFloat(
+            typeof validated.amount === "number" ? String(validated.amount) : validated.amount
+          ),
           expiresAt: validated.expiresAt,
           marketMaker: validated.marketMaker,
-          spread: validated.spread ? safeParseFloat(typeof validated.spread === "number" ? String(validated.spread) : validated.spread) : void 0,
+          spread: validated.spread ? safeParseFloat(
+            typeof validated.spread === "number" ? String(validated.spread) : validated.spread
+          ) : void 0,
           timestamp: validated.timestamp
         };
       }
@@ -25120,7 +25291,7 @@ var init_VariationalAdapter = __esm({
           throw mapError3(error);
         }
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
         if (!symbol) {
           throw new PerpDEXError("Symbol is required", "INVALID_SYMBOL", this.id);
@@ -25141,7 +25312,7 @@ var init_VariationalAdapter = __esm({
           throw mapError3(error);
         }
       }
-      async fetchOrderBook(symbol, _params) {
+      async _fetchOrderBook(symbol, _params) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
         if (!symbol) {
           throw new PerpDEXError("Symbol is required", "INVALID_SYMBOL", this.id);
@@ -25162,11 +25333,11 @@ var init_VariationalAdapter = __esm({
           throw mapError3(error);
         }
       }
-      async fetchTrades(_symbol, _params) {
+      async _fetchTrades(_symbol, _params) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.TRADES);
         throw new PerpDEXError("fetchTrades not implemented", "NOT_IMPLEMENTED", this.id);
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
         if (!symbol) {
           throw new PerpDEXError("Symbol is required", "INVALID_SYMBOL", this.id);
@@ -25276,7 +25447,7 @@ var init_VariationalAdapter = __esm({
           throw mapError3(error);
         }
       }
-      async setLeverage(_symbol, _leverage) {
+      async _setLeverage(_symbol, _leverage) {
         throw new PerpDEXError("setLeverage not supported", "NOT_SUPPORTED", this.id);
       }
       async setMarginMode(_symbol, _marginMode) {
@@ -25766,7 +25937,15 @@ var init_types11 = __esm({
       symbol: external_exports.string(),
       type: external_exports.enum(["market", "limit", "stop", "stop_limit"]),
       side: external_exports.enum(["buy", "sell"]),
-      status: external_exports.enum(["pending", "open", "filled", "partially_filled", "cancelled", "rejected", "expired"]),
+      status: external_exports.enum([
+        "pending",
+        "open",
+        "filled",
+        "partially_filled",
+        "cancelled",
+        "rejected",
+        "expired"
+      ]),
       price: external_exports.string().optional(),
       stopPrice: external_exports.string().optional(),
       quantity: external_exports.string(),
@@ -26127,8 +26306,21 @@ var init_ExtendedNormalizer = __esm({
       normalizeMarket(market) {
         const rawSymbol = isApiFormat(market) ? market.name : market.symbol;
         const unifiedSymbol = this.symbolToCCXT(rawSymbol);
-        const base = isApiFormat(market) ? market.assetName : market.baseAsset;
-        const quote = isApiFormat(market) ? market.collateralAssetName : market.quoteAsset || "USD";
+        let base = isApiFormat(market) ? market.assetName : market.baseAsset;
+        let quote = isApiFormat(market) ? market.collateralAssetName : market.quoteAsset || "USD";
+        if (!base || !quote) {
+          if (rawSymbol.includes("-")) {
+            const parts = rawSymbol.split("-");
+            base = base || parts[0] || "";
+            quote = quote || parts[1] || "USD";
+          } else {
+            const match = rawSymbol.match(/^([A-Z]+)(USD|USDT|USDC)$/);
+            if (match) {
+              base = base || match[1] || "";
+              quote = quote || match[2] || "USD";
+            }
+          }
+        }
         const settle = isApiFormat(market) ? quote : market.settleAsset || quote;
         const isActive = isApiFormat(market) ? market.active : market.isActive ?? true;
         const tradingConfig = isApiFormat(market) ? market.tradingConfig : void 0;
@@ -27397,7 +27589,7 @@ var init_ExtendedAdapter = __esm({
           throw mapError4(error);
         }
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.TICKER_SYMBOL);
         try {
           const market = this.symbolToExchange(symbol);
@@ -27412,7 +27604,7 @@ var init_ExtendedAdapter = __esm({
           throw mapError4(error);
         }
       }
-      async fetchOrderBook(symbol, params) {
+      async _fetchOrderBook(symbol, params) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.ORDERBOOK);
         try {
           const market = this.symbolToExchange(symbol);
@@ -27432,7 +27624,7 @@ var init_ExtendedAdapter = __esm({
           throw mapError4(error);
         }
       }
-      async fetchTrades(symbol, params) {
+      async _fetchTrades(symbol, params) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.TRADES);
         try {
           const market = this.symbolToExchange(symbol);
@@ -27455,7 +27647,7 @@ var init_ExtendedAdapter = __esm({
           throw mapError4(error);
         }
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.TICKER_SYMBOL);
         try {
           const market = this.symbolToExchange(symbol);
@@ -27689,7 +27881,7 @@ var init_ExtendedAdapter = __esm({
           throw mapError4(error);
         }
       }
-      async setLeverage(symbol, leverage) {
+      async _setLeverage(symbol, leverage) {
         await this.rateLimiter.acquire(EXTENDED_ENDPOINTS.LEVERAGE);
         validateLeverage(leverage);
         if (!this.apiKey) {
@@ -28284,14 +28476,6 @@ var init_DydxAuth = __esm({
         return this.testnet;
       }
       /**
-       * Get the mnemonic (if available)
-       *
-       * Warning: Handle with care, this is sensitive data
-       */
-      getMnemonic() {
-        return this.mnemonic;
-      }
-      /**
        * Check if auth has mnemonic (for trading operations)
        */
       hasMnemonic() {
@@ -28495,6 +28679,17 @@ var init_DydxNormalizer = __esm({
         const unifiedSymbol = dydxToUnified(market.ticker);
         const [base = "", rest = ""] = unifiedSymbol.split("/");
         const [quote = "", settle = ""] = rest.split(":");
+        let finalBase = base;
+        let finalQuote = quote || settle;
+        let finalSettle = settle || quote;
+        if (!finalBase || !finalQuote) {
+          const parts = market.ticker.split("-");
+          if (parts.length >= 2) {
+            finalBase = finalBase || parts[0] || "";
+            finalQuote = finalQuote || parts[1] || "USD";
+            finalSettle = finalSettle || finalQuote;
+          }
+        }
         const stepSize = parseFloat(market.stepSize);
         const amountPrecision = stepSize > 0 ? Math.abs(Math.log10(stepSize)) : DYDX_DEFAULT_PRECISION.amount;
         const tickSize = parseFloat(market.tickSize);
@@ -28502,9 +28697,9 @@ var init_DydxNormalizer = __esm({
         return {
           id: market.ticker,
           symbol: unifiedSymbol,
-          base,
-          quote,
-          settle,
+          base: finalBase,
+          quote: finalQuote,
+          settle: finalSettle,
           active: market.status === "ACTIVE",
           minAmount: stepSize,
           pricePrecision: Math.round(pricePrecision),
@@ -29224,7 +29419,7 @@ var init_DydxAdapter = __esm({
           throw mapDydxError(error);
         }
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         await this.rateLimiter.acquire("fetchTicker");
         try {
           const response = await this.request(
@@ -29245,7 +29440,7 @@ var init_DydxAdapter = __esm({
           throw mapDydxError(error);
         }
       }
-      async fetchOrderBook(symbol, _params) {
+      async _fetchOrderBook(symbol, _params) {
         await this.rateLimiter.acquire("fetchOrderBook");
         try {
           const exchangeSymbol = this.symbolToExchange(symbol);
@@ -29258,7 +29453,7 @@ var init_DydxAdapter = __esm({
           throw mapDydxError(error);
         }
       }
-      async fetchTrades(symbol, params) {
+      async _fetchTrades(symbol, params) {
         await this.rateLimiter.acquire("fetchTrades");
         try {
           const exchangeSymbol = this.symbolToExchange(symbol);
@@ -29275,7 +29470,7 @@ var init_DydxAdapter = __esm({
           throw mapDydxError(error);
         }
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire("fetchFundingRate");
         try {
           const exchangeSymbol = this.symbolToExchange(symbol);
@@ -29439,7 +29634,7 @@ var init_DydxAdapter = __esm({
           throw mapDydxError(error);
         }
       }
-      async setLeverage(_symbol, _leverage) {
+      async _setLeverage(_symbol, _leverage) {
         this.debug("setLeverage: dYdX v4 uses cross-margin mode without per-symbol leverage");
         throw new Error(
           "dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity."
@@ -30478,7 +30673,10 @@ var init_JupiterAuth = __esm({
           const bytes = this.parsePrivateKey(privateKey);
           void this.initKeypairAsync(bytes);
         } catch (error) {
-          const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, "[REDACTED]");
+          const sanitized = (error instanceof Error ? error.message : String(error)).replace(
+            /0x[0-9a-fA-F]{64,}/g,
+            "[REDACTED]"
+          );
           this.logger.warn(`Failed to initialize keypair: ${sanitized}`);
         }
       }
@@ -30494,7 +30692,10 @@ var init_JupiterAuth = __esm({
           this.connection = new Connection(this.rpcEndpoint, "confirmed");
           this.isInitialized = true;
         } catch (error) {
-          const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, "[REDACTED]");
+          const sanitized = (error instanceof Error ? error.message : String(error)).replace(
+            /0x[0-9a-fA-F]{64,}/g,
+            "[REDACTED]"
+          );
           this.logger.warn(`Failed to initialize Solana keypair: ${sanitized}`);
         }
       }
@@ -32014,7 +32215,7 @@ var init_JupiterAdapter = __esm({
           throw mapJupiterError(error);
         }
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
@@ -32032,7 +32233,7 @@ var init_JupiterAdapter = __esm({
           throw mapJupiterError(error);
         }
       }
-      async fetchOrderBook(symbol, _params) {
+      async _fetchOrderBook(symbol, _params) {
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
@@ -32051,14 +32252,14 @@ var init_JupiterAdapter = __esm({
           throw mapJupiterError(error);
         }
       }
-      async fetchTrades(_symbol, _params) {
+      async _fetchTrades(_symbol, _params) {
         throw new NotSupportedError(
           "fetchTrades is not supported. Jupiter Perps trades are on-chain only.",
           "NOT_SUPPORTED",
           "jupiter"
         );
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
@@ -32372,7 +32573,7 @@ var init_JupiterAdapter = __esm({
         this.warn("Trade history requires indexing on-chain transactions");
         return [];
       }
-      async setLeverage(_symbol, _leverage) {
+      async _setLeverage(_symbol, _leverage) {
         throw new Error("Jupiter leverage is set per-trade, not globally");
       }
       // ==========================================================================
@@ -32792,6 +32993,7 @@ var init_types14 = __esm({
     DriftL2OrderBookSchema = external_exports.object({
       marketIndex: external_exports.number(),
       marketType: external_exports.string(),
+      marketName: external_exports.string().optional(),
       bids: external_exports.array(
         external_exports.object({
           price: external_exports.string(),
@@ -33385,9 +33587,12 @@ var init_DriftNormalizer = __esm({
         const marketKey = DRIFT_MARKET_INDEX_MAP[validated.marketIndex];
         const config = marketKey ? DRIFT_PERP_MARKETS[marketKey] : void 0;
         const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
-        const fundingRate = parseFloat(validated.fundingRate) / DRIFT_PRECISION.FUNDING_RATE;
-        const markPrice = "markPriceTwap" in validated && typeof validated.markPriceTwap === "string" ? parseFloat(validated.markPriceTwap) / DRIFT_PRECISION.PRICE : oraclePrice || 0;
-        const indexPrice = "oraclePrice" in validated && typeof validated.oraclePrice === "string" ? parseFloat(validated.oraclePrice) / DRIFT_PRECISION.PRICE : "oraclePriceTwap" in validated && typeof validated.oraclePriceTwap === "string" ? parseFloat(validated.oraclePriceTwap) / DRIFT_PRECISION.PRICE : 0;
+        const rawFundingRate = parseFloat(validated.fundingRate);
+        const fundingRate = Math.abs(rawFundingRate) > 1e3 ? rawFundingRate / DRIFT_PRECISION.FUNDING_RATE : rawFundingRate;
+        const rawMarkPrice = "markPriceTwap" in validated && typeof validated.markPriceTwap === "string" ? parseFloat(validated.markPriceTwap) : oraclePrice || 0;
+        const markPrice = Math.abs(rawMarkPrice) > 1e3 ? rawMarkPrice / DRIFT_PRECISION.PRICE : rawMarkPrice;
+        const rawIndexPrice = "oraclePrice" in validated && typeof validated.oraclePrice === "string" ? parseFloat(validated.oraclePrice) : "oraclePriceTwap" in validated && typeof validated.oraclePriceTwap === "string" ? parseFloat(validated.oraclePriceTwap) : 0;
+        const indexPrice = Math.abs(rawIndexPrice) > 1e3 ? rawIndexPrice / DRIFT_PRECISION.PRICE : rawIndexPrice;
         const ts = validated.ts * 1e3;
         return {
           symbol,
@@ -34286,7 +34491,10 @@ var init_DriftAuth = __esm({
           const bytes = this.parsePrivateKey(privateKey);
           void this.initKeypairAsync(bytes);
         } catch (error) {
-          const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, "[REDACTED]");
+          const sanitized = (error instanceof Error ? error.message : String(error)).replace(
+            /0x[0-9a-fA-F]{64,}/g,
+            "[REDACTED]"
+          );
           this.logger.warn(`Failed to initialize keypair: ${sanitized}`);
         }
       }
@@ -34302,7 +34510,10 @@ var init_DriftAuth = __esm({
           this.connection = new Connection(this.rpcEndpoint, "confirmed");
           this.isInitialized = true;
         } catch (error) {
-          const sanitized = (error instanceof Error ? error.message : String(error)).replace(/0x[0-9a-fA-F]{64,}/g, "[REDACTED]");
+          const sanitized = (error instanceof Error ? error.message : String(error)).replace(
+            /0x[0-9a-fA-F]{64,}/g,
+            "[REDACTED]"
+          );
           this.logger.warn(`Failed to initialize Solana keypair: ${sanitized}`);
         }
       }
@@ -34995,6 +35206,10 @@ var init_DriftAdapter = __esm({
           return this.filterMarkets(cached, params);
         }
         try {
+          const discoveredMarkets = await this.discoverMarketsFromDlob();
+          if (discoveredMarkets.length > 0) {
+            return this.filterMarkets(discoveredMarkets, params);
+          }
           const markets = Object.entries(DRIFT_PERP_MARKETS).map(([key, config]) => ({
             id: key,
             symbol: config.symbol,
@@ -35028,7 +35243,76 @@ var init_DriftAdapter = __esm({
           throw mapDriftError(error);
         }
       }
-      async fetchTicker(symbol) {
+      /**
+       * Discover active markets dynamically by probing DLOB API
+       * Probes market indices 0-50 and builds Market objects from responses
+       */
+      async discoverMarketsFromDlob() {
+        const markets = [];
+        const maxMarketIndex = 50;
+        const concurrentRequests = 10;
+        try {
+          for (let i = 0; i < maxMarketIndex; i += concurrentRequests) {
+            const batch = Array.from(
+              { length: Math.min(concurrentRequests, maxMarketIndex - i) },
+              (_, idx) => i + idx
+            );
+            const results = await Promise.allSettled(
+              batch.map(async (marketIndex) => {
+                try {
+                  const url = buildOrderbookUrl(this.dlobBaseUrl, marketIndex, "perp", 1);
+                  const response = await this.request("GET", url);
+                  if (!response || !response.marketName) {
+                    return null;
+                  }
+                  const marketKey = response.marketName;
+                  const baseAsset = marketKey.replace("-PERP", "");
+                  const unifiedSymbol = driftToUnified(marketKey);
+                  const hardcodedConfig = DRIFT_PERP_MARKETS[marketKey];
+                  const market = {
+                    id: marketKey,
+                    symbol: unifiedSymbol,
+                    base: baseAsset,
+                    quote: "USD",
+                    settle: "USD",
+                    active: true,
+                    minAmount: hardcodedConfig?.minOrderSize || 1e-3,
+                    maxAmount: 1e6,
+                    pricePrecision: hardcodedConfig ? Math.max(0, -Math.floor(Math.log10(hardcodedConfig.tickSize))) : 4,
+                    amountPrecision: hardcodedConfig ? Math.max(0, -Math.floor(Math.log10(hardcodedConfig.stepSize))) : 3,
+                    priceTickSize: hardcodedConfig?.tickSize || 0.01,
+                    amountStepSize: hardcodedConfig?.stepSize || 1e-3,
+                    makerFee: -2e-4,
+                    takerFee: 1e-3,
+                    maxLeverage: hardcodedConfig?.maxLeverage || 10,
+                    fundingIntervalHours: 1,
+                    contractSize: 1,
+                    info: {
+                      marketIndex,
+                      contractTier: hardcodedConfig?.contractTier || "B",
+                      initialMarginRatio: hardcodedConfig?.initialMarginRatio || 0.1,
+                      maintenanceMarginRatio: hardcodedConfig?.maintenanceMarginRatio || 0.05
+                    }
+                  };
+                  return market;
+                } catch {
+                  return null;
+                }
+              })
+            );
+            for (const result of results) {
+              if (result.status === "fulfilled" && result.value) {
+                markets.push(result.value);
+              }
+            }
+          }
+          return markets;
+        } catch (error) {
+          this.debug("Market discovery failed, falling back to constants", { error });
+          return [];
+        }
+      }
+      async _fetchTicker(symbol) {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket2(driftSymbol)) {
@@ -35071,7 +35355,7 @@ var init_DriftAdapter = __esm({
           throw mapDriftError(error);
         }
       }
-      async fetchOrderBook(symbol, params) {
+      async _fetchOrderBook(symbol, params) {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket2(driftSymbol)) {
@@ -35089,12 +35373,12 @@ var init_DriftAdapter = __esm({
           throw mapDriftError(error);
         }
       }
-      async fetchTrades(_symbol, _params) {
+      async _fetchTrades(_symbol, _params) {
         throw new Error(
           "fetchTrades is not available via the Drift REST API. Trade data requires on-chain indexing or the historical data archive."
         );
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket2(driftSymbol)) {
@@ -35376,7 +35660,7 @@ var init_DriftAdapter = __esm({
         this.warn("Trade history requires indexing on-chain transactions");
         return [];
       }
-      async setLeverage(_symbol, _leverage) {
+      async _setLeverage(_symbol, _leverage) {
         throw new Error(
           "Drift uses cross-margin. Leverage is determined by position size relative to collateral."
         );
@@ -36108,6 +36392,51 @@ var init_GmxNormalizer = __esm({
         return match?.[1] ?? "UNKNOWN";
       }
       /**
+       * Derive market configuration from API data for markets not in hardcoded constants
+       * Uses available API fields to determine sensible defaults
+       */
+      deriveMarketConfig(market, baseSymbol) {
+        const indexDecimals = market.indexTokenInfo?.decimals ?? 18;
+        let tickSize;
+        if (indexDecimals <= 8) {
+          tickSize = 0.1;
+        } else if (indexDecimals === 9) {
+          tickSize = 1e-3;
+        } else {
+          tickSize = 0.01;
+        }
+        let stepSize;
+        let minOrderSize;
+        if (indexDecimals <= 8) {
+          stepSize = 1e-5;
+          minOrderSize = 1e-4;
+        } else if (indexDecimals === 9) {
+          stepSize = 0.01;
+          minOrderSize = 0.1;
+        } else if (baseSymbol === "DOGE" || baseSymbol === "XRP") {
+          stepSize = 1;
+          minOrderSize = 10;
+        } else {
+          stepSize = 1e-4;
+          minOrderSize = 1e-3;
+        }
+        let maxLeverage = 100;
+        if (market.minCollateralFactor) {
+          const minMarginRatio = parseFloat(market.minCollateralFactor) / GMX_PRECISION.FACTOR;
+          if (minMarginRatio > 0) {
+            const derivedLeverage = 1 / minMarginRatio;
+            maxLeverage = Math.min(Math.floor(derivedLeverage), 100);
+            maxLeverage = Math.max(maxLeverage, 1);
+          }
+        }
+        return {
+          minOrderSize,
+          tickSize,
+          stepSize,
+          maxLeverage
+        };
+      }
+      /**
        * Normalize market info to unified Market
        */
       normalizeMarket(market, chain) {
@@ -36117,7 +36446,14 @@ var init_GmxNormalizer = __esm({
         const config = marketKey ? GMX_MARKETS[marketKey] : void 0;
         const baseSymbol = config?.baseAsset || this.extractBaseFromName(validated.name);
         const symbol = config?.symbol || `${baseSymbol}/USD`;
-        const maxOI = parseFloat(validated.maxOpenInterestLong ?? "0") / GMX_PRECISION.USD;
+        const derivedConfig = config ? null : this.deriveMarketConfig(validated, baseSymbol);
+        const minOrderSize = config?.minOrderSize ?? derivedConfig?.minOrderSize ?? 1e-3;
+        const tickSize = config?.tickSize ?? derivedConfig?.tickSize ?? 0.01;
+        const stepSize = config?.stepSize ?? derivedConfig?.stepSize ?? 1e-4;
+        const maxLeverage = config?.maxLeverage ?? derivedConfig?.maxLeverage ?? 100;
+        const maxOILong = parseFloat(validated.maxOpenInterestLong ?? "0") / GMX_PRECISION.USD;
+        const maxOIShort = parseFloat(validated.maxOpenInterestShort ?? "0") / GMX_PRECISION.USD;
+        const maxOI = Math.max(maxOILong, maxOIShort);
         return {
           id: marketToken,
           symbol,
@@ -36125,18 +36461,18 @@ var init_GmxNormalizer = __esm({
           quote: "USD",
           settle: config?.settleAsset || "USD",
           active: !(validated.isDisabled ?? false),
-          minAmount: config?.minOrderSize || 1e-3,
+          minAmount: minOrderSize,
           maxAmount: maxOI > 0 ? maxOI : 1e6,
-          // Fallback if price unavailable
-          pricePrecision: this.getPrecisionFromTickSize(config?.tickSize || 0.01),
-          amountPrecision: this.getPrecisionFromTickSize(config?.stepSize || 1e-4),
-          priceTickSize: config?.tickSize || 0.01,
-          amountStepSize: config?.stepSize || 1e-4,
+          // Fallback if OI data unavailable
+          pricePrecision: this.getPrecisionFromTickSize(tickSize),
+          amountPrecision: this.getPrecisionFromTickSize(stepSize),
+          priceTickSize: tickSize,
+          amountStepSize: stepSize,
           makerFee: 5e-4,
           // 0.05% base fee (varies with price impact)
           takerFee: 7e-4,
           // 0.07% base fee (varies with price impact)
-          maxLeverage: config?.maxLeverage || 100,
+          maxLeverage,
           fundingIntervalHours: 1,
           // Continuous funding, normalized to 1h
           contractSize: 1,
@@ -36152,7 +36488,8 @@ var init_GmxNormalizer = __esm({
             shortInterestUsd: validated.shortInterestUsd ?? "0",
             fundingFactor: validated.fundingFactor ?? "0",
             borrowingFactorLong: validated.borrowingFactorLong ?? "0",
-            borrowingFactorShort: validated.borrowingFactorShort ?? "0"
+            borrowingFactorShort: validated.borrowingFactorShort ?? "0",
+            _configSource: config ? "hardcoded" : "derived"
           }
         };
       }
@@ -36955,6 +37292,7 @@ var init_GmxSubgraph = __esm({
   "src/adapters/gmx/GmxSubgraph.ts"() {
     "use strict";
     init_constants13();
+    init_errors();
     POSITIONS_QUERY = `
   query GetPositions($account: String!) {
     positions(
@@ -37192,27 +37530,44 @@ var init_GmxSubgraph = __esm({
        * Execute a GraphQL query
        */
       async query(query, variables) {
-        const response = await fetch(this.subgraphUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            query,
-            variables
-          })
-        });
-        if (!response.ok) {
-          throw new Error(`Subgraph request failed: ${response.status} ${response.statusText}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3e4);
+        try {
+          const response = await fetch(this.subgraphUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              query,
+              variables
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (!response.ok) {
+            throw new Error(`Subgraph request failed: ${response.status} ${response.statusText}`);
+          }
+          const json = await response.json();
+          if (json.errors && json.errors.length > 0) {
+            throw new Error(`Subgraph query error: ${json.errors[0]?.message || "Unknown error"}`);
+          }
+          if (!json.data) {
+            throw new Error("No data returned from subgraph");
+          }
+          return json.data;
+        } catch (error) {
+          clearTimeout(timeoutId);
+          if (error instanceof Error && error.name === "AbortError") {
+            throw new NetworkError(
+              "GraphQL request timed out after 30s",
+              "GRAPHQL_TIMEOUT",
+              "gmx",
+              error
+            );
+          }
+          throw error;
         }
-        const json = await response.json();
-        if (json.errors && json.errors.length > 0) {
-          throw new Error(`Subgraph query error: ${json.errors[0]?.message || "Unknown error"}`);
-        }
-        if (!json.data) {
-          throw new Error("No data returned from subgraph");
-        }
-        return json.data;
       }
       /**
        * Convert subgraph position to normalized format
@@ -37914,7 +38269,7 @@ var init_GmxAdapter = __esm({
           throw mapGmxError(error);
         }
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         this.ensureInitialized();
         const marketKey = unifiedToGmx(symbol);
         if (!marketKey) {
@@ -37943,13 +38298,13 @@ var init_GmxAdapter = __esm({
           throw mapGmxError(error);
         }
       }
-      async fetchOrderBook(_symbol, _params) {
+      async _fetchOrderBook(_symbol, _params) {
         throw new Error("GMX does not have a traditional orderbook. Use fetchTicker for price data.");
       }
-      async fetchTrades(_symbol, _params) {
+      async _fetchTrades(_symbol, _params) {
         throw new Error("fetchTrades requires subgraph integration. Not available via REST API.");
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         this.ensureInitialized();
         const marketKey = unifiedToGmx(symbol);
         if (!marketKey) {
@@ -38340,7 +38695,7 @@ var init_GmxAdapter = __esm({
           throw mapGmxError(error);
         }
       }
-      async setLeverage(_symbol, _leverage) {
+      async _setLeverage(_symbol, _leverage) {
         throw new Error(
           "GMX v2 does not have account-level leverage settings. Leverage is determined per-position at order creation time."
         );
@@ -39222,7 +39577,7 @@ var init_AsterAdapter = __esm({
         }
         return response.symbols.filter((s) => s.contractType === "PERPETUAL" && s.status === "TRADING").map((s) => this.normalizer.normalizeMarket(s));
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         const asterSymbol = toAsterSymbol(symbol);
         const response = await this.publicGet(
           `/fapi/v1/ticker/24hr?symbol=${asterSymbol}`,
@@ -39230,7 +39585,7 @@ var init_AsterAdapter = __esm({
         );
         return this.normalizer.normalizeTicker(response, symbol);
       }
-      async fetchOrderBook(symbol, params) {
+      async _fetchOrderBook(symbol, params) {
         const asterSymbol = toAsterSymbol(symbol);
         const limit = params?.limit ?? 20;
         const response = await this.publicGet(
@@ -39239,7 +39594,7 @@ var init_AsterAdapter = __esm({
         );
         return this.normalizer.normalizeOrderBook(response, symbol);
       }
-      async fetchTrades(symbol, params) {
+      async _fetchTrades(symbol, params) {
         const asterSymbol = toAsterSymbol(symbol);
         const limit = params?.limit ?? 100;
         const response = await this.publicGet(
@@ -39251,7 +39606,7 @@ var init_AsterAdapter = __esm({
         }
         return response.map((t) => this.normalizer.normalizeTrade(t, symbol));
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         const asterSymbol = toAsterSymbol(symbol);
         const response = await this.publicGet(
           `/fapi/v1/premiumIndex?symbol=${asterSymbol}`,
@@ -39345,7 +39700,7 @@ var init_AsterAdapter = __esm({
         }
         return response.filter((b) => parseFloat(b.balance) > 0).map((b) => this.normalizer.normalizeBalance(b));
       }
-      async setLeverage(symbol, leverage) {
+      async _setLeverage(symbol, leverage) {
         const asterSymbol = toAsterSymbol(symbol);
         await this.signedRequest("POST", "/fapi/v1/leverage", "setLeverage", { symbol: asterSymbol, leverage });
       }
@@ -39697,16 +40052,24 @@ var init_PacificaNormalizer = __esm({
         return {
           symbol,
           timestamp: validated.timestamp,
-          bids: validated.bids.map((b) => [parseFloat(b.price), parseFloat(b.size)]),
-          asks: validated.asks.map((a) => [parseFloat(a.price), parseFloat(a.size)]),
+          bids: validated.bids.map(
+            (b) => [parseFloat(b.price), parseFloat(b.size)]
+          ),
+          asks: validated.asks.map(
+            (a) => [parseFloat(a.price), parseFloat(a.size)]
+          ),
           sequenceId: validated.sequence,
           exchange: "pacifica"
         };
       }
       normalizeTrade(raw, symbol) {
         const validated = PacificaTradeResponseSchema.parse(raw);
-        const price = parseFloat(typeof validated.price === "number" ? String(validated.price) : validated.price);
-        const amount = parseFloat(typeof validated.size === "number" ? String(validated.size) : validated.size);
+        const price = parseFloat(
+          typeof validated.price === "number" ? String(validated.price) : validated.price
+        );
+        const amount = parseFloat(
+          typeof validated.size === "number" ? String(validated.size) : validated.size
+        );
         return {
           id: validated.id,
           symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
@@ -39733,19 +40096,27 @@ var init_PacificaNormalizer = __esm({
       }
       normalizeOrder(raw, symbol) {
         const validated = PacificaOrderResponseSchema.parse(raw);
-        const filled = parseFloat(typeof validated.filled_size === "number" ? String(validated.filled_size) : validated.filled_size);
-        const amount = parseFloat(typeof validated.size === "number" ? String(validated.size) : validated.size);
+        const filled = parseFloat(
+          typeof validated.filled_size === "number" ? String(validated.filled_size) : validated.filled_size
+        );
+        const amount = parseFloat(
+          typeof validated.size === "number" ? String(validated.size) : validated.size
+        );
         return {
           id: validated.order_id,
           symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
           type: validated.type === "market" ? "market" : "limit",
           side: validated.side,
           amount,
-          price: validated.price ? parseFloat(typeof validated.price === "number" ? String(validated.price) : validated.price) : void 0,
+          price: validated.price ? parseFloat(
+            typeof validated.price === "number" ? String(validated.price) : validated.price
+          ) : void 0,
           status: PACIFICA_ORDER_STATUS[validated.status] ?? "open",
           filled,
           remaining: amount - filled,
-          averagePrice: validated.avg_fill_price ? parseFloat(typeof validated.avg_fill_price === "number" ? String(validated.avg_fill_price) : validated.avg_fill_price) : void 0,
+          averagePrice: validated.avg_fill_price ? parseFloat(
+            typeof validated.avg_fill_price === "number" ? String(validated.avg_fill_price) : validated.avg_fill_price
+          ) : void 0,
           reduceOnly: validated.reduce_only,
           postOnly: validated.post_only,
           clientOrderId: validated.client_order_id,
@@ -39756,22 +40127,38 @@ var init_PacificaNormalizer = __esm({
       }
       normalizePosition(raw, symbol) {
         const validated = PacificaPositionSchema.parse(raw);
-        const size = parseFloat(typeof validated.size === "number" ? String(validated.size) : validated.size);
-        const markPrice = parseFloat(typeof validated.mark_price === "number" ? String(validated.mark_price) : validated.mark_price);
-        const maintenanceMargin = parseFloat(typeof validated.maintenance_margin === "number" ? String(validated.maintenance_margin) : validated.maintenance_margin);
+        const size = parseFloat(
+          typeof validated.size === "number" ? String(validated.size) : validated.size
+        );
+        const markPrice = parseFloat(
+          typeof validated.mark_price === "number" ? String(validated.mark_price) : validated.mark_price
+        );
+        const maintenanceMargin = parseFloat(
+          typeof validated.maintenance_margin === "number" ? String(validated.maintenance_margin) : validated.maintenance_margin
+        );
         const notional = size * markPrice;
         return {
           symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
           side: validated.side,
           size,
-          entryPrice: parseFloat(typeof validated.entry_price === "number" ? String(validated.entry_price) : validated.entry_price),
+          entryPrice: parseFloat(
+            typeof validated.entry_price === "number" ? String(validated.entry_price) : validated.entry_price
+          ),
           markPrice,
-          liquidationPrice: parseFloat(typeof validated.liquidation_price === "number" ? String(validated.liquidation_price) : validated.liquidation_price),
-          unrealizedPnl: parseFloat(typeof validated.unrealized_pnl === "number" ? String(validated.unrealized_pnl) : validated.unrealized_pnl),
-          realizedPnl: parseFloat(typeof validated.realized_pnl === "number" ? String(validated.realized_pnl) : validated.realized_pnl),
+          liquidationPrice: parseFloat(
+            typeof validated.liquidation_price === "number" ? String(validated.liquidation_price) : validated.liquidation_price
+          ),
+          unrealizedPnl: parseFloat(
+            typeof validated.unrealized_pnl === "number" ? String(validated.unrealized_pnl) : validated.unrealized_pnl
+          ),
+          realizedPnl: parseFloat(
+            typeof validated.realized_pnl === "number" ? String(validated.realized_pnl) : validated.realized_pnl
+          ),
           leverage: validated.leverage,
           marginMode: validated.margin_mode,
-          margin: parseFloat(typeof validated.margin === "number" ? String(validated.margin) : validated.margin),
+          margin: parseFloat(
+            typeof validated.margin === "number" ? String(validated.margin) : validated.margin
+          ),
           maintenanceMargin,
           marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
           timestamp: validated.timestamp,
@@ -40006,7 +40393,7 @@ var init_PacificaAdapter = __esm({
         }
         return response.filter((m) => m.status === "active").map((m) => this.normalizer.normalizeMarket(m));
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const response = await this.publicGet(
           `/prices?symbol=${pacificaSymbol}`,
@@ -40014,7 +40401,7 @@ var init_PacificaAdapter = __esm({
         );
         return this.normalizer.normalizeTicker(response, symbol);
       }
-      async fetchOrderBook(symbol, params) {
+      async _fetchOrderBook(symbol, params) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const limit = params?.limit ?? 20;
         const response = await this.publicGet(
@@ -40023,7 +40410,7 @@ var init_PacificaAdapter = __esm({
         );
         return this.normalizer.normalizeOrderBook(response, symbol);
       }
-      async fetchTrades(symbol, params) {
+      async _fetchTrades(symbol, params) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const limit = params?.limit ?? 100;
         const response = await this.publicGet(
@@ -40035,7 +40422,7 @@ var init_PacificaAdapter = __esm({
         }
         return response.map((t) => this.normalizer.normalizeTrade(t, symbol));
       }
-      async fetchFundingRate(symbol) {
+      async _fetchFundingRate(symbol) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const response = await this.publicGet(
           `/funding/historical?symbol=${pacificaSymbol}&limit=1`,
@@ -40088,7 +40475,7 @@ var init_PacificaAdapter = __esm({
         );
         return [this.normalizer.normalizeBalance(response)];
       }
-      async setLeverage(symbol, leverage) {
+      async _setLeverage(symbol, leverage) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         await this.signedRequest("POST", "/account/leverage", "setLeverage", {
           symbol: pacificaSymbol,
@@ -40142,7 +40529,27 @@ var init_pacifica = __esm({
 });
 
 // src/adapters/ostium/constants.ts
-var OSTIUM_METADATA_URL, OSTIUM_SUBGRAPH_URL, OSTIUM_RPC_URLS, OSTIUM_CONTRACTS, OSTIUM_RATE_LIMITS, OSTIUM_ENDPOINT_WEIGHTS, OSTIUM_PAIRS, OSTIUM_TRADING_ABI, OSTIUM_STORAGE_ABI, OSTIUM_COLLATERAL_ABI, OSTIUM_COLLATERAL_DECIMALS, OSTIUM_PRICE_DECIMALS;
+function isPlaceholderAddress(address) {
+  return PLACEHOLDER_ADDRESSES.has(address.toLowerCase());
+}
+function validateContractAddresses(contracts) {
+  const placeholders = [];
+  if (isPlaceholderAddress(contracts.pairInfo)) {
+    placeholders.push("pairInfo");
+  }
+  if (isPlaceholderAddress(contracts.nftRewards)) {
+    placeholders.push("nftRewards");
+  }
+  if (isPlaceholderAddress(contracts.vault)) {
+    placeholders.push("vault");
+  }
+  if (placeholders.length > 0) {
+    throw new Error(
+      `Ostium contract addresses are placeholders for: ${placeholders.join(", ")}. Set real addresses before on-chain operations. See https://github.com/0xOstium/smart-contracts-public for deployment info.`
+    );
+  }
+}
+var OSTIUM_METADATA_URL, OSTIUM_SUBGRAPH_URL, OSTIUM_RPC_URLS, OSTIUM_CONTRACTS, PLACEHOLDER_ADDRESSES, OSTIUM_RATE_LIMITS, OSTIUM_ENDPOINT_WEIGHTS, OSTIUM_PAIRS, OSTIUM_TRADING_ABI, OSTIUM_STORAGE_ABI, OSTIUM_COLLATERAL_ABI, OSTIUM_COLLATERAL_DECIMALS, OSTIUM_PRICE_DECIMALS;
 var init_constants16 = __esm({
   "src/adapters/ostium/constants.ts"() {
     "use strict";
@@ -40153,10 +40560,10 @@ var init_constants16 = __esm({
       testnet: "https://sepolia-rollup.arbitrum.io/rpc"
     };
     OSTIUM_CONTRACTS = {
-      trading: "0x4f5f2B6a97F0c536E2BF58c3E7e060F81FbA2B06",
-      // PLACEHOLDER
-      storage: "0x7E8B4C3c95B4b93D5C0D0F14C1b36a5C7E5C9D5",
-      // PLACEHOLDER
+      trading: "0x6d0ba1f9996dbd8885827e1b2e8f6593e7702411",
+      // Verified
+      storage: "0xcCd5891083A8acD2074690F65d3024E7D13d66E7",
+      // Verified
       pairInfo: "0x3D9B5C7E8F0A4D6E9C3B2A1F8D7E6C5B4A3F21e",
       // PLACEHOLDER
       nftRewards: "0x1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0b",
@@ -40166,6 +40573,14 @@ var init_constants16 = __esm({
       collateral: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
       // USDC (verified)
     };
+    PLACEHOLDER_ADDRESSES = /* @__PURE__ */ new Set([
+      "0x3D9B5C7E8F0A4D6E9C3B2A1F8D7E6C5B4A3F21e",
+      // pairInfo
+      "0x1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0b",
+      // nftRewards
+      "0x8F9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7a"
+      // vault
+    ]);
     OSTIUM_RATE_LIMITS = {
       metadata: {
         maxRequests: 300,
@@ -40378,9 +40793,6 @@ var init_OstiumAuth = __esm({
         this.privateKey = config.privateKey;
         this.rpcUrl = config.rpcUrl;
       }
-      getPrivateKey() {
-        return this.privateKey;
-      }
       getRpcUrl() {
         return this.rpcUrl;
       }
@@ -40416,6 +40828,7 @@ var init_OstiumContracts = __esm({
         this.rpcUrl = rpcUrl;
         this.privateKey = privateKey;
         this.addresses = addresses ?? OSTIUM_CONTRACTS;
+        validateContractAddresses(this.addresses);
       }
       async getProvider() {
         const { JsonRpcProvider } = await import("ethers");
@@ -40504,25 +40917,43 @@ var init_OstiumSubgraph = __esm({
   "src/adapters/ostium/OstiumSubgraph.ts"() {
     "use strict";
     init_constants16();
+    init_errors();
     OstiumSubgraph = class {
       url;
       constructor(url) {
         this.url = url ?? OSTIUM_SUBGRAPH_URL;
       }
       async query(graphqlQuery, variables) {
-        const response = await fetch(this.url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: graphqlQuery, variables })
-        });
-        if (!response.ok) {
-          throw new Error(`Subgraph query failed: ${response.status}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3e4);
+        try {
+          const response = await fetch(this.url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: graphqlQuery, variables }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (!response.ok) {
+            throw new Error(`Subgraph query failed: ${response.status}`);
+          }
+          const json = await response.json();
+          if (json.errors?.length) {
+            throw new Error(`Subgraph error: ${json.errors[0]?.message ?? "Unknown error"}`);
+          }
+          return json.data;
+        } catch (error) {
+          clearTimeout(timeoutId);
+          if (error instanceof Error && error.name === "AbortError") {
+            throw new NetworkError(
+              "GraphQL request timed out after 30s",
+              "GRAPHQL_TIMEOUT",
+              "ostium",
+              error
+            );
+          }
+          throw error;
         }
-        const json = await response.json();
-        if (json.errors?.length) {
-          throw new Error(`Subgraph error: ${json.errors[0]?.message ?? "Unknown error"}`);
-        }
-        return json.data;
       }
       async fetchTrades(pairIndex, limit = 100) {
         const query = pairIndex !== void 0 ? `query($first: Int!, $pairIndex: String!) {
@@ -40830,6 +41261,20 @@ function mapOstiumError(error) {
       "ostium"
     );
   }
+  if (message.includes("rate limit") || message.includes("too many requests") || message.includes("429")) {
+    return new RateLimitError(
+      error instanceof Error ? error.message : String(error),
+      "RATE_LIMIT",
+      "ostium"
+    );
+  }
+  if (message.includes("invalid signature") || message.includes("bad signature") || message.includes("unauthorized")) {
+    return new InvalidSignatureError(
+      error instanceof Error ? error.message : String(error),
+      "INVALID_SIGNATURE",
+      "ostium"
+    );
+  }
   return new PerpDEXError(
     error instanceof Error ? error.message : String(error),
     "UNKNOWN",
@@ -40948,7 +41393,7 @@ var init_OstiumAdapter = __esm({
       async fetchMarkets(_params) {
         return OSTIUM_PAIRS.map((pair) => this.normalizer.normalizeMarket(pair));
       }
-      async fetchTicker(symbol) {
+      async _fetchTicker(symbol) {
         const pairIndex = toOstiumPairIndex(symbol);
         const pair = OSTIUM_PAIRS.find((p) => p.pairIndex === pairIndex);
         if (!pair) {
@@ -40961,21 +41406,21 @@ var init_OstiumAdapter = __esm({
         );
         return this.normalizer.normalizeTicker(response, pair);
       }
-      async fetchOrderBook(_symbol, _params) {
+      async _fetchOrderBook(_symbol, _params) {
         throw new NotSupportedError(
           "Ostium does not have an order book (on-chain DEX)",
           "NOT_SUPPORTED",
           "ostium"
         );
       }
-      async fetchTrades(_symbol, _params) {
+      async _fetchTrades(_symbol, _params) {
         throw new NotSupportedError(
           "Ostium subgraph has been removed from The Graph hosted service. Trade data unavailable.",
           "NOT_SUPPORTED",
           "ostium"
         );
       }
-      async fetchFundingRate(_symbol) {
+      async _fetchFundingRate(_symbol) {
         throw new NotSupportedError(
           "Ostium uses rollover fees, not funding rates",
           "NOT_SUPPORTED",
@@ -41078,7 +41523,7 @@ var init_OstiumAdapter = __esm({
           throw mapOstiumError(error);
         }
       }
-      async setLeverage(_symbol, _leverage) {
+      async _setLeverage(_symbol, _leverage) {
         throw new NotSupportedError(
           "Ostium sets leverage per-trade, not per-symbol",
           "NOT_SUPPORTED",

@@ -15,7 +15,7 @@ export class PerpDEXError extends Error {
     message: string,
     public readonly code: string,
     public readonly exchange: string,
-    public readonly originalError?: unknown
+    private readonly originalError?: unknown
   ) {
     super(message);
     this.name = 'PerpDEXError';
@@ -30,18 +30,56 @@ export class PerpDEXError extends Error {
     return this;
   }
 
+  /**
+   * Get sanitized version of original error (safe for logging/serialization)
+   * Redacts sensitive data like API keys, tokens, and hex strings
+   */
+  getOriginalErrorSafe(): { name?: string; message?: string; code?: string } | undefined {
+    if (!this.originalError) return undefined;
+    if (this.originalError instanceof Error) {
+      return {
+        name: this.originalError.name,
+        message: PerpDEXError.redactSensitive(this.originalError.message),
+        code: (this.originalError as any).code,
+      };
+    }
+    // For non-Error objects, use JSON.stringify for safe conversion
+    const errorStr =
+      typeof this.originalError === 'string'
+        ? this.originalError
+        : JSON.stringify(this.originalError);
+    return { message: PerpDEXError.redactSensitive(errorStr) };
+  }
+
+  /**
+   * Redact sensitive information from strings
+   * Removes API keys, tokens, private keys, and other credentials
+   */
+  private static redactSensitive(str: string): string {
+    return (
+      str
+        // Redact sk-/pk- prefixed keys (any length after dash)
+        .replace(/\b(?:sk|pk)-[A-Za-z0-9_-]+/g, '[REDACTED_KEY]')
+        // Redact hex strings (40+ characters)
+        .replace(/\b[0-9a-fA-F]{40,}\b/g, '[REDACTED_HEX]')
+        // Redact Bearer tokens
+        .replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]')
+        // Redact key=value, secret:value patterns (must come last to avoid conflicts)
+        .replace(/(?:key|secret|token|apikey|password|mnemonic)[\s]*[=:]\s*\S+/gi, (match) => {
+          const parts = match.split(/[=:]/);
+          return `${parts[0]}${match.includes('=') ? '=' : ':'}[REDACTED]`;
+        })
+    );
+  }
+
   toJSON(): Record<string, unknown> {
     return {
       name: this.name,
-      message: this.message,
+      message: PerpDEXError.redactSensitive(this.message),
       code: this.code,
       exchange: this.exchange,
       correlationId: this.correlationId,
-      originalError: this.originalError instanceof Error
-        ? { name: this.originalError.name, message: this.originalError.message }
-        : typeof this.originalError === 'string'
-          ? this.originalError
-          : undefined,
+      originalError: this.getOriginalErrorSafe(),
     };
   }
 }

@@ -42,8 +42,8 @@ export const LighterFundingRateSchema = z
     .object({
     symbol: z.string(),
     fundingRate: z.number(),
-    markPrice: z.number(),
-    nextFundingTime: z.number(),
+    markPrice: z.number().optional().default(0),
+    nextFundingTime: z.number().optional().default(0),
 })
     .passthrough();
 export const LighterAPIMarketSchema = z

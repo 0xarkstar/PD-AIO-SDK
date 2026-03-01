@@ -5,7 +5,8 @@ import { z } from 'zod';
 // ============================================================================
 // Zod Schemas for Runtime Validation
 // ============================================================================
-export const OstiumPairInfoSchema = z.object({
+export const OstiumPairInfoSchema = z
+    .object({
     pairIndex: z.number(),
     name: z.string(),
     from: z.string(),
@@ -18,8 +19,10 @@ export const OstiumPairInfoSchema = z.object({
     maxPositionSize: z.string(),
     minPositionSize: z.string(),
     feedId: z.string(),
-}).passthrough();
-export const OstiumPriceResponseSchema = z.object({
+})
+    .passthrough();
+export const OstiumPriceResponseSchema = z
+    .object({
     pair: z.string(),
     price: z.string(),
     timestamp: z.number(),
@@ -28,8 +31,10 @@ export const OstiumPriceResponseSchema = z.object({
     bid: z.union([z.string(), z.number()]).optional(),
     ask: z.union([z.string(), z.number()]).optional(),
     timestampSeconds: z.number().optional(),
-}).passthrough();
-export const OstiumOpenTradeSchema = z.object({
+})
+    .passthrough();
+export const OstiumOpenTradeSchema = z
+    .object({
     trader: z.string(),
     pairIndex: z.number(),
     index: z.number(),
@@ -40,8 +45,10 @@ export const OstiumOpenTradeSchema = z.object({
     tp: z.string(),
     sl: z.string(),
     timestamp: z.number(),
-}).passthrough();
-export const OstiumSubgraphTradeSchema = z.object({
+})
+    .passthrough();
+export const OstiumSubgraphTradeSchema = z
+    .object({
     id: z.string(),
     trader: z.string(),
     pairIndex: z.string(),
@@ -53,8 +60,10 @@ export const OstiumSubgraphTradeSchema = z.object({
     pnl: z.string(),
     timestamp: z.string(),
     txHash: z.string(),
-}).passthrough();
-export const OstiumSubgraphPositionSchema = z.object({
+})
+    .passthrough();
+export const OstiumSubgraphPositionSchema = z
+    .object({
     id: z.string(),
     trader: z.string(),
     pairIndex: z.string(),
@@ -66,5 +75,6 @@ export const OstiumSubgraphPositionSchema = z.object({
     tp: z.string(),
     sl: z.string(),
     timestamp: z.string(),
-}).passthrough();
+})
+    .passthrough();
 //# sourceMappingURL=types.js.map

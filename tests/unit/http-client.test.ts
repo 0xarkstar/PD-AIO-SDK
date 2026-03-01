@@ -587,6 +587,55 @@ describe('HTTPClient', () => {
       // Should have waited: 50ms + 100ms (capped from 100) = 150ms minimum
       expect(elapsed).toBeGreaterThanOrEqual(100);
     });
+
+    test('applies jitter to retry delays', async () => {
+      // Mock Math.random to verify jitter is applied
+      const originalRandom = Math.random;
+      let randomCallCount = 0;
+
+      Math.random = jest.fn(() => {
+        randomCallCount++;
+        // Return 0.5 for first retry (0% offset), 0.75 for second retry (+12.5% offset)
+        return randomCallCount === 1 ? 0.5 : 0.75;
+      });
+
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Server Error',
+        json: async () => ({}),
+        headers: new Headers(),
+      });
+
+      const client = new HTTPClient({
+        ...defaultConfig,
+        retry: {
+          maxAttempts: 3,
+          initialDelay: 100,
+          maxDelay: 500,
+          multiplier: 2,
+        },
+      });
+
+      const startTime = Date.now();
+      await expect(client.get('/test')).rejects.toThrow();
+      const elapsed = Date.now() - startTime;
+
+      // Restore
+      Math.random = originalRandom;
+
+      // Math.random should have been called at least twice (one per retry)
+      expect(randomCallCount).toBeGreaterThanOrEqual(2);
+
+      // With jitter:
+      // Retry 1: 100 * (1 + (0.5 - 0.5) * 0.5) = 100 * 1.0 = 100ms
+      // Retry 2: 200 * (1 + (0.75 - 0.5) * 0.5) = 200 * 1.125 = 225ms
+      // Total minimum: 325ms
+      expect(elapsed).toBeGreaterThanOrEqual(300);
+
+      // Verify the retry count
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
   });
 
   describe('circuit breaker', () => {

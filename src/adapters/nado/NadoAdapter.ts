@@ -432,7 +432,7 @@ export class NadoAdapter extends BaseAdapter {
     return markets;
   }
 
-  async fetchTicker(symbol: string): Promise<Ticker> {
+  async _fetchTicker(symbol: string): Promise<Ticker> {
     const mapping = this.getProductMapping(symbol);
 
     // Nado API expects product_ids as an array
@@ -451,7 +451,7 @@ export class NadoAdapter extends BaseAdapter {
     return this.normalizer.normalizeTicker(NadoTickerSchema.parse(ticker), symbol);
   }
 
-  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
+  async _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     const mapping = this.getProductMapping(symbol);
     const depth = params?.limit || 20;
 
@@ -464,7 +464,7 @@ export class NadoAdapter extends BaseAdapter {
     return this.normalizer.normalizeOrderBook(NadoOrderBookSchema.parse(orderBook), symbol);
   }
 
-  async fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
+  async _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
     // Nado provides trades via WebSocket only, not REST API
     // Use watchTrades() for real-time trade streaming
     throw new PerpDEXError(
@@ -474,7 +474,7 @@ export class NadoAdapter extends BaseAdapter {
     );
   }
 
-  async fetchFundingRate(symbol: string): Promise<FundingRate> {
+  async _fetchFundingRate(symbol: string): Promise<FundingRate> {
     const ticker = await this.fetchTicker(symbol);
 
     if (!ticker.info?.fundingRate) {
@@ -879,7 +879,7 @@ export class NadoAdapter extends BaseAdapter {
     );
   }
 
-  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
+  async _setLeverage(_symbol: string, _leverage: number): Promise<void> {
     throw new PerpDEXError(
       'setLeverage not supported on Nado (unified cross-margin system)',
       'NOT_SUPPORTED',

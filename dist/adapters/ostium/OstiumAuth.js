@@ -8,9 +8,6 @@ export class OstiumAuth {
         this.privateKey = config.privateKey;
         this.rpcUrl = config.rpcUrl;
     }
-    getPrivateKey() {
-        return this.privateKey;
-    }
     getRpcUrl() {
         return this.rpcUrl;
     }

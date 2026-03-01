@@ -11,6 +11,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] - 2026-03-01 (Cycle 25: Comprehensive Quality Audit)
+
+### ⚠️ BREAKING CHANGES
+- **`PerpDEXError.originalError` is now private** — Use `getOriginalErrorSafe()` instead
+- **`DydxAuth.getMnemonic()` removed** — Use `hasMnemonic()` to check
+- **`ParadexAuth.getStarkPrivateKey()` removed** — Private keys no longer exposed
+- **`OstiumAuth.getPrivateKey()` removed** — Private keys no longer exposed
+- **BaseAdapter delegation pattern** — Public methods validate input then delegate to `_methodName()` implementations
+
+### Added
+- Input validation at SDK boundary (symbol format, leverage range)
+- Error message redaction (API keys, hex secrets, Bearer tokens)
+- Drift dynamic market discovery (11 → 41+ markets via DLOB API)
+- GMX dynamic market normalization for unknown markets
+- HTTPClient retry jitter (±25%) to prevent thundering herd
+- Subgraph 30s request timeouts (GMX/Ostium)
+- Paradex WebSocket resubscription param storage
+- WebSocketManager `setMaxListeners(100)`
+
+### Fixed
+- Paradex mark price: was `funding_premium` (~5), now actual `mark_price` (~66000)
+- Drift funding rate precision: heuristic prevents double-division
+- Backpack ticker NaN guards + funding rate schema leniency
+- Lighter funding rate `markPrice`/`nextFundingTime` optional
+- Ostium: 2 real contract addresses + runtime placeholder validation
+- 4 multi-adapter integration test failures resolved
+- ESLint: 442 → 0 errors
+
+### Security
+- Sensitive data redaction in `PerpDEXError.toJSON()` and logger
+- Public key getter removal (3 adapters)
+- ESLint `no-console: error` enforced
+- Error mappings: GRVT `InvalidSignatureError`, Paradex/EdgeX `PositionNotFoundError`, Ostium `RateLimitError`+`InvalidSignatureError`
+
+### Improved
+- Test coverage: 82.28% → 85.87% statements (+3.6%)
+- Tests: 6143 → 6241 passed (+98), 0 failures (was 4)
+- Variational: URLs verified, testnet corrected
+- Backpack/dYdX/Extended: guaranteed non-empty base/quote
+
+---
+
 ## [Unreleased] - Cycle 15
 
 ### Fixed (Cycle 15)

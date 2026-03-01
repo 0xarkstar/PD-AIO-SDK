@@ -220,14 +220,6 @@ export class DydxAuth {
         return this.testnet;
     }
     /**
-     * Get the mnemonic (if available)
-     *
-     * Warning: Handle with care, this is sensitive data
-     */
-    getMnemonic() {
-        return this.mnemonic;
-    }
-    /**
      * Check if auth has mnemonic (for trading operations)
      */
     hasMnemonic() {

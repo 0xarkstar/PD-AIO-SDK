@@ -189,24 +189,24 @@ export interface LighterTicker {
 export interface LighterFundingRate {
     symbol: string;
     fundingRate: number;
-    markPrice: number;
-    nextFundingTime: number;
+    markPrice?: number;
+    nextFundingTime?: number;
 }
 export declare const LighterFundingRateSchema: z.ZodObject<{
     symbol: z.ZodString;
     fundingRate: z.ZodNumber;
-    markPrice: z.ZodNumber;
-    nextFundingTime: z.ZodNumber;
+    markPrice: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    nextFundingTime: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
     symbol: z.ZodString;
     fundingRate: z.ZodNumber;
-    markPrice: z.ZodNumber;
-    nextFundingTime: z.ZodNumber;
+    markPrice: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    nextFundingTime: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
     symbol: z.ZodString;
     fundingRate: z.ZodNumber;
-    markPrice: z.ZodNumber;
-    nextFundingTime: z.ZodNumber;
+    markPrice: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    nextFundingTime: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
 }, z.ZodTypeAny, "passthrough">>;
 /**
  * Lighter API market response from /api/v1/orderBookDetails

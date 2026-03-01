@@ -125,15 +125,13 @@ export const EdgeXAPIContractSchema = z
     .passthrough();
 export const EdgeXDepthDataSchema = z
     .object({
-    bids: z
-        .array(z
+    bids: z.array(z
         .object({
         price: z.string(),
         size: z.string(),
     })
         .passthrough()),
-    asks: z
-        .array(z
+    asks: z.array(z
         .object({
         price: z.string(),
         size: z.string(),

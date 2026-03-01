@@ -55,6 +55,80 @@ export class GmxNormalizer {
   }
 
   /**
+   * Derive market configuration from API data for markets not in hardcoded constants
+   * Uses available API fields to determine sensible defaults
+   */
+  private deriveMarketConfig(
+    market: GmxMarketInfo,
+    baseSymbol: string
+  ): {
+    minOrderSize: number;
+    tickSize: number;
+    stepSize: number;
+    maxLeverage: number;
+  } {
+    // Get token decimals from API response if available
+    const indexDecimals = market.indexTokenInfo?.decimals ?? 18;
+
+    // Derive tick size based on token decimals and typical price ranges
+    // Lower decimals = higher tick size (e.g., BTC has 8 decimals, needs larger tick)
+    let tickSize: number;
+    if (indexDecimals <= 8) {
+      // BTC-like assets: $0.1 tick
+      tickSize = 0.1;
+    } else if (indexDecimals === 9) {
+      // SOL-like assets: $0.001 tick
+      tickSize = 0.001;
+    } else {
+      // ETH and most others: $0.01 tick
+      tickSize = 0.01;
+    }
+
+    // Derive step size based on asset type (amount precision)
+    let stepSize: number;
+    let minOrderSize: number;
+    if (indexDecimals <= 8) {
+      // BTC-like: 0.00001 BTC step, 0.0001 BTC min
+      stepSize = 0.00001;
+      minOrderSize = 0.0001;
+    } else if (indexDecimals === 9) {
+      // SOL-like: 0.01 SOL step, 0.1 SOL min
+      stepSize = 0.01;
+      minOrderSize = 0.1;
+    } else if (baseSymbol === 'DOGE' || baseSymbol === 'XRP') {
+      // Low-price assets: 1 unit step, 10 units min
+      stepSize = 1;
+      minOrderSize = 10;
+    } else {
+      // ETH-like: 0.0001 ETH step, 0.001 ETH min
+      stepSize = 0.0001;
+      minOrderSize = 0.001;
+    }
+
+    // Derive max leverage from minCollateralFactor
+    // minCollateralFactor is the minimum margin ratio (e.g., 0.01 = 1% = 100x max leverage)
+    let maxLeverage = 100; // Default
+    if (market.minCollateralFactor) {
+      const minMarginRatio = parseFloat(market.minCollateralFactor) / GMX_PRECISION.FACTOR;
+      if (minMarginRatio > 0) {
+        // Max leverage = 1 / min margin ratio
+        const derivedLeverage = 1 / minMarginRatio;
+        // Cap at reasonable values and round down
+        maxLeverage = Math.min(Math.floor(derivedLeverage), 100);
+        // Ensure minimum of 1x
+        maxLeverage = Math.max(maxLeverage, 1);
+      }
+    }
+
+    return {
+      minOrderSize,
+      tickSize,
+      stepSize,
+      maxLeverage,
+    };
+  }
+
+  /**
    * Normalize market info to unified Market
    */
   normalizeMarket(market: GmxMarketInfo, chain: 'arbitrum' | 'avalanche'): Market {
@@ -67,9 +141,19 @@ export class GmxNormalizer {
     const baseSymbol = config?.baseAsset || this.extractBaseFromName(validated.name);
     const symbol = config?.symbol || `${baseSymbol}/USD`;
 
-    // Price info may not be available in markets/info response
-    // Use a reasonable default for calculations
-    const maxOI = parseFloat(validated.maxOpenInterestLong ?? '0') / GMX_PRECISION.USD;
+    // If config is not found, derive market parameters from API data
+    const derivedConfig = config ? null : this.deriveMarketConfig(validated, baseSymbol);
+
+    // Use config values if available, otherwise use derived values
+    const minOrderSize = config?.minOrderSize ?? derivedConfig?.minOrderSize ?? 0.001;
+    const tickSize = config?.tickSize ?? derivedConfig?.tickSize ?? 0.01;
+    const stepSize = config?.stepSize ?? derivedConfig?.stepSize ?? 0.0001;
+    const maxLeverage = config?.maxLeverage ?? derivedConfig?.maxLeverage ?? 100;
+
+    // Calculate maxAmount from open interest limits
+    const maxOILong = parseFloat(validated.maxOpenInterestLong ?? '0') / GMX_PRECISION.USD;
+    const maxOIShort = parseFloat(validated.maxOpenInterestShort ?? '0') / GMX_PRECISION.USD;
+    const maxOI = Math.max(maxOILong, maxOIShort);
 
     return {
       id: marketToken,
@@ -78,15 +162,15 @@ export class GmxNormalizer {
       quote: 'USD',
       settle: config?.settleAsset || 'USD',
       active: !(validated.isDisabled ?? false),
-      minAmount: config?.minOrderSize || 0.001,
-      maxAmount: maxOI > 0 ? maxOI : 1000000, // Fallback if price unavailable
-      pricePrecision: this.getPrecisionFromTickSize(config?.tickSize || 0.01),
-      amountPrecision: this.getPrecisionFromTickSize(config?.stepSize || 0.0001),
-      priceTickSize: config?.tickSize || 0.01,
-      amountStepSize: config?.stepSize || 0.0001,
+      minAmount: minOrderSize,
+      maxAmount: maxOI > 0 ? maxOI : 1000000, // Fallback if OI data unavailable
+      pricePrecision: this.getPrecisionFromTickSize(tickSize),
+      amountPrecision: this.getPrecisionFromTickSize(stepSize),
+      priceTickSize: tickSize,
+      amountStepSize: stepSize,
       makerFee: 0.0005, // 0.05% base fee (varies with price impact)
       takerFee: 0.0007, // 0.07% base fee (varies with price impact)
-      maxLeverage: config?.maxLeverage || 100,
+      maxLeverage,
       fundingIntervalHours: 1, // Continuous funding, normalized to 1h
       contractSize: 1,
       info: {
@@ -102,6 +186,7 @@ export class GmxNormalizer {
         fundingFactor: validated.fundingFactor ?? '0',
         borrowingFactorLong: validated.borrowingFactorLong ?? '0',
         borrowingFactorShort: validated.borrowingFactorShort ?? '0',
+        _configSource: config ? 'hardcoded' : 'derived',
       },
     };
   }

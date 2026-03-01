@@ -189,11 +189,13 @@ export class HTTPClient {
             throw error;
           }
 
-          // Calculate delay with exponential backoff
-          const delay = Math.min(
+          // Calculate delay with exponential backoff + jitter
+          const baseDelay = Math.min(
             this.retryConfig.initialDelay * Math.pow(this.retryConfig.multiplier, attempt),
             this.retryConfig.maxDelay
           );
+          // Add ±25% jitter to prevent thundering herd
+          const delay = baseDelay * (1 + (Math.random() - 0.5) * 0.5);
 
           // Wait before retry
           await new Promise((resolve) => setTimeout(resolve, delay));

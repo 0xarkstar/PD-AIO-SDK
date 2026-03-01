@@ -41,22 +41,22 @@ export declare class EdgeXAdapter extends BaseAdapter {
     /**
      * Fetch ticker for a symbol
      */
-    fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchTicker(symbol: string): Promise<Ticker>;
     /**
      * Fetch order book for a symbol
      * Note: EdgeX only supports level=15 or level=200 for order book depth
      */
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
+    _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
     /**
      * Fetch recent trades for a symbol
      * Note: EdgeX does not expose public trades via REST API.
      * Use WebSocket (watchTrades) for real-time trade data.
      */
-    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
+    _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
     /**
      * Fetch current funding rate
      */
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     /**
      * Fetch funding rate history
      */
@@ -111,7 +111,7 @@ export declare class EdgeXAdapter extends BaseAdapter {
     /**
      * Set leverage for a symbol
      */
-    setLeverage(symbol: string, leverage: number): Promise<void>;
+    _setLeverage(symbol: string, leverage: number): Promise<void>;
     /**
      * Fetch order history
      *

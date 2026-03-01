@@ -6,7 +6,7 @@
  * additional error mapping for completeness.
  */
 import { includesValue } from '../../utils/type-guards.js';
-import { PerpDEXError, InvalidOrderError, InsufficientMarginError, OrderNotFoundError, RateLimitError, ExchangeUnavailableError, } from '../../types/errors.js';
+import { PerpDEXError, InvalidOrderError, InsufficientMarginError, OrderNotFoundError, InvalidSignatureError, RateLimitError, ExchangeUnavailableError, } from '../../types/errors.js';
 /**
  * GRVT Client Error Codes
  */
@@ -41,6 +41,8 @@ export function mapGRVTError(errorCode, message, originalError) {
             return new InvalidOrderError(message, errorCode, 'grvt', originalError);
         case GRVT_CLIENT_ERRORS.ORDER_NOT_FOUND:
             return new OrderNotFoundError(message, errorCode, 'grvt', originalError);
+        case GRVT_CLIENT_ERRORS.INVALID_SIGNATURE:
+            return new InvalidSignatureError(message, errorCode, 'grvt', originalError);
         case GRVT_RATE_LIMIT_ERROR:
             return new RateLimitError(message, errorCode, 'grvt', undefined, originalError);
         default:

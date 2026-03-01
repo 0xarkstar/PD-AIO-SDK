@@ -85,7 +85,7 @@ export class OstiumAdapter extends BaseAdapter {
     async fetchMarkets(_params) {
         return OSTIUM_PAIRS.map((pair) => this.normalizer.normalizeMarket(pair));
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         const pairIndex = toOstiumPairIndex(symbol);
         const pair = OSTIUM_PAIRS.find((p) => p.pairIndex === pairIndex);
         if (!pair) {
@@ -96,15 +96,15 @@ export class OstiumAdapter extends BaseAdapter {
         const response = await this.fetchMetadata(`/PricePublish/latest-price?asset=${assetParam}`, 'fetchTicker');
         return this.normalizer.normalizeTicker(response, pair);
     }
-    async fetchOrderBook(_symbol, _params) {
+    async _fetchOrderBook(_symbol, _params) {
         throw new NotSupportedError('Ostium does not have an order book (on-chain DEX)', 'NOT_SUPPORTED', 'ostium');
     }
-    async fetchTrades(_symbol, _params) {
+    async _fetchTrades(_symbol, _params) {
         // The Graph hosted service subgraph has been removed.
         // Trades require an alternative data source (e.g., Graph Studio with API key).
         throw new NotSupportedError('Ostium subgraph has been removed from The Graph hosted service. Trade data unavailable.', 'NOT_SUPPORTED', 'ostium');
     }
-    async fetchFundingRate(_symbol) {
+    async _fetchFundingRate(_symbol) {
         throw new NotSupportedError('Ostium uses rollover fees, not funding rates', 'NOT_SUPPORTED', 'ostium');
     }
     async fetchFundingRateHistory(_symbol, _since, _limit) {
@@ -205,7 +205,7 @@ export class OstiumAdapter extends BaseAdapter {
             throw mapOstiumError(error);
         }
     }
-    async setLeverage(_symbol, _leverage) {
+    async _setLeverage(_symbol, _leverage) {
         throw new NotSupportedError('Ostium sets leverage per-trade, not per-symbol', 'NOT_SUPPORTED', 'ostium');
     }
     async fetchOrderHistory(_symbol, _since, _limit) {

@@ -4,11 +4,20 @@
  * Manages multiple WebSocket connections and subscriptions
  * with bounded queue and backpressure support
  */
-import { EventEmitter } from 'eventemitter3';
+import { EventEmitter } from 'events';
 import { WebSocketDisconnectedError } from '../types/errors.js';
 import { WebSocketClient } from './WebSocketClient.js';
 /** Maximum queue size for message backpressure */
 const MAX_QUEUE_SIZE = 1000;
+/**
+ * WebSocketManager Events:
+ * - 'message': (channel: string, data: unknown) => void
+ * - 'error': (error: Error) => void
+ * - 'subscribed': (subscription: Subscription) => void
+ * - 'unsubscribed': (subscriptionId: string) => void
+ * - 'reconnected': () => void
+ * - 'queueOverflow': (channel: string, droppedCount: number) => void
+ */
 export class WebSocketManager extends EventEmitter {
     config;
     client = null;
@@ -19,6 +28,8 @@ export class WebSocketManager extends EventEmitter {
     constructor(config) {
         super();
         this.config = config;
+        // Increase max listeners to prevent warnings with many subscriptions
+        this.setMaxListeners(100);
     }
     /**
      * Get the number of messages dropped due to queue overflow

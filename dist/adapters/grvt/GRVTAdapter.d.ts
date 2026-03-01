@@ -50,9 +50,9 @@ export declare class GRVTAdapter extends BaseAdapter {
     constructor(config?: GRVTAdapterConfig);
     initialize(): Promise<void>;
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
-    fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    _fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
+    _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
     /**
      * Fetch OHLCV (candlestick) data
      *
@@ -66,7 +66,7 @@ export declare class GRVTAdapter extends BaseAdapter {
      * Get default duration based on timeframe for initial data fetch
      */
     private getDefaultDuration;
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     createOrder(request: OrderRequest): Promise<Order>;
     cancelOrder(orderId: string, _symbol?: string): Promise<Order>;
     cancelAllOrders(symbol?: string): Promise<Order[]>;
@@ -84,7 +84,7 @@ export declare class GRVTAdapter extends BaseAdapter {
     private mapOrderType;
     private mapTimeInForce;
     fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
-    setLeverage(symbol: string, leverage: number): Promise<void>;
+    _setLeverage(symbol: string, leverage: number): Promise<void>;
     symbolToExchange(symbol: string): string;
     symbolFromExchange(exchangeSymbol: string): string;
     /**

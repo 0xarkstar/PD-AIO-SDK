@@ -195,7 +195,7 @@ export class GmxAdapter extends BaseAdapter {
             throw mapGmxError(error);
         }
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         this.ensureInitialized();
         const marketKey = unifiedToGmx(symbol);
         if (!marketKey) {
@@ -227,15 +227,15 @@ export class GmxAdapter extends BaseAdapter {
             throw mapGmxError(error);
         }
     }
-    async fetchOrderBook(_symbol, _params) {
+    async _fetchOrderBook(_symbol, _params) {
         // GMX doesn't have a traditional orderbook - it's AMM-based with price impact
         throw new Error('GMX does not have a traditional orderbook. Use fetchTicker for price data.');
     }
-    async fetchTrades(_symbol, _params) {
+    async _fetchTrades(_symbol, _params) {
         // Would require subgraph query - not implemented for REST-only version
         throw new Error('fetchTrades requires subgraph integration. Not available via REST API.');
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         this.ensureInitialized();
         const marketKey = unifiedToGmx(symbol);
         if (!marketKey) {
@@ -656,7 +656,7 @@ export class GmxAdapter extends BaseAdapter {
             throw mapGmxError(error);
         }
     }
-    async setLeverage(_symbol, _leverage) {
+    async _setLeverage(_symbol, _leverage) {
         // GMX v2 leverage is per-position, not per-account or per-symbol
         // Leverage is determined at order creation time
         throw new Error('GMX v2 does not have account-level leverage settings. ' +

@@ -1,7 +1,7 @@
 /**
  * Ostium Contract Interactions
  */
-import { OSTIUM_TRADING_ABI, OSTIUM_STORAGE_ABI, OSTIUM_COLLATERAL_ABI, OSTIUM_CONTRACTS, } from './constants.js';
+import { OSTIUM_TRADING_ABI, OSTIUM_STORAGE_ABI, OSTIUM_COLLATERAL_ABI, OSTIUM_CONTRACTS, validateContractAddresses, } from './constants.js';
 export class OstiumContracts {
     addresses;
     rpcUrl;
@@ -10,6 +10,8 @@ export class OstiumContracts {
         this.rpcUrl = rpcUrl;
         this.privateKey = privateKey;
         this.addresses = addresses ?? OSTIUM_CONTRACTS;
+        // Validate contract addresses to ensure no placeholders are used
+        validateContractAddresses(this.addresses);
     }
     async getProvider() {
         const { JsonRpcProvider } = await import('ethers');

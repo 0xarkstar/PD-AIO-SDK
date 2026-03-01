@@ -18,10 +18,6 @@ export class OstiumAuth implements IAuthStrategy {
     this.rpcUrl = config.rpcUrl;
   }
 
-  getPrivateKey(): string {
-    return this.privateKey;
-  }
-
   getRpcUrl(): string {
     return this.rpcUrl;
   }

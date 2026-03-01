@@ -319,7 +319,7 @@ export class NadoAdapter extends BaseAdapter {
         this.debug('Markets fetched', { count: markets.length });
         return markets;
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         const mapping = this.getProductMapping(symbol);
         // Nado API expects product_ids as an array
         const response = await this.apiClient.query(NADO_QUERY_TYPES.MARKET_PRICES, {
@@ -331,7 +331,7 @@ export class NadoAdapter extends BaseAdapter {
         }
         return this.normalizer.normalizeTicker(NadoTickerSchema.parse(ticker), symbol);
     }
-    async fetchOrderBook(symbol, params) {
+    async _fetchOrderBook(symbol, params) {
         const mapping = this.getProductMapping(symbol);
         const depth = params?.limit || 20;
         // Nado API requires depth parameter
@@ -341,12 +341,12 @@ export class NadoAdapter extends BaseAdapter {
         });
         return this.normalizer.normalizeOrderBook(NadoOrderBookSchema.parse(orderBook), symbol);
     }
-    async fetchTrades(_symbol, _params) {
+    async _fetchTrades(_symbol, _params) {
         // Nado provides trades via WebSocket only, not REST API
         // Use watchTrades() for real-time trade streaming
         throw new PerpDEXError('fetchTrades not supported via REST API on Nado. Use watchTrades() for WebSocket streaming.', 'NOT_SUPPORTED', this.id);
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         const ticker = await this.fetchTicker(symbol);
         if (!ticker.info?.fundingRate) {
             throw new PerpDEXError('Funding rate not available for this symbol', 'NO_FUNDING_RATE', this.id);
@@ -655,7 +655,7 @@ export class NadoAdapter extends BaseAdapter {
     async fetchMyTrades(_symbol, _since, _limit) {
         throw new PerpDEXError('fetchMyTrades not supported on Nado (use WebSocket fills channel)', 'NOT_SUPPORTED', this.id);
     }
-    async setLeverage(_symbol, _leverage) {
+    async _setLeverage(_symbol, _leverage) {
         throw new PerpDEXError('setLeverage not supported on Nado (unified cross-margin system)', 'NOT_SUPPORTED', this.id);
     }
 }

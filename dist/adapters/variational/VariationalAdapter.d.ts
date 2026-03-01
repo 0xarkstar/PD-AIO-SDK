@@ -8,6 +8,14 @@
  * Variational is an RFQ (Request For Quote) based perpetual DEX on Arbitrum.
  * This adapter supports public market data, trading, and account operations.
  *
+ * ### Authentication
+ * Uses HMAC-SHA256 signature authentication with these headers:
+ * - `X-API-Key`: Your API key
+ * - `X-Timestamp`: Unix timestamp in milliseconds
+ * - `X-Signature`: HMAC-SHA256(secret, timestamp + method + path + body)
+ *
+ * Note: API key generation is currently limited. Contact hello@variational.io for access.
+ *
  * ### Currently Implemented
  *
  * **Public API:**
@@ -119,10 +127,10 @@ export declare class VariationalAdapter extends BaseAdapter {
      */
     protected symbolFromExchange(exchangeSymbol: string): string;
     fetchMarkets(_params?: MarketParams): Promise<Market[]>;
-    fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    _fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
+    _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     createOrder(request: OrderRequest): Promise<Order>;
     cancelOrder(orderId: string, _symbol?: string): Promise<Order>;
@@ -131,7 +139,7 @@ export declare class VariationalAdapter extends BaseAdapter {
     cancelBatchOrders(_orderIds: string[], _symbol?: string): Promise<Order[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
-    setLeverage(_symbol: string, _leverage: number): Promise<void>;
+    _setLeverage(_symbol: string, _leverage: number): Promise<void>;
     setMarginMode(_symbol: string, _marginMode: 'cross' | 'isolated'): Promise<void>;
     fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
     fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;

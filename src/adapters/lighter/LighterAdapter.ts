@@ -350,26 +350,26 @@ export class LighterAdapter extends BaseAdapter {
     return fetchMarketsData(this.getMarketDataDeps());
   }
 
-  async fetchTicker(symbol: string): Promise<Ticker> {
+  async _fetchTicker(symbol: string): Promise<Ticker> {
     await this.rateLimiter.acquire('fetchTicker');
     return fetchTickerData(this.getMarketDataDeps(), symbol);
   }
 
-  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
+  async _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     await this.rateLimiter.acquire('fetchOrderBook');
     return fetchOrderBookData(this.getMarketDataDeps(), symbol, params?.limit || 50, () =>
       this.fetchMarkets()
     );
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+  async _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
     await this.rateLimiter.acquire('fetchTrades');
     return fetchTradesData(this.getMarketDataDeps(), symbol, params?.limit || 100, () =>
       this.fetchMarkets()
     );
   }
 
-  async fetchFundingRate(symbol: string): Promise<FundingRate> {
+  async _fetchFundingRate(symbol: string): Promise<FundingRate> {
     await this.rateLimiter.acquire('fetchFundingRate');
     return fetchFundingRateData(this.getMarketDataDeps(), symbol, () => this.fetchMarkets());
   }
@@ -545,7 +545,7 @@ export class LighterAdapter extends BaseAdapter {
 
   // ==================== Required BaseAdapter Methods ====================
 
-  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
+  async _setLeverage(_symbol: string, _leverage: number): Promise<void> {
     throw new Error('Lighter does not support setLeverage');
   }
 

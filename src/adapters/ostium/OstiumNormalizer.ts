@@ -47,10 +47,16 @@ export class OstiumNormalizer {
     const validatedRaw = OstiumPriceResponseSchema.parse(raw);
     const validatedPair = OstiumPairInfoSchema.parse(pair);
     // API returns {bid, mid, ask, timestampSeconds} instead of {price, timestamp}
-    const price = validatedRaw.mid != null ? parseFloat(String(validatedRaw.mid)) : parseFloat(validatedRaw.price);
+    const price =
+      validatedRaw.mid != null
+        ? parseFloat(String(validatedRaw.mid))
+        : parseFloat(validatedRaw.price);
     const bid = validatedRaw.bid != null ? parseFloat(String(validatedRaw.bid)) : price;
     const ask = validatedRaw.ask != null ? parseFloat(String(validatedRaw.ask)) : price;
-    const timestamp = validatedRaw.timestampSeconds != null ? validatedRaw.timestampSeconds * 1000 : validatedRaw.timestamp;
+    const timestamp =
+      validatedRaw.timestampSeconds != null
+        ? validatedRaw.timestampSeconds * 1000
+        : validatedRaw.timestamp;
 
     return {
       symbol: toUnifiedSymbolFromName(validatedPair.name),

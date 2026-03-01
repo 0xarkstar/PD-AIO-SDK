@@ -492,6 +492,8 @@ export interface DriftL2OrderBook {
   marketIndex: number;
   /** Market type */
   marketType: DriftMarketType;
+  /** Market name (e.g., "SOL-PERP") */
+  marketName?: string;
   /** Bids - array of [price, size] */
   bids: Array<{
     price: string;
@@ -514,22 +516,21 @@ export const DriftL2OrderBookSchema = z
   .object({
     marketIndex: z.number(),
     marketType: z.string(),
-    bids: z
-      .array(
-        z.object({
-          price: z.string(),
-          size: z.string(),
-          sources: z.record(z.string(), z.string()).optional(),
-        })
-      ),
-    asks: z
-      .array(
-        z.object({
-          price: z.string(),
-          size: z.string(),
-          sources: z.record(z.string(), z.string()).optional(),
-        })
-      ),
+    marketName: z.string().optional(),
+    bids: z.array(
+      z.object({
+        price: z.string(),
+        size: z.string(),
+        sources: z.record(z.string(), z.string()).optional(),
+      })
+    ),
+    asks: z.array(
+      z.object({
+        price: z.string(),
+        size: z.string(),
+        sources: z.record(z.string(), z.string()).optional(),
+      })
+    ),
     oraclePrice: z.string(),
     slot: z.number(),
   })

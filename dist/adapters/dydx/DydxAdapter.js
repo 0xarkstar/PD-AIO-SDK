@@ -182,7 +182,7 @@ export class DydxAdapter extends BaseAdapter {
             throw mapDydxError(error);
         }
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         await this.rateLimiter.acquire('fetchTicker');
         try {
             const response = await this.request('GET', `${this.apiUrl}/perpetualMarkets`);
@@ -202,7 +202,7 @@ export class DydxAdapter extends BaseAdapter {
             throw mapDydxError(error);
         }
     }
-    async fetchOrderBook(symbol, _params) {
+    async _fetchOrderBook(symbol, _params) {
         await this.rateLimiter.acquire('fetchOrderBook');
         try {
             const exchangeSymbol = this.symbolToExchange(symbol);
@@ -213,7 +213,7 @@ export class DydxAdapter extends BaseAdapter {
             throw mapDydxError(error);
         }
     }
-    async fetchTrades(symbol, params) {
+    async _fetchTrades(symbol, params) {
         await this.rateLimiter.acquire('fetchTrades');
         try {
             const exchangeSymbol = this.symbolToExchange(symbol);
@@ -231,7 +231,7 @@ export class DydxAdapter extends BaseAdapter {
             throw mapDydxError(error);
         }
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire('fetchFundingRate');
         try {
             const exchangeSymbol = this.symbolToExchange(symbol);
@@ -409,7 +409,7 @@ export class DydxAdapter extends BaseAdapter {
             throw mapDydxError(error);
         }
     }
-    async setLeverage(_symbol, _leverage) {
+    async _setLeverage(_symbol, _leverage) {
         // dYdX v4 uses cross-margin and doesn't support per-symbol leverage setting
         this.debug('setLeverage: dYdX v4 uses cross-margin mode without per-symbol leverage');
         throw new Error('dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity.');

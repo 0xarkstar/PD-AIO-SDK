@@ -211,15 +211,6 @@ export class ParadexAuth implements IAuthStrategy {
   // ===========================================================================
 
   /**
-   * Get StarkNet private key
-   *
-   * @returns Private key or undefined
-   */
-  getStarkPrivateKey(): string | undefined {
-    return this.starkPrivateKey;
-  }
-
-  /**
    * Get StarkNet public key derived from private key
    *
    * @returns Public key (address) or undefined
@@ -330,9 +321,10 @@ export class ParadexAuth implements IAuthStrategy {
       // Return the public key as the address (StarkNet format)
       return publicKey;
     } catch (error) {
-      const sanitizedError = error instanceof Error
-        ? new Error(error.message.replace(/0x[0-9a-fA-F]{64,}/g, '[REDACTED]'))
-        : undefined;
+      const sanitizedError =
+        error instanceof Error
+          ? new Error(error.message.replace(/0x[0-9a-fA-F]{64,}/g, '[REDACTED]'))
+          : undefined;
       this.logger.error('Failed to derive StarkNet address', sanitizedError);
       return undefined;
     }

@@ -98,14 +98,13 @@ export const DriftL2OrderBookSchema = z
     .object({
     marketIndex: z.number(),
     marketType: z.string(),
-    bids: z
-        .array(z.object({
+    marketName: z.string().optional(),
+    bids: z.array(z.object({
         price: z.string(),
         size: z.string(),
         sources: z.record(z.string(), z.string()).optional(),
     })),
-    asks: z
-        .array(z.object({
+    asks: z.array(z.object({
         price: z.string(),
         size: z.string(),
         sources: z.record(z.string(), z.string()).optional(),

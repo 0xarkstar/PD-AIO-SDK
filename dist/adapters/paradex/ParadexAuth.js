@@ -161,14 +161,6 @@ export class ParadexAuth {
     // StarkNet Key Management
     // ===========================================================================
     /**
-     * Get StarkNet private key
-     *
-     * @returns Private key or undefined
-     */
-    getStarkPrivateKey() {
-        return this.starkPrivateKey;
-    }
-    /**
      * Get StarkNet public key derived from private key
      *
      * @returns Public key (address) or undefined

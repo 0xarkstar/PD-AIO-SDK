@@ -86,6 +86,7 @@ export class ParadexWebSocketWrapper {
   private reconnectAttempts = 0;
   private subscriptionId = 0;
   private readonly subscriptions = new Map<string, Set<(data: any) => void>>();
+  private readonly subscriptionParams = new Map<string, any>();
   private readonly messageQueue = new Map<string, any[]>();
 
   /**
@@ -630,6 +631,9 @@ export class ParadexWebSocketWrapper {
     }
     this.subscriptions.get(channel)!.add(callback);
 
+    // Store subscription params for reconnection
+    this.subscriptionParams.set(channel, params);
+
     // Send subscription request
     const request: SubscriptionRequest = {
       method: 'subscribe',
@@ -654,6 +658,7 @@ export class ParadexWebSocketWrapper {
       // If no more subscribers, unsubscribe from channel
       if (subscribers.size === 0) {
         this.subscriptions.delete(channel);
+        this.subscriptionParams.delete(channel);
 
         if (this.ws && this.isConnected) {
           this.ws.send(
@@ -717,10 +722,9 @@ export class ParadexWebSocketWrapper {
     try {
       await this.connect();
 
-      // Resubscribe to all channels
+      // Resubscribe to all channels with original params
       for (const [channel] of this.subscriptions) {
-        // Extract params from channel name (simplified)
-        const params: any = {};
+        const params = this.subscriptionParams.get(channel) || {};
         this.ws!.send(
           JSON.stringify({
             method: 'subscribe',

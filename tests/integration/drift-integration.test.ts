@@ -27,6 +27,7 @@ describeIfIntegration('Drift Integration Tests', () => {
     };
 
     adapter = new DriftAdapter(config);
+    await adapter.initialize();
   });
 
   afterAll(async () => {

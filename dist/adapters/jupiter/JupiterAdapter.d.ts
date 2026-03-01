@@ -75,10 +75,10 @@ export declare class JupiterAdapter extends BaseAdapter {
     protected symbolToExchange(symbol: string): string;
     protected symbolFromExchange(exchangeSymbol: string): string;
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
-    fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    _fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
+    _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
@@ -95,7 +95,7 @@ export declare class JupiterAdapter extends BaseAdapter {
     }): Promise<Order>;
     fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
     fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
-    setLeverage(_symbol: string, _leverage: number): Promise<void>;
+    _setLeverage(_symbol: string, _leverage: number): Promise<void>;
     protected performApiHealthCheck(): Promise<void>;
     /**
      * Get current price for a symbol

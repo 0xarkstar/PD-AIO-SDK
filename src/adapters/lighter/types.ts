@@ -159,16 +159,16 @@ export interface LighterTicker {
 export interface LighterFundingRate {
   symbol: string;
   fundingRate: number;
-  markPrice: number;
-  nextFundingTime: number;
+  markPrice?: number;
+  nextFundingTime?: number;
 }
 
 export const LighterFundingRateSchema = z
   .object({
     symbol: z.string(),
     fundingRate: z.number(),
-    markPrice: z.number(),
-    nextFundingTime: z.number(),
+    markPrice: z.number().optional().default(0),
+    nextFundingTime: z.number().optional().default(0),
   })
   .passthrough();
 

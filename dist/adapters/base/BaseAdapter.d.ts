@@ -7,12 +7,42 @@
 import type { Balance, Currency, ExchangeStatus, FundingPayment, FundingRate, LedgerEntry, Market, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderRequest, OrderSide, OrderType, Portfolio, Position, RateLimitStatus, Ticker, Trade, Transaction, UserFees } from '../../types/index.js';
 import { BaseAdapterCore } from './BaseAdapterCore.js';
 export declare abstract class BaseAdapter extends BaseAdapterCore {
+    /**
+     * Validate symbol format at SDK boundary
+     *
+     * @param symbol - Symbol to validate
+     * @throws {BadRequestError} If symbol is invalid
+     */
+    protected validateSymbol(symbol: string): void;
+    /**
+     * Validate leverage value at SDK boundary
+     *
+     * @param leverage - Leverage value to validate
+     * @throws {InvalidOrderError} If leverage is invalid
+     */
+    protected validateLeverage(leverage: number): void;
     abstract fetchMarkets(params?: any): Promise<any>;
-    abstract fetchTicker(symbol: string): Promise<any>;
-    abstract fetchOrderBook(symbol: string, params?: any): Promise<any>;
-    abstract fetchTrades(symbol: string, params?: any): Promise<any>;
-    abstract fetchFundingRate(symbol: string): Promise<any>;
+    /**
+     * Fetch ticker with validation
+     */
+    fetchTicker(symbol: string): Promise<any>;
+    /**
+     * Fetch order book with validation
+     */
+    fetchOrderBook(symbol: string, params?: any): Promise<any>;
+    /**
+     * Fetch trades with validation
+     */
+    fetchTrades(symbol: string, params?: any): Promise<any>;
+    /**
+     * Fetch funding rate with validation
+     */
+    fetchFundingRate(symbol: string): Promise<any>;
     abstract fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<any>;
+    protected abstract _fetchTicker(symbol: string): Promise<any>;
+    protected abstract _fetchOrderBook(symbol: string, params?: any): Promise<any>;
+    protected abstract _fetchTrades(symbol: string, params?: any): Promise<any>;
+    protected abstract _fetchFundingRate(symbol: string): Promise<any>;
     abstract createOrder(request: OrderRequest): Promise<Order>;
     abstract cancelOrder(_orderId: string, _symbol?: string): Promise<Order>;
     abstract cancelAllOrders(_symbol?: string): Promise<Order[]>;
@@ -20,7 +50,11 @@ export declare abstract class BaseAdapter extends BaseAdapterCore {
     abstract fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<any>;
     abstract fetchPositions(symbols?: string[]): Promise<Position[]>;
     abstract fetchBalance(): Promise<Balance[]>;
-    abstract setLeverage(symbol: string, leverage: number): Promise<void>;
+    /**
+     * Set leverage with validation
+     */
+    setLeverage(symbol: string, leverage: number): Promise<void>;
+    protected abstract _setLeverage(symbol: string, leverage: number): Promise<void>;
     fetchOHLCV(_symbol: string, _timeframe: OHLCVTimeframe, _params?: OHLCVParams): Promise<OHLCV[]>;
     fetchTickers(symbols?: string[]): Promise<Record<string, Ticker>>;
     fetchCurrencies(): Promise<Record<string, Currency>>;

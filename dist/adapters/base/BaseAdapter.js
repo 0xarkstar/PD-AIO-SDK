@@ -4,9 +4,74 @@
  * Abstract base class providing API surface methods for all adapters.
  * Extends BaseAdapterCore to inherit infrastructure functionality.
  */
-import { NotSupportedError, PerpDEXError } from '../../types/errors.js';
+import { BadRequestError, InvalidOrderError, NotSupportedError, PerpDEXError, } from '../../types/errors.js';
 import { BaseAdapterCore } from './BaseAdapterCore.js';
 export class BaseAdapter extends BaseAdapterCore {
+    // ===========================================================================
+    // Input Validation Methods
+    // ===========================================================================
+    /**
+     * Validate symbol format at SDK boundary
+     *
+     * @param symbol - Symbol to validate
+     * @throws {BadRequestError} If symbol is invalid
+     */
+    validateSymbol(symbol) {
+        if (!symbol || typeof symbol !== 'string') {
+            throw new BadRequestError('Symbol is required', 'INVALID_SYMBOL', this.id);
+        }
+        // Allow formats: BTC/USD, BTC/USD:USD, BTC/USDT, 1000PEPE/USDT:USDT
+        if (!/^[A-Z0-9]{1,20}\/[A-Z0-9]{1,20}(:[A-Z0-9]{1,20})?$/i.test(symbol)) {
+            throw new BadRequestError(`Invalid symbol format: ${symbol}`, 'INVALID_SYMBOL', this.id);
+        }
+    }
+    /**
+     * Validate leverage value at SDK boundary
+     *
+     * @param leverage - Leverage value to validate
+     * @throws {InvalidOrderError} If leverage is invalid
+     */
+    validateLeverage(leverage) {
+        if (typeof leverage !== 'number' || isNaN(leverage) || leverage <= 0 || leverage > 200) {
+            throw new InvalidOrderError(`Invalid leverage: ${leverage}. Must be between 0 and 200`, 'INVALID_LEVERAGE', this.id);
+        }
+    }
+    /**
+     * Fetch ticker with validation
+     */
+    async fetchTicker(symbol) {
+        this.validateSymbol(symbol);
+        return this._fetchTicker(symbol);
+    }
+    /**
+     * Fetch order book with validation
+     */
+    async fetchOrderBook(symbol, params) {
+        this.validateSymbol(symbol);
+        return this._fetchOrderBook(symbol, params);
+    }
+    /**
+     * Fetch trades with validation
+     */
+    async fetchTrades(symbol, params) {
+        this.validateSymbol(symbol);
+        return this._fetchTrades(symbol, params);
+    }
+    /**
+     * Fetch funding rate with validation
+     */
+    async fetchFundingRate(symbol) {
+        this.validateSymbol(symbol);
+        return this._fetchFundingRate(symbol);
+    }
+    /**
+     * Set leverage with validation
+     */
+    async setLeverage(symbol, leverage) {
+        this.validateSymbol(symbol);
+        this.validateLeverage(leverage);
+        return this._setLeverage(symbol, leverage);
+    }
     // ===========================================================================
     // Market Data (Public) - Optional implementations
     // ===========================================================================

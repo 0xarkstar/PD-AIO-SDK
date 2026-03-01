@@ -233,8 +233,8 @@ export class NadoAPIClient {
             }
             return isRetryableError(error.code);
         }
-        // Check both error and wrapped originalError
-        return this.isRetryableNetworkError(error) || this.isRetryableNetworkError(error.originalError);
+        // Check if error is a retryable network error
+        return this.isRetryableNetworkError(error);
     }
     /**
      * Check if error is a retryable network error

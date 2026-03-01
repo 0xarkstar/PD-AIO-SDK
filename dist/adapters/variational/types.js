@@ -7,7 +7,8 @@ import { z } from 'zod';
 // ============================================================================
 // Zod Schemas for Runtime Validation
 // ============================================================================
-export const VariationalMarketSchema = z.object({
+export const VariationalMarketSchema = z
+    .object({
     symbol: z.string(),
     baseAsset: z.string(),
     quoteAsset: z.string(),
@@ -19,8 +20,10 @@ export const VariationalMarketSchema = z.object({
     maxLeverage: z.union([z.string(), z.number()]).optional(),
     fundingInterval: z.number().optional(),
     settlementTime: z.number().optional(),
-}).passthrough();
-export const VariationalTickerSchema = z.object({
+})
+    .passthrough();
+export const VariationalTickerSchema = z
+    .object({
     symbol: z.string(),
     lastPrice: z.string(),
     bidPrice: z.string(),
@@ -31,15 +34,19 @@ export const VariationalTickerSchema = z.object({
     priceChange24h: z.string(),
     priceChangePercent24h: z.string(),
     timestamp: z.number(),
-}).passthrough();
-export const VariationalOrderBookSchema = z.object({
+})
+    .passthrough();
+export const VariationalOrderBookSchema = z
+    .object({
     symbol: z.string(),
     bids: z.array(z.tuple([z.string(), z.string()])),
     asks: z.array(z.tuple([z.string(), z.string()])),
     timestamp: z.number(),
     sequence: z.number().optional(),
-}).passthrough();
-export const VariationalTradeSchema = z.object({
+})
+    .passthrough();
+export const VariationalTradeSchema = z
+    .object({
     id: z.string(),
     symbol: z.string(),
     price: z.union([z.string(), z.number()]),
@@ -47,8 +54,10 @@ export const VariationalTradeSchema = z.object({
     side: z.string(),
     timestamp: z.number(),
     isMaker: z.boolean().optional(),
-}).passthrough();
-export const VariationalQuoteSchema = z.object({
+})
+    .passthrough();
+export const VariationalQuoteSchema = z
+    .object({
     quoteId: z.string(),
     symbol: z.string(),
     side: z.string(),
@@ -58,8 +67,10 @@ export const VariationalQuoteSchema = z.object({
     marketMaker: z.string(),
     spread: z.union([z.string(), z.number()]).optional(),
     timestamp: z.number(),
-}).passthrough();
-export const VariationalOrderSchema = z.object({
+})
+    .passthrough();
+export const VariationalOrderSchema = z
+    .object({
     orderId: z.string(),
     clientOrderId: z.string().optional(),
     symbol: z.string(),
@@ -83,8 +94,10 @@ export const VariationalOrderSchema = z.object({
     })
         .passthrough()
         .optional(),
-}).passthrough();
-export const VariationalPositionSchema = z.object({
+})
+    .passthrough();
+export const VariationalPositionSchema = z
+    .object({
     symbol: z.string(),
     side: z.string(),
     size: z.union([z.string(), z.number()]),
@@ -96,8 +109,10 @@ export const VariationalPositionSchema = z.object({
     unrealizedPnl: z.union([z.string(), z.number()]),
     realizedPnl: z.union([z.string(), z.number()]).optional(),
     timestamp: z.number(),
-}).passthrough();
-export const VariationalBalanceSchema = z.object({
+})
+    .passthrough();
+export const VariationalBalanceSchema = z
+    .object({
     asset: z.string(),
     free: z.string(),
     locked: z.string(),
@@ -105,30 +120,40 @@ export const VariationalBalanceSchema = z.object({
     availableMargin: z.string().optional(),
     usedMargin: z.string().optional(),
     timestamp: z.number().optional(),
-}).passthrough();
-export const VariationalFundingRateSchema = z.object({
+})
+    .passthrough();
+export const VariationalFundingRateSchema = z
+    .object({
     symbol: z.string(),
     fundingRate: z.string(),
     fundingTime: z.number(),
     nextFundingTime: z.number().optional(),
     indexPrice: z.string().optional(),
     markPrice: z.string().optional(),
-}).passthrough();
-export const VariationalQuoteDataSchema = z.object({
+})
+    .passthrough();
+export const VariationalQuoteDataSchema = z
+    .object({
     bid: z.string(),
     ask: z.string(),
-}).passthrough();
-export const VariationalQuotesSchema = z.object({
+})
+    .passthrough();
+export const VariationalQuotesSchema = z
+    .object({
     updated_at: z.string(),
     size_1k: VariationalQuoteDataSchema,
     size_100k: VariationalQuoteDataSchema,
     size_1m: VariationalQuoteDataSchema.optional(),
-}).passthrough();
-export const VariationalOpenInterestSchema = z.object({
+})
+    .passthrough();
+export const VariationalOpenInterestSchema = z
+    .object({
     long_open_interest: z.string(),
     short_open_interest: z.string(),
-}).passthrough();
-export const VariationalListingSchema = z.object({
+})
+    .passthrough();
+export const VariationalListingSchema = z
+    .object({
     ticker: z.string(),
     name: z.string(),
     mark_price: z.string(),
@@ -138,12 +163,16 @@ export const VariationalListingSchema = z.object({
     funding_interval_s: z.number(),
     base_spread_bps: z.string(),
     quotes: VariationalQuotesSchema,
-}).passthrough();
-export const VariationalLossRefundSchema = z.object({
+})
+    .passthrough();
+export const VariationalLossRefundSchema = z
+    .object({
     pool_size: z.string(),
     refunded_24h: z.string(),
-}).passthrough();
-export const VariationalMetadataStatsSchema = z.object({
+})
+    .passthrough();
+export const VariationalMetadataStatsSchema = z
+    .object({
     total_volume_24h: z.string(),
     cumulative_volume: z.string(),
     tvl: z.string(),
@@ -151,5 +180,6 @@ export const VariationalMetadataStatsSchema = z.object({
     num_markets: z.number(),
     loss_refund: VariationalLossRefundSchema,
     listings: z.array(VariationalListingSchema),
-}).passthrough();
+})
+    .passthrough();
 //# sourceMappingURL=types.js.map

@@ -51,7 +51,7 @@ export class EdgeXNormalizer {
     for (const contract of contracts) {
       // contractName is like "BTCUSD", "ETHUSD"
       // Convert to CCXT format: "BTC/USD:USD"
-      const name = contract.contractName as string;
+      const name = contract.contractName;
       // Extract base (first 3-4 chars) and quote (last 3 chars typically USD)
       const base = name.replace(/USD$/, '');
       const quote = 'USD';
@@ -248,9 +248,7 @@ export class EdgeXNormalizer {
       size: absSize,
       entryPrice: parseFloat(validated.entry_price),
       markPrice,
-      liquidationPrice: validated.liquidation_price
-        ? parseFloat(validated.liquidation_price)
-        : 0,
+      liquidationPrice: validated.liquidation_price ? parseFloat(validated.liquidation_price) : 0,
       unrealizedPnl: parseFloat(validated.unrealized_pnl),
       realizedPnl: parseFloat(validated.realized_pnl),
       margin: parseFloat(validated.margin),
@@ -360,10 +358,7 @@ export class EdgeXNormalizer {
     return {
       symbol,
       fundingRate: parseFloat(validated.fundingRate || '0'),
-      fundingTimestamp: parseInt(
-        validated.fundingTime || validated.fundingTimestamp || '0',
-        10
-      ),
+      fundingTimestamp: parseInt(validated.fundingTime || validated.fundingTimestamp || '0', 10),
       markPrice: parseFloat(validated.markPrice || '0'),
       indexPrice: parseFloat(validated.indexPrice || '0'),
       nextFundingTimestamp: parseInt(validated.nextFundingTime || '0', 10),

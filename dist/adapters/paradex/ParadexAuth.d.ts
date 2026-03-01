@@ -85,12 +85,6 @@ export declare class ParadexAuth implements IAuthStrategy {
      */
     getAuthHeaders(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: any): Promise<Record<string, string>>;
     /**
-     * Get StarkNet private key
-     *
-     * @returns Private key or undefined
-     */
-    getStarkPrivateKey(): string | undefined;
-    /**
      * Get StarkNet public key derived from private key
      *
      * @returns Public key (address) or undefined

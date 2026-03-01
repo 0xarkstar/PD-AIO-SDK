@@ -42,7 +42,14 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-call': 'warn',
       '@typescript-eslint/no-unsafe-return': 'warn',
       '@typescript-eslint/only-throw-error': 'warn',
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'no-console': 'error',
     },
   },
+  // Allow console in Logger.ts (default output method)
+  {
+    files: ['src/core/logger.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  }
 );

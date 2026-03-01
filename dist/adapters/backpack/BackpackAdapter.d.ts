@@ -46,20 +46,20 @@ export declare class BackpackAdapter extends BaseAdapter {
     /**
      * Fetch ticker for a symbol
      */
-    fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchTicker(symbol: string): Promise<Ticker>;
     /**
      * Fetch order book for a symbol
      */
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
+    _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
     /**
      * Fetch recent trades for a symbol
      */
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
     /**
      * Fetch current funding rate
      * Returns the most recent funding rate from history
      */
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     /**
      * Fetch funding rate history
      */
@@ -98,7 +98,7 @@ export declare class BackpackAdapter extends BaseAdapter {
     /**
      * Set leverage for a symbol
      */
-    setLeverage(symbol: string, leverage: number): Promise<void>;
+    _setLeverage(symbol: string, leverage: number): Promise<void>;
     /**
      * Fetch order history
      */

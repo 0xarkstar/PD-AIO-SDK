@@ -5,7 +5,7 @@
  */
 
 import { BaseAdapter } from '../../src/adapters/base/BaseAdapter.js';
-import { PerpDEXError, InvalidOrderError } from '../../src/types/errors.js';
+import { BadRequestError, PerpDEXError, InvalidOrderError } from '../../src/types/errors.js';
 import type {
   FeatureMap,
   Market,
@@ -48,7 +48,7 @@ class TestAdapter extends BaseAdapter {
     return [];
   }
 
-  async fetchTicker(symbol: string): Promise<Ticker> {
+  protected async _fetchTicker(symbol: string): Promise<Ticker> {
     return {
       symbol,
       timestamp: Date.now(),
@@ -65,15 +65,15 @@ class TestAdapter extends BaseAdapter {
     };
   }
 
-  async fetchOrderBook(symbol: string): Promise<OrderBook> {
+  protected async _fetchOrderBook(symbol: string): Promise<OrderBook> {
     return { symbol, bids: [], asks: [], timestamp: Date.now() };
   }
 
-  async fetchTrades(symbol: string): Promise<Trade[]> {
+  protected async _fetchTrades(symbol: string): Promise<Trade[]> {
     return [];
   }
 
-  async fetchFundingRate(symbol: string): Promise<FundingRate> {
+  protected async _fetchFundingRate(symbol: string): Promise<FundingRate> {
     return {
       symbol,
       fundingRate: 0,
@@ -117,7 +117,7 @@ class TestAdapter extends BaseAdapter {
     return [];
   }
 
-  async setLeverage(): Promise<void> {
+  protected async _setLeverage(symbol: string, leverage: number): Promise<void> {
     // No-op
   }
 
@@ -337,5 +337,137 @@ describe('BaseAdapter.getValidator', () => {
     const validator = adapter.testGetValidator();
 
     expect(() => validator.orderRequest({ invalid: 'data' })).toThrow();
+  });
+});
+
+describe('BaseAdapter Symbol Validation', () => {
+  let adapter: TestAdapter;
+
+  beforeEach(() => {
+    adapter = new TestAdapter();
+  });
+
+  afterEach(async () => {
+    await adapter.disconnect();
+  });
+
+  describe('fetchTicker symbol validation', () => {
+    test('accepts valid symbol formats', async () => {
+      const validSymbols = [
+        'BTC/USD',
+        'BTC/USD:USD',
+        'ETH/USDT',
+        '1000PEPE/USDT:USDT',
+        'btc/usd', // Case-insensitive
+      ];
+
+      for (const symbol of validSymbols) {
+        await expect(adapter.fetchTicker(symbol)).resolves.toBeDefined();
+      }
+    });
+
+    test('throws BadRequestError for empty symbol', async () => {
+      await expect(adapter.fetchTicker('')).rejects.toThrow(BadRequestError);
+      await expect(adapter.fetchTicker('')).rejects.toThrow('Symbol is required');
+    });
+
+    test('throws BadRequestError for invalid symbol format', async () => {
+      const invalidSymbols = [
+        'BTCUSD', // Missing separator
+        'BTC-USD', // Wrong separator
+        'BTC/', // Incomplete
+        '/USD', // Incomplete
+        'BTC/USD/EUR', // Too many parts
+      ];
+
+      for (const symbol of invalidSymbols) {
+        await expect(adapter.fetchTicker(symbol)).rejects.toThrow(BadRequestError);
+        await expect(adapter.fetchTicker(symbol)).rejects.toThrow('Invalid symbol format');
+      }
+    });
+
+    test('throws BadRequestError for non-string symbol', async () => {
+      await expect(adapter.fetchTicker(null as any)).rejects.toThrow(BadRequestError);
+      await expect(adapter.fetchTicker(undefined as any)).rejects.toThrow(BadRequestError);
+      await expect(adapter.fetchTicker(123 as any)).rejects.toThrow(BadRequestError);
+    });
+  });
+
+  describe('fetchOrderBook symbol validation', () => {
+    test('validates symbol before fetching', async () => {
+      await expect(adapter.fetchOrderBook('BTC/USD')).resolves.toBeDefined();
+      await expect(adapter.fetchOrderBook('')).rejects.toThrow(BadRequestError);
+      await expect(adapter.fetchOrderBook('INVALID')).rejects.toThrow(BadRequestError);
+    });
+  });
+
+  describe('fetchTrades symbol validation', () => {
+    test('validates symbol before fetching', async () => {
+      await expect(adapter.fetchTrades('ETH/USDT:USDT')).resolves.toBeDefined();
+      await expect(adapter.fetchTrades('')).rejects.toThrow(BadRequestError);
+    });
+  });
+
+  describe('fetchFundingRate symbol validation', () => {
+    test('validates symbol before fetching', async () => {
+      await expect(adapter.fetchFundingRate('SOL/USD')).resolves.toBeDefined();
+      await expect(adapter.fetchFundingRate('INVALID-FORMAT')).rejects.toThrow(BadRequestError);
+    });
+  });
+});
+
+describe('BaseAdapter Leverage Validation', () => {
+  let adapter: TestAdapter;
+
+  beforeEach(() => {
+    adapter = new TestAdapter();
+  });
+
+  afterEach(async () => {
+    await adapter.disconnect();
+  });
+
+  test('accepts valid leverage values', async () => {
+    const validLeverages = [1, 2, 5, 10, 20, 50, 100, 200];
+
+    for (const leverage of validLeverages) {
+      await expect(adapter.setLeverage('BTC/USD', leverage)).resolves.toBeUndefined();
+    }
+  });
+
+  test('throws InvalidOrderError for leverage = 0', async () => {
+    await expect(adapter.setLeverage('BTC/USD', 0)).rejects.toThrow(InvalidOrderError);
+    await expect(adapter.setLeverage('BTC/USD', 0)).rejects.toThrow('Invalid leverage');
+  });
+
+  test('throws InvalidOrderError for negative leverage', async () => {
+    await expect(adapter.setLeverage('BTC/USD', -5)).rejects.toThrow(InvalidOrderError);
+    await expect(adapter.setLeverage('BTC/USD', -10)).rejects.toThrow(InvalidOrderError);
+  });
+
+  test('throws InvalidOrderError for leverage > 200', async () => {
+    await expect(adapter.setLeverage('BTC/USD', 201)).rejects.toThrow(InvalidOrderError);
+    await expect(adapter.setLeverage('BTC/USD', 500)).rejects.toThrow(InvalidOrderError);
+    await expect(adapter.setLeverage('BTC/USD', 1000)).rejects.toThrow(InvalidOrderError);
+  });
+
+  test('throws InvalidOrderError for NaN leverage', async () => {
+    await expect(adapter.setLeverage('BTC/USD', NaN)).rejects.toThrow(InvalidOrderError);
+  });
+
+  test('throws InvalidOrderError for non-number leverage', async () => {
+    await expect(adapter.setLeverage('BTC/USD', '10' as any)).rejects.toThrow(InvalidOrderError);
+    await expect(adapter.setLeverage('BTC/USD', null as any)).rejects.toThrow(InvalidOrderError);
+    await expect(adapter.setLeverage('BTC/USD', undefined as any)).rejects.toThrow(InvalidOrderError);
+  });
+
+  test('validates symbol in addition to leverage', async () => {
+    await expect(adapter.setLeverage('', 10)).rejects.toThrow(BadRequestError);
+    await expect(adapter.setLeverage('INVALID', 10)).rejects.toThrow(BadRequestError);
+  });
+
+  test('error message includes leverage value and range', async () => {
+    await expect(adapter.setLeverage('BTC/USD', 500)).rejects.toThrow(/500/);
+    await expect(adapter.setLeverage('BTC/USD', 500)).rejects.toThrow(/between 0 and 200/);
   });
 });

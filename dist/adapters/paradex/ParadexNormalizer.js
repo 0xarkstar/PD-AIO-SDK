@@ -139,8 +139,7 @@ export class ParadexNormalizer {
             maxLeverage = parseFloat(validated.max_leverage);
         }
         // Determine if market is active
-        const isActive = validated.is_active ??
-            (validated.open_at ? validated.open_at <= Date.now() : true);
+        const isActive = validated.is_active ?? (validated.open_at ? validated.open_at <= Date.now() : true);
         return {
             id: validated.symbol,
             symbol,
@@ -236,9 +235,7 @@ export class ParadexNormalizer {
             price: validated.price ? parseFloat(validated.price) : undefined,
             filled: parseFloat(validated.filled_size),
             remaining: parseFloat(validated.size) - parseFloat(validated.filled_size),
-            averagePrice: validated.avg_fill_price
-                ? parseFloat(validated.avg_fill_price)
-                : undefined,
+            averagePrice: validated.avg_fill_price ? parseFloat(validated.avg_fill_price) : undefined,
             status: this.normalizeOrderStatus(validated.status),
             timeInForce: this.normalizeTimeInForce(validated.time_in_force),
             postOnly: validated.post_only,
@@ -276,9 +273,7 @@ export class ParadexNormalizer {
             size: absSize,
             entryPrice: parseFloat(validated.entry_price),
             markPrice,
-            liquidationPrice: validated.liquidation_price
-                ? parseFloat(validated.liquidation_price)
-                : 0,
+            liquidationPrice: validated.liquidation_price ? parseFloat(validated.liquidation_price) : 0,
             unrealizedPnl: parseFloat(validated.unrealized_pnl),
             realizedPnl: parseFloat(validated.realized_pnl),
             margin: parseFloat(validated.margin),

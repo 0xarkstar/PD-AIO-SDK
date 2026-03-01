@@ -13,6 +13,7 @@ import {
   InvalidOrderError,
   InsufficientMarginError,
   OrderNotFoundError,
+  PositionNotFoundError,
   InvalidSignatureError,
   RateLimitError,
   ExchangeUnavailableError,
@@ -26,6 +27,7 @@ export const PARADEX_CLIENT_ERRORS = {
   INVALID_ORDER: 'INVALID_ORDER',
   INSUFFICIENT_MARGIN: 'INSUFFICIENT_MARGIN',
   ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
+  POSITION_NOT_FOUND: 'POSITION_NOT_FOUND',
   INVALID_PARAMS: 'INVALID_PARAMS',
   UNAUTHORIZED: 'UNAUTHORIZED',
 } as const;
@@ -67,6 +69,9 @@ export function mapParadexError(
     case PARADEX_CLIENT_ERRORS.ORDER_NOT_FOUND:
       return new OrderNotFoundError(message, errorCode, 'paradex', originalError);
 
+    case PARADEX_CLIENT_ERRORS.POSITION_NOT_FOUND:
+      return new PositionNotFoundError(message, errorCode, 'paradex', originalError);
+
     case PARADEX_RATE_LIMIT_ERROR:
       return new RateLimitError(message, errorCode, 'paradex', undefined, originalError);
 
@@ -97,6 +102,8 @@ export function mapError(error: unknown): PerpDEXError {
     errorCode = PARADEX_CLIENT_ERRORS.INVALID_SIGNATURE;
   } else if (messageLower.includes('margin') || messageLower.includes('insufficient')) {
     errorCode = PARADEX_CLIENT_ERRORS.INSUFFICIENT_MARGIN;
+  } else if (messageLower.includes('position') && messageLower.includes('not found')) {
+    errorCode = PARADEX_CLIENT_ERRORS.POSITION_NOT_FOUND;
   } else if (messageLower.includes('not found')) {
     errorCode = PARADEX_CLIENT_ERRORS.ORDER_NOT_FOUND;
   } else if (messageLower.includes('rate limit')) {

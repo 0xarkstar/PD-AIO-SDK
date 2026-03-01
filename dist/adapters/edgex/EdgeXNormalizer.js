@@ -193,9 +193,7 @@ export class EdgeXNormalizer {
             size: absSize,
             entryPrice: parseFloat(validated.entry_price),
             markPrice,
-            liquidationPrice: validated.liquidation_price
-                ? parseFloat(validated.liquidation_price)
-                : 0,
+            liquidationPrice: validated.liquidation_price ? parseFloat(validated.liquidation_price) : 0,
             unrealizedPnl: parseFloat(validated.unrealized_pnl),
             realizedPnl: parseFloat(validated.realized_pnl),
             margin: parseFloat(validated.margin),

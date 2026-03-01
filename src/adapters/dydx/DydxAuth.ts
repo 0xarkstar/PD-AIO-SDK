@@ -260,15 +260,6 @@ export class DydxAuth implements IAuthStrategy {
   }
 
   /**
-   * Get the mnemonic (if available)
-   *
-   * Warning: Handle with care, this is sensitive data
-   */
-  getMnemonic(): string | undefined {
-    return this.mnemonic;
-  }
-
-  /**
    * Check if auth has mnemonic (for trading operations)
    */
   hasMnemonic(): boolean {

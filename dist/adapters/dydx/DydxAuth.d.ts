@@ -126,12 +126,6 @@ export declare class DydxAuth implements IAuthStrategy {
      */
     isTestnet(): boolean;
     /**
-     * Get the mnemonic (if available)
-     *
-     * Warning: Handle with care, this is sensitive data
-     */
-    getMnemonic(): string | undefined;
-    /**
      * Check if auth has mnemonic (for trading operations)
      */
     hasMnemonic(): boolean;

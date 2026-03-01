@@ -7,6 +7,7 @@
 import { GMX_API_URLS, GMX_PRECISION, getMarketByAddress } from './constants.js';
 import type { GmxChain } from './GmxAdapter.js';
 import type { GmxPosition, GmxOrder } from './types.js';
+import { NetworkError } from '../../types/errors.js';
 
 // =============================================================================
 // GraphQL Queries
@@ -287,32 +288,55 @@ export class GmxSubgraph {
    * Execute a GraphQL query
    */
   private async query<T>(query: string, variables: Record<string, unknown>): Promise<T> {
-    const response = await fetch(this.subgraphUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables,
-      }),
-    });
+    // Add 30s timeout with AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    if (!response.ok) {
-      throw new Error(`Subgraph request failed: ${response.status} ${response.statusText}`);
+    try {
+      const response = await fetch(this.subgraphUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query,
+          variables,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Subgraph request failed: ${response.status} ${response.statusText}`);
+      }
+
+      const json = (await response.json()) as { data?: T; errors?: Array<{ message: string }> };
+
+      if (json.errors && json.errors.length > 0) {
+        throw new Error(`Subgraph query error: ${json.errors[0]?.message || 'Unknown error'}`);
+      }
+
+      if (!json.data) {
+        throw new Error('No data returned from subgraph');
+      }
+
+      return json.data;
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      // Map AbortError to NetworkError
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new NetworkError(
+          'GraphQL request timed out after 30s',
+          'GRAPHQL_TIMEOUT',
+          'gmx',
+          error
+        );
+      }
+
+      throw error;
     }
-
-    const json = (await response.json()) as { data?: T; errors?: Array<{ message: string }> };
-
-    if (json.errors && json.errors.length > 0) {
-      throw new Error(`Subgraph query error: ${json.errors[0]?.message || 'Unknown error'}`);
-    }
-
-    if (!json.data) {
-      throw new Error('No data returned from subgraph');
-    }
-
-    return json.data;
   }
 
   /**

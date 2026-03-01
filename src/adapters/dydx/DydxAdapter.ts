@@ -265,7 +265,7 @@ export class DydxAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTicker(symbol: string): Promise<Ticker> {
+  async _fetchTicker(symbol: string): Promise<Ticker> {
     await this.rateLimiter.acquire('fetchTicker');
 
     try {
@@ -293,7 +293,7 @@ export class DydxAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
+  async _fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
     await this.rateLimiter.acquire('fetchOrderBook');
 
     try {
@@ -310,7 +310,7 @@ export class DydxAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+  async _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
     await this.rateLimiter.acquire('fetchTrades');
 
     try {
@@ -334,7 +334,7 @@ export class DydxAdapter extends BaseAdapter {
     }
   }
 
-  async fetchFundingRate(symbol: string): Promise<FundingRate> {
+  async _fetchFundingRate(symbol: string): Promise<FundingRate> {
     await this.rateLimiter.acquire('fetchFundingRate');
 
     try {
@@ -582,7 +582,7 @@ export class DydxAdapter extends BaseAdapter {
     }
   }
 
-  async setLeverage(_symbol: string, _leverage: number): Promise<void> {
+  async _setLeverage(_symbol: string, _leverage: number): Promise<void> {
     // dYdX v4 uses cross-margin and doesn't support per-symbol leverage setting
     this.debug('setLeverage: dYdX v4 uses cross-margin mode without per-symbol leverage');
     throw new Error(

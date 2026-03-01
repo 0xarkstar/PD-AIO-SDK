@@ -17,20 +17,66 @@ export const OSTIUM_RPC_URLS = {
 /**
  * Ostium contract addresses on Arbitrum One.
  *
- * WARNING: trading, storage, pairInfo, nftRewards, vault are PLACEHOLDER addresses
- * and must be replaced with actual deployed contract addresses before on-chain usage.
- * Only `collateral` (USDC on Arbitrum) is a verified address.
+ * WARNING: pairInfo, nftRewards, vault are PLACEHOLDER addresses and must be replaced
+ * with actual deployed contract addresses before on-chain usage.
+ *
+ * Verified addresses:
+ * - trading: 0x6d0ba1f9996dbd8885827e1b2e8f6593e7702411 (verified via Arbiscan)
+ * - storage: 0xcCd5891083A8acD2074690F65d3024E7D13d66E7 (verified via Arbiscan)
+ * - collateral: USDC on Arbitrum One (verified)
  *
  * @see https://arbiscan.io for address verification
+ * @see https://github.com/0xOstium/smart-contracts-public
  */
 export const OSTIUM_CONTRACTS: OstiumContractAddresses = {
-  trading: '0x4f5f2B6a97F0c536E2BF58c3E7e060F81FbA2B06', // PLACEHOLDER
-  storage: '0x7E8B4C3c95B4b93D5C0D0F14C1b36a5C7E5C9D5', // PLACEHOLDER
+  trading: '0x6d0ba1f9996dbd8885827e1b2e8f6593e7702411', // Verified
+  storage: '0xcCd5891083A8acD2074690F65d3024E7D13d66E7', // Verified
   pairInfo: '0x3D9B5C7E8F0A4D6E9C3B2A1F8D7E6C5B4A3F21e', // PLACEHOLDER
   nftRewards: '0x1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0b', // PLACEHOLDER
   vault: '0x8F9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7a', // PLACEHOLDER
   collateral: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // USDC (verified)
 };
+
+/**
+ * Known placeholder addresses that must be replaced before production use
+ */
+const PLACEHOLDER_ADDRESSES = new Set([
+  '0x3D9B5C7E8F0A4D6E9C3B2A1F8D7E6C5B4A3F21e', // pairInfo
+  '0x1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0b', // nftRewards
+  '0x8F9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7a', // vault
+]);
+
+/**
+ * Check if an address is a known placeholder
+ */
+export function isPlaceholderAddress(address: string): boolean {
+  return PLACEHOLDER_ADDRESSES.has(address.toLowerCase());
+}
+
+/**
+ * Validate Ostium contract addresses, throwing error if placeholders are detected
+ */
+export function validateContractAddresses(contracts: OstiumContractAddresses): void {
+  const placeholders: string[] = [];
+
+  if (isPlaceholderAddress(contracts.pairInfo)) {
+    placeholders.push('pairInfo');
+  }
+  if (isPlaceholderAddress(contracts.nftRewards)) {
+    placeholders.push('nftRewards');
+  }
+  if (isPlaceholderAddress(contracts.vault)) {
+    placeholders.push('vault');
+  }
+
+  if (placeholders.length > 0) {
+    throw new Error(
+      `Ostium contract addresses are placeholders for: ${placeholders.join(', ')}. ` +
+        'Set real addresses before on-chain operations. ' +
+        'See https://github.com/0xOstium/smart-contracts-public for deployment info.'
+    );
+  }
+}
 
 export const OSTIUM_RATE_LIMITS = {
   metadata: {

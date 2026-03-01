@@ -75,6 +75,13 @@ export interface LoggerConfig {
     correlationId?: string;
 }
 /**
+ * Redact sensitive data patterns from strings
+ *
+ * @param str - String to redact sensitive data from
+ * @returns String with sensitive patterns redacted
+ */
+export declare function redactSensitivePatterns(str: string): string;
+/**
  * Structured logger with JSON output
  *
  * @example

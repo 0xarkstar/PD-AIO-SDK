@@ -29,10 +29,10 @@ export declare class AsterAdapter extends BaseAdapter {
     private signedRequest;
     private handleError;
     fetchMarkets(_params?: MarketParams): Promise<Market[]>;
-    fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    _fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
+    _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(symbol: string, since?: number, limit?: number): Promise<FundingRate[]>;
     fetchOHLCV(symbol: string, timeframe: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]>;
     createOrder(request: OrderRequest): Promise<Order>;
@@ -40,7 +40,7 @@ export declare class AsterAdapter extends BaseAdapter {
     cancelAllOrders(symbol?: string): Promise<Order[]>;
     fetchPositions(_symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
-    setLeverage(symbol: string, leverage: number): Promise<void>;
+    _setLeverage(symbol: string, leverage: number): Promise<void>;
     fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
     fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
 }

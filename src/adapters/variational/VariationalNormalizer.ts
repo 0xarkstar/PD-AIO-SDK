@@ -121,12 +121,34 @@ export class VariationalNormalizer {
       settle: validated.quoteAsset,
       contractSize: safeParseFloat(validated.contractSize || '1'),
       active: validated.status === 'active',
-      minAmount: safeParseFloat(typeof validated.minOrderSize === 'number' ? String(validated.minOrderSize) : validated.minOrderSize),
-      maxAmount: validated.maxOrderSize ? safeParseFloat(typeof validated.maxOrderSize === 'number' ? String(validated.maxOrderSize) : validated.maxOrderSize) : undefined,
-      pricePrecision: countDecimals(typeof validated.tickSize === 'number' ? String(validated.tickSize) : validated.tickSize),
-      amountPrecision: countDecimals(typeof validated.minOrderSize === 'number' ? String(validated.minOrderSize) : validated.minOrderSize),
-      priceTickSize: safeParseFloat(typeof validated.tickSize === 'number' ? String(validated.tickSize) : validated.tickSize),
-      amountStepSize: safeParseFloat(typeof validated.minOrderSize === 'number' ? String(validated.minOrderSize) : validated.minOrderSize),
+      minAmount: safeParseFloat(
+        typeof validated.minOrderSize === 'number'
+          ? String(validated.minOrderSize)
+          : validated.minOrderSize
+      ),
+      maxAmount: validated.maxOrderSize
+        ? safeParseFloat(
+            typeof validated.maxOrderSize === 'number'
+              ? String(validated.maxOrderSize)
+              : validated.maxOrderSize
+          )
+        : undefined,
+      pricePrecision: countDecimals(
+        typeof validated.tickSize === 'number' ? String(validated.tickSize) : validated.tickSize
+      ),
+      amountPrecision: countDecimals(
+        typeof validated.minOrderSize === 'number'
+          ? String(validated.minOrderSize)
+          : validated.minOrderSize
+      ),
+      priceTickSize: safeParseFloat(
+        typeof validated.tickSize === 'number' ? String(validated.tickSize) : validated.tickSize
+      ),
+      amountStepSize: safeParseFloat(
+        typeof validated.minOrderSize === 'number'
+          ? String(validated.minOrderSize)
+          : validated.minOrderSize
+      ),
       makerFee: 0.0002,
       takerFee: 0.0005,
       maxLeverage: validated.maxLeverage ? safeParseFloat(validated.maxLeverage) : 50,
@@ -227,9 +249,19 @@ export class VariationalNormalizer {
       orderId: undefined,
       symbol: unifiedSymbol,
       side: validated.side as 'buy' | 'sell',
-      price: safeParseFloat(typeof validated.price === 'number' ? String(validated.price) : validated.price),
-      amount: safeParseFloat(typeof validated.amount === 'number' ? String(validated.amount) : validated.amount),
-      cost: safeParseFloat(typeof validated.price === 'number' ? String(validated.price) : validated.price) * safeParseFloat(typeof validated.amount === 'number' ? String(validated.amount) : validated.amount),
+      price: safeParseFloat(
+        typeof validated.price === 'number' ? String(validated.price) : validated.price
+      ),
+      amount: safeParseFloat(
+        typeof validated.amount === 'number' ? String(validated.amount) : validated.amount
+      ),
+      cost:
+        safeParseFloat(
+          typeof validated.price === 'number' ? String(validated.price) : validated.price
+        ) *
+        safeParseFloat(
+          typeof validated.amount === 'number' ? String(validated.amount) : validated.amount
+        ),
       timestamp: validated.timestamp,
       info: validated as unknown as Record<string, unknown>,
     };
@@ -260,11 +292,19 @@ export class VariationalNormalizer {
   normalizeOrder(order: VariationalOrder): Order {
     const validated = VariationalOrderSchema.parse(order);
     const unifiedSymbol = this.symbolToCCXT(validated.symbol);
-    const filledAmount = typeof validated.filledAmount === 'number' ? String(validated.filledAmount) : (validated.filledAmount || '0');
+    const filledAmount =
+      typeof validated.filledAmount === 'number'
+        ? String(validated.filledAmount)
+        : validated.filledAmount || '0';
     const filled = safeParseFloat(filledAmount);
-    const amountValue = typeof validated.amount === 'number' ? String(validated.amount) : validated.amount;
+    const amountValue =
+      typeof validated.amount === 'number' ? String(validated.amount) : validated.amount;
     const amount = safeParseFloat(amountValue);
-    const remainingAmount = validated.remainingAmount ? (typeof validated.remainingAmount === 'number' ? String(validated.remainingAmount) : validated.remainingAmount) : String(amount - filled);
+    const remainingAmount = validated.remainingAmount
+      ? typeof validated.remainingAmount === 'number'
+        ? String(validated.remainingAmount)
+        : validated.remainingAmount
+      : String(amount - filled);
     const remaining = safeParseFloat(remainingAmount);
 
     return {
@@ -319,7 +359,10 @@ export class VariationalNormalizer {
     const unifiedSymbol = this.symbolToCCXT(validated.symbol);
     const sizeValue = typeof validated.size === 'number' ? String(validated.size) : validated.size;
     const size = safeParseFloat(sizeValue);
-    const entryPriceValue = typeof validated.entryPrice === 'number' ? String(validated.entryPrice) : validated.entryPrice;
+    const entryPriceValue =
+      typeof validated.entryPrice === 'number'
+        ? String(validated.entryPrice)
+        : validated.entryPrice;
     const entryPrice = safeParseFloat(entryPriceValue);
 
     return {
@@ -327,12 +370,28 @@ export class VariationalNormalizer {
       side: validated.side as 'long' | 'short',
       size: size,
       entryPrice: entryPrice,
-      markPrice: safeParseFloat(typeof validated.markPrice === 'number' ? String(validated.markPrice) : validated.markPrice),
-      leverage: safeParseFloat(typeof validated.leverage === 'number' ? String(validated.leverage) : validated.leverage),
-      liquidationPrice: validated.liquidationPrice ? safeParseFloat(typeof validated.liquidationPrice === 'number' ? String(validated.liquidationPrice) : validated.liquidationPrice) : 0,
-      unrealizedPnl: safeParseFloat(typeof validated.unrealizedPnl === 'number' ? String(validated.unrealizedPnl) : validated.unrealizedPnl),
+      markPrice: safeParseFloat(
+        typeof validated.markPrice === 'number' ? String(validated.markPrice) : validated.markPrice
+      ),
+      leverage: safeParseFloat(
+        typeof validated.leverage === 'number' ? String(validated.leverage) : validated.leverage
+      ),
+      liquidationPrice: validated.liquidationPrice
+        ? safeParseFloat(
+            typeof validated.liquidationPrice === 'number'
+              ? String(validated.liquidationPrice)
+              : validated.liquidationPrice
+          )
+        : 0,
+      unrealizedPnl: safeParseFloat(
+        typeof validated.unrealizedPnl === 'number'
+          ? String(validated.unrealizedPnl)
+          : validated.unrealizedPnl
+      ),
       realizedPnl: 0,
-      margin: safeParseFloat(typeof validated.margin === 'number' ? String(validated.margin) : validated.margin),
+      margin: safeParseFloat(
+        typeof validated.margin === 'number' ? String(validated.margin) : validated.margin
+      ),
       maintenanceMargin: 0,
       marginRatio: 0,
       marginMode: 'cross',
@@ -380,11 +439,19 @@ export class VariationalNormalizer {
       id: validated.quoteId,
       symbol: unifiedSymbol,
       side: validated.side as 'buy' | 'sell',
-      price: safeParseFloat(typeof validated.price === 'number' ? String(validated.price) : validated.price),
-      amount: safeParseFloat(typeof validated.amount === 'number' ? String(validated.amount) : validated.amount),
+      price: safeParseFloat(
+        typeof validated.price === 'number' ? String(validated.price) : validated.price
+      ),
+      amount: safeParseFloat(
+        typeof validated.amount === 'number' ? String(validated.amount) : validated.amount
+      ),
       expiresAt: validated.expiresAt,
       marketMaker: validated.marketMaker,
-      spread: validated.spread ? safeParseFloat(typeof validated.spread === 'number' ? String(validated.spread) : validated.spread) : undefined,
+      spread: validated.spread
+        ? safeParseFloat(
+            typeof validated.spread === 'number' ? String(validated.spread) : validated.spread
+          )
+        : undefined,
       timestamp: validated.timestamp,
     };
   }

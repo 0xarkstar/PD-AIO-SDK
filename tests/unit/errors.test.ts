@@ -60,10 +60,15 @@ describe('PerpDEXError', () => {
     expect(error.name).toBe('PerpDEXError');
   });
 
-  test('stores original error', () => {
+  test('stores original error (accessible via getOriginalErrorSafe)', () => {
     const originalError = new Error('Original error');
     const error = new PerpDEXError('Wrapped error', 'WRAP', 'test', originalError);
-    expect(error.originalError).toBe(originalError);
+    const safe = error.getOriginalErrorSafe();
+    expect(safe).toEqual({
+      name: 'Error',
+      message: 'Original error',
+      code: undefined,
+    });
   });
 
   test('withCorrelationId sets correlation ID and returns this', () => {
@@ -88,13 +93,14 @@ describe('PerpDEXError', () => {
     });
   });
 
-  test('toJSON sanitizes Error originalError to prevent sensitive data leakage', () => {
+  test('toJSON redacts sensitive data from originalError', () => {
     const originalError = new Error('API key: sk-live-123456');
     const error = new PerpDEXError('Test', 'CODE', 'exchange', originalError);
     const json = error.toJSON();
     expect(json.originalError).toEqual({
       name: 'Error',
-      message: 'API key: sk-live-123456',
+      message: 'API key:[REDACTED]',
+      code: undefined,
     });
     expect(json.originalError).not.toBe(originalError);
   });
@@ -102,14 +108,91 @@ describe('PerpDEXError', () => {
   test('toJSON handles string originalError', () => {
     const error = new PerpDEXError('Test', 'CODE', 'exchange', 'simple string error');
     const json = error.toJSON();
-    expect(json.originalError).toBe('simple string error');
+    expect(json.originalError).toEqual({ message: 'simple string error' });
   });
 
-  test('toJSON sanitizes non-Error, non-string originalError to undefined', () => {
+  test('toJSON redacts sensitive data from non-Error originalError', () => {
     const sensitiveData = { apiKey: 'sk-live-123', signature: '0xabcd' };
     const error = new PerpDEXError('Test', 'CODE', 'exchange', sensitiveData);
     const json = error.toJSON();
-    expect(json.originalError).toBeUndefined();
+    // Should serialize and redact sensitive fields
+    const msg = (json.originalError as { message: string }).message;
+    expect(msg).not.toContain('sk-live-123');
+    expect(msg).toContain('[REDACTED_KEY]');
+  });
+
+  describe('Security: Sensitive Data Redaction', () => {
+    test('getOriginalErrorSafe redacts API keys from error messages', () => {
+      const originalError = new Error('Failed with apiKey=sk-live-abc123def456');
+      const error = new PerpDEXError('Test', 'CODE', 'exchange', originalError);
+      const safe = error.getOriginalErrorSafe();
+      expect(safe?.message).toBe('Failed with apiKey=[REDACTED]');
+      expect(safe?.message).not.toContain('sk-live');
+    });
+
+    test('getOriginalErrorSafe redacts private keys (sk- prefix)', () => {
+      const originalError = new Error('Auth failed: sk-proj-xyz789');
+      const error = new PerpDEXError('Test', 'CODE', 'exchange', originalError);
+      const safe = error.getOriginalErrorSafe();
+      expect(safe?.message).toBe('Auth failed: [REDACTED_KEY]');
+    });
+
+    test('getOriginalErrorSafe redacts hex strings (40+ chars)', () => {
+      const originalError = new Error('Hash value: 0123456789abcdef0123456789abcdef0123456789abcdef');
+      const error = new PerpDEXError('Test', 'CODE', 'exchange', originalError);
+      const safe = error.getOriginalErrorSafe();
+      expect(safe?.message).toBe('Hash value: [REDACTED_HEX]');
+    });
+
+    test('getOriginalErrorSafe redacts Bearer tokens', () => {
+      const originalError = new Error('Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9');
+      const error = new PerpDEXError('Test', 'CODE', 'exchange', originalError);
+      const safe = error.getOriginalErrorSafe();
+      expect(safe?.message).toBe('Authorization: Bearer [REDACTED]');
+    });
+
+    test('getOriginalErrorSafe redacts multiple sensitive fields', () => {
+      const originalError = new Error('Failed: apiKey=sk-123 secret:xyz password=abc123');
+      const error = new PerpDEXError('Test', 'CODE', 'exchange', originalError);
+      const safe = error.getOriginalErrorSafe();
+      expect(safe?.message).not.toContain('sk-123');
+      expect(safe?.message).not.toContain('xyz');
+      expect(safe?.message).not.toContain('abc123');
+    });
+
+    test('getOriginalErrorSafe handles string originalError', () => {
+      const error = new PerpDEXError('Test', 'CODE', 'exchange', 'Error with apiKey=sk-test-123');
+      const safe = error.getOriginalErrorSafe();
+      expect(safe?.message).toBe('Error with apiKey=[REDACTED]');
+    });
+
+    test('getOriginalErrorSafe returns undefined for no originalError', () => {
+      const error = new PerpDEXError('Test', 'CODE', 'exchange');
+      const safe = error.getOriginalErrorSafe();
+      expect(safe).toBeUndefined();
+    });
+
+    test('toJSON redacts sensitive data from error message', () => {
+      const error = new PerpDEXError('Authentication failed with key=sk-live-xyz', 'AUTH_ERROR', 'exchange');
+      const json = error.toJSON();
+      expect(json.message).toBe('Authentication failed with key=[REDACTED]');
+      expect(json.message).not.toContain('sk-live-xyz');
+    });
+
+    test('toJSON redacts sensitive data from both message and originalError', () => {
+      const originalError = new Error('Original: token=sk-abc123');
+      const error = new PerpDEXError('Wrapped: apiKey=sk-def456', 'CODE', 'exchange', originalError);
+      const json = error.toJSON();
+      expect(json.message).toBe('Wrapped: apiKey=[REDACTED]');
+      expect((json.originalError as any)?.message).toBe('Original: token=[REDACTED]');
+    });
+
+    test('preserves non-sensitive data in error messages', () => {
+      const originalError = new Error('Network timeout after 5000ms at https://api.example.com');
+      const error = new PerpDEXError('Request failed', 'TIMEOUT', 'exchange', originalError);
+      const safe = error.getOriginalErrorSafe();
+      expect(safe?.message).toBe('Network timeout after 5000ms at https://api.example.com');
+    });
   });
 });
 

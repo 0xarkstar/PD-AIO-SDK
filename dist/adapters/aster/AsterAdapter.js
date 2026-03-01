@@ -156,18 +156,18 @@ export class AsterAdapter extends BaseAdapter {
             .filter((s) => s.contractType === 'PERPETUAL' && s.status === 'TRADING')
             .map((s) => this.normalizer.normalizeMarket(s));
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         const asterSymbol = toAsterSymbol(symbol);
         const response = await this.publicGet(`/fapi/v1/ticker/24hr?symbol=${asterSymbol}`, 'fetchTicker');
         return this.normalizer.normalizeTicker(response, symbol);
     }
-    async fetchOrderBook(symbol, params) {
+    async _fetchOrderBook(symbol, params) {
         const asterSymbol = toAsterSymbol(symbol);
         const limit = params?.limit ?? 20;
         const response = await this.publicGet(`/fapi/v1/depth?symbol=${asterSymbol}&limit=${limit}`, 'fetchOrderBook');
         return this.normalizer.normalizeOrderBook(response, symbol);
     }
-    async fetchTrades(symbol, params) {
+    async _fetchTrades(symbol, params) {
         const asterSymbol = toAsterSymbol(symbol);
         const limit = params?.limit ?? 100;
         const response = await this.publicGet(`/fapi/v1/trades?symbol=${asterSymbol}&limit=${limit}`, 'fetchTrades');
@@ -176,7 +176,7 @@ export class AsterAdapter extends BaseAdapter {
         }
         return response.map((t) => this.normalizer.normalizeTrade(t, symbol));
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         const asterSymbol = toAsterSymbol(symbol);
         const response = await this.publicGet(`/fapi/v1/premiumIndex?symbol=${asterSymbol}`, 'fetchFundingRate');
         return this.normalizer.normalizeFundingRate(response, symbol);
@@ -253,7 +253,7 @@ export class AsterAdapter extends BaseAdapter {
             .filter((b) => parseFloat(b.balance) > 0)
             .map((b) => this.normalizer.normalizeBalance(b));
     }
-    async setLeverage(symbol, leverage) {
+    async _setLeverage(symbol, leverage) {
         const asterSymbol = toAsterSymbol(symbol);
         await this.signedRequest('POST', '/fapi/v1/leverage', 'setLeverage', { symbol: asterSymbol, leverage });
     }

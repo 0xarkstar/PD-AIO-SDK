@@ -118,6 +118,29 @@ export interface LoggerConfig {
 }
 
 /**
+ * Redact sensitive data patterns from strings
+ *
+ * @param str - String to redact sensitive data from
+ * @returns String with sensitive patterns redacted
+ */
+export function redactSensitivePatterns(str: string): string {
+  return (
+    str
+      // Redact sk-/pk- prefixed keys (any length after dash)
+      .replace(/\b(?:sk|pk)-[A-Za-z0-9_-]+/g, '[REDACTED_KEY]')
+      // Redact hex strings (40+ characters)
+      .replace(/\b[0-9a-fA-F]{40,}\b/g, '[REDACTED_HEX]')
+      // Redact Bearer tokens
+      .replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]')
+      // Redact key=value, secret:value patterns (must come last to avoid conflicts)
+      .replace(/(?:key|secret|token|apikey|password|mnemonic)[\s]*[=:]\s*\S+/gi, (match) => {
+        const separator = match.includes('=') ? '=' : ':';
+        return match.split(separator)[0] + separator + '[REDACTED]';
+      })
+  );
+}
+
+/**
  * Structured logger with JSON output
  *
  * @example
@@ -278,8 +301,8 @@ export class Logger {
   private serializeError(error: Error): LogEntry['error'] {
     return {
       name: error.name,
-      message: error.message,
-      stack: error.stack,
+      message: redactSensitivePatterns(error.message),
+      stack: error.stack ? redactSensitivePatterns(error.stack) : undefined,
       code: (error as Error & { code?: string }).code,
     };
   }

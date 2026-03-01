@@ -10,7 +10,6 @@ export declare class OstiumAuth implements IAuthStrategy {
     private readonly privateKey;
     private readonly rpcUrl;
     constructor(config: OstiumAuthConfig);
-    getPrivateKey(): string;
     getRpcUrl(): string;
     sign(request: RequestParams): Promise<AuthenticatedRequest>;
     getHeaders(): Record<string, string>;

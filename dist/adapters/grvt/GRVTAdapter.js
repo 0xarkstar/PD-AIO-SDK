@@ -109,7 +109,7 @@ export class GRVTAdapter extends BaseAdapter {
             throw mapAxiosError(error);
         }
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         await this.rateLimiter.acquire('fetchTicker');
         try {
             const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
@@ -123,7 +123,7 @@ export class GRVTAdapter extends BaseAdapter {
             throw mapAxiosError(error);
         }
     }
-    async fetchOrderBook(symbol, params) {
+    async _fetchOrderBook(symbol, params) {
         await this.rateLimiter.acquire('fetchOrderBook');
         try {
             const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
@@ -140,7 +140,7 @@ export class GRVTAdapter extends BaseAdapter {
             throw mapAxiosError(error);
         }
     }
-    async fetchTrades(symbol, params) {
+    async _fetchTrades(symbol, params) {
         await this.rateLimiter.acquire('fetchTrades');
         try {
             const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
@@ -250,7 +250,7 @@ export class GRVTAdapter extends BaseAdapter {
         };
         return durationMap[timeframe] || 30 * 24 * 60 * 60 * 1000;
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire('fetchFundingRate');
         try {
             const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
@@ -491,7 +491,7 @@ export class GRVTAdapter extends BaseAdapter {
     async fetchFundingRateHistory(_symbol, _since, _limit) {
         throw new PerpDEXError('GRVT does not provide funding rate history via API', 'NOT_SUPPORTED', 'grvt');
     }
-    async setLeverage(symbol, leverage) {
+    async _setLeverage(symbol, leverage) {
         // GRVT uses cross-margin, but we can try to set initial leverage
         await this.rateLimiter.acquire('modifyOrder');
         try {

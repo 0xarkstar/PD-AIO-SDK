@@ -12,6 +12,7 @@ import {
   InvalidOrderError,
   InsufficientMarginError,
   OrderNotFoundError,
+  InvalidSignatureError,
   RateLimitError,
   ExchangeUnavailableError,
 } from '../../types/errors.js';
@@ -59,6 +60,9 @@ export function mapGRVTError(
 
     case GRVT_CLIENT_ERRORS.ORDER_NOT_FOUND:
       return new OrderNotFoundError(message, errorCode, 'grvt', originalError);
+
+    case GRVT_CLIENT_ERRORS.INVALID_SIGNATURE:
+      return new InvalidSignatureError(message, errorCode, 'grvt', originalError);
 
     case GRVT_RATE_LIMIT_ERROR:
       return new RateLimitError(message, errorCode, 'grvt', undefined, originalError);

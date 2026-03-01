@@ -257,19 +257,19 @@ export class LighterAdapter extends BaseAdapter {
         await this.rateLimiter.acquire('fetchMarkets');
         return fetchMarketsData(this.getMarketDataDeps());
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         await this.rateLimiter.acquire('fetchTicker');
         return fetchTickerData(this.getMarketDataDeps(), symbol);
     }
-    async fetchOrderBook(symbol, params) {
+    async _fetchOrderBook(symbol, params) {
         await this.rateLimiter.acquire('fetchOrderBook');
         return fetchOrderBookData(this.getMarketDataDeps(), symbol, params?.limit || 50, () => this.fetchMarkets());
     }
-    async fetchTrades(symbol, params) {
+    async _fetchTrades(symbol, params) {
         await this.rateLimiter.acquire('fetchTrades');
         return fetchTradesData(this.getMarketDataDeps(), symbol, params?.limit || 100, () => this.fetchMarkets());
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire('fetchFundingRate');
         return fetchFundingRateData(this.getMarketDataDeps(), symbol, () => this.fetchMarkets());
     }
@@ -390,7 +390,7 @@ export class LighterAdapter extends BaseAdapter {
         return fetchOpenOrdersData(this.getAccountDeps(), symbol);
     }
     // ==================== Required BaseAdapter Methods ====================
-    async setLeverage(_symbol, _leverage) {
+    async _setLeverage(_symbol, _leverage) {
         throw new Error('Lighter does not support setLeverage');
     }
     async fetchOrderHistory(symbol, since, limit) {

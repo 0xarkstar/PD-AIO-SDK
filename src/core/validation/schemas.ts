@@ -13,13 +13,23 @@ import { z } from 'zod';
 const PositiveNumberSchema = z.number().positive();
 const NonNegativeNumberSchema = z.number().nonnegative();
 const TimestampSchema = z.number().int().positive();
-const SymbolSchema = z.string().min(1).regex(/^[A-Z0-9]{1,10}\/[A-Z0-9]{1,10}(:[A-Z0-9]{1,10})?$/, 'Invalid symbol format');
+const SymbolSchema = z
+  .string()
+  .min(1)
+  .regex(/^[A-Z0-9]{1,10}\/[A-Z0-9]{1,10}(:[A-Z0-9]{1,10})?$/, 'Invalid symbol format');
 
 // =============================================================================
 // Order Schemas
 // =============================================================================
 
-export const OrderTypeSchema = z.enum(['market', 'limit', 'stopMarket', 'stopLimit', 'takeProfit', 'trailingStop']);
+export const OrderTypeSchema = z.enum([
+  'market',
+  'limit',
+  'stopMarket',
+  'stopLimit',
+  'takeProfit',
+  'trailingStop',
+]);
 
 export const OrderSideSchema = z.enum(['buy', 'sell']);
 

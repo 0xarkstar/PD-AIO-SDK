@@ -12,7 +12,7 @@ import { OstiumSubgraph } from '../../src/adapters/ostium/OstiumSubgraph.js';
 import { OstiumNormalizer } from '../../src/adapters/ostium/OstiumNormalizer.js';
 import { OSTIUM_PAIRS } from '../../src/adapters/ostium/constants.js';
 import { toOstiumPairIndex, toUnifiedSymbol } from '../../src/adapters/ostium/utils.js';
-import { PerpDEXError, NotSupportedError } from '../../src/types/errors.js';
+import { PerpDEXError, NotSupportedError, NetworkError } from '../../src/types/errors.js';
 import type {
   OstiumSubgraphTrade,
   OstiumSubgraphPosition,
@@ -134,9 +134,10 @@ describe('OstiumAuth Coverage', () => {
     expect(address).toBe(mockAddress);
   });
 
-  test('getPrivateKey() returns the configured key', () => {
+  test('getPrivateKey() is not publicly accessible (security)', () => {
     const auth = new OstiumAuth(authConfig);
-    expect(auth.getPrivateKey()).toBe('0x' + '2'.repeat(64));
+    // getPrivateKey was removed in C25 S2 security hardening
+    expect((auth as any).getPrivateKey).toBeUndefined();
   });
 
   test('sign() returns request unchanged (passthrough)', async () => {
@@ -545,6 +546,39 @@ describe('OstiumSubgraph Coverage', () => {
     const subgraph = new OstiumSubgraph();
     const positions = await subgraph.fetchPositions(mockAddress);
     expect(positions).toEqual([]);
+  });
+
+  test('should timeout GraphQL requests after 30s', async () => {
+    // Mock fetch that simulates AbortError
+    mockFetch.mockImplementation(() => {
+      const error = new Error('The operation was aborted');
+      error.name = 'AbortError';
+      return Promise.reject(error);
+    });
+
+    const subgraph = new OstiumSubgraph();
+    await expect(subgraph.fetchTrades(0)).rejects.toBeInstanceOf(NetworkError);
+    await expect(subgraph.fetchTrades(0)).rejects.toMatchObject({
+      code: 'GRAPHQL_TIMEOUT',
+      exchange: 'ostium',
+    });
+  });
+
+  test('should include AbortController signal in fetch request', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { trades: [] } }),
+    } as Response);
+
+    const subgraph = new OstiumSubgraph();
+    await subgraph.fetchTrades(0);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      })
+    );
   });
 });
 

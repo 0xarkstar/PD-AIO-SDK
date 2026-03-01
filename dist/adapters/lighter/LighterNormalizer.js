@@ -193,13 +193,15 @@ export class LighterNormalizer {
      */
     normalizeFundingRate(lighterFundingRate) {
         const validated = LighterFundingRateSchema.parse(lighterFundingRate);
+        const markPrice = validated.markPrice ?? 0;
+        const nextFundingTime = validated.nextFundingTime ?? Date.now() + 8 * 3600 * 1000;
         return {
             symbol: this.normalizeSymbol(validated.symbol),
             fundingRate: validated.fundingRate,
-            fundingTimestamp: validated.nextFundingTime,
-            nextFundingTimestamp: validated.nextFundingTime,
-            markPrice: validated.markPrice,
-            indexPrice: lighterFundingRate.markPrice, // Not provided by Lighter, use mark price as fallback
+            fundingTimestamp: nextFundingTime,
+            nextFundingTimestamp: nextFundingTime,
+            markPrice,
+            indexPrice: markPrice, // Not provided by Lighter, use mark price as fallback
             fundingIntervalHours: 8,
             info: lighterFundingRate,
         };

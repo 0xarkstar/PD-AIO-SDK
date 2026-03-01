@@ -43,6 +43,18 @@ export class DydxNormalizer {
         const unifiedSymbol = dydxToUnified(market.ticker);
         const [base = '', rest = ''] = unifiedSymbol.split('/');
         const [quote = '', settle = ''] = rest.split(':');
+        // Fallback: parse raw ticker if unified symbol split failed (BTC-USD → base=BTC, quote=USD)
+        let finalBase = base;
+        let finalQuote = quote || settle; // quote and settle are the same for dYdX perpetuals
+        let finalSettle = settle || quote;
+        if (!finalBase || !finalQuote) {
+            const parts = market.ticker.split('-');
+            if (parts.length >= 2) {
+                finalBase = finalBase || parts[0] || '';
+                finalQuote = finalQuote || parts[1] || 'USD';
+                finalSettle = finalSettle || finalQuote;
+            }
+        }
         // Parse step size for amount precision
         const stepSize = parseFloat(market.stepSize);
         const amountPrecision = stepSize > 0 ? Math.abs(Math.log10(stepSize)) : DYDX_DEFAULT_PRECISION.amount;
@@ -52,9 +64,9 @@ export class DydxNormalizer {
         return {
             id: market.ticker,
             symbol: unifiedSymbol,
-            base,
-            quote,
-            settle,
+            base: finalBase,
+            quote: finalQuote,
+            settle: finalSettle,
             active: market.status === 'ACTIVE',
             minAmount: stepSize,
             pricePrecision: Math.round(pricePrecision),

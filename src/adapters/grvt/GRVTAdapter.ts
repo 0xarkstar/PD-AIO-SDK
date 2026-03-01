@@ -169,7 +169,7 @@ export class GRVTAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTicker(symbol: string): Promise<Ticker> {
+  async _fetchTicker(symbol: string): Promise<Ticker> {
     await this.rateLimiter.acquire('fetchTicker');
 
     try {
@@ -186,7 +186,7 @@ export class GRVTAdapter extends BaseAdapter {
     }
   }
 
-  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
+  async _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     await this.rateLimiter.acquire('fetchOrderBook');
 
     try {
@@ -206,7 +206,7 @@ export class GRVTAdapter extends BaseAdapter {
     }
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+  async _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
     await this.rateLimiter.acquire('fetchTrades');
 
     try {
@@ -338,7 +338,7 @@ export class GRVTAdapter extends BaseAdapter {
     return durationMap[timeframe] || 30 * 24 * 60 * 60 * 1000;
   }
 
-  async fetchFundingRate(symbol: string): Promise<FundingRate> {
+  async _fetchFundingRate(symbol: string): Promise<FundingRate> {
     await this.rateLimiter.acquire('fetchFundingRate');
 
     try {
@@ -636,7 +636,7 @@ export class GRVTAdapter extends BaseAdapter {
     );
   }
 
-  async setLeverage(symbol: string, leverage: number): Promise<void> {
+  async _setLeverage(symbol: string, leverage: number): Promise<void> {
     // GRVT uses cross-margin, but we can try to set initial leverage
     await this.rateLimiter.acquire('modifyOrder');
 

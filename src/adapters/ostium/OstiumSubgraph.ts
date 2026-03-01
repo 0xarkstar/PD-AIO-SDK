@@ -4,6 +4,7 @@
 
 import type { OstiumSubgraphTrade, OstiumSubgraphPosition } from './types.js';
 import { OSTIUM_SUBGRAPH_URL } from './constants.js';
+import { NetworkError } from '../../types/errors.js';
 
 export class OstiumSubgraph {
   private readonly url: string;
@@ -13,23 +14,46 @@ export class OstiumSubgraph {
   }
 
   private async query<T>(graphqlQuery: string, variables?: Record<string, unknown>): Promise<T> {
-    const response = await fetch(this.url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: graphqlQuery, variables }),
-    });
+    // Add 30s timeout with AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    if (!response.ok) {
-      throw new Error(`Subgraph query failed: ${response.status}`);
+    try {
+      const response = await fetch(this.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: graphqlQuery, variables }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Subgraph query failed: ${response.status}`);
+      }
+
+      const json = (await response.json()) as { data: T; errors?: Array<{ message: string }> };
+
+      if (json.errors?.length) {
+        throw new Error(`Subgraph error: ${json.errors[0]?.message ?? 'Unknown error'}`);
+      }
+
+      return json.data;
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      // Map AbortError to NetworkError
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new NetworkError(
+          'GraphQL request timed out after 30s',
+          'GRAPHQL_TIMEOUT',
+          'ostium',
+          error
+        );
+      }
+
+      throw error;
     }
-
-    const json = (await response.json()) as { data: T; errors?: Array<{ message: string }> };
-
-    if (json.errors?.length) {
-      throw new Error(`Subgraph error: ${json.errors[0]?.message ?? 'Unknown error'}`);
-    }
-
-    return json.data;
   }
 
   async fetchTrades(pairIndex?: number, limit = 100): Promise<OstiumSubgraphTrade[]> {

@@ -64,7 +64,7 @@ export class DriftNormalizer {
       config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex ?? 0}`);
 
     // AMM might be any type due to schema flexibility, provide defaults
-    const amm = validated.amm as any;
+    const amm = validated.amm;
     const tickSize =
       config?.tickSize ||
       (amm?.orderTickSize ? parseFloat(amm.orderTickSize) / DRIFT_PRECISION.PRICE : 0.01);
@@ -79,9 +79,7 @@ export class DriftNormalizer {
       id: marketKey || `PERP-${validated.marketIndex ?? 0}`,
       symbol,
       base:
-        config?.baseAsset ||
-        validated.name?.split('-')[0] ||
-        `ASSET${validated.marketIndex ?? 0}`,
+        config?.baseAsset || validated.name?.split('-')[0] || `ASSET${validated.marketIndex ?? 0}`,
       quote: 'USD',
       settle: 'USD',
       active: validated.status === 'active',
@@ -96,8 +94,7 @@ export class DriftNormalizer {
       makerFee: -0.0002, // Drift rebates makers (-0.02%)
       takerFee: 0.001, // 0.1% taker fee (varies by tier)
       maxLeverage:
-        config?.maxLeverage ||
-        Math.floor(DRIFT_PRECISION.MARGIN / validated.marginRatioInitial),
+        config?.maxLeverage || Math.floor(DRIFT_PRECISION.MARGIN / validated.marginRatioInitial),
       fundingIntervalHours: 1,
       contractSize: 1,
       info: {
@@ -131,8 +128,7 @@ export class DriftNormalizer {
     const config = marketKey
       ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
       : undefined;
-    const symbol =
-      config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+    const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
 
     const baseAmount = parseFloat(validated.baseAssetAmount) / DRIFT_PRECISION.BASE;
     const quoteAmount = parseFloat(validated.quoteAssetAmount) / DRIFT_PRECISION.QUOTE;
@@ -203,8 +199,7 @@ export class DriftNormalizer {
     const config = marketKey
       ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
       : undefined;
-    const symbol =
-      config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+    const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
 
     const baseAmount = parseFloat(validated.baseAssetAmount) / DRIFT_PRECISION.BASE;
     const filledAmount = parseFloat(validated.baseAssetAmountFilled) / DRIFT_PRECISION.BASE;
@@ -272,8 +267,7 @@ export class DriftNormalizer {
     const config = marketKey
       ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
       : undefined;
-    const symbol =
-      config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+    const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
 
     const bids: [number, number][] = validated.bids.map((b) => [
       parseFloat(b.price) / DRIFT_PRECISION.PRICE,
@@ -344,21 +338,32 @@ export class DriftNormalizer {
     const config = marketKey
       ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
       : undefined;
-    const symbol =
-      config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+    const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
 
-    const fundingRate = parseFloat(validated.fundingRate) / DRIFT_PRECISION.FUNDING_RATE;
-    const markPrice =
+    // Data API returns pre-processed decimal values, SDK returns raw integers
+    // Heuristic: if |value| < 1, it's already processed; if |value| > 1000, it's raw
+    const rawFundingRate = parseFloat(validated.fundingRate);
+    const fundingRate =
+      Math.abs(rawFundingRate) > 1000
+        ? rawFundingRate / DRIFT_PRECISION.FUNDING_RATE
+        : rawFundingRate;
+
+    const rawMarkPrice =
       'markPriceTwap' in validated && typeof validated.markPriceTwap === 'string'
-        ? parseFloat(validated.markPriceTwap) / DRIFT_PRECISION.PRICE
+        ? parseFloat(validated.markPriceTwap)
         : oraclePrice || 0;
+    const markPrice =
+      Math.abs(rawMarkPrice) > 1000 ? rawMarkPrice / DRIFT_PRECISION.PRICE : rawMarkPrice;
+
     // DriftFundingRate has oraclePrice, DriftFundingRateRecord has oraclePriceTwap
-    const indexPrice =
+    const rawIndexPrice =
       'oraclePrice' in validated && typeof validated.oraclePrice === 'string'
-        ? parseFloat(validated.oraclePrice) / DRIFT_PRECISION.PRICE
+        ? parseFloat(validated.oraclePrice)
         : 'oraclePriceTwap' in validated && typeof validated.oraclePriceTwap === 'string'
-          ? parseFloat(validated.oraclePriceTwap) / DRIFT_PRECISION.PRICE
+          ? parseFloat(validated.oraclePriceTwap)
           : 0;
+    const indexPrice =
+      Math.abs(rawIndexPrice) > 1000 ? rawIndexPrice / DRIFT_PRECISION.PRICE : rawIndexPrice;
 
     const ts = validated.ts * 1000;
 
@@ -389,8 +394,7 @@ export class DriftNormalizer {
     const config = marketKey
       ? DRIFT_PERP_MARKETS[marketKey as keyof typeof DRIFT_PERP_MARKETS]
       : undefined;
-    const symbol =
-      config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
+    const symbol = config?.symbol || driftToUnified(marketKey || `MARKET-${validated.marketIndex}`);
 
     const markPrice = parseFloat(validated.markPrice) / DRIFT_PRECISION.PRICE;
     const oraclePrice = parseFloat(validated.oraclePrice) / DRIFT_PRECISION.PRICE;

@@ -4,17 +4,18 @@
  * Manages multiple WebSocket connections and subscriptions
  * with bounded queue and backpressure support
  */
-import { EventEmitter } from 'eventemitter3';
-import type { Subscription, WebSocketConfig } from './types.js';
-interface ManagerEvents {
-    message: (channel: string, data: unknown) => void;
-    error: (error: Error) => void;
-    subscribed: (subscription: Subscription) => void;
-    unsubscribed: (subscriptionId: string) => void;
-    reconnected: () => void;
-    queueOverflow: (channel: string, droppedCount: number) => void;
-}
-export declare class WebSocketManager extends EventEmitter<ManagerEvents> {
+import { EventEmitter } from 'events';
+import type { WebSocketConfig } from './types.js';
+/**
+ * WebSocketManager Events:
+ * - 'message': (channel: string, data: unknown) => void
+ * - 'error': (error: Error) => void
+ * - 'subscribed': (subscription: Subscription) => void
+ * - 'unsubscribed': (subscriptionId: string) => void
+ * - 'reconnected': () => void
+ * - 'queueOverflow': (channel: string, droppedCount: number) => void
+ */
+export declare class WebSocketManager extends EventEmitter {
     private readonly config;
     private client;
     private subscriptions;
@@ -92,5 +93,4 @@ export declare class WebSocketManager extends EventEmitter<ManagerEvents> {
      */
     private resubscribeAll;
 }
-export {};
 //# sourceMappingURL=WebSocketManager.d.ts.map

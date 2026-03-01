@@ -204,7 +204,7 @@ export class PacificaAdapter extends BaseAdapter {
       .map((m) => this.normalizer.normalizeMarket(m));
   }
 
-  async fetchTicker(symbol: string): Promise<Ticker> {
+  async _fetchTicker(symbol: string): Promise<Ticker> {
     const pacificaSymbol = toPacificaSymbol(symbol);
     const response = await this.publicGet<PacificaTicker>(
       `/prices?symbol=${pacificaSymbol}`,
@@ -213,7 +213,7 @@ export class PacificaAdapter extends BaseAdapter {
     return this.normalizer.normalizeTicker(response, symbol);
   }
 
-  async fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
+  async _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
     const pacificaSymbol = toPacificaSymbol(symbol);
     const limit = params?.limit ?? 20;
     const response = await this.publicGet<PacificaOrderBookType>(
@@ -223,7 +223,7 @@ export class PacificaAdapter extends BaseAdapter {
     return this.normalizer.normalizeOrderBook(response, symbol);
   }
 
-  async fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+  async _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
     const pacificaSymbol = toPacificaSymbol(symbol);
     const limit = params?.limit ?? 100;
     const response = await this.publicGet<PacificaTradeResponse[]>(
@@ -238,7 +238,7 @@ export class PacificaAdapter extends BaseAdapter {
     return response.map((t) => this.normalizer.normalizeTrade(t, symbol));
   }
 
-  async fetchFundingRate(symbol: string): Promise<FundingRate> {
+  async _fetchFundingRate(symbol: string): Promise<FundingRate> {
     const pacificaSymbol = toPacificaSymbol(symbol);
     const response = await this.publicGet<PacificaFundingHistory[]>(
       `/funding/historical?symbol=${pacificaSymbol}&limit=1`,
@@ -308,7 +308,7 @@ export class PacificaAdapter extends BaseAdapter {
     return [this.normalizer.normalizeBalance(response)];
   }
 
-  async setLeverage(symbol: string, leverage: number): Promise<void> {
+  async _setLeverage(symbol: string, leverage: number): Promise<void> {
     const pacificaSymbol = toPacificaSymbol(symbol);
     await this.signedRequest<{ success: boolean }>('POST', '/account/leverage', 'setLeverage', {
       symbol: pacificaSymbol,

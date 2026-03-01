@@ -142,18 +142,18 @@ export class PacificaAdapter extends BaseAdapter {
             .filter((m) => m.status === 'active')
             .map((m) => this.normalizer.normalizeMarket(m));
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const response = await this.publicGet(`/prices?symbol=${pacificaSymbol}`, 'fetchTicker');
         return this.normalizer.normalizeTicker(response, symbol);
     }
-    async fetchOrderBook(symbol, params) {
+    async _fetchOrderBook(symbol, params) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const limit = params?.limit ?? 20;
         const response = await this.publicGet(`/book?symbol=${pacificaSymbol}&limit=${limit}`, 'fetchOrderBook');
         return this.normalizer.normalizeOrderBook(response, symbol);
     }
-    async fetchTrades(symbol, params) {
+    async _fetchTrades(symbol, params) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const limit = params?.limit ?? 100;
         const response = await this.publicGet(`/trades?symbol=${pacificaSymbol}&limit=${limit}`, 'fetchTrades');
@@ -162,7 +162,7 @@ export class PacificaAdapter extends BaseAdapter {
         }
         return response.map((t) => this.normalizer.normalizeTrade(t, symbol));
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const response = await this.publicGet(`/funding/historical?symbol=${pacificaSymbol}&limit=1`, 'fetchFundingRate');
         if (!Array.isArray(response) || response.length === 0) {
@@ -196,7 +196,7 @@ export class PacificaAdapter extends BaseAdapter {
         const response = await this.signedRequest('GET', '/account', 'fetchBalance');
         return [this.normalizer.normalizeBalance(response)];
     }
-    async setLeverage(symbol, leverage) {
+    async _setLeverage(symbol, leverage) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         await this.signedRequest('POST', '/account/leverage', 'setLeverage', {
             symbol: pacificaSymbol,

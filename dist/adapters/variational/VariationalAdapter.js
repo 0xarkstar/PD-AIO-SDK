@@ -8,6 +8,14 @@
  * Variational is an RFQ (Request For Quote) based perpetual DEX on Arbitrum.
  * This adapter supports public market data, trading, and account operations.
  *
+ * ### Authentication
+ * Uses HMAC-SHA256 signature authentication with these headers:
+ * - `X-API-Key`: Your API key
+ * - `X-Timestamp`: Unix timestamp in milliseconds
+ * - `X-Signature`: HMAC-SHA256(secret, timestamp + method + path + body)
+ *
+ * Note: API key generation is currently limited. Contact hello@variational.io for access.
+ *
  * ### Currently Implemented
  *
  * **Public API:**
@@ -208,7 +216,7 @@ export class VariationalAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
         if (!symbol) {
             throw new PerpDEXError('Symbol is required', 'INVALID_SYMBOL', this.id);
@@ -228,7 +236,7 @@ export class VariationalAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchOrderBook(symbol, _params) {
+    async _fetchOrderBook(symbol, _params) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
         if (!symbol) {
             throw new PerpDEXError('Symbol is required', 'INVALID_SYMBOL', this.id);
@@ -249,11 +257,11 @@ export class VariationalAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async fetchTrades(_symbol, _params) {
+    async _fetchTrades(_symbol, _params) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.TRADES);
         throw new PerpDEXError('fetchTrades not implemented', 'NOT_IMPLEMENTED', this.id);
     }
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire(VARIATIONAL_ENDPOINTS.METADATA_STATS);
         if (!symbol) {
             throw new PerpDEXError('Symbol is required', 'INVALID_SYMBOL', this.id);
@@ -358,7 +366,7 @@ export class VariationalAdapter extends BaseAdapter {
             throw mapError(error);
         }
     }
-    async setLeverage(_symbol, _leverage) {
+    async _setLeverage(_symbol, _leverage) {
         throw new PerpDEXError('setLeverage not supported', 'NOT_SUPPORTED', this.id);
     }
     async setMarginMode(_symbol, _marginMode) {

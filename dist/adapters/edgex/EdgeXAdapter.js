@@ -104,7 +104,7 @@ export class EdgeXAdapter extends BaseAdapter {
     /**
      * Fetch ticker for a symbol
      */
-    async fetchTicker(symbol) {
+    async _fetchTicker(symbol) {
         const contractId = this.normalizer.toEdgeXContractId(symbol);
         const response = await this.makeRequest('GET', `/api/v1/public/quote/getTicker?contractId=${contractId}`, 'fetchTicker');
         if (response.code !== 'SUCCESS' ||
@@ -118,7 +118,7 @@ export class EdgeXAdapter extends BaseAdapter {
      * Fetch order book for a symbol
      * Note: EdgeX only supports level=15 or level=200 for order book depth
      */
-    async fetchOrderBook(symbol, params) {
+    async _fetchOrderBook(symbol, params) {
         const contractId = this.normalizer.toEdgeXContractId(symbol);
         // EdgeX only accepts level=15 or level=200
         const level = params?.limit && params.limit > 15 ? 200 : 15;
@@ -135,13 +135,13 @@ export class EdgeXAdapter extends BaseAdapter {
      * Note: EdgeX does not expose public trades via REST API.
      * Use WebSocket (watchTrades) for real-time trade data.
      */
-    async fetchTrades(_symbol, _params) {
+    async _fetchTrades(_symbol, _params) {
         throw new PerpDEXError('EdgeX does not support fetchTrades via REST API. Use watchTrades() for WebSocket streaming.', 'NOT_IMPLEMENTED', 'edgex');
     }
     /**
      * Fetch current funding rate
      */
-    async fetchFundingRate(symbol) {
+    async _fetchFundingRate(symbol) {
         const contractId = this.normalizer.toEdgeXContractId(symbol);
         const response = await this.makeRequest('GET', `/api/v1/public/funding/getLatestFundingRate?contractId=${contractId}`, 'fetchFundingRate');
         if (response.code !== 'SUCCESS' ||
@@ -318,7 +318,7 @@ export class EdgeXAdapter extends BaseAdapter {
     /**
      * Set leverage for a symbol
      */
-    async setLeverage(symbol, leverage) {
+    async _setLeverage(symbol, leverage) {
         const market = this.normalizer.toEdgeXSymbol(symbol);
         await this.makeRequest('POST', '/account/leverage', 'setLeverage', {
             market,

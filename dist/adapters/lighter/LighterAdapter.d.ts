@@ -76,10 +76,10 @@ export declare class LighterAdapter extends BaseAdapter {
     /** Get market data dependencies for helper functions */
     private getMarketDataDeps;
     fetchMarkets(_params?: MarketParams): Promise<Market[]>;
-    fetchTicker(symbol: string): Promise<Ticker>;
-    fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
-    fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
-    fetchFundingRate(symbol: string): Promise<FundingRate>;
+    _fetchTicker(symbol: string): Promise<Ticker>;
+    _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
+    _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
+    _fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     /** Get trading dependencies for helper functions */
     private getTradingDeps;
@@ -107,7 +107,7 @@ export declare class LighterAdapter extends BaseAdapter {
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
     fetchOpenOrders(symbol?: string): Promise<Order[]>;
-    setLeverage(_symbol: string, _leverage: number): Promise<void>;
+    _setLeverage(_symbol: string, _leverage: number): Promise<void>;
     fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
     fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
     symbolToExchange(symbol: string): string;

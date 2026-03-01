@@ -1,7 +1,7 @@
 /**
  * Ostium Error Code Mapping
  */
-import { ExchangeUnavailableError, InsufficientMarginError, InvalidOrderError, PerpDEXError, TransactionFailedError, } from '../../types/errors.js';
+import { ExchangeUnavailableError, InsufficientMarginError, InvalidOrderError, InvalidSignatureError, PerpDEXError, RateLimitError, TransactionFailedError, } from '../../types/errors.js';
 export const OSTIUM_ERROR_PATTERNS = {
     'insufficient funds': 'INSUFFICIENT_FUNDS',
     'insufficient balance': 'INSUFFICIENT_BALANCE',
@@ -43,6 +43,16 @@ export function mapOstiumError(error) {
     }
     if (message.includes('paused') || message.includes('market closed')) {
         return new ExchangeUnavailableError(error instanceof Error ? error.message : String(error), 'EXCHANGE_UNAVAILABLE', 'ostium');
+    }
+    if (message.includes('rate limit') ||
+        message.includes('too many requests') ||
+        message.includes('429')) {
+        return new RateLimitError(error instanceof Error ? error.message : String(error), 'RATE_LIMIT', 'ostium');
+    }
+    if (message.includes('invalid signature') ||
+        message.includes('bad signature') ||
+        message.includes('unauthorized')) {
+        return new InvalidSignatureError(error instanceof Error ? error.message : String(error), 'INVALID_SIGNATURE', 'ostium');
     }
     return new PerpDEXError(error instanceof Error ? error.message : String(error), 'UNKNOWN', 'ostium');
 }
