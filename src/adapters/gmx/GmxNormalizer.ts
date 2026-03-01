@@ -26,6 +26,8 @@ import {
   GMX_PRECISION,
   GMX_MARKET_ADDRESS_MAP,
   gmxToUnified,
+  getTokenDecimals,
+  getTokenDecimalsByAddress,
   type GMXMarketKey,
 } from './constants.js';
 
@@ -114,8 +116,10 @@ export class GmxNormalizer {
     const symbol = config?.symbol || gmxToUnified(marketKey as GMXMarketKey);
 
     const sizeInUsd = parseFloat(position.sizeInUsd) / GMX_PRECISION.USD;
-    const sizeInTokens = parseFloat(position.sizeInTokens) / 10 ** 18; // Assume 18 decimals
-    const collateral = parseFloat(position.collateralAmount) / 10 ** 18;
+    const indexTokenDecimals = config ? getTokenDecimals(config.baseAsset) : 18;
+    const sizeInTokens = parseFloat(position.sizeInTokens) / 10 ** indexTokenDecimals;
+    const collateralDecimals = getTokenDecimalsByAddress(position.collateralToken);
+    const collateral = parseFloat(position.collateralAmount) / 10 ** collateralDecimals;
     const side: 'long' | 'short' = position.isLong ? 'long' : 'short';
 
     const entryPrice = sizeInTokens > 0 ? sizeInUsd / sizeInTokens : markPrice;
@@ -156,7 +160,7 @@ export class GmxNormalizer {
         maintenanceMargin
       ),
       unrealizedPnl,
-      realizedPnl: 0, // Would need historical data
+      realizedPnl: 0,
       timestamp: Date.now(),
       info: {
         marketAddress: position.market,
@@ -164,6 +168,7 @@ export class GmxNormalizer {
         borrowingFactor: position.borrowingFactor,
         fundingFeeAmountPerSize: position.fundingFeeAmountPerSize,
         chain,
+        _realizedPnlSource: 'not_available',
       },
     };
   }
@@ -357,6 +362,7 @@ export class GmxNormalizer {
         shortOpenInterestUsd: shortOI,
         totalOpenInterestUsd: longOI + shortOI,
         imbalance: longOI - shortOI,
+        _bidAskSource: 'calculated',
       },
     };
   }

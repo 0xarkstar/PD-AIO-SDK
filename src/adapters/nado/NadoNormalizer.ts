@@ -440,7 +440,10 @@ export class NadoNormalizer {
       percentage: 0,
       baseVolume: 0,
       quoteVolume: 0,
-      info: validated as unknown as Record<string, unknown>,
+      info: {
+        ...(validated as unknown as Record<string, unknown>),
+        _bidAskSource: 'orderbook',
+      },
     };
   }
 

@@ -263,6 +263,7 @@ export class DydxNormalizer {
         sumOpen: position.sumOpen,
         sumClose: position.sumClose,
         subaccountNumber: position.subaccountNumber,
+        _marginRatioSource: 'not_available',
       },
     };
   }
@@ -511,6 +512,7 @@ export class DydxNormalizer {
         nextFundingRate: market.nextFundingRate,
         nextFundingAt: market.nextFundingAt,
         trades24H: market.trades24H,
+        _bidAskSource: 'oracle_price',
       },
     };
   }

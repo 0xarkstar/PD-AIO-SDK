@@ -464,6 +464,50 @@ describe('ExtendedNormalizer', () => {
       // 250 / (1.0 * 50000) = 0.005
       expect(result.marginRatio).toBe(0.005);
     });
+
+    it('should return 0 marginRatio when size is zero (division by zero guard)', () => {
+      const zeroSizePosition: ExtendedPosition = {
+        symbol: 'BTC-USD-PERP',
+        side: 'long',
+        size: '0',
+        entryPrice: '50000',
+        markPrice: '50000',
+        leverage: '10',
+        liquidationPrice: '45000',
+        unrealizedPnl: '0',
+        initialMargin: '5000',
+        maintenanceMargin: '250',
+        marginMode: 'cross',
+        timestamp: Date.now(),
+      };
+
+      const result = normalizer.normalizePosition(zeroSizePosition);
+
+      expect(result.marginRatio).toBe(0);
+      expect(Number.isFinite(result.marginRatio)).toBe(true);
+    });
+
+    it('should return 0 marginRatio when markPrice is zero (division by zero guard)', () => {
+      const zeroMarkPricePosition: ExtendedPosition = {
+        symbol: 'BTC-USD-PERP',
+        side: 'long',
+        size: '1.0',
+        entryPrice: '50000',
+        markPrice: '0',
+        leverage: '10',
+        liquidationPrice: '45000',
+        unrealizedPnl: '0',
+        initialMargin: '5000',
+        maintenanceMargin: '250',
+        marginMode: 'cross',
+        timestamp: Date.now(),
+      };
+
+      const result = normalizer.normalizePosition(zeroMarkPricePosition);
+
+      expect(result.marginRatio).toBe(0);
+      expect(Number.isFinite(result.marginRatio)).toBe(true);
+    });
   });
 
   describe('normalizeBalance', () => {

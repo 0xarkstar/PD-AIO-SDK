@@ -183,16 +183,19 @@ export class BackpackNormalizer {
    */
   normalizePosition(backpackPosition: BackpackPosition): Position {
     const symbol = this.normalizeSymbol(backpackPosition.market);
-    const size = parseFloat(backpackPosition.size);
+    const size = Math.abs(parseFloat(backpackPosition.size));
+    const markPrice = parseFloat(backpackPosition.mark_price);
+    const maintenanceMargin = parseFloat(backpackPosition.margin) * 0.05;
     const side = backpackPosition.side === 'LONG' ? 'long' : 'short';
+    const notional = size * markPrice;
 
     return {
       symbol,
       side,
       marginMode: 'cross',
-      size: Math.abs(size),
+      size,
       entryPrice: parseFloat(backpackPosition.entry_price),
-      markPrice: parseFloat(backpackPosition.mark_price),
+      markPrice,
       liquidationPrice: backpackPosition.liquidation_price
         ? parseFloat(backpackPosition.liquidation_price)
         : 0,
@@ -200,8 +203,8 @@ export class BackpackNormalizer {
       realizedPnl: parseFloat(backpackPosition.realized_pnl),
       margin: parseFloat(backpackPosition.margin),
       leverage: parseFloat(backpackPosition.leverage),
-      maintenanceMargin: parseFloat(backpackPosition.margin) * 0.05,
-      marginRatio: 0,
+      maintenanceMargin,
+      marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
       timestamp: backpackPosition.timestamp,
       info: backpackPosition as unknown as Record<string, unknown>,
     };
@@ -267,8 +270,8 @@ export class BackpackNormalizer {
       last,
       open: first,
       close: last,
-      bid: 0, // Not provided in ticker endpoint
-      ask: 0, // Not provided in ticker endpoint
+      bid: last, // Backpack ticker doesn't provide bid; use last price as fallback
+      ask: last, // Backpack ticker doesn't provide ask; use last price as fallback
       high: parseFloat(backpackTicker.high),
       low: parseFloat(backpackTicker.low),
       change,
@@ -276,7 +279,10 @@ export class BackpackNormalizer {
       baseVolume: parseFloat(backpackTicker.volume),
       quoteVolume: parseFloat(backpackTicker.quoteVolume),
       timestamp: Date.now(),
-      info: backpackTicker as unknown as Record<string, unknown>,
+      info: {
+        ...(backpackTicker as unknown as Record<string, unknown>),
+        _bidAskSource: 'last_price',
+      },
     };
   }
 

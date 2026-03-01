@@ -498,3 +498,14 @@ export const StandardErrorCodes = {
 } as const;
 
 export type StandardErrorCode = (typeof StandardErrorCodes)[keyof typeof StandardErrorCodes];
+
+/**
+ * Standard interface for exchange-specific error mappers.
+ *
+ * All adapter error mapper functions should conform to this signature.
+ * The mapper takes an unknown error (typically from catch blocks) and returns
+ * a PerpDEXError subclass with the appropriate error code and exchange context.
+ */
+export interface ErrorMapper {
+  (error: unknown, context?: Record<string, unknown>): PerpDEXError;
+}

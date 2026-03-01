@@ -30,8 +30,8 @@ import {
   toBackpackOrderType,
   toBackpackOrderSide,
   toBackpackTimeInForce,
-  mapBackpackError,
 } from './utils.js';
+import { mapBackpackError, extractBackpackError } from './error-codes.js';
 import type { BackpackConfig } from './types.js';
 
 /**
@@ -545,8 +545,8 @@ export class BackpackAdapter extends BaseAdapter {
       if (error instanceof PerpDEXError) {
         throw error;
       }
-      const { code } = mapBackpackError(error);
-      throw new PerpDEXError('Request failed', code, 'backpack', error);
+      const { code, message } = extractBackpackError(error);
+      throw mapBackpackError(code, message, error);
     }
   }
 }

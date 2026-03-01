@@ -182,7 +182,7 @@ export const EXTENDED_DEFAULTS = {
 export const EXTENDED_STARKNET_CONFIG = {
   chainId: {
     mainnet: 'SN_MAIN',
-    testnet: 'SN_GOERLI',
+    testnet: 'SN_SEPOLIA',
   },
   blockTime: 600000, // 10 minutes in milliseconds
   confirmations: 1,

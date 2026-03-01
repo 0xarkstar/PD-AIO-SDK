@@ -239,6 +239,7 @@ export class JupiterNormalizer {
         longOpenInterest: stats?.longOpenInterest,
         shortOpenInterest: stats?.shortOpenInterest,
         confidenceLevel: priceData.extraInfo?.confidenceLevel,
+        _bidAskSource: 'calculated',
       },
     };
   }

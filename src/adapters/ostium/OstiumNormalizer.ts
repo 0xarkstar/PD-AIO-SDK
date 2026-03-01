@@ -56,7 +56,10 @@ export class OstiumNormalizer {
       baseVolume: 0,
       quoteVolume: 0,
       timestamp,
-      info: raw as unknown as Record<string, unknown>,
+      info: {
+        ...(raw as unknown as Record<string, unknown>),
+        _bidAskSource: 'orderbook',
+      },
     };
   }
 
@@ -99,9 +102,12 @@ export class OstiumNormalizer {
       marginMode: 'isolated',
       margin: size,
       maintenanceMargin: size * 0.05,
-      marginRatio: 0,
+      marginRatio: size * markPrice > 0 ? (size * 0.05) / (size * markPrice) : 0,
       timestamp: parseInt(raw.timestamp, 10) * 1000,
-      info: raw as unknown as Record<string, unknown>,
+      info: {
+        ...(raw as unknown as Record<string, unknown>),
+        _realizedPnlSource: 'not_available',
+      },
     };
   }
 

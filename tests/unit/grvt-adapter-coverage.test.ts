@@ -169,6 +169,12 @@ describe('GRVTAdapter Coverage', () => {
       expect((adapter as any).sdk.mdgAxios.post).toHaveBeenCalledTimes(3);
     });
 
+    it('should reject monthly (1M) timeframe as unsupported', async () => {
+      await expect(adapter.fetchOHLCV('BTC/USDT:USDT', '1M')).rejects.toThrow(
+        /does not support monthly/
+      );
+    });
+
     it('should use since and until params as nanoseconds', async () => {
       await adapter.fetchOHLCV('BTC/USDT:USDT', '1h', { since: 1700000000000, until: 1700100000000, limit: 100 });
       expect((adapter as any).sdk.mdgAxios.post).toHaveBeenCalledWith(

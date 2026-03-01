@@ -14,6 +14,7 @@ import type {
   BackpackMarket,
   BackpackOrder,
   BackpackPosition,
+  BackpackTicker,
 } from '../../src/adapters/backpack/types.js';
 
 describe('Backpack Symbol Normalization', () => {
@@ -190,6 +191,12 @@ describe('Backpack Position Normalization', () => {
       entryPrice: 48000,
       leverage: 10,
     });
+
+    // marginRatio should now be calculated: maintenanceMargin / (size * markPrice)
+    // margin=2400, maintenanceMargin=2400*0.05=120, notional=0.5*50000=25000
+    // marginRatio = 120/25000 = 0.0048
+    expect(normalized.marginRatio).toBeCloseTo(0.0048, 4);
+    expect(normalized.maintenanceMargin).toBe(120);
   });
 });
 
@@ -225,6 +232,52 @@ describe('Backpack Balance Normalization', () => {
     expect(normalized.total).toBe(0);
     expect(normalized.free).toBe(0);
     expect(normalized.used).toBe(0);
+  });
+});
+
+describe('Backpack Ticker Normalization', () => {
+  test('uses last price for bid/ask when not provided by API', () => {
+    const backpackTicker: BackpackTicker = {
+      symbol: 'BTC_USDC_PERP',
+      firstPrice: '49000',
+      lastPrice: '50000',
+      high: '51000',
+      low: '48000',
+      volume: '100',
+      quoteVolume: '5000000',
+      priceChange: '1000',
+      priceChangePercent: '0.0204',
+      trades: '500',
+    };
+
+    const normalized = normalizer.normalizeTicker(backpackTicker);
+
+    expect(normalized.bid).toBe(50000);
+    expect(normalized.ask).toBe(50000);
+    expect(normalized.last).toBe(50000);
+    expect(normalized.symbol).toBe('BTC/USDC:USDC');
+  });
+
+  test('bid/ask are never zero', () => {
+    const backpackTicker: BackpackTicker = {
+      symbol: 'ETH_USDC_PERP',
+      firstPrice: '3000',
+      lastPrice: '3100',
+      high: '3200',
+      low: '2900',
+      volume: '50',
+      quoteVolume: '155000',
+      priceChange: '100',
+      priceChangePercent: '0.0333',
+      trades: '200',
+    };
+
+    const normalized = normalizer.normalizeTicker(backpackTicker);
+
+    expect(normalized.bid).toBeGreaterThan(0);
+    expect(normalized.ask).toBeGreaterThan(0);
+    expect(normalized.bid).toBe(normalized.last);
+    expect(normalized.ask).toBe(normalized.last);
   });
 });
 

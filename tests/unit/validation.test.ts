@@ -119,6 +119,76 @@ describe('OrderRequestSchema', () => {
     expect(() => OrderRequestSchema.parse(validStopOrder)).not.toThrow();
   });
 
+  test('validates takeProfit order type', () => {
+    const takeProfitOrder = {
+      symbol: 'BTC/USDT:USDT',
+      type: 'takeProfit' as const,
+      side: 'sell' as const,
+      amount: 0.1,
+      stopPrice: 55000,
+    };
+
+    expect(() => OrderRequestSchema.parse(takeProfitOrder)).not.toThrow();
+  });
+
+  test('rejects takeProfit order without stopPrice', () => {
+    const invalidTakeProfit = {
+      symbol: 'BTC/USDT:USDT',
+      type: 'takeProfit' as const,
+      side: 'sell' as const,
+      amount: 0.1,
+    };
+
+    expect(() => OrderRequestSchema.parse(invalidTakeProfit)).toThrow();
+  });
+
+  test('validates trailingStop order type', () => {
+    const trailingStopOrder = {
+      symbol: 'BTC/USDT:USDT',
+      type: 'trailingStop' as const,
+      side: 'sell' as const,
+      amount: 0.1,
+    };
+
+    expect(() => OrderRequestSchema.parse(trailingStopOrder)).not.toThrow();
+  });
+
+  test('accepts float leverage values', () => {
+    const orderWithFloatLeverage = {
+      symbol: 'BTC/USDT:USDT',
+      type: 'market' as const,
+      side: 'buy' as const,
+      amount: 0.1,
+      leverage: 2.5,
+    };
+
+    expect(() => OrderRequestSchema.parse(orderWithFloatLeverage)).not.toThrow();
+  });
+
+  test('accepts leverage up to 200', () => {
+    const orderWithHighLeverage = {
+      symbol: 'BTC/USDT:USDT',
+      type: 'market' as const,
+      side: 'buy' as const,
+      amount: 0.1,
+      leverage: 150,
+    };
+
+    expect(() => OrderRequestSchema.parse(orderWithHighLeverage)).not.toThrow();
+  });
+
+  test('rejects leverage over 200', () => {
+    const orderWithExcessiveLeverage = {
+      symbol: 'BTC/USDT:USDT',
+      type: 'market' as const,
+      side: 'buy' as const,
+      amount: 0.1,
+      leverage: 201,
+    };
+
+    expect(() => OrderRequestSchema.parse(orderWithExcessiveLeverage)).toThrow();
+  });
+
   test('validates stopLimit order requires both price and stopPrice', () => {
     const stopLimitWithoutStopPrice = {
       symbol: 'BTC/USDT:USDT',
@@ -263,6 +333,27 @@ describe('PositionSchema', () => {
     };
 
     expect(() => PositionSchema.parse(validPosition)).not.toThrow();
+  });
+
+  test('accepts float leverage in position', () => {
+    const positionWithFloatLeverage = {
+      symbol: 'BTC/USDT:USDT',
+      side: 'long' as const,
+      size: 0.5,
+      entryPrice: 50000,
+      markPrice: 51000,
+      liquidationPrice: 45000,
+      unrealizedPnl: 500,
+      realizedPnl: 0,
+      leverage: 2.5,
+      marginMode: 'cross' as const,
+      margin: 2500,
+      maintenanceMargin: 250,
+      marginRatio: 0.1,
+      timestamp: Date.now(),
+    };
+
+    expect(() => PositionSchema.parse(positionWithFloatLeverage)).not.toThrow();
   });
 
   test('rejects negative size', () => {

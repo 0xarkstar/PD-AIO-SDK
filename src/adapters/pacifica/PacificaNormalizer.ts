@@ -69,7 +69,10 @@ export class PacificaNormalizer {
       baseVolume: parseFloat(raw.volume_24h),
       quoteVolume: parseFloat(raw.quote_volume_24h),
       timestamp: raw.timestamp,
-      info: raw as unknown as Record<string, unknown>,
+      info: {
+        ...(raw as unknown as Record<string, unknown>),
+        _bidAskSource: 'orderbook',
+      },
     };
   }
 
@@ -138,20 +141,25 @@ export class PacificaNormalizer {
   }
 
   normalizePosition(raw: PacificaPositionType, symbol?: string): Position {
+    const size = parseFloat(raw.size);
+    const markPrice = parseFloat(raw.mark_price);
+    const maintenanceMargin = parseFloat(raw.maintenance_margin);
+    const notional = size * markPrice;
+
     return {
       symbol: symbol ?? toUnifiedSymbol(raw.symbol),
       side: raw.side,
-      size: parseFloat(raw.size),
+      size,
       entryPrice: parseFloat(raw.entry_price),
-      markPrice: parseFloat(raw.mark_price),
+      markPrice,
       liquidationPrice: parseFloat(raw.liquidation_price),
       unrealizedPnl: parseFloat(raw.unrealized_pnl),
       realizedPnl: parseFloat(raw.realized_pnl),
       leverage: raw.leverage,
       marginMode: raw.margin_mode,
       margin: parseFloat(raw.margin),
-      maintenanceMargin: parseFloat(raw.maintenance_margin),
-      marginRatio: 0,
+      maintenanceMargin,
+      marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
       timestamp: raw.timestamp,
       info: raw as unknown as Record<string, unknown>,
     };

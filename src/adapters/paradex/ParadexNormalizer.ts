@@ -24,6 +24,7 @@ import type {
 import { PARADEX_ORDER_TYPES, PARADEX_ORDER_SIDES, PARADEX_TIME_IN_FORCE } from './constants.js';
 import type {
   ParadexMarket,
+  ParadexAPIMarket,
   ParadexOrder,
   ParadexPosition,
   ParadexBalance,
@@ -144,7 +145,7 @@ export class ParadexNormalizer {
    * @param paradexMarket - Paradex market data from API
    * @returns Unified market
    */
-  normalizeMarket(paradexMarket: any): Market {
+  normalizeMarket(paradexMarket: ParadexAPIMarket): Market {
     const symbol = this.symbolToCCXT(paradexMarket.symbol);
 
     // Handle both actual API format and legacy type format
@@ -160,7 +161,7 @@ export class ParadexNormalizer {
       takerFee = parseFloat(paradexMarket.fee_config.api_fee.taker_fee?.fee || '0.0002');
     } else if (paradexMarket.maker_fee_rate) {
       makerFee = parseFloat(paradexMarket.maker_fee_rate);
-      takerFee = parseFloat(paradexMarket.taker_fee_rate);
+      takerFee = parseFloat(paradexMarket.taker_fee_rate || '0.0002');
     }
 
     // Extract max leverage from delta1_cross_margin_params or legacy field
@@ -195,7 +196,7 @@ export class ParadexNormalizer {
       takerFee,
       maxLeverage,
       fundingIntervalHours: paradexMarket.funding_period_hours || 8,
-      info: paradexMarket,
+      info: paradexMarket as unknown as Record<string, unknown>,
     };
   }
 
@@ -313,14 +314,18 @@ export class ParadexNormalizer {
     const symbol = this.symbolToCCXT(paradexPosition.market);
     const size = parseFloat(paradexPosition.size);
     const side = paradexPosition.side === 'LONG' ? 'long' : 'short';
+    const absSize = Math.abs(size);
+    const markPrice = parseFloat(paradexPosition.mark_price);
+    const maintenanceMargin = parseFloat(paradexPosition.margin) * 0.025;
+    const notional = absSize * markPrice;
 
     return {
       symbol,
       side,
       marginMode: 'cross', // Paradex uses cross margin
-      size: Math.abs(size),
+      size: absSize,
       entryPrice: parseFloat(paradexPosition.entry_price),
-      markPrice: parseFloat(paradexPosition.mark_price),
+      markPrice,
       liquidationPrice: paradexPosition.liquidation_price
         ? parseFloat(paradexPosition.liquidation_price)
         : 0,
@@ -328,8 +333,8 @@ export class ParadexNormalizer {
       realizedPnl: parseFloat(paradexPosition.realized_pnl),
       margin: parseFloat(paradexPosition.margin),
       leverage: parseFloat(paradexPosition.leverage),
-      maintenanceMargin: parseFloat(paradexPosition.margin) * 0.025, // Estimate 2.5%
-      marginRatio: 0, // Not provided by Paradex
+      maintenanceMargin,
+      marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
       timestamp: paradexPosition.last_updated,
       info: paradexPosition as unknown as Record<string, unknown>,
     };
@@ -441,7 +446,10 @@ export class ParadexNormalizer {
       baseVolume: parseFloat(paradexTicker.volume_24h),
       quoteVolume: 0, // Not provided by Paradex
       timestamp: paradexTicker.timestamp,
-      info: paradexTicker as unknown as Record<string, unknown>,
+      info: {
+        ...(paradexTicker as unknown as Record<string, unknown>),
+        _bidAskSource: 'orderbook',
+      },
     };
   }
 

@@ -178,7 +178,10 @@ export class ExtendedNormalizer {
       quoteVolume: safeParseFloat(raw.dailyVolume || raw.quoteVolume24h),
       change: safeParseFloat(raw.dailyPriceChange || raw.priceChange24h),
       percentage: safeParseFloat(raw.dailyPriceChangePercentage || raw.priceChangePercent24h),
-      info: ticker as unknown as Record<string, unknown>,
+      info: {
+        ...(ticker as unknown as Record<string, unknown>),
+        _bidAskSource: 'orderbook',
+      },
     };
   }
 
@@ -358,10 +361,15 @@ export class ExtendedNormalizer {
       realizedPnl: 0,
       margin: safeParseFloat(position.initialMargin),
       maintenanceMargin: safeParseFloat(position.maintenanceMargin),
-      marginRatio: safeParseFloat(position.maintenanceMargin) / (size * markPrice),
+      marginRatio: size * markPrice > 0
+        ? safeParseFloat(position.maintenanceMargin) / (size * markPrice)
+        : 0,
       marginMode: position.marginMode,
       timestamp: position.timestamp,
-      info: position as unknown as Record<string, unknown>,
+      info: {
+        ...(position as unknown as Record<string, unknown>),
+        _realizedPnlSource: 'not_available',
+      },
     };
   }
 

@@ -32,7 +32,7 @@ import type {
 } from '../../types/common.js';
 import type { FeatureMap } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
-import { InvalidSignatureError, PerpDEXError } from '../../types/errors.js';
+import { InvalidSignatureError, NotSupportedError, PerpDEXError } from '../../types/errors.js';
 
 // New components
 import { GRVTSDKWrapper } from './GRVTSDKWrapper.js';
@@ -245,7 +245,16 @@ export class GRVTAdapter extends BaseAdapter {
       const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
 
       // Map unified timeframe to GRVT CandlestickInterval enum
-      const intervalMap: Record<OHLCVTimeframe, string> = {
+      // GRVT API does not support monthly candles — only minute through weekly
+      if (timeframe === '1M') {
+        throw new NotSupportedError(
+          'GRVT does not support monthly (1M) candlestick intervals',
+          'UNSUPPORTED_TIMEFRAME',
+          'grvt'
+        );
+      }
+
+      const intervalMap: Record<string, string> = {
         '1m': 'CI_1_M',
         '3m': 'CI_3_M',
         '5m': 'CI_5_M',
@@ -260,7 +269,6 @@ export class GRVTAdapter extends BaseAdapter {
         '1d': 'CI_1_D',
         '3d': 'CI_3_D',
         '1w': 'CI_1_W',
-        '1M': 'CI_1_M',
       };
 
       const interval = intervalMap[timeframe] || 'CI_1_H';

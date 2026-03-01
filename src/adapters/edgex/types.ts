@@ -134,6 +134,60 @@ export interface EdgeXFundingRate {
 }
 
 /**
+ * EdgeX API contract response from /api/v1/public/contract/getContracts
+ * New API format with contractName/contractId fields.
+ */
+export interface EdgeXAPIContract {
+  contractId: string;
+  contractName: string;
+  enableTrade?: boolean;
+  minOrderSize?: string;
+  tickSize?: string;
+  stepSize?: string;
+  defaultMakerFeeRate?: string;
+  defaultTakerFeeRate?: string;
+  riskTierList?: Array<{ maxLeverage?: string }>;
+}
+
+/**
+ * EdgeX API depth response from /api/v1/public/quote/getDepth
+ */
+export interface EdgeXDepthData {
+  bids: Array<{ price: string; size: string }>;
+  asks: Array<{ price: string; size: string }>;
+}
+
+/**
+ * EdgeX API ticker response from /api/v1/public/quote/getTicker
+ */
+export interface EdgeXAPITicker {
+  contractName?: string;
+  lastPrice?: string;
+  close?: string;
+  open?: string;
+  high?: string;
+  low?: string;
+  priceChange?: string;
+  priceChangePercent?: string;
+  size?: string;
+  volume?: string;
+  value?: string;
+  endTime?: string;
+}
+
+/**
+ * EdgeX API funding rate response from /api/v1/public/funding/getLatestFundingRate
+ */
+export interface EdgeXAPIFundingData {
+  fundingRate?: string;
+  fundingTime?: string;
+  fundingTimestamp?: string;
+  markPrice?: string;
+  indexPrice?: string;
+  nextFundingTime?: string;
+}
+
+/**
  * EdgeX order sign payload
  */
 export interface EdgeXOrderSignPayload {

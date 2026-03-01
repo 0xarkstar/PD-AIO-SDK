@@ -143,7 +143,10 @@ export class VariationalNormalizer {
       quoteVolume: safeParseFloat(listing.volume_24h),
       change: 0, // Not available from /metadata/stats
       percentage: 0, // Not available from /metadata/stats
-      info: listing as unknown as Record<string, unknown>,
+      info: {
+        ...(listing as unknown as Record<string, unknown>),
+        _bidAskSource: 'orderbook',
+      },
     };
   }
 
@@ -167,7 +170,10 @@ export class VariationalNormalizer {
       quoteVolume: 0,
       change: safeParseFloat(ticker.priceChange24h),
       percentage: safeParseFloat(ticker.priceChangePercent24h),
-      info: ticker as unknown as Record<string, unknown>,
+      info: {
+        ...(ticker as unknown as Record<string, unknown>),
+        _bidAskSource: 'orderbook',
+      },
     };
   }
 
@@ -305,7 +311,11 @@ export class VariationalNormalizer {
       marginRatio: 0,
       marginMode: 'cross',
       timestamp: position.timestamp,
-      info: position as unknown as Record<string, unknown>,
+      info: {
+        ...(position as unknown as Record<string, unknown>),
+        _realizedPnlSource: 'not_available',
+        _marginRatioSource: 'not_available',
+      },
     };
   }
 

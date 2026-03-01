@@ -18,7 +18,17 @@ import type {
   OrderStatus,
   TimeInForce,
 } from '../../types/common.js';
-import type { EdgeXOrder, EdgeXPosition, EdgeXBalance, EdgeXTrade } from './types.js';
+import type {
+  EdgeXMarket,
+  EdgeXOrder,
+  EdgeXPosition,
+  EdgeXBalance,
+  EdgeXTrade,
+  EdgeXAPIContract,
+  EdgeXDepthData,
+  EdgeXAPITicker,
+  EdgeXAPIFundingData,
+} from './types.js';
 
 export class EdgeXNormalizer {
   // Cache for symbol -> contractId mapping
@@ -28,7 +38,7 @@ export class EdgeXNormalizer {
   /**
    * Initialize mapping from market data
    */
-  initializeMappings(contracts: any[]): void {
+  initializeMappings(contracts: EdgeXAPIContract[]): void {
     for (const contract of contracts) {
       // contractName is like "BTCUSD", "ETHUSD"
       // Convert to CCXT format: "BTC/USD:USD"
@@ -124,10 +134,10 @@ export class EdgeXNormalizer {
    * Normalize EdgeX market to unified format
    * Handles both old test format and new API format
    */
-  normalizeMarket(contract: any): Market {
+  normalizeMarket(contract: EdgeXAPIContract | EdgeXMarket): Market {
     // New API format: has contractName (e.g., "BTCUSD")
-    if (contract.contractName) {
-      const contractName = contract.contractName as string;
+    if ('contractName' in contract) {
+      const contractName = contract.contractName;
       const base = contractName.replace(/USD$/, '');
       const symbol = `${base}/USD:USD`;
 
@@ -215,14 +225,18 @@ export class EdgeXNormalizer {
     const symbol = this.normalizeSymbol(edgexPosition.market);
     const size = parseFloat(edgexPosition.size);
     const side = edgexPosition.side === 'LONG' ? 'long' : 'short';
+    const absSize = Math.abs(size);
+    const markPrice = parseFloat(edgexPosition.mark_price);
+    const maintenanceMargin = parseFloat(edgexPosition.margin) * 0.04;
+    const notional = absSize * markPrice;
 
     return {
       symbol,
       side,
       marginMode: 'cross',
-      size: Math.abs(size),
+      size: absSize,
       entryPrice: parseFloat(edgexPosition.entry_price),
-      markPrice: parseFloat(edgexPosition.mark_price),
+      markPrice,
       liquidationPrice: edgexPosition.liquidation_price
         ? parseFloat(edgexPosition.liquidation_price)
         : 0,
@@ -230,8 +244,8 @@ export class EdgeXNormalizer {
       realizedPnl: parseFloat(edgexPosition.realized_pnl),
       margin: parseFloat(edgexPosition.margin),
       leverage: parseFloat(edgexPosition.leverage),
-      maintenanceMargin: parseFloat(edgexPosition.margin) * 0.04,
-      marginRatio: 0,
+      maintenanceMargin,
+      marginRatio: notional > 0 ? maintenanceMargin / notional : 0,
       timestamp: edgexPosition.timestamp,
       info: edgexPosition as unknown as Record<string, unknown>,
     };
@@ -254,16 +268,16 @@ export class EdgeXNormalizer {
    * Normalize EdgeX order book to unified format
    * Handles new API format from /api/v1/public/quote/getDepth
    */
-  normalizeOrderBook(depthData: any, symbol: string): OrderBook {
+  normalizeOrderBook(depthData: EdgeXDepthData, symbol: string): OrderBook {
     // New format: { asks: [{price, size}], bids: [{price, size}] }
     return {
       symbol,
       exchange: 'edgex',
-      bids: (depthData.bids || []).map((level: any) => [
+      bids: (depthData.bids || []).map((level) => [
         parseFloat(level.price),
         parseFloat(level.size),
       ]),
-      asks: (depthData.asks || []).map((level: any) => [
+      asks: (depthData.asks || []).map((level) => [
         parseFloat(level.price),
         parseFloat(level.size),
       ]),
@@ -294,7 +308,7 @@ export class EdgeXNormalizer {
    * Normalize EdgeX ticker to unified format
    * Handles new API format from /api/v1/public/quote/getTicker
    */
-  normalizeTicker(tickerData: any): Ticker {
+  normalizeTicker(tickerData: EdgeXAPITicker): Ticker {
     const last = parseFloat(tickerData.lastPrice || tickerData.close || '0');
     const open = parseFloat(tickerData.open || '0');
     const change = parseFloat(tickerData.priceChange || '0');
@@ -315,7 +329,10 @@ export class EdgeXNormalizer {
       baseVolume: parseFloat(tickerData.size || tickerData.volume || '0'),
       quoteVolume: parseFloat(tickerData.value || '0'),
       timestamp: parseInt(tickerData.endTime || Date.now().toString(), 10),
-      info: tickerData as Record<string, unknown>,
+      info: {
+        ...(tickerData as Record<string, unknown>),
+        _bidAskSource: 'last_price',
+      },
     };
   }
 
@@ -323,7 +340,7 @@ export class EdgeXNormalizer {
    * Normalize EdgeX funding rate to unified format
    * Handles new API format from /api/v1/public/funding/getLatestFundingRate
    */
-  normalizeFundingRate(fundingData: any, symbol: string): FundingRate {
+  normalizeFundingRate(fundingData: EdgeXAPIFundingData, symbol: string): FundingRate {
     return {
       symbol,
       fundingRate: parseFloat(fundingData.fundingRate || '0'),

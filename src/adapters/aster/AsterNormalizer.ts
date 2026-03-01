@@ -81,7 +81,10 @@ export class AsterNormalizer {
       baseVolume: parseFloat(raw.volume),
       quoteVolume: parseFloat(raw.quoteVolume),
       timestamp: raw.closeTime,
-      info: raw as unknown as Record<string, unknown>,
+      info: {
+        ...(raw as unknown as Record<string, unknown>),
+        _bidAskSource: 'last_price',
+      },
     };
   }
 
@@ -181,7 +184,11 @@ export class AsterNormalizer {
       maintenanceMargin: 0,
       marginRatio: 0,
       timestamp: raw.updateTime,
-      info: raw as unknown as Record<string, unknown>,
+      info: {
+        ...(raw as unknown as Record<string, unknown>),
+        _realizedPnlSource: 'not_available',
+        _marginRatioSource: 'not_available',
+      },
     };
   }
 

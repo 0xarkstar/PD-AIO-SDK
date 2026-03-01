@@ -420,7 +420,8 @@ describe('EdgeXNormalizer', () => {
       expect(position.margin).toBe(5000);
       expect(position.leverage).toBe(10);
       expect(position.maintenanceMargin).toBe(200); // 5000 * 0.04
-      expect(position.marginRatio).toBe(0);
+      // marginRatio = maintenanceMargin / (size * markPrice) = 200 / (1.5 * 51000)
+      expect(position.marginRatio).toBeCloseTo(200 / (1.5 * 51000), 6);
       expect(position.timestamp).toBe(1700000000000);
     });
 

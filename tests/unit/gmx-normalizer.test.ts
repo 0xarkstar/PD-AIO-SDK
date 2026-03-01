@@ -348,10 +348,10 @@ describe('GmxNormalizer', () => {
     const mockPosition: GmxPosition = {
       account: '0xuser123',
       market: GMX_MARKETS['ETH/USD:ETH'].marketAddress,
-      collateralToken: GMX_MARKETS['ETH/USD:ETH'].shortToken,
+      collateralToken: GMX_MARKETS['ETH/USD:ETH'].longToken, // WETH (18 decimals)
       sizeInUsd: (10000 * GMX_PRECISION.USD).toString(),
-      sizeInTokens: (5 * 1e18).toString(), // 5 ETH
-      collateralAmount: (0.5 * 1e18).toString(), // 0.5 ETH equivalent collateral
+      sizeInTokens: (5 * 1e18).toString(), // 5 ETH (18 decimals)
+      collateralAmount: (0.5 * 1e18).toString(), // 0.5 WETH collateral (18 decimals)
       borrowingFactor: '0',
       fundingFeeAmountPerSize: '0',
       longTokenClaimableFundingAmountPerSize: '0',
@@ -547,11 +547,61 @@ describe('GmxNormalizer', () => {
       expect(ticker.ask).toBe(0);
     });
 
+    test('should correctly parse BTC position with 8-decimal token', () => {
+      const btcPosition: GmxPosition = {
+        account: '0xuser456',
+        market: GMX_MARKETS['BTC/USD:BTC'].marketAddress,
+        collateralToken: GMX_MARKETS['BTC/USD:BTC'].shortToken, // USDC (6 decimals)
+        sizeInUsd: (50000 * GMX_PRECISION.USD).toString(),
+        sizeInTokens: (1 * 1e8).toString(), // 1 BTC (8 decimals, NOT 18)
+        collateralAmount: (5000 * 1e6).toString(), // 5000 USDC (6 decimals)
+        borrowingFactor: '0',
+        fundingFeeAmountPerSize: '0',
+        longTokenClaimableFundingAmountPerSize: '0',
+        shortTokenClaimableFundingAmountPerSize: '0',
+        increasedAtBlock: '200000',
+        decreasedAtBlock: '0',
+        isLong: true,
+      };
+
+      const position = normalizer.normalizePosition(btcPosition, 50000, 'arbitrum');
+
+      // BTC uses 8 decimals: 1e8 / 10^8 = 1 BTC
+      expect(position.size).toBe(1);
+      expect(position.symbol).toBe('BTC/USD:BTC');
+      // Entry: 50000 USD / 1 BTC = 50000
+      expect(position.entryPrice).toBe(50000);
+    });
+
+    test('should correctly parse USDC collateral with 6 decimals', () => {
+      const positionWithUsdcCollateral: GmxPosition = {
+        account: '0xuser789',
+        market: GMX_MARKETS['ETH/USD:ETH'].marketAddress,
+        collateralToken: GMX_MARKETS['ETH/USD:ETH'].shortToken, // USDC (6 decimals)
+        sizeInUsd: (10000 * GMX_PRECISION.USD).toString(),
+        sizeInTokens: (5 * 1e18).toString(), // 5 ETH (18 decimals)
+        collateralAmount: (1000 * 1e6).toString(), // 1000 USDC (6 decimals)
+        borrowingFactor: '0',
+        fundingFeeAmountPerSize: '0',
+        longTokenClaimableFundingAmountPerSize: '0',
+        shortTokenClaimableFundingAmountPerSize: '0',
+        increasedAtBlock: '100000',
+        decreasedAtBlock: '0',
+        isLong: true,
+      };
+
+      const position = normalizer.normalizePosition(positionWithUsdcCollateral, 2000, 'arbitrum');
+
+      expect(position.size).toBe(5);
+      // With 6-decimal parsing, collateralAmount (1000 * 1e6) / 1e6 = 1000
+      expect(position.info.collateralToken).toBe(GMX_MARKETS['ETH/USD:ETH'].shortToken);
+    });
+
     test('should handle position with zero size', () => {
       const zeroPosition: GmxPosition = {
         account: '0xuser',
         market: GMX_MARKETS['ETH/USD:ETH'].marketAddress,
-        collateralToken: GMX_MARKETS['ETH/USD:ETH'].shortToken,
+        collateralToken: GMX_MARKETS['ETH/USD:ETH'].longToken, // WETH (18 decimals)
         sizeInUsd: '0',
         sizeInTokens: '0',
         collateralAmount: (0.1 * 1e18).toString(),

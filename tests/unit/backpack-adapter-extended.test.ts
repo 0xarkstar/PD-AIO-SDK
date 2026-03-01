@@ -295,7 +295,8 @@ describe('BackpackAdapter Extended Tests', () => {
       mockHttpClient.get.mockRejectedValue({ code: 4001 });
 
       await expect(adapter.fetchMarkets()).rejects.toMatchObject({
-        code: 'RATE_LIMIT_EXCEEDED',
+        name: 'RateLimitError',
+        code: '4001',
       });
     });
 
@@ -303,7 +304,8 @@ describe('BackpackAdapter Extended Tests', () => {
       mockHttpClient.get.mockRejectedValue({ code: 5001 });
 
       await expect(adapter.fetchMarkets()).rejects.toMatchObject({
-        code: 'EXCHANGE_UNAVAILABLE',
+        name: 'ExchangeUnavailableError',
+        code: '5001',
       });
     });
 
@@ -311,7 +313,8 @@ describe('BackpackAdapter Extended Tests', () => {
       authMockClient.get.mockRejectedValue({ code: 2001 });
 
       await expect(authAdapter.fetchPositions()).rejects.toMatchObject({
-        code: 'INVALID_SIGNATURE',
+        name: 'InvalidSignatureError',
+        code: '2001',
       });
     });
 
@@ -319,7 +322,8 @@ describe('BackpackAdapter Extended Tests', () => {
       authMockClient.get.mockRejectedValue({ code: 2002 });
 
       await expect(authAdapter.fetchPositions()).rejects.toMatchObject({
-        code: 'EXPIRED_AUTH',
+        name: 'ExpiredAuthError',
+        code: '2002',
       });
     });
 
@@ -334,7 +338,8 @@ describe('BackpackAdapter Extended Tests', () => {
           amount: 100,
         })
       ).rejects.toMatchObject({
-        code: 'INSUFFICIENT_MARGIN',
+        name: 'InsufficientMarginError',
+        code: '1002',
       });
     });
   });

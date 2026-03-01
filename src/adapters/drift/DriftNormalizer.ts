@@ -377,6 +377,7 @@ export class DriftNormalizer {
         openInterestShort: parseFloat(stats.openInterestShort) / DRIFT_PRECISION.BASE,
         fundingRate: parseFloat(stats.fundingRate) / DRIFT_PRECISION.FUNDING_RATE,
         nextFundingTs: stats.nextFundingTs,
+        _bidAskSource: 'orderbook',
       },
     };
   }

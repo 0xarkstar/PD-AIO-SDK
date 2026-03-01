@@ -7,6 +7,7 @@
 import { describe, it, expect } from '@jest/globals';
 import {
   parseDecimal,
+  parseDecimalStrict,
   parseBigInt,
   parseX18,
   formatX18,
@@ -18,6 +19,7 @@ import {
   mapOrderSide,
   mapTimeInForce,
   normalizeTimestamp,
+  normalizeTimestampStrict,
   roundToDecimals,
   roundToTickSize,
   roundToStepSize,
@@ -51,6 +53,49 @@ describe('BaseNormalizer', () => {
     it('should handle NaN', () => {
       expect(parseDecimal(NaN)).toBe(0);
       expect(parseDecimal(NaN, -1)).toBe(-1);
+    });
+  });
+
+  describe('parseDecimalStrict', () => {
+    it('should parse valid numeric strings', () => {
+      expect(parseDecimalStrict('123.45', 'price', 'test')).toBe(123.45);
+      expect(parseDecimalStrict('0', 'size', 'test')).toBe(0);
+      expect(parseDecimalStrict('-50.5', 'pnl', 'test')).toBe(-50.5);
+    });
+
+    it('should parse number inputs', () => {
+      expect(parseDecimalStrict(123.45, 'price', 'test')).toBe(123.45);
+      expect(parseDecimalStrict(0, 'size', 'test')).toBe(0);
+    });
+
+    it('should throw on null', () => {
+      expect(() => parseDecimalStrict(null, 'entryPrice', 'hyperliquid')).toThrow(
+        /Missing required numeric field 'entryPrice'/
+      );
+    });
+
+    it('should throw on undefined', () => {
+      expect(() => parseDecimalStrict(undefined, 'markPrice', 'gmx')).toThrow(
+        /Missing required numeric field 'markPrice'/
+      );
+    });
+
+    it('should throw on empty string', () => {
+      expect(() => parseDecimalStrict('', 'size', 'dydx')).toThrow(
+        /Missing required numeric field 'size'/
+      );
+    });
+
+    it('should throw on NaN number', () => {
+      expect(() => parseDecimalStrict(NaN, 'leverage', 'test')).toThrow(
+        /Invalid numeric value for field 'leverage': NaN/
+      );
+    });
+
+    it('should throw on unparseable string', () => {
+      expect(() => parseDecimalStrict('not-a-number', 'price', 'test')).toThrow(
+        /Invalid numeric value for field 'price'/
+      );
     });
   });
 
@@ -283,6 +328,58 @@ describe('BaseNormalizer', () => {
       const after = Date.now();
       expect(result).toBeGreaterThanOrEqual(before);
       expect(result).toBeLessThanOrEqual(after);
+    });
+  });
+
+  describe('normalizeTimestampStrict', () => {
+    it('should parse valid milliseconds', () => {
+      const now = Date.now();
+      expect(normalizeTimestampStrict(now, 'createdAt', 'test')).toBe(now);
+    });
+
+    it('should convert seconds to milliseconds', () => {
+      const seconds = 1700000000;
+      expect(normalizeTimestampStrict(seconds, 'createdAt', 'test')).toBe(seconds * 1000);
+    });
+
+    it('should parse ISO strings', () => {
+      const iso = '2024-01-01T00:00:00.000Z';
+      expect(normalizeTimestampStrict(iso, 'updatedAt', 'test')).toBe(Date.parse(iso));
+    });
+
+    it('should handle Date objects', () => {
+      const date = new Date();
+      expect(normalizeTimestampStrict(date, 'timestamp', 'test')).toBe(date.getTime());
+    });
+
+    it('should throw on null', () => {
+      expect(() => normalizeTimestampStrict(null, 'createdAt', 'dydx')).toThrow(
+        /Missing required timestamp field 'createdAt'/
+      );
+    });
+
+    it('should throw on undefined', () => {
+      expect(() => normalizeTimestampStrict(undefined, 'timestamp', 'gmx')).toThrow(
+        /Missing required timestamp field 'timestamp'/
+      );
+    });
+
+    it('should throw on empty string', () => {
+      expect(() => normalizeTimestampStrict('', 'updatedAt', 'lighter')).toThrow(
+        /Missing required timestamp field 'updatedAt'/
+      );
+    });
+
+    it('should throw on unparseable string', () => {
+      expect(() => normalizeTimestampStrict('not-a-date', 'time', 'test')).toThrow(
+        /Invalid timestamp value for field 'time'/
+      );
+    });
+
+    it('should throw on NaN', () => {
+      expect(() => normalizeTimestampStrict(NaN, 'createdAt', 'test')).toThrow(
+        /Invalid timestamp value for field 'createdAt': NaN/
+      );
     });
   });
 

@@ -138,6 +138,44 @@ export interface ParadexFundingRate {
 }
 
 /**
+ * Paradex API market response (actual API format)
+ * Extends the legacy ParadexMarket with additional fields from the real API.
+ */
+export interface ParadexAPIMarket {
+  symbol: string;
+  base_currency: string;
+  quote_currency: string;
+  settlement_currency: string;
+  status?: string;
+  is_active?: boolean;
+  open_at?: number;
+
+  // New API format fields
+  price_tick_size?: string;
+  order_size_increment?: string;
+  min_notional?: string;
+  funding_period_hours?: number;
+  fee_config?: {
+    api_fee?: {
+      maker_fee?: { fee?: string };
+      taker_fee?: { fee?: string };
+    };
+  };
+  delta1_cross_margin_params?: {
+    imf_base?: string;
+  };
+
+  // Legacy SDK format fields (backward compatible)
+  tick_size?: string;
+  step_size?: string;
+  min_order_size?: string;
+  max_order_size?: string;
+  maker_fee_rate?: string;
+  taker_fee_rate?: string;
+  max_leverage?: string;
+}
+
+/**
  * Paradex JWT token response
  */
 export interface ParadexJWT {

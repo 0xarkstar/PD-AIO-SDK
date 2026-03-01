@@ -14,13 +14,22 @@ export const OSTIUM_RPC_URLS = {
   testnet: 'https://sepolia-rollup.arbitrum.io/rpc',
 };
 
+/**
+ * Ostium contract addresses on Arbitrum One.
+ *
+ * WARNING: trading, storage, pairInfo, nftRewards, vault are PLACEHOLDER addresses
+ * and must be replaced with actual deployed contract addresses before on-chain usage.
+ * Only `collateral` (USDC on Arbitrum) is a verified address.
+ *
+ * @see https://arbiscan.io for address verification
+ */
 export const OSTIUM_CONTRACTS: OstiumContractAddresses = {
-  trading: '0x4f5f2B6a97F0c536E2BF58c3E7e060F81FbA2B06',
-  storage: '0x7E8B4C3c95B4b93D5C0D0F14C1b36a5C7E5C9D5',
-  pairInfo: '0x3D9B5C7E8F0A4D6E9C3B2A1F8D7E6C5B4A3F21e',
-  nftRewards: '0x1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0b',
-  vault: '0x8F9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7a',
-  collateral: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+  trading: '0x4f5f2B6a97F0c536E2BF58c3E7e060F81FbA2B06', // PLACEHOLDER
+  storage: '0x7E8B4C3c95B4b93D5C0D0F14C1b36a5C7E5C9D5', // PLACEHOLDER
+  pairInfo: '0x3D9B5C7E8F0A4D6E9C3B2A1F8D7E6C5B4A3F21e', // PLACEHOLDER
+  nftRewards: '0x1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0b', // PLACEHOLDER
+  vault: '0x8F9A0B1C2D3E4F5A6B7C8D9E0F1A2B3C4D5E6F7a', // PLACEHOLDER
+  collateral: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // USDC (verified)
 };
 
 export const OSTIUM_RATE_LIMITS = {

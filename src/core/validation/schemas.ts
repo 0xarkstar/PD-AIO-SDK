@@ -19,7 +19,7 @@ const SymbolSchema = z.string().min(1).regex(/^[A-Z0-9]{1,10}\/[A-Z0-9]{1,10}(:[
 // Order Schemas
 // =============================================================================
 
-export const OrderTypeSchema = z.enum(['market', 'limit', 'stopMarket', 'stopLimit']);
+export const OrderTypeSchema = z.enum(['market', 'limit', 'stopMarket', 'stopLimit', 'takeProfit', 'trailingStop']);
 
 export const OrderSideSchema = z.enum(['buy', 'sell']);
 
@@ -47,7 +47,7 @@ export const OrderRequestSchema = z
     reduceOnly: z.boolean().default(false),
     postOnly: z.boolean().default(false),
     clientOrderId: z.string().optional(),
-    leverage: z.number().int().min(1).max(100).optional(),
+    leverage: z.number().positive().max(200).optional(),
     params: z.record(z.unknown()).optional(),
   })
   .refine(
@@ -65,8 +65,8 @@ export const OrderRequestSchema = z
   )
   .refine(
     (data) => {
-      // Stop orders must have stopPrice
-      if (data.type === 'stopMarket' || data.type === 'stopLimit') {
+      // Stop and takeProfit orders must have stopPrice
+      if (data.type === 'stopMarket' || data.type === 'stopLimit' || data.type === 'takeProfit') {
         return data.stopPrice !== undefined && data.stopPrice > 0;
       }
       return true;
@@ -151,7 +151,7 @@ export const PositionSchema = z.object({
   liquidationPrice: PositiveNumberSchema,
   unrealizedPnl: z.number(),
   realizedPnl: z.number(),
-  leverage: z.number().int().positive(),
+  leverage: z.number().positive(),
   marginMode: MarginModeSchema,
   margin: NonNegativeNumberSchema,
   maintenanceMargin: NonNegativeNumberSchema,

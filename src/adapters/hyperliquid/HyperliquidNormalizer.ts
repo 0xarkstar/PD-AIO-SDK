@@ -217,13 +217,17 @@ export class HyperliquidNormalizer {
       markPrice: 0, // Need to fetch separately
       liquidationPrice: pos.liquidationPx ? parseFloat(pos.liquidationPx) : 0,
       unrealizedPnl: parseFloat(pos.unrealizedPnl),
-      realizedPnl: 0, // Not provided in position data
+      realizedPnl: 0,
       leverage: pos.leverage.value,
       marginMode: pos.leverage.type,
       margin: parseFloat(pos.marginUsed),
-      maintenanceMargin: 0, // Not directly provided
-      marginRatio: 0, // Calculate if needed
+      maintenanceMargin: 0,
+      marginRatio: 0,
       timestamp: Date.now(),
+      info: {
+        _realizedPnlSource: 'not_available',
+        _marginRatioSource: 'not_available',
+      },
     };
   }
 
@@ -471,6 +475,9 @@ export class HyperliquidNormalizer {
       baseVolume: 0,
       quoteVolume: 0,
       timestamp: Date.now(),
+      info: {
+        _bidAskSource: 'mid_price',
+      },
     };
   }
 }

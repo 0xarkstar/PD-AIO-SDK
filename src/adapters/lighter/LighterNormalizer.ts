@@ -21,6 +21,8 @@ import type {
   LighterOrderBook,
   LighterTrade,
   LighterFundingRate,
+  LighterAPIMarket,
+  LighterAPITicker,
 } from './types.js';
 
 export class LighterNormalizer {
@@ -48,17 +50,19 @@ export class LighterNormalizer {
    * Normalize Lighter market to unified format
    * Handles real Lighter API response format from /api/v1/orderBookDetails
    */
-  normalizeMarket(lighterMarket: any): Market {
+  normalizeMarket(lighterMarket: LighterAPIMarket): Market {
     // Real API returns: { symbol: "BTC", market_type: "perp", ... }
     const base = lighterMarket.symbol;
     const quote = 'USDC'; // Lighter uses USDC as quote currency
     const symbol = `${base}/${quote}:${quote}`;
 
     // Extract precision from API response
-    const pricePrecision =
-      lighterMarket.supported_price_decimals || lighterMarket.price_decimals || 2;
-    const amountPrecision =
-      lighterMarket.supported_size_decimals || lighterMarket.size_decimals || 4;
+    const pricePrecision = Number(
+      lighterMarket.supported_price_decimals || lighterMarket.price_decimals || 2
+    );
+    const amountPrecision = Number(
+      lighterMarket.supported_size_decimals || lighterMarket.size_decimals || 4
+    );
 
     // Parse min amounts from string values
     const minAmount = parseFloat(lighterMarket.min_base_amount || '0');
@@ -124,14 +128,18 @@ export class LighterNormalizer {
       markPrice: lighterPosition.markPrice,
       liquidationPrice: lighterPosition.liquidationPrice,
       unrealizedPnl: lighterPosition.unrealizedPnl,
-      realizedPnl: 0, // Not provided by Lighter
+      realizedPnl: 0,
       margin: lighterPosition.margin,
       leverage: lighterPosition.leverage,
-      marginMode: 'cross', // Not provided by Lighter, default to cross
-      maintenanceMargin: lighterPosition.margin * 0.5, // Estimate as 50% of margin
-      marginRatio: lighterPosition.unrealizedPnl / lighterPosition.margin, // Calculate from available data
+      marginMode: 'cross',
+      maintenanceMargin: lighterPosition.margin * 0.5,
+      marginRatio:
+        lighterPosition.margin > 0 ? lighterPosition.unrealizedPnl / lighterPosition.margin : 0,
       timestamp: Date.now(),
-      info: lighterPosition as unknown as Record<string, unknown>,
+      info: {
+        ...(lighterPosition as unknown as Record<string, unknown>),
+        _realizedPnlSource: 'not_available',
+      },
     };
   }
 
@@ -181,7 +189,7 @@ export class LighterNormalizer {
    * Normalize Lighter ticker to unified format
    * Handles real API response from /api/v1/orderBookDetails
    */
-  normalizeTicker(lighterTicker: any): Ticker {
+  normalizeTicker(lighterTicker: LighterAPITicker): Ticker {
     // Real API format: { symbol, last_trade_price, daily_price_high, daily_price_low, ... }
     const last = parseFloat(lighterTicker.last_trade_price || '0');
     const high = parseFloat(lighterTicker.daily_price_high || '0');
@@ -204,7 +212,10 @@ export class LighterNormalizer {
       baseVolume,
       quoteVolume,
       timestamp: Date.now(),
-      info: lighterTicker as unknown as Record<string, unknown>,
+      info: {
+        ...(lighterTicker as unknown as Record<string, unknown>),
+        _bidAskSource: 'last_price',
+      },
     };
   }
 

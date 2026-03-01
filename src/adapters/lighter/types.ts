@@ -121,3 +121,38 @@ export interface LighterFundingRate {
   markPrice: number;
   nextFundingTime: number;
 }
+
+/**
+ * Lighter API market response from /api/v1/orderBookDetails
+ * This represents the actual API response format (snake_case string values),
+ * distinct from the normalized LighterMarket interface above.
+ */
+export interface LighterAPIMarket {
+  symbol: string;
+  market_type?: string;
+  status?: string;
+  supported_price_decimals?: string | number;
+  price_decimals?: string | number;
+  supported_size_decimals?: string | number;
+  size_decimals?: string | number;
+  min_base_amount?: string;
+  maker_fee?: string;
+  taker_fee?: string;
+  max_leverage?: string;
+  default_initial_margin_fraction?: number;
+  is_active?: boolean;
+}
+
+/**
+ * Lighter API ticker response from /api/v1/orderBookDetails
+ * Real API returns ticker data alongside order book details.
+ */
+export interface LighterAPITicker {
+  symbol: string;
+  last_trade_price?: string;
+  daily_price_high?: string;
+  daily_price_low?: string;
+  daily_base_token_volume?: string;
+  daily_quote_token_volume?: string;
+  daily_price_change?: string;
+}

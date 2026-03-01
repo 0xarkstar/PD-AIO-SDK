@@ -540,7 +540,8 @@ describe('PacificaNormalizer edge cases', () => {
       });
       expect(position.symbol).toBe('SOL/USDC:USDC');
       expect(position.marginMode).toBe('isolated');
-      expect(position.marginRatio).toBe(0);
+      // marginRatio = maintenanceMargin / (size * markPrice) = 200 / (100 * 95)
+      expect(position.marginRatio).toBeCloseTo(200 / (100 * 95), 6);
     });
   });
 });
