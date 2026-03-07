@@ -593,7 +593,7 @@ export abstract class BaseAdapterCore {
   // Utility Methods
   // ===========================================================================
 
-  protected supportsFeature(feature: keyof FeatureMap): boolean {
+  public supportsFeature(feature: keyof FeatureMap): boolean {
     return this.has[feature] === true;
   }
 

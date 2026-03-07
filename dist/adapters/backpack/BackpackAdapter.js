@@ -39,6 +39,10 @@ export class BackpackAdapter extends BaseAdapter {
         watchPositions: true,
         watchOrders: true,
         watchBalance: true,
+        fetchOHLCV: false,
+        editOrder: false,
+        fetchOpenOrders: false,
+        setMarginMode: false,
     };
     auth;
     baseUrl;

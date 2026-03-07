@@ -34,7 +34,7 @@ import {
   PacificaTickerSchema,
   PacificaTradeResponseSchema,
 } from './types.js';
-import { toUnifiedSymbol } from './utils.js';
+import { toUnifiedSymbol, toPacificaSymbol } from './utils.js';
 
 export class PacificaNormalizer {
   normalizeMarket(raw: PacificaMarket): Market {
@@ -251,5 +251,13 @@ export class PacificaNormalizer {
     const decimals = value.split('.')[1];
     if (!decimals) return 0;
     return decimals.replace(/0+$/, '').length || 0;
+  }
+
+  normalizeSymbol(exchangeSymbol: string): string {
+    return toUnifiedSymbol(exchangeSymbol);
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    return toPacificaSymbol(symbol);
   }
 }

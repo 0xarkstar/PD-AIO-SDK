@@ -20,6 +20,7 @@ import type {
   Balance,
   ExchangeConfig,
   FeatureMap,
+  IExchangeAdapter,
   FundingRate,
   Market,
   MarketParams,
@@ -105,7 +106,7 @@ export interface DriftConfig extends ExchangeConfig {
  * });
  * ```
  */
-export class DriftAdapter extends BaseAdapter {
+export class DriftAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'drift';
   readonly name = 'Drift Protocol';
 
@@ -125,6 +126,7 @@ export class DriftAdapter extends BaseAdapter {
     cancelAllOrders: true,
     createBatchOrders: false,
     cancelBatchOrders: false,
+    editOrder: false,
 
     // Account data
     fetchPositions: true,

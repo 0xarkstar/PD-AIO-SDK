@@ -15,7 +15,7 @@
  * @see https://drift-labs.github.io/v2-teacher/
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
-import type { Balance, ExchangeConfig, FeatureMap, FundingRate, Market, MarketParams, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
+import type { Balance, ExchangeConfig, FeatureMap, IExchangeAdapter, FundingRate, Market, MarketParams, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
 import { type DriftOrderBuilderConfig } from './orderBuilder.js';
 /**
  * Drift adapter configuration
@@ -64,7 +64,7 @@ export interface DriftConfig extends ExchangeConfig {
  * });
  * ```
  */
-export declare class DriftAdapter extends BaseAdapter {
+export declare class DriftAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "drift";
     readonly name = "Drift Protocol";
     readonly has: Partial<FeatureMap>;

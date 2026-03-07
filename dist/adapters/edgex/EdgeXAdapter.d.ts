@@ -6,13 +6,13 @@
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type { Market, Order, OrderRequest, Position, Balance, OrderBook, Trade, Ticker, FundingRate, MarketParams, OrderBookParams, TradeParams } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import type { EdgeXConfig } from './types.js';
 /**
  * EdgeX adapter implementation
  */
-export declare class EdgeXAdapter extends BaseAdapter {
+export declare class EdgeXAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "edgex";
     readonly name = "EdgeX";
     readonly has: Partial<FeatureMap>;

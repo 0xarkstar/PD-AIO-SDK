@@ -15,7 +15,7 @@
  * @see https://github.com/gmx-io/gmx-synthetics
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
-import type { Balance, ExchangeConfig, FeatureMap, FundingRate, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
+import type { Balance, ExchangeConfig, FeatureMap, IExchangeAdapter, FundingRate, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
 import { type OrderBuilderConfig } from './GmxOrderBuilder.js';
 export type GmxChain = 'arbitrum' | 'avalanche';
 /**
@@ -68,7 +68,7 @@ export interface GmxConfig extends ExchangeConfig {
  * });
  * ```
  */
-export declare class GmxAdapter extends BaseAdapter {
+export declare class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "gmx";
     readonly name = "GMX v2";
     readonly has: Partial<FeatureMap>;

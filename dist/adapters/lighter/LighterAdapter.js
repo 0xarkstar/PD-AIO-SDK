@@ -75,6 +75,10 @@ export class LighterAdapter extends BaseAdapter {
         watchOrders: true,
         watchBalance: true,
         watchMyTrades: true,
+        fetchOHLCV: false,
+        editOrder: false,
+        fetchOpenOrders: false,
+        setMarginMode: false,
     };
     apiUrl;
     wsUrl;

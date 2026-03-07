@@ -115,5 +115,7 @@ export declare class VariationalNormalizer {
      * from the quotes at different notional sizes.
      */
     normalizeOrderBookFromListing(listing: VariationalListing): OrderBook;
+    normalizeSymbol(exchangeSymbol: string): string;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=VariationalNormalizer.d.ts.map

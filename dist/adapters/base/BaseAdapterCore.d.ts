@@ -82,7 +82,7 @@ export declare abstract class BaseAdapterCore {
     protected unregisterTimer(timer: NodeJS.Timeout): void;
     protected unregisterInterval(interval: NodeJS.Timeout): void;
     protected extractEndpoint(url: string): string;
-    protected supportsFeature(feature: keyof FeatureMap): boolean;
+    supportsFeature(feature: keyof FeatureMap): boolean;
     protected assertFeatureSupported(feature: keyof FeatureMap): void;
     protected ensureInitialized(): void;
     protected validateOrder(request: OrderRequest, correlationId?: string): OrderRequest;

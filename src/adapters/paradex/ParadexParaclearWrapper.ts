@@ -82,7 +82,7 @@ export class ParadexParaclearWrapper {
       const signer = Signer.ethersSignerAdapter(ethersSigner);
 
       // Create Paraclear provider
-      // Note: SDK type definitions may be inconsistent, using type assertion
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- @paradex/sdk DefaultProvider constructor types are not exported; structurally compatible at runtime
       this.provider = new (ParaclearProvider.DefaultProvider as any)(
         this.config.paradexFullNodeRpcUrl
       );

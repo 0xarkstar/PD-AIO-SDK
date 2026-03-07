@@ -9,6 +9,7 @@ import type {
   Balance,
   ExchangeConfig,
   FeatureMap,
+  IExchangeAdapter,
   FundingRate,
   Market,
   MarketParams,
@@ -75,7 +76,7 @@ export interface HyperliquidConfig extends ExchangeConfig {
   builderAddress?: string;
 }
 
-export class HyperliquidAdapter extends BaseAdapter {
+export class HyperliquidAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'hyperliquid';
   readonly name = 'Hyperliquid';
 
@@ -97,7 +98,8 @@ export class HyperliquidAdapter extends BaseAdapter {
     cancelBatchOrders: true,
     editOrder: false,
 
-    // Account History
+    // Account
+    fetchOpenOrders: true,
     fetchOrderHistory: true,
     fetchMyTrades: true,
     fetchDeposits: false,

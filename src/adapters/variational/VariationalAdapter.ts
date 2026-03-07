@@ -104,7 +104,7 @@ import type {
   Portfolio,
   RateLimitStatus,
 } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
@@ -147,7 +147,7 @@ export interface VariationalConfig {
  *
  * RFQ-based perpetual DEX on Arbitrum with HMAC-SHA256 authentication
  */
-export class VariationalAdapter extends BaseAdapter {
+export class VariationalAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'variational';
   readonly name = 'Variational';
 
@@ -160,6 +160,7 @@ export class VariationalAdapter extends BaseAdapter {
 
     // Public API (Not yet implemented/documented)
     fetchTrades: false, // No trades endpoint for RFQ DEX
+    fetchOHLCV: false,
     fetchFundingRateHistory: false,
 
     // Trading API (Implemented - requires API endpoint availability)

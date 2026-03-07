@@ -66,5 +66,7 @@ export declare class DriftNormalizer {
      * Get precision from tick size
      */
     private getPrecisionFromTickSize;
+    normalizeSymbol(exchangeSymbol: string): string;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=DriftNormalizer.d.ts.map

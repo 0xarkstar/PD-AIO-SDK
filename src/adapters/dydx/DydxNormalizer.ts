@@ -18,7 +18,12 @@ import type {
   FundingRate,
   OHLCV,
 } from '../../types/common.js';
-import { DYDX_DEFAULT_PRECISION, DYDX_FUNDING_INTERVAL_HOURS, dydxToUnified } from './constants.js';
+import {
+  DYDX_DEFAULT_PRECISION,
+  DYDX_FUNDING_INTERVAL_HOURS,
+  dydxToUnified,
+  unifiedToDydx,
+} from './constants.js';
 import type {
   DydxPerpetualMarket,
   DydxOrder,
@@ -580,5 +585,13 @@ export class DydxNormalizer {
    */
   normalizeCandles(candles: DydxCandle[]): OHLCV[] {
     return candles.map((candle) => this.normalizeCandle(candle));
+  }
+
+  normalizeSymbol(exchangeSymbol: string): string {
+    return dydxToUnified(exchangeSymbol);
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    return unifiedToDydx(symbol);
   }
 }

@@ -29,6 +29,17 @@ export class AsterAdapter extends BaseAdapter {
         fetchBalance: true,
         setLeverage: true,
         fetchFundingRateHistory: true,
+        fetchOrderHistory: false,
+        fetchMyTrades: false,
+        fetchOpenOrders: false,
+        editOrder: false,
+        setMarginMode: false,
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchOrders: false,
+        watchPositions: false,
+        watchBalance: false,
     };
     auth;
     baseUrl;

@@ -42,6 +42,9 @@ export class EdgeXAdapter extends BaseAdapter {
         watchPositions: true,
         watchOrders: true,
         watchBalance: true,
+        fetchOHLCV: false,
+        cancelBatchOrders: false,
+        setMarginMode: false,
     };
     auth;
     baseUrl;

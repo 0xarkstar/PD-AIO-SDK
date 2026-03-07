@@ -13,7 +13,7 @@
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type { Market, OHLCV, OHLCVParams, OHLCVTimeframe, Order, Position, Balance, OrderBook, Trade, Ticker, FundingRate, OrderRequest, MarketParams, OrderBookParams, TradeParams } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { type GRVTAuthConfig } from './GRVTAuth.js';
 /**
@@ -35,7 +35,7 @@ export type GRVTAdapterConfig = GRVTConfig;
 /**
  * GRVT Exchange Adapter
  */
-export declare class GRVTAdapter extends BaseAdapter {
+export declare class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "grvt";
     readonly name = "GRVT";
     readonly has: Partial<FeatureMap>;

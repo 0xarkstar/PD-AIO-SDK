@@ -379,5 +379,11 @@ export class ExtendedNormalizer {
     normalizeFundingRates(rates) {
         return rates.map((rate) => this.normalizeFundingRate(rate));
     }
+    normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+    }
+    toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+    }
 }
 //# sourceMappingURL=ExtendedNormalizer.js.map

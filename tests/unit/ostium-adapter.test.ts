@@ -1143,7 +1143,6 @@ describe('OstiumAuth', () => {
 
   test('should sign request (passthrough for EVM)', async () => {
     const auth = new OstiumAuth({
-      privateKey: '0x' + '1'.repeat(64),
       rpcUrl: 'https://arb1.arbitrum.io/rpc',
     });
 
@@ -1153,10 +1152,9 @@ describe('OstiumAuth', () => {
     expect(signed.path).toBe('/test');
   });
 
-  test('should report no credentials when empty', () => {
+  test('should report no credentials when empty rpcUrl', () => {
     const auth = new OstiumAuth({
-      privateKey: '',
-      rpcUrl: 'https://arb1.arbitrum.io/rpc',
+      rpcUrl: '',
     });
 
     expect(auth.hasCredentials()).toBe(false);

@@ -42,6 +42,7 @@ import {
 } from './types.js';
 import {
   driftToUnified,
+  unifiedToDrift,
   DRIFT_PERP_MARKETS,
   DRIFT_MARKET_INDEX_MAP,
   DRIFT_PRECISION,
@@ -539,5 +540,13 @@ export class DriftNormalizer {
   private getPrecisionFromTickSize(tickSize: number): number {
     if (tickSize >= 1) return 0;
     return Math.max(0, -Math.floor(Math.log10(tickSize)));
+  }
+
+  normalizeSymbol(exchangeSymbol: string): string {
+    return driftToUnified(exchangeSymbol);
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    return unifiedToDrift(symbol);
   }
 }

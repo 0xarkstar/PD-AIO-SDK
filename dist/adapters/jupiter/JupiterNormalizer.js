@@ -5,7 +5,7 @@
  * to unified SDK format.
  */
 import { JupiterPositionAccountSchema, JupiterPoolAccountSchema, JupiterCustodyAccountSchema, JupiterPoolStatsSchema, JupiterPriceDataSchema, } from './types.js';
-import { jupiterToUnified, JUPITER_MARKETS } from './constants.js';
+import { jupiterToUnified, unifiedToJupiter, JUPITER_MARKETS } from './constants.js';
 /**
  * Normalizer for Jupiter Perps data
  */
@@ -255,6 +255,48 @@ export class JupiterNormalizer {
         };
     }
     /**
+     * Normalize order data to unified Order
+     * Jupiter uses instant execution, so orders are typically already filled
+     */
+    normalizeOrder(data) {
+        const filled = data.filled ?? data.amount;
+        const remaining = data.amount - filled;
+        return {
+            id: data.id,
+            symbol: data.symbol,
+            type: data.type ?? 'market',
+            side: data.side,
+            amount: data.amount,
+            price: data.price,
+            status: data.status ?? 'closed',
+            filled,
+            remaining,
+            averagePrice: data.price,
+            reduceOnly: data.reduceOnly ?? false,
+            postOnly: false,
+            clientOrderId: data.clientOrderId,
+            timestamp: data.timestamp ?? Date.now(),
+            info: data.info,
+        };
+    }
+    /**
+     * Normalize trade data to unified Trade
+     * Jupiter trades come from on-chain transaction parsing
+     */
+    normalizeTrade(data) {
+        return {
+            id: data.id,
+            symbol: data.symbol,
+            side: data.side,
+            price: data.price,
+            amount: data.amount,
+            cost: data.price * data.amount,
+            fee: data.fee,
+            timestamp: data.timestamp ?? Date.now(),
+            info: data.info,
+        };
+    }
+    /**
      * Normalize pool stats to unified format
      */
     normalizePoolStats(stats) {
@@ -323,6 +365,12 @@ export class JupiterNormalizer {
         // Derive precision from step size
         const stepSize = config.stepSize;
         return Math.max(0, -Math.floor(Math.log10(stepSize)));
+    }
+    normalizeSymbol(exchangeSymbol) {
+        return jupiterToUnified(exchangeSymbol);
+    }
+    toExchangeSymbol(symbol) {
+        return unifiedToJupiter(symbol);
     }
 }
 //# sourceMappingURL=JupiterNormalizer.js.map

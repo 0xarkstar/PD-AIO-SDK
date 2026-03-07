@@ -157,8 +157,8 @@ export declare const EXTENDED_DEFAULTS: {
  */
 export declare const EXTENDED_STARKNET_CONFIG: {
     readonly chainId: {
-        readonly mainnet: "SN_MAIN";
-        readonly testnet: "SN_SEPOLIA";
+        readonly mainnet: "0x534e5f4d41494e";
+        readonly testnet: "0x534e5f5345504f4c4941";
     };
     readonly blockTime: 600000;
     readonly confirmations: 1;

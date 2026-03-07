@@ -84,5 +84,6 @@ export declare class BackpackNormalizer {
      * Count decimal places in a string number
      */
     private countDecimals;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=BackpackNormalizer.d.ts.map

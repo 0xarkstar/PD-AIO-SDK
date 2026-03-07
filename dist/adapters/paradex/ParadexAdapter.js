@@ -48,6 +48,10 @@ export class ParadexAdapter extends BaseAdapter {
         watchOrders: true,
         watchBalance: true,
         watchMyTrades: true,
+        fetchOHLCV: false,
+        editOrder: false,
+        fetchOpenOrders: false,
+        setMarginMode: false,
     };
     // Component architecture
     auth;

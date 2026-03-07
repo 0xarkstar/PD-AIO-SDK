@@ -65,17 +65,33 @@ export declare class DydxAuth implements IAuthStrategy {
     /**
      * Derive dYdX address from mnemonic
      *
-     * Note: This is a simplified implementation. In production,
-     * use @cosmjs/proto-signing or @dydxprotocol/v4-client-js
+     * @WARNING This is a PLACEHOLDER that generates a deterministic but INVALID
+     * Cosmos address. It does NOT perform proper BIP39 → HD key → bech32 derivation.
+     * Addresses produced by this method will NOT match the real dYdX address for the
+     * given mnemonic and CANNOT be used for on-chain operations.
+     *
+     * TODO: Replace with proper Cosmos address derivation:
+     *   1. `@cosmjs/crypto` — Bip39.decode(mnemonic) → seed
+     *   2. `@cosmjs/crypto` — Slip10.derivePath(Slip10Curve.Secp256k1, seed, stringToPath("m/44'/118'/0'/0/0"))
+     *   3. `@cosmjs/amino` — pubkeyToAddress(compressedPubkey, "dydx")
+     *   Or use `@dydxprotocol/v4-client-js` CompositeClient which handles this internally.
+     *
+     * Required packages: @cosmjs/amino, @cosmjs/crypto, @cosmjs/proto-signing
      */
     private deriveAddressFromMnemonic;
     /**
      * Derive dYdX address from private key
+     *
+     * @WARNING PLACEHOLDER — same limitations as deriveAddressFromMnemonic.
+     * Does NOT perform real secp256k1 → ripemd160(sha256(pubkey)) → bech32 derivation.
+     *
+     * TODO: Use @cosmjs/crypto Secp256k1.makeKeypair() + pubkeyToAddress()
      */
     private deriveAddressFromPrivateKey;
     /**
-     * Simple hash function for placeholder address generation
-     * Real implementation should use proper cryptographic derivation
+     * Simple hash function for placeholder address generation.
+     * NOT cryptographically secure — used only for deterministic placeholder addresses.
+     * @internal
      */
     private simpleHash;
     /**

@@ -28,6 +28,20 @@ export class OstiumAdapter extends BaseAdapter {
         fetchPositions: true,
         fetchBalance: true,
         setLeverage: false,
+        cancelAllOrders: false,
+        editOrder: false,
+        fetchOHLCV: false,
+        fetchFundingRateHistory: false,
+        fetchOrderHistory: false,
+        fetchMyTrades: false,
+        fetchOpenOrders: false,
+        setMarginMode: false,
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchOrders: false,
+        watchPositions: false,
+        watchBalance: false,
     };
     metadataUrl;
     auth;
@@ -42,10 +56,7 @@ export class OstiumAdapter extends BaseAdapter {
         this.metadataUrl = config.metadataUrl ?? OSTIUM_METADATA_URL;
         const rpcUrl = config.rpcUrl ?? OSTIUM_RPC_URLS.mainnet;
         if (config.privateKey) {
-            this.auth = new OstiumAuth({
-                privateKey: config.privateKey,
-                rpcUrl,
-            });
+            this.auth = new OstiumAuth({ rpcUrl });
             this.contracts = new OstiumContracts(rpcUrl, config.privateKey);
         }
         this.subgraph = new OstiumSubgraph(config.subgraphUrl);

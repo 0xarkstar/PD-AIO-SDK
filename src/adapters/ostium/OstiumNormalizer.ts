@@ -2,7 +2,17 @@
  * Ostium Response Normalizer
  */
 
-import type { Balance, Market, Order, Position, Ticker, Trade } from '../../types/common.js';
+import type {
+  Balance,
+  FundingRate,
+  Market,
+  Order,
+  OrderBook,
+  Position,
+  Ticker,
+  Trade,
+} from '../../types/common.js';
+import { NotSupportedError } from '../../types/errors.js';
 import type {
   OstiumPairInfo,
   OstiumPriceResponse,
@@ -17,7 +27,13 @@ import {
   OstiumSubgraphPositionSchema,
   OstiumOpenTradeSchema,
 } from './types.js';
-import { toUnifiedSymbolFromName, parseCollateral, parsePrice, toUnifiedSymbol } from './utils.js';
+import {
+  toUnifiedSymbolFromName,
+  parseCollateral,
+  parsePrice,
+  toUnifiedSymbol,
+  toOstiumPairIndex,
+} from './utils.js';
 
 export class OstiumNormalizer {
   normalizeMarket(pair: OstiumPairInfo): Market {
@@ -157,5 +173,30 @@ export class OstiumNormalizer {
       timestamp: validated.timestamp,
       info: validated as unknown as Record<string, unknown>,
     };
+  }
+
+  normalizeOrderBook(_data: unknown): OrderBook {
+    throw new NotSupportedError(
+      'Ostium is an AMM-based DEX and does not have a traditional order book',
+      'NOT_SUPPORTED',
+      'ostium'
+    );
+  }
+
+  normalizeFundingRate(_data: unknown): FundingRate {
+    throw new NotSupportedError(
+      'Ostium uses rollover fees, not funding rates',
+      'NOT_SUPPORTED',
+      'ostium'
+    );
+  }
+
+  normalizeSymbol(exchangeSymbol: string): string {
+    const pairIndex = parseInt(exchangeSymbol, 10);
+    return toUnifiedSymbol(pairIndex);
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    return String(toOstiumPairIndex(symbol));
   }
 }

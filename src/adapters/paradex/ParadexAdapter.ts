@@ -26,7 +26,7 @@ import type {
   OrderBookParams,
   TradeParams,
 } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { PARADEX_API_URLS, PARADEX_RATE_LIMITS, PARADEX_ENDPOINT_WEIGHTS } from './constants.js';
@@ -81,7 +81,7 @@ interface FillsResponse {
 /**
  * Paradex adapter implementation
  */
-export class ParadexAdapter extends BaseAdapter {
+export class ParadexAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'paradex';
   readonly name = 'Paradex';
 
@@ -107,6 +107,10 @@ export class ParadexAdapter extends BaseAdapter {
     watchOrders: true,
     watchBalance: true,
     watchMyTrades: true,
+    fetchOHLCV: false,
+    editOrder: false,
+    fetchOpenOrders: false,
+    setMarginMode: false,
   };
 
   // Component architecture

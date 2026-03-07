@@ -18,7 +18,7 @@ import type {
   Trade,
   TradeParams,
 } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
@@ -40,7 +40,7 @@ import type {
   PacificaAccountInfo,
 } from './types.js';
 
-export class PacificaAdapter extends BaseAdapter {
+export class PacificaAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'pacifica';
   readonly name = 'Pacifica';
 
@@ -65,6 +65,15 @@ export class PacificaAdapter extends BaseAdapter {
     fetchPositions: true,
     fetchBalance: true,
     setLeverage: true,
+    setMarginMode: false,
+    editOrder: false,
+    fetchOpenOrders: false,
+    watchOrderBook: false,
+    watchTrades: false,
+    watchTicker: false,
+    watchOrders: false,
+    watchPositions: false,
+    watchBalance: false,
   };
 
   private readonly auth?: PacificaAuth;

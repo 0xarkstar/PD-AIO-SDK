@@ -456,4 +456,12 @@ export class ExtendedNormalizer {
   normalizeFundingRates(rates: ExtendedFundingRate[]): FundingRate[] {
     return rates.map((rate) => this.normalizeFundingRate(rate));
   }
+
+  normalizeSymbol(exchangeSymbol: string): string {
+    return this.symbolToCCXT(exchangeSymbol);
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    return this.symbolFromCCXT(symbol);
+  }
 }

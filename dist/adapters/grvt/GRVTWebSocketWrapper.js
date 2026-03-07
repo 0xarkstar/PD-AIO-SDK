@@ -558,6 +558,7 @@ export class GRVTWebSocketWrapper {
             },
         };
         try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- @grvt/client does not export IWSFillRequest; request shape matches WS.subscribe() at runtime
             subscriptionKey = this.ws.subscribe(request);
             while (true) {
                 if (error)

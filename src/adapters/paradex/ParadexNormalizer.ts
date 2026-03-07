@@ -557,4 +557,12 @@ export class ParadexNormalizer {
         return PARADEX_TIME_IN_FORCE.GTC;
     }
   }
+
+  normalizeSymbol(exchangeSymbol: string): string {
+    return this.symbolToCCXT(exchangeSymbol);
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    return this.symbolFromCCXT(symbol);
+  }
 }

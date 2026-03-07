@@ -86,6 +86,7 @@ export class NadoAdapter extends BaseAdapter {
         fetchTrades: false, // REST API not available, use watchTrades for WebSocket
         fetchFundingRate: true,
         fetchFundingRateHistory: false,
+        fetchOHLCV: false,
         // Trading
         createOrder: true,
         cancelOrder: true,
@@ -98,7 +99,8 @@ export class NadoAdapter extends BaseAdapter {
         fetchMyTrades: false,
         fetchDeposits: false,
         fetchWithdrawals: false,
-        // Positions & Balance
+        // Account
+        fetchOpenOrders: false,
         fetchPositions: true,
         fetchBalance: true,
         setLeverage: false, // Unified margin system

@@ -3,7 +3,7 @@
  */
 import { PACIFICA_ORDER_STATUS } from './constants.js';
 import { PacificaAccountInfoSchema, PacificaFundingHistorySchema, PacificaMarketSchema, PacificaOrderBookSchema, PacificaOrderResponseSchema, PacificaPositionSchema, PacificaTickerSchema, PacificaTradeResponseSchema, } from './types.js';
-import { toUnifiedSymbol } from './utils.js';
+import { toUnifiedSymbol, toPacificaSymbol } from './utils.js';
 export class PacificaNormalizer {
     normalizeMarket(raw) {
         const validated = PacificaMarketSchema.parse(raw);
@@ -175,6 +175,12 @@ export class PacificaNormalizer {
         if (!decimals)
             return 0;
         return decimals.replace(/0+$/, '').length || 0;
+    }
+    normalizeSymbol(exchangeSymbol) {
+        return toUnifiedSymbol(exchangeSymbol);
+    }
+    toExchangeSymbol(symbol) {
+        return toPacificaSymbol(symbol);
     }
 }
 //# sourceMappingURL=PacificaNormalizer.js.map

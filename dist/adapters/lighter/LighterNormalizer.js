@@ -222,5 +222,8 @@ export class LighterNormalizer {
                 return 'open';
         }
     }
+    toExchangeSymbol(symbol) {
+        return this.toLighterSymbol(symbol);
+    }
 }
 //# sourceMappingURL=LighterNormalizer.js.map

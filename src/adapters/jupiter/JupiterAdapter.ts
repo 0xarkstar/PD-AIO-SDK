@@ -20,6 +20,7 @@ import type {
   Balance,
   ExchangeConfig,
   FeatureMap,
+  IExchangeAdapter,
   FundingRate,
   Market,
   MarketParams,
@@ -45,7 +46,7 @@ import {
 import { mapJupiterError } from './error-codes.js';
 import {
   isValidMarket,
-  buildPriceApiUrl,
+  buildPriceApiUrls,
   validateOrderParams,
   calculateLiquidationPrice,
   parseOnChainTimestamp,
@@ -98,7 +99,7 @@ export type JupiterAdapterConfig = JupiterConfig;
  * });
  * ```
  */
-export class JupiterAdapter extends BaseAdapter {
+export class JupiterAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'jupiter';
   readonly name = 'Jupiter Perps';
 
@@ -804,15 +805,32 @@ export class JupiterAdapter extends BaseAdapter {
       return t;
     });
 
-    const url = buildPriceApiUrl(mints);
+    const urls = buildPriceApiUrls(mints);
 
-    const response = await this.request<{
+    type PythResponse = {
       parsed: Array<{
         id: string;
         price: { price: string; expo: number; conf: string; publish_time: number };
         ema_price: { price: string; expo: number; conf: string; publish_time: number };
       }>;
-    }>('GET', url);
+    };
+
+    let response: PythResponse | undefined;
+    let lastError: unknown;
+
+    for (const url of urls) {
+      try {
+        response = await this.request<PythResponse>('GET', url);
+        break;
+      } catch (error) {
+        lastError = error;
+        this.warn(`Pyth Hermes request failed for ${url}, trying next endpoint...`);
+      }
+    }
+
+    if (!response) {
+      throw lastError ?? new Error('All Pyth Hermes endpoints failed');
+    }
 
     // Convert Pyth response to JupiterPriceData keyed by mint address
     const result: Record<string, JupiterPriceData> = {};

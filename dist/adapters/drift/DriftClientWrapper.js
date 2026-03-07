@@ -32,14 +32,15 @@ export class DriftClientWrapper {
             // Dynamic import to handle ESM module loading
             const driftSdk = await import('@drift-labs/sdk');
             const { DriftClient, Wallet, BulkAccountLoader, getMarketsAndOraclesForSubscription } = driftSdk;
-            // Create wallet from keypair (cast to any to handle different @solana/web3.js versions)
+            // Create wallet from keypair
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- @drift-labs/sdk Wallet expects its bundled @solana/web3.js Keypair which is structurally identical but nominally different from the consumer's version
             const wallet = new Wallet(this.config.keypair);
             // Get markets and oracles to subscribe to
             const { perpMarketIndexes, spotMarketIndexes, oracleInfos } = getMarketsAndOraclesForSubscription(this.config.isDevnet ? 'devnet' : 'mainnet-beta');
-            // Create bulk account loader for efficient RPC usage (cast to any for different web3.js versions)
+            // Create bulk account loader for efficient RPC usage
             const bulkAccountLoader = new BulkAccountLoader(this.config.connection, 'confirmed', 1000 // 1 second polling interval
             );
-            // Initialize Drift client (cast connection to any for different web3.js versions)
+            // Initialize Drift client
             this.driftClient = new DriftClient({
                 connection: this.config.connection,
                 wallet,

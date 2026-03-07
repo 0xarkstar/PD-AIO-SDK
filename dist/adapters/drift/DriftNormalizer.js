@@ -5,7 +5,7 @@
  * to unified SDK format.
  */
 import { DriftPerpPositionSchema, DriftSpotPositionSchema, DriftOrderSchema, DriftPerpMarketAccountSchema, DriftL2OrderBookSchema, DriftTradeSchema, DriftFundingRateSchema, DriftFundingRateRecordSchema, DriftMarketStatsSchema, DriftCandleSchema, } from './types.js';
-import { driftToUnified, DRIFT_PERP_MARKETS, DRIFT_MARKET_INDEX_MAP, DRIFT_PRECISION, } from './constants.js';
+import { driftToUnified, unifiedToDrift, DRIFT_PERP_MARKETS, DRIFT_MARKET_INDEX_MAP, DRIFT_PRECISION, } from './constants.js';
 /**
  * Normalizer for Drift Protocol data
  */
@@ -405,6 +405,12 @@ export class DriftNormalizer {
         if (tickSize >= 1)
             return 0;
         return Math.max(0, -Math.floor(Math.log10(tickSize)));
+    }
+    normalizeSymbol(exchangeSymbol) {
+        return driftToUnified(exchangeSymbol);
+    }
+    toExchangeSymbol(symbol) {
+        return unifiedToDrift(symbol);
     }
 }
 //# sourceMappingURL=DriftNormalizer.js.map

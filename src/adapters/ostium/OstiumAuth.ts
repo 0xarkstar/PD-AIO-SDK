@@ -1,20 +1,24 @@
 /**
  * Ostium Authentication (EVM Wallet)
+ *
+ * Note: Ostium's on-chain interactions are read-only via RPC.
+ * The sign() method is a no-op because Ostium does not require
+ * request-level authentication for its REST API.
+ *
+ * Private key handling is deferred to the caller — this class
+ * intentionally does NOT store private keys to minimize exposure.
  */
 
 import type { IAuthStrategy, RequestParams, AuthenticatedRequest } from '../../types/adapter.js';
 
 export interface OstiumAuthConfig {
-  privateKey: string;
   rpcUrl: string;
 }
 
 export class OstiumAuth implements IAuthStrategy {
-  private readonly privateKey: string;
   private readonly rpcUrl: string;
 
   constructor(config: OstiumAuthConfig) {
-    this.privateKey = config.privateKey;
     this.rpcUrl = config.rpcUrl;
   }
 
@@ -31,13 +35,6 @@ export class OstiumAuth implements IAuthStrategy {
   }
 
   hasCredentials(): boolean {
-    return !!(this.privateKey && this.rpcUrl);
-  }
-
-  getAddress(): string {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Wallet } = require('ethers') as typeof import('ethers');
-    const wallet = new Wallet(this.privateKey);
-    return wallet.address;
+    return !!this.rpcUrl;
   }
 }

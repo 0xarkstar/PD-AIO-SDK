@@ -459,5 +459,11 @@ export class VariationalNormalizer {
             timestamp: new Date(quotes.updated_at).getTime() || Date.now(),
         };
     }
+    normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+    }
+    toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+    }
 }
 //# sourceMappingURL=VariationalNormalizer.js.map

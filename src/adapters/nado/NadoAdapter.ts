@@ -69,6 +69,7 @@ import { Wallet, ethers } from 'ethers';
 import type {
   Balance,
   FeatureMap,
+  IExchangeAdapter,
   FundingRate,
   Market,
   MarketParams,
@@ -122,7 +123,7 @@ import { NadoAPIClient } from './NadoAPIClient.js';
 import { NadoNormalizer } from './NadoNormalizer.js';
 import { NadoSubscriptionBuilder } from './subscriptions.js';
 
-export class NadoAdapter extends BaseAdapter {
+export class NadoAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'nado';
   readonly name = 'Nado';
 
@@ -134,6 +135,7 @@ export class NadoAdapter extends BaseAdapter {
     fetchTrades: false, // REST API not available, use watchTrades for WebSocket
     fetchFundingRate: true,
     fetchFundingRateHistory: false,
+    fetchOHLCV: false,
 
     // Trading
     createOrder: true,
@@ -149,7 +151,8 @@ export class NadoAdapter extends BaseAdapter {
     fetchDeposits: false,
     fetchWithdrawals: false,
 
-    // Positions & Balance
+    // Account
+    fetchOpenOrders: false,
     fetchPositions: true,
     fetchBalance: true,
     setLeverage: false, // Unified margin system

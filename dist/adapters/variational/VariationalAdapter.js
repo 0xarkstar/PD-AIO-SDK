@@ -107,6 +107,7 @@ export class VariationalAdapter extends BaseAdapter {
         fetchFundingRate: true, // From metadata/stats
         // Public API (Not yet implemented/documented)
         fetchTrades: false, // No trades endpoint for RFQ DEX
+        fetchOHLCV: false,
         fetchFundingRateHistory: false,
         // Trading API (Implemented - requires API endpoint availability)
         createOrder: true,

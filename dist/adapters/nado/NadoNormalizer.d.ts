@@ -183,5 +183,10 @@ export declare class NadoNormalizer {
      * @returns Unified order status
      */
     private mapOrderStatus;
+    /**
+     * Normalize market data - alias for normalizeSymbol for unified interface
+     */
+    normalizeMarket(symbolData: NadoSymbol): Market;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=NadoNormalizer.d.ts.map

@@ -273,4 +273,8 @@ export class LighterNormalizer {
         return 'open';
     }
   }
+
+  toExchangeSymbol(symbol: string): string {
+    return this.toLighterSymbol(symbol);
+  }
 }

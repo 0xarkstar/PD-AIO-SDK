@@ -470,5 +470,11 @@ export class ParadexNormalizer {
                 return PARADEX_TIME_IN_FORCE.GTC;
         }
     }
+    normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+    }
+    toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+    }
 }
 //# sourceMappingURL=ParadexNormalizer.js.map

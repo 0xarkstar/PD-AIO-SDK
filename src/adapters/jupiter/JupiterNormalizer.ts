@@ -12,6 +12,8 @@ import type {
   Balance,
   Ticker,
   OrderBook,
+  Order,
+  Trade,
 } from '../../types/common.js';
 import type {
   JupiterPositionAccount,
@@ -29,7 +31,7 @@ import {
   JupiterPoolStatsSchema,
   JupiterPriceDataSchema,
 } from './types.js';
-import { jupiterToUnified, JUPITER_MARKETS } from './constants.js';
+import { jupiterToUnified, unifiedToJupiter, JUPITER_MARKETS } from './constants.js';
 
 /**
  * Normalizer for Jupiter Perps data
@@ -350,6 +352,74 @@ export class JupiterNormalizer {
   }
 
   /**
+   * Normalize order data to unified Order
+   * Jupiter uses instant execution, so orders are typically already filled
+   */
+  normalizeOrder(data: {
+    id: string;
+    symbol: string;
+    side: 'buy' | 'sell';
+    type?: 'market' | 'limit';
+    amount: number;
+    price: number;
+    filled?: number;
+    status?: 'open' | 'closed' | 'canceled';
+    timestamp?: number;
+    leverage?: number;
+    reduceOnly?: boolean;
+    clientOrderId?: string;
+    info?: Record<string, unknown>;
+  }): Order {
+    const filled = data.filled ?? data.amount;
+    const remaining = data.amount - filled;
+
+    return {
+      id: data.id,
+      symbol: data.symbol,
+      type: data.type ?? 'market',
+      side: data.side,
+      amount: data.amount,
+      price: data.price,
+      status: data.status ?? 'closed',
+      filled,
+      remaining,
+      averagePrice: data.price,
+      reduceOnly: data.reduceOnly ?? false,
+      postOnly: false,
+      clientOrderId: data.clientOrderId,
+      timestamp: data.timestamp ?? Date.now(),
+      info: data.info,
+    };
+  }
+
+  /**
+   * Normalize trade data to unified Trade
+   * Jupiter trades come from on-chain transaction parsing
+   */
+  normalizeTrade(data: {
+    id: string;
+    symbol: string;
+    side: 'buy' | 'sell';
+    price: number;
+    amount: number;
+    timestamp?: number;
+    fee?: { cost: number; currency: string };
+    info?: Record<string, unknown>;
+  }): Trade {
+    return {
+      id: data.id,
+      symbol: data.symbol,
+      side: data.side,
+      price: data.price,
+      amount: data.amount,
+      cost: data.price * data.amount,
+      fee: data.fee,
+      timestamp: data.timestamp ?? Date.now(),
+      info: data.info,
+    };
+  }
+
+  /**
    * Normalize pool stats to unified format
    */
   normalizePoolStats(stats: JupiterPoolStats): Record<string, unknown> {
@@ -433,5 +503,13 @@ export class JupiterNormalizer {
     // Derive precision from step size
     const stepSize = config.stepSize;
     return Math.max(0, -Math.floor(Math.log10(stepSize)));
+  }
+
+  normalizeSymbol(exchangeSymbol: string): string {
+    return jupiterToUnified(exchangeSymbol);
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    return unifiedToJupiter(symbol);
   }
 }

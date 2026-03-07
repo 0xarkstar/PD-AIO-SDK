@@ -12,7 +12,10 @@ import type {
   FundingRate,
   Ticker,
   OHLCV,
+  Balance,
+  OrderBook,
 } from '../../types/common.js';
+import { NotSupportedError } from '../../types/errors.js';
 import type {
   GmxMarketInfo,
   GmxPosition,
@@ -34,6 +37,7 @@ import {
   GMX_PRECISION,
   GMX_MARKET_ADDRESS_MAP,
   gmxToUnified,
+  unifiedToGmx,
   getTokenDecimals,
   getTokenDecimalsByAddress,
   type GMXMarketKey,
@@ -494,6 +498,30 @@ export class GmxNormalizer {
     return candles.map((c) => this.normalizeCandle(c));
   }
 
+  /**
+   * Normalize balance data to unified Balance
+   */
+  normalizeBalance(currency: string, total: number, usdValue?: number): Balance {
+    return {
+      currency,
+      total,
+      free: total,
+      used: 0,
+      usdValue,
+    };
+  }
+
+  /**
+   * Normalize order book - GMX is AMM-based and does not have a traditional order book
+   */
+  normalizeOrderBook(_data: unknown): OrderBook {
+    throw new NotSupportedError(
+      'GMX is AMM-based and does not have a traditional order book. Use fetchTicker for price data.',
+      'NOT_SUPPORTED',
+      'gmx'
+    );
+  }
+
   // ==========================================================================
   // Helper Methods
   // ==========================================================================
@@ -563,5 +591,17 @@ export class GmxNormalizer {
   private getPrecisionFromTickSize(tickSize: number): number {
     if (tickSize >= 1) return 0;
     return Math.max(0, -Math.floor(Math.log10(tickSize)));
+  }
+
+  normalizeSymbol(exchangeSymbol: string): string {
+    if (exchangeSymbol in GMX_MARKETS) {
+      return gmxToUnified(exchangeSymbol as GMXMarketKey);
+    }
+    return exchangeSymbol;
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    const gmxSymbol = unifiedToGmx(symbol);
+    return gmxSymbol || symbol;
   }
 }

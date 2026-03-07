@@ -21,7 +21,7 @@ import { SolanaClient } from './solana.js';
 import { JupiterInstructionBuilder } from './instructions.js';
 import { JUPITER_MARKETS, JUPITER_TOKEN_MINTS, unifiedToJupiter, jupiterToUnified, } from './constants.js';
 import { mapJupiterError } from './error-codes.js';
-import { isValidMarket, buildPriceApiUrl, validateOrderParams, calculateLiquidationPrice, parseOnChainTimestamp, } from './utils.js';
+import { isValidMarket, buildPriceApiUrls, validateOrderParams, calculateLiquidationPrice, parseOnChainTimestamp, } from './utils.js';
 /**
  * Jupiter Perpetuals Exchange Adapter
  *
@@ -626,8 +626,22 @@ export class JupiterAdapter extends BaseAdapter {
             }
             return t;
         });
-        const url = buildPriceApiUrl(mints);
-        const response = await this.request('GET', url);
+        const urls = buildPriceApiUrls(mints);
+        let response;
+        let lastError;
+        for (const url of urls) {
+            try {
+                response = await this.request('GET', url);
+                break;
+            }
+            catch (error) {
+                lastError = error;
+                this.warn(`Pyth Hermes request failed for ${url}, trying next endpoint...`);
+            }
+        }
+        if (!response) {
+            throw lastError ?? new Error('All Pyth Hermes endpoints failed');
+        }
         // Convert Pyth response to JupiterPriceData keyed by mint address
         const result = {};
         // Guard: if response.parsed is empty/undefined, return empty result

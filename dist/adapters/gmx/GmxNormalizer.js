@@ -3,8 +3,9 @@
  *
  * Transforms GMX API responses and on-chain data to unified SDK format.
  */
+import { NotSupportedError } from '../../types/errors.js';
 import { GmxMarketInfoSchema, GmxPositionSchema, GmxOrderSchema, GmxTradeSchema, GmxFundingRateSchema, GmxCandleTupleSchema, } from './types.js';
-import { GMX_MARKETS, GMX_PRECISION, GMX_MARKET_ADDRESS_MAP, gmxToUnified, getTokenDecimals, getTokenDecimalsByAddress, } from './constants.js';
+import { GMX_MARKETS, GMX_PRECISION, GMX_MARKET_ADDRESS_MAP, gmxToUnified, unifiedToGmx, getTokenDecimals, getTokenDecimalsByAddress, } from './constants.js';
 /**
  * Normalizer for GMX v2 data
  */
@@ -394,6 +395,24 @@ export class GmxNormalizer {
     normalizeCandles(candles) {
         return candles.map((c) => this.normalizeCandle(c));
     }
+    /**
+     * Normalize balance data to unified Balance
+     */
+    normalizeBalance(currency, total, usdValue) {
+        return {
+            currency,
+            total,
+            free: total,
+            used: 0,
+            usdValue,
+        };
+    }
+    /**
+     * Normalize order book - GMX is AMM-based and does not have a traditional order book
+     */
+    normalizeOrderBook(_data) {
+        throw new NotSupportedError('GMX is AMM-based and does not have a traditional order book. Use fetchTicker for price data.', 'NOT_SUPPORTED', 'gmx');
+    }
     // ==========================================================================
     // Helper Methods
     // ==========================================================================
@@ -442,6 +461,16 @@ export class GmxNormalizer {
         if (tickSize >= 1)
             return 0;
         return Math.max(0, -Math.floor(Math.log10(tickSize)));
+    }
+    normalizeSymbol(exchangeSymbol) {
+        if (exchangeSymbol in GMX_MARKETS) {
+            return gmxToUnified(exchangeSymbol);
+        }
+        return exchangeSymbol;
+    }
+    toExchangeSymbol(symbol) {
+        const gmxSymbol = unifiedToGmx(symbol);
+        return gmxSymbol || symbol;
     }
 }
 //# sourceMappingURL=GmxNormalizer.js.map

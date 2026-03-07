@@ -8,6 +8,7 @@ import {
   JUPITER_MARKETS,
   JUPITER_TOKEN_MINTS,
   JUPITER_PYTH_FEED_IDS,
+  PYTH_HERMES_ENDPOINTS,
   unifiedToJupiter,
   getBaseToken,
 } from './constants.js';
@@ -168,17 +169,11 @@ export function getPositionPDASeeds(
 // =============================================================================
 
 /**
- * Build Pyth Network Price API URL for Jupiter price feeds
- *
- * Jupiter's price API (v2/v3) now requires authentication.
- * We use Pyth Network's Hermes API as the price source instead,
- * since Jupiter Perps uses Pyth oracles on-chain.
+ * Resolve Pyth feed IDs from token mint addresses or token names.
  */
-export function buildPriceApiUrl(tokenIds: string[]): string {
-  // Map token mints to Pyth feed IDs
+function resolvePythFeedIds(tokenIds: string[]): string[] {
   const feedIds: string[] = [];
   for (const tokenId of tokenIds) {
-    // Check if tokenId is a mint address — resolve to base token name
     let baseToken: string | undefined;
     for (const [name, mint] of Object.entries(JUPITER_TOKEN_MINTS)) {
       if (mint === tokenId) {
@@ -186,20 +181,38 @@ export function buildPriceApiUrl(tokenIds: string[]): string {
         break;
       }
     }
-    // If it's already a token name (SOL, ETH, BTC), use it directly
     if (!baseToken && tokenId in JUPITER_PYTH_FEED_IDS) {
       baseToken = tokenId;
     }
     const rawFeedId = baseToken ? JUPITER_PYTH_FEED_IDS[baseToken] : undefined;
     if (rawFeedId) {
-      // Pyth Hermes API requires feed IDs without 0x prefix
       feedIds.push(rawFeedId.replace(/^0x/, ''));
     }
   }
+  return feedIds;
+}
 
-  const baseUrl = 'https://hermes.pyth.network/v2/updates/price/latest';
+/**
+ * Build Pyth Network Price API URL for Jupiter price feeds.
+ *
+ * Jupiter's price API (v2/v3) now requires authentication.
+ * We use Pyth Network's Hermes API as the price source instead,
+ * since Jupiter Perps uses Pyth oracles on-chain.
+ *
+ * @param endpointIndex - Index into PYTH_HERMES_ENDPOINTS (0 = primary, 1 = fallback)
+ */
+export function buildPriceApiUrl(tokenIds: string[], endpointIndex = 0): string {
+  const feedIds = resolvePythFeedIds(tokenIds);
+  const endpoint = PYTH_HERMES_ENDPOINTS[endpointIndex] ?? PYTH_HERMES_ENDPOINTS[0];
   const params = feedIds.map((id) => `ids[]=${id}`).join('&');
-  return `${baseUrl}?${params}`;
+  return `${endpoint}/v2/updates/price/latest?${params}`;
+}
+
+/**
+ * Build all Pyth Hermes price API URLs (primary + fallbacks) for the given tokens.
+ */
+export function buildPriceApiUrls(tokenIds: string[]): string[] {
+  return PYTH_HERMES_ENDPOINTS.map((_, i) => buildPriceApiUrl(tokenIds, i));
 }
 
 /**

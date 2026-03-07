@@ -3,7 +3,7 @@
  *
  * Transforms GMX API responses and on-chain data to unified SDK format.
  */
-import type { Market, Order, Position, Trade, FundingRate, Ticker, OHLCV } from '../../types/common.js';
+import type { Market, Order, Position, Trade, FundingRate, Ticker, OHLCV, Balance, OrderBook } from '../../types/common.js';
 import type { GmxMarketInfo, GmxPosition, GmxOrder, GmxTrade, GmxFundingRate, GmxCandleTuple } from './types.js';
 /**
  * Normalizer for GMX v2 data
@@ -62,6 +62,14 @@ export declare class GmxNormalizer {
      */
     normalizeCandles(candles: GmxCandleTuple[]): OHLCV[];
     /**
+     * Normalize balance data to unified Balance
+     */
+    normalizeBalance(currency: string, total: number, usdValue?: number): Balance;
+    /**
+     * Normalize order book - GMX is AMM-based and does not have a traditional order book
+     */
+    normalizeOrderBook(_data: unknown): OrderBook;
+    /**
      * Calculate unrealized PnL
      */
     private calculateUnrealizedPnl;
@@ -77,5 +85,7 @@ export declare class GmxNormalizer {
      * Get precision from tick size
      */
     private getPrecisionFromTickSize;
+    normalizeSymbol(exchangeSymbol: string): string;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=GmxNormalizer.d.ts.map

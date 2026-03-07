@@ -422,5 +422,11 @@ export class HyperliquidNormalizer {
             },
         };
     }
+    normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+    }
+    toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+    }
 }
 //# sourceMappingURL=HyperliquidNormalizer.js.map

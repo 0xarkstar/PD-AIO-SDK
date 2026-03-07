@@ -54,5 +54,6 @@ export declare class LighterNormalizer {
      * Map Lighter order status to unified status
      */
     private mapOrderStatus;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=LighterNormalizer.d.ts.map

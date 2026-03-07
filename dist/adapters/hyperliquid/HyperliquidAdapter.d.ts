@@ -4,7 +4,7 @@
  * Implements IExchangeAdapter for Hyperliquid DEX
  */
 import { Wallet } from 'ethers';
-import type { Balance, ExchangeConfig, FeatureMap, FundingRate, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
+import type { Balance, ExchangeConfig, FeatureMap, IExchangeAdapter, FundingRate, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 export interface HyperliquidConfig extends ExchangeConfig {
@@ -15,7 +15,7 @@ export interface HyperliquidConfig extends ExchangeConfig {
     /** Builder fee address for order attribution */
     builderAddress?: string;
 }
-export declare class HyperliquidAdapter extends BaseAdapter {
+export declare class HyperliquidAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "hyperliquid";
     readonly name = "Hyperliquid";
     readonly has: Partial<FeatureMap>;

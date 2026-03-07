@@ -173,5 +173,7 @@ export declare class ParadexNormalizer {
      * @returns Paradex time in force
      */
     toParadexTimeInForce(tif?: TimeInForce, postOnly?: boolean): string;
+    normalizeSymbol(exchangeSymbol: string): string;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=ParadexNormalizer.d.ts.map

@@ -106,8 +106,18 @@ export class DydxAuth implements IAuthStrategy {
   /**
    * Derive dYdX address from mnemonic
    *
-   * Note: This is a simplified implementation. In production,
-   * use @cosmjs/proto-signing or @dydxprotocol/v4-client-js
+   * @WARNING This is a PLACEHOLDER that generates a deterministic but INVALID
+   * Cosmos address. It does NOT perform proper BIP39 → HD key → bech32 derivation.
+   * Addresses produced by this method will NOT match the real dYdX address for the
+   * given mnemonic and CANNOT be used for on-chain operations.
+   *
+   * TODO: Replace with proper Cosmos address derivation:
+   *   1. `@cosmjs/crypto` — Bip39.decode(mnemonic) → seed
+   *   2. `@cosmjs/crypto` — Slip10.derivePath(Slip10Curve.Secp256k1, seed, stringToPath("m/44'/118'/0'/0/0"))
+   *   3. `@cosmjs/amino` — pubkeyToAddress(compressedPubkey, "dydx")
+   *   Or use `@dydxprotocol/v4-client-js` CompositeClient which handles this internally.
+   *
+   * Required packages: @cosmjs/amino, @cosmjs/crypto, @cosmjs/proto-signing
    */
   private async deriveAddressFromMnemonic(mnemonic: string): Promise<string> {
     // Validate mnemonic has correct word count
@@ -116,21 +126,18 @@ export class DydxAuth implements IAuthStrategy {
       throw new Error('Invalid mnemonic: must be 12 or 24 words');
     }
 
-    // In a full implementation, you would:
-    // 1. Use BIP39 to convert mnemonic to seed
-    // 2. Derive key using HD path m/44'/118'/0'/0/0
-    // 3. Get secp256k1 public key
-    // 4. Hash public key to get Cosmos address
-    // 5. Bech32 encode with 'dydx' prefix
-
-    // For now, we'll compute a deterministic placeholder
-    // Real implementation needs: @cosmjs/proto-signing
+    // PLACEHOLDER: generates a fake deterministic address — NOT a real Cosmos address
     const hash = this.simpleHash(mnemonic);
     return `dydx${hash.slice(0, 38)}`;
   }
 
   /**
    * Derive dYdX address from private key
+   *
+   * @WARNING PLACEHOLDER — same limitations as deriveAddressFromMnemonic.
+   * Does NOT perform real secp256k1 → ripemd160(sha256(pubkey)) → bech32 derivation.
+   *
+   * TODO: Use @cosmjs/crypto Secp256k1.makeKeypair() + pubkeyToAddress()
    */
   private async deriveAddressFromPrivateKey(privateKey: string): Promise<string> {
     // Remove 0x prefix if present
@@ -140,19 +147,15 @@ export class DydxAuth implements IAuthStrategy {
       throw new Error('Invalid private key: must be 32 bytes (64 hex characters)');
     }
 
-    // In a full implementation, you would:
-    // 1. Parse private key as secp256k1 key
-    // 2. Get public key
-    // 3. Hash to Cosmos address format
-    // 4. Bech32 encode with 'dydx' prefix
-
+    // PLACEHOLDER: generates a fake deterministic address — NOT a real Cosmos address
     const hash = this.simpleHash(cleanKey);
     return `dydx${hash.slice(0, 38)}`;
   }
 
   /**
-   * Simple hash function for placeholder address generation
-   * Real implementation should use proper cryptographic derivation
+   * Simple hash function for placeholder address generation.
+   * NOT cryptographically secure — used only for deterministic placeholder addresses.
+   * @internal
    */
   private simpleHash(input: string): string {
     let hash = 0;

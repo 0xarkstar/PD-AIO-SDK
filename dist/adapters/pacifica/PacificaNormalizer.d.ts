@@ -13,5 +13,7 @@ export declare class PacificaNormalizer {
     normalizePosition(raw: PacificaPositionType, symbol?: string): Position;
     normalizeBalance(raw: PacificaAccountInfo): Balance;
     private countDecimals;
+    normalizeSymbol(exchangeSymbol: string): string;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=PacificaNormalizer.d.ts.map

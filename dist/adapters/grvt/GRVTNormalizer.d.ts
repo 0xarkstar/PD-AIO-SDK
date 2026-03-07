@@ -7,7 +7,7 @@
  * @see https://docs.grvt.io
  */
 import type { IInstrumentDisplay, IOrder, IPositions, ISpotBalance, IFill, ITicker, IOrderbookLevels, ITrade } from '@grvt/client/interfaces';
-import type { Market, Order, Position, Balance, Trade, Ticker, OrderBook } from '../../types/common.js';
+import type { Market, Order, Position, Balance, Trade, Ticker, OrderBook, FundingRate } from '../../types/common.js';
 /**
  * GRVT Data Normalizer
  *
@@ -145,5 +145,17 @@ export declare class GRVTNormalizer {
      * Normalize GRVT order book to unified format
      */
     normalizeOrderBook(grvtOrderBook: IOrderbookLevels): OrderBook;
+    /**
+     * Normalize GRVT funding rate to unified format
+     */
+    normalizeFundingRate(grvtFunding: {
+        instrument?: string;
+        funding_rate?: string;
+        funding_time?: string;
+        mark_price?: string;
+        funding_interval_hours?: number;
+    }): FundingRate;
+    normalizeSymbol(exchangeSymbol: string): string;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=GRVTNormalizer.d.ts.map

@@ -5,6 +5,13 @@
  * Uses @oraichain/lighter-ts-sdk WASM module - no native dependencies required.
  *
  * This replaces the native FFI signer with a cross-platform WASM implementation.
+ *
+ * Security notes:
+ * - The API private key is held in memory for the lifetime of this instance.
+ *   Callers should avoid creating long-lived instances when not actively signing.
+ * - WASM memory is managed by the Go runtime compiled into the module;
+ *   there is no explicit zeroing of key material on disposal.
+ * - Never log or serialize the config object — it contains the private key.
  */
 import { OrderType, TimeInForce } from './types.js';
 // Dynamic import for the WASM signer

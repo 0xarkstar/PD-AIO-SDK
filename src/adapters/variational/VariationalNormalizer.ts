@@ -584,4 +584,12 @@ export class VariationalNormalizer {
       timestamp: new Date(quotes.updated_at).getTime() || Date.now(),
     };
   }
+
+  normalizeSymbol(exchangeSymbol: string): string {
+    return this.symbolToCCXT(exchangeSymbol);
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    return this.symbolFromCCXT(symbol);
+  }
 }

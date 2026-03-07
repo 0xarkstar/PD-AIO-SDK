@@ -19,7 +19,7 @@ import type {
   OrderBookParams,
   TradeParams,
 } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
@@ -33,7 +33,7 @@ import type { BackpackConfig } from './types.js';
 /**
  * Backpack adapter implementation
  */
-export class BackpackAdapter extends BaseAdapter {
+export class BackpackAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'backpack';
   readonly name = 'Backpack';
 
@@ -58,6 +58,10 @@ export class BackpackAdapter extends BaseAdapter {
     watchPositions: true,
     watchOrders: true,
     watchBalance: true,
+    fetchOHLCV: false,
+    editOrder: false,
+    fetchOpenOrders: false,
+    setMarginMode: false,
   };
 
   private readonly auth?: BackpackAuth;

@@ -64,11 +64,11 @@
  *
  * @see https://docs.nado.xyz - Nado official documentation
  */
-import type { Balance, FeatureMap, FundingRate, Market, MarketParams, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
+import type { Balance, FeatureMap, IExchangeAdapter, FundingRate, Market, MarketParams, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type { NadoConfig } from './types.js';
-export declare class NadoAdapter extends BaseAdapter {
+export declare class NadoAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "nado";
     readonly name = "Nado";
     readonly has: Partial<FeatureMap>;

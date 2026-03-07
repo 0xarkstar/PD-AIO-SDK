@@ -12,7 +12,7 @@
  *
  * @see https://docs.dydx.exchange/
  */
-import type { Balance, ExchangeConfig, FeatureMap, FundingRate, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
+import type { Balance, ExchangeConfig, FeatureMap, IExchangeAdapter, FundingRate, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 /**
@@ -50,7 +50,7 @@ export interface DydxConfig extends ExchangeConfig {
  * const positions = await dydxTrading.fetchPositions();
  * ```
  */
-export declare class DydxAdapter extends BaseAdapter {
+export declare class DydxAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "dydx";
     readonly name = "dYdX v4";
     readonly has: Partial<FeatureMap>;

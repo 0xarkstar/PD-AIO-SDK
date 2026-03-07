@@ -20,7 +20,7 @@ import type {
   OrderBookParams,
   TradeParams,
 } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { EDGEX_API_URLS, EDGEX_RATE_LIMITS, EDGEX_ENDPOINT_WEIGHTS } from './constants.js';
@@ -32,7 +32,7 @@ import type { EdgeXConfig } from './types.js';
 /**
  * EdgeX adapter implementation
  */
-export class EdgeXAdapter extends BaseAdapter {
+export class EdgeXAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'edgex';
   readonly name = 'EdgeX';
 
@@ -61,6 +61,9 @@ export class EdgeXAdapter extends BaseAdapter {
     watchPositions: true,
     watchOrders: true,
     watchBalance: true,
+    fetchOHLCV: false,
+    cancelBatchOrders: false,
+    setMarginMode: false,
   };
 
   private readonly auth?: EdgeXAuth;

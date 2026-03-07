@@ -120,7 +120,7 @@ export const GRVT_WS_CHANNELS = {
 export const GRVT_EIP712_DOMAIN = {
   name: 'GRVT',
   version: '1',
-  chainId: 1, // Mainnet
+  chainId: 325, // GRVT mainnet (ZKsync-based L2)
   verifyingContract: '0x0000000000000000000000000000000000000000', // Placeholder
 } as const;
 

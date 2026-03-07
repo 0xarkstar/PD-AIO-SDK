@@ -13,10 +13,16 @@
 export const JUPITER_API_URLS = {
     mainnet: {
         price: 'https://hermes.pyth.network/v2/updates/price/latest',
+        priceFallback: 'https://hermes-beta.pyth.network/v2/updates/price/latest',
         stats: 'https://perp-api.jup.ag', // Stats API (unofficial, may change)
     },
     // Jupiter Perps only operates on mainnet
 };
+/** Ordered Pyth Hermes endpoints: primary first, then fallbacks */
+export const PYTH_HERMES_ENDPOINTS = [
+    'https://hermes.pyth.network',
+    'https://hermes-beta.pyth.network',
+];
 export const JUPITER_MAINNET_PRICE_API = JUPITER_API_URLS.mainnet.price;
 export const JUPITER_MAINNET_STATS_API = JUPITER_API_URLS.mainnet.stats;
 /**

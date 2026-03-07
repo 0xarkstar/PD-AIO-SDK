@@ -4,12 +4,12 @@
  * Implements IExchangeAdapter for Aster DEX (Binance-style API)
  */
 import type { Balance, FundingRate, Market, MarketParams, OHLCV, OHLCVParams, OHLCVTimeframe, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import type { AsterConfig } from './types.js';
-export declare class AsterAdapter extends BaseAdapter {
+export declare class AsterAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "aster";
     readonly name = "Aster";
     readonly has: Partial<FeatureMap>;

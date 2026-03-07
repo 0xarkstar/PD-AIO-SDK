@@ -20,6 +20,7 @@ import type {
   Balance,
   ExchangeConfig,
   FeatureMap,
+  IExchangeAdapter,
   FundingRate,
   Market,
   MarketParams,
@@ -116,7 +117,7 @@ export interface GmxConfig extends ExchangeConfig {
  * });
  * ```
  */
-export class GmxAdapter extends BaseAdapter {
+export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'gmx';
   readonly name = 'GMX v2';
 
@@ -136,6 +137,7 @@ export class GmxAdapter extends BaseAdapter {
     cancelAllOrders: true,
     createBatchOrders: false,
     cancelBatchOrders: false,
+    editOrder: false,
 
     // Account data
     fetchPositions: true,

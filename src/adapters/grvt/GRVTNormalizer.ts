@@ -27,6 +27,7 @@ import type {
   Trade,
   Ticker,
   OrderBook,
+  FundingRate,
 } from '../../types/common.js';
 import { GRVT_PRECISION } from './constants.js';
 import { PerpDEXError } from '../../types/errors.js';
@@ -478,5 +479,46 @@ export class GRVTNormalizer {
       checksum: undefined,
       exchange: 'grvt',
     };
+  }
+
+  // ===========================================================================
+  // Funding Rate Normalization
+  // ===========================================================================
+
+  /**
+   * Normalize GRVT funding rate to unified format
+   */
+  normalizeFundingRate(grvtFunding: {
+    instrument?: string;
+    funding_rate?: string;
+    funding_time?: string;
+    mark_price?: string;
+    funding_interval_hours?: number;
+  }): FundingRate {
+    const fundingTimestamp = grvtFunding.funding_time
+      ? parseInt(grvtFunding.funding_time)
+      : Date.now();
+    const fundingIntervalHours = grvtFunding.funding_interval_hours ?? 8;
+    const nextFundingTimestamp = fundingTimestamp + fundingIntervalHours * 60 * 60 * 1000;
+    const markPrice = this.toNumberSafe(grvtFunding.mark_price || '0');
+
+    return {
+      symbol: this.symbolToCCXT(grvtFunding.instrument || ''),
+      fundingRate: this.toNumberSafe(grvtFunding.funding_rate || '0'),
+      fundingTimestamp,
+      nextFundingTimestamp,
+      markPrice,
+      indexPrice: 0,
+      fundingIntervalHours,
+      info: grvtFunding as Record<string, unknown>,
+    };
+  }
+
+  normalizeSymbol(exchangeSymbol: string): string {
+    return this.symbolToCCXT(exchangeSymbol);
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    return this.symbolFromCCXT(symbol);
   }
 }

@@ -124,20 +124,17 @@ const MOCK_OPEN_TRADE: OstiumOpenTrade = {
 
 describe('OstiumAuth Coverage', () => {
   const authConfig = {
-    privateKey: '0x' + '2'.repeat(64),
     rpcUrl: 'https://arb1.arbitrum.io/rpc',
   };
 
-  test('getAddress() returns wallet address', () => {
+  test('privateKey is no longer stored (security hardening)', () => {
     const auth = new OstiumAuth(authConfig);
-    const address = auth.getAddress();
-    expect(address).toBe(mockAddress);
+    expect((auth as any).privateKey).toBeUndefined();
   });
 
-  test('getPrivateKey() is not publicly accessible (security)', () => {
+  test('getAddress() was removed (security hardening)', () => {
     const auth = new OstiumAuth(authConfig);
-    // getPrivateKey was removed in C25 S2 security hardening
-    expect((auth as any).getPrivateKey).toBeUndefined();
+    expect((auth as any).getAddress).toBeUndefined();
   });
 
   test('sign() returns request unchanged (passthrough)', async () => {
@@ -149,18 +146,13 @@ describe('OstiumAuth Coverage', () => {
     expect(signed.body).toBe('{}');
   });
 
-  test('hasCredentials() true when both privateKey and rpcUrl set', () => {
+  test('hasCredentials() true when rpcUrl set', () => {
     const auth = new OstiumAuth(authConfig);
     expect(auth.hasCredentials()).toBe(true);
   });
 
-  test('hasCredentials() false when empty privateKey', () => {
-    const auth = new OstiumAuth({ privateKey: '', rpcUrl: 'https://arb1.arbitrum.io/rpc' });
-    expect(auth.hasCredentials()).toBe(false);
-  });
-
   test('hasCredentials() false when empty rpcUrl', () => {
-    const auth = new OstiumAuth({ privateKey: '0x' + '1'.repeat(64), rpcUrl: '' });
+    const auth = new OstiumAuth({ rpcUrl: '' });
     expect(auth.hasCredentials()).toBe(false);
   });
 

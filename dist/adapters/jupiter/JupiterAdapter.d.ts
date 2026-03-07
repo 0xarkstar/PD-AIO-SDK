@@ -14,7 +14,7 @@
  * @see https://dev.jup.ag/docs/perps
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
-import type { Balance, ExchangeConfig, FeatureMap, FundingRate, Market, MarketParams, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
+import type { Balance, ExchangeConfig, FeatureMap, IExchangeAdapter, FundingRate, Market, MarketParams, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
 /**
  * Jupiter adapter configuration
  */
@@ -59,7 +59,7 @@ export type JupiterAdapterConfig = JupiterConfig;
  * });
  * ```
  */
-export declare class JupiterAdapter extends BaseAdapter {
+export declare class JupiterAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "jupiter";
     readonly name = "Jupiter Perps";
     readonly has: Partial<FeatureMap>;

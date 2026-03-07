@@ -412,5 +412,35 @@ export class GRVTNormalizer {
             exchange: 'grvt',
         };
     }
+    // ===========================================================================
+    // Funding Rate Normalization
+    // ===========================================================================
+    /**
+     * Normalize GRVT funding rate to unified format
+     */
+    normalizeFundingRate(grvtFunding) {
+        const fundingTimestamp = grvtFunding.funding_time
+            ? parseInt(grvtFunding.funding_time)
+            : Date.now();
+        const fundingIntervalHours = grvtFunding.funding_interval_hours ?? 8;
+        const nextFundingTimestamp = fundingTimestamp + fundingIntervalHours * 60 * 60 * 1000;
+        const markPrice = this.toNumberSafe(grvtFunding.mark_price || '0');
+        return {
+            symbol: this.symbolToCCXT(grvtFunding.instrument || ''),
+            fundingRate: this.toNumberSafe(grvtFunding.funding_rate || '0'),
+            fundingTimestamp,
+            nextFundingTimestamp,
+            markPrice,
+            indexPrice: 0,
+            fundingIntervalHours,
+            info: grvtFunding,
+        };
+    }
+    normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+    }
+    toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+    }
 }
 //# sourceMappingURL=GRVTNormalizer.js.map

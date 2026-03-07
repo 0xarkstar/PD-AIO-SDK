@@ -13,5 +13,7 @@ export declare class AsterNormalizer {
     normalizeOrder(raw: AsterOrderResponse, symbol?: string): Order;
     normalizePosition(raw: AsterPositionRisk, symbol?: string): Position;
     normalizeBalance(raw: AsterAccountBalance): Balance;
+    normalizeSymbol(exchangeSymbol: string): string;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=AsterNormalizer.d.ts.map

@@ -610,4 +610,15 @@ export class NadoNormalizer {
         return 'rejected';
     }
   }
+
+  /**
+   * Normalize market data - alias for normalizeSymbol for unified interface
+   */
+  normalizeMarket(symbolData: NadoSymbol): Market {
+    return this.normalizeSymbol(symbolData);
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    return this.symbolFromCCXT(symbol);
+  }
 }

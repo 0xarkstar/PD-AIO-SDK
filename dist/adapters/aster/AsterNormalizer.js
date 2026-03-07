@@ -2,6 +2,7 @@
  * Aster Response Normalizer
  */
 import { ASTER_ORDER_STATUS } from './constants.js';
+import { toAsterSymbol } from './utils.js';
 import { AsterSymbolInfoSchema, AsterTicker24hrSchema, AsterOrderBookResponseSchema, AsterTradeResponseSchema, AsterPremiumIndexSchema, AsterOrderResponseSchema, AsterPositionRiskSchema, AsterAccountBalanceSchema, } from './types.js';
 import { toUnifiedSymbol } from './utils.js';
 export class AsterNormalizer {
@@ -164,6 +165,19 @@ export class AsterNormalizer {
             used: parseFloat(validated.balance) - parseFloat(validated.availableBalance),
             info: validated,
         };
+    }
+    normalizeSymbol(exchangeSymbol) {
+        const quoteAssets = ['USDT', 'USDC', 'BUSD'];
+        for (const quote of quoteAssets) {
+            if (exchangeSymbol.endsWith(quote)) {
+                const base = exchangeSymbol.slice(0, -quote.length);
+                return `${base}/${quote}:${quote}`;
+            }
+        }
+        return exchangeSymbol;
+    }
+    toExchangeSymbol(symbol) {
+        return toAsterSymbol(symbol);
     }
 }
 //# sourceMappingURL=AsterNormalizer.js.map

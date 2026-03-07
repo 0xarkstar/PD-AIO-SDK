@@ -171,5 +171,7 @@ export declare class HyperliquidNormalizer {
         mid: string;
         [key: string]: unknown;
     }): Ticker;
+    normalizeSymbol(exchangeSymbol: string): string;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=HyperliquidNormalizer.d.ts.map

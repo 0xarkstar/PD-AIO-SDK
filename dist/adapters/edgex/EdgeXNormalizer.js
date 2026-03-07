@@ -359,5 +359,8 @@ export class EdgeXNormalizer {
         const parts = value.split('.');
         return parts.length === 2 && parts[1] ? parts[1].length : 0;
     }
+    toExchangeSymbol(symbol) {
+        return this.toEdgeXSymbol(symbol);
+    }
 }
 //# sourceMappingURL=EdgeXNormalizer.js.map

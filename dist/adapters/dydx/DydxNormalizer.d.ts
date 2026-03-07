@@ -167,5 +167,7 @@ export declare class DydxNormalizer {
      * @returns Array of OHLCV tuples
      */
     normalizeCandles(candles: DydxCandle[]): OHLCV[];
+    normalizeSymbol(exchangeSymbol: string): string;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=DydxNormalizer.d.ts.map

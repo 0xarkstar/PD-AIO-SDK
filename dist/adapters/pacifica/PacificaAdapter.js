@@ -36,6 +36,15 @@ export class PacificaAdapter extends BaseAdapter {
         fetchPositions: true,
         fetchBalance: true,
         setLeverage: true,
+        setMarginMode: false,
+        editOrder: false,
+        fetchOpenOrders: false,
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchOrders: false,
+        watchPositions: false,
+        watchBalance: false,
     };
     auth;
     baseUrl;

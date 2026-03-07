@@ -22,7 +22,7 @@ export const ASTER_RATE_LIMITS = {
     },
 };
 export const ASTER_ENDPOINT_WEIGHTS = {
-    fetchMarkets: 40,
+    fetchMarkets: 1,
     fetchTicker: 1,
     fetchOrderBook: 5,
     fetchTrades: 5,

@@ -4,7 +4,7 @@
  * Transforms Jupiter on-chain account data and API responses
  * to unified SDK format.
  */
-import type { Market, Position, FundingRate, Balance, Ticker, OrderBook } from '../../types/common.js';
+import type { Market, Position, FundingRate, Balance, Ticker, OrderBook, Order, Trade } from '../../types/common.js';
 import type { JupiterPositionAccount, JupiterPoolAccount, JupiterCustodyAccount, JupiterMarketStats, JupiterPoolStats, JupiterPriceData, JupiterNormalizedPosition } from './types.js';
 /**
  * Normalizer for Jupiter Perps data
@@ -46,6 +46,42 @@ export declare class JupiterNormalizer {
      */
     normalizeOrderBook(marketKey: string, currentPrice: number, poolStats?: JupiterPoolStats): OrderBook;
     /**
+     * Normalize order data to unified Order
+     * Jupiter uses instant execution, so orders are typically already filled
+     */
+    normalizeOrder(data: {
+        id: string;
+        symbol: string;
+        side: 'buy' | 'sell';
+        type?: 'market' | 'limit';
+        amount: number;
+        price: number;
+        filled?: number;
+        status?: 'open' | 'closed' | 'canceled';
+        timestamp?: number;
+        leverage?: number;
+        reduceOnly?: boolean;
+        clientOrderId?: string;
+        info?: Record<string, unknown>;
+    }): Order;
+    /**
+     * Normalize trade data to unified Trade
+     * Jupiter trades come from on-chain transaction parsing
+     */
+    normalizeTrade(data: {
+        id: string;
+        symbol: string;
+        side: 'buy' | 'sell';
+        price: number;
+        amount: number;
+        timestamp?: number;
+        fee?: {
+            cost: number;
+            currency: string;
+        };
+        info?: Record<string, unknown>;
+    }): Trade;
+    /**
      * Normalize pool stats to unified format
      */
     normalizePoolStats(stats: JupiterPoolStats): Record<string, unknown>;
@@ -66,5 +102,7 @@ export declare class JupiterNormalizer {
      * Get amount precision for market
      */
     private getAmountPrecision;
+    normalizeSymbol(exchangeSymbol: string): string;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=JupiterNormalizer.d.ts.map

@@ -10,7 +10,7 @@
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type { Market, Order, Position, Balance, OrderBook, Trade, Ticker, FundingRate, OrderRequest, MarketParams, OrderBookParams, TradeParams } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import type { LighterConfig } from './types.js';
@@ -35,7 +35,7 @@ export type { LighterConfig } from './types.js';
  * });
  * ```
  */
-export declare class LighterAdapter extends BaseAdapter {
+export declare class LighterAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "lighter";
     readonly name = "Lighter";
     readonly has: Partial<FeatureMap>;

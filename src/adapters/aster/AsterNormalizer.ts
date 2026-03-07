@@ -15,6 +15,7 @@ import type {
 } from '../../types/common.js';
 import type { OrderStatus } from '../../types/common.js';
 import { ASTER_ORDER_STATUS } from './constants.js';
+import { toAsterSymbol } from './utils.js';
 import type {
   AsterAccountBalance,
   AsterKlineResponse,
@@ -218,5 +219,20 @@ export class AsterNormalizer {
       used: parseFloat(validated.balance) - parseFloat(validated.availableBalance),
       info: validated as unknown as Record<string, unknown>,
     };
+  }
+
+  normalizeSymbol(exchangeSymbol: string): string {
+    const quoteAssets = ['USDT', 'USDC', 'BUSD'];
+    for (const quote of quoteAssets) {
+      if (exchangeSymbol.endsWith(quote)) {
+        const base = exchangeSymbol.slice(0, -quote.length);
+        return `${base}/${quote}:${quote}`;
+      }
+    }
+    return exchangeSymbol;
+  }
+
+  toExchangeSymbol(symbol: string): string {
+    return toAsterSymbol(symbol);
   }
 }

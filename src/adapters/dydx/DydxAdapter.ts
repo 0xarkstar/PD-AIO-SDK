@@ -17,6 +17,7 @@ import type {
   Balance,
   ExchangeConfig,
   FeatureMap,
+  IExchangeAdapter,
   FundingRate,
   Market,
   MarketParams,
@@ -95,7 +96,7 @@ export interface DydxConfig extends ExchangeConfig {
  * const positions = await dydxTrading.fetchPositions();
  * ```
  */
-export class DydxAdapter extends BaseAdapter {
+export class DydxAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'dydx';
   readonly name = 'dYdX v4';
 

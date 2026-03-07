@@ -8539,6 +8539,12 @@ var init_HyperliquidNormalizer = __esm({
           }
         };
       }
+      normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+      }
+      toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+      }
     };
   }
 });
@@ -9060,7 +9066,8 @@ var init_HyperliquidAdapter = __esm({
         createBatchOrders: true,
         cancelBatchOrders: true,
         editOrder: false,
-        // Account History
+        // Account
+        fetchOpenOrders: true,
         fetchOrderHistory: true,
         fetchMyTrades: true,
         fetchDeposits: false,
@@ -10902,6 +10909,9 @@ var init_LighterNormalizer = __esm({
             return "open";
         }
       }
+      toExchangeSymbol(symbol) {
+        return this.toLighterSymbol(symbol);
+      }
     };
   }
 });
@@ -12516,7 +12526,11 @@ var init_LighterAdapter = __esm({
         watchPositions: true,
         watchOrders: true,
         watchBalance: true,
-        watchMyTrades: true
+        watchMyTrades: true,
+        fetchOHLCV: false,
+        editOrder: false,
+        fetchOpenOrders: false,
+        setMarginMode: false
       };
       apiUrl;
       wsUrl;
@@ -13717,8 +13731,8 @@ var init_constants3 = __esm({
     GRVT_EIP712_DOMAIN = {
       name: "GRVT",
       version: "1",
-      chainId: 1,
-      // Mainnet
+      chainId: 325,
+      // GRVT mainnet (ZKsync-based L2)
       verifyingContract: "0x0000000000000000000000000000000000000000"
       // Placeholder
     };
@@ -13914,8 +13928,8 @@ var init_GRVTAuth = __esm({
         }
         const domain = {
           ...GRVT_EIP712_DOMAIN,
-          chainId: this.testnet ? 5 : 1
-          // Goerli for testnet, mainnet otherwise
+          chainId: this.testnet ? 326822723 : 325
+          // GRVT testnet (dev) / mainnet (ZKsync-based L2)
         };
         const types = GRVT_EIP712_ORDER_TYPE;
         const value = {
@@ -14364,6 +14378,34 @@ var init_GRVTNormalizer = __esm({
           checksum: void 0,
           exchange: "grvt"
         };
+      }
+      // ===========================================================================
+      // Funding Rate Normalization
+      // ===========================================================================
+      /**
+       * Normalize GRVT funding rate to unified format
+       */
+      normalizeFundingRate(grvtFunding) {
+        const fundingTimestamp = grvtFunding.funding_time ? parseInt(grvtFunding.funding_time) : Date.now();
+        const fundingIntervalHours = grvtFunding.funding_interval_hours ?? 8;
+        const nextFundingTimestamp = fundingTimestamp + fundingIntervalHours * 60 * 60 * 1e3;
+        const markPrice = this.toNumberSafe(grvtFunding.mark_price || "0");
+        return {
+          symbol: this.symbolToCCXT(grvtFunding.instrument || ""),
+          fundingRate: this.toNumberSafe(grvtFunding.funding_rate || "0"),
+          fundingTimestamp,
+          nextFundingTimestamp,
+          markPrice,
+          indexPrice: 0,
+          fundingIntervalHours,
+          info: grvtFunding
+        };
+      }
+      normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+      }
+      toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
       }
     };
   }
@@ -15179,7 +15221,12 @@ var init_GRVTAdapter = __esm({
         watchPositions: true,
         watchOrders: true,
         watchBalance: true,
-        watchMyTrades: true
+        watchMyTrades: true,
+        cancelBatchOrders: false,
+        editOrder: false,
+        fetchOpenOrders: false,
+        setLeverage: false,
+        setMarginMode: false
       };
       sdk;
       auth;
@@ -17452,6 +17499,12 @@ var init_ParadexNormalizer = __esm({
             return PARADEX_TIME_IN_FORCE.GTC;
         }
       }
+      normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+      }
+      toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+      }
     };
   }
 });
@@ -18364,7 +18417,11 @@ var init_ParadexAdapter = __esm({
         watchPositions: true,
         watchOrders: true,
         watchBalance: true,
-        watchMyTrades: true
+        watchMyTrades: true,
+        fetchOHLCV: false,
+        editOrder: false,
+        fetchOpenOrders: false,
+        setMarginMode: false
       };
       // Component architecture
       auth;
@@ -19543,6 +19600,9 @@ var init_EdgeXNormalizer = __esm({
         const parts = value.split(".");
         return parts.length === 2 && parts[1] ? parts[1].length : 0;
       }
+      toExchangeSymbol(symbol) {
+        return this.toEdgeXSymbol(symbol);
+      }
     };
   }
 });
@@ -19728,7 +19788,10 @@ var init_EdgeXAdapter = __esm({
         watchTicker: true,
         watchPositions: true,
         watchOrders: true,
-        watchBalance: true
+        watchBalance: true,
+        fetchOHLCV: false,
+        cancelBatchOrders: false,
+        setMarginMode: false
       };
       auth;
       baseUrl;
@@ -20713,6 +20776,9 @@ var init_BackpackNormalizer = __esm({
         const parts = value.split(".");
         return parts.length === 2 && parts[1] ? parts[1].length : 0;
       }
+      toExchangeSymbol(symbol) {
+        return this.toBackpackSymbol(symbol);
+      }
     };
   }
 });
@@ -21643,7 +21709,11 @@ var init_BackpackAdapter = __esm({
         watchTicker: true,
         watchPositions: true,
         watchOrders: true,
-        watchBalance: true
+        watchBalance: true,
+        fetchOHLCV: false,
+        editOrder: false,
+        fetchOpenOrders: false,
+        setMarginMode: false
       };
       auth;
       baseUrl;
@@ -23449,6 +23519,15 @@ var init_NadoNormalizer = __esm({
             return "rejected";
         }
       }
+      /**
+       * Normalize market data - alias for normalizeSymbol for unified interface
+       */
+      normalizeMarket(symbolData) {
+        return this.normalizeSymbol(symbolData);
+      }
+      toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+      }
     };
   }
 });
@@ -23631,6 +23710,7 @@ var init_NadoAdapter = __esm({
         // REST API not available, use watchTrades for WebSocket
         fetchFundingRate: true,
         fetchFundingRateHistory: false,
+        fetchOHLCV: false,
         // Trading
         createOrder: true,
         cancelOrder: true,
@@ -23643,7 +23723,8 @@ var init_NadoAdapter = __esm({
         fetchMyTrades: false,
         fetchDeposits: false,
         fetchWithdrawals: false,
-        // Positions & Balance
+        // Account
+        fetchOpenOrders: false,
         fetchPositions: true,
         fetchBalance: true,
         setLeverage: false,
@@ -25141,6 +25222,12 @@ var init_VariationalNormalizer = __esm({
           timestamp: new Date(quotes.updated_at).getTime() || Date.now()
         };
       }
+      normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+      }
+      toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+      }
     };
   }
 });
@@ -25172,6 +25259,7 @@ var init_VariationalAdapter = __esm({
         // Public API (Not yet implemented/documented)
         fetchTrades: false,
         // No trades endpoint for RFQ DEX
+        fetchOHLCV: false,
         fetchFundingRateHistory: false,
         // Trading API (Implemented - requires API endpoint availability)
         createOrder: true,
@@ -25834,8 +25922,10 @@ var init_constants9 = __esm({
     };
     EXTENDED_STARKNET_CONFIG = {
       chainId: {
-        mainnet: "SN_MAIN",
-        testnet: "SN_SEPOLIA"
+        mainnet: "0x534e5f4d41494e",
+        // SN_MAIN (StarkNet hex chain ID)
+        testnet: "0x534e5f5345504f4c4941"
+        // SN_SEPOLIA (StarkNet hex chain ID)
       },
       blockTime: 6e5,
       // 10 minutes in milliseconds
@@ -26601,6 +26691,12 @@ var init_ExtendedNormalizer = __esm({
        */
       normalizeFundingRates(rates) {
         return rates.map((rate) => this.normalizeFundingRate(rate));
+      }
+      normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+      }
+      toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
       }
     };
   }
@@ -28358,8 +28454,18 @@ var init_DydxAuth = __esm({
       /**
        * Derive dYdX address from mnemonic
        *
-       * Note: This is a simplified implementation. In production,
-       * use @cosmjs/proto-signing or @dydxprotocol/v4-client-js
+       * @WARNING This is a PLACEHOLDER that generates a deterministic but INVALID
+       * Cosmos address. It does NOT perform proper BIP39 → HD key → bech32 derivation.
+       * Addresses produced by this method will NOT match the real dYdX address for the
+       * given mnemonic and CANNOT be used for on-chain operations.
+       *
+       * TODO: Replace with proper Cosmos address derivation:
+       *   1. `@cosmjs/crypto` — Bip39.decode(mnemonic) → seed
+       *   2. `@cosmjs/crypto` — Slip10.derivePath(Slip10Curve.Secp256k1, seed, stringToPath("m/44'/118'/0'/0/0"))
+       *   3. `@cosmjs/amino` — pubkeyToAddress(compressedPubkey, "dydx")
+       *   Or use `@dydxprotocol/v4-client-js` CompositeClient which handles this internally.
+       *
+       * Required packages: @cosmjs/amino, @cosmjs/crypto, @cosmjs/proto-signing
        */
       async deriveAddressFromMnemonic(mnemonic) {
         const words = mnemonic.trim().split(/\s+/);
@@ -28371,6 +28477,11 @@ var init_DydxAuth = __esm({
       }
       /**
        * Derive dYdX address from private key
+       *
+       * @WARNING PLACEHOLDER — same limitations as deriveAddressFromMnemonic.
+       * Does NOT perform real secp256k1 → ripemd160(sha256(pubkey)) → bech32 derivation.
+       *
+       * TODO: Use @cosmjs/crypto Secp256k1.makeKeypair() + pubkeyToAddress()
        */
       async deriveAddressFromPrivateKey(privateKey) {
         const cleanKey = privateKey.startsWith("0x") ? privateKey.slice(2) : privateKey;
@@ -28381,8 +28492,9 @@ var init_DydxAuth = __esm({
         return `dydx${hash3.slice(0, 38)}`;
       }
       /**
-       * Simple hash function for placeholder address generation
-       * Real implementation should use proper cryptographic derivation
+       * Simple hash function for placeholder address generation.
+       * NOT cryptographically secure — used only for deterministic placeholder addresses.
+       * @internal
        */
       simpleHash(input) {
         let hash3 = 0;
@@ -29129,6 +29241,12 @@ var init_DydxNormalizer = __esm({
        */
       normalizeCandles(candles) {
         return candles.map((candle) => this.normalizeCandle(candle));
+      }
+      normalizeSymbol(exchangeSymbol) {
+        return dydxToUnified(exchangeSymbol);
+      }
+      toExchangeSymbol(symbol) {
+        return unifiedToDydx(symbol);
       }
     };
   }
@@ -30008,6 +30126,7 @@ __export(constants_exports, {
   JUPITER_PYTH_FEED_IDS: () => JUPITER_PYTH_FEED_IDS,
   JUPITER_RATE_LIMIT: () => JUPITER_RATE_LIMIT,
   JUPITER_TOKEN_MINTS: () => JUPITER_TOKEN_MINTS,
+  PYTH_HERMES_ENDPOINTS: () => PYTH_HERMES_ENDPOINTS,
   SOLANA_DEFAULT_RPC: () => SOLANA_DEFAULT_RPC,
   SOLANA_RPC_ENDPOINTS: () => SOLANA_RPC_ENDPOINTS,
   getBaseToken: () => getBaseToken,
@@ -30030,18 +30149,23 @@ function getBaseToken(symbol) {
   const parts = symbol.split("/");
   return parts[0] || "";
 }
-var JUPITER_API_URLS, JUPITER_MAINNET_PRICE_API, JUPITER_MAINNET_STATS_API, JUPITER_PYTH_FEED_IDS, JUPITER_PERPS_PROGRAM_ID, JLP_TOKEN_MINT, JUPITER_TOKEN_MINTS, JUPITER_RATE_LIMIT, JUPITER_MARKETS, JUPITER_ORDER_SIDES, JUPITER_DEFAULT_PRECISION, JUPITER_BORROW_FEE, SOLANA_RPC_ENDPOINTS, SOLANA_DEFAULT_RPC, JUPITER_ERROR_MESSAGES;
+var JUPITER_API_URLS, PYTH_HERMES_ENDPOINTS, JUPITER_MAINNET_PRICE_API, JUPITER_MAINNET_STATS_API, JUPITER_PYTH_FEED_IDS, JUPITER_PERPS_PROGRAM_ID, JLP_TOKEN_MINT, JUPITER_TOKEN_MINTS, JUPITER_RATE_LIMIT, JUPITER_MARKETS, JUPITER_ORDER_SIDES, JUPITER_DEFAULT_PRECISION, JUPITER_BORROW_FEE, SOLANA_RPC_ENDPOINTS, SOLANA_DEFAULT_RPC, JUPITER_ERROR_MESSAGES;
 var init_constants11 = __esm({
   "src/adapters/jupiter/constants.ts"() {
     "use strict";
     JUPITER_API_URLS = {
       mainnet: {
         price: "https://hermes.pyth.network/v2/updates/price/latest",
+        priceFallback: "https://hermes-beta.pyth.network/v2/updates/price/latest",
         stats: "https://perp-api.jup.ag"
         // Stats API (unofficial, may change)
       }
       // Jupiter Perps only operates on mainnet
     };
+    PYTH_HERMES_ENDPOINTS = [
+      "https://hermes.pyth.network",
+      "https://hermes-beta.pyth.network"
+    ];
     JUPITER_MAINNET_PRICE_API = JUPITER_API_URLS.mainnet.price;
     JUPITER_MAINNET_STATS_API = JUPITER_API_URLS.mainnet.stats;
     JUPITER_PYTH_FEED_IDS = {
@@ -30403,6 +30527,48 @@ var init_JupiterNormalizer = __esm({
         };
       }
       /**
+       * Normalize order data to unified Order
+       * Jupiter uses instant execution, so orders are typically already filled
+       */
+      normalizeOrder(data) {
+        const filled = data.filled ?? data.amount;
+        const remaining = data.amount - filled;
+        return {
+          id: data.id,
+          symbol: data.symbol,
+          type: data.type ?? "market",
+          side: data.side,
+          amount: data.amount,
+          price: data.price,
+          status: data.status ?? "closed",
+          filled,
+          remaining,
+          averagePrice: data.price,
+          reduceOnly: data.reduceOnly ?? false,
+          postOnly: false,
+          clientOrderId: data.clientOrderId,
+          timestamp: data.timestamp ?? Date.now(),
+          info: data.info
+        };
+      }
+      /**
+       * Normalize trade data to unified Trade
+       * Jupiter trades come from on-chain transaction parsing
+       */
+      normalizeTrade(data) {
+        return {
+          id: data.id,
+          symbol: data.symbol,
+          side: data.side,
+          price: data.price,
+          amount: data.amount,
+          cost: data.price * data.amount,
+          fee: data.fee,
+          timestamp: data.timestamp ?? Date.now(),
+          info: data.info
+        };
+      }
+      /**
        * Normalize pool stats to unified format
        */
       normalizePoolStats(stats) {
@@ -30462,6 +30628,12 @@ var init_JupiterNormalizer = __esm({
         if (!config) return 4;
         const stepSize = config.stepSize;
         return Math.max(0, -Math.floor(Math.log10(stepSize)));
+      }
+      normalizeSymbol(exchangeSymbol) {
+        return jupiterToUnified(exchangeSymbol);
+      }
+      toExchangeSymbol(symbol) {
+        return unifiedToJupiter(symbol);
       }
     };
   }
@@ -31941,7 +32113,7 @@ function getPositionPDASeeds(owner, pool, custody, side) {
     side: side === "long" ? "Long" : "Short"
   };
 }
-function buildPriceApiUrl(tokenIds) {
+function resolvePythFeedIds(tokenIds) {
   const feedIds = [];
   for (const tokenId of tokenIds) {
     let baseToken;
@@ -31959,9 +32131,16 @@ function buildPriceApiUrl(tokenIds) {
       feedIds.push(rawFeedId.replace(/^0x/, ""));
     }
   }
-  const baseUrl = "https://hermes.pyth.network/v2/updates/price/latest";
+  return feedIds;
+}
+function buildPriceApiUrl(tokenIds, endpointIndex = 0) {
+  const feedIds = resolvePythFeedIds(tokenIds);
+  const endpoint = PYTH_HERMES_ENDPOINTS[endpointIndex] ?? PYTH_HERMES_ENDPOINTS[0];
   const params = feedIds.map((id) => `ids[]=${id}`).join("&");
-  return `${baseUrl}?${params}`;
+  return `${endpoint}/v2/updates/price/latest?${params}`;
+}
+function buildPriceApiUrls(tokenIds) {
+  return PYTH_HERMES_ENDPOINTS.map((_, i) => buildPriceApiUrl(tokenIds, i));
 }
 function buildRpcRequestBody(method, params) {
   return {
@@ -32626,8 +32805,21 @@ var init_JupiterAdapter = __esm({
           }
           return t;
         });
-        const url = buildPriceApiUrl(mints);
-        const response = await this.request("GET", url);
+        const urls = buildPriceApiUrls(mints);
+        let response;
+        let lastError;
+        for (const url of urls) {
+          try {
+            response = await this.request("GET", url);
+            break;
+          } catch (error) {
+            lastError = error;
+            this.warn(`Pyth Hermes request failed for ${url}, trying next endpoint...`);
+          }
+        }
+        if (!response) {
+          throw lastError ?? new Error("All Pyth Hermes endpoints failed");
+        }
         const result = {};
         if (!response.parsed || response.parsed.length === 0) {
           return result;
@@ -33728,6 +33920,12 @@ var init_DriftNormalizer = __esm({
       getPrecisionFromTickSize(tickSize) {
         if (tickSize >= 1) return 0;
         return Math.max(0, -Math.floor(Math.log10(tickSize)));
+      }
+      normalizeSymbol(exchangeSymbol) {
+        return driftToUnified(exchangeSymbol);
+      }
+      toExchangeSymbol(symbol) {
+        return unifiedToDrift(symbol);
       }
     };
   }
@@ -35081,6 +35279,7 @@ var init_DriftAdapter = __esm({
         cancelAllOrders: true,
         createBatchOrders: false,
         cancelBatchOrders: false,
+        editOrder: false,
         // Account data
         fetchPositions: true,
         fetchBalance: true,
@@ -36378,6 +36577,7 @@ var GmxNormalizer;
 var init_GmxNormalizer = __esm({
   "src/adapters/gmx/GmxNormalizer.ts"() {
     "use strict";
+    init_errors();
     init_types15();
     init_constants13();
     GmxNormalizer = class {
@@ -36745,6 +36945,28 @@ var init_GmxNormalizer = __esm({
       normalizeCandles(candles) {
         return candles.map((c) => this.normalizeCandle(c));
       }
+      /**
+       * Normalize balance data to unified Balance
+       */
+      normalizeBalance(currency, total, usdValue) {
+        return {
+          currency,
+          total,
+          free: total,
+          used: 0,
+          usdValue
+        };
+      }
+      /**
+       * Normalize order book - GMX is AMM-based and does not have a traditional order book
+       */
+      normalizeOrderBook(_data) {
+        throw new NotSupportedError(
+          "GMX is AMM-based and does not have a traditional order book. Use fetchTicker for price data.",
+          "NOT_SUPPORTED",
+          "gmx"
+        );
+      }
       // ==========================================================================
       // Helper Methods
       // ==========================================================================
@@ -36786,6 +37008,16 @@ var init_GmxNormalizer = __esm({
       getPrecisionFromTickSize(tickSize) {
         if (tickSize >= 1) return 0;
         return Math.max(0, -Math.floor(Math.log10(tickSize)));
+      }
+      normalizeSymbol(exchangeSymbol) {
+        if (exchangeSymbol in GMX_MARKETS) {
+          return gmxToUnified(exchangeSymbol);
+        }
+        return exchangeSymbol;
+      }
+      toExchangeSymbol(symbol) {
+        const gmxSymbol = unifiedToGmx(symbol);
+        return gmxSymbol || symbol;
       }
     };
   }
@@ -38146,6 +38378,7 @@ var init_GmxAdapter = __esm({
         cancelAllOrders: true,
         createBatchOrders: false,
         cancelBatchOrders: false,
+        editOrder: false,
         // Account data
         fetchPositions: true,
         fetchBalance: true,
@@ -38882,7 +39115,7 @@ var init_constants14 = __esm({
       }
     };
     ASTER_ENDPOINT_WEIGHTS = {
-      fetchMarkets: 40,
+      fetchMarkets: 1,
       fetchTicker: 1,
       fetchOrderBook: 5,
       fetchTrades: 5,
@@ -38998,6 +39231,60 @@ var init_AsterAuth = __esm({
         return !!(this.apiKey && this.apiSecret);
       }
     };
+  }
+});
+
+// src/adapters/aster/utils.ts
+function toAsterSymbol(unified) {
+  const parts = unified.split(/[/:]/);
+  return `${parts[0]}${parts[1]}`;
+}
+function toUnifiedSymbol(_asterSymbol, baseAsset, quoteAsset) {
+  return `${baseAsset}/${quoteAsset}:${quoteAsset}`;
+}
+function toAsterOrderSide(side) {
+  return ASTER_ORDER_SIDES[side] ?? side.toUpperCase();
+}
+function toAsterOrderType(type) {
+  return ASTER_ORDER_TYPES[type] ?? type.toUpperCase();
+}
+function toAsterTimeInForce(tif, postOnly) {
+  if (postOnly) return "GTX";
+  if (tif) return ASTER_TIME_IN_FORCE[tif] ?? tif;
+  return "GTC";
+}
+function buildOrderParams(request, asterSymbol, referralCode) {
+  const params = {
+    symbol: asterSymbol,
+    side: toAsterOrderSide(request.side),
+    type: toAsterOrderType(request.type),
+    quantity: request.amount
+  };
+  if (request.price !== void 0) {
+    params.price = request.price;
+  }
+  if (request.stopPrice !== void 0) {
+    params.stopPrice = request.stopPrice;
+  }
+  if (request.type !== "market") {
+    params.timeInForce = toAsterTimeInForce(request.timeInForce, request.postOnly);
+  }
+  if (request.reduceOnly) {
+    params.reduceOnly = "true";
+  }
+  if (request.clientOrderId) {
+    params.newClientOrderId = request.clientOrderId;
+  }
+  const code = request.builderCode ?? referralCode;
+  if (code) {
+    params.referralCode = code;
+  }
+  return params;
+}
+var init_utils11 = __esm({
+  "src/adapters/aster/utils.ts"() {
+    "use strict";
+    init_constants14();
   }
 });
 
@@ -39125,66 +39412,13 @@ var init_types16 = __esm({
   }
 });
 
-// src/adapters/aster/utils.ts
-function toAsterSymbol(unified) {
-  const parts = unified.split(/[/:]/);
-  return `${parts[0]}${parts[1]}`;
-}
-function toUnifiedSymbol(_asterSymbol, baseAsset, quoteAsset) {
-  return `${baseAsset}/${quoteAsset}:${quoteAsset}`;
-}
-function toAsterOrderSide(side) {
-  return ASTER_ORDER_SIDES[side] ?? side.toUpperCase();
-}
-function toAsterOrderType(type) {
-  return ASTER_ORDER_TYPES[type] ?? type.toUpperCase();
-}
-function toAsterTimeInForce(tif, postOnly) {
-  if (postOnly) return "GTX";
-  if (tif) return ASTER_TIME_IN_FORCE[tif] ?? tif;
-  return "GTC";
-}
-function buildOrderParams(request, asterSymbol, referralCode) {
-  const params = {
-    symbol: asterSymbol,
-    side: toAsterOrderSide(request.side),
-    type: toAsterOrderType(request.type),
-    quantity: request.amount
-  };
-  if (request.price !== void 0) {
-    params.price = request.price;
-  }
-  if (request.stopPrice !== void 0) {
-    params.stopPrice = request.stopPrice;
-  }
-  if (request.type !== "market") {
-    params.timeInForce = toAsterTimeInForce(request.timeInForce, request.postOnly);
-  }
-  if (request.reduceOnly) {
-    params.reduceOnly = "true";
-  }
-  if (request.clientOrderId) {
-    params.newClientOrderId = request.clientOrderId;
-  }
-  const code = request.builderCode ?? referralCode;
-  if (code) {
-    params.referralCode = code;
-  }
-  return params;
-}
-var init_utils11 = __esm({
-  "src/adapters/aster/utils.ts"() {
-    "use strict";
-    init_constants14();
-  }
-});
-
 // src/adapters/aster/AsterNormalizer.ts
 var AsterNormalizer;
 var init_AsterNormalizer = __esm({
   "src/adapters/aster/AsterNormalizer.ts"() {
     "use strict";
     init_constants14();
+    init_utils11();
     init_types16();
     init_utils11();
     AsterNormalizer = class {
@@ -39352,6 +39586,19 @@ var init_AsterNormalizer = __esm({
           info: validated
         };
       }
+      normalizeSymbol(exchangeSymbol) {
+        const quoteAssets = ["USDT", "USDC", "BUSD"];
+        for (const quote of quoteAssets) {
+          if (exchangeSymbol.endsWith(quote)) {
+            const base = exchangeSymbol.slice(0, -quote.length);
+            return `${base}/${quote}:${quote}`;
+          }
+        }
+        return exchangeSymbol;
+      }
+      toExchangeSymbol(symbol) {
+        return toAsterSymbol(symbol);
+      }
     };
   }
 });
@@ -39453,7 +39700,18 @@ var init_AsterAdapter = __esm({
         fetchPositions: true,
         fetchBalance: true,
         setLeverage: true,
-        fetchFundingRateHistory: true
+        fetchFundingRateHistory: true,
+        fetchOrderHistory: false,
+        fetchMyTrades: false,
+        fetchOpenOrders: false,
+        editOrder: false,
+        setMarginMode: false,
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchOrders: false,
+        watchPositions: false,
+        watchBalance: false
       };
       auth;
       baseUrl;
@@ -40183,6 +40441,12 @@ var init_PacificaNormalizer = __esm({
         if (!decimals) return 0;
         return decimals.replace(/0+$/, "").length || 0;
       }
+      normalizeSymbol(exchangeSymbol) {
+        return toUnifiedSymbol2(exchangeSymbol);
+      }
+      toExchangeSymbol(symbol) {
+        return toPacificaSymbol(symbol);
+      }
     };
   }
 });
@@ -40283,7 +40547,16 @@ var init_PacificaAdapter = __esm({
         fetchMyTrades: false,
         fetchPositions: true,
         fetchBalance: true,
-        setLeverage: true
+        setLeverage: true,
+        setMarginMode: false,
+        editOrder: false,
+        fetchOpenOrders: false,
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchOrders: false,
+        watchPositions: false,
+        watchBalance: false
       };
       auth;
       baseUrl;
@@ -40787,10 +41060,8 @@ var init_OstiumAuth = __esm({
   "src/adapters/ostium/OstiumAuth.ts"() {
     "use strict";
     OstiumAuth = class {
-      privateKey;
       rpcUrl;
       constructor(config) {
-        this.privateKey = config.privateKey;
         this.rpcUrl = config.rpcUrl;
       }
       getRpcUrl() {
@@ -40803,12 +41074,7 @@ var init_OstiumAuth = __esm({
         return { "Content-Type": "application/json" };
       }
       hasCredentials() {
-        return !!(this.privateKey && this.rpcUrl);
-      }
-      getAddress() {
-        const { Wallet: Wallet4 } = require("ethers");
-        const wallet = new Wallet4(this.privateKey);
-        return wallet.address;
+        return !!this.rpcUrl;
       }
     };
   }
@@ -41100,6 +41366,7 @@ var OstiumNormalizer;
 var init_OstiumNormalizer = __esm({
   "src/adapters/ostium/OstiumNormalizer.ts"() {
     "use strict";
+    init_errors();
     init_types18();
     init_utils13();
     OstiumNormalizer = class {
@@ -41225,6 +41492,27 @@ var init_OstiumNormalizer = __esm({
           info: validated
         };
       }
+      normalizeOrderBook(_data) {
+        throw new NotSupportedError(
+          "Ostium is an AMM-based DEX and does not have a traditional order book",
+          "NOT_SUPPORTED",
+          "ostium"
+        );
+      }
+      normalizeFundingRate(_data) {
+        throw new NotSupportedError(
+          "Ostium uses rollover fees, not funding rates",
+          "NOT_SUPPORTED",
+          "ostium"
+        );
+      }
+      normalizeSymbol(exchangeSymbol) {
+        const pairIndex = parseInt(exchangeSymbol, 10);
+        return toUnifiedSymbol3(pairIndex);
+      }
+      toExchangeSymbol(symbol) {
+        return String(toOstiumPairIndex(symbol));
+      }
     };
   }
 });
@@ -41337,7 +41625,21 @@ var init_OstiumAdapter = __esm({
         cancelOrder: true,
         fetchPositions: true,
         fetchBalance: true,
-        setLeverage: false
+        setLeverage: false,
+        cancelAllOrders: false,
+        editOrder: false,
+        fetchOHLCV: false,
+        fetchFundingRateHistory: false,
+        fetchOrderHistory: false,
+        fetchMyTrades: false,
+        fetchOpenOrders: false,
+        setMarginMode: false,
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchOrders: false,
+        watchPositions: false,
+        watchBalance: false
       };
       metadataUrl;
       auth;
@@ -41352,10 +41654,7 @@ var init_OstiumAdapter = __esm({
         this.metadataUrl = config.metadataUrl ?? OSTIUM_METADATA_URL;
         const rpcUrl = config.rpcUrl ?? OSTIUM_RPC_URLS.mainnet;
         if (config.privateKey) {
-          this.auth = new OstiumAuth({
-            privateKey: config.privateKey,
-            rpcUrl
-          });
+          this.auth = new OstiumAuth({ rpcUrl });
           this.contracts = new OstiumContracts(rpcUrl, config.privateKey);
         }
         this.subgraph = new OstiumSubgraph(config.subgraphUrl);

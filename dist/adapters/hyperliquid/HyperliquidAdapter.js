@@ -35,7 +35,8 @@ export class HyperliquidAdapter extends BaseAdapter {
         createBatchOrders: true,
         cancelBatchOrders: true,
         editOrder: false,
-        // Account History
+        // Account
+        fetchOpenOrders: true,
         fetchOrderHistory: true,
         fetchMyTrades: true,
         fetchDeposits: false,

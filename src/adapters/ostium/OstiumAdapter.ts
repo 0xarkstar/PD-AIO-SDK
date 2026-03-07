@@ -8,6 +8,7 @@
 import type {
   Balance,
   FeatureMap,
+  IExchangeAdapter,
   FundingRate,
   Market,
   MarketParams,
@@ -38,7 +39,7 @@ import { toOstiumPairIndex, formatCollateral, formatPrice, toUnifiedSymbol } fro
 import { mapOstiumError } from './error-codes.js';
 import type { OstiumConfig, OstiumPriceResponse } from './types.js';
 
-export class OstiumAdapter extends BaseAdapter {
+export class OstiumAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'ostium';
   readonly name = 'Ostium';
 
@@ -53,6 +54,20 @@ export class OstiumAdapter extends BaseAdapter {
     fetchPositions: true,
     fetchBalance: true,
     setLeverage: false,
+    cancelAllOrders: false,
+    editOrder: false,
+    fetchOHLCV: false,
+    fetchFundingRateHistory: false,
+    fetchOrderHistory: false,
+    fetchMyTrades: false,
+    fetchOpenOrders: false,
+    setMarginMode: false,
+    watchOrderBook: false,
+    watchTrades: false,
+    watchTicker: false,
+    watchOrders: false,
+    watchPositions: false,
+    watchBalance: false,
   };
 
   private readonly metadataUrl: string;
@@ -71,10 +86,7 @@ export class OstiumAdapter extends BaseAdapter {
     const rpcUrl = config.rpcUrl ?? OSTIUM_RPC_URLS.mainnet;
 
     if (config.privateKey) {
-      this.auth = new OstiumAuth({
-        privateKey: config.privateKey,
-        rpcUrl,
-      });
+      this.auth = new OstiumAuth({ rpcUrl });
       this.contracts = new OstiumContracts(rpcUrl, config.privateKey);
     }
 

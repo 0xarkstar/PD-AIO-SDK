@@ -163,8 +163,8 @@ export const EXTENDED_DEFAULTS = {
  */
 export const EXTENDED_STARKNET_CONFIG = {
     chainId: {
-        mainnet: 'SN_MAIN',
-        testnet: 'SN_SEPOLIA',
+        mainnet: '0x534e5f4d41494e', // SN_MAIN (StarkNet hex chain ID)
+        testnet: '0x534e5f5345504f4c4941', // SN_SEPOLIA (StarkNet hex chain ID)
     },
     blockTime: 600000, // 10 minutes in milliseconds
     confirmations: 1,

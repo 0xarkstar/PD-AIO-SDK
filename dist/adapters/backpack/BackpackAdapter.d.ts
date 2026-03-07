@@ -5,14 +5,14 @@
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type { Market, Order, OrderRequest, Position, Balance, OrderBook, Trade, Ticker, FundingRate, MarketParams, OrderBookParams, TradeParams } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import type { BackpackConfig } from './types.js';
 /**
  * Backpack adapter implementation
  */
-export declare class BackpackAdapter extends BaseAdapter {
+export declare class BackpackAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "backpack";
     readonly name = "Backpack";
     readonly has: Partial<FeatureMap>;

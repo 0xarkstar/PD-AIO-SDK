@@ -50,6 +50,11 @@ export class GRVTAdapter extends BaseAdapter {
         watchOrders: true,
         watchBalance: true,
         watchMyTrades: true,
+        cancelBatchOrders: false,
+        editOrder: false,
+        fetchOpenOrders: false,
+        setLeverage: false,
+        setMarginMode: false,
     };
     sdk;
     auth;

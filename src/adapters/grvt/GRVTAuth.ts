@@ -232,7 +232,7 @@ export class GRVTAuth implements IAuthStrategy {
 
     const domain = {
       ...GRVT_EIP712_DOMAIN,
-      chainId: this.testnet ? 5 : 1, // Goerli for testnet, mainnet otherwise
+      chainId: this.testnet ? 326822723 : 325, // GRVT testnet (dev) / mainnet (ZKsync-based L2)
     };
 
     const types = GRVT_EIP712_ORDER_TYPE;

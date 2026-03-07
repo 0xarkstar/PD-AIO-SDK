@@ -111,7 +111,7 @@ export declare const GRVT_WS_CHANNELS: {
 export declare const GRVT_EIP712_DOMAIN: {
     readonly name: "GRVT";
     readonly version: "1";
-    readonly chainId: 1;
+    readonly chainId: 325;
     readonly verifyingContract: "0x0000000000000000000000000000000000000000";
 };
 /**

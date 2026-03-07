@@ -57,7 +57,7 @@ import type {
   Portfolio,
   RateLimitStatus,
 } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
@@ -116,7 +116,7 @@ export interface ExtendedConfig {
  *
  * Hybrid CLOB perpetual DEX on StarkNet with up to 100x leverage
  */
-export class ExtendedAdapter extends BaseAdapter {
+export class ExtendedAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'extended';
   readonly name = 'Extended';
 

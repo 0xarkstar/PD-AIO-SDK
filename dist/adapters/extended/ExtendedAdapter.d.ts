@@ -39,7 +39,7 @@
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type { Market, Order, Position, Balance, OrderBook, Trade, Ticker, FundingRate, OrderRequest, MarketParams, OrderBookParams, TradeParams, Transaction, UserFees, Portfolio, RateLimitStatus } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 /**
@@ -72,7 +72,7 @@ export interface ExtendedConfig {
  *
  * Hybrid CLOB perpetual DEX on StarkNet with up to 100x leverage
  */
-export declare class ExtendedAdapter extends BaseAdapter {
+export declare class ExtendedAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "extended";
     readonly name = "Extended";
     readonly has: Partial<FeatureMap>;

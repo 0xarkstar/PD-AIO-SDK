@@ -91,5 +91,6 @@ export declare class EdgeXNormalizer {
      * Count decimal places in a string number
      */
     private countDecimals;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=EdgeXNormalizer.d.ts.map

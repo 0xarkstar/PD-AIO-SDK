@@ -72,6 +72,7 @@ export class DriftAdapter extends BaseAdapter {
         cancelAllOrders: true,
         createBatchOrders: false,
         cancelBatchOrders: false,
+        editOrder: false,
         // Account data
         fetchPositions: true,
         fetchBalance: true,

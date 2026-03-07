@@ -372,5 +372,8 @@ export class BackpackNormalizer {
         const parts = value.split('.');
         return parts.length === 2 && parts[1] ? parts[1].length : 0;
     }
+    toExchangeSymbol(symbol) {
+        return this.toBackpackSymbol(symbol);
+    }
 }
 //# sourceMappingURL=BackpackNormalizer.js.map

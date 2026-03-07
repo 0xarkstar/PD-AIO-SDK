@@ -103,5 +103,7 @@ export declare class ExtendedNormalizer {
      * Batch normalize funding rates
      */
     normalizeFundingRates(rates: ExtendedFundingRate[]): FundingRate[];
+    normalizeSymbol(exchangeSymbol: string): string;
+    toExchangeSymbol(symbol: string): string;
 }
 //# sourceMappingURL=ExtendedNormalizer.d.ts.map

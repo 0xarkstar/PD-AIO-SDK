@@ -513,5 +513,14 @@ export class NadoNormalizer {
                 return 'rejected';
         }
     }
+    /**
+     * Normalize market data - alias for normalizeSymbol for unified interface
+     */
+    normalizeMarket(symbolData) {
+        return this.normalizeSymbol(symbolData);
+    }
+    toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+    }
 }
 //# sourceMappingURL=NadoNormalizer.js.map

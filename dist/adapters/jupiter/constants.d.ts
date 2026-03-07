@@ -10,9 +10,12 @@
 export declare const JUPITER_API_URLS: {
     readonly mainnet: {
         readonly price: "https://hermes.pyth.network/v2/updates/price/latest";
+        readonly priceFallback: "https://hermes-beta.pyth.network/v2/updates/price/latest";
         readonly stats: "https://perp-api.jup.ag";
     };
 };
+/** Ordered Pyth Hermes endpoints: primary first, then fallbacks */
+export declare const PYTH_HERMES_ENDPOINTS: readonly ["https://hermes.pyth.network", "https://hermes-beta.pyth.network"];
 export declare const JUPITER_MAINNET_PRICE_API: "https://hermes.pyth.network/v2/updates/price/latest";
 export declare const JUPITER_MAINNET_STATS_API: "https://perp-api.jup.ag";
 /**

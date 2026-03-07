@@ -85,7 +85,7 @@
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type { Market, Order, Position, Balance, OrderBook, Trade, Ticker, FundingRate, OrderRequest, MarketParams, OrderBookParams, TradeParams, Transaction, UserFees, Portfolio, RateLimitStatus } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import type { VariationalQuote } from './types.js';
@@ -104,7 +104,7 @@ export interface VariationalConfig {
  *
  * RFQ-based perpetual DEX on Arbitrum with HMAC-SHA256 authentication
  */
-export declare class VariationalAdapter extends BaseAdapter {
+export declare class VariationalAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "variational";
     readonly name = "Variational";
     readonly has: Partial<FeatureMap>;

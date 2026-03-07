@@ -4,12 +4,12 @@
  * Implements IExchangeAdapter for Pacifica DEX (Solana, Ed25519 auth)
  */
 import type { Balance, FundingRate, Market, MarketParams, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/common.js';
-import type { FeatureMap } from '../../types/adapter.js';
+import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import type { PacificaConfig } from './types.js';
-export declare class PacificaAdapter extends BaseAdapter {
+export declare class PacificaAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "pacifica";
     readonly name = "Pacifica";
     /**

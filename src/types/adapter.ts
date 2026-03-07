@@ -123,6 +123,12 @@ export interface IExchangeAdapter {
    */
   readonly isReady: boolean;
 
+  /**
+   * Check if this exchange supports a specific feature.
+   * Similar to CCXT's exchange.has['fetchOHLCV'] pattern.
+   */
+  supportsFeature(feature: keyof FeatureMap): boolean;
+
   // ===========================================================================
   // Connection Management
   // ===========================================================================

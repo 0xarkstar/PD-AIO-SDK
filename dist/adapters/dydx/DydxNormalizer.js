@@ -6,7 +6,7 @@
  *
  * @see https://docs.dydx.exchange/
  */
-import { DYDX_DEFAULT_PRECISION, DYDX_FUNDING_INTERVAL_HOURS, dydxToUnified } from './constants.js';
+import { DYDX_DEFAULT_PRECISION, DYDX_FUNDING_INTERVAL_HOURS, dydxToUnified, unifiedToDydx, } from './constants.js';
 import { DydxPerpetualMarketSchema, DydxOrderSchema, DydxPerpetualPositionSchema, DydxOrderBookResponseSchema, DydxTradeSchema, DydxFillSchema, DydxHistoricalFundingSchema, DydxSubaccountSchema, DydxCandleSchema, } from './types.js';
 /**
  * dYdX v4 Data Normalizer
@@ -492,6 +492,12 @@ export class DydxNormalizer {
      */
     normalizeCandles(candles) {
         return candles.map((candle) => this.normalizeCandle(candle));
+    }
+    normalizeSymbol(exchangeSymbol) {
+        return dydxToUnified(exchangeSymbol);
+    }
+    toExchangeSymbol(symbol) {
+        return unifiedToDydx(symbol);
     }
 }
 //# sourceMappingURL=DydxNormalizer.js.map

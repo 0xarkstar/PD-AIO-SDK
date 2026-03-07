@@ -4,11 +4,11 @@
  * Implements IExchangeAdapter for Ostium (Arbitrum, RWA perps)
  * Uses: REST metadata + GraphQL subgraph + EVM contracts
  */
-import type { Balance, FeatureMap, FundingRate, Market, MarketParams, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
+import type { Balance, FeatureMap, IExchangeAdapter, FundingRate, Market, MarketParams, Order, OrderBook, OrderBookParams, OrderRequest, Position, Ticker, Trade, TradeParams } from '../../types/index.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import type { OstiumConfig } from './types.js';
-export declare class OstiumAdapter extends BaseAdapter {
+export declare class OstiumAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "ostium";
     readonly name = "Ostium";
     readonly has: Partial<FeatureMap>;
