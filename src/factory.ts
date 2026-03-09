@@ -25,6 +25,9 @@ import type { GmxConfig } from './adapters/gmx/index.js';
 import type { AsterConfig } from './adapters/aster/index.js';
 import type { PacificaConfig } from './adapters/pacifica/index.js';
 import type { OstiumConfig } from './adapters/ostium/index.js';
+import type { ReyaConfig } from './adapters/reya/index.js';
+import type { EtherealConfig } from './adapters/ethereal/index.js';
+import type { AvantisConfig } from './adapters/avantis/index.js';
 
 export type SupportedExchange =
   | 'hyperliquid'
@@ -42,7 +45,10 @@ export type SupportedExchange =
   | 'gmx'
   | 'aster'
   | 'pacifica'
-  | 'ostium';
+  | 'ostium'
+  | 'reya'
+  | 'ethereal'
+  | 'avantis';
 
 export type ExchangeConfigMap = {
   hyperliquid: HyperliquidConfig;
@@ -61,6 +67,9 @@ export type ExchangeConfigMap = {
   aster: AsterConfig;
   pacifica: PacificaConfig;
   ostium: OstiumConfig;
+  reya: ReyaConfig;
+  ethereal: EtherealConfig;
+  avantis: AvantisConfig;
 };
 
 /**
@@ -100,6 +109,11 @@ const adapterLoaders: Record<string, () => Promise<AdapterConstructor>> = {
     (await import('./adapters/pacifica/index.js')).PacificaAdapter as AdapterConstructor,
   ostium: async () =>
     (await import('./adapters/ostium/index.js')).OstiumAdapter as AdapterConstructor,
+  reya: async () => (await import('./adapters/reya/index.js')).ReyaAdapter as AdapterConstructor,
+  ethereal: async () =>
+    (await import('./adapters/ethereal/index.js')).EtherealAdapter as AdapterConstructor,
+  avantis: async () =>
+    (await import('./adapters/avantis/index.js')).AvantisAdapter as AdapterConstructor,
 };
 
 /** Cache for loaded adapter constructors */
@@ -290,6 +304,9 @@ export function getBuiltInExchanges(): SupportedExchange[] {
     'aster',
     'pacifica',
     'ostium',
+    'reya',
+    'ethereal',
+    'avantis',
   ];
 }
 

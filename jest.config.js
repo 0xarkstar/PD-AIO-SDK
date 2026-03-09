@@ -27,7 +27,8 @@ export default {
     '**/tests/unit/**/*.test.ts',
     '**/tests/integration/**/*.test.ts',
     '**/tests/e2e/**/*.test.ts',
-    '**/tests/api-contracts/**/*.test.ts'
+    '**/tests/api-contracts/**/*.test.ts',
+    '**/tests/adapters/**/*.test.ts'
   ],
   collectCoverageFrom: [
     'src/**/*.ts',

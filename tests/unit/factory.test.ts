@@ -99,6 +99,9 @@ describe('getSupportedExchanges', () => {
       'aster',
       'pacifica',
       'ostium',
+      'reya',
+      'ethereal',
+      'avantis',
     ]);
   });
 });
@@ -135,7 +138,7 @@ describe('getBuiltInExchanges', () => {
     expect(exchanges).toContain('edgex');
     expect(exchanges).toContain('backpack');
     expect(exchanges).toContain('nado');
-    expect(exchanges.length).toBe(16);
+    expect(exchanges.length).toBe(19);
   });
 });
 

@@ -91,6 +91,18 @@
       "types": "./dist/adapters/ostium/index.d.ts",
       "import": "./dist/adapters/ostium/index.js"
     },
+    "./reya": {
+      "types": "./dist/adapters/reya/index.d.ts",
+      "import": "./dist/adapters/reya/index.js"
+    },
+    "./avantis": {
+      "types": "./dist/adapters/avantis/index.d.ts",
+      "import": "./dist/adapters/avantis/index.js"
+    },
+    "./ethereal": {
+      "types": "./dist/adapters/ethereal/index.d.ts",
+      "import": "./dist/adapters/ethereal/index.js"
+    },
     "./types": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/types/index.js"
