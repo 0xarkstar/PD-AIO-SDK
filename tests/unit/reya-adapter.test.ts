@@ -91,7 +91,7 @@ describe('ReyaAdapter', () => {
     test('has expected features', () => {
       expect(adapter.has.fetchMarkets).toBe(true);
       expect(adapter.has.fetchTicker).toBe(true);
-      expect(adapter.has.fetchOrderBook).toBe(true);
+      expect(adapter.has.fetchOrderBook).toBe(false);
       expect(adapter.has.fetchTrades).toBe(true);
       expect(adapter.has.fetchOHLCV).toBe(true);
       expect(adapter.has.fetchFundingRate).toBe(true);
@@ -305,10 +305,10 @@ describe('ReyaAdapter', () => {
       await adapter.fetchTicker('ETH/USD:USD');
 
       expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/market-data/market/summary?symbol=ETHRUSDPERP'
+        '/market/ETHRUSDPERP/summary'
       );
       expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/market-data/price?symbol=ETHRUSDPERP'
+        '/prices/ETHRUSDPERP'
       );
     });
   });
@@ -318,35 +318,8 @@ describe('ReyaAdapter', () => {
   // =========================================================================
 
   describe('fetchOrderBook', () => {
-    const mockDepth = {
-      symbol: 'BTCRUSDPERP',
-      type: 'SNAPSHOT' as const,
-      bids: [{ px: '50000', qty: '1.5' }, { px: '49999', qty: '2.0' }],
-      asks: [{ px: '50001', qty: '2.0' }, { px: '50002', qty: '3.0' }],
-      updatedAt: 1700000000000,
-    };
-
-    test('fetches and normalizes order book', async () => {
-      mockHttpClient.get.mockResolvedValue(mockDepth);
-
-      const ob = await adapter.fetchOrderBook('BTC/USD:USD');
-
-      expect(ob.symbol).toBe('BTC/USD:USD');
-      expect(ob.exchange).toBe('reya');
-      expect(ob.bids).toHaveLength(2);
-      expect(ob.bids[0]).toEqual([50000, 1.5]);
-      expect(ob.asks[0]).toEqual([50001, 2.0]);
-      expect(ob.timestamp).toBe(1700000000000);
-    });
-
-    test('calls correct API endpoint', async () => {
-      mockHttpClient.get.mockResolvedValue(mockDepth);
-
-      await adapter.fetchOrderBook('BTC/USD:USD');
-
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/market-data/market/depth?symbol=BTCRUSDPERP'
-      );
+    test('is marked as not supported (Reya has no orderbook REST endpoint)', () => {
+      expect(adapter.has.fetchOrderBook).toBe(false);
     });
   });
 
@@ -405,7 +378,7 @@ describe('ReyaAdapter', () => {
       await adapter.fetchTrades('BTC/USD:USD', { since: 1700000000000 });
 
       expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/market-data/market/perp-executions?symbol=BTCRUSDPERP&startTime=1700000000000'
+        '/market/BTCRUSDPERP/perpExecutions?startTime=1700000000000'
       );
     });
   });
@@ -482,7 +455,7 @@ describe('ReyaAdapter', () => {
       });
 
       expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/market-data/candles?symbol=BTCRUSDPERP&resolution=4h&endTime=1700100000'
+        '/market/BTCRUSDPERP/candles?resolution=4h&endTime=1700100000'
       );
     });
 
@@ -1042,7 +1015,7 @@ describe('ReyaNormalizer', () => {
         shortFundingValue: '8',
         fundingRateVelocity: '0.00001',
         volume24h: '5000000',
-        pxChange24h: '0.02',
+        pxChange24h: '1000.20',
       };
 
       const price = {
@@ -1059,8 +1032,9 @@ describe('ReyaNormalizer', () => {
       expect(ticker.bid).toBe(50001.0);
       expect(ticker.ask).toBe(50001.0);
       expect(ticker.quoteVolume).toBe(5000000);
-      expect(ticker.change).toBe(0.02);
-      expect(ticker.percentage).toBe(2);
+      expect(ticker.change).toBe(1000.20);
+      // open = 50001.0 - 1000.20 = 49000.80, pct = (1000.20 / 49000.80) * 100
+      expect(ticker.percentage).toBeCloseTo((1000.20 / 49000.80) * 100, 4);
     });
   });
 

@@ -506,8 +506,10 @@ export interface DriftL2OrderBook {
     size: string;
     sources?: Record<string, string>;
   }>;
-  /** Oracle price */
-  oraclePrice: string;
+  /** Oracle price (legacy field name) */
+  oraclePrice?: string | number;
+  /** Oracle price (new field name) */
+  oracle?: string | number;
   /** Slot */
   slot: number;
 }
@@ -535,7 +537,8 @@ export const DriftL2OrderBookSchema = z
         })
         .passthrough()
     ),
-    oraclePrice: z.string(),
+    oraclePrice: z.union([z.string(), z.number()]).optional(),
+    oracle: z.union([z.string(), z.number()]).optional(),
     slot: z.number(),
   })
   .passthrough();

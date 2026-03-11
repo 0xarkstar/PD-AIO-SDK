@@ -23,7 +23,7 @@ import {
   unifiedToEthereal,
 } from './constants.js';
 import { ETHEREAL_ORDER_STATUS } from './constants.js';
-import { parseEtherealSymbol } from './utils.js';
+// parseEtherealSymbol no longer needed — real API provides baseTokenName/quoteTokenName
 import type {
   EtherealMarketInfo,
   EtherealTicker,
@@ -47,6 +47,7 @@ import {
   EtherealFundingRateResponseSchema,
 } from './types.js';
 
+
 export class EtherealNormalizer {
   // ===========================================================================
   // Symbol Conversion
@@ -67,12 +68,13 @@ export class EtherealNormalizer {
   normalizeMarket(info: EtherealMarketInfo): Market {
     EtherealMarketInfoSchema.parse(info);
 
-    const unifiedSymbol = etherealToUnified(info.symbol);
-    const { base, quote } = parseEtherealSymbol(info.symbol);
+    const unifiedSymbol = etherealToUnified(info.displayTicker);
+    const base = info.baseTokenName;
+    const quote = info.quoteTokenName;
 
     const tickSize = parseFloat(info.tickSize);
-    const stepSize = parseFloat(info.stepSize);
-    const minAmount = parseFloat(info.minOrderSize);
+    const stepSize = parseFloat(info.lotSize);
+    const minAmount = parseFloat(info.minQuantity);
 
     const pricePrecision =
       tickSize > 0
@@ -84,7 +86,7 @@ export class EtherealNormalizer {
         : ETHEREAL_DEFAULT_PRECISION.amount;
 
     return {
-      id: info.symbol,
+      id: info.id,
       symbol: unifiedSymbol,
       base,
       quote,
@@ -98,7 +100,7 @@ export class EtherealNormalizer {
       makerFee: parseFloat(info.makerFee),
       takerFee: parseFloat(info.takerFee),
       maxLeverage: info.maxLeverage,
-      fundingIntervalHours: info.fundingInterval || ETHEREAL_FUNDING_INTERVAL_HOURS,
+      fundingIntervalHours: ETHEREAL_FUNDING_INTERVAL_HOURS,
       info: info as unknown as Record<string, unknown>,
     };
   }
@@ -107,25 +109,37 @@ export class EtherealNormalizer {
   // Ticker Normalization
   // ===========================================================================
 
-  normalizeTicker(raw: EtherealTicker, symbol?: string): Ticker {
+  normalizeTicker(
+    raw: EtherealTicker,
+    symbol: string,
+    product?: EtherealMarketInfo
+  ): Ticker {
     EtherealTickerSchema.parse(raw);
 
-    const last = parseFloat(raw.lastPrice);
+    const bid = parseFloat(raw.bestBidPrice);
+    const ask = parseFloat(raw.bestAskPrice);
+    const last = (bid + ask) / 2; // mid price as best approximation
+    const oraclePrice = parseFloat(raw.oraclePrice);
+    const price24hAgo = parseFloat(raw.price24hAgo);
+    const change = oraclePrice - price24hAgo;
+    const percentage = price24hAgo !== 0 ? (change / price24hAgo) * 100 : 0;
+
+    const volume24h = product ? parseFloat(product.volume24h) : 0;
 
     return {
-      symbol: symbol ?? etherealToUnified(raw.symbol),
+      symbol,
       last,
-      bid: parseFloat(raw.bestBid),
-      ask: parseFloat(raw.bestAsk),
-      high: parseFloat(raw.high24h),
-      low: parseFloat(raw.low24h),
-      open: parseFloat(raw.open24h),
+      bid,
+      ask,
+      high: 0, // not available from market-price endpoint
+      low: 0,
+      open: price24hAgo,
       close: last,
-      change: parseFloat(raw.priceChange24h),
-      percentage: parseFloat(raw.priceChangePercent24h),
-      baseVolume: parseFloat(raw.volume24h),
-      quoteVolume: parseFloat(raw.quoteVolume24h),
-      timestamp: raw.timestamp,
+      change,
+      percentage,
+      baseVolume: volume24h,
+      quoteVolume: volume24h * last,
+      timestamp: Date.now(),
       info: raw as unknown as Record<string, unknown>,
     };
   }
@@ -140,8 +154,8 @@ export class EtherealNormalizer {
     return {
       symbol,
       timestamp: raw.timestamp,
-      bids: raw.bids.map(([p, s]) => [parseFloat(p), parseFloat(s)] as [number, number]),
-      asks: raw.asks.map(([p, s]) => [parseFloat(p), parseFloat(s)] as [number, number]),
+      bids: (raw.bids ?? []).map(([p, s]) => [parseFloat(p), parseFloat(s)] as [number, number]),
+      asks: (raw.asks ?? []).map(([p, s]) => [parseFloat(p), parseFloat(s)] as [number, number]),
       exchange: 'ethereal',
     };
   }
@@ -154,16 +168,18 @@ export class EtherealNormalizer {
     EtherealTradeResponseSchema.parse(raw);
 
     const price = parseFloat(raw.price);
-    const amount = parseFloat(raw.quantity);
+    const amount = parseFloat(raw.filled);
+    // takerSide: 0 = buy, 1 = sell
+    const side = raw.takerSide === 0 ? 'buy' : 'sell';
 
     return {
       id: raw.id,
       symbol,
-      side: raw.side === 'BUY' ? 'buy' : 'sell',
+      side,
       price,
       amount,
       cost: price * amount,
-      timestamp: raw.timestamp,
+      timestamp: raw.createdAt,
       info: raw as unknown as Record<string, unknown>,
     };
   }
@@ -255,13 +271,17 @@ export class EtherealNormalizer {
   normalizeFundingRate(raw: EtherealFundingRateResponse, symbol: string): FundingRate {
     EtherealFundingRateResponseSchema.parse(raw);
 
+    const now = Date.now();
+    // Funding settles every hour on the hour
+    const nextHour = Math.ceil(now / 3600000) * 3600000;
+
     return {
       symbol,
-      fundingRate: parseFloat(raw.fundingRate),
-      fundingTimestamp: raw.fundingTimestamp,
-      nextFundingTimestamp: raw.nextFundingTimestamp,
-      markPrice: parseFloat(raw.markPrice),
-      indexPrice: parseFloat(raw.indexPrice),
+      fundingRate: parseFloat(raw.fundingRate1h),
+      fundingTimestamp: now,
+      nextFundingTimestamp: nextHour,
+      markPrice: 0, // not available from projected endpoint
+      indexPrice: 0,
       fundingIntervalHours: ETHEREAL_FUNDING_INTERVAL_HOURS,
     };
   }

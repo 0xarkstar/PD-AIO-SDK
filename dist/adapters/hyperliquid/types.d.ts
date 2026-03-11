@@ -16,23 +16,27 @@ export interface HyperliquidAsset {
     name: string;
     szDecimals: number;
     maxLeverage: number;
-    onlyIsolated: boolean;
+    onlyIsolated?: boolean;
+    marginTableId?: number;
 }
 export declare const HyperliquidAssetSchema: z.ZodObject<{
     name: z.ZodString;
     szDecimals: z.ZodNumber;
     maxLeverage: z.ZodNumber;
-    onlyIsolated: z.ZodBoolean;
+    onlyIsolated: z.ZodOptional<z.ZodBoolean>;
+    marginTableId: z.ZodOptional<z.ZodNumber>;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
     name: z.ZodString;
     szDecimals: z.ZodNumber;
     maxLeverage: z.ZodNumber;
-    onlyIsolated: z.ZodBoolean;
+    onlyIsolated: z.ZodOptional<z.ZodBoolean>;
+    marginTableId: z.ZodOptional<z.ZodNumber>;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
     name: z.ZodString;
     szDecimals: z.ZodNumber;
     maxLeverage: z.ZodNumber;
-    onlyIsolated: z.ZodBoolean;
+    onlyIsolated: z.ZodOptional<z.ZodBoolean>;
+    marginTableId: z.ZodOptional<z.ZodNumber>;
 }, z.ZodTypeAny, "passthrough">>;
 export interface HyperliquidOrderResponse {
     status: 'ok' | 'err';

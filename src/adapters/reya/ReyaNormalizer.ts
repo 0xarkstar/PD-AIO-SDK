@@ -110,19 +110,22 @@ export class ReyaNormalizer {
     const unifiedSymbol = reyaToUnified(summary.symbol);
     const oraclePrice = price ? parseFloat(price.oraclePrice) : 0;
     const poolPrice = price?.poolPrice ? parseFloat(price.poolPrice) : oraclePrice;
-    const pxChange = summary.pxChange24h ? parseFloat(summary.pxChange24h) : 0;
+    const pxChangeAbs = summary.pxChange24h ? parseFloat(summary.pxChange24h) : 0;
+    const currentPrice = poolPrice || oraclePrice;
+    const openPrice = currentPrice - pxChangeAbs;
+    const pctChange = openPrice !== 0 ? (pxChangeAbs / openPrice) * 100 : 0;
 
     return {
       symbol: unifiedSymbol,
-      last: poolPrice || oraclePrice,
-      bid: poolPrice || oraclePrice,
-      ask: poolPrice || oraclePrice,
+      last: currentPrice,
+      bid: currentPrice,
+      ask: currentPrice,
       high: 0,
       low: 0,
-      open: oraclePrice > 0 && pxChange !== 0 ? oraclePrice / (1 + pxChange) : oraclePrice,
-      close: oraclePrice,
-      change: pxChange,
-      percentage: pxChange * 100,
+      open: openPrice > 0 ? openPrice : oraclePrice,
+      close: currentPrice,
+      change: pxChangeAbs,
+      percentage: pctChange,
       baseVolume: 0,
       quoteVolume: parseFloat(summary.volume24h),
       timestamp: summary.updatedAt,

@@ -1,5 +1,8 @@
 /**
  * Pacifica Exchange-Specific Types
+ *
+ * Based on real API responses from https://api.pacifica.fi/api/v1
+ * @see https://docs.pacifica.fi/api-documentation/api/rest-api
  */
 import { z } from 'zod';
 import type { ExchangeConfig } from '../../types/adapter.js';
@@ -11,59 +14,88 @@ export interface PacificaConfig extends ExchangeConfig {
     builderCode?: string;
     maxBuilderFeeRate?: number;
 }
+/**
+ * Wrapper for all Pacifica API responses: { success: boolean, data: T }
+ */
+export interface PacificaApiResponse<T> {
+    success: boolean;
+    data: T;
+}
+/**
+ * GET /info — market info
+ * Real fields: symbol, tick_size, lot_size, max_leverage, funding_rate,
+ * next_funding_rate, min_order_size, max_order_size, isolated_only, created_at
+ */
 export interface PacificaMarket {
     symbol: string;
-    base_currency: string;
-    quote_currency: string;
-    status: string;
-    price_step: string;
-    size_step: string;
-    min_size: string;
+    tick_size: string;
+    lot_size: string;
+    min_tick: string;
+    max_tick: string;
     max_leverage: number;
-    maker_fee: string;
-    taker_fee: string;
-    funding_interval: number;
+    isolated_only: boolean;
+    min_order_size: string;
+    max_order_size: string;
+    funding_rate: string;
+    next_funding_rate: string;
+    created_at: number;
 }
+/**
+ * GET /info/prices — live price data
+ * Real fields: symbol, mark, mid, oracle, funding, next_funding,
+ * open_interest, volume_24h, yesterday_price, timestamp
+ */
 export interface PacificaTicker {
     symbol: string;
-    last_price: string;
-    mark_price: string;
-    index_price: string;
-    bid_price: string;
-    ask_price: string;
-    high_24h: string;
-    low_24h: string;
-    volume_24h: string;
-    quote_volume_24h: string;
+    mark: string;
+    mid: string;
+    oracle: string;
+    funding: string;
+    next_funding: string;
     open_interest: string;
-    funding_rate: string;
-    next_funding_time: number;
+    volume_24h: string;
+    yesterday_price: string;
     timestamp: number;
 }
 export interface PacificaOrderBookLevel {
-    price: string;
-    size: string;
+    p: string;
+    a: string;
+    n: number;
 }
+/**
+ * GET /book?symbol=X — orderbook
+ * Real format: { success: true, data: { s: "BTC", l: [[bids], [asks]], t: timestamp } }
+ * Each level: { p: price, a: amount, n: numOrders }
+ */
 export interface PacificaOrderBook {
-    bids: PacificaOrderBookLevel[];
-    asks: PacificaOrderBookLevel[];
-    timestamp: number;
-    sequence: number;
+    s: string;
+    l: PacificaOrderBookLevel[][];
+    t: number;
 }
+/**
+ * GET /trades?symbol=X — recent trade fills
+ * Real fields: event_type, price, amount, side, cause, created_at
+ */
 export interface PacificaTradeResponse {
-    id: string;
-    symbol: string;
+    event_type: string;
     price: string;
-    size: string;
-    side: 'buy' | 'sell';
-    timestamp: number;
+    amount: string;
+    side: string;
+    cause: string;
+    created_at: number;
 }
+/**
+ * GET /funding_rate/history?symbol=X — funding rate history
+ * Real fields: oracle_price, bid_impact_price, ask_impact_price,
+ * funding_rate, next_funding_rate, created_at
+ */
 export interface PacificaFundingHistory {
-    symbol: string;
+    oracle_price: string;
+    bid_impact_price: string;
+    ask_impact_price: string;
     funding_rate: string;
-    mark_price: string;
-    index_price: string;
-    timestamp: number;
+    next_funding_rate: string;
+    created_at: number;
 }
 export interface PacificaOrderResponse {
     order_id: string;
@@ -108,209 +140,201 @@ export interface PacificaBuilderCodeRequest {
     builder_code: string;
     max_fee_rate: number;
 }
+export declare const PacificaApiResponseSchema: <T extends z.ZodTypeAny>(dataSchema: T) => z.ZodObject<{
+    success: z.ZodBoolean;
+    data: T;
+}, "strip", z.ZodTypeAny, z.objectUtil.addQuestionMarks<z.baseObjectOutputType<{
+    success: z.ZodBoolean;
+    data: T;
+}>, any> extends infer T_1 ? { [k in keyof T_1]: z.objectUtil.addQuestionMarks<z.baseObjectOutputType<{
+    success: z.ZodBoolean;
+    data: T;
+}>, any>[k]; } : never, z.baseObjectInputType<{
+    success: z.ZodBoolean;
+    data: T;
+}> extends infer T_2 ? { [k_1 in keyof T_2]: z.baseObjectInputType<{
+    success: z.ZodBoolean;
+    data: T;
+}>[k_1]; } : never>;
 export declare const PacificaMarketSchema: z.ZodObject<{
     symbol: z.ZodString;
-    base_currency: z.ZodString;
-    quote_currency: z.ZodString;
-    status: z.ZodString;
-    price_step: z.ZodString;
-    size_step: z.ZodString;
-    min_size: z.ZodString;
+    tick_size: z.ZodString;
+    lot_size: z.ZodString;
+    min_tick: z.ZodOptional<z.ZodString>;
+    max_tick: z.ZodOptional<z.ZodString>;
     max_leverage: z.ZodNumber;
-    maker_fee: z.ZodString;
-    taker_fee: z.ZodString;
-    funding_interval: z.ZodNumber;
+    isolated_only: z.ZodOptional<z.ZodBoolean>;
+    min_order_size: z.ZodOptional<z.ZodString>;
+    max_order_size: z.ZodOptional<z.ZodString>;
+    funding_rate: z.ZodOptional<z.ZodString>;
+    next_funding_rate: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodOptional<z.ZodNumber>;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
     symbol: z.ZodString;
-    base_currency: z.ZodString;
-    quote_currency: z.ZodString;
-    status: z.ZodString;
-    price_step: z.ZodString;
-    size_step: z.ZodString;
-    min_size: z.ZodString;
+    tick_size: z.ZodString;
+    lot_size: z.ZodString;
+    min_tick: z.ZodOptional<z.ZodString>;
+    max_tick: z.ZodOptional<z.ZodString>;
     max_leverage: z.ZodNumber;
-    maker_fee: z.ZodString;
-    taker_fee: z.ZodString;
-    funding_interval: z.ZodNumber;
+    isolated_only: z.ZodOptional<z.ZodBoolean>;
+    min_order_size: z.ZodOptional<z.ZodString>;
+    max_order_size: z.ZodOptional<z.ZodString>;
+    funding_rate: z.ZodOptional<z.ZodString>;
+    next_funding_rate: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodOptional<z.ZodNumber>;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
     symbol: z.ZodString;
-    base_currency: z.ZodString;
-    quote_currency: z.ZodString;
-    status: z.ZodString;
-    price_step: z.ZodString;
-    size_step: z.ZodString;
-    min_size: z.ZodString;
+    tick_size: z.ZodString;
+    lot_size: z.ZodString;
+    min_tick: z.ZodOptional<z.ZodString>;
+    max_tick: z.ZodOptional<z.ZodString>;
     max_leverage: z.ZodNumber;
-    maker_fee: z.ZodString;
-    taker_fee: z.ZodString;
-    funding_interval: z.ZodNumber;
+    isolated_only: z.ZodOptional<z.ZodBoolean>;
+    min_order_size: z.ZodOptional<z.ZodString>;
+    max_order_size: z.ZodOptional<z.ZodString>;
+    funding_rate: z.ZodOptional<z.ZodString>;
+    next_funding_rate: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodOptional<z.ZodNumber>;
 }, z.ZodTypeAny, "passthrough">>;
 export declare const PacificaTickerSchema: z.ZodObject<{
     symbol: z.ZodString;
-    last_price: z.ZodString;
-    mark_price: z.ZodString;
-    index_price: z.ZodString;
-    bid_price: z.ZodString;
-    ask_price: z.ZodString;
-    high_24h: z.ZodString;
-    low_24h: z.ZodString;
-    volume_24h: z.ZodString;
-    quote_volume_24h: z.ZodString;
+    mark: z.ZodString;
+    mid: z.ZodString;
+    oracle: z.ZodString;
+    funding: z.ZodString;
+    next_funding: z.ZodString;
     open_interest: z.ZodString;
-    funding_rate: z.ZodString;
-    next_funding_time: z.ZodNumber;
+    volume_24h: z.ZodString;
+    yesterday_price: z.ZodString;
     timestamp: z.ZodNumber;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
     symbol: z.ZodString;
-    last_price: z.ZodString;
-    mark_price: z.ZodString;
-    index_price: z.ZodString;
-    bid_price: z.ZodString;
-    ask_price: z.ZodString;
-    high_24h: z.ZodString;
-    low_24h: z.ZodString;
-    volume_24h: z.ZodString;
-    quote_volume_24h: z.ZodString;
+    mark: z.ZodString;
+    mid: z.ZodString;
+    oracle: z.ZodString;
+    funding: z.ZodString;
+    next_funding: z.ZodString;
     open_interest: z.ZodString;
-    funding_rate: z.ZodString;
-    next_funding_time: z.ZodNumber;
+    volume_24h: z.ZodString;
+    yesterday_price: z.ZodString;
     timestamp: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
     symbol: z.ZodString;
-    last_price: z.ZodString;
-    mark_price: z.ZodString;
-    index_price: z.ZodString;
-    bid_price: z.ZodString;
-    ask_price: z.ZodString;
-    high_24h: z.ZodString;
-    low_24h: z.ZodString;
-    volume_24h: z.ZodString;
-    quote_volume_24h: z.ZodString;
+    mark: z.ZodString;
+    mid: z.ZodString;
+    oracle: z.ZodString;
+    funding: z.ZodString;
+    next_funding: z.ZodString;
     open_interest: z.ZodString;
-    funding_rate: z.ZodString;
-    next_funding_time: z.ZodNumber;
+    volume_24h: z.ZodString;
+    yesterday_price: z.ZodString;
     timestamp: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">>;
 export declare const PacificaOrderBookLevelSchema: z.ZodObject<{
-    price: z.ZodString;
-    size: z.ZodString;
+    p: z.ZodString;
+    a: z.ZodString;
+    n: z.ZodNumber;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-    price: z.ZodString;
-    size: z.ZodString;
+    p: z.ZodString;
+    a: z.ZodString;
+    n: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-    price: z.ZodString;
-    size: z.ZodString;
+    p: z.ZodString;
+    a: z.ZodString;
+    n: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">>;
 export declare const PacificaOrderBookSchema: z.ZodObject<{
-    bids: z.ZodArray<z.ZodObject<{
-        price: z.ZodString;
-        size: z.ZodString;
+    s: z.ZodString;
+    l: z.ZodArray<z.ZodArray<z.ZodObject<{
+        p: z.ZodString;
+        a: z.ZodString;
+        n: z.ZodNumber;
     }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-        price: z.ZodString;
-        size: z.ZodString;
+        p: z.ZodString;
+        a: z.ZodString;
+        n: z.ZodNumber;
     }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, z.ZodTypeAny, "passthrough">>, "many">;
-    asks: z.ZodArray<z.ZodObject<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, z.ZodTypeAny, "passthrough">>, "many">;
-    timestamp: z.ZodNumber;
-    sequence: z.ZodNumber;
+        p: z.ZodString;
+        a: z.ZodString;
+        n: z.ZodNumber;
+    }, z.ZodTypeAny, "passthrough">>, "many">, "many">;
+    t: z.ZodNumber;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-    bids: z.ZodArray<z.ZodObject<{
-        price: z.ZodString;
-        size: z.ZodString;
+    s: z.ZodString;
+    l: z.ZodArray<z.ZodArray<z.ZodObject<{
+        p: z.ZodString;
+        a: z.ZodString;
+        n: z.ZodNumber;
     }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-        price: z.ZodString;
-        size: z.ZodString;
+        p: z.ZodString;
+        a: z.ZodString;
+        n: z.ZodNumber;
     }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, z.ZodTypeAny, "passthrough">>, "many">;
-    asks: z.ZodArray<z.ZodObject<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, z.ZodTypeAny, "passthrough">>, "many">;
-    timestamp: z.ZodNumber;
-    sequence: z.ZodNumber;
+        p: z.ZodString;
+        a: z.ZodString;
+        n: z.ZodNumber;
+    }, z.ZodTypeAny, "passthrough">>, "many">, "many">;
+    t: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-    bids: z.ZodArray<z.ZodObject<{
-        price: z.ZodString;
-        size: z.ZodString;
+    s: z.ZodString;
+    l: z.ZodArray<z.ZodArray<z.ZodObject<{
+        p: z.ZodString;
+        a: z.ZodString;
+        n: z.ZodNumber;
     }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-        price: z.ZodString;
-        size: z.ZodString;
+        p: z.ZodString;
+        a: z.ZodString;
+        n: z.ZodNumber;
     }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, z.ZodTypeAny, "passthrough">>, "many">;
-    asks: z.ZodArray<z.ZodObject<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-        price: z.ZodString;
-        size: z.ZodString;
-    }, z.ZodTypeAny, "passthrough">>, "many">;
-    timestamp: z.ZodNumber;
-    sequence: z.ZodNumber;
+        p: z.ZodString;
+        a: z.ZodString;
+        n: z.ZodNumber;
+    }, z.ZodTypeAny, "passthrough">>, "many">, "many">;
+    t: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">>;
 export declare const PacificaTradeResponseSchema: z.ZodObject<{
-    id: z.ZodString;
-    symbol: z.ZodString;
+    event_type: z.ZodString;
     price: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
-    size: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    amount: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
     side: z.ZodString;
-    timestamp: z.ZodNumber;
+    cause: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodNumber;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-    id: z.ZodString;
-    symbol: z.ZodString;
+    event_type: z.ZodString;
     price: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
-    size: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    amount: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
     side: z.ZodString;
-    timestamp: z.ZodNumber;
+    cause: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-    id: z.ZodString;
-    symbol: z.ZodString;
+    event_type: z.ZodString;
     price: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
-    size: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
+    amount: z.ZodUnion<[z.ZodString, z.ZodNumber]>;
     side: z.ZodString;
-    timestamp: z.ZodNumber;
+    cause: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">>;
 export declare const PacificaFundingHistorySchema: z.ZodObject<{
-    symbol: z.ZodString;
+    oracle_price: z.ZodString;
+    bid_impact_price: z.ZodOptional<z.ZodString>;
+    ask_impact_price: z.ZodOptional<z.ZodString>;
     funding_rate: z.ZodString;
-    mark_price: z.ZodString;
-    index_price: z.ZodString;
-    timestamp: z.ZodNumber;
+    next_funding_rate: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodNumber;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-    symbol: z.ZodString;
+    oracle_price: z.ZodString;
+    bid_impact_price: z.ZodOptional<z.ZodString>;
+    ask_impact_price: z.ZodOptional<z.ZodString>;
     funding_rate: z.ZodString;
-    mark_price: z.ZodString;
-    index_price: z.ZodString;
-    timestamp: z.ZodNumber;
+    next_funding_rate: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-    symbol: z.ZodString;
+    oracle_price: z.ZodString;
+    bid_impact_price: z.ZodOptional<z.ZodString>;
+    ask_impact_price: z.ZodOptional<z.ZodString>;
     funding_rate: z.ZodString;
-    mark_price: z.ZodString;
-    index_price: z.ZodString;
-    timestamp: z.ZodNumber;
+    next_funding_rate: z.ZodOptional<z.ZodString>;
+    created_at: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">>;
 export declare const PacificaOrderResponseSchema: z.ZodObject<{
     order_id: z.ZodString;

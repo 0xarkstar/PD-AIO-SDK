@@ -39,7 +39,7 @@ export interface BackpackMarket {
     imfFunction?: unknown;
     mmfFunction?: unknown;
     positionLimitWeight?: unknown;
-    openInterestLimit?: string;
+    openInterestLimit?: string | null;
 }
 export declare const BackpackMarketSchema: z.ZodObject<{
     symbol: z.ZodString;
@@ -99,10 +99,10 @@ export declare const BackpackMarketSchema: z.ZodObject<{
         } | undefined;
     }>>;
     fundingInterval: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    imfFunction: z.ZodOptional<z.ZodUnknown>;
-    mmfFunction: z.ZodOptional<z.ZodUnknown>;
-    positionLimitWeight: z.ZodOptional<z.ZodUnknown>;
-    openInterestLimit: z.ZodOptional<z.ZodString>;
+    imfFunction: z.ZodOptional<z.ZodNullable<z.ZodUnknown>>;
+    mmfFunction: z.ZodOptional<z.ZodNullable<z.ZodUnknown>>;
+    positionLimitWeight: z.ZodOptional<z.ZodNullable<z.ZodUnknown>>;
+    openInterestLimit: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
     symbol: z.ZodString;
     baseSymbol: z.ZodOptional<z.ZodString>;
@@ -161,10 +161,10 @@ export declare const BackpackMarketSchema: z.ZodObject<{
         } | undefined;
     }>>;
     fundingInterval: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    imfFunction: z.ZodOptional<z.ZodUnknown>;
-    mmfFunction: z.ZodOptional<z.ZodUnknown>;
-    positionLimitWeight: z.ZodOptional<z.ZodUnknown>;
-    openInterestLimit: z.ZodOptional<z.ZodString>;
+    imfFunction: z.ZodOptional<z.ZodNullable<z.ZodUnknown>>;
+    mmfFunction: z.ZodOptional<z.ZodNullable<z.ZodUnknown>>;
+    positionLimitWeight: z.ZodOptional<z.ZodNullable<z.ZodUnknown>>;
+    openInterestLimit: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
     symbol: z.ZodString;
     baseSymbol: z.ZodOptional<z.ZodString>;
@@ -223,10 +223,10 @@ export declare const BackpackMarketSchema: z.ZodObject<{
         } | undefined;
     }>>;
     fundingInterval: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    imfFunction: z.ZodOptional<z.ZodUnknown>;
-    mmfFunction: z.ZodOptional<z.ZodUnknown>;
-    positionLimitWeight: z.ZodOptional<z.ZodUnknown>;
-    openInterestLimit: z.ZodOptional<z.ZodString>;
+    imfFunction: z.ZodOptional<z.ZodNullable<z.ZodUnknown>>;
+    mmfFunction: z.ZodOptional<z.ZodNullable<z.ZodUnknown>>;
+    positionLimitWeight: z.ZodOptional<z.ZodNullable<z.ZodUnknown>>;
+    openInterestLimit: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.ZodTypeAny, "passthrough">>;
 /**
  * Backpack order response

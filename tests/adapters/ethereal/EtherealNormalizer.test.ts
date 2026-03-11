@@ -52,23 +52,32 @@ describe('EtherealNormalizer', () => {
 
   describe('normalizeMarket', () => {
     const mockMarket: EtherealMarketInfo = {
-      symbol: 'ETH-USD',
-      baseAsset: 'ETH',
-      quoteAsset: 'USD',
+      id: 'bc7d5575-3711-4532-a000-312bfacfb767',
+      ticker: 'ETHUSD',
+      displayTicker: 'ETH-USD',
       status: 'ACTIVE',
+      baseTokenName: 'ETH',
+      quoteTokenName: 'USD',
       tickSize: '0.01',
-      stepSize: '0.001',
-      minOrderSize: '0.01',
+      lotSize: '0.001',
+      minQuantity: '0.01',
+      maxQuantity: '500',
       maxLeverage: 50,
       makerFee: '0.0002',
       takerFee: '0.0005',
-      fundingInterval: 1,
+      volume24h: '50000',
+      openInterest: '10000',
+      fundingRate1h: '0.0001',
+      minPrice: '0.1',
+      maxPrice: '100000',
+      onchainId: 2,
+      engineType: 0,
     };
 
     test('normalizes market info correctly', () => {
       const result = normalizer.normalizeMarket(mockMarket);
 
-      expect(result.id).toBe('ETH-USD');
+      expect(result.id).toBe('bc7d5575-3711-4532-a000-312bfacfb767');
       expect(result.symbol).toBe('ETH/USD:USD');
       expect(result.base).toBe('ETH');
       expect(result.quote).toBe('USD');
@@ -86,7 +95,7 @@ describe('EtherealNormalizer', () => {
     });
 
     test('uses default precision when tickSize is 0', () => {
-      const market = { ...mockMarket, tickSize: '0', stepSize: '0' };
+      const market = { ...mockMarket, tickSize: '0', lotSize: '0' };
       const result = normalizer.normalizeMarket(market);
       expect(result.pricePrecision).toBe(8);
       expect(result.amountPrecision).toBe(6);
@@ -105,43 +114,53 @@ describe('EtherealNormalizer', () => {
 
   describe('normalizeTicker', () => {
     const mockTicker: EtherealTicker = {
-      symbol: 'ETH-USD',
-      lastPrice: '3150.50',
-      bestBid: '3150.00',
-      bestAsk: '3151.00',
-      high24h: '3200.00',
-      low24h: '3100.00',
-      open24h: '3120.00',
-      volume24h: '50000.5',
-      quoteVolume24h: '157525000.00',
-      priceChange24h: '30.50',
-      priceChangePercent24h: '0.98',
-      markPrice: '3150.25',
-      indexPrice: '3150.10',
-      timestamp: 1700000000000,
+      productId: 'bc7d5575-3711-4532-a000-312bfacfb767',
+      bestBidPrice: '3150.00',
+      bestAskPrice: '3151.00',
+      oraclePrice: '3150.50',
+      price24hAgo: '3120.00',
     };
 
-    test('normalizes ticker with explicit symbol', () => {
-      const result = normalizer.normalizeTicker(mockTicker, 'ETH/USD:USD');
+    const mockProduct: EtherealMarketInfo = {
+      id: 'bc7d5575-3711-4532-a000-312bfacfb767',
+      ticker: 'ETHUSD',
+      displayTicker: 'ETH-USD',
+      status: 'ACTIVE',
+      baseTokenName: 'ETH',
+      quoteTokenName: 'USD',
+      tickSize: '0.01',
+      lotSize: '0.001',
+      minQuantity: '0.01',
+      maxQuantity: '500',
+      maxLeverage: 50,
+      makerFee: '0.0002',
+      takerFee: '0.0005',
+      volume24h: '50000.5',
+      openInterest: '10000',
+      fundingRate1h: '0.0001',
+      minPrice: '0.1',
+      maxPrice: '100000',
+      onchainId: 2,
+      engineType: 0,
+    };
+
+    test('normalizes ticker with product data', () => {
+      const result = normalizer.normalizeTicker(mockTicker, 'ETH/USD:USD', mockProduct);
 
       expect(result.symbol).toBe('ETH/USD:USD');
-      expect(result.last).toBe(3150.5);
       expect(result.bid).toBe(3150);
       expect(result.ask).toBe(3151);
-      expect(result.high).toBe(3200);
-      expect(result.low).toBe(3100);
+      expect(result.last).toBe(3150.5); // mid price
       expect(result.open).toBe(3120);
-      expect(result.close).toBe(3150.5);
-      expect(result.change).toBe(30.5);
-      expect(result.percentage).toBe(0.98);
       expect(result.baseVolume).toBe(50000.5);
-      expect(result.quoteVolume).toBe(157525000);
-      expect(result.timestamp).toBe(1700000000000);
     });
 
-    test('derives symbol from raw data when not provided', () => {
-      const result = normalizer.normalizeTicker(mockTicker);
+    test('normalizes ticker without product data', () => {
+      const result = normalizer.normalizeTicker(mockTicker, 'ETH/USD:USD');
       expect(result.symbol).toBe('ETH/USD:USD');
+      expect(result.bid).toBe(3150);
+      expect(result.ask).toBe(3151);
+      expect(result.baseVolume).toBe(0);
     });
   });
 
@@ -151,10 +170,11 @@ describe('EtherealNormalizer', () => {
 
   describe('normalizeOrderBook', () => {
     const mockOrderBook: EtherealOrderBookResponse = {
-      symbol: 'ETH-USD',
+      productId: 'bc7d5575-3711-4532-a000-312bfacfb767',
+      timestamp: 1700000000000,
+      previousTimestamp: 1699999999000,
       bids: [['3150.00', '10.5'], ['3149.00', '20.0']],
       asks: [['3151.00', '5.2'], ['3152.00', '15.0']],
-      timestamp: 1700000000000,
     };
 
     test('normalizes order book correctly', () => {
@@ -175,14 +195,19 @@ describe('EtherealNormalizer', () => {
   describe('normalizeTrade', () => {
     const mockTrade: EtherealTradeResponse = {
       id: 'trade-001',
-      symbol: 'ETH-USD',
-      side: 'BUY',
+      productId: 'bc7d5575-3711-4532-a000-312bfacfb767',
+      makerOrderId: 'mo1',
+      takerOrderId: 'to1',
+      makerSide: 1,
+      takerSide: 0,
       price: '3150.00',
-      quantity: '2.5',
-      timestamp: 1700000000000,
+      filled: '2.5',
+      makerFeeUsd: '0',
+      takerFeeUsd: '2.3625',
+      createdAt: 1700000000000,
     };
 
-    test('normalizes buy trade', () => {
+    test('normalizes buy trade (takerSide=0)', () => {
       const result = normalizer.normalizeTrade(mockTrade, 'ETH/USD:USD');
 
       expect(result.id).toBe('trade-001');
@@ -194,8 +219,8 @@ describe('EtherealNormalizer', () => {
       expect(result.timestamp).toBe(1700000000000);
     });
 
-    test('normalizes sell trade', () => {
-      const sellTrade = { ...mockTrade, side: 'SELL' };
+    test('normalizes sell trade (takerSide=1)', () => {
+      const sellTrade = { ...mockTrade, takerSide: 1 };
       const result = normalizer.normalizeTrade(sellTrade, 'ETH/USD:USD');
       expect(result.side).toBe('sell');
     });
@@ -371,23 +396,18 @@ describe('EtherealNormalizer', () => {
 
   describe('normalizeFundingRate', () => {
     const mockFunding: EtherealFundingRateResponse = {
-      symbol: 'ETH-USD',
-      fundingRate: '0.0001',
-      fundingTimestamp: 1700000000000,
-      nextFundingTimestamp: 1700003600000,
-      markPrice: '3150.00',
-      indexPrice: '3149.50',
+      productId: 'bc7d5575-3711-4532-a000-312bfacfb767',
+      fundingRateProjected1h: '-0.000017773',
+      fundingRate1h: '-0.000022881',
     };
 
     test('normalizes funding rate correctly', () => {
       const result = normalizer.normalizeFundingRate(mockFunding, 'ETH/USD:USD');
 
       expect(result.symbol).toBe('ETH/USD:USD');
-      expect(result.fundingRate).toBe(0.0001);
-      expect(result.fundingTimestamp).toBe(1700000000000);
-      expect(result.nextFundingTimestamp).toBe(1700003600000);
-      expect(result.markPrice).toBe(3150);
-      expect(result.indexPrice).toBe(3149.5);
+      expect(result.fundingRate).toBe(-0.000022881);
+      expect(result.fundingTimestamp).toBeGreaterThan(0);
+      expect(result.nextFundingTimestamp).toBeGreaterThan(result.fundingTimestamp);
       expect(result.fundingIntervalHours).toBe(1);
     });
   });

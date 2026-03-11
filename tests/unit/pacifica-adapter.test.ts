@@ -2,6 +2,7 @@
  * PacificaAdapter Tests
  *
  * Comprehensive tests for Pacifica Exchange adapter
+ * Updated to match real API at https://api.pacifica.fi/api/v1
  */
 
 import { PacificaAdapter } from '../../src/adapters/pacifica/PacificaAdapter.js';
@@ -50,81 +51,90 @@ jest.mock('../../src/websocket/WebSocketManager.js', () => ({
 }));
 
 // ============================================================================
-// Test Data Fixtures
+// Test Data Fixtures — matches real Pacifica API responses
 // ============================================================================
 
 const mockMarket: PacificaMarket = {
-  symbol: 'BTC-PERP',
-  base_currency: 'BTC',
-  quote_currency: 'USDC',
-  status: 'active',
-  price_step: '0.1',
-  size_step: '0.001',
-  min_size: '0.001',
+  symbol: 'BTC',
+  tick_size: '1',
+  lot_size: '0.00001',
+  min_tick: '0',
+  max_tick: '1000000',
   max_leverage: 50,
-  maker_fee: '0.0002',
-  taker_fee: '0.0005',
-  funding_interval: 3600,
-};
-
-const mockInactiveMarket: PacificaMarket = {
-  ...mockMarket,
-  symbol: 'DOGE-PERP',
-  base_currency: 'DOGE',
-  status: 'inactive',
+  isolated_only: false,
+  min_order_size: '10',
+  max_order_size: '5000000',
+  funding_rate: '0.00000772',
+  next_funding_rate: '0.00001221',
+  created_at: 1748881333944,
 };
 
 const mockTicker: PacificaTicker = {
-  symbol: 'BTC-PERP',
-  last_price: '50000.5',
-  mark_price: '50001.0',
-  index_price: '50002.0',
-  bid_price: '50000.0',
-  ask_price: '50001.0',
-  high_24h: '51000.0',
-  low_24h: '49000.0',
-  volume_24h: '1234.56',
-  quote_volume_24h: '61728000.0',
-  open_interest: '5678.9',
-  funding_rate: '0.0001',
-  next_funding_time: 1700000000000,
+  symbol: 'BTC',
+  mark: '69449',
+  mid: '69448.5',
+  oracle: '69450',
+  funding: '0.00000772',
+  next_funding: '0.00001221',
+  open_interest: '123.45',
+  volume_24h: '50000000',
+  yesterday_price: '69000',
   timestamp: 1699999000000,
 };
 
+const mockAllTickers: PacificaTicker[] = [
+  mockTicker,
+  {
+    symbol: 'ETH',
+    mark: '3500',
+    mid: '3499.5',
+    oracle: '3501',
+    funding: '0.0001',
+    next_funding: '0.00005',
+    open_interest: '5000',
+    volume_24h: '10000000',
+    yesterday_price: '3400',
+    timestamp: 1699999000000,
+  },
+];
+
 const mockOrderBook: PacificaOrderBook = {
-  bids: [
-    { price: '50000.0', size: '1.5' },
-    { price: '49999.0', size: '2.0' },
+  s: 'BTC',
+  l: [
+    [
+      { p: '50000.0', a: '1.5', n: 1 },
+      { p: '49999.0', a: '2.0', n: 2 },
+    ],
+    [
+      { p: '50001.0', a: '1.0', n: 1 },
+      { p: '50002.0', a: '3.0', n: 3 },
+    ],
   ],
-  asks: [
-    { price: '50001.0', size: '1.0' },
-    { price: '50002.0', size: '3.0' },
-  ],
-  timestamp: 1699999000000,
-  sequence: 12345,
+  t: 1699999000000,
 };
 
 const mockTrade: PacificaTradeResponse = {
-  id: 'trade-001',
-  symbol: 'BTC-PERP',
+  event_type: 'fulfill_taker',
   price: '50000.5',
-  size: '0.1',
-  side: 'buy',
-  timestamp: 1699999000000,
+  amount: '0.1',
+  side: 'open_long',
+  cause: 'normal',
+  created_at: 1699999000000,
 };
 
 const mockFundingHistory: PacificaFundingHistory = {
-  symbol: 'BTC-PERP',
-  funding_rate: '0.0001',
-  mark_price: '50001.0',
-  index_price: '50002.0',
-  timestamp: 1699999000000,
+  oracle_price: '69605.794',
+  bid_impact_price: '69576.137741',
+  ask_impact_price: '69585',
+  funding_rate: '0.00000962',
+  next_funding_rate: '0.00000772',
+  created_at: 1773226800077,
 };
 
 const mockOrderResponse: PacificaOrderResponse = {
   order_id: 'order-001',
   client_order_id: 'my-order-1',
-  symbol: 'BTC-PERP',
+  symbol: 'BTC',
   side: 'buy',
   type: 'limit',
   price: '50000.0',
@@ -147,7 +157,7 @@ const mockFilledOrder: PacificaOrderResponse = {
 };
 
 const mockPosition: PacificaPosition = {
-  symbol: 'BTC-PERP',
+  symbol: 'BTC',
   side: 'long',
   size: '0.5',
   entry_price: '49000.0',
@@ -241,7 +251,7 @@ describe('PacificaAdapter', () => {
       expect(adapter.has.createOrder).toBe(true);
       expect(adapter.has.cancelOrder).toBe(true);
       expect(adapter.has.cancelAllOrders).toBe(false);
-      expect(adapter.has.fetchFundingRateHistory).toBe(false);
+      expect(adapter.has.fetchFundingRateHistory).toBe(true);
       expect(adapter.has.fetchOrderHistory).toBe(false);
       expect(adapter.has.fetchMyTrades).toBe(false);
       expect(adapter.has.fetchPositions).toBe(true);
@@ -297,11 +307,11 @@ describe('PacificaAdapter', () => {
   });
 
   // --------------------------------------------------------------------------
-  // fetchMarkets
+  // fetchMarkets — GET /info
   // --------------------------------------------------------------------------
 
   describe('fetchMarkets', () => {
-    test('fetches and normalizes markets', async () => {
+    test('fetches and normalizes markets from /info', async () => {
       mockHttpClient.get.mockResolvedValue([mockMarket]);
 
       const markets = await adapter.fetchMarkets();
@@ -312,11 +322,13 @@ describe('PacificaAdapter', () => {
       expect(markets[0].quote).toBe('USDC');
       expect(markets[0].active).toBe(true);
       expect(markets[0].maxLeverage).toBe(50);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/markets');
+      expect(markets[0].priceTickSize).toBe(1);
+      expect(markets[0].amountStepSize).toBe(0.00001);
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/info');
     });
 
-    test('filters inactive markets', async () => {
-      mockHttpClient.get.mockResolvedValue([mockMarket, mockInactiveMarket]);
+    test('unwraps { success, data } envelope', async () => {
+      mockHttpClient.get.mockResolvedValue({ success: true, data: [mockMarket] });
 
       const markets = await adapter.fetchMarkets();
 
@@ -332,30 +344,35 @@ describe('PacificaAdapter', () => {
   });
 
   // --------------------------------------------------------------------------
-  // fetchTicker
+  // fetchTicker — GET /info/prices
   // --------------------------------------------------------------------------
 
   describe('fetchTicker', () => {
-    test('fetches and normalizes ticker', async () => {
-      mockHttpClient.get.mockResolvedValue(mockTicker);
+    test('fetches ticker from /info/prices and finds matching symbol', async () => {
+      mockHttpClient.get.mockResolvedValue(mockAllTickers);
 
       const ticker = await adapter.fetchTicker('BTC/USDC:USDC');
 
       expect(ticker.symbol).toBe('BTC/USDC:USDC');
-      expect(ticker.last).toBe(50000.5);
-      expect(ticker.bid).toBe(50000.0);
-      expect(ticker.ask).toBe(50001.0);
-      expect(ticker.high).toBe(51000.0);
-      expect(ticker.low).toBe(49000.0);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/prices?symbol=BTC-PERP');
+      expect(ticker.last).toBe(69448.5);
+      expect(ticker.quoteVolume).toBe(50000000);
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/info/prices');
     });
 
-    test('converts symbol correctly', async () => {
-      mockHttpClient.get.mockResolvedValue(mockTicker);
+    test('unwraps { success, data } envelope for prices', async () => {
+      mockHttpClient.get.mockResolvedValue({ success: true, data: mockAllTickers });
 
-      await adapter.fetchTicker('ETH/USDC:USDC');
+      const ticker = await adapter.fetchTicker('BTC/USDC:USDC');
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/prices?symbol=ETH-PERP');
+      expect(ticker.symbol).toBe('BTC/USDC:USDC');
+    });
+
+    test('throws when symbol not found in prices', async () => {
+      mockHttpClient.get.mockResolvedValue([
+        { ...mockTicker, symbol: 'ETH' },
+      ]);
+
+      await expect(adapter.fetchTicker('BTC/USDC:USDC')).rejects.toThrow('Ticker not found');
     });
   });
 
@@ -375,7 +392,6 @@ describe('PacificaAdapter', () => {
       expect(book.bids[0]).toEqual([50000.0, 1.5]);
       expect(book.asks[0]).toEqual([50001.0, 1.0]);
       expect(book.exchange).toBe('pacifica');
-      expect(book.sequenceId).toBe(12345);
     });
 
     test('passes limit parameter', async () => {
@@ -383,7 +399,7 @@ describe('PacificaAdapter', () => {
 
       await adapter.fetchOrderBook('BTC/USDC:USDC', { limit: 50 });
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/book?symbol=BTC-PERP&limit=50');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/book?symbol=BTC&limit=50');
     });
 
     test('uses default limit of 20', async () => {
@@ -391,12 +407,12 @@ describe('PacificaAdapter', () => {
 
       await adapter.fetchOrderBook('BTC/USDC:USDC');
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/book?symbol=BTC-PERP&limit=20');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/book?symbol=BTC&limit=20');
     });
   });
 
   // --------------------------------------------------------------------------
-  // fetchTrades
+  // fetchTrades — GET /trades?symbol=X
   // --------------------------------------------------------------------------
 
   describe('fetchTrades', () => {
@@ -406,12 +422,19 @@ describe('PacificaAdapter', () => {
       const trades = await adapter.fetchTrades('BTC/USDC:USDC');
 
       expect(trades).toHaveLength(1);
-      expect(trades[0].id).toBe('trade-001');
       expect(trades[0].symbol).toBe('BTC/USDC:USDC');
       expect(trades[0].side).toBe('buy');
       expect(trades[0].price).toBe(50000.5);
       expect(trades[0].amount).toBe(0.1);
       expect(trades[0].cost).toBe(5000.05);
+      expect(trades[0].id).toBe('1699999000000-0');
+    });
+
+    test('unwraps { success, data } envelope for trades', async () => {
+      mockHttpClient.get.mockResolvedValue({ success: true, data: [mockTrade] });
+
+      const trades = await adapter.fetchTrades('BTC/USDC:USDC');
+      expect(trades).toHaveLength(1);
     });
 
     test('throws on invalid response', async () => {
@@ -425,12 +448,12 @@ describe('PacificaAdapter', () => {
 
       await adapter.fetchTrades('BTC/USDC:USDC', { limit: 50 });
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/trades?symbol=BTC-PERP&limit=50');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/trades?symbol=BTC&limit=50');
     });
   });
 
   // --------------------------------------------------------------------------
-  // fetchFundingRate
+  // fetchFundingRate — GET /funding_rate/history?symbol=X&limit=1
   // --------------------------------------------------------------------------
 
   describe('fetchFundingRate', () => {
@@ -440,10 +463,17 @@ describe('PacificaAdapter', () => {
       const rate = await adapter.fetchFundingRate('BTC/USDC:USDC');
 
       expect(rate.symbol).toBe('BTC/USDC:USDC');
-      expect(rate.fundingRate).toBe(0.0001);
-      expect(rate.markPrice).toBe(50001.0);
-      expect(rate.indexPrice).toBe(50002.0);
+      expect(rate.fundingRate).toBe(0.00000962);
+      expect(rate.markPrice).toBe(69605.794);
+      expect(rate.indexPrice).toBe(69605.794);
       expect(rate.fundingIntervalHours).toBe(1);
+    });
+
+    test('unwraps { success, data } envelope for funding', async () => {
+      mockHttpClient.get.mockResolvedValue({ success: true, data: [mockFundingHistory] });
+
+      const rate = await adapter.fetchFundingRate('BTC/USDC:USDC');
+      expect(rate.fundingRate).toBe(0.00000962);
     });
 
     test('throws on empty response', async () => {
@@ -456,6 +486,29 @@ describe('PacificaAdapter', () => {
       mockHttpClient.get.mockResolvedValue({ not: 'an array' });
 
       await expect(adapter.fetchFundingRate('BTC/USDC:USDC')).rejects.toThrow('No funding rate data');
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // fetchFundingRateHistory — GET /funding_rate/history?symbol=X
+  // --------------------------------------------------------------------------
+
+  describe('fetchFundingRateHistory', () => {
+    test('fetches funding rate history', async () => {
+      mockHttpClient.get.mockResolvedValue([mockFundingHistory, mockFundingHistory]);
+
+      const rates = await adapter.fetchFundingRateHistory('BTC/USDC:USDC');
+
+      expect(rates).toHaveLength(2);
+      expect(rates[0].fundingRate).toBe(0.00000962);
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/funding_rate/history?symbol=BTC&limit=100');
+    });
+
+    test('returns empty array on non-array response', async () => {
+      mockHttpClient.get.mockResolvedValue({ not: 'an array' });
+
+      const rates = await adapter.fetchFundingRateHistory('BTC/USDC:USDC');
+      expect(rates).toEqual([]);
     });
   });
 
@@ -496,7 +549,7 @@ describe('PacificaAdapter', () => {
         '/orders/create',
         expect.objectContaining({
           body: expect.objectContaining({
-            symbol: 'BTC-PERP',
+            symbol: 'BTC',
             side: 'buy',
             type: 'limit',
             size: '0.1',
@@ -753,7 +806,7 @@ describe('PacificaAdapter', () => {
       expect(authHttp.post).toHaveBeenCalledWith(
         '/account/leverage',
         expect.objectContaining({
-          body: { symbol: 'BTC-PERP', leverage: 20 },
+          body: { symbol: 'BTC', leverage: 20 },
         })
       );
     });
@@ -919,26 +972,26 @@ describe('Pacifica Error Mapping', () => {
 // ============================================================================
 
 describe('Pacifica Utils', () => {
-  test('toPacificaSymbol converts unified to exchange format', () => {
-    expect(toPacificaSymbol('BTC/USDC:USDC')).toBe('BTC-PERP');
-    expect(toPacificaSymbol('ETH/USDC:USDC')).toBe('ETH-PERP');
-    expect(toPacificaSymbol('SOL/USDC:USDC')).toBe('SOL-PERP');
+  test('toPacificaSymbol converts unified to plain symbol', () => {
+    expect(toPacificaSymbol('BTC/USDC:USDC')).toBe('BTC');
+    expect(toPacificaSymbol('ETH/USDC:USDC')).toBe('ETH');
+    expect(toPacificaSymbol('SOL/USDC:USDC')).toBe('SOL');
   });
 
-  test('toUnifiedSymbol converts exchange to unified format', () => {
-    expect(toUnifiedSymbol('BTC-PERP')).toBe('BTC/USDC:USDC');
-    expect(toUnifiedSymbol('ETH-PERP')).toBe('ETH/USDC:USDC');
-    expect(toUnifiedSymbol('SOL-PERP')).toBe('SOL/USDC:USDC');
+  test('toUnifiedSymbol converts plain symbol to unified format', () => {
+    expect(toUnifiedSymbol('BTC')).toBe('BTC/USDC:USDC');
+    expect(toUnifiedSymbol('ETH')).toBe('ETH/USDC:USDC');
+    expect(toUnifiedSymbol('SOL')).toBe('SOL/USDC:USDC');
   });
 
   describe('buildOrderBody', () => {
     test('builds basic order body', () => {
       const body = buildOrderBody(
         { symbol: 'BTC/USDC:USDC', type: 'market', side: 'buy', amount: 0.1 },
-        'BTC-PERP'
+        'BTC'
       );
       expect(body).toEqual({
-        symbol: 'BTC-PERP',
+        symbol: 'BTC',
         side: 'buy',
         type: 'market',
         size: '0.1',
@@ -948,7 +1001,7 @@ describe('Pacifica Utils', () => {
     test('includes price for limit orders', () => {
       const body = buildOrderBody(
         { symbol: 'BTC/USDC:USDC', type: 'limit', side: 'buy', amount: 0.1, price: 50000 },
-        'BTC-PERP'
+        'BTC'
       );
       expect(body.price).toBe('50000');
     });
@@ -956,7 +1009,7 @@ describe('Pacifica Utils', () => {
     test('includes builder code from parameter', () => {
       const body = buildOrderBody(
         { symbol: 'BTC/USDC:USDC', type: 'market', side: 'buy', amount: 0.1 },
-        'BTC-PERP',
+        'BTC',
         'my-builder'
       );
       expect(body.builder_code).toBe('my-builder');
@@ -965,7 +1018,7 @@ describe('Pacifica Utils', () => {
     test('per-order builder code overrides adapter builder code', () => {
       const body = buildOrderBody(
         { symbol: 'BTC/USDC:USDC', type: 'market', side: 'buy', amount: 0.1, builderCode: 'order-code' },
-        'BTC-PERP',
+        'BTC',
         'adapter-code'
       );
       expect(body.builder_code).toBe('order-code');
@@ -984,7 +1037,7 @@ describe('Pacifica Utils', () => {
           clientOrderId: 'my-id',
           timeInForce: 'GTC',
         },
-        'BTC-PERP'
+        'BTC'
       );
       expect(body.reduce_only).toBe(true);
       expect(body.post_only).toBe(true);
@@ -1005,8 +1058,8 @@ describe('Pacifica Constants', () => {
   });
 
   test('testnet API URLs are correct', () => {
-    expect(PACIFICA_API_URLS.testnet.rest).toBe('https://testnet-api.pacifica.fi/api/v1');
-    expect(PACIFICA_API_URLS.testnet.websocket).toBe('wss://testnet-ws.pacifica.fi/ws');
+    expect(PACIFICA_API_URLS.testnet.rest).toBe('https://test-api.pacifica.fi/api/v1');
+    expect(PACIFICA_API_URLS.testnet.websocket).toBe('wss://test-ws.pacifica.fi/ws');
   });
 
   test('rate limits are defined', () => {
@@ -1030,11 +1083,13 @@ describe('PacificaNormalizer', () => {
 
   test('normalizeMarket computes precision correctly', () => {
     const market = normalizer.normalizeMarket(mockMarket);
-    expect(market.pricePrecision).toBe(1);
-    expect(market.amountPrecision).toBe(3);
-    expect(market.priceTickSize).toBe(0.1);
-    expect(market.amountStepSize).toBe(0.001);
+    expect(market.pricePrecision).toBe(0);
+    expect(market.amountPrecision).toBe(5);
+    expect(market.priceTickSize).toBe(1);
+    expect(market.amountStepSize).toBe(0.00001);
     expect(market.fundingIntervalHours).toBe(1);
+    expect(market.base).toBe('BTC');
+    expect(market.quote).toBe('USDC');
   });
 
   test('normalizeOrder handles partially_filled status', () => {
@@ -1054,9 +1109,34 @@ describe('PacificaNormalizer', () => {
     expect(balance.used).toBe(2500.0);
   });
 
-  test('normalizeFundingRate computes next funding timestamp', () => {
+  test('normalizeFundingRate uses oracle_price for mark/index', () => {
     const rate = normalizer.normalizeFundingRate(mockFundingHistory, 'BTC/USDC:USDC');
-    expect(rate.nextFundingTimestamp).toBe(mockFundingHistory.timestamp + 3600000);
+    expect(rate.markPrice).toBe(69605.794);
+    expect(rate.indexPrice).toBe(69605.794);
+    expect(rate.nextFundingTimestamp).toBe(mockFundingHistory.created_at + 3600000);
+  });
+
+  test('normalizeTrade maps side correctly', () => {
+    const buyTrade = normalizer.normalizeTrade(
+      { ...mockTrade, side: 'open_long' },
+      'BTC/USDC:USDC',
+      0
+    );
+    expect(buyTrade.side).toBe('buy');
+
+    const sellTrade = normalizer.normalizeTrade(
+      { ...mockTrade, side: 'close_long' },
+      'BTC/USDC:USDC',
+      1
+    );
+    expect(sellTrade.side).toBe('sell');
+
+    const shortTrade = normalizer.normalizeTrade(
+      { ...mockTrade, side: 'open_short' },
+      'BTC/USDC:USDC',
+      2
+    );
+    expect(shortTrade.side).toBe('sell');
   });
 });
 
@@ -1075,7 +1155,7 @@ describe('PacificaAdapter builderCodeEnabled', () => {
   const mockOrderResponse: PacificaOrderResponse = {
     order_id: 'order-toggle',
     client_order_id: 'toggle-1',
-    symbol: 'BTC-PERP',
+    symbol: 'BTC',
     side: 'buy',
     type: 'limit',
     price: '50000.0',

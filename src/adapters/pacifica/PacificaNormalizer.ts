@@ -1,5 +1,8 @@
 /**
  * Pacifica Response Normalizer
+ *
+ * Maps real Pacifica API responses to unified types.
+ * @see https://docs.pacifica.fi/api-documentation/api/rest-api
  */
 
 import type {
@@ -37,103 +40,130 @@ import {
 import { toUnifiedSymbol, toPacificaSymbol } from './utils.js';
 
 export class PacificaNormalizer {
+  /**
+   * Normalize /info market entry.
+   * Real fields: symbol, tick_size, lot_size, max_leverage, min_order_size, etc.
+   */
   normalizeMarket(raw: PacificaMarket): Market {
     const validated = PacificaMarketSchema.parse(raw);
     const symbol = toUnifiedSymbol(validated.symbol);
+    const base = validated.symbol;
 
     return {
       id: validated.symbol,
       symbol,
-      base: validated.base_currency,
-      quote: validated.quote_currency,
-      settle: validated.quote_currency,
-      active: validated.status === 'active',
-      minAmount: parseFloat(validated.min_size),
-      pricePrecision: this.countDecimals(validated.price_step),
-      amountPrecision: this.countDecimals(validated.size_step),
-      priceTickSize: parseFloat(validated.price_step),
-      amountStepSize: parseFloat(validated.size_step),
-      makerFee: parseFloat(validated.maker_fee),
-      takerFee: parseFloat(validated.taker_fee),
+      base,
+      quote: 'USDC',
+      settle: 'USDC',
+      active: true,
+      minAmount: parseFloat(validated.min_order_size ?? '0'),
+      pricePrecision: this.countDecimals(validated.tick_size),
+      amountPrecision: this.countDecimals(validated.lot_size),
+      priceTickSize: parseFloat(validated.tick_size),
+      amountStepSize: parseFloat(validated.lot_size),
+      makerFee: 0,
+      takerFee: 0,
       maxLeverage: validated.max_leverage,
-      fundingIntervalHours: validated.funding_interval / 3600,
+      fundingIntervalHours: 1,
       info: validated as unknown as Record<string, unknown>,
     };
   }
 
+  /**
+   * Normalize /info/prices entry.
+   * Real fields: symbol, mark, mid, oracle, funding, next_funding,
+   * open_interest, volume_24h, yesterday_price, timestamp
+   */
   normalizeTicker(raw: PacificaTicker, symbol?: string): Ticker {
     const validated = PacificaTickerSchema.parse(raw);
-    const last = parseFloat(validated.last_price);
-    const high = parseFloat(validated.high_24h);
-    const low = parseFloat(validated.low_24h);
+    const mid = parseFloat(validated.mid);
+    const yesterday = parseFloat(validated.yesterday_price);
+    const change = mid - yesterday;
+    const percentage = yesterday !== 0 ? (change / yesterday) * 100 : 0;
 
     return {
       symbol: symbol ?? toUnifiedSymbol(validated.symbol),
-      last,
-      bid: parseFloat(validated.bid_price),
-      ask: parseFloat(validated.ask_price),
-      high,
-      low,
-      open: last,
-      close: last,
-      change: 0,
-      percentage: 0,
-      baseVolume: parseFloat(validated.volume_24h),
-      quoteVolume: parseFloat(validated.quote_volume_24h),
+      last: mid,
+      bid: mid,
+      ask: mid,
+      high: mid,
+      low: mid,
+      open: yesterday,
+      close: mid,
+      change,
+      percentage,
+      baseVolume: 0,
+      quoteVolume: parseFloat(validated.volume_24h),
       timestamp: validated.timestamp,
       info: {
         ...(validated as unknown as Record<string, unknown>),
-        _bidAskSource: 'orderbook',
+        _bidAskSource: 'mid',
       },
     };
   }
 
   normalizeOrderBook(raw: PacificaOrderBookType, symbol: string): OrderBook {
     const validated = PacificaOrderBookSchema.parse(raw);
+    // l[0] = bids (descending by price), l[1] = asks (ascending by price)
+    const rawBids = validated.l[0] ?? [];
+    const rawAsks = validated.l[1] ?? [];
     return {
       symbol,
-      timestamp: validated.timestamp,
-      bids: validated.bids.map(
-        (b) => [parseFloat(b.price), parseFloat(b.size)] as [number, number]
+      timestamp: validated.t,
+      bids: rawBids.map(
+        (b) => [parseFloat(b.p), parseFloat(b.a)] as [number, number]
       ),
-      asks: validated.asks.map(
-        (a) => [parseFloat(a.price), parseFloat(a.size)] as [number, number]
+      asks: rawAsks.map(
+        (a) => [parseFloat(a.p), parseFloat(a.a)] as [number, number]
       ),
-      sequenceId: validated.sequence,
       exchange: 'pacifica',
     };
   }
 
-  normalizeTrade(raw: PacificaTradeResponse, symbol?: string): Trade {
+  /**
+   * Normalize /trades entry.
+   * Real fields: event_type, price, amount, side, cause, created_at
+   */
+  normalizeTrade(raw: PacificaTradeResponse, symbol?: string, index?: number): Trade {
     const validated = PacificaTradeResponseSchema.parse(raw);
     const price = parseFloat(
       typeof validated.price === 'number' ? String(validated.price) : validated.price
     );
     const amount = parseFloat(
-      typeof validated.size === 'number' ? String(validated.size) : validated.size
+      typeof validated.amount === 'number' ? String(validated.amount) : validated.amount
     );
 
+    const sideStr = String(validated.side);
+    const normalizedSide: 'buy' | 'sell' =
+      sideStr === 'open_long' || sideStr === 'close_short' ? 'buy' : 'sell';
+
     return {
-      id: validated.id,
-      symbol: symbol ?? toUnifiedSymbol(validated.symbol),
-      side: validated.side as 'buy' | 'sell',
+      id: `${validated.created_at}-${index ?? 0}`,
+      symbol: symbol ?? '',
+      side: normalizedSide,
       price,
       amount,
       cost: price * amount,
-      timestamp: validated.timestamp,
+      timestamp: validated.created_at,
       info: validated as unknown as Record<string, unknown>,
     };
   }
 
+  /**
+   * Normalize /funding_rate/history entry.
+   * Real fields: oracle_price, funding_rate, next_funding_rate, created_at
+   */
   normalizeFundingRate(raw: PacificaFundingHistory, symbol: string): FundingRate {
     const validated = PacificaFundingHistorySchema.parse(raw);
+    const oraclePrice = parseFloat(validated.oracle_price);
+
     return {
       symbol,
       fundingRate: parseFloat(validated.funding_rate),
-      fundingTimestamp: validated.timestamp,
-      nextFundingTimestamp: validated.timestamp + 3600000,
-      markPrice: parseFloat(validated.mark_price),
-      indexPrice: parseFloat(validated.index_price),
+      fundingTimestamp: validated.created_at,
+      nextFundingTimestamp: validated.created_at + 3600000,
+      markPrice: oraclePrice,
+      indexPrice: oraclePrice,
       fundingIntervalHours: 1,
       info: validated as unknown as Record<string, unknown>,
     };

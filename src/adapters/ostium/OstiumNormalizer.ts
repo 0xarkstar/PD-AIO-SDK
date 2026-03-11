@@ -66,13 +66,13 @@ export class OstiumNormalizer {
     const price =
       validatedRaw.mid != null
         ? parseFloat(String(validatedRaw.mid))
-        : parseFloat(validatedRaw.price);
+        : parseFloat(validatedRaw.price ?? '0');
     const bid = validatedRaw.bid != null ? parseFloat(String(validatedRaw.bid)) : price;
     const ask = validatedRaw.ask != null ? parseFloat(String(validatedRaw.ask)) : price;
     const timestamp =
       validatedRaw.timestampSeconds != null
         ? validatedRaw.timestampSeconds * 1000
-        : validatedRaw.timestamp;
+        : (validatedRaw.timestamp ?? Date.now());
 
     return {
       symbol: toUnifiedSymbolFromName(validatedPair.name),

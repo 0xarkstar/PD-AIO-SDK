@@ -22,7 +22,8 @@ export interface HyperliquidAsset {
   name: string;
   szDecimals: number;
   maxLeverage: number;
-  onlyIsolated: boolean;
+  onlyIsolated?: boolean;
+  marginTableId?: number;
 }
 
 export const HyperliquidAssetSchema = z
@@ -30,7 +31,8 @@ export const HyperliquidAssetSchema = z
     name: z.string(),
     szDecimals: z.number(),
     maxLeverage: z.number(),
-    onlyIsolated: z.boolean(),
+    onlyIsolated: z.boolean().optional(),
+    marginTableId: z.number().optional(),
   })
   .passthrough();
 

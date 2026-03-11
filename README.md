@@ -4,10 +4,10 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-6092%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
-[![Coverage](https://img.shields.io/badge/coverage-82%25-green)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-6908%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Coverage](https://img.shields.io/badge/coverage-85%25-green)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![ESLint](https://img.shields.io/badge/ESLint-0%20errors-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
-[![npm version](https://img.shields.io/badge/npm-v0.2.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
+[![npm version](https://img.shields.io/badge/npm-v0.3.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
 **[한국어 문서](./README.ko.md)** | English
@@ -46,17 +46,17 @@ const order = await exchange.createOrder({
 });
 ```
 
-> **16 exchanges, one interface.** Swap `'hyperliquid'` for any supported exchange — the API stays the same.
+> **19 exchanges, one interface.** Swap `'hyperliquid'` for any supported exchange — the API stays the same.
 
 ---
 
 ## 🎯 What is PD AIO SDK?
 
-**PD AIO SDK** (Perp DEX All-In-One SDK) is a production-ready, unified TypeScript SDK that lets you trade on **16 decentralized perpetual exchanges** through a single, consistent interface. No more learning different APIs for each exchange - write once, trade anywhere.
+**PD AIO SDK** (Perp DEX All-In-One SDK) is a production-ready, unified TypeScript SDK that lets you trade on **19 decentralized perpetual exchanges** through a single, consistent interface. No more learning different APIs for each exchange - write once, trade anywhere.
 
 ### Why "All-In-One"?
 
-- **One Interface** → 16 Exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX, Aster, Pacifica, Ostium)
+- **One Interface** → 19 Exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX, Aster, Pacifica, Ostium, Reya, Ethereal, Avantis)
 - **One Codebase** → All Trading Operations (market data, orders, positions, WebSocket)
 - **One Installation** → Full-Stack Solution (authentication, rate limiting, error handling)
 
@@ -74,26 +74,31 @@ const order = await exchange.createOrder({
 
 | Exchange | Status | Markets | Auth | Notes |
 |----------|--------|---------|------|-------|
-| **Hyperliquid** | ✅ Production | 228 perp | EIP-712 | Full API + WebSocket |
-| **EdgeX** | ✅ Production | 292 perp | StarkNet ECDSA | No REST trades¹ |
-| **Paradex** | ✅ Production | 96 perp | StarkNet + JWT | Public data + WebSocket |
-| **GRVT** | ✅ Production | 80 perp | API Key + EIP-712 | Sub-ms latency |
-| **Backpack** | ✅ Production | 75 perp, 79 spot | ED25519 | Solana-based |
-| **Lighter** | ✅ Production | 145 perp | WASM Signing | Cross-platform |
-| **Nado** | ✅ Production | 23 perp, 3 spot | EIP-712 (Ink L2) | No REST trades¹ |
-| **Extended** | 🔴 Degraded | 94 perp | API Key | API returning empty markets |
-| **Variational** | 🟡 Dev | RFQ-based | API Key | No WebSocket |
-| **dYdX v4** | ✅ Production | 293 perp | Cosmos SDK | Full trading + WebSocket |
-| **Jupiter Perps** | 🔴 Degraded | 3 perp | Solana Wallet | Pyth API migration issue |
-| **Drift Protocol** | ✅ Production | 11 perp | Solana Wallet | DLOB + WebSocket |
-| **GMX v2** | 🟡 Read-Only | 129 markets | On-chain | Arbitrum/Avalanche² |
-| **Aster** | ✅ Production | 275 perp | HMAC-SHA256 | Full API + OHLCV |
-| **Pacifica** | 🔴 Offline | 50+ perp | ED25519 | API offline (404) |
-| **Ostium** | ✅ Production | 11 RWA perp | ethers.js | Arbitrum RWA, limited REST³ |
+| **Hyperliquid** | ✅ Verified | 229 perp | EIP-712 | Full API + WebSocket |
+| **EdgeX** | ✅ Verified | 292 perp | StarkNet ECDSA | No REST trades¹ |
+| **Paradex** | ✅ Verified | 95 perp | StarkNet + JWT | OB requires auth |
+| **GRVT** | ✅ Verified | 95 perp | API Key + EIP-712 | Sub-ms latency |
+| **Backpack** | ✅ Verified | 159 perp+spot | ED25519 | Solana-based |
+| **Lighter** | ✅ Verified | 156 perp | WASM Signing | Cross-platform |
+| **Nado** | ✅ Verified | 44 perp+spot | EIP-712 (Ink L2) | No REST trades¹ |
+| **Extended** | ✅ Verified | 114 perp | API Key | StarkNet DEX |
+| **Variational** | ✅ Verified | 470 RFQ | API Key | No WebSocket |
+| **dYdX v4** | ✅ Verified | 293 perp | Cosmos SDK | Full trading + WebSocket |
+| **Jupiter Perps** | ✅ Verified | 3 perp | Solana Wallet | Oracle-based, no OB⁴ |
+| **Drift Protocol** | ✅ Verified | 41 perp | Solana Wallet | DLOB + WebSocket |
+| **GMX v2** | ✅ Verified | 129 markets | On-chain | Oracle-based, no OB⁴ |
+| **Aster** | ✅ Verified | 304 perp | HMAC-SHA256 | Full API + OHLCV |
+| **Pacifica** | ✅ Verified | 59 perp | ED25519 | Solana-based |
+| **Ostium** | ✅ Verified | 11 RWA perp | ethers.js | Oracle-based, no OB⁴ |
+| **Reya** | ✅ Verified | 69 perp | EIP-712 | Oracle/pool-based, no OB⁴ |
+| **Ethereal** | ✅ Verified | 15 perp | EIP-712 | USDe collateral |
+| **Avantis** | 🟡 Partial | On-chain | Wallet Signing | Needs contract addresses⁵ |
 
 > ¹ Use `watchTrades()` for real-time trade data
 > ² GMX trading requires on-chain transactions via ExchangeRouter contract
 > ³ Ostium specializes in RWA (Real World Assets) perpetuals: stocks, forex, commodities, indices
+> ⁴ Oracle/AMM-based DEX — no traditional orderbook
+> ⁵ Avantis requires real Base mainnet contract addresses (on-chain protocol)
 
 ### 📊 API Completion Matrix
 
@@ -187,7 +192,7 @@ const order = await exchange.createOrder({
 - **Request tracing** - Correlation IDs for distributed debugging
 - **Type safety** - Runtime validation (Zod) + TypeScript strict mode
 - **Health checks** - Prometheus metrics, structured JSON logging
-- **6092 tests** - 100% pass rate, 82% coverage enforced
+- **6908 tests** - 100% pass rate, 85% coverage enforced
 
 ---
 
@@ -354,6 +359,21 @@ const pacifica = await createExchange('pacifica', {
 const ostium = await createExchange('ostium', {
   privateKey: process.env.OSTIUM_PRIVATE_KEY,  // EVM private key
 });
+
+// Reya (Reya Network L2) - EIP-712 signing
+const reya = await createExchange('reya', {
+  privateKey: process.env.REYA_PRIVATE_KEY,  // EVM private key
+});
+
+// Ethereal (EIP-712) - USDe collateral
+const ethereal = await createExchange('ethereal', {
+  privateKey: process.env.ETHEREAL_PRIVATE_KEY,  // EVM private key
+});
+
+// Avantis (Base chain) - on-chain via ethers.js
+const avantis = await createExchange('avantis', {
+  privateKey: process.env.AVANTIS_PRIVATE_KEY,  // EVM private key
+});
 ```
 
 ### Exchange-Specific Notes
@@ -369,8 +389,11 @@ const ostium = await createExchange('ostium', {
 | **Drift** | Solana wallet required; private key for trading |
 | **GMX v2** | Read-only REST API; trading requires @gmx-io/sdk |
 | **Aster** | BNB Chain, Binance-style HMAC-SHA256 auth, referral codes supported |
-| **Pacifica** | API currently offline |
-| **Ostium** | Arbitrum RWA perpetuals; subgraph service migrated |
+| **Pacifica** | Solana-based, ED25519 signing |
+| **Ostium** | Arbitrum RWA perpetuals; oracle-based (no orderbook) |
+| **Reya** | Reya Network L2; oracle/pool-based (no orderbook); continuous funding |
+| **Ethereal** | EIP-712 auth; USDe collateral; UUID product IDs |
+| **Avantis** | Base chain; on-chain execution; Pyth oracle; needs real contract addresses |
 
 ---
 
@@ -433,6 +456,15 @@ PACIFICA_API_SECRET=base64_key            # ED25519 private key (base64)
 
 # Ostium (Arbitrum RWA)
 OSTIUM_PRIVATE_KEY=0x...                  # EVM private key
+
+# Reya (Reya Network L2)
+REYA_PRIVATE_KEY=0x...                    # EVM private key
+
+# Ethereal
+ETHEREAL_PRIVATE_KEY=0x...                # EVM private key
+
+# Avantis (Base chain)
+AVANTIS_PRIVATE_KEY=0x...                 # EVM private key
 ```
 
 ---
@@ -680,11 +712,11 @@ npm test -- hyperliquid
 ### Test Results
 
 ```
-✅ 6092 tests passing (100% pass rate)
-✅ 172 test suites
-✅ Coverage: 82% statements, 87% functions
-✅ ESLint: 0 errors
-✅ Live API: 56/96 public methods verified (12/16 exchanges operational)
+✅ 6908 tests passing (100% pass rate)
+✅ 194 test suites
+✅ Coverage: 85% statements, 89% functions
+✅ ESLint: 0 errors, TypeScript strict: 0 errors
+✅ Live API: 18/19 exchanges verified against real APIs (March 2026)
 ```
 
 ---
@@ -693,7 +725,7 @@ npm test -- hyperliquid
 
 ### Pattern A: Full-Featured Architecture
 
-All **16 exchange adapters** follow **Pattern A** (Full-Featured) architecture:
+All **19 exchange adapters** follow **Pattern A** (Full-Featured) architecture:
 
 ```
 src/adapters/{exchange}/

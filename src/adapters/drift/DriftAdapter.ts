@@ -434,7 +434,7 @@ export class DriftAdapter extends BaseAdapter implements IExchangeAdapter {
       );
 
       // Build ticker from orderbook data
-      const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+      const oraclePrice = parseFloat(String(orderbook.oracle ?? orderbook.oraclePrice ?? '0')) / DRIFT_PRECISION.PRICE;
       const bestBid = orderbook.bids[0]
         ? parseFloat(orderbook.bids[0].price) / DRIFT_PRECISION.PRICE
         : oraclePrice * 0.999;
@@ -603,7 +603,7 @@ export class DriftAdapter extends BaseAdapter implements IExchangeAdapter {
           'GET',
           buildOrderbookUrl(this.dlobBaseUrl, pos.marketIndex, 'perp', 1)
         );
-        const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+        const oraclePrice = parseFloat(String(orderbook.oracle ?? orderbook.oraclePrice ?? '0')) / DRIFT_PRECISION.PRICE;
 
         const position = this.normalizer.normalizePosition(
           {
@@ -776,7 +776,7 @@ export class DriftAdapter extends BaseAdapter implements IExchangeAdapter {
         'GET',
         buildOrderbookUrl(this.dlobBaseUrl, marketIndex, 'perp', 1)
       );
-      const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+      const oraclePrice = parseFloat(String(orderbook.oracle ?? orderbook.oraclePrice ?? '0')) / DRIFT_PRECISION.PRICE;
 
       // Build order parameters
       const orderParams = this.orderBuilder.buildOrderParams(request, oraclePrice);

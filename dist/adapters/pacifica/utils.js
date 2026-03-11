@@ -3,11 +3,10 @@
  */
 export function toPacificaSymbol(unified) {
     const parts = unified.split(/[/:]/);
-    return `${parts[0]}-PERP`;
+    return parts[0];
 }
 export function toUnifiedSymbol(pacificaSymbol) {
-    const base = pacificaSymbol.replace('-PERP', '');
-    return `${base}/USDC:USDC`;
+    return `${pacificaSymbol}/USDC:USDC`;
 }
 export function buildOrderBody(request, pacificaSymbol, builderCode) {
     const body = {

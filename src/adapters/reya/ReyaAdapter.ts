@@ -68,7 +68,7 @@ export class ReyaAdapter extends BaseAdapter implements IExchangeAdapter {
     // Market Data
     fetchMarkets: true,
     fetchTicker: true,
-    fetchOrderBook: true,
+    fetchOrderBook: false,
     fetchTrades: true,
     fetchOHLCV: true,
     fetchFundingRate: true,
@@ -208,8 +208,8 @@ export class ReyaAdapter extends BaseAdapter implements IExchangeAdapter {
 
   async fetchMarkets(_params?: MarketParams): Promise<Market[]> {
     const [definitions, summaries] = await Promise.all([
-      this.publicGet<ReyaMarketDefinition[]>('/reference-data/market-definitions', 'fetchMarkets'),
-      this.publicGet<ReyaMarketSummary[]>('/market-data/markets/summary', 'fetchMarkets'),
+      this.publicGet<ReyaMarketDefinition[]>('/marketDefinitions', 'fetchMarkets'),
+      this.publicGet<ReyaMarketSummary[]>('/markets/summary', 'fetchMarkets'),
     ]);
 
     const summaryMap = new Map<string, ReyaMarketSummary>();
@@ -227,10 +227,10 @@ export class ReyaAdapter extends BaseAdapter implements IExchangeAdapter {
 
     const [summary, price] = await Promise.all([
       this.publicGet<ReyaMarketSummary>(
-        `/market-data/market/summary?symbol=${reyaSymbol}`,
+        `/market/${reyaSymbol}/summary`,
         'fetchTicker'
       ),
-      this.publicGet<ReyaPrice>(`/market-data/price?symbol=${reyaSymbol}`, 'fetchTicker'),
+      this.publicGet<ReyaPrice>(`/prices/${reyaSymbol}`, 'fetchTicker'),
     ]);
 
     return this.normalizer.normalizeTicker(summary, price);
@@ -240,7 +240,7 @@ export class ReyaAdapter extends BaseAdapter implements IExchangeAdapter {
     const reyaSymbol = this.symbolToExchange(symbol);
 
     const depth = await this.publicGet<ReyaDepth>(
-      `/market-data/market/depth?symbol=${reyaSymbol}`,
+      `/market/${reyaSymbol}/depth`,
       'fetchOrderBook'
     );
 
@@ -249,10 +249,10 @@ export class ReyaAdapter extends BaseAdapter implements IExchangeAdapter {
 
   async _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
     const reyaSymbol = this.symbolToExchange(symbol);
-    let path = `/market-data/market/perp-executions?symbol=${reyaSymbol}`;
+    let path = `/market/${reyaSymbol}/perpExecutions`;
 
     if (params?.since) {
-      path += `&startTime=${params.since}`;
+      path += `?startTime=${params.since}`;
     }
 
     const response = await this.publicGet<ReyaPerpExecutionList>(path, 'fetchTrades');
@@ -265,10 +265,10 @@ export class ReyaAdapter extends BaseAdapter implements IExchangeAdapter {
 
     const [summary, price] = await Promise.all([
       this.publicGet<ReyaMarketSummary>(
-        `/market-data/market/summary?symbol=${reyaSymbol}`,
+        `/market/${reyaSymbol}/summary`,
         'fetchFundingRate'
       ),
-      this.publicGet<ReyaPrice>(`/market-data/price?symbol=${reyaSymbol}`, 'fetchFundingRate'),
+      this.publicGet<ReyaPrice>(`/prices/${reyaSymbol}`, 'fetchFundingRate'),
     ]);
 
     const markPrice = parseFloat(price.oraclePrice);
@@ -295,7 +295,7 @@ export class ReyaAdapter extends BaseAdapter implements IExchangeAdapter {
     const reyaSymbol = this.symbolToExchange(symbol);
     const resolution = mapTimeframeToResolution(timeframe);
 
-    let path = `/market-data/candles?symbol=${reyaSymbol}&resolution=${resolution}`;
+    let path = `/market/${reyaSymbol}/candles?resolution=${resolution}`;
     if (params?.until) {
       path += `&endTime=${Math.floor(params.until / 1000)}`; // Convert to seconds
     }

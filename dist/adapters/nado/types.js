@@ -6,14 +6,17 @@
  * @see https://docs.nado.xyz
  */
 import { z } from 'zod';
-export const NadoResponseSchema = (dataSchema) => z.object({
+export const NadoResponseSchema = (dataSchema) => z
+    .object({
     status: z.enum(['success', 'failure']),
     data: dataSchema.optional(),
     error: z.string().optional(),
     error_code: z.number().optional(),
     request_type: z.string().optional(),
-});
-export const NadoSymbolSchema = z.object({
+})
+    .passthrough();
+export const NadoSymbolSchema = z
+    .object({
     type: z.enum(['perp', 'spot']),
     product_id: z.number(),
     symbol: z.string(),
@@ -25,11 +28,13 @@ export const NadoSymbolSchema = z.object({
     long_weight_initial_x18: z.string(),
     long_weight_maintenance_x18: z.string(),
     max_open_interest_x18: z.string().nullable().optional(),
-});
+})
+    .passthrough();
 /**
  * @deprecated Use NadoSymbolSchema instead
  */
-export const NadoProductSchema = z.object({
+export const NadoProductSchema = z
+    .object({
     product_id: z.number(),
     symbol: z.string(),
     base_currency: z.string(),
@@ -42,12 +47,16 @@ export const NadoProductSchema = z.object({
     taker_fee: z.string(),
     is_active: z.boolean(),
     product_type: z.enum(['perpetual', 'spot', 'future']),
-});
-export const NadoOrderBookSchema = z.object({
+})
+    .passthrough();
+export const NadoOrderBookSchema = z
+    .object({
     bids: z.array(z.tuple([z.string(), z.string()])),
     asks: z.array(z.tuple([z.string(), z.string()])),
-});
-export const NadoOrderSchema = z.object({
+})
+    .passthrough();
+export const NadoOrderSchema = z
+    .object({
     order_id: z.string(),
     digest: z.string(),
     product_id: z.number(),
@@ -65,8 +74,10 @@ export const NadoOrderSchema = z.object({
     is_reduce_only: z.boolean().optional(),
     post_only: z.boolean().optional(),
     time_in_force: z.enum(['gtc', 'ioc', 'fok']).optional(),
-});
-export const NadoPositionSchema = z.object({
+})
+    .passthrough();
+export const NadoPositionSchema = z
+    .object({
     product_id: z.number(),
     subaccount: z.string(),
     size: z.string(),
@@ -78,8 +89,10 @@ export const NadoPositionSchema = z.object({
     leverage: z.string(),
     margin: z.string(),
     timestamp: z.number(),
-});
-export const NadoBalanceSchema = z.object({
+})
+    .passthrough();
+export const NadoBalanceSchema = z
+    .object({
     subaccount: z.string(),
     quote_balance: z.string(),
     total_equity: z.string(),
@@ -88,8 +101,10 @@ export const NadoBalanceSchema = z.object({
     unrealized_pnl: z.string(),
     health: z.string(),
     timestamp: z.number(),
-});
-export const NadoTradeSchema = z.object({
+})
+    .passthrough();
+export const NadoTradeSchema = z
+    .object({
     trade_id: z.string(),
     product_id: z.number(),
     price: z.string(),
@@ -97,20 +112,27 @@ export const NadoTradeSchema = z.object({
     side: z.union([z.literal(0), z.literal(1)]),
     timestamp: z.number(),
     is_maker: z.boolean(),
-});
-export const NadoTickerSchema = z.object({
+})
+    .passthrough();
+export const NadoTickerSchema = z
+    .object({
     product_id: z.number(),
     bid_x18: z.string(),
     ask_x18: z.string(),
-});
-export const NadoContractsSchema = z.object({
+})
+    .passthrough();
+export const NadoContractsSchema = z
+    .object({
     chain_id: z.string(),
     endpoint_addr: z.string(),
     products: z
-        .record(z.string(), z.object({
+        .record(z.string(), z
+        .object({
         address: z.string(),
         symbol: z.string(),
-    }))
+    })
+        .passthrough())
         .optional(),
-});
+})
+    .passthrough();
 //# sourceMappingURL=types.js.map

@@ -277,36 +277,36 @@ export declare const LighterAPIMarketSchema: z.ZodObject<{
  */
 export interface LighterAPITicker {
     symbol: string;
-    last_trade_price?: string;
-    daily_price_high?: string;
-    daily_price_low?: string;
-    daily_base_token_volume?: string;
-    daily_quote_token_volume?: string;
-    daily_price_change?: string;
+    last_trade_price?: string | number;
+    daily_price_high?: string | number;
+    daily_price_low?: string | number;
+    daily_base_token_volume?: string | number;
+    daily_quote_token_volume?: string | number;
+    daily_price_change?: string | number;
 }
 export declare const LighterAPITickerSchema: z.ZodObject<{
     symbol: z.ZodString;
-    last_trade_price: z.ZodOptional<z.ZodString>;
-    daily_price_high: z.ZodOptional<z.ZodString>;
-    daily_price_low: z.ZodOptional<z.ZodString>;
-    daily_base_token_volume: z.ZodOptional<z.ZodString>;
-    daily_quote_token_volume: z.ZodOptional<z.ZodString>;
-    daily_price_change: z.ZodOptional<z.ZodString>;
+    last_trade_price: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_price_high: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_price_low: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_base_token_volume: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_quote_token_volume: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_price_change: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
     symbol: z.ZodString;
-    last_trade_price: z.ZodOptional<z.ZodString>;
-    daily_price_high: z.ZodOptional<z.ZodString>;
-    daily_price_low: z.ZodOptional<z.ZodString>;
-    daily_base_token_volume: z.ZodOptional<z.ZodString>;
-    daily_quote_token_volume: z.ZodOptional<z.ZodString>;
-    daily_price_change: z.ZodOptional<z.ZodString>;
+    last_trade_price: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_price_high: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_price_low: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_base_token_volume: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_quote_token_volume: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_price_change: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
     symbol: z.ZodString;
-    last_trade_price: z.ZodOptional<z.ZodString>;
-    daily_price_high: z.ZodOptional<z.ZodString>;
-    daily_price_low: z.ZodOptional<z.ZodString>;
-    daily_base_token_volume: z.ZodOptional<z.ZodString>;
-    daily_quote_token_volume: z.ZodOptional<z.ZodString>;
-    daily_price_change: z.ZodOptional<z.ZodString>;
+    last_trade_price: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_price_high: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_price_low: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_base_token_volume: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_quote_token_volume: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    daily_price_change: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
 }, z.ZodTypeAny, "passthrough">>;
 //# sourceMappingURL=types.d.ts.map

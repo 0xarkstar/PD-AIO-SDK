@@ -29,10 +29,10 @@ export const BackpackMarketSchema = z
     })
         .optional(),
     fundingInterval: z.number().nullable().optional(),
-    imfFunction: z.unknown().optional(),
-    mmfFunction: z.unknown().optional(),
-    positionLimitWeight: z.unknown().optional(),
-    openInterestLimit: z.string().optional(),
+    imfFunction: z.unknown().nullable().optional(),
+    mmfFunction: z.unknown().nullable().optional(),
+    positionLimitWeight: z.unknown().nullable().optional(),
+    openInterestLimit: z.string().nullable().optional(),
 })
     .passthrough();
 export const BackpackOrderSchema = z

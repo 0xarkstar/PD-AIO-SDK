@@ -22,31 +22,19 @@ export declare const NadoResponseSchema: <T extends z.ZodTypeAny>(dataSchema: T)
     error: z.ZodOptional<z.ZodString>;
     error_code: z.ZodOptional<z.ZodNumber>;
     request_type: z.ZodOptional<z.ZodString>;
-}, "strip", z.ZodTypeAny, z.objectUtil.addQuestionMarks<z.baseObjectOutputType<{
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
     status: z.ZodEnum<["success", "failure"]>;
     data: z.ZodOptional<T>;
     error: z.ZodOptional<z.ZodString>;
     error_code: z.ZodOptional<z.ZodNumber>;
     request_type: z.ZodOptional<z.ZodString>;
-}>, any> extends infer T_1 ? { [k in keyof T_1]: z.objectUtil.addQuestionMarks<z.baseObjectOutputType<{
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
     status: z.ZodEnum<["success", "failure"]>;
     data: z.ZodOptional<T>;
     error: z.ZodOptional<z.ZodString>;
     error_code: z.ZodOptional<z.ZodNumber>;
     request_type: z.ZodOptional<z.ZodString>;
-}>, any>[k]; } : never, z.baseObjectInputType<{
-    status: z.ZodEnum<["success", "failure"]>;
-    data: z.ZodOptional<T>;
-    error: z.ZodOptional<z.ZodString>;
-    error_code: z.ZodOptional<z.ZodNumber>;
-    request_type: z.ZodOptional<z.ZodString>;
-}> extends infer T_2 ? { [k_1 in keyof T_2]: z.baseObjectInputType<{
-    status: z.ZodEnum<["success", "failure"]>;
-    data: z.ZodOptional<T>;
-    error: z.ZodOptional<z.ZodString>;
-    error_code: z.ZodOptional<z.ZodNumber>;
-    request_type: z.ZodOptional<z.ZodString>;
-}>[k_1]; } : never>;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Nado Symbol (Market) Information from /query?type=symbols
  *
@@ -78,31 +66,31 @@ export declare const NadoSymbolSchema: z.ZodObject<{
     long_weight_initial_x18: z.ZodString;
     long_weight_maintenance_x18: z.ZodString;
     max_open_interest_x18: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, "strip", z.ZodTypeAny, {
-    symbol: string;
-    type: "perp" | "spot";
-    min_size: string;
-    product_id: number;
-    price_increment_x18: string;
-    size_increment: string;
-    maker_fee_rate_x18: string;
-    taker_fee_rate_x18: string;
-    long_weight_initial_x18: string;
-    long_weight_maintenance_x18: string;
-    max_open_interest_x18?: string | null | undefined;
-}, {
-    symbol: string;
-    type: "perp" | "spot";
-    min_size: string;
-    product_id: number;
-    price_increment_x18: string;
-    size_increment: string;
-    maker_fee_rate_x18: string;
-    taker_fee_rate_x18: string;
-    long_weight_initial_x18: string;
-    long_weight_maintenance_x18: string;
-    max_open_interest_x18?: string | null | undefined;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    type: z.ZodEnum<["perp", "spot"]>;
+    product_id: z.ZodNumber;
+    symbol: z.ZodString;
+    price_increment_x18: z.ZodString;
+    size_increment: z.ZodString;
+    min_size: z.ZodString;
+    maker_fee_rate_x18: z.ZodString;
+    taker_fee_rate_x18: z.ZodString;
+    long_weight_initial_x18: z.ZodString;
+    long_weight_maintenance_x18: z.ZodString;
+    max_open_interest_x18: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    type: z.ZodEnum<["perp", "spot"]>;
+    product_id: z.ZodNumber;
+    symbol: z.ZodString;
+    price_increment_x18: z.ZodString;
+    size_increment: z.ZodString;
+    min_size: z.ZodString;
+    maker_fee_rate_x18: z.ZodString;
+    taker_fee_rate_x18: z.ZodString;
+    long_weight_initial_x18: z.ZodString;
+    long_weight_maintenance_x18: z.ZodString;
+    max_open_interest_x18: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * @deprecated Use NadoSymbol instead - this was based on incorrect API assumptions
  */
@@ -136,33 +124,33 @@ export declare const NadoProductSchema: z.ZodObject<{
     taker_fee: z.ZodString;
     is_active: z.ZodBoolean;
     product_type: z.ZodEnum<["perpetual", "spot", "future"]>;
-}, "strip", z.ZodTypeAny, {
-    symbol: string;
-    maker_fee: string;
-    taker_fee: string;
-    is_active: boolean;
-    base_currency: string;
-    quote_currency: string;
-    min_size: string;
-    tick_size: string;
-    product_id: number;
-    contract_size: string;
-    product_type: "spot" | "perpetual" | "future";
-    max_position_size?: string | undefined;
-}, {
-    symbol: string;
-    maker_fee: string;
-    taker_fee: string;
-    is_active: boolean;
-    base_currency: string;
-    quote_currency: string;
-    min_size: string;
-    tick_size: string;
-    product_id: number;
-    contract_size: string;
-    product_type: "spot" | "perpetual" | "future";
-    max_position_size?: string | undefined;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    product_id: z.ZodNumber;
+    symbol: z.ZodString;
+    base_currency: z.ZodString;
+    quote_currency: z.ZodString;
+    contract_size: z.ZodString;
+    tick_size: z.ZodString;
+    min_size: z.ZodString;
+    max_position_size: z.ZodOptional<z.ZodString>;
+    maker_fee: z.ZodString;
+    taker_fee: z.ZodString;
+    is_active: z.ZodBoolean;
+    product_type: z.ZodEnum<["perpetual", "spot", "future"]>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    product_id: z.ZodNumber;
+    symbol: z.ZodString;
+    base_currency: z.ZodString;
+    quote_currency: z.ZodString;
+    contract_size: z.ZodString;
+    tick_size: z.ZodString;
+    min_size: z.ZodString;
+    max_position_size: z.ZodOptional<z.ZodString>;
+    maker_fee: z.ZodString;
+    taker_fee: z.ZodString;
+    is_active: z.ZodBoolean;
+    product_type: z.ZodEnum<["perpetual", "spot", "future"]>;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Nado Order Book Level
  * Format: [price_x18, size_x18]
@@ -178,13 +166,13 @@ export interface NadoOrderBook {
 export declare const NadoOrderBookSchema: z.ZodObject<{
     bids: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
     asks: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
-}, "strip", z.ZodTypeAny, {
-    bids: [string, string][];
-    asks: [string, string][];
-}, {
-    bids: [string, string][];
-    asks: [string, string][];
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    bids: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    asks: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    bids: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+    asks: z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Nado Order
  */
@@ -225,43 +213,43 @@ export declare const NadoOrderSchema: z.ZodObject<{
     is_reduce_only: z.ZodOptional<z.ZodBoolean>;
     post_only: z.ZodOptional<z.ZodBoolean>;
     time_in_force: z.ZodOptional<z.ZodEnum<["gtc", "ioc", "fok"]>>;
-}, "strip", z.ZodTypeAny, {
-    status: "open" | "expired" | "rejected" | "filled" | "cancelled";
-    side: 0 | 1;
-    amount: string;
-    timestamp: number;
-    nonce: number;
-    order_id: string;
-    expiration: number;
-    product_id: number;
-    digest: string;
-    sender: string;
-    price_x18: string;
-    filled_amount: string;
-    remaining_amount: string;
-    time_in_force?: "ioc" | "fok" | "gtc" | undefined;
-    post_only?: boolean | undefined;
-    avg_fill_price?: string | undefined;
-    is_reduce_only?: boolean | undefined;
-}, {
-    status: "open" | "expired" | "rejected" | "filled" | "cancelled";
-    side: 0 | 1;
-    amount: string;
-    timestamp: number;
-    nonce: number;
-    order_id: string;
-    expiration: number;
-    product_id: number;
-    digest: string;
-    sender: string;
-    price_x18: string;
-    filled_amount: string;
-    remaining_amount: string;
-    time_in_force?: "ioc" | "fok" | "gtc" | undefined;
-    post_only?: boolean | undefined;
-    avg_fill_price?: string | undefined;
-    is_reduce_only?: boolean | undefined;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    order_id: z.ZodString;
+    digest: z.ZodString;
+    product_id: z.ZodNumber;
+    sender: z.ZodString;
+    price_x18: z.ZodString;
+    amount: z.ZodString;
+    side: z.ZodUnion<[z.ZodLiteral<0>, z.ZodLiteral<1>]>;
+    expiration: z.ZodNumber;
+    nonce: z.ZodNumber;
+    status: z.ZodEnum<["open", "filled", "cancelled", "expired", "rejected"]>;
+    filled_amount: z.ZodString;
+    remaining_amount: z.ZodString;
+    avg_fill_price: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodNumber;
+    is_reduce_only: z.ZodOptional<z.ZodBoolean>;
+    post_only: z.ZodOptional<z.ZodBoolean>;
+    time_in_force: z.ZodOptional<z.ZodEnum<["gtc", "ioc", "fok"]>>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    order_id: z.ZodString;
+    digest: z.ZodString;
+    product_id: z.ZodNumber;
+    sender: z.ZodString;
+    price_x18: z.ZodString;
+    amount: z.ZodString;
+    side: z.ZodUnion<[z.ZodLiteral<0>, z.ZodLiteral<1>]>;
+    expiration: z.ZodNumber;
+    nonce: z.ZodNumber;
+    status: z.ZodEnum<["open", "filled", "cancelled", "expired", "rejected"]>;
+    filled_amount: z.ZodString;
+    remaining_amount: z.ZodString;
+    avg_fill_price: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodNumber;
+    is_reduce_only: z.ZodOptional<z.ZodBoolean>;
+    post_only: z.ZodOptional<z.ZodBoolean>;
+    time_in_force: z.ZodOptional<z.ZodEnum<["gtc", "ioc", "fok"]>>;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Nado Position
  */
@@ -290,31 +278,31 @@ export declare const NadoPositionSchema: z.ZodObject<{
     leverage: z.ZodString;
     margin: z.ZodString;
     timestamp: z.ZodNumber;
-}, "strip", z.ZodTypeAny, {
-    margin: string;
-    leverage: string;
-    timestamp: number;
-    size: string;
-    mark_price: string;
-    entry_price: string;
-    unrealized_pnl: string;
-    realized_pnl: string;
-    product_id: number;
-    subaccount: string;
-    liquidation_price?: string | undefined;
-}, {
-    margin: string;
-    leverage: string;
-    timestamp: number;
-    size: string;
-    mark_price: string;
-    entry_price: string;
-    unrealized_pnl: string;
-    realized_pnl: string;
-    product_id: number;
-    subaccount: string;
-    liquidation_price?: string | undefined;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    product_id: z.ZodNumber;
+    subaccount: z.ZodString;
+    size: z.ZodString;
+    entry_price: z.ZodString;
+    mark_price: z.ZodString;
+    liquidation_price: z.ZodOptional<z.ZodString>;
+    unrealized_pnl: z.ZodString;
+    realized_pnl: z.ZodString;
+    leverage: z.ZodString;
+    margin: z.ZodString;
+    timestamp: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    product_id: z.ZodNumber;
+    subaccount: z.ZodString;
+    size: z.ZodString;
+    entry_price: z.ZodString;
+    mark_price: z.ZodString;
+    liquidation_price: z.ZodOptional<z.ZodString>;
+    unrealized_pnl: z.ZodString;
+    realized_pnl: z.ZodString;
+    leverage: z.ZodString;
+    margin: z.ZodString;
+    timestamp: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Nado Balance (Subaccount Info)
  */
@@ -337,25 +325,25 @@ export declare const NadoBalanceSchema: z.ZodObject<{
     unrealized_pnl: z.ZodString;
     health: z.ZodString;
     timestamp: z.ZodNumber;
-}, "strip", z.ZodTypeAny, {
-    timestamp: number;
-    unrealized_pnl: string;
-    subaccount: string;
-    quote_balance: string;
-    total_equity: string;
-    used_margin: string;
-    free_margin: string;
-    health: string;
-}, {
-    timestamp: number;
-    unrealized_pnl: string;
-    subaccount: string;
-    quote_balance: string;
-    total_equity: string;
-    used_margin: string;
-    free_margin: string;
-    health: string;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    subaccount: z.ZodString;
+    quote_balance: z.ZodString;
+    total_equity: z.ZodString;
+    used_margin: z.ZodString;
+    free_margin: z.ZodString;
+    unrealized_pnl: z.ZodString;
+    health: z.ZodString;
+    timestamp: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    subaccount: z.ZodString;
+    quote_balance: z.ZodString;
+    total_equity: z.ZodString;
+    used_margin: z.ZodString;
+    free_margin: z.ZodString;
+    unrealized_pnl: z.ZodString;
+    health: z.ZodString;
+    timestamp: z.ZodNumber;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Nado Trade
  */
@@ -376,23 +364,23 @@ export declare const NadoTradeSchema: z.ZodObject<{
     side: z.ZodUnion<[z.ZodLiteral<0>, z.ZodLiteral<1>]>;
     timestamp: z.ZodNumber;
     is_maker: z.ZodBoolean;
-}, "strip", z.ZodTypeAny, {
-    side: 0 | 1;
-    price: string;
-    timestamp: number;
-    size: string;
-    trade_id: string;
-    product_id: number;
-    is_maker: boolean;
-}, {
-    side: 0 | 1;
-    price: string;
-    timestamp: number;
-    size: string;
-    trade_id: string;
-    product_id: number;
-    is_maker: boolean;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    trade_id: z.ZodString;
+    product_id: z.ZodNumber;
+    price: z.ZodString;
+    size: z.ZodString;
+    side: z.ZodUnion<[z.ZodLiteral<0>, z.ZodLiteral<1>]>;
+    timestamp: z.ZodNumber;
+    is_maker: z.ZodBoolean;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    trade_id: z.ZodString;
+    product_id: z.ZodNumber;
+    price: z.ZodString;
+    size: z.ZodString;
+    side: z.ZodUnion<[z.ZodLiteral<0>, z.ZodLiteral<1>]>;
+    timestamp: z.ZodNumber;
+    is_maker: z.ZodBoolean;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Nado Ticker (from market_prices endpoint)
  * Note: The API returns minimal price data (bid/ask only)
@@ -406,15 +394,15 @@ export declare const NadoTickerSchema: z.ZodObject<{
     product_id: z.ZodNumber;
     bid_x18: z.ZodString;
     ask_x18: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    product_id: number;
-    bid_x18: string;
-    ask_x18: string;
-}, {
-    product_id: number;
-    bid_x18: string;
-    ask_x18: string;
-}>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    product_id: z.ZodNumber;
+    bid_x18: z.ZodString;
+    ask_x18: z.ZodString;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    product_id: z.ZodNumber;
+    bid_x18: z.ZodString;
+    ask_x18: z.ZodString;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * EIP712 Order Structure for Signing
  *
@@ -471,28 +459,40 @@ export declare const NadoContractsSchema: z.ZodObject<{
     products: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodObject<{
         address: z.ZodString;
         symbol: z.ZodString;
-    }, "strip", z.ZodTypeAny, {
-        symbol: string;
-        address: string;
-    }, {
-        symbol: string;
-        address: string;
-    }>>>;
-}, "strip", z.ZodTypeAny, {
-    chain_id: string;
-    endpoint_addr: string;
-    products?: Record<string, {
-        symbol: string;
-        address: string;
-    }> | undefined;
-}, {
-    chain_id: string;
-    endpoint_addr: string;
-    products?: Record<string, {
-        symbol: string;
-        address: string;
-    }> | undefined;
-}>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">>>>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    chain_id: z.ZodString;
+    endpoint_addr: z.ZodString;
+    products: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodObject<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">>>>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    chain_id: z.ZodString;
+    endpoint_addr: z.ZodString;
+    products: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodObject<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        address: z.ZodString;
+        symbol: z.ZodString;
+    }, z.ZodTypeAny, "passthrough">>>>;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * Nado Configuration
  */

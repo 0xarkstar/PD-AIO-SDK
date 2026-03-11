@@ -65,7 +65,7 @@ export class GmxAdapter extends BaseAdapter {
         fetchMarkets: true,
         fetchTicker: true,
         fetchOrderBook: false, // GMX doesn't have a traditional orderbook
-        fetchTrades: false, // Requires subgraph query
+        fetchTrades: true, // Via subgraph
         fetchFundingRate: true,
         fetchFundingRateHistory: false,
         fetchOHLCV: true,
@@ -81,7 +81,7 @@ export class GmxAdapter extends BaseAdapter {
         fetchBalance: true,
         fetchOpenOrders: true,
         fetchOrderHistory: true,
-        fetchMyTrades: false,
+        fetchMyTrades: true, // Via subgraph (requires auth)
         // Position management
         setLeverage: false, // Leverage is per-position
         setMarginMode: false, // Always cross margin
@@ -155,10 +155,11 @@ export class GmxAdapter extends BaseAdapter {
         try {
             // Validate API connectivity by fetching markets
             await this.fetchMarketsInfo();
-            // Initialize contracts and subgraph if auth is available
+            // Initialize subgraph for public queries (trades)
+            this.subgraph = new GmxSubgraph(this.chain);
+            // Initialize contracts if auth is available
             if (this.auth) {
                 this.contracts = new GmxContracts(this.chain, this.auth.getProvider(), this.auth.getSigner());
-                this.subgraph = new GmxSubgraph(this.chain);
                 // Initialize order builder if trading is enabled
                 if (this.auth.canSign() && this.contracts) {
                     this.orderBuilder = new GmxOrderBuilder(this.chain, this.auth, this.contracts, this.orderConfig);
@@ -232,9 +233,35 @@ export class GmxAdapter extends BaseAdapter {
         // GMX doesn't have a traditional orderbook - it's AMM-based with price impact
         throw new Error('GMX does not have a traditional orderbook. Use fetchTicker for price data.');
     }
-    async _fetchTrades(_symbol, _params) {
-        // Would require subgraph query - not implemented for REST-only version
-        throw new Error('fetchTrades requires subgraph integration. Not available via REST API.');
+    async _fetchTrades(symbol, params) {
+        this.ensureInitialized();
+        if (!this.subgraph) {
+            throw new Error('Subgraph not initialized');
+        }
+        const marketKey = unifiedToGmx(symbol);
+        if (!marketKey) {
+            throw new Error(`Invalid market: ${symbol}`);
+        }
+        const marketConfig = GMX_MARKETS[marketKey];
+        try {
+            const rawTrades = await this.subgraph.fetchMarketTrades(marketConfig.marketAddress, params?.since, params?.limit ?? 50);
+            return rawTrades.map((t) => {
+                const normalized = this.subgraph.normalizeTrade(t);
+                return {
+                    id: normalized.id,
+                    symbol,
+                    side: normalized.side,
+                    price: normalized.price,
+                    amount: normalized.amount,
+                    cost: normalized.cost,
+                    timestamp: normalized.timestamp,
+                    info: normalized,
+                };
+            });
+        }
+        catch (error) {
+            throw mapGmxError(error);
+        }
     }
     async _fetchFundingRate(symbol) {
         this.ensureInitialized();
@@ -502,8 +529,37 @@ export class GmxAdapter extends BaseAdapter {
             throw mapGmxError(error);
         }
     }
-    async fetchMyTrades(_symbol, _since, _limit) {
-        throw new Error('fetchMyTrades requires subgraph integration. Not available via REST API.');
+    async fetchMyTrades(symbol, since, limit) {
+        this.ensureInitialized();
+        if (!this.subgraph) {
+            throw new Error('Subgraph not initialized');
+        }
+        if (!this.walletAddress) {
+            throw new Error('Private key required for fetchMyTrades');
+        }
+        try {
+            const rawTrades = await this.subgraph.fetchAccountTrades(this.walletAddress, since, limit ?? 50);
+            const trades = rawTrades.map((t) => {
+                const normalized = this.subgraph.normalizeTrade(t);
+                return {
+                    id: normalized.id,
+                    symbol: normalized.symbol,
+                    side: normalized.side,
+                    price: normalized.price,
+                    amount: normalized.amount,
+                    cost: normalized.cost,
+                    timestamp: normalized.timestamp,
+                    info: normalized,
+                };
+            });
+            if (symbol) {
+                return trades.filter((t) => t.symbol === symbol);
+            }
+            return trades;
+        }
+        catch (error) {
+            throw mapGmxError(error);
+        }
     }
     // ==========================================================================
     // Trading Operations

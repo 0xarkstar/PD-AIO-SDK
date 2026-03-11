@@ -358,7 +358,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
         return {
           id: normalized.id,
           symbol,
-          side: normalized.side as 'buy' | 'sell',
+          side: normalized.side,
           price: normalized.price,
           amount: normalized.amount,
           cost: normalized.cost,
@@ -734,7 +734,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
         return {
           id: normalized.id,
           symbol: normalized.symbol,
-          side: normalized.side as 'buy' | 'sell',
+          side: normalized.side,
           price: normalized.price,
           amount: normalized.amount,
           cost: normalized.cost,

@@ -42,6 +42,12 @@ const EXCHANGE_ENV_REQUIREMENTS = {
     pacifica: ['PACIFICA_API_KEY', 'PACIFICA_API_SECRET'],
     // Ostium (Arbitrum, EVM contracts)
     ostium: ['OSTIUM_PRIVATE_KEY'],
+    // Reya (L2, EIP-712 signing)
+    reya: ['REYA_PRIVATE_KEY'],
+    // Avantis (Base chain, on-chain contracts)
+    avantis: ['AVANTIS_PRIVATE_KEY'],
+    // Ethereal (EIP-712 signing)
+    ethereal: ['ETHEREAL_PRIVATE_KEY'],
 };
 /**
  * Validation error with helpful context
@@ -151,6 +157,9 @@ export function getConfigErrorMessage(exchange, missingVars) {
         aster: 'Register at asterdex.com and create API key + secret (HMAC-SHA256)',
         pacifica: 'Register at pacifica.fi and create Ed25519 API credentials',
         ostium: 'Export your MetaMask private key for Arbitrum trading on Ostium',
+        reya: 'Export your wallet private key for Reya Network trading',
+        avantis: 'Export your wallet private key for Base chain trading on Avantis',
+        ethereal: 'Export your wallet private key for Ethereal perpetual DEX trading',
     };
     return (`❌ Missing environment variables for ${exchange}:\n\n` +
         `${varList}\n\n` +

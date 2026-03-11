@@ -2,6 +2,7 @@
  * Pacifica Exchange Adapter
  *
  * Implements IExchangeAdapter for Pacifica DEX (Solana, Ed25519 auth)
+ * @see https://docs.pacifica.fi/api-documentation/api/rest-api
  */
 import { PerpDEXError } from '../../types/errors.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
@@ -15,11 +16,6 @@ import { mapPacificaError } from './error-codes.js';
 export class PacificaAdapter extends BaseAdapter {
     id = 'pacifica';
     name = 'Pacifica';
-    /**
-     * Feature map.
-     * Note: Pacifica is in Closed Beta (invite only). Public API currently unavailable.
-     * All endpoints at api.pacifica.fi return 404.
-     */
     has = {
         fetchMarkets: true,
         fetchTicker: true,
@@ -30,7 +26,7 @@ export class PacificaAdapter extends BaseAdapter {
         createOrder: true,
         cancelOrder: true,
         cancelAllOrders: false,
-        fetchFundingRateHistory: false,
+        fetchFundingRateHistory: true,
         fetchOrderHistory: false,
         fetchMyTrades: false,
         fetchPositions: true,
@@ -134,6 +130,19 @@ export class PacificaAdapter extends BaseAdapter {
         }
         return new PerpDEXError(error instanceof Error ? error.message : 'Unknown error', 'UNKNOWN', 'pacifica');
     }
+    /**
+     * Unwrap `{ success, data }` envelope. Returns `data` if present,
+     * otherwise returns the raw response (for mocked / non-wrapped responses).
+     */
+    unwrapResponse(response) {
+        if (response !== null &&
+            typeof response === 'object' &&
+            'success' in response &&
+            'data' in response) {
+            return response.data;
+        }
+        return response;
+    }
     async registerBuilderCode(code, maxFeeRate) {
         await this.signedRequest('POST', '/account/builder_codes/approve', 'registerBuilderCode', {
             type: 'approve_builder_code',
@@ -143,41 +152,60 @@ export class PacificaAdapter extends BaseAdapter {
     }
     // === Public Market Data ===
     async fetchMarkets(_params) {
-        const response = await this.publicGet('/markets', 'fetchMarkets');
-        if (!Array.isArray(response)) {
+        const response = await this.publicGet('/info', 'fetchMarkets');
+        const markets = this.unwrapResponse(response);
+        if (!Array.isArray(markets)) {
             throw new PerpDEXError('Invalid markets response', 'INVALID_RESPONSE', 'pacifica');
         }
-        return response
-            .filter((m) => m.status === 'active')
-            .map((m) => this.normalizer.normalizeMarket(m));
+        return markets.map((m) => this.normalizer.normalizeMarket(m));
     }
     async _fetchTicker(symbol) {
         const pacificaSymbol = toPacificaSymbol(symbol);
-        const response = await this.publicGet(`/prices?symbol=${pacificaSymbol}`, 'fetchTicker');
-        return this.normalizer.normalizeTicker(response, symbol);
+        const response = await this.publicGet('/info/prices', 'fetchTicker');
+        const prices = this.unwrapResponse(response);
+        if (Array.isArray(prices)) {
+            const match = prices.find((p) => p.symbol === pacificaSymbol);
+            if (match) {
+                return this.normalizer.normalizeTicker(match, symbol);
+            }
+        }
+        throw new PerpDEXError(`Ticker not found for ${pacificaSymbol}`, 'INVALID_RESPONSE', 'pacifica');
     }
     async _fetchOrderBook(symbol, params) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const limit = params?.limit ?? 20;
         const response = await this.publicGet(`/book?symbol=${pacificaSymbol}&limit=${limit}`, 'fetchOrderBook');
-        return this.normalizer.normalizeOrderBook(response, symbol);
+        const orderbook = this.unwrapResponse(response);
+        return this.normalizer.normalizeOrderBook(orderbook, symbol);
     }
     async _fetchTrades(symbol, params) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const limit = params?.limit ?? 100;
         const response = await this.publicGet(`/trades?symbol=${pacificaSymbol}&limit=${limit}`, 'fetchTrades');
-        if (!Array.isArray(response)) {
+        const trades = this.unwrapResponse(response);
+        if (!Array.isArray(trades)) {
             throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'pacifica');
         }
-        return response.map((t) => this.normalizer.normalizeTrade(t, symbol));
+        return trades.map((t, i) => this.normalizer.normalizeTrade(t, symbol, i));
     }
     async _fetchFundingRate(symbol) {
         const pacificaSymbol = toPacificaSymbol(symbol);
-        const response = await this.publicGet(`/funding/historical?symbol=${pacificaSymbol}&limit=1`, 'fetchFundingRate');
-        if (!Array.isArray(response) || response.length === 0) {
+        const response = await this.publicGet(`/funding_rate/history?symbol=${pacificaSymbol}&limit=1`, 'fetchFundingRate');
+        const history = this.unwrapResponse(response);
+        if (!Array.isArray(history) || history.length === 0) {
             throw new PerpDEXError('No funding rate data', 'INVALID_RESPONSE', 'pacifica');
         }
-        return this.normalizer.normalizeFundingRate(response[0], symbol);
+        return this.normalizer.normalizeFundingRate(history[0], symbol);
+    }
+    async fetchFundingRateHistory(symbol, _since, _limit) {
+        const pacificaSymbol = toPacificaSymbol(symbol);
+        const limit = _limit ?? 100;
+        const response = await this.publicGet(`/funding_rate/history?symbol=${pacificaSymbol}&limit=${limit}`, 'fetchFundingRate');
+        const history = this.unwrapResponse(response);
+        if (!Array.isArray(history)) {
+            return [];
+        }
+        return history.map((h) => this.normalizer.normalizeFundingRate(h, symbol));
     }
     // === Private Trading ===
     async createOrder(request) {
@@ -213,9 +241,6 @@ export class PacificaAdapter extends BaseAdapter {
         });
     }
     // === Abstract method stubs (not supported by Pacifica) ===
-    async fetchFundingRateHistory(_symbol, _since, _limit) {
-        return [];
-    }
     async cancelAllOrders(_symbol) {
         return [];
     }

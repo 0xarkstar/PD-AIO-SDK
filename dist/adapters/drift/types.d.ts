@@ -623,8 +623,10 @@ export interface DriftL2OrderBook {
         size: string;
         sources?: Record<string, string>;
     }>;
-    /** Oracle price */
-    oraclePrice: string;
+    /** Oracle price (legacy field name) */
+    oraclePrice?: string | number;
+    /** Oracle price (new field name) */
+    oracle?: string | number;
     /** Slot */
     slot: number;
 }
@@ -636,29 +638,30 @@ export declare const DriftL2OrderBookSchema: z.ZodObject<{
         price: z.ZodString;
         size: z.ZodString;
         sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
-    }, "strip", z.ZodTypeAny, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }>, "many">;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">>, "many">;
     asks: z.ZodArray<z.ZodObject<{
         price: z.ZodString;
         size: z.ZodString;
         sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
-    }, "strip", z.ZodTypeAny, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }>, "many">;
-    oraclePrice: z.ZodString;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">>, "many">;
+    oraclePrice: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    oracle: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
     slot: z.ZodNumber;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
     marketIndex: z.ZodNumber;
@@ -668,29 +671,30 @@ export declare const DriftL2OrderBookSchema: z.ZodObject<{
         price: z.ZodString;
         size: z.ZodString;
         sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
-    }, "strip", z.ZodTypeAny, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }>, "many">;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">>, "many">;
     asks: z.ZodArray<z.ZodObject<{
         price: z.ZodString;
         size: z.ZodString;
         sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
-    }, "strip", z.ZodTypeAny, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }>, "many">;
-    oraclePrice: z.ZodString;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">>, "many">;
+    oraclePrice: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    oracle: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
     slot: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
     marketIndex: z.ZodNumber;
@@ -700,29 +704,30 @@ export declare const DriftL2OrderBookSchema: z.ZodObject<{
         price: z.ZodString;
         size: z.ZodString;
         sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
-    }, "strip", z.ZodTypeAny, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }>, "many">;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">>, "many">;
     asks: z.ZodArray<z.ZodObject<{
         price: z.ZodString;
         size: z.ZodString;
         sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
-    }, "strip", z.ZodTypeAny, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }, {
-        price: string;
-        size: string;
-        sources?: Record<string, string> | undefined;
-    }>, "many">;
-    oraclePrice: z.ZodString;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        price: z.ZodString;
+        size: z.ZodString;
+        sources: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.ZodTypeAny, "passthrough">>, "many">;
+    oraclePrice: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    oracle: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
     slot: z.ZodNumber;
 }, z.ZodTypeAny, "passthrough">>;
 /**

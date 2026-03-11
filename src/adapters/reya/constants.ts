@@ -7,7 +7,7 @@
 // =============================================================================
 
 export const REYA_MAINNET_API = 'https://api.reya.xyz/v2';
-export const REYA_TESTNET_API = 'https://api-testnet.reya.xyz/v2';
+export const REYA_TESTNET_API = 'https://api-test.reya.xyz/v2';
 
 export const REYA_MAINNET_WS = 'wss://ws.reya.xyz';
 export const REYA_TESTNET_WS = 'wss://websocket-testnet.reya.xyz';

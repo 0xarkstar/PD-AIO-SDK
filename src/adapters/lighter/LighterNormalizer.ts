@@ -207,12 +207,12 @@ export class LighterNormalizer {
   normalizeTicker(lighterTicker: LighterAPITicker): Ticker {
     const validated = LighterAPITickerSchema.parse(lighterTicker);
     // Real API format: { symbol, last_trade_price, daily_price_high, daily_price_low, ... }
-    const last = parseFloat(validated.last_trade_price || '0');
-    const high = parseFloat(validated.daily_price_high || '0');
-    const low = parseFloat(validated.daily_price_low || '0');
-    const baseVolume = parseFloat(validated.daily_base_token_volume || '0');
-    const quoteVolume = parseFloat(validated.daily_quote_token_volume || '0');
-    const change = parseFloat(validated.daily_price_change || '0');
+    const last = Number(validated.last_trade_price ?? 0);
+    const high = Number(validated.daily_price_high ?? 0);
+    const low = Number(validated.daily_price_low ?? 0);
+    const baseVolume = Number(validated.daily_base_token_volume ?? 0);
+    const quoteVolume = Number(validated.daily_quote_token_volume ?? 0);
+    const change = Number(validated.daily_price_change ?? 0);
 
     return {
       symbol: this.normalizeSymbol(validated.symbol),

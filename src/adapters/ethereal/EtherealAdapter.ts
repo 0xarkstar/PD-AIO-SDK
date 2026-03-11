@@ -32,13 +32,12 @@ import {
   ETHEREAL_API_URLS,
   ETHEREAL_RATE_LIMITS,
   ETHEREAL_ENDPOINT_WEIGHTS,
-  ETHEREAL_KLINE_INTERVALS,
   unifiedToEthereal,
   etherealToUnified,
 } from './constants.js';
 import { EtherealAuth } from './EtherealAuth.js';
 import { EtherealNormalizer } from './EtherealNormalizer.js';
-import { buildOrderRequest, mapTimeframeToInterval } from './utils.js';
+import { buildOrderRequest } from './utils.js';
 import { mapError } from './error-codes.js';
 import type {
   EtherealConfig,
@@ -47,11 +46,11 @@ import type {
   EtherealOrderBookResponse,
   EtherealTradeResponse,
   EtherealFundingRateResponse,
-  EtherealCandleResponse,
   EtherealOrderResponse,
   EtherealPositionResponse,
   EtherealBalanceResponse,
   EtherealMyTradeResponse,
+  EtherealDataResponse,
 } from './types.js';
 
 export { EtherealConfig };
@@ -66,7 +65,7 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
     fetchTicker: true,
     fetchOrderBook: true,
     fetchTrades: true,
-    fetchOHLCV: true,
+    fetchOHLCV: false,
     fetchFundingRate: true,
     fetchFundingRateHistory: false,
 
@@ -104,6 +103,10 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
   protected rateLimiter: RateLimiter;
   private normalizer: EtherealNormalizer;
   private readonly accountId: string;
+  /** Maps unified symbol (e.g. "ETH/USD:USD") to product UUID */
+  private productMap: Map<string, string> = new Map();
+  /** Maps product UUID to cached product info */
+  private productCache: Map<string, EtherealMarketInfo> = new Map();
 
   constructor(config: EtherealConfig = {}) {
     super(config);
@@ -204,68 +207,108 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
     }
   }
 
+  // === Product UUID helpers ===
+
+  private async ensureProductMap(): Promise<void> {
+    if (this.productMap.size > 0) return;
+    await this.fetchMarkets();
+  }
+
+  private async getProductId(symbol: string): Promise<string> {
+    await this.ensureProductMap();
+    const productId = this.productMap.get(symbol);
+    if (!productId) {
+      throw new PerpDEXError(
+        `Unknown symbol: ${symbol}. Call fetchMarkets() first.`,
+        'INVALID_SYMBOL',
+        'ethereal'
+      );
+    }
+    return productId;
+  }
+
+  private getProductInfo(productId: string): EtherealMarketInfo | undefined {
+    return this.productCache.get(productId);
+  }
+
   // === Public Market Data ===
 
   async fetchMarkets(_params?: MarketParams): Promise<Market[]> {
-    const response = await this.publicGet<EtherealMarketInfo[]>('/markets', 'fetchMarkets');
+    const response = await this.publicGet<EtherealDataResponse<EtherealMarketInfo[]>>(
+      '/product',
+      'fetchMarkets'
+    );
 
-    if (!Array.isArray(response)) {
+    const products = response.data;
+    if (!Array.isArray(products)) {
       throw new PerpDEXError('Invalid markets response', 'INVALID_RESPONSE', 'ethereal');
     }
 
-    return response
+    // Build product UUID cache
+    for (const p of products) {
+      const unifiedSymbol = etherealToUnified(p.displayTicker);
+      this.productMap.set(unifiedSymbol, p.id);
+      this.productCache.set(p.id, p);
+    }
+
+    return products
       .filter((m) => m.status === 'ACTIVE')
       .map((m) => this.normalizer.normalizeMarket(m));
   }
 
   async _fetchTicker(symbol: string): Promise<Ticker> {
-    const etherealSymbol = unifiedToEthereal(symbol);
-    const response = await this.publicGet<EtherealTicker>(
-      `/markets/${etherealSymbol}/ticker`,
+    const productId = await this.getProductId(symbol);
+    const response = await this.publicGet<EtherealDataResponse<EtherealTicker[]>>(
+      `/product/market-price?productIds=${productId}`,
       'fetchTicker'
     );
-    return this.normalizer.normalizeTicker(response, symbol);
+
+    const prices = response.data;
+    if (!Array.isArray(prices) || prices.length === 0) {
+      throw new PerpDEXError('Invalid ticker response', 'INVALID_RESPONSE', 'ethereal');
+    }
+
+    const product = this.getProductInfo(productId);
+    return this.normalizer.normalizeTicker(prices[0]!, symbol, product);
   }
 
-  async _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook> {
-    const etherealSymbol = unifiedToEthereal(symbol);
-    const limit = params?.limit ?? 20;
+  async _fetchOrderBook(symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
+    const productId = await this.getProductId(symbol);
     const response = await this.publicGet<EtherealOrderBookResponse>(
-      `/markets/${etherealSymbol}/orderbook?limit=${limit}`,
+      `/product/market-liquidity?productId=${productId}`,
       'fetchOrderBook'
     );
     return this.normalizer.normalizeOrderBook(response, symbol);
   }
 
   async _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
-    const etherealSymbol = unifiedToEthereal(symbol);
-    let path = `/markets/${etherealSymbol}/trades`;
-    const queryParts: string[] = [];
+    const productId = await this.getProductId(symbol);
+    let path = `/order/trade?productId=${productId}`;
 
     if (params?.limit) {
-      queryParts.push(`limit=${params.limit}`);
+      path += `&limit=${params.limit}`;
     }
     if (params?.since) {
-      queryParts.push(`since=${params.since}`);
+      path += `&since=${params.since}`;
     }
 
-    if (queryParts.length > 0) {
-      path += `?${queryParts.join('&')}`;
-    }
+    const response = await this.publicGet<EtherealDataResponse<EtherealTradeResponse[]>>(
+      path,
+      'fetchTrades'
+    );
 
-    const response = await this.publicGet<EtherealTradeResponse[]>(path, 'fetchTrades');
-
-    if (!Array.isArray(response)) {
+    const trades = response.data;
+    if (!Array.isArray(trades)) {
       throw new PerpDEXError('Invalid trades response', 'INVALID_RESPONSE', 'ethereal');
     }
 
-    return response.map((t) => this.normalizer.normalizeTrade(t, symbol));
+    return trades.map((t) => this.normalizer.normalizeTrade(t, symbol));
   }
 
   async _fetchFundingRate(symbol: string): Promise<FundingRate> {
-    const etherealSymbol = unifiedToEthereal(symbol);
+    const productId = await this.getProductId(symbol);
     const response = await this.publicGet<EtherealFundingRateResponse>(
-      `/markets/${etherealSymbol}/funding`,
+      `/funding/projected?productId=${productId}`,
       'fetchFundingRate'
     );
     return this.normalizer.normalizeFundingRate(response, symbol);
@@ -284,25 +327,15 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
   }
 
   async fetchOHLCV(
-    symbol: string,
-    timeframe: OHLCVTimeframe = '1h',
-    params?: OHLCVParams
+    _symbol: string,
+    _timeframe: OHLCVTimeframe = '1h',
+    _params?: OHLCVParams
   ): Promise<OHLCV[]> {
-    const etherealSymbol = unifiedToEthereal(symbol);
-    const interval = ETHEREAL_KLINE_INTERVALS[timeframe] ?? mapTimeframeToInterval(timeframe);
-    let path = `/markets/${etherealSymbol}/candles?interval=${interval}`;
-
-    if (params?.limit) path += `&limit=${params.limit}`;
-    if (params?.since) path += `&startTime=${params.since}`;
-    if (params?.until) path += `&endTime=${params.until}`;
-
-    const response = await this.publicGet<EtherealCandleResponse[]>(path, 'fetchOHLCV');
-
-    if (!Array.isArray(response)) {
-      throw new PerpDEXError('Invalid candles response', 'INVALID_RESPONSE', 'ethereal');
-    }
-
-    return this.normalizer.normalizeCandles(response);
+    throw new NotSupportedError(
+      'Ethereal does not support OHLCV/candles via REST API',
+      'NOT_SUPPORTED',
+      'ethereal'
+    );
   }
 
   // === Private Trading ===
@@ -318,7 +351,7 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
 
       const orderReq = buildOrderRequest(request, this.accountId, signature, nonce);
 
-      const response = await this.httpClient.post<EtherealOrderResponse>('/orders', {
+      const response = await this.httpClient.post<EtherealOrderResponse>('/order', {
         body: orderReq as unknown as Record<string, unknown>,
         headers: auth.getHeaders(),
       });
@@ -336,7 +369,8 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
     try {
       const { signature, nonce } = await auth.signCancelAction(this.accountId, orderId);
 
-      const response = await this.httpClient.delete<EtherealOrderResponse>(`/orders/${orderId}`, {
+      const response = await this.httpClient.post<EtherealOrderResponse>('/order/cancel', {
+        body: { orderId } as unknown as Record<string, unknown>,
         headers: {
           ...auth.getHeaders(),
           'X-Signature': signature,
@@ -358,13 +392,14 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
     try {
       const { signature, nonce } = await auth.signCancelAction(this.accountId);
 
-      let path = '/orders';
+      const body: Record<string, unknown> = {};
       if (symbol) {
-        const etherealSymbol = unifiedToEthereal(symbol);
-        path += `?symbol=${etherealSymbol}`;
+        const productId = await this.getProductId(symbol);
+        body.productId = productId;
       }
 
-      await this.httpClient.delete<{ cancelledCount: number }>(path, {
+      await this.httpClient.post<{ cancelledCount: number }>('/order/cancel', {
+        body,
         headers: {
           ...auth.getHeaders(),
           'X-Signature': signature,
@@ -386,7 +421,7 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
 
     const response = await this.authenticatedRequest<EtherealOrderResponse[]>(
       'GET',
-      '/account/orders?status=OPEN',
+      '/order?status=OPEN',
       'fetchOpenOrders'
     );
 
@@ -414,12 +449,12 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
   async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
     this.requireAuth();
 
-    let path = '/account/trades';
+    let path = '/order/trade';
     const queryParts: string[] = [];
 
     if (symbol) {
-      const etherealSymbol = unifiedToEthereal(symbol);
-      queryParts.push(`symbol=${etherealSymbol}`);
+      const productId = await this.getProductId(symbol);
+      queryParts.push(`productId=${productId}`);
     }
     if (since) {
       queryParts.push(`since=${since}`);
@@ -444,17 +479,19 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
 
     return response.map((t) => {
       const price = parseFloat(t.price);
-      const amount = parseFloat(t.quantity);
-      const tradeSymbol = symbol ?? etherealToUnified(t.symbol);
+      const amount = parseFloat(t.filled);
+      // takerSide: 0 = buy, 1 = sell
+      const side = t.takerSide === 0 ? ('buy' as const) : ('sell' as const);
+      const tradeSymbol = symbol ?? 'UNKNOWN';
 
       return {
         id: t.id,
         symbol: tradeSymbol,
-        side: t.side === 'BUY' ? ('buy' as const) : ('sell' as const),
+        side,
         price,
         amount,
         cost: price * amount,
-        timestamp: t.timestamp,
+        timestamp: t.createdAt,
         info: t as unknown as Record<string, unknown>,
       };
     });
@@ -467,7 +504,7 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
 
     const response = await this.authenticatedRequest<EtherealPositionResponse[]>(
       'GET',
-      '/account/positions',
+      '/position/active',
       'fetchPositions'
     );
 
@@ -491,7 +528,7 @@ export class EtherealAdapter extends BaseAdapter implements IExchangeAdapter {
 
     const response = await this.authenticatedRequest<EtherealBalanceResponse[]>(
       'GET',
-      '/account/balance',
+      '/subaccount/balance',
       'fetchBalance'
     );
 

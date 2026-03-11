@@ -64,7 +64,7 @@ describe('ReyaAdapter', () => {
     test('has expected features', () => {
       expect(adapter.has.fetchMarkets).toBe(true);
       expect(adapter.has.fetchTicker).toBe(true);
-      expect(adapter.has.fetchOrderBook).toBe(true);
+      expect(adapter.has.fetchOrderBook).toBe(false);
       expect(adapter.has.fetchTrades).toBe(true);
       expect(adapter.has.fetchOHLCV).toBe(true);
       expect(adapter.has.fetchFundingRate).toBe(true);
@@ -256,22 +256,8 @@ describe('ReyaAdapter', () => {
   // =========================================================================
 
   describe('_fetchOrderBook', () => {
-    test('fetches and normalizes order book', async () => {
-      const depth = {
-        symbol: 'BTCRUSDPERP',
-        type: 'SNAPSHOT',
-        bids: [{ px: '65000', qty: '1.5' }],
-        asks: [{ px: '65001', qty: '2.0' }],
-        updatedAt: 1700000000000,
-      };
-
-      mockHttpClient.get.mockResolvedValue(depth);
-
-      const ob = await adapter._fetchOrderBook('BTC/USD:USD');
-
-      expect(ob.symbol).toBe('BTC/USD:USD');
-      expect(ob.bids).toEqual([[65000, 1.5]]);
-      expect(ob.asks).toEqual([[65001, 2.0]]);
+    test('is not supported (Reya has no orderbook REST endpoint)', () => {
+      expect(adapter.has.fetchOrderBook).toBe(false);
     });
   });
 
@@ -851,7 +837,7 @@ describe('ReyaAdapter', () => {
     test('maps HTTP errors through error-codes', async () => {
       mockHttpClient.get.mockRejectedValue(new Error('rate limit exceeded'));
 
-      await expect(adapter._fetchOrderBook('BTC/USD:USD')).rejects.toThrow(PerpDEXError);
+      await expect(adapter._fetchTicker('BTC/USD:USD')).rejects.toThrow(PerpDEXError);
     });
 
     test('maps network errors to PerpDEXError', async () => {

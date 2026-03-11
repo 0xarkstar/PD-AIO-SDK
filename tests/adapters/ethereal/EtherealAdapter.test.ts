@@ -25,6 +25,82 @@ jest.mock('ethers', () => ({
   })),
 }));
 
+const MOCK_PRODUCT_ID = 'bc7d5575-3711-4532-a000-312bfacfb767';
+
+/** Helper to build mock /product response */
+function mockProductResponse() {
+  return {
+    data: [
+      {
+        id: MOCK_PRODUCT_ID,
+        ticker: 'ETHUSD',
+        displayTicker: 'ETH-USD',
+        status: 'ACTIVE',
+        baseTokenName: 'ETH',
+        quoteTokenName: 'USD',
+        tickSize: '0.01',
+        lotSize: '0.001',
+        minQuantity: '0.01',
+        maxQuantity: '500',
+        maxLeverage: 50,
+        makerFee: '0.0002',
+        takerFee: '0.0005',
+        volume24h: '50000',
+        openInterest: '10000',
+        fundingRate1h: '0.0001',
+        minPrice: '0.1',
+        maxPrice: '100000',
+        onchainId: 2,
+        engineType: 0,
+      },
+      {
+        id: 'aaaa-bbbb-cccc',
+        ticker: 'BTCUSD',
+        displayTicker: 'BTC-USD',
+        status: 'ACTIVE',
+        baseTokenName: 'BTC',
+        quoteTokenName: 'USD',
+        tickSize: '0.1',
+        lotSize: '0.0001',
+        minQuantity: '0.001',
+        maxQuantity: '25',
+        maxLeverage: 100,
+        makerFee: '0.0001',
+        takerFee: '0.0004',
+        volume24h: '220',
+        openInterest: '500',
+        fundingRate1h: '-0.0001',
+        minPrice: '1',
+        maxPrice: '10000000',
+        onchainId: 1,
+        engineType: 0,
+      },
+      {
+        id: 'dddd-eeee-ffff',
+        ticker: 'DOGEUSD',
+        displayTicker: 'DOGE-USD',
+        status: 'INACTIVE',
+        baseTokenName: 'DOGE',
+        quoteTokenName: 'USD',
+        tickSize: '0.0001',
+        lotSize: '1',
+        minQuantity: '10',
+        maxQuantity: '100000',
+        maxLeverage: 20,
+        makerFee: '0.0005',
+        takerFee: '0.001',
+        volume24h: '0',
+        openInterest: '0',
+        fundingRate1h: '0',
+        minPrice: '0.0001',
+        maxPrice: '100',
+        onchainId: 3,
+        engineType: 0,
+      },
+    ],
+  };
+}
+
 describe('EtherealAdapter', () => {
   let adapter: EtherealAdapter;
   let authedAdapter: EtherealAdapter;
@@ -79,7 +155,7 @@ describe('EtherealAdapter', () => {
       expect(adapter.has.fetchTicker).toBe(true);
       expect(adapter.has.fetchOrderBook).toBe(true);
       expect(adapter.has.fetchTrades).toBe(true);
-      expect(adapter.has.fetchOHLCV).toBe(true);
+      expect(adapter.has.fetchOHLCV).toBe(false);
       expect(adapter.has.fetchFundingRate).toBe(true);
       expect(adapter.has.fetchFundingRateHistory).toBe(false);
       expect(adapter.has.createOrder).toBe(true);
@@ -108,59 +184,18 @@ describe('EtherealAdapter', () => {
   // =========================================================================
 
   describe('fetchMarkets', () => {
-    const mockMarkets = [
-      {
-        symbol: 'ETH-USD',
-        baseAsset: 'ETH',
-        quoteAsset: 'USD',
-        status: 'ACTIVE',
-        tickSize: '0.01',
-        stepSize: '0.001',
-        minOrderSize: '0.01',
-        maxLeverage: 50,
-        makerFee: '0.0002',
-        takerFee: '0.0005',
-        fundingInterval: 1,
-      },
-      {
-        symbol: 'BTC-USD',
-        baseAsset: 'BTC',
-        quoteAsset: 'USD',
-        status: 'ACTIVE',
-        tickSize: '0.1',
-        stepSize: '0.0001',
-        minOrderSize: '0.001',
-        maxLeverage: 100,
-        makerFee: '0.0001',
-        takerFee: '0.0004',
-        fundingInterval: 1,
-      },
-      {
-        symbol: 'DOGE-USD',
-        baseAsset: 'DOGE',
-        quoteAsset: 'USD',
-        status: 'INACTIVE',
-        tickSize: '0.0001',
-        stepSize: '1',
-        minOrderSize: '10',
-        maxLeverage: 20,
-        makerFee: '0.0005',
-        takerFee: '0.001',
-        fundingInterval: 1,
-      },
-    ];
-
     test('fetches and filters only ACTIVE markets', async () => {
-      mockHttpClient.get.mockResolvedValue(mockMarkets);
+      mockHttpClient.get.mockResolvedValue(mockProductResponse());
 
       const markets = await adapter.fetchMarkets();
       expect(markets).toHaveLength(2);
       expect(markets[0].symbol).toBe('ETH/USD:USD');
       expect(markets[1].symbol).toBe('BTC/USD:USD');
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/product');
     });
 
     test('throws on invalid response', async () => {
-      mockHttpClient.get.mockResolvedValue('not-an-array');
+      mockHttpClient.get.mockResolvedValue({ data: 'not-an-array' });
       await expect(adapter.fetchMarkets()).rejects.toThrow(PerpDEXError);
     });
   });
@@ -170,31 +205,30 @@ describe('EtherealAdapter', () => {
   // =========================================================================
 
   describe('fetchTicker', () => {
-    const mockTicker = {
-      symbol: 'ETH-USD',
-      lastPrice: '3150.00',
-      bestBid: '3149.00',
-      bestAsk: '3151.00',
-      high24h: '3200.00',
-      low24h: '3100.00',
-      open24h: '3120.00',
-      volume24h: '50000',
-      quoteVolume24h: '157500000',
-      priceChange24h: '30.00',
-      priceChangePercent24h: '0.96',
-      markPrice: '3150.00',
-      indexPrice: '3149.50',
-      timestamp: 1700000000000,
-    };
-
     test('fetches ticker for symbol', async () => {
-      mockHttpClient.get.mockResolvedValue(mockTicker);
+      // First call returns products (for UUID lookup), second returns market price
+      mockHttpClient.get
+        .mockResolvedValueOnce(mockProductResponse())
+        .mockResolvedValueOnce({
+          data: [
+            {
+              productId: MOCK_PRODUCT_ID,
+              bestAskPrice: '3151.00',
+              bestBidPrice: '3149.00',
+              oraclePrice: '3150.00',
+              price24hAgo: '3120.00',
+            },
+          ],
+        });
       await adapter.initialize();
 
       const ticker = await adapter.fetchTicker('ETH/USD:USD');
       expect(ticker.symbol).toBe('ETH/USD:USD');
-      expect(ticker.last).toBe(3150);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/markets/ETH-USD/ticker');
+      expect(ticker.bid).toBe(3149);
+      expect(ticker.ask).toBe(3151);
+      expect(mockHttpClient.get).toHaveBeenCalledWith(
+        `/product/market-price?productIds=${MOCK_PRODUCT_ID}`
+      );
     });
   });
 
@@ -204,28 +238,25 @@ describe('EtherealAdapter', () => {
 
   describe('fetchOrderBook', () => {
     const mockOB = {
-      symbol: 'ETH-USD',
+      productId: MOCK_PRODUCT_ID,
+      timestamp: 1700000000000,
+      previousTimestamp: 1699999999000,
       bids: [['3150.00', '5']],
       asks: [['3151.00', '3']],
-      timestamp: 1700000000000,
     };
 
-    test('fetches order book with default limit', async () => {
-      mockHttpClient.get.mockResolvedValue(mockOB);
+    test('fetches order book', async () => {
+      mockHttpClient.get
+        .mockResolvedValueOnce(mockProductResponse())
+        .mockResolvedValueOnce(mockOB);
       await adapter.initialize();
 
       const ob = await adapter.fetchOrderBook('ETH/USD:USD');
       expect(ob.bids).toEqual([[3150, 5]]);
       expect(ob.asks).toEqual([[3151, 3]]);
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/markets/ETH-USD/orderbook?limit=20');
-    });
-
-    test('fetches order book with custom limit', async () => {
-      mockHttpClient.get.mockResolvedValue(mockOB);
-      await adapter.initialize();
-
-      await adapter.fetchOrderBook('ETH/USD:USD', { limit: 50 });
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/markets/ETH-USD/orderbook?limit=50');
+      expect(mockHttpClient.get).toHaveBeenCalledWith(
+        `/product/market-liquidity?productId=${MOCK_PRODUCT_ID}`
+      );
     });
   });
 
@@ -234,38 +265,52 @@ describe('EtherealAdapter', () => {
   // =========================================================================
 
   describe('fetchTrades', () => {
-    const mockTrades = [
-      {
-        id: 't1',
-        symbol: 'ETH-USD',
-        side: 'BUY',
-        price: '3150.00',
-        quantity: '1.0',
-        timestamp: 1700000000000,
-      },
-    ];
+    const mockTrades = {
+      data: [
+        {
+          id: 't1',
+          productId: MOCK_PRODUCT_ID,
+          makerOrderId: 'mo1',
+          takerOrderId: 'to1',
+          makerSide: 1,
+          takerSide: 0,
+          price: '3150.00',
+          filled: '1.0',
+          makerFeeUsd: '0',
+          takerFeeUsd: '0.945',
+          createdAt: 1700000000000,
+        },
+      ],
+    };
 
     test('fetches trades for symbol', async () => {
-      mockHttpClient.get.mockResolvedValue(mockTrades);
+      mockHttpClient.get
+        .mockResolvedValueOnce(mockProductResponse())
+        .mockResolvedValueOnce(mockTrades);
       await adapter.initialize();
 
       const trades = await adapter.fetchTrades('ETH/USD:USD');
       expect(trades).toHaveLength(1);
       expect(trades[0].side).toBe('buy');
+      expect(trades[0].amount).toBe(1.0);
     });
 
     test('fetches trades with params', async () => {
-      mockHttpClient.get.mockResolvedValue(mockTrades);
+      mockHttpClient.get
+        .mockResolvedValueOnce(mockProductResponse())
+        .mockResolvedValueOnce(mockTrades);
       await adapter.initialize();
 
       await adapter.fetchTrades('ETH/USD:USD', { limit: 50, since: 1700000000000 });
       expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/markets/ETH-USD/trades?limit=50&since=1700000000000'
+        `/order/trade?productId=${MOCK_PRODUCT_ID}&limit=50&since=1700000000000`
       );
     });
 
     test('throws on invalid trades response', async () => {
-      mockHttpClient.get.mockResolvedValue('bad');
+      mockHttpClient.get
+        .mockResolvedValueOnce(mockProductResponse())
+        .mockResolvedValueOnce({ data: 'bad' });
       await adapter.initialize();
       await expect(adapter.fetchTrades('ETH/USD:USD')).rejects.toThrow(PerpDEXError);
     });
@@ -277,18 +322,17 @@ describe('EtherealAdapter', () => {
 
   describe('fetchFundingRate', () => {
     test('fetches funding rate', async () => {
-      mockHttpClient.get.mockResolvedValue({
-        symbol: 'ETH-USD',
-        fundingRate: '0.0001',
-        fundingTimestamp: 1700000000000,
-        nextFundingTimestamp: 1700003600000,
-        markPrice: '3150.00',
-        indexPrice: '3149.50',
-      });
+      mockHttpClient.get
+        .mockResolvedValueOnce(mockProductResponse())
+        .mockResolvedValueOnce({
+          productId: MOCK_PRODUCT_ID,
+          fundingRateProjected1h: '-0.000017773',
+          fundingRate1h: '-0.000022881',
+        });
       await adapter.initialize();
 
       const fr = await adapter.fetchFundingRate('ETH/USD:USD');
-      expect(fr.fundingRate).toBe(0.0001);
+      expect(fr.fundingRate).toBe(-0.000022881);
       expect(fr.symbol).toBe('ETH/USD:USD');
     });
   });
@@ -308,44 +352,8 @@ describe('EtherealAdapter', () => {
   // =========================================================================
 
   describe('fetchOHLCV', () => {
-    const mockCandles = [
-      {
-        timestamp: 1700000000000,
-        open: '3100.00',
-        high: '3200.00',
-        low: '3050.00',
-        close: '3150.00',
-        volume: '5000',
-      },
-    ];
-
-    test('fetches candles with default timeframe', async () => {
-      mockHttpClient.get.mockResolvedValue(mockCandles);
-
-      const ohlcv = await adapter.fetchOHLCV('ETH/USD:USD');
-      expect(ohlcv).toHaveLength(1);
-      expect(ohlcv[0]).toEqual([1700000000000, 3100, 3200, 3050, 3150, 5000]);
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/markets/ETH-USD/candles?interval=1h'
-      );
-    });
-
-    test('fetches candles with params', async () => {
-      mockHttpClient.get.mockResolvedValue(mockCandles);
-
-      await adapter.fetchOHLCV('ETH/USD:USD', '5m', {
-        limit: 100,
-        since: 1700000000000,
-        until: 1700100000000,
-      });
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/markets/ETH-USD/candles?interval=5m&limit=100&startTime=1700000000000&endTime=1700100000000'
-      );
-    });
-
-    test('throws on invalid candles response', async () => {
-      mockHttpClient.get.mockResolvedValue('not-array');
-      await expect(adapter.fetchOHLCV('ETH/USD:USD')).rejects.toThrow(PerpDEXError);
+    test('throws NotSupportedError', async () => {
+      await expect(adapter.fetchOHLCV('ETH/USD:USD')).rejects.toThrow(NotSupportedError);
     });
   });
 
@@ -398,6 +406,8 @@ describe('EtherealAdapter', () => {
       expect(order.id).toBe('ord-001');
       expect(order.status).toBe('open');
       expect(authedMockHttp.post).toHaveBeenCalled();
+      // Verify it posts to /order not /orders
+      expect(authedMockHttp.post.mock.calls[0][0]).toBe('/order');
     });
   });
 
@@ -429,10 +439,12 @@ describe('EtherealAdapter', () => {
         updatedAt: 1700000000001,
       };
 
-      authedMockHttp.delete.mockResolvedValue(mockResponse);
+      authedMockHttp.post.mockResolvedValue(mockResponse);
 
       const order = await authedAdapter.cancelOrder('ord-001', 'ETH/USD:USD');
       expect(order.status).toBe('canceled');
+      // Verify it posts to /order/cancel
+      expect(authedMockHttp.post.mock.calls[0][0]).toBe('/order/cancel');
     });
   });
 
@@ -442,18 +454,20 @@ describe('EtherealAdapter', () => {
 
   describe('cancelAllOrders', () => {
     test('cancels all orders and returns empty array', async () => {
-      authedMockHttp.delete.mockResolvedValue({ cancelledCount: 3 });
+      authedMockHttp.post.mockResolvedValue({ cancelledCount: 3 });
 
       const result = await authedAdapter.cancelAllOrders();
       expect(result).toEqual([]);
+      expect(authedMockHttp.post.mock.calls[0][0]).toBe('/order/cancel');
     });
 
-    test('passes symbol filter when provided', async () => {
-      authedMockHttp.delete.mockResolvedValue({ cancelledCount: 1 });
+    test('passes productId filter when symbol provided', async () => {
+      authedMockHttp.get.mockResolvedValueOnce(mockProductResponse());
+      authedMockHttp.post.mockResolvedValue({ cancelledCount: 1 });
 
       await authedAdapter.cancelAllOrders('ETH/USD:USD');
-      const callPath = authedMockHttp.delete.mock.calls[0][0];
-      expect(callPath).toContain('symbol=ETH-USD');
+      const callBody = authedMockHttp.post.mock.calls[0][1].body;
+      expect(callBody.productId).toBe(MOCK_PRODUCT_ID);
     });
   });
 
@@ -565,21 +579,24 @@ describe('EtherealAdapter', () => {
     });
 
     test('fetches my trades', async () => {
-      const mockTrades = [
-        {
-          id: 'mt1',
-          orderId: 'ord-001',
-          symbol: 'ETH-USD',
-          side: 'BUY',
-          price: '3150.00',
-          quantity: '1.5',
-          fee: '0.002',
-          feeAsset: 'USD',
-          timestamp: 1700000000000,
-        },
-      ];
-
-      authedMockHttp.get.mockResolvedValue(mockTrades);
+      // First call for product map, then for trades
+      authedMockHttp.get
+        .mockResolvedValueOnce(mockProductResponse())
+        .mockResolvedValueOnce([
+          {
+            id: 'mt1',
+            productId: MOCK_PRODUCT_ID,
+            makerOrderId: 'mo1',
+            takerOrderId: 'to1',
+            makerSide: 1,
+            takerSide: 0,
+            price: '3150.00',
+            filled: '1.5',
+            makerFeeUsd: '0',
+            takerFeeUsd: '0.002',
+            createdAt: 1700000000000,
+          },
+        ]);
 
       const trades = await authedAdapter.fetchMyTrades('ETH/USD:USD');
       expect(trades).toHaveLength(1);
@@ -590,11 +607,13 @@ describe('EtherealAdapter', () => {
     });
 
     test('builds query params correctly', async () => {
-      authedMockHttp.get.mockResolvedValue([]);
+      authedMockHttp.get
+        .mockResolvedValueOnce(mockProductResponse())
+        .mockResolvedValueOnce([]);
 
       await authedAdapter.fetchMyTrades('ETH/USD:USD', 1700000000000, 50);
-      const callPath = authedMockHttp.get.mock.calls[0][0];
-      expect(callPath).toContain('symbol=ETH-USD');
+      const callPath = authedMockHttp.get.mock.calls[1][0];
+      expect(callPath).toContain(`productId=${MOCK_PRODUCT_ID}`);
       expect(callPath).toContain('since=1700000000000');
       expect(callPath).toContain('limit=50');
     });

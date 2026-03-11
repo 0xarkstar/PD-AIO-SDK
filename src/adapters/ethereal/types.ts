@@ -5,6 +5,11 @@
 import { z } from 'zod';
 import type { ExchangeConfig } from '../../types/adapter.js';
 
+/** Wrapped response from Ethereal API endpoints that return { data: [...] } */
+export interface EtherealDataResponse<T> {
+  data: T;
+}
+
 export interface EtherealConfig extends ExchangeConfig {
   /** Ethereum wallet private key for EIP-712 signing */
   privateKey?: string;
@@ -16,113 +21,113 @@ export interface EtherealConfig extends ExchangeConfig {
   timeout?: number;
 }
 
-// --- Market Info ---
+// --- Market Info (from GET /product) ---
 
 export interface EtherealMarketInfo {
-  symbol: string; // "ETH-USD"
-  baseAsset: string; // "ETH"
-  quoteAsset: string; // "USD"
+  id: string; // UUID e.g. "bc7d5575-3711-4532-a000-312bfacfb767"
+  ticker: string; // "BTCUSD"
+  displayTicker: string; // "BTC-USD"
   status: string; // "ACTIVE"
+  baseTokenName: string; // "BTC"
+  quoteTokenName: string; // "USD"
   tickSize: string;
-  stepSize: string;
-  minOrderSize: string;
+  lotSize: string; // step size for quantity
+  minQuantity: string;
+  maxQuantity: string;
   maxLeverage: number;
   makerFee: string;
   takerFee: string;
-  fundingInterval: number; // hours
+  volume24h: string;
+  openInterest: string;
+  fundingRate1h: string;
+  minPrice: string;
+  maxPrice: string;
+  onchainId: number;
+  engineType: number;
 }
 
 export const EtherealMarketInfoSchema = z
   .object({
-    symbol: z.string(),
-    baseAsset: z.string(),
-    quoteAsset: z.string(),
+    id: z.string(),
+    ticker: z.string(),
+    displayTicker: z.string(),
     status: z.string(),
+    baseTokenName: z.string(),
+    quoteTokenName: z.string(),
     tickSize: z.string(),
-    stepSize: z.string(),
-    minOrderSize: z.string(),
+    lotSize: z.string(),
+    minQuantity: z.string(),
+    maxQuantity: z.string(),
     maxLeverage: z.number(),
     makerFee: z.string(),
     takerFee: z.string(),
-    fundingInterval: z.number(),
   })
   .passthrough();
 
-// --- Ticker ---
+// --- Ticker (from GET /product/market-price + product data) ---
 
 export interface EtherealTicker {
-  symbol: string;
-  lastPrice: string;
-  bestBid: string;
-  bestAsk: string;
-  high24h: string;
-  low24h: string;
-  open24h: string;
-  volume24h: string;
-  quoteVolume24h: string;
-  priceChange24h: string;
-  priceChangePercent24h: string;
-  markPrice: string;
-  indexPrice: string;
-  timestamp: number;
+  productId: string;
+  bestAskPrice: string;
+  bestBidPrice: string;
+  oraclePrice: string;
+  price24hAgo: string;
 }
 
 export const EtherealTickerSchema = z
   .object({
-    symbol: z.string(),
-    lastPrice: z.string(),
-    bestBid: z.string(),
-    bestAsk: z.string(),
-    high24h: z.string(),
-    low24h: z.string(),
-    open24h: z.string(),
-    volume24h: z.string(),
-    quoteVolume24h: z.string(),
-    priceChange24h: z.string(),
-    priceChangePercent24h: z.string(),
-    markPrice: z.string(),
-    indexPrice: z.string(),
-    timestamp: z.number(),
+    productId: z.string(),
+    bestAskPrice: z.string(),
+    bestBidPrice: z.string(),
+    oraclePrice: z.string(),
+    price24hAgo: z.string(),
   })
   .passthrough();
 
-// --- Order Book ---
+// --- Order Book (from GET /product/market-liquidity) ---
 
 export interface EtherealOrderBookResponse {
-  symbol: string;
+  productId: string;
+  timestamp: number;
+  previousTimestamp: number;
   bids: [string, string][]; // [price, qty]
   asks: [string, string][];
-  timestamp: number;
 }
 
 export const EtherealOrderBookResponseSchema = z
   .object({
-    symbol: z.string(),
+    productId: z.string(),
+    timestamp: z.number(),
     bids: z.array(z.tuple([z.string(), z.string()])),
     asks: z.array(z.tuple([z.string(), z.string()])),
-    timestamp: z.number(),
   })
   .passthrough();
 
-// --- Trade ---
+// --- Trade (from GET /order/trade) ---
 
 export interface EtherealTradeResponse {
   id: string;
-  symbol: string;
-  side: string; // "BUY" | "SELL"
+  productId: string;
+  makerOrderId: string;
+  takerOrderId: string;
+  makerSide: number; // 0 = buy, 1 = sell
+  takerSide: number;
   price: string;
-  quantity: string;
-  timestamp: number;
+  filled: string; // quantity filled
+  makerFeeUsd: string;
+  takerFeeUsd: string;
+  createdAt: number;
 }
 
 export const EtherealTradeResponseSchema = z
   .object({
     id: z.string(),
-    symbol: z.string(),
-    side: z.string(),
+    productId: z.string(),
     price: z.string(),
-    quantity: z.string(),
-    timestamp: z.number(),
+    filled: z.string(),
+    makerSide: z.number(),
+    takerSide: z.number(),
+    createdAt: z.number(),
   })
   .passthrough();
 
@@ -244,25 +249,19 @@ export const EtherealCandleResponseSchema = z
   })
   .passthrough();
 
-// --- Funding Rate ---
+// --- Funding Rate (from GET /funding/projected) ---
 
 export interface EtherealFundingRateResponse {
-  symbol: string;
-  fundingRate: string;
-  fundingTimestamp: number;
-  nextFundingTimestamp: number;
-  markPrice: string;
-  indexPrice: string;
+  productId: string;
+  fundingRateProjected1h: string;
+  fundingRate1h: string;
 }
 
 export const EtherealFundingRateResponseSchema = z
   .object({
-    symbol: z.string(),
-    fundingRate: z.string(),
-    fundingTimestamp: z.number(),
-    nextFundingTimestamp: z.number(),
-    markPrice: z.string(),
-    indexPrice: z.string(),
+    productId: z.string(),
+    fundingRateProjected1h: z.string(),
+    fundingRate1h: z.string(),
   })
   .passthrough();
 
@@ -284,30 +283,8 @@ export interface EtherealCreateOrderRequest {
   accountId: string;
 }
 
-// --- My Trade ---
+// --- My Trade (same shape as EtherealTradeResponse, from GET /order/trade) ---
 
-export interface EtherealMyTradeResponse {
-  id: string;
-  orderId: string;
-  symbol: string;
-  side: string;
-  price: string;
-  quantity: string;
-  fee: string;
-  feeAsset: string;
-  timestamp: number;
-}
+export type EtherealMyTradeResponse = EtherealTradeResponse;
 
-export const EtherealMyTradeResponseSchema = z
-  .object({
-    id: z.string(),
-    orderId: z.string(),
-    symbol: z.string(),
-    side: z.string(),
-    price: z.string(),
-    quantity: z.string(),
-    fee: z.string(),
-    feeAsset: z.string(),
-    timestamp: z.number(),
-  })
-  .passthrough();
+export const EtherealMyTradeResponseSchema = EtherealTradeResponseSchema;

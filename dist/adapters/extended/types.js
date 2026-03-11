@@ -63,7 +63,8 @@ export const ExtendedMarketSchema = z
     .passthrough();
 export const ExtendedTickerSchema = z
     .object({
-    symbol: z.string(),
+    symbol: z.string().optional(),
+    market: z.string().optional(),
     lastPrice: z.string().optional(),
     bidPrice: z.string().optional(),
     askPrice: z.string().optional(),
@@ -79,11 +80,18 @@ export const ExtendedTickerSchema = z
     fundingRate: z.string().optional(),
     nextFundingTime: z.number().optional(),
     timestamp: z.number().optional(),
+    // API format fields
+    dailyHigh: z.string().optional(),
+    dailyLow: z.string().optional(),
+    dailyVolume: z.string().optional(),
+    dailyVolumeBase: z.string().optional(),
+    dailyPriceChange: z.string().optional(),
+    dailyPriceChangePercentage: z.string().optional(),
 })
     .passthrough();
 export const ExtendedOrderBookSchema = z
     .object({
-    symbol: z.string(),
+    symbol: z.string().optional(),
     bids: z.array(z.tuple([z.string(), z.string()])).optional(),
     asks: z.array(z.tuple([z.string(), z.string()])).optional(),
     timestamp: z.number().optional(),

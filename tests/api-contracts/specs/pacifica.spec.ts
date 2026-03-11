@@ -53,20 +53,17 @@ const PacificaTickerSchema = z.object({
  * Pacifica Order Book Response Schema
  */
 const PacificaOrderBookSchema = z.object({
-  bids: z.array(
-    z.object({
-      price: z.string(),
-      size: z.string(),
-    })
+  s: z.string(),
+  l: z.array(
+    z.array(
+      z.object({
+        p: z.string(),
+        a: z.string(),
+        n: z.number(),
+      })
+    )
   ),
-  asks: z.array(
-    z.object({
-      price: z.string(),
-      size: z.string(),
-    })
-  ),
-  timestamp: z.number(),
-  sequence: z.number(),
+  t: z.number(),
 });
 
 /**

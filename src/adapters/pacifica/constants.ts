@@ -1,9 +1,8 @@
 /**
  * Pacifica Constants
  *
- * Status: Closed Beta (invite only) — public API currently unavailable.
- * All API endpoints at api.pacifica.fi return 404.
- * @see https://pacifica.fi
+ * Solana-based perpetual DEX with REST + WebSocket APIs.
+ * @see https://docs.pacifica.fi/api-documentation/api/rest-api
  */
 
 export const PACIFICA_API_URLS = {
@@ -12,8 +11,8 @@ export const PACIFICA_API_URLS = {
     websocket: 'wss://ws.pacifica.fi/ws',
   },
   testnet: {
-    rest: 'https://testnet-api.pacifica.fi/api/v1',
-    websocket: 'wss://testnet-ws.pacifica.fi/ws',
+    rest: 'https://test-api.pacifica.fi/api/v1',
+    websocket: 'wss://test-ws.pacifica.fi/ws',
   },
 } as const;
 

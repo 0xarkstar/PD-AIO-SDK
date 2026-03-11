@@ -1,74 +1,79 @@
 /**
  * Pacifica Exchange-Specific Types
+ *
+ * Based on real API responses from https://api.pacifica.fi/api/v1
+ * @see https://docs.pacifica.fi/api-documentation/api/rest-api
  */
 import { z } from 'zod';
 // ============================================================================
 // Zod Schemas for Runtime Validation
 // ============================================================================
+export const PacificaApiResponseSchema = (dataSchema) => z.object({
+    success: z.boolean(),
+    data: dataSchema,
+});
 export const PacificaMarketSchema = z
     .object({
     symbol: z.string(),
-    base_currency: z.string(),
-    quote_currency: z.string(),
-    status: z.string(),
-    price_step: z.string(),
-    size_step: z.string(),
-    min_size: z.string(),
+    tick_size: z.string(),
+    lot_size: z.string(),
+    min_tick: z.string().optional(),
+    max_tick: z.string().optional(),
     max_leverage: z.number(),
-    maker_fee: z.string(),
-    taker_fee: z.string(),
-    funding_interval: z.number(),
+    isolated_only: z.boolean().optional(),
+    min_order_size: z.string().optional(),
+    max_order_size: z.string().optional(),
+    funding_rate: z.string().optional(),
+    next_funding_rate: z.string().optional(),
+    created_at: z.number().optional(),
 })
     .passthrough();
 export const PacificaTickerSchema = z
     .object({
     symbol: z.string(),
-    last_price: z.string(),
-    mark_price: z.string(),
-    index_price: z.string(),
-    bid_price: z.string(),
-    ask_price: z.string(),
-    high_24h: z.string(),
-    low_24h: z.string(),
-    volume_24h: z.string(),
-    quote_volume_24h: z.string(),
+    mark: z.string(),
+    mid: z.string(),
+    oracle: z.string(),
+    funding: z.string(),
+    next_funding: z.string(),
     open_interest: z.string(),
-    funding_rate: z.string(),
-    next_funding_time: z.number(),
+    volume_24h: z.string(),
+    yesterday_price: z.string(),
     timestamp: z.number(),
 })
     .passthrough();
 export const PacificaOrderBookLevelSchema = z
     .object({
-    price: z.string(),
-    size: z.string(),
+    p: z.string(),
+    a: z.string(),
+    n: z.number(),
 })
     .passthrough();
 export const PacificaOrderBookSchema = z
     .object({
-    bids: z.array(PacificaOrderBookLevelSchema),
-    asks: z.array(PacificaOrderBookLevelSchema),
-    timestamp: z.number(),
-    sequence: z.number(),
+    s: z.string(),
+    l: z.array(z.array(PacificaOrderBookLevelSchema)),
+    t: z.number(),
 })
     .passthrough();
 export const PacificaTradeResponseSchema = z
     .object({
-    id: z.string(),
-    symbol: z.string(),
+    event_type: z.string(),
     price: z.union([z.string(), z.number()]),
-    size: z.union([z.string(), z.number()]),
+    amount: z.union([z.string(), z.number()]),
     side: z.string(),
-    timestamp: z.number(),
+    cause: z.string().optional(),
+    created_at: z.number(),
 })
     .passthrough();
 export const PacificaFundingHistorySchema = z
     .object({
-    symbol: z.string(),
+    oracle_price: z.string(),
+    bid_impact_price: z.string().optional(),
+    ask_impact_price: z.string().optional(),
     funding_rate: z.string(),
-    mark_price: z.string(),
-    index_price: z.string(),
-    timestamp: z.number(),
+    next_funding_rate: z.string().optional(),
+    created_at: z.number(),
 })
     .passthrough();
 export const PacificaOrderResponseSchema = z

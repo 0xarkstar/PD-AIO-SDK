@@ -6,12 +6,11 @@ import type { OrderRequest } from '../../types/common.js';
 
 export function toPacificaSymbol(unified: string): string {
   const parts = unified.split(/[/:]/);
-  return `${parts[0]}-PERP`;
+  return parts[0]!;
 }
 
 export function toUnifiedSymbol(pacificaSymbol: string): string {
-  const base = pacificaSymbol.replace('-PERP', '');
-  return `${base}/USDC:USDC`;
+  return `${pacificaSymbol}/USDC:USDC`;
 }
 
 export function buildOrderBody(

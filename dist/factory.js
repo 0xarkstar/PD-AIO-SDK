@@ -26,6 +26,9 @@ const adapterLoaders = {
     aster: async () => (await import('./adapters/aster/index.js')).AsterAdapter,
     pacifica: async () => (await import('./adapters/pacifica/index.js')).PacificaAdapter,
     ostium: async () => (await import('./adapters/ostium/index.js')).OstiumAdapter,
+    reya: async () => (await import('./adapters/reya/index.js')).ReyaAdapter,
+    ethereal: async () => (await import('./adapters/ethereal/index.js')).EtherealAdapter,
+    avantis: async () => (await import('./adapters/avantis/index.js')).AvantisAdapter,
 };
 /** Cache for loaded adapter constructors */
 const adapterCache = new Map();
@@ -184,6 +187,9 @@ export function getBuiltInExchanges() {
         'aster',
         'pacifica',
         'ostium',
+        'reya',
+        'ethereal',
+        'avantis',
     ];
 }
 /**

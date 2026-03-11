@@ -99,17 +99,22 @@ export const DriftL2OrderBookSchema = z
     marketIndex: z.number(),
     marketType: z.string(),
     marketName: z.string().optional(),
-    bids: z.array(z.object({
+    bids: z.array(z
+        .object({
         price: z.string(),
         size: z.string(),
         sources: z.record(z.string(), z.string()).optional(),
-    })),
-    asks: z.array(z.object({
+    })
+        .passthrough()),
+    asks: z.array(z
+        .object({
         price: z.string(),
         size: z.string(),
         sources: z.record(z.string(), z.string()).optional(),
-    })),
-    oraclePrice: z.string(),
+    })
+        .passthrough()),
+    oraclePrice: z.union([z.string(), z.number()]).optional(),
+    oracle: z.union([z.string(), z.number()]).optional(),
     slot: z.number(),
 })
     .passthrough();

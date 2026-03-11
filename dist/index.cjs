@@ -8023,7 +8023,8 @@ var init_types2 = __esm({
       name: external_exports.string(),
       szDecimals: external_exports.number(),
       maxLeverage: external_exports.number(),
-      onlyIsolated: external_exports.boolean()
+      onlyIsolated: external_exports.boolean().optional(),
+      marginTableId: external_exports.number().optional()
     }).passthrough();
     HyperliquidOrderResponseSchema = external_exports.object({
       status: external_exports.enum(["ok", "err"]),
@@ -10676,12 +10677,12 @@ var init_types3 = __esm({
     }).passthrough();
     LighterAPITickerSchema = external_exports.object({
       symbol: external_exports.string(),
-      last_trade_price: external_exports.string().optional(),
-      daily_price_high: external_exports.string().optional(),
-      daily_price_low: external_exports.string().optional(),
-      daily_base_token_volume: external_exports.string().optional(),
-      daily_quote_token_volume: external_exports.string().optional(),
-      daily_price_change: external_exports.string().optional()
+      last_trade_price: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      daily_price_high: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      daily_price_low: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      daily_base_token_volume: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      daily_quote_token_volume: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      daily_price_change: external_exports.union([external_exports.string(), external_exports.number()]).optional()
     }).passthrough();
   }
 });
@@ -10845,12 +10846,12 @@ var init_LighterNormalizer = __esm({
        */
       normalizeTicker(lighterTicker) {
         const validated = LighterAPITickerSchema.parse(lighterTicker);
-        const last = parseFloat(validated.last_trade_price || "0");
-        const high = parseFloat(validated.daily_price_high || "0");
-        const low = parseFloat(validated.daily_price_low || "0");
-        const baseVolume = parseFloat(validated.daily_base_token_volume || "0");
-        const quoteVolume = parseFloat(validated.daily_quote_token_volume || "0");
-        const change = parseFloat(validated.daily_price_change || "0");
+        const last = Number(validated.last_trade_price ?? 0);
+        const high = Number(validated.daily_price_high ?? 0);
+        const low = Number(validated.daily_price_low ?? 0);
+        const baseVolume = Number(validated.daily_base_token_volume ?? 0);
+        const quoteVolume = Number(validated.daily_quote_token_volume ?? 0);
+        const change = Number(validated.daily_price_change ?? 0);
         return {
           symbol: this.normalizeSymbol(validated.symbol),
           last,
@@ -20351,10 +20352,10 @@ var init_types8 = __esm({
         }).optional()
       }).optional(),
       fundingInterval: external_exports.number().nullable().optional(),
-      imfFunction: external_exports.unknown().optional(),
-      mmfFunction: external_exports.unknown().optional(),
-      positionLimitWeight: external_exports.unknown().optional(),
-      openInterestLimit: external_exports.string().optional()
+      imfFunction: external_exports.unknown().nullable().optional(),
+      mmfFunction: external_exports.unknown().nullable().optional(),
+      positionLimitWeight: external_exports.unknown().nullable().optional(),
+      openInterestLimit: external_exports.string().nullable().optional()
     }).passthrough();
     BackpackOrderSchema = external_exports.object({
       order_id: external_exports.string(),
@@ -22246,7 +22247,7 @@ var init_types9 = __esm({
       error: external_exports.string().optional(),
       error_code: external_exports.number().optional(),
       request_type: external_exports.string().optional()
-    });
+    }).passthrough();
     NadoSymbolSchema = external_exports.object({
       type: external_exports.enum(["perp", "spot"]),
       product_id: external_exports.number(),
@@ -22259,7 +22260,7 @@ var init_types9 = __esm({
       long_weight_initial_x18: external_exports.string(),
       long_weight_maintenance_x18: external_exports.string(),
       max_open_interest_x18: external_exports.string().nullable().optional()
-    });
+    }).passthrough();
     NadoProductSchema = external_exports.object({
       product_id: external_exports.number(),
       symbol: external_exports.string(),
@@ -22273,11 +22274,11 @@ var init_types9 = __esm({
       taker_fee: external_exports.string(),
       is_active: external_exports.boolean(),
       product_type: external_exports.enum(["perpetual", "spot", "future"])
-    });
+    }).passthrough();
     NadoOrderBookSchema = external_exports.object({
       bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
       asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()]))
-    });
+    }).passthrough();
     NadoOrderSchema = external_exports.object({
       order_id: external_exports.string(),
       digest: external_exports.string(),
@@ -22296,7 +22297,7 @@ var init_types9 = __esm({
       is_reduce_only: external_exports.boolean().optional(),
       post_only: external_exports.boolean().optional(),
       time_in_force: external_exports.enum(["gtc", "ioc", "fok"]).optional()
-    });
+    }).passthrough();
     NadoPositionSchema = external_exports.object({
       product_id: external_exports.number(),
       subaccount: external_exports.string(),
@@ -22309,7 +22310,7 @@ var init_types9 = __esm({
       leverage: external_exports.string(),
       margin: external_exports.string(),
       timestamp: external_exports.number()
-    });
+    }).passthrough();
     NadoBalanceSchema = external_exports.object({
       subaccount: external_exports.string(),
       quote_balance: external_exports.string(),
@@ -22319,7 +22320,7 @@ var init_types9 = __esm({
       unrealized_pnl: external_exports.string(),
       health: external_exports.string(),
       timestamp: external_exports.number()
-    });
+    }).passthrough();
     NadoTradeSchema = external_exports.object({
       trade_id: external_exports.string(),
       product_id: external_exports.number(),
@@ -22328,12 +22329,12 @@ var init_types9 = __esm({
       side: external_exports.union([external_exports.literal(0), external_exports.literal(1)]),
       timestamp: external_exports.number(),
       is_maker: external_exports.boolean()
-    });
+    }).passthrough();
     NadoTickerSchema = external_exports.object({
       product_id: external_exports.number(),
       bid_x18: external_exports.string(),
       ask_x18: external_exports.string()
-    });
+    }).passthrough();
     NadoContractsSchema = external_exports.object({
       chain_id: external_exports.string(),
       endpoint_addr: external_exports.string(),
@@ -22342,9 +22343,9 @@ var init_types9 = __esm({
         external_exports.object({
           address: external_exports.string(),
           symbol: external_exports.string()
-        })
+        }).passthrough()
       ).optional()
-    });
+    }).passthrough();
   }
 });
 
@@ -25986,7 +25987,8 @@ var init_types11 = __esm({
       settlementPeriod: external_exports.number().optional()
     }).passthrough();
     ExtendedTickerSchema = external_exports.object({
-      symbol: external_exports.string(),
+      symbol: external_exports.string().optional(),
+      market: external_exports.string().optional(),
       lastPrice: external_exports.string().optional(),
       bidPrice: external_exports.string().optional(),
       askPrice: external_exports.string().optional(),
@@ -26001,10 +26003,17 @@ var init_types11 = __esm({
       markPrice: external_exports.string().optional(),
       fundingRate: external_exports.string().optional(),
       nextFundingTime: external_exports.number().optional(),
-      timestamp: external_exports.number().optional()
+      timestamp: external_exports.number().optional(),
+      // API format fields
+      dailyHigh: external_exports.string().optional(),
+      dailyLow: external_exports.string().optional(),
+      dailyVolume: external_exports.string().optional(),
+      dailyVolumeBase: external_exports.string().optional(),
+      dailyPriceChange: external_exports.string().optional(),
+      dailyPriceChangePercentage: external_exports.string().optional()
     }).passthrough();
     ExtendedOrderBookSchema = external_exports.object({
-      symbol: external_exports.string(),
+      symbol: external_exports.string().optional(),
       bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])).optional(),
       asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])).optional(),
       timestamp: external_exports.number().optional(),
@@ -33191,16 +33200,17 @@ var init_types14 = __esm({
           price: external_exports.string(),
           size: external_exports.string(),
           sources: external_exports.record(external_exports.string(), external_exports.string()).optional()
-        })
+        }).passthrough()
       ),
       asks: external_exports.array(
         external_exports.object({
           price: external_exports.string(),
           size: external_exports.string(),
           sources: external_exports.record(external_exports.string(), external_exports.string()).optional()
-        })
+        }).passthrough()
       ),
-      oraclePrice: external_exports.string(),
+      oraclePrice: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      oracle: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
       slot: external_exports.number()
     }).passthrough();
     DriftTradeSchema = external_exports.object({
@@ -34941,8 +34951,8 @@ var init_DriftClientWrapper = __esm({
         }
         try {
           const driftSdk = await import("@drift-labs/sdk");
-          const { DriftClient, Wallet: Wallet4, BulkAccountLoader, getMarketsAndOraclesForSubscription } = driftSdk;
-          const wallet = new Wallet4(this.config.keypair);
+          const { DriftClient, Wallet: Wallet6, BulkAccountLoader, getMarketsAndOraclesForSubscription } = driftSdk;
+          const wallet = new Wallet6(this.config.keypair);
           const { perpMarketIndexes, spotMarketIndexes, oracleInfos } = getMarketsAndOraclesForSubscription(this.config.isDevnet ? "devnet" : "mainnet-beta");
           const bulkAccountLoader = new BulkAccountLoader(
             this.config.connection,
@@ -35523,7 +35533,7 @@ var init_DriftAdapter = __esm({
             "GET",
             buildOrderbookUrl(this.dlobBaseUrl, marketIndex, "perp", 1)
           );
-          const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+          const oraclePrice = parseFloat(String(orderbook.oracle ?? orderbook.oraclePrice ?? "0")) / DRIFT_PRECISION.PRICE;
           const bestBid = orderbook.bids[0] ? parseFloat(orderbook.bids[0].price) / DRIFT_PRECISION.PRICE : oraclePrice * 0.999;
           const bestAsk = orderbook.asks[0] ? parseFloat(orderbook.asks[0].price) / DRIFT_PRECISION.PRICE : oraclePrice * 1.001;
           const markPrice = (bestBid + bestAsk) / 2;
@@ -35639,7 +35649,7 @@ var init_DriftAdapter = __esm({
               "GET",
               buildOrderbookUrl(this.dlobBaseUrl, pos.marketIndex, "perp", 1)
             );
-            const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+            const oraclePrice = parseFloat(String(orderbook.oracle ?? orderbook.oraclePrice ?? "0")) / DRIFT_PRECISION.PRICE;
             const position = this.normalizer.normalizePosition(
               {
                 ...pos,
@@ -35743,7 +35753,7 @@ var init_DriftAdapter = __esm({
             "GET",
             buildOrderbookUrl(this.dlobBaseUrl, marketIndex, "perp", 1)
           );
-          const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+          const oraclePrice = parseFloat(String(orderbook.oracle ?? orderbook.oraclePrice ?? "0")) / DRIFT_PRECISION.PRICE;
           const orderParams = this.orderBuilder.buildOrderParams(request, oraclePrice);
           this.debug("Placing order via Drift SDK...");
           const result = await this.driftClient.placePerpOrder(orderParams);
@@ -36009,80 +36019,80 @@ var init_types15 = __esm({
       indexTokenInfo: GmxTokenInfoSchema.optional(),
       longTokenInfo: GmxTokenInfoSchema.optional(),
       shortTokenInfo: GmxTokenInfoSchema.optional(),
-      longPoolAmount: external_exports.string(),
-      shortPoolAmount: external_exports.string(),
-      maxLongPoolAmount: external_exports.string(),
-      maxShortPoolAmount: external_exports.string(),
-      maxLongPoolUsdForDeposit: external_exports.string(),
-      maxShortPoolUsdForDeposit: external_exports.string(),
-      longPoolAmountAdjustment: external_exports.string(),
-      shortPoolAmountAdjustment: external_exports.string(),
-      poolValueMin: external_exports.string(),
-      poolValueMax: external_exports.string(),
-      reserveFactorLong: external_exports.string(),
-      reserveFactorShort: external_exports.string(),
-      openInterestReserveFactorLong: external_exports.string(),
-      openInterestReserveFactorShort: external_exports.string(),
-      maxOpenInterestLong: external_exports.string(),
-      maxOpenInterestShort: external_exports.string(),
-      totalBorrowingFees: external_exports.string(),
-      positionImpactPoolAmount: external_exports.string(),
-      minPositionImpactPoolAmount: external_exports.string(),
-      positionImpactPoolDistributionRate: external_exports.string(),
-      swapImpactPoolAmountLong: external_exports.string(),
-      swapImpactPoolAmountShort: external_exports.string(),
-      borrowingFactorLong: external_exports.string(),
-      borrowingFactorShort: external_exports.string(),
-      borrowingExponentFactorLong: external_exports.string(),
-      borrowingExponentFactorShort: external_exports.string(),
-      fundingFactor: external_exports.string(),
-      fundingExponentFactor: external_exports.string(),
-      fundingIncreaseFactorPerSecond: external_exports.string(),
-      fundingDecreaseFactorPerSecond: external_exports.string(),
-      thresholdForStableFunding: external_exports.string(),
-      thresholdForDecreaseFunding: external_exports.string(),
-      minFundingFactorPerSecond: external_exports.string(),
-      maxFundingFactorPerSecond: external_exports.string(),
-      pnlLongMax: external_exports.string(),
-      pnlLongMin: external_exports.string(),
-      pnlShortMax: external_exports.string(),
-      pnlShortMin: external_exports.string(),
-      netPnlMax: external_exports.string(),
-      netPnlMin: external_exports.string(),
-      maxPnlFactorForTradersLong: external_exports.string(),
-      maxPnlFactorForTradersShort: external_exports.string(),
-      minCollateralFactor: external_exports.string(),
-      minCollateralFactorForOpenInterestLong: external_exports.string(),
-      minCollateralFactorForOpenInterestShort: external_exports.string(),
-      claimableFundingAmountLong: external_exports.string(),
-      claimableFundingAmountShort: external_exports.string(),
-      positionFeeFactorForPositiveImpact: external_exports.string(),
-      positionFeeFactorForNegativeImpact: external_exports.string(),
-      positionImpactFactorPositive: external_exports.string(),
-      positionImpactFactorNegative: external_exports.string(),
-      maxPositionImpactFactorPositive: external_exports.string(),
-      maxPositionImpactFactorNegativePrice: external_exports.string(),
-      positionImpactExponentFactor: external_exports.string(),
-      swapFeeFactorForPositiveImpact: external_exports.string(),
-      swapFeeFactorForNegativeImpact: external_exports.string(),
-      swapImpactFactorPositive: external_exports.string(),
-      swapImpactFactorNegative: external_exports.string(),
-      swapImpactExponentFactor: external_exports.string(),
-      longInterestInTokens: external_exports.string(),
-      shortInterestInTokens: external_exports.string(),
-      longInterestUsd: external_exports.string(),
-      shortInterestUsd: external_exports.string(),
-      longInterestInTokensUsingLongToken: external_exports.string(),
-      longInterestInTokensUsingShortToken: external_exports.string(),
-      shortInterestInTokensUsingLongToken: external_exports.string(),
-      shortInterestInTokensUsingShortToken: external_exports.string(),
-      isDisabled: external_exports.boolean(),
-      virtualPoolAmountForLongToken: external_exports.string(),
-      virtualPoolAmountForShortToken: external_exports.string(),
-      virtualInventoryForPositions: external_exports.string(),
-      virtualMarketId: external_exports.string(),
-      virtualLongTokenId: external_exports.string(),
-      virtualShortTokenId: external_exports.string()
+      longPoolAmount: external_exports.string().optional().default("0"),
+      shortPoolAmount: external_exports.string().optional().default("0"),
+      maxLongPoolAmount: external_exports.string().optional().default("0"),
+      maxShortPoolAmount: external_exports.string().optional().default("0"),
+      maxLongPoolUsdForDeposit: external_exports.string().optional().default("0"),
+      maxShortPoolUsdForDeposit: external_exports.string().optional().default("0"),
+      longPoolAmountAdjustment: external_exports.string().optional().default("0"),
+      shortPoolAmountAdjustment: external_exports.string().optional().default("0"),
+      poolValueMin: external_exports.string().optional().default("0"),
+      poolValueMax: external_exports.string().optional().default("0"),
+      reserveFactorLong: external_exports.string().optional().default("0"),
+      reserveFactorShort: external_exports.string().optional().default("0"),
+      openInterestReserveFactorLong: external_exports.string().optional().default("0"),
+      openInterestReserveFactorShort: external_exports.string().optional().default("0"),
+      maxOpenInterestLong: external_exports.string().optional().default("0"),
+      maxOpenInterestShort: external_exports.string().optional().default("0"),
+      totalBorrowingFees: external_exports.string().optional().default("0"),
+      positionImpactPoolAmount: external_exports.string().optional().default("0"),
+      minPositionImpactPoolAmount: external_exports.string().optional().default("0"),
+      positionImpactPoolDistributionRate: external_exports.string().optional().default("0"),
+      swapImpactPoolAmountLong: external_exports.string().optional().default("0"),
+      swapImpactPoolAmountShort: external_exports.string().optional().default("0"),
+      borrowingFactorLong: external_exports.string().optional().default("0"),
+      borrowingFactorShort: external_exports.string().optional().default("0"),
+      borrowingExponentFactorLong: external_exports.string().optional().default("0"),
+      borrowingExponentFactorShort: external_exports.string().optional().default("0"),
+      fundingFactor: external_exports.string().optional().default("0"),
+      fundingExponentFactor: external_exports.string().optional().default("0"),
+      fundingIncreaseFactorPerSecond: external_exports.string().optional().default("0"),
+      fundingDecreaseFactorPerSecond: external_exports.string().optional().default("0"),
+      thresholdForStableFunding: external_exports.string().optional().default("0"),
+      thresholdForDecreaseFunding: external_exports.string().optional().default("0"),
+      minFundingFactorPerSecond: external_exports.string().optional().default("0"),
+      maxFundingFactorPerSecond: external_exports.string().optional().default("0"),
+      pnlLongMax: external_exports.string().optional().default("0"),
+      pnlLongMin: external_exports.string().optional().default("0"),
+      pnlShortMax: external_exports.string().optional().default("0"),
+      pnlShortMin: external_exports.string().optional().default("0"),
+      netPnlMax: external_exports.string().optional().default("0"),
+      netPnlMin: external_exports.string().optional().default("0"),
+      maxPnlFactorForTradersLong: external_exports.string().optional().default("0"),
+      maxPnlFactorForTradersShort: external_exports.string().optional().default("0"),
+      minCollateralFactor: external_exports.string().optional().default("0"),
+      minCollateralFactorForOpenInterestLong: external_exports.string().optional().default("0"),
+      minCollateralFactorForOpenInterestShort: external_exports.string().optional().default("0"),
+      claimableFundingAmountLong: external_exports.string().optional().default("0"),
+      claimableFundingAmountShort: external_exports.string().optional().default("0"),
+      positionFeeFactorForPositiveImpact: external_exports.string().optional().default("0"),
+      positionFeeFactorForNegativeImpact: external_exports.string().optional().default("0"),
+      positionImpactFactorPositive: external_exports.string().optional().default("0"),
+      positionImpactFactorNegative: external_exports.string().optional().default("0"),
+      maxPositionImpactFactorPositive: external_exports.string().optional().default("0"),
+      maxPositionImpactFactorNegativePrice: external_exports.string().optional().default("0"),
+      positionImpactExponentFactor: external_exports.string().optional().default("0"),
+      swapFeeFactorForPositiveImpact: external_exports.string().optional().default("0"),
+      swapFeeFactorForNegativeImpact: external_exports.string().optional().default("0"),
+      swapImpactFactorPositive: external_exports.string().optional().default("0"),
+      swapImpactFactorNegative: external_exports.string().optional().default("0"),
+      swapImpactExponentFactor: external_exports.string().optional().default("0"),
+      longInterestInTokens: external_exports.string().optional().default("0"),
+      shortInterestInTokens: external_exports.string().optional().default("0"),
+      longInterestUsd: external_exports.string().optional().default("0"),
+      shortInterestUsd: external_exports.string().optional().default("0"),
+      longInterestInTokensUsingLongToken: external_exports.string().optional().default("0"),
+      longInterestInTokensUsingShortToken: external_exports.string().optional().default("0"),
+      shortInterestInTokensUsingLongToken: external_exports.string().optional().default("0"),
+      shortInterestInTokensUsingShortToken: external_exports.string().optional().default("0"),
+      isDisabled: external_exports.boolean().optional().default(false),
+      virtualPoolAmountForLongToken: external_exports.string().optional().default("0"),
+      virtualPoolAmountForShortToken: external_exports.string().optional().default("0"),
+      virtualInventoryForPositions: external_exports.string().optional().default("0"),
+      virtualMarketId: external_exports.string().optional().default(""),
+      virtualLongTokenId: external_exports.string().optional().default(""),
+      virtualShortTokenId: external_exports.string().optional().default("")
     }).passthrough();
     GmxCandleTupleSchema = external_exports.array(external_exports.number());
     GmxCandlesResponseSchema = external_exports.object({
@@ -38367,8 +38377,8 @@ var init_GmxAdapter = __esm({
         fetchTicker: true,
         fetchOrderBook: false,
         // GMX doesn't have a traditional orderbook
-        fetchTrades: false,
-        // Requires subgraph query
+        fetchTrades: true,
+        // Via subgraph
         fetchFundingRate: true,
         fetchFundingRateHistory: false,
         fetchOHLCV: true,
@@ -38384,7 +38394,8 @@ var init_GmxAdapter = __esm({
         fetchBalance: true,
         fetchOpenOrders: true,
         fetchOrderHistory: true,
-        fetchMyTrades: false,
+        fetchMyTrades: true,
+        // Via subgraph (requires auth)
         // Position management
         setLeverage: false,
         // Leverage is per-position
@@ -38457,13 +38468,13 @@ var init_GmxAdapter = __esm({
         this.debug("Initializing GMX adapter...");
         try {
           await this.fetchMarketsInfo();
+          this.subgraph = new GmxSubgraph(this.chain);
           if (this.auth) {
             this.contracts = new GmxContracts(
               this.chain,
               this.auth.getProvider(),
               this.auth.getSigner()
             );
-            this.subgraph = new GmxSubgraph(this.chain);
             if (this.auth.canSign() && this.contracts) {
               this.orderBuilder = new GmxOrderBuilder(
                 this.chain,
@@ -38534,8 +38545,38 @@ var init_GmxAdapter = __esm({
       async _fetchOrderBook(_symbol, _params) {
         throw new Error("GMX does not have a traditional orderbook. Use fetchTicker for price data.");
       }
-      async _fetchTrades(_symbol, _params) {
-        throw new Error("fetchTrades requires subgraph integration. Not available via REST API.");
+      async _fetchTrades(symbol, params) {
+        this.ensureInitialized();
+        if (!this.subgraph) {
+          throw new Error("Subgraph not initialized");
+        }
+        const marketKey = unifiedToGmx(symbol);
+        if (!marketKey) {
+          throw new Error(`Invalid market: ${symbol}`);
+        }
+        const marketConfig = GMX_MARKETS[marketKey];
+        try {
+          const rawTrades = await this.subgraph.fetchMarketTrades(
+            marketConfig.marketAddress,
+            params?.since,
+            params?.limit ?? 50
+          );
+          return rawTrades.map((t) => {
+            const normalized = this.subgraph.normalizeTrade(t);
+            return {
+              id: normalized.id,
+              symbol,
+              side: normalized.side,
+              price: normalized.price,
+              amount: normalized.amount,
+              cost: normalized.cost,
+              timestamp: normalized.timestamp,
+              info: normalized
+            };
+          });
+        } catch (error) {
+          throw mapGmxError(error);
+        }
       }
       async _fetchFundingRate(symbol) {
         this.ensureInitialized();
@@ -38781,8 +38822,40 @@ var init_GmxAdapter = __esm({
           throw mapGmxError(error);
         }
       }
-      async fetchMyTrades(_symbol, _since, _limit) {
-        throw new Error("fetchMyTrades requires subgraph integration. Not available via REST API.");
+      async fetchMyTrades(symbol, since, limit) {
+        this.ensureInitialized();
+        if (!this.subgraph) {
+          throw new Error("Subgraph not initialized");
+        }
+        if (!this.walletAddress) {
+          throw new Error("Private key required for fetchMyTrades");
+        }
+        try {
+          const rawTrades = await this.subgraph.fetchAccountTrades(
+            this.walletAddress,
+            since,
+            limit ?? 50
+          );
+          const trades = rawTrades.map((t) => {
+            const normalized = this.subgraph.normalizeTrade(t);
+            return {
+              id: normalized.id,
+              symbol: normalized.symbol,
+              side: normalized.side,
+              price: normalized.price,
+              amount: normalized.amount,
+              cost: normalized.cost,
+              timestamp: normalized.timestamp,
+              info: normalized
+            };
+          });
+          if (symbol) {
+            return trades.filter((t) => t.symbol === symbol);
+          }
+          return trades;
+        } catch (error) {
+          throw mapGmxError(error);
+        }
       }
       // ==========================================================================
       // Trading Operations
@@ -40007,8 +40080,8 @@ var init_constants15 = __esm({
         websocket: "wss://ws.pacifica.fi/ws"
       },
       testnet: {
-        rest: "https://testnet-api.pacifica.fi/api/v1",
-        websocket: "wss://testnet-ws.pacifica.fi/ws"
+        rest: "https://test-api.pacifica.fi/api/v1",
+        websocket: "wss://test-ws.pacifica.fi/ws"
       }
     };
     PACIFICA_RATE_LIMITS = {
@@ -40113,57 +40186,55 @@ var init_types17 = __esm({
     init_zod();
     PacificaMarketSchema = external_exports.object({
       symbol: external_exports.string(),
-      base_currency: external_exports.string(),
-      quote_currency: external_exports.string(),
-      status: external_exports.string(),
-      price_step: external_exports.string(),
-      size_step: external_exports.string(),
-      min_size: external_exports.string(),
+      tick_size: external_exports.string(),
+      lot_size: external_exports.string(),
+      min_tick: external_exports.string().optional(),
+      max_tick: external_exports.string().optional(),
       max_leverage: external_exports.number(),
-      maker_fee: external_exports.string(),
-      taker_fee: external_exports.string(),
-      funding_interval: external_exports.number()
+      isolated_only: external_exports.boolean().optional(),
+      min_order_size: external_exports.string().optional(),
+      max_order_size: external_exports.string().optional(),
+      funding_rate: external_exports.string().optional(),
+      next_funding_rate: external_exports.string().optional(),
+      created_at: external_exports.number().optional()
     }).passthrough();
     PacificaTickerSchema = external_exports.object({
       symbol: external_exports.string(),
-      last_price: external_exports.string(),
-      mark_price: external_exports.string(),
-      index_price: external_exports.string(),
-      bid_price: external_exports.string(),
-      ask_price: external_exports.string(),
-      high_24h: external_exports.string(),
-      low_24h: external_exports.string(),
-      volume_24h: external_exports.string(),
-      quote_volume_24h: external_exports.string(),
+      mark: external_exports.string(),
+      mid: external_exports.string(),
+      oracle: external_exports.string(),
+      funding: external_exports.string(),
+      next_funding: external_exports.string(),
       open_interest: external_exports.string(),
-      funding_rate: external_exports.string(),
-      next_funding_time: external_exports.number(),
+      volume_24h: external_exports.string(),
+      yesterday_price: external_exports.string(),
       timestamp: external_exports.number()
     }).passthrough();
     PacificaOrderBookLevelSchema = external_exports.object({
-      price: external_exports.string(),
-      size: external_exports.string()
+      p: external_exports.string(),
+      a: external_exports.string(),
+      n: external_exports.number()
     }).passthrough();
     PacificaOrderBookSchema = external_exports.object({
-      bids: external_exports.array(PacificaOrderBookLevelSchema),
-      asks: external_exports.array(PacificaOrderBookLevelSchema),
-      timestamp: external_exports.number(),
-      sequence: external_exports.number()
+      s: external_exports.string(),
+      l: external_exports.array(external_exports.array(PacificaOrderBookLevelSchema)),
+      t: external_exports.number()
     }).passthrough();
     PacificaTradeResponseSchema = external_exports.object({
-      id: external_exports.string(),
-      symbol: external_exports.string(),
+      event_type: external_exports.string(),
       price: external_exports.union([external_exports.string(), external_exports.number()]),
-      size: external_exports.union([external_exports.string(), external_exports.number()]),
+      amount: external_exports.union([external_exports.string(), external_exports.number()]),
       side: external_exports.string(),
-      timestamp: external_exports.number()
+      cause: external_exports.string().optional(),
+      created_at: external_exports.number()
     }).passthrough();
     PacificaFundingHistorySchema = external_exports.object({
-      symbol: external_exports.string(),
+      oracle_price: external_exports.string(),
+      bid_impact_price: external_exports.string().optional(),
+      ask_impact_price: external_exports.string().optional(),
       funding_rate: external_exports.string(),
-      mark_price: external_exports.string(),
-      index_price: external_exports.string(),
-      timestamp: external_exports.number()
+      next_funding_rate: external_exports.string().optional(),
+      created_at: external_exports.number()
     }).passthrough();
     PacificaOrderResponseSchema = external_exports.object({
       order_id: external_exports.string(),
@@ -40209,11 +40280,10 @@ var init_types17 = __esm({
 // src/adapters/pacifica/utils.ts
 function toPacificaSymbol(unified) {
   const parts = unified.split(/[/:]/);
-  return `${parts[0]}-PERP`;
+  return parts[0];
 }
 function toUnifiedSymbol2(pacificaSymbol) {
-  const base = pacificaSymbol.replace("-PERP", "");
-  return `${base}/USDC:USDC`;
+  return `${pacificaSymbol}/USDC:USDC`;
 }
 function buildOrderBody(request, pacificaSymbol, builderCode) {
   const body = {
@@ -40258,96 +40328,119 @@ var init_PacificaNormalizer = __esm({
     init_types17();
     init_utils12();
     PacificaNormalizer = class {
+      /**
+       * Normalize /info market entry.
+       * Real fields: symbol, tick_size, lot_size, max_leverage, min_order_size, etc.
+       */
       normalizeMarket(raw) {
         const validated = PacificaMarketSchema.parse(raw);
         const symbol = toUnifiedSymbol2(validated.symbol);
+        const base = validated.symbol;
         return {
           id: validated.symbol,
           symbol,
-          base: validated.base_currency,
-          quote: validated.quote_currency,
-          settle: validated.quote_currency,
-          active: validated.status === "active",
-          minAmount: parseFloat(validated.min_size),
-          pricePrecision: this.countDecimals(validated.price_step),
-          amountPrecision: this.countDecimals(validated.size_step),
-          priceTickSize: parseFloat(validated.price_step),
-          amountStepSize: parseFloat(validated.size_step),
-          makerFee: parseFloat(validated.maker_fee),
-          takerFee: parseFloat(validated.taker_fee),
+          base,
+          quote: "USDC",
+          settle: "USDC",
+          active: true,
+          minAmount: parseFloat(validated.min_order_size ?? "0"),
+          pricePrecision: this.countDecimals(validated.tick_size),
+          amountPrecision: this.countDecimals(validated.lot_size),
+          priceTickSize: parseFloat(validated.tick_size),
+          amountStepSize: parseFloat(validated.lot_size),
+          makerFee: 0,
+          takerFee: 0,
           maxLeverage: validated.max_leverage,
-          fundingIntervalHours: validated.funding_interval / 3600,
+          fundingIntervalHours: 1,
           info: validated
         };
       }
+      /**
+       * Normalize /info/prices entry.
+       * Real fields: symbol, mark, mid, oracle, funding, next_funding,
+       * open_interest, volume_24h, yesterday_price, timestamp
+       */
       normalizeTicker(raw, symbol) {
         const validated = PacificaTickerSchema.parse(raw);
-        const last = parseFloat(validated.last_price);
-        const high = parseFloat(validated.high_24h);
-        const low = parseFloat(validated.low_24h);
+        const mid = parseFloat(validated.mid);
+        const yesterday = parseFloat(validated.yesterday_price);
+        const change = mid - yesterday;
+        const percentage = yesterday !== 0 ? change / yesterday * 100 : 0;
         return {
           symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
-          last,
-          bid: parseFloat(validated.bid_price),
-          ask: parseFloat(validated.ask_price),
-          high,
-          low,
-          open: last,
-          close: last,
-          change: 0,
-          percentage: 0,
-          baseVolume: parseFloat(validated.volume_24h),
-          quoteVolume: parseFloat(validated.quote_volume_24h),
+          last: mid,
+          bid: mid,
+          ask: mid,
+          high: mid,
+          low: mid,
+          open: yesterday,
+          close: mid,
+          change,
+          percentage,
+          baseVolume: 0,
+          quoteVolume: parseFloat(validated.volume_24h),
           timestamp: validated.timestamp,
           info: {
             ...validated,
-            _bidAskSource: "orderbook"
+            _bidAskSource: "mid"
           }
         };
       }
       normalizeOrderBook(raw, symbol) {
         const validated = PacificaOrderBookSchema.parse(raw);
+        const rawBids = validated.l[0] ?? [];
+        const rawAsks = validated.l[1] ?? [];
         return {
           symbol,
-          timestamp: validated.timestamp,
-          bids: validated.bids.map(
-            (b) => [parseFloat(b.price), parseFloat(b.size)]
+          timestamp: validated.t,
+          bids: rawBids.map(
+            (b) => [parseFloat(b.p), parseFloat(b.a)]
           ),
-          asks: validated.asks.map(
-            (a) => [parseFloat(a.price), parseFloat(a.size)]
+          asks: rawAsks.map(
+            (a) => [parseFloat(a.p), parseFloat(a.a)]
           ),
-          sequenceId: validated.sequence,
           exchange: "pacifica"
         };
       }
-      normalizeTrade(raw, symbol) {
+      /**
+       * Normalize /trades entry.
+       * Real fields: event_type, price, amount, side, cause, created_at
+       */
+      normalizeTrade(raw, symbol, index) {
         const validated = PacificaTradeResponseSchema.parse(raw);
         const price = parseFloat(
           typeof validated.price === "number" ? String(validated.price) : validated.price
         );
         const amount = parseFloat(
-          typeof validated.size === "number" ? String(validated.size) : validated.size
+          typeof validated.amount === "number" ? String(validated.amount) : validated.amount
         );
+        const sideStr = String(validated.side);
+        const normalizedSide = sideStr === "open_long" || sideStr === "close_short" ? "buy" : "sell";
         return {
-          id: validated.id,
-          symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
-          side: validated.side,
+          id: `${validated.created_at}-${index ?? 0}`,
+          symbol: symbol ?? "",
+          side: normalizedSide,
           price,
           amount,
           cost: price * amount,
-          timestamp: validated.timestamp,
+          timestamp: validated.created_at,
           info: validated
         };
       }
+      /**
+       * Normalize /funding_rate/history entry.
+       * Real fields: oracle_price, funding_rate, next_funding_rate, created_at
+       */
       normalizeFundingRate(raw, symbol) {
         const validated = PacificaFundingHistorySchema.parse(raw);
+        const oraclePrice = parseFloat(validated.oracle_price);
         return {
           symbol,
           fundingRate: parseFloat(validated.funding_rate),
-          fundingTimestamp: validated.timestamp,
-          nextFundingTimestamp: validated.timestamp + 36e5,
-          markPrice: parseFloat(validated.mark_price),
-          indexPrice: parseFloat(validated.index_price),
+          fundingTimestamp: validated.created_at,
+          nextFundingTimestamp: validated.created_at + 36e5,
+          markPrice: oraclePrice,
+          indexPrice: oraclePrice,
           fundingIntervalHours: 1,
           info: validated
         };
@@ -40527,11 +40620,6 @@ var init_PacificaAdapter = __esm({
     PacificaAdapter = class extends BaseAdapter {
       id = "pacifica";
       name = "Pacifica";
-      /**
-       * Feature map.
-       * Note: Pacifica is in Closed Beta (invite only). Public API currently unavailable.
-       * All endpoints at api.pacifica.fi return 404.
-       */
       has = {
         fetchMarkets: true,
         fetchTicker: true,
@@ -40542,7 +40630,7 @@ var init_PacificaAdapter = __esm({
         createOrder: true,
         cancelOrder: true,
         cancelAllOrders: false,
-        fetchFundingRateHistory: false,
+        fetchFundingRateHistory: true,
         fetchOrderHistory: false,
         fetchMyTrades: false,
         fetchPositions: true,
@@ -40646,6 +40734,16 @@ var init_PacificaAdapter = __esm({
           "pacifica"
         );
       }
+      /**
+       * Unwrap `{ success, data }` envelope. Returns `data` if present,
+       * otherwise returns the raw response (for mocked / non-wrapped responses).
+       */
+      unwrapResponse(response) {
+        if (response !== null && typeof response === "object" && "success" in response && "data" in response) {
+          return response.data;
+        }
+        return response;
+      }
       async registerBuilderCode(code, maxFeeRate) {
         await this.signedRequest(
           "POST",
@@ -40660,19 +40758,34 @@ var init_PacificaAdapter = __esm({
       }
       // === Public Market Data ===
       async fetchMarkets(_params) {
-        const response = await this.publicGet("/markets", "fetchMarkets");
-        if (!Array.isArray(response)) {
+        const response = await this.publicGet(
+          "/info",
+          "fetchMarkets"
+        );
+        const markets = this.unwrapResponse(response);
+        if (!Array.isArray(markets)) {
           throw new PerpDEXError("Invalid markets response", "INVALID_RESPONSE", "pacifica");
         }
-        return response.filter((m) => m.status === "active").map((m) => this.normalizer.normalizeMarket(m));
+        return markets.map((m) => this.normalizer.normalizeMarket(m));
       }
       async _fetchTicker(symbol) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const response = await this.publicGet(
-          `/prices?symbol=${pacificaSymbol}`,
+          "/info/prices",
           "fetchTicker"
         );
-        return this.normalizer.normalizeTicker(response, symbol);
+        const prices = this.unwrapResponse(response);
+        if (Array.isArray(prices)) {
+          const match = prices.find((p) => p.symbol === pacificaSymbol);
+          if (match) {
+            return this.normalizer.normalizeTicker(match, symbol);
+          }
+        }
+        throw new PerpDEXError(
+          `Ticker not found for ${pacificaSymbol}`,
+          "INVALID_RESPONSE",
+          "pacifica"
+        );
       }
       async _fetchOrderBook(symbol, params) {
         const pacificaSymbol = toPacificaSymbol(symbol);
@@ -40681,30 +40794,37 @@ var init_PacificaAdapter = __esm({
           `/book?symbol=${pacificaSymbol}&limit=${limit}`,
           "fetchOrderBook"
         );
-        return this.normalizer.normalizeOrderBook(response, symbol);
+        const orderbook = this.unwrapResponse(response);
+        return this.normalizer.normalizeOrderBook(orderbook, symbol);
       }
       async _fetchTrades(symbol, params) {
         const pacificaSymbol = toPacificaSymbol(symbol);
         const limit = params?.limit ?? 100;
-        const response = await this.publicGet(
-          `/trades?symbol=${pacificaSymbol}&limit=${limit}`,
-          "fetchTrades"
-        );
-        if (!Array.isArray(response)) {
+        const response = await this.publicGet(`/trades?symbol=${pacificaSymbol}&limit=${limit}`, "fetchTrades");
+        const trades = this.unwrapResponse(response);
+        if (!Array.isArray(trades)) {
           throw new PerpDEXError("Invalid trades response", "INVALID_RESPONSE", "pacifica");
         }
-        return response.map((t) => this.normalizer.normalizeTrade(t, symbol));
+        return trades.map((t, i) => this.normalizer.normalizeTrade(t, symbol, i));
       }
       async _fetchFundingRate(symbol) {
         const pacificaSymbol = toPacificaSymbol(symbol);
-        const response = await this.publicGet(
-          `/funding/historical?symbol=${pacificaSymbol}&limit=1`,
-          "fetchFundingRate"
-        );
-        if (!Array.isArray(response) || response.length === 0) {
+        const response = await this.publicGet(`/funding_rate/history?symbol=${pacificaSymbol}&limit=1`, "fetchFundingRate");
+        const history = this.unwrapResponse(response);
+        if (!Array.isArray(history) || history.length === 0) {
           throw new PerpDEXError("No funding rate data", "INVALID_RESPONSE", "pacifica");
         }
-        return this.normalizer.normalizeFundingRate(response[0], symbol);
+        return this.normalizer.normalizeFundingRate(history[0], symbol);
+      }
+      async fetchFundingRateHistory(symbol, _since, _limit) {
+        const pacificaSymbol = toPacificaSymbol(symbol);
+        const limit = _limit ?? 100;
+        const response = await this.publicGet(`/funding_rate/history?symbol=${pacificaSymbol}&limit=${limit}`, "fetchFundingRate");
+        const history = this.unwrapResponse(response);
+        if (!Array.isArray(history)) {
+          return [];
+        }
+        return history.map((h2) => this.normalizer.normalizeFundingRate(h2, symbol));
       }
       // === Private Trading ===
       async createOrder(request) {
@@ -40756,9 +40876,6 @@ var init_PacificaAdapter = __esm({
         });
       }
       // === Abstract method stubs (not supported by Pacifica) ===
-      async fetchFundingRateHistory(_symbol, _since, _limit) {
-        return [];
-      }
       async cancelAllOrders(_symbol) {
         return [];
       }
@@ -41101,9 +41218,9 @@ var init_OstiumContracts = __esm({
         return new JsonRpcProvider(this.rpcUrl);
       }
       async getSigner() {
-        const { Wallet: Wallet4 } = await import("ethers");
+        const { Wallet: Wallet6 } = await import("ethers");
         const provider = await this.getProvider();
-        return new Wallet4(this.privateKey, provider);
+        return new Wallet6(this.privateKey, provider);
       }
       async getTradingContract() {
         const { Contract } = await import("ethers");
@@ -41170,8 +41287,8 @@ var init_OstiumContracts = __esm({
         return String(balance);
       }
       getTraderAddress() {
-        const { Wallet: Wallet4 } = require("ethers");
-        return new Wallet4(this.privateKey).address;
+        const { Wallet: Wallet6 } = require("ethers");
+        return new Wallet6(this.privateKey).address;
       }
     };
   }
@@ -41274,10 +41391,10 @@ var init_types18 = __esm({
       feedId: external_exports.string()
     }).passthrough();
     OstiumPriceResponseSchema = external_exports.object({
-      pair: external_exports.string(),
-      price: external_exports.string(),
-      timestamp: external_exports.number(),
-      source: external_exports.string(),
+      pair: external_exports.string().optional(),
+      price: external_exports.string().optional(),
+      timestamp: external_exports.number().optional(),
+      source: external_exports.string().optional(),
       mid: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
       bid: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
       ask: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
@@ -41395,10 +41512,10 @@ var init_OstiumNormalizer = __esm({
       normalizeTicker(raw, pair) {
         const validatedRaw = OstiumPriceResponseSchema.parse(raw);
         const validatedPair = OstiumPairInfoSchema.parse(pair);
-        const price = validatedRaw.mid != null ? parseFloat(String(validatedRaw.mid)) : parseFloat(validatedRaw.price);
+        const price = validatedRaw.mid != null ? parseFloat(String(validatedRaw.mid)) : parseFloat(validatedRaw.price ?? "0");
         const bid = validatedRaw.bid != null ? parseFloat(String(validatedRaw.bid)) : price;
         const ask = validatedRaw.ask != null ? parseFloat(String(validatedRaw.ask)) : price;
-        const timestamp = validatedRaw.timestampSeconds != null ? validatedRaw.timestampSeconds * 1e3 : validatedRaw.timestamp;
+        const timestamp = validatedRaw.timestampSeconds != null ? validatedRaw.timestampSeconds * 1e3 : validatedRaw.timestamp ?? Date.now();
         return {
           symbol: toUnifiedSymbolFromName(validatedPair.name),
           last: price,
@@ -41884,6 +42001,3411 @@ var init_ostium = __esm({
   }
 });
 
+// src/adapters/reya/constants.ts
+function unifiedToReya(symbol) {
+  const parts = symbol.split("/");
+  const base = parts[0];
+  if (!base) {
+    throw new Error(`Invalid symbol format: ${symbol}`);
+  }
+  const quotePart = parts[1] ?? "";
+  const quote = quotePart.split(":")[0] ?? "USD";
+  return `${base}R${quote}PERP`;
+}
+function reyaToUnified(exchangeSymbol) {
+  const perpIdx = exchangeSymbol.indexOf("PERP");
+  if (perpIdx === -1) {
+    const rIdx2 = exchangeSymbol.indexOf("RUSD");
+    if (rIdx2 !== -1) {
+      const base = exchangeSymbol.slice(0, rIdx2);
+      return `${base}/USD:USD`;
+    }
+    return exchangeSymbol;
+  }
+  const marketPart = exchangeSymbol.slice(0, perpIdx);
+  const rIdx = marketPart.indexOf("RUSD");
+  if (rIdx !== -1) {
+    const base = marketPart.slice(0, rIdx);
+    return `${base}/USD:USD`;
+  }
+  return exchangeSymbol;
+}
+var REYA_MAINNET_API, REYA_TESTNET_API, REYA_MAINNET_WS, REYA_TESTNET_WS, REYA_CHAIN_ID, REYA_EIP712_DOMAIN, REYA_RATE_LIMIT, REYA_ORDER_TYPES, REYA_TIME_IN_FORCE, REYA_ORDER_STATUS, REYA_DEFAULT_PRECISION, REYA_WS_CHANNELS, REYA_WS_RECONNECT, REYA_FUNDING_INTERVAL_HOURS, REYA_EXCHANGE_ID;
+var init_constants17 = __esm({
+  "src/adapters/reya/constants.ts"() {
+    "use strict";
+    REYA_MAINNET_API = "https://api.reya.xyz/v2";
+    REYA_TESTNET_API = "https://api-test.reya.xyz/v2";
+    REYA_MAINNET_WS = "wss://ws.reya.xyz";
+    REYA_TESTNET_WS = "wss://websocket-testnet.reya.xyz";
+    REYA_CHAIN_ID = 1729;
+    REYA_EIP712_DOMAIN = {
+      name: "Reya",
+      version: "1",
+      chainId: REYA_CHAIN_ID
+    };
+    REYA_RATE_LIMIT = {
+      maxRequests: 600,
+      windowMs: 6e4,
+      // 1 minute
+      weights: {
+        fetchMarkets: 1,
+        fetchOrderBook: 2,
+        fetchTrades: 1,
+        fetchTicker: 1,
+        fetchFundingRate: 1,
+        fetchOHLCV: 2,
+        fetchPositions: 2,
+        fetchBalance: 2,
+        createOrder: 5,
+        cancelOrder: 3,
+        cancelAllOrders: 10,
+        fetchOpenOrders: 2,
+        fetchMyTrades: 2
+      }
+    };
+    REYA_ORDER_TYPES = {
+      LIMIT: "LIMIT",
+      TP: "TP",
+      SL: "SL"
+    };
+    REYA_TIME_IN_FORCE = {
+      IOC: "IOC",
+      GTC: "GTC"
+    };
+    REYA_ORDER_STATUS = {
+      OPEN: "OPEN",
+      FILLED: "FILLED",
+      CANCELLED: "CANCELLED",
+      REJECTED: "REJECTED"
+    };
+    REYA_DEFAULT_PRECISION = {
+      price: 8,
+      amount: 6
+    };
+    REYA_WS_CHANNELS = {
+      MARKET_DEPTH: "/v2/market/depth",
+      MARKET_SUMMARY: "/v2/market/summary",
+      MARKET_PERP_EXECUTIONS: "/v2/market/perp-executions",
+      MARKETS_SUMMARY: "/v2/markets/summary",
+      PRICES: "/v2/prices",
+      PRICE: "/v2/price",
+      WALLET_POSITIONS: "/v2/wallet/positions",
+      WALLET_ORDERS: "/v2/wallet/order-changes",
+      WALLET_BALANCES: "/v2/wallet/account-balances",
+      WALLET_PERP_EXECUTIONS: "/v2/wallet/perp-executions"
+    };
+    REYA_WS_RECONNECT = {
+      enabled: true,
+      maxAttempts: 10,
+      initialDelay: 500,
+      maxDelay: 3e4,
+      multiplier: 2,
+      jitter: 0.1
+    };
+    REYA_FUNDING_INTERVAL_HOURS = 1;
+    REYA_EXCHANGE_ID = 1;
+  }
+});
+
+// src/adapters/reya/ReyaAuth.ts
+var ReyaAuth;
+var init_ReyaAuth = __esm({
+  "src/adapters/reya/ReyaAuth.ts"() {
+    "use strict";
+    init_constants17();
+    ReyaAuth = class {
+      constructor(wallet) {
+        this.wallet = wallet;
+        this.nonce = BigInt(Date.now()) * BigInt(1e3);
+      }
+      nonce;
+      /**
+       * Sign a request with EIP-712 signature
+       */
+      async sign(request) {
+        if (!request.body) {
+          return {
+            ...request,
+            headers: this.getHeaders()
+          };
+        }
+        return {
+          ...request,
+          headers: this.getHeaders()
+        };
+      }
+      /**
+       * Get authentication headers
+       */
+      getHeaders() {
+        return {
+          "Content-Type": "application/json"
+        };
+      }
+      /**
+       * Sign an order action using EIP-712
+       *
+       * Creates a signature for order creation/cancellation that Reya
+       * validates on-chain.
+       */
+      async signOrderAction(action) {
+        this.nonce++;
+        const nonce = this.nonce.toString();
+        const domain = {
+          ...REYA_EIP712_DOMAIN
+        };
+        const types = {
+          Order: [
+            { name: "accountId", type: "uint128" },
+            { name: "subAccountId", type: "uint128" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        };
+        const message = {
+          accountId: BigInt(action.accountId ?? 0),
+          subAccountId: BigInt(action.subAccountId ?? 0),
+          nonce: BigInt(nonce),
+          deadline: BigInt(action.deadline ?? Math.floor(Date.now() / 1e3) + 300)
+        };
+        const signature = await this.wallet.signTypedData(domain, types, message);
+        return { signature, nonce };
+      }
+      /**
+       * Sign a cancellation action
+       */
+      async signCancelAction(accountId, _orderId) {
+        this.nonce++;
+        const nonce = this.nonce.toString();
+        const domain = {
+          ...REYA_EIP712_DOMAIN
+        };
+        const types = {
+          Cancel: [
+            { name: "accountId", type: "uint128" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        };
+        const message = {
+          accountId: BigInt(accountId),
+          nonce: BigInt(nonce),
+          deadline: BigInt(Math.floor(Date.now() / 1e3) + 300)
+        };
+        const signature = await this.wallet.signTypedData(domain, types, message);
+        return { signature, nonce };
+      }
+      /**
+       * Get wallet address
+       */
+      getAddress() {
+        return this.wallet.address;
+      }
+      /**
+       * Get next nonce
+       */
+      getNextNonce() {
+        this.nonce++;
+        return this.nonce.toString();
+      }
+    };
+  }
+});
+
+// src/adapters/reya/utils.ts
+function buildOrderRequest(request, accountId, exchangeId, signature, nonce, signerWallet) {
+  const reyaSymbol = unifiedToReya(request.symbol);
+  const isBuy = request.side === "buy";
+  let orderType = "LIMIT";
+  const typeStr = request.type;
+  if (typeStr === "stopMarket" || typeStr === "stopLimit") {
+    orderType = "SL";
+  } else if (typeStr === "takeProfit" || typeStr === "takeProfitMarket" || typeStr === "takeProfitLimit") {
+    orderType = "TP";
+  }
+  let timeInForce = "GTC";
+  if (request.type === "market") {
+    timeInForce = "IOC";
+  } else if (request.postOnly) {
+    timeInForce = "GTC";
+  }
+  let limitPx;
+  if (request.type === "market") {
+    limitPx = isBuy ? "999999999" : "0.000001";
+  } else {
+    limitPx = request.price?.toString() ?? "0";
+  }
+  const orderReq = {
+    exchangeId: exchangeId ?? REYA_EXCHANGE_ID,
+    symbol: reyaSymbol,
+    accountId,
+    isBuy,
+    limitPx,
+    qty: request.amount.toString(),
+    orderType,
+    timeInForce,
+    reduceOnly: request.reduceOnly,
+    signature,
+    nonce,
+    signerWallet
+  };
+  if (request.stopPrice) {
+    orderReq.triggerPx = request.stopPrice.toString();
+  }
+  if (request.clientOrderId) {
+    orderReq.clientOrderId = parseInt(request.clientOrderId, 10);
+  }
+  return orderReq;
+}
+function mapOrderStatus(reyaStatus) {
+  switch (reyaStatus) {
+    case "OPEN":
+      return "open";
+    case "FILLED":
+      return "filled";
+    case "CANCELLED":
+      return "canceled";
+    case "REJECTED":
+      return "rejected";
+    default:
+      return "open";
+  }
+}
+function parseReyaSymbol(symbol) {
+  const perpIdx = symbol.indexOf("PERP");
+  const marketPart = perpIdx !== -1 ? symbol.slice(0, perpIdx) : symbol;
+  const rIdx = marketPart.indexOf("RUSD");
+  if (rIdx !== -1) {
+    return { base: marketPart.slice(0, rIdx), quote: "USD" };
+  }
+  return { base: marketPart, quote: "USD" };
+}
+function mapTimeframeToResolution(timeframe) {
+  const mapping = {
+    "1m": "1m",
+    "5m": "5m",
+    "15m": "15m",
+    "30m": "30m",
+    "1h": "1h",
+    "4h": "4h",
+    "1d": "1d"
+  };
+  return mapping[timeframe] ?? "1h";
+}
+var init_utils14 = __esm({
+  "src/adapters/reya/utils.ts"() {
+    "use strict";
+    init_constants17();
+    init_constants17();
+  }
+});
+
+// src/adapters/reya/types.ts
+var ReyaMarketDefinitionSchema, ReyaMarketSummarySchema, ReyaPriceSchema, ReyaDepthLevelSchema, ReyaDepthSchema, ReyaPerpExecutionSchema, ReyaOrderSchema, ReyaPositionSchema, ReyaAccountBalanceSchema, ReyaAccountSchema, ReyaCandleHistoryDataSchema, ReyaCreateOrderResponseSchema, ReyaCancelOrderResponseSchema, ReyaMassCancelResponseSchema, ReyaPerpExecutionListSchema, ReyaAssetDefinitionSchema, ReyaFeeTierParametersSchema;
+var init_types19 = __esm({
+  "src/adapters/reya/types.ts"() {
+    "use strict";
+    init_zod();
+    ReyaMarketDefinitionSchema = external_exports.object({
+      symbol: external_exports.string(),
+      marketId: external_exports.number(),
+      minOrderQty: external_exports.string(),
+      qtyStepSize: external_exports.string(),
+      tickSize: external_exports.string(),
+      liquidationMarginParameter: external_exports.string(),
+      initialMarginParameter: external_exports.string(),
+      maxLeverage: external_exports.number(),
+      oiCap: external_exports.string()
+    }).passthrough();
+    ReyaMarketSummarySchema = external_exports.object({
+      symbol: external_exports.string(),
+      updatedAt: external_exports.number(),
+      longOiQty: external_exports.string(),
+      shortOiQty: external_exports.string(),
+      oiQty: external_exports.string(),
+      fundingRate: external_exports.string(),
+      longFundingValue: external_exports.string(),
+      shortFundingValue: external_exports.string(),
+      fundingRateVelocity: external_exports.string(),
+      volume24h: external_exports.string(),
+      pxChange24h: external_exports.string().optional(),
+      throttledOraclePrice: external_exports.string().optional(),
+      throttledPoolPrice: external_exports.string().optional(),
+      pricesUpdatedAt: external_exports.number().optional()
+    }).passthrough();
+    ReyaPriceSchema = external_exports.object({
+      symbol: external_exports.string(),
+      oraclePrice: external_exports.string(),
+      poolPrice: external_exports.string().optional(),
+      updatedAt: external_exports.number()
+    }).passthrough();
+    ReyaDepthLevelSchema = external_exports.object({
+      px: external_exports.string(),
+      qty: external_exports.string()
+    }).passthrough();
+    ReyaDepthSchema = external_exports.object({
+      symbol: external_exports.string(),
+      type: external_exports.enum(["SNAPSHOT", "UPDATE"]),
+      bids: external_exports.array(ReyaDepthLevelSchema),
+      asks: external_exports.array(ReyaDepthLevelSchema),
+      updatedAt: external_exports.number()
+    }).passthrough();
+    ReyaPerpExecutionSchema = external_exports.object({
+      exchangeId: external_exports.number(),
+      symbol: external_exports.string(),
+      accountId: external_exports.number(),
+      qty: external_exports.string(),
+      side: external_exports.enum(["B", "A"]),
+      price: external_exports.string(),
+      fee: external_exports.string(),
+      type: external_exports.enum(["ORDER_MATCH", "LIQUIDATION", "ADL"]),
+      timestamp: external_exports.number(),
+      sequenceNumber: external_exports.number()
+    }).passthrough();
+    ReyaOrderSchema = external_exports.object({
+      exchangeId: external_exports.number(),
+      symbol: external_exports.string(),
+      accountId: external_exports.number(),
+      orderId: external_exports.string(),
+      qty: external_exports.string().optional(),
+      execQty: external_exports.string().optional(),
+      cumQty: external_exports.string().optional(),
+      side: external_exports.enum(["B", "A"]),
+      limitPx: external_exports.string(),
+      orderType: external_exports.enum(["LIMIT", "TP", "SL"]),
+      triggerPx: external_exports.string().optional(),
+      timeInForce: external_exports.enum(["IOC", "GTC"]).optional(),
+      reduceOnly: external_exports.boolean().optional(),
+      status: external_exports.enum(["OPEN", "FILLED", "CANCELLED", "REJECTED"]),
+      createdAt: external_exports.number(),
+      lastUpdateAt: external_exports.number()
+    }).passthrough();
+    ReyaPositionSchema = external_exports.object({
+      exchangeId: external_exports.number(),
+      symbol: external_exports.string(),
+      accountId: external_exports.number(),
+      qty: external_exports.string(),
+      side: external_exports.enum(["B", "A"]),
+      avgEntryPrice: external_exports.string(),
+      avgEntryFundingValue: external_exports.string(),
+      lastTradeSequenceNumber: external_exports.number()
+    }).passthrough();
+    ReyaAccountBalanceSchema = external_exports.object({
+      accountId: external_exports.number(),
+      asset: external_exports.string(),
+      realBalance: external_exports.string(),
+      balanceDEPRECATED: external_exports.string()
+    }).passthrough();
+    ReyaAccountSchema = external_exports.object({
+      accountId: external_exports.number(),
+      name: external_exports.string(),
+      type: external_exports.enum(["MAINPERP", "SUBPERP", "SPOT"])
+    }).passthrough();
+    ReyaCandleHistoryDataSchema = external_exports.object({
+      t: external_exports.array(external_exports.number()),
+      o: external_exports.array(external_exports.string()),
+      h: external_exports.array(external_exports.string()),
+      l: external_exports.array(external_exports.string()),
+      c: external_exports.array(external_exports.string())
+    }).passthrough();
+    ReyaCreateOrderResponseSchema = external_exports.object({
+      status: external_exports.enum(["OPEN", "FILLED", "CANCELLED", "REJECTED"]),
+      execQty: external_exports.string().optional(),
+      cumQty: external_exports.string().optional(),
+      orderId: external_exports.string().optional(),
+      clientOrderId: external_exports.number().optional()
+    }).passthrough();
+    ReyaCancelOrderResponseSchema = external_exports.object({
+      status: external_exports.enum(["OPEN", "FILLED", "CANCELLED", "REJECTED"]),
+      orderId: external_exports.string(),
+      clientOrderId: external_exports.number().optional()
+    }).passthrough();
+    ReyaMassCancelResponseSchema = external_exports.object({
+      cancelledCount: external_exports.number()
+    }).passthrough();
+    ReyaPerpExecutionListSchema = external_exports.object({
+      data: external_exports.array(ReyaPerpExecutionSchema),
+      meta: external_exports.object({
+        limit: external_exports.number(),
+        count: external_exports.number(),
+        endTime: external_exports.number().optional(),
+        startTime: external_exports.number().optional()
+      }).passthrough()
+    }).passthrough();
+    ReyaAssetDefinitionSchema = external_exports.object({
+      asset: external_exports.string(),
+      spotMarketSymbol: external_exports.string().optional(),
+      priceHaircut: external_exports.string(),
+      liquidationDiscount: external_exports.string(),
+      status: external_exports.enum(["ENABLED", "WITHDRAWAL_ONLY"]),
+      decimals: external_exports.number(),
+      displayDecimals: external_exports.number()
+    }).passthrough();
+    ReyaFeeTierParametersSchema = external_exports.object({
+      tierId: external_exports.number(),
+      takerFee: external_exports.string(),
+      makerFee: external_exports.string(),
+      volume14d: external_exports.string(),
+      tierType: external_exports.enum(["REGULAR", "VIP"])
+    }).passthrough();
+  }
+});
+
+// src/adapters/reya/ReyaNormalizer.ts
+var ReyaNormalizer;
+var init_ReyaNormalizer = __esm({
+  "src/adapters/reya/ReyaNormalizer.ts"() {
+    "use strict";
+    init_constants17();
+    init_utils14();
+    init_types19();
+    ReyaNormalizer = class {
+      // ===========================================================================
+      // Symbol Conversion
+      // ===========================================================================
+      symbolToCCXT(reyaSymbol) {
+        return reyaToUnified(reyaSymbol);
+      }
+      symbolFromCCXT(ccxtSymbol) {
+        const parts = ccxtSymbol.split("/");
+        const base = parts[0] ?? "";
+        const quotePart = parts[1] ?? "";
+        const quote = quotePart.split(":")[0] ?? "USD";
+        return `${base}R${quote}PERP`;
+      }
+      // ===========================================================================
+      // Market Normalization
+      // ===========================================================================
+      normalizeMarket(definition, _summary) {
+        ReyaMarketDefinitionSchema.parse(definition);
+        const unifiedSymbol = reyaToUnified(definition.symbol);
+        const { base, quote } = parseReyaSymbol(definition.symbol);
+        const minAmount = parseFloat(definition.minOrderQty);
+        const tickSize = parseFloat(definition.tickSize);
+        const stepSize = parseFloat(definition.qtyStepSize);
+        const pricePrecision = tickSize > 0 ? Math.max(0, -Math.floor(Math.log10(tickSize))) : REYA_DEFAULT_PRECISION.price;
+        const amountPrecision = stepSize > 0 ? Math.max(0, -Math.floor(Math.log10(stepSize))) : REYA_DEFAULT_PRECISION.amount;
+        return {
+          id: definition.marketId.toString(),
+          symbol: unifiedSymbol,
+          base,
+          quote,
+          settle: quote,
+          active: true,
+          minAmount,
+          pricePrecision,
+          amountPrecision,
+          priceTickSize: tickSize,
+          amountStepSize: stepSize,
+          makerFee: 2e-4,
+          // Default, actual comes from fee tier
+          takerFee: 5e-4,
+          maxLeverage: definition.maxLeverage,
+          fundingIntervalHours: REYA_FUNDING_INTERVAL_HOURS,
+          info: {
+            liquidationMarginParameter: definition.liquidationMarginParameter,
+            initialMarginParameter: definition.initialMarginParameter,
+            oiCap: definition.oiCap
+          }
+        };
+      }
+      // ===========================================================================
+      // Ticker Normalization
+      // ===========================================================================
+      normalizeTicker(summary, price) {
+        ReyaMarketSummarySchema.parse(summary);
+        const unifiedSymbol = reyaToUnified(summary.symbol);
+        const oraclePrice = price ? parseFloat(price.oraclePrice) : 0;
+        const poolPrice = price?.poolPrice ? parseFloat(price.poolPrice) : oraclePrice;
+        const pxChangeAbs = summary.pxChange24h ? parseFloat(summary.pxChange24h) : 0;
+        const currentPrice = poolPrice || oraclePrice;
+        const openPrice = currentPrice - pxChangeAbs;
+        const pctChange = openPrice !== 0 ? pxChangeAbs / openPrice * 100 : 0;
+        return {
+          symbol: unifiedSymbol,
+          last: currentPrice,
+          bid: currentPrice,
+          ask: currentPrice,
+          high: 0,
+          low: 0,
+          open: openPrice > 0 ? openPrice : oraclePrice,
+          close: currentPrice,
+          change: pxChangeAbs,
+          percentage: pctChange,
+          baseVolume: 0,
+          quoteVolume: parseFloat(summary.volume24h),
+          timestamp: summary.updatedAt,
+          info: {
+            fundingRate: summary.fundingRate,
+            fundingRateVelocity: summary.fundingRateVelocity,
+            longOiQty: summary.longOiQty,
+            shortOiQty: summary.shortOiQty,
+            _bidAskSource: "pool_price"
+          }
+        };
+      }
+      // ===========================================================================
+      // Order Book Normalization
+      // ===========================================================================
+      normalizeOrderBook(depth) {
+        ReyaDepthSchema.parse(depth);
+        const unifiedSymbol = reyaToUnified(depth.symbol);
+        const bids = depth.bids.map(
+          (level) => [parseFloat(level.px), parseFloat(level.qty)]
+        );
+        const asks = depth.asks.map(
+          (level) => [parseFloat(level.px), parseFloat(level.qty)]
+        );
+        return {
+          symbol: unifiedSymbol,
+          timestamp: depth.updatedAt,
+          bids,
+          asks,
+          exchange: "reya"
+        };
+      }
+      // ===========================================================================
+      // Trade Normalization
+      // ===========================================================================
+      normalizeTrade(execution) {
+        ReyaPerpExecutionSchema.parse(execution);
+        const unifiedSymbol = reyaToUnified(execution.symbol);
+        const price = parseFloat(execution.price);
+        const amount = parseFloat(execution.qty);
+        return {
+          id: execution.sequenceNumber.toString(),
+          symbol: unifiedSymbol,
+          side: execution.side === "B" ? "buy" : "sell",
+          price,
+          amount,
+          cost: price * amount,
+          timestamp: execution.timestamp,
+          info: {
+            fee: execution.fee,
+            executionType: execution.type,
+            accountId: execution.accountId
+          }
+        };
+      }
+      // ===========================================================================
+      // Order Normalization
+      // ===========================================================================
+      normalizeOrder(order) {
+        ReyaOrderSchema.parse(order);
+        const unifiedSymbol = reyaToUnified(order.symbol);
+        const isBuy = order.side === "B";
+        const qty = order.qty ? parseFloat(order.qty) : 0;
+        const cumQty = order.cumQty ? parseFloat(order.cumQty) : 0;
+        return {
+          id: order.orderId,
+          symbol: unifiedSymbol,
+          type: order.orderType === "LIMIT" ? "limit" : "stopMarket",
+          side: isBuy ? "buy" : "sell",
+          amount: qty,
+          price: parseFloat(order.limitPx),
+          status: mapOrderStatus(order.status),
+          filled: cumQty,
+          remaining: qty - cumQty,
+          reduceOnly: order.reduceOnly ?? false,
+          postOnly: false,
+          timestamp: order.createdAt,
+          lastUpdateTimestamp: order.lastUpdateAt,
+          info: {
+            orderType: order.orderType,
+            timeInForce: order.timeInForce,
+            triggerPx: order.triggerPx,
+            accountId: order.accountId
+          }
+        };
+      }
+      // ===========================================================================
+      // Position Normalization
+      // ===========================================================================
+      normalizePosition(position) {
+        ReyaPositionSchema.parse(position);
+        const unifiedSymbol = reyaToUnified(position.symbol);
+        const size = Math.abs(parseFloat(position.qty));
+        const isLong = position.side === "B";
+        return {
+          symbol: unifiedSymbol,
+          side: isLong ? "long" : "short",
+          size,
+          entryPrice: parseFloat(position.avgEntryPrice),
+          markPrice: 0,
+          // Need to fetch separately
+          liquidationPrice: 0,
+          // Not directly available
+          unrealizedPnl: 0,
+          // Need to calculate
+          realizedPnl: 0,
+          leverage: 0,
+          // Account-level
+          marginMode: "cross",
+          margin: 0,
+          maintenanceMargin: 0,
+          marginRatio: 0,
+          timestamp: Date.now(),
+          info: {
+            accountId: position.accountId,
+            avgEntryFundingValue: position.avgEntryFundingValue,
+            lastTradeSequenceNumber: position.lastTradeSequenceNumber,
+            _realizedPnlSource: "not_available",
+            _marginRatioSource: "not_available"
+          }
+        };
+      }
+      // ===========================================================================
+      // Balance Normalization
+      // ===========================================================================
+      normalizeBalance(balance) {
+        ReyaAccountBalanceSchema.parse(balance);
+        const total = parseFloat(balance.realBalance);
+        return {
+          currency: balance.asset,
+          total,
+          free: total,
+          // Reya doesn't expose used margin in balance endpoint
+          used: 0,
+          usdValue: total
+          // Reya balances are in USD
+        };
+      }
+      // ===========================================================================
+      // Funding Rate Normalization
+      // ===========================================================================
+      normalizeFundingRate(summary, markPrice) {
+        ReyaMarketSummarySchema.parse(summary);
+        const unifiedSymbol = reyaToUnified(summary.symbol);
+        return {
+          symbol: unifiedSymbol,
+          fundingRate: parseFloat(summary.fundingRate),
+          fundingTimestamp: summary.updatedAt,
+          nextFundingTimestamp: summary.updatedAt + REYA_FUNDING_INTERVAL_HOURS * 3600 * 1e3,
+          markPrice,
+          indexPrice: markPrice,
+          fundingIntervalHours: REYA_FUNDING_INTERVAL_HOURS
+        };
+      }
+      // ===========================================================================
+      // OHLCV Normalization
+      // ===========================================================================
+      normalizeCandles(data, limit) {
+        ReyaCandleHistoryDataSchema.parse(data);
+        const candles = [];
+        const count = Math.min(data.t.length, limit ?? data.t.length);
+        for (let i = 0; i < count; i++) {
+          const t = data.t[i];
+          const o = data.o[i];
+          const h2 = data.h[i];
+          const l = data.l[i];
+          const c = data.c[i];
+          if (t !== void 0 && o !== void 0 && h2 !== void 0 && l !== void 0 && c !== void 0) {
+            candles.push([
+              t * 1e3,
+              // Reya timestamps are in seconds
+              parseFloat(o),
+              parseFloat(h2),
+              parseFloat(l),
+              parseFloat(c),
+              0
+              // Volume not included in candle data
+            ]);
+          }
+        }
+        return candles;
+      }
+      // ===========================================================================
+      // Helper Methods
+      // ===========================================================================
+      normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+      }
+      toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+      }
+    };
+  }
+});
+
+// src/adapters/reya/error-codes.ts
+function extractErrorCode2(errorMessage) {
+  const messageLower = errorMessage.toLowerCase();
+  for (const [pattern, code] of Object.entries(REYA_ERROR_MESSAGES)) {
+    if (messageLower.includes(pattern)) {
+      return code;
+    }
+  }
+  if (messageLower.includes("429")) {
+    return REYA_RATE_LIMIT_ERROR;
+  }
+  if (messageLower.includes("500") || messageLower.includes("503")) {
+    return REYA_SERVER_ERRORS.INTERNAL_SERVER_ERROR;
+  }
+  return "UNKNOWN_ERROR";
+}
+function mapReyaError(errorCode, message, originalError) {
+  switch (errorCode) {
+    case "INSUFFICIENT_MARGIN":
+      return new InsufficientMarginError(message, errorCode, "reya", originalError);
+    case REYA_CLIENT_ERRORS.UNAUTHORIZED_SIGNATURE:
+      return new InvalidSignatureError(message, errorCode, "reya", originalError);
+    case REYA_CLIENT_ERRORS.INPUT_VALIDATION_ERROR:
+    case REYA_CLIENT_ERRORS.NUMERIC_OVERFLOW:
+    case REYA_CLIENT_ERRORS.SYMBOL_NOT_FOUND:
+      return new BadRequestError(message, errorCode, "reya", originalError);
+    case REYA_CLIENT_ERRORS.CREATE_ORDER_ERROR:
+    case REYA_CLIENT_ERRORS.ORDER_DEADLINE_PASSED:
+    case REYA_CLIENT_ERRORS.ORDER_DEADLINE_TOO_HIGH:
+    case REYA_CLIENT_ERRORS.INVALID_NONCE:
+      return new InvalidOrderError(message, errorCode, "reya", originalError);
+    case REYA_CLIENT_ERRORS.CANCEL_ORDER_ERROR:
+      return new OrderNotFoundError(message, errorCode, "reya", originalError);
+    case REYA_RATE_LIMIT_ERROR:
+      return new RateLimitError(message, errorCode, "reya", void 0, originalError);
+    default:
+      if (includesValue(Object.values(REYA_SERVER_ERRORS), errorCode)) {
+        return new ExchangeUnavailableError(message, errorCode, "reya", originalError);
+      }
+      return new PerpDEXError(message, errorCode, "reya", originalError);
+  }
+}
+function mapError5(error) {
+  if (error instanceof PerpDEXError) {
+    return error;
+  }
+  if (error instanceof Error) {
+    const errorCode = extractErrorCode2(error.message);
+    return mapReyaError(errorCode, error.message, error);
+  }
+  return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "reya", error);
+}
+var REYA_CLIENT_ERRORS, REYA_SERVER_ERRORS, REYA_RATE_LIMIT_ERROR, REYA_ERROR_MESSAGES;
+var init_error_codes12 = __esm({
+  "src/adapters/reya/error-codes.ts"() {
+    "use strict";
+    init_type_guards();
+    init_errors();
+    REYA_CLIENT_ERRORS = {
+      SYMBOL_NOT_FOUND: "SYMBOL_NOT_FOUND",
+      NO_ACCOUNTS_FOUND: "NO_ACCOUNTS_FOUND",
+      NO_PRICES_FOUND: "NO_PRICES_FOUND_FOR_SYMBOL",
+      INPUT_VALIDATION_ERROR: "INPUT_VALIDATION_ERROR",
+      CREATE_ORDER_ERROR: "CREATE_ORDER_OTHER_ERROR",
+      CANCEL_ORDER_ERROR: "CANCEL_ORDER_OTHER_ERROR",
+      ORDER_DEADLINE_PASSED: "ORDER_DEADLINE_PASSED_ERROR",
+      ORDER_DEADLINE_TOO_HIGH: "ORDER_DEADLINE_TOO_HIGH_ERROR",
+      INVALID_NONCE: "INVALID_NONCE_ERROR",
+      UNAUTHORIZED_SIGNATURE: "UNAUTHORIZED_SIGNATURE_ERROR",
+      NUMERIC_OVERFLOW: "NUMERIC_OVERFLOW_ERROR"
+    };
+    REYA_SERVER_ERRORS = {
+      INTERNAL_SERVER_ERROR: "INTERNAL_SERVER_ERROR",
+      UNAVAILABLE_MATCHING_ENGINE: "UNAVAILABLE_MATCHING_ENGINE_ERROR"
+    };
+    REYA_RATE_LIMIT_ERROR = "RATE_LIMIT_EXCEEDED";
+    REYA_ERROR_MESSAGES = {
+      "insufficient margin": "INSUFFICIENT_MARGIN",
+      "symbol not found": REYA_CLIENT_ERRORS.SYMBOL_NOT_FOUND,
+      "invalid signature": REYA_CLIENT_ERRORS.UNAUTHORIZED_SIGNATURE,
+      unauthorized: REYA_CLIENT_ERRORS.UNAUTHORIZED_SIGNATURE,
+      "rate limit": REYA_RATE_LIMIT_ERROR,
+      "too many requests": REYA_RATE_LIMIT_ERROR,
+      "invalid nonce": REYA_CLIENT_ERRORS.INVALID_NONCE,
+      "deadline passed": REYA_CLIENT_ERRORS.ORDER_DEADLINE_PASSED,
+      "matching engine unavailable": REYA_SERVER_ERRORS.UNAVAILABLE_MATCHING_ENGINE
+    };
+  }
+});
+
+// src/adapters/reya/ReyaAdapter.ts
+var import_ethers9, ReyaAdapter;
+var init_ReyaAdapter = __esm({
+  "src/adapters/reya/ReyaAdapter.ts"() {
+    "use strict";
+    import_ethers9 = require("ethers");
+    init_errors();
+    init_BaseAdapter();
+    init_HTTPClient();
+    init_RateLimiter();
+    init_constants17();
+    init_ReyaAuth();
+    init_ReyaNormalizer();
+    init_utils14();
+    init_error_codes12();
+    ReyaAdapter = class extends BaseAdapter {
+      id = "reya";
+      name = "Reya";
+      has = {
+        // Market Data
+        fetchMarkets: true,
+        fetchTicker: true,
+        fetchOrderBook: false,
+        fetchTrades: true,
+        fetchOHLCV: true,
+        fetchFundingRate: true,
+        fetchFundingRateHistory: false,
+        // Trading
+        createOrder: true,
+        cancelOrder: true,
+        cancelAllOrders: true,
+        editOrder: false,
+        // Account
+        fetchOpenOrders: true,
+        fetchOrderHistory: false,
+        fetchMyTrades: true,
+        fetchDeposits: false,
+        fetchWithdrawals: false,
+        // Positions & Balance
+        fetchPositions: true,
+        fetchBalance: true,
+        setLeverage: false,
+        setMarginMode: false,
+        // WebSocket
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchOrders: false,
+        watchPositions: false,
+        watchBalance: false
+      };
+      auth;
+      baseUrl;
+      httpClient;
+      rateLimiter;
+      normalizer;
+      accountId;
+      exchangeId;
+      constructor(config = {}) {
+        super(config);
+        this.baseUrl = config.testnet ? REYA_TESTNET_API : REYA_MAINNET_API;
+        this.accountId = config.accountId ?? 0;
+        this.exchangeId = config.exchangeId ?? REYA_EXCHANGE_ID;
+        if (config.privateKey) {
+          const wallet = new import_ethers9.Wallet(config.privateKey);
+          this.auth = new ReyaAuth(wallet);
+        }
+        this.normalizer = new ReyaNormalizer();
+        this.rateLimiter = new RateLimiter({
+          maxTokens: config.rateLimit?.maxRequests ?? REYA_RATE_LIMIT.maxRequests,
+          windowMs: config.rateLimit?.windowMs ?? REYA_RATE_LIMIT.windowMs,
+          weights: REYA_RATE_LIMIT.weights
+        });
+        this.httpClient = new HTTPClient({
+          baseUrl: this.baseUrl,
+          timeout: config.timeout ?? 3e4,
+          retry: {
+            maxAttempts: 3,
+            initialDelay: 1e3,
+            maxDelay: 1e4,
+            multiplier: 2
+          },
+          circuitBreaker: {
+            enabled: true,
+            failureThreshold: 5,
+            resetTimeout: 6e4
+          },
+          exchange: this.id
+        });
+      }
+      async initialize() {
+        if (this._isReady) {
+          return;
+        }
+        if (this.auth && this.accountId === 0) {
+          try {
+            const accounts = await this.httpClient.get(
+              `/wallet/${this.auth.getAddress()}/accounts`
+            );
+            const perpAccount = accounts.find((a) => a.type === "MAINPERP");
+            if (perpAccount) {
+              this.accountId = perpAccount.accountId;
+            }
+          } catch {
+            this.debug("Could not auto-discover account ID");
+          }
+        }
+        this._isReady = true;
+        this.debug("Adapter initialized");
+      }
+      // === Symbol conversion ===
+      symbolToExchange(symbol) {
+        return unifiedToReya(symbol);
+      }
+      symbolFromExchange(exchangeSymbol) {
+        return reyaToUnified(exchangeSymbol);
+      }
+      // === Auth helpers ===
+      requireAuth() {
+        if (!this.auth) {
+          throw new PerpDEXError(
+            "Private key required for authenticated operations",
+            "MISSING_CREDENTIALS",
+            "reya"
+          );
+        }
+        return this.auth;
+      }
+      async publicGet(path, feature) {
+        await this.rateLimiter.acquire(feature);
+        try {
+          return await this.httpClient.get(path);
+        } catch (error) {
+          throw mapError5(error);
+        }
+      }
+      // === Public Market Data ===
+      async fetchMarkets(_params) {
+        const [definitions, summaries] = await Promise.all([
+          this.publicGet("/marketDefinitions", "fetchMarkets"),
+          this.publicGet("/markets/summary", "fetchMarkets")
+        ]);
+        const summaryMap = /* @__PURE__ */ new Map();
+        for (const s of summaries) {
+          summaryMap.set(s.symbol, s);
+        }
+        return definitions.filter((d) => d.symbol.endsWith("PERP")).map((d) => this.normalizer.normalizeMarket(d, summaryMap.get(d.symbol)));
+      }
+      async _fetchTicker(symbol) {
+        const reyaSymbol = this.symbolToExchange(symbol);
+        const [summary, price] = await Promise.all([
+          this.publicGet(
+            `/market/${reyaSymbol}/summary`,
+            "fetchTicker"
+          ),
+          this.publicGet(`/prices/${reyaSymbol}`, "fetchTicker")
+        ]);
+        return this.normalizer.normalizeTicker(summary, price);
+      }
+      async _fetchOrderBook(symbol, _params) {
+        const reyaSymbol = this.symbolToExchange(symbol);
+        const depth = await this.publicGet(
+          `/market/${reyaSymbol}/depth`,
+          "fetchOrderBook"
+        );
+        return this.normalizer.normalizeOrderBook(depth);
+      }
+      async _fetchTrades(symbol, params) {
+        const reyaSymbol = this.symbolToExchange(symbol);
+        let path = `/market/${reyaSymbol}/perpExecutions`;
+        if (params?.since) {
+          path += `?startTime=${params.since}`;
+        }
+        const response = await this.publicGet(path, "fetchTrades");
+        return response.data.map((exec) => this.normalizer.normalizeTrade(exec));
+      }
+      async _fetchFundingRate(symbol) {
+        const reyaSymbol = this.symbolToExchange(symbol);
+        const [summary, price] = await Promise.all([
+          this.publicGet(
+            `/market/${reyaSymbol}/summary`,
+            "fetchFundingRate"
+          ),
+          this.publicGet(`/prices/${reyaSymbol}`, "fetchFundingRate")
+        ]);
+        const markPrice = parseFloat(price.oraclePrice);
+        return this.normalizer.normalizeFundingRate(summary, markPrice);
+      }
+      async fetchFundingRateHistory(_symbol, _since, _limit) {
+        throw new NotSupportedError(
+          "Reya uses continuous funding rates; historical snapshots are not available via REST API",
+          "NOT_SUPPORTED",
+          "reya"
+        );
+      }
+      async fetchOHLCV(symbol, timeframe = "1h", params) {
+        const reyaSymbol = this.symbolToExchange(symbol);
+        const resolution = mapTimeframeToResolution(timeframe);
+        let path = `/market/${reyaSymbol}/candles?resolution=${resolution}`;
+        if (params?.until) {
+          path += `&endTime=${Math.floor(params.until / 1e3)}`;
+        }
+        const response = await this.publicGet(path, "fetchOHLCV");
+        return this.normalizer.normalizeCandles(response, params?.limit);
+      }
+      // === Private Trading ===
+      async createOrder(request) {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("createOrder");
+        try {
+          const { signature, nonce } = await auth.signOrderAction({
+            accountId: this.accountId
+          });
+          const orderReq = buildOrderRequest(
+            request,
+            this.accountId,
+            this.exchangeId,
+            signature,
+            nonce,
+            auth.getAddress()
+          );
+          const response = await this.httpClient.post("/order-entry/order", {
+            body: orderReq,
+            headers: auth.getHeaders()
+          });
+          if (response.status === "REJECTED") {
+            throw new PerpDEXError("Order rejected", "ORDER_REJECTED", "reya");
+          }
+          return {
+            id: response.orderId ?? "",
+            symbol: request.symbol,
+            type: request.type,
+            side: request.side,
+            amount: request.amount,
+            price: request.price,
+            status: response.status === "FILLED" ? "filled" : "open",
+            filled: response.cumQty ? parseFloat(response.cumQty) : 0,
+            remaining: request.amount - (response.cumQty ? parseFloat(response.cumQty) : 0),
+            reduceOnly: request.reduceOnly ?? false,
+            postOnly: request.postOnly ?? false,
+            clientOrderId: request.clientOrderId,
+            timestamp: Date.now()
+          };
+        } catch (error) {
+          throw mapError5(error);
+        }
+      }
+      async cancelOrder(orderId, symbol) {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("cancelOrder");
+        try {
+          const { signature, nonce } = await auth.signCancelAction(this.accountId, orderId);
+          const response = await this.httpClient.post("/order-entry/cancel", {
+            body: {
+              orderId,
+              accountId: this.accountId,
+              signature,
+              nonce
+            },
+            headers: auth.getHeaders()
+          });
+          return {
+            id: response.orderId,
+            symbol: symbol ?? "",
+            type: "limit",
+            side: "buy",
+            amount: 0,
+            status: "canceled",
+            filled: 0,
+            remaining: 0,
+            reduceOnly: false,
+            postOnly: false,
+            timestamp: Date.now()
+          };
+        } catch (error) {
+          throw mapError5(error);
+        }
+      }
+      async cancelAllOrders(symbol) {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("cancelAllOrders");
+        try {
+          const { signature, nonce } = await auth.signCancelAction(this.accountId);
+          const body = {
+            accountId: this.accountId,
+            signature,
+            nonce,
+            expiresAfter: Math.floor(Date.now() / 1e3) + 300
+          };
+          if (symbol) {
+            body.symbol = this.symbolToExchange(symbol);
+          }
+          const response = await this.httpClient.post(
+            "/order-entry/cancel-all",
+            {
+              body,
+              headers: auth.getHeaders()
+            }
+          );
+          this.debug(`Cancelled ${response.cancelledCount} orders`);
+          return [];
+        } catch (error) {
+          throw mapError5(error);
+        }
+      }
+      // === Account History ===
+      async fetchOpenOrders(symbol) {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("fetchOpenOrders");
+        try {
+          const address = auth.getAddress();
+          const orders = await this.httpClient.get(
+            `/wallet-data/wallet/${address}/open-orders`
+          );
+          let normalized = orders.map((o) => this.normalizer.normalizeOrder(o));
+          if (symbol) {
+            normalized = normalized.filter((o) => o.symbol === symbol);
+          }
+          return normalized;
+        } catch (error) {
+          throw mapError5(error);
+        }
+      }
+      async fetchOrderHistory(_symbol, _since, _limit) {
+        throw new NotSupportedError(
+          "Reya does not provide order history via REST API",
+          "NOT_SUPPORTED",
+          "reya"
+        );
+      }
+      async fetchMyTrades(symbol, since, limit) {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("fetchMyTrades");
+        try {
+          const address = auth.getAddress();
+          let path = `/wallet-data/wallet/${address}/perp-executions`;
+          const params = [];
+          if (since) {
+            params.push(`startTime=${since}`);
+          }
+          if (params.length > 0) {
+            path += `?${params.join("&")}`;
+          }
+          const response = await this.httpClient.get(path);
+          let trades = response.data.map((exec) => this.normalizer.normalizeTrade(exec));
+          if (symbol) {
+            trades = trades.filter((t) => t.symbol === symbol);
+          }
+          if (limit && trades.length > limit) {
+            trades = trades.slice(0, limit);
+          }
+          return trades;
+        } catch (error) {
+          throw mapError5(error);
+        }
+      }
+      // === Positions & Balance ===
+      async fetchPositions(symbols) {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("fetchPositions");
+        try {
+          const address = auth.getAddress();
+          const positions = await this.httpClient.get(
+            `/wallet-data/wallet/${address}/positions`
+          );
+          let normalized = positions.filter((p) => parseFloat(p.qty) !== 0).map((p) => this.normalizer.normalizePosition(p));
+          if (symbols && symbols.length > 0) {
+            normalized = normalized.filter((p) => symbols.includes(p.symbol));
+          }
+          return normalized;
+        } catch (error) {
+          throw mapError5(error);
+        }
+      }
+      async fetchBalance() {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("fetchBalance");
+        try {
+          const address = auth.getAddress();
+          const balances = await this.httpClient.get(
+            `/wallet-data/wallet/${address}/account-balances`
+          );
+          return balances.filter((b) => parseFloat(b.realBalance) !== 0).map((b) => this.normalizer.normalizeBalance(b));
+        } catch (error) {
+          throw mapError5(error);
+        }
+      }
+      async _setLeverage(_symbol, _leverage) {
+        throw new NotSupportedError(
+          "Reya uses account-level margin; per-symbol leverage is not supported",
+          "NOT_SUPPORTED",
+          "reya"
+        );
+      }
+    };
+  }
+});
+
+// src/adapters/reya/index.ts
+var reya_exports = {};
+__export(reya_exports, {
+  REYA_CHAIN_ID: () => REYA_CHAIN_ID,
+  REYA_DEFAULT_PRECISION: () => REYA_DEFAULT_PRECISION,
+  REYA_EIP712_DOMAIN: () => REYA_EIP712_DOMAIN,
+  REYA_EXCHANGE_ID: () => REYA_EXCHANGE_ID,
+  REYA_FUNDING_INTERVAL_HOURS: () => REYA_FUNDING_INTERVAL_HOURS,
+  REYA_MAINNET_API: () => REYA_MAINNET_API,
+  REYA_MAINNET_WS: () => REYA_MAINNET_WS,
+  REYA_ORDER_STATUS: () => REYA_ORDER_STATUS,
+  REYA_ORDER_TYPES: () => REYA_ORDER_TYPES,
+  REYA_RATE_LIMIT: () => REYA_RATE_LIMIT,
+  REYA_TESTNET_API: () => REYA_TESTNET_API,
+  REYA_TESTNET_WS: () => REYA_TESTNET_WS,
+  REYA_TIME_IN_FORCE: () => REYA_TIME_IN_FORCE,
+  REYA_WS_CHANNELS: () => REYA_WS_CHANNELS,
+  REYA_WS_RECONNECT: () => REYA_WS_RECONNECT,
+  ReyaAdapter: () => ReyaAdapter,
+  ReyaAuth: () => ReyaAuth,
+  reyaToUnified: () => reyaToUnified,
+  unifiedToReya: () => unifiedToReya
+});
+var init_reya = __esm({
+  "src/adapters/reya/index.ts"() {
+    "use strict";
+    init_ReyaAdapter();
+    init_ReyaAuth();
+    init_constants17();
+  }
+});
+
+// src/adapters/ethereal/constants.ts
+function unifiedToEthereal(symbol) {
+  const parts = symbol.split("/");
+  const base = parts[0];
+  if (!base) {
+    throw new Error(`Invalid symbol format: ${symbol}`);
+  }
+  const quotePart = parts[1] ?? "";
+  const quote = quotePart.split(":")[0] ?? "USD";
+  return `${base}-${quote}`;
+}
+function etherealToUnified(exchangeSymbol) {
+  const parts = exchangeSymbol.split("-");
+  const base = parts[0] ?? exchangeSymbol;
+  const quote = parts[1] ?? "USD";
+  return `${base}/${quote}:${quote}`;
+}
+var ETHEREAL_API_URLS, ETHEREAL_CHAIN_ID, ETHEREAL_EIP712_DOMAIN, ETHEREAL_RATE_LIMITS, ETHEREAL_ENDPOINT_WEIGHTS, ETHEREAL_ORDER_TYPES, ETHEREAL_ORDER_SIDES, ETHEREAL_TIME_IN_FORCE, ETHEREAL_ORDER_STATUS, ETHEREAL_KLINE_INTERVALS, ETHEREAL_DEFAULT_PRECISION, ETHEREAL_FUNDING_INTERVAL_HOURS;
+var init_constants18 = __esm({
+  "src/adapters/ethereal/constants.ts"() {
+    "use strict";
+    ETHEREAL_API_URLS = {
+      mainnet: {
+        rest: "https://api.ethereal.trade/v1",
+        websocket: "wss://ws.ethereal.trade"
+      },
+      testnet: {
+        rest: "https://api-testnet.ethereal.trade/v1",
+        websocket: "wss://ws-testnet.ethereal.trade"
+      }
+    };
+    ETHEREAL_CHAIN_ID = 0;
+    ETHEREAL_EIP712_DOMAIN = {
+      name: "Ethereal",
+      version: "1",
+      chainId: ETHEREAL_CHAIN_ID
+    };
+    ETHEREAL_RATE_LIMITS = {
+      rest: {
+        maxRequests: 600,
+        windowMs: 6e4
+      },
+      order: {
+        maxRequests: 300,
+        windowMs: 6e4
+      }
+    };
+    ETHEREAL_ENDPOINT_WEIGHTS = {
+      fetchMarkets: 1,
+      fetchTicker: 1,
+      fetchOrderBook: 2,
+      fetchTrades: 1,
+      fetchFundingRate: 1,
+      fetchOHLCV: 2,
+      fetchPositions: 2,
+      fetchBalance: 2,
+      createOrder: 5,
+      cancelOrder: 3,
+      cancelAllOrders: 10,
+      fetchOpenOrders: 2,
+      fetchMyTrades: 2
+    };
+    ETHEREAL_ORDER_TYPES = {
+      market: "MARKET",
+      limit: "LIMIT",
+      stopMarket: "STOP_MARKET",
+      stopLimit: "STOP_LIMIT"
+    };
+    ETHEREAL_ORDER_SIDES = {
+      buy: "BUY",
+      sell: "SELL"
+    };
+    ETHEREAL_TIME_IN_FORCE = {
+      GTC: "GTC",
+      IOC: "IOC",
+      FOK: "FOK",
+      PO: "POST_ONLY"
+    };
+    ETHEREAL_ORDER_STATUS = {
+      NEW: "open",
+      OPEN: "open",
+      PARTIALLY_FILLED: "partiallyFilled",
+      FILLED: "filled",
+      CANCELLED: "canceled",
+      CANCELED: "canceled",
+      REJECTED: "rejected",
+      EXPIRED: "expired"
+    };
+    ETHEREAL_KLINE_INTERVALS = {
+      "1m": "1m",
+      "5m": "5m",
+      "15m": "15m",
+      "30m": "30m",
+      "1h": "1h",
+      "4h": "4h",
+      "1d": "1d",
+      "1w": "1w"
+    };
+    ETHEREAL_DEFAULT_PRECISION = {
+      price: 8,
+      amount: 6
+    };
+    ETHEREAL_FUNDING_INTERVAL_HOURS = 1;
+  }
+});
+
+// src/adapters/ethereal/EtherealAuth.ts
+var EtherealAuth;
+var init_EtherealAuth = __esm({
+  "src/adapters/ethereal/EtherealAuth.ts"() {
+    "use strict";
+    init_constants18();
+    EtherealAuth = class {
+      constructor(wallet) {
+        this.wallet = wallet;
+        this.nonce = BigInt(Date.now()) * BigInt(1e3);
+      }
+      nonce;
+      /**
+       * Sign a request with EIP-712 signature
+       */
+      async sign(request) {
+        if (!request.body) {
+          return {
+            ...request,
+            headers: this.getHeaders()
+          };
+        }
+        return {
+          ...request,
+          headers: this.getHeaders()
+        };
+      }
+      /**
+       * Get authentication headers
+       */
+      getHeaders() {
+        return {
+          "Content-Type": "application/json"
+        };
+      }
+      /**
+       * Sign an order action using EIP-712
+       */
+      async signOrderAction(action) {
+        this.nonce++;
+        const nonce = this.nonce.toString();
+        const domain = {
+          ...ETHEREAL_EIP712_DOMAIN
+        };
+        const types = {
+          Order: [
+            { name: "accountId", type: "string" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        };
+        const message = {
+          accountId: String(action.accountId ?? ""),
+          nonce: BigInt(nonce),
+          deadline: BigInt(action.deadline ?? Math.floor(Date.now() / 1e3) + 300)
+        };
+        const signature = await this.wallet.signTypedData(domain, types, message);
+        return { signature, nonce };
+      }
+      /**
+       * Sign a cancellation action
+       */
+      async signCancelAction(accountId, _orderId) {
+        this.nonce++;
+        const nonce = this.nonce.toString();
+        const domain = {
+          ...ETHEREAL_EIP712_DOMAIN
+        };
+        const types = {
+          Cancel: [
+            { name: "accountId", type: "string" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        };
+        const message = {
+          accountId,
+          nonce: BigInt(nonce),
+          deadline: BigInt(Math.floor(Date.now() / 1e3) + 300)
+        };
+        const signature = await this.wallet.signTypedData(domain, types, message);
+        return { signature, nonce };
+      }
+      /**
+       * Get wallet address
+       */
+      getAddress() {
+        return this.wallet.address;
+      }
+      /**
+       * Get next nonce
+       */
+      getNextNonce() {
+        this.nonce++;
+        return this.nonce.toString();
+      }
+    };
+  }
+});
+
+// src/adapters/ethereal/types.ts
+var EtherealMarketInfoSchema, EtherealTickerSchema, EtherealOrderBookResponseSchema, EtherealTradeResponseSchema, EtherealOrderResponseSchema, EtherealPositionResponseSchema, EtherealBalanceResponseSchema, EtherealCandleResponseSchema, EtherealFundingRateResponseSchema;
+var init_types20 = __esm({
+  "src/adapters/ethereal/types.ts"() {
+    "use strict";
+    init_zod();
+    EtherealMarketInfoSchema = external_exports.object({
+      id: external_exports.string(),
+      ticker: external_exports.string(),
+      displayTicker: external_exports.string(),
+      status: external_exports.string(),
+      baseTokenName: external_exports.string(),
+      quoteTokenName: external_exports.string(),
+      tickSize: external_exports.string(),
+      lotSize: external_exports.string(),
+      minQuantity: external_exports.string(),
+      maxQuantity: external_exports.string(),
+      maxLeverage: external_exports.number(),
+      makerFee: external_exports.string(),
+      takerFee: external_exports.string()
+    }).passthrough();
+    EtherealTickerSchema = external_exports.object({
+      productId: external_exports.string(),
+      bestAskPrice: external_exports.string(),
+      bestBidPrice: external_exports.string(),
+      oraclePrice: external_exports.string(),
+      price24hAgo: external_exports.string()
+    }).passthrough();
+    EtherealOrderBookResponseSchema = external_exports.object({
+      productId: external_exports.string(),
+      timestamp: external_exports.number(),
+      bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
+      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()]))
+    }).passthrough();
+    EtherealTradeResponseSchema = external_exports.object({
+      id: external_exports.string(),
+      productId: external_exports.string(),
+      price: external_exports.string(),
+      filled: external_exports.string(),
+      makerSide: external_exports.number(),
+      takerSide: external_exports.number(),
+      createdAt: external_exports.number()
+    }).passthrough();
+    EtherealOrderResponseSchema = external_exports.object({
+      orderId: external_exports.string(),
+      symbol: external_exports.string(),
+      side: external_exports.string(),
+      type: external_exports.string(),
+      status: external_exports.string(),
+      price: external_exports.string(),
+      avgPrice: external_exports.string(),
+      quantity: external_exports.string(),
+      filledQuantity: external_exports.string(),
+      remainingQuantity: external_exports.string(),
+      reduceOnly: external_exports.boolean(),
+      postOnly: external_exports.boolean(),
+      clientOrderId: external_exports.string().optional(),
+      timeInForce: external_exports.string(),
+      createdAt: external_exports.number(),
+      updatedAt: external_exports.number()
+    }).passthrough();
+    EtherealPositionResponseSchema = external_exports.object({
+      symbol: external_exports.string(),
+      side: external_exports.string(),
+      size: external_exports.string(),
+      entryPrice: external_exports.string(),
+      markPrice: external_exports.string(),
+      liquidationPrice: external_exports.string(),
+      unrealizedPnl: external_exports.string(),
+      realizedPnl: external_exports.string(),
+      leverage: external_exports.string(),
+      marginMode: external_exports.string(),
+      margin: external_exports.string(),
+      updatedAt: external_exports.number()
+    }).passthrough();
+    EtherealBalanceResponseSchema = external_exports.object({
+      asset: external_exports.string(),
+      total: external_exports.string(),
+      available: external_exports.string(),
+      locked: external_exports.string(),
+      updatedAt: external_exports.number()
+    }).passthrough();
+    EtherealCandleResponseSchema = external_exports.object({
+      timestamp: external_exports.number(),
+      open: external_exports.string(),
+      high: external_exports.string(),
+      low: external_exports.string(),
+      close: external_exports.string(),
+      volume: external_exports.string()
+    }).passthrough();
+    EtherealFundingRateResponseSchema = external_exports.object({
+      productId: external_exports.string(),
+      fundingRateProjected1h: external_exports.string(),
+      fundingRate1h: external_exports.string()
+    }).passthrough();
+  }
+});
+
+// src/adapters/ethereal/EtherealNormalizer.ts
+var EtherealNormalizer;
+var init_EtherealNormalizer = __esm({
+  "src/adapters/ethereal/EtherealNormalizer.ts"() {
+    "use strict";
+    init_constants18();
+    init_constants18();
+    init_types20();
+    EtherealNormalizer = class {
+      // ===========================================================================
+      // Symbol Conversion
+      // ===========================================================================
+      symbolToCCXT(etherealSymbol) {
+        return etherealToUnified(etherealSymbol);
+      }
+      symbolFromCCXT(ccxtSymbol) {
+        return unifiedToEthereal(ccxtSymbol);
+      }
+      // ===========================================================================
+      // Market Normalization
+      // ===========================================================================
+      normalizeMarket(info) {
+        EtherealMarketInfoSchema.parse(info);
+        const unifiedSymbol = etherealToUnified(info.displayTicker);
+        const base = info.baseTokenName;
+        const quote = info.quoteTokenName;
+        const tickSize = parseFloat(info.tickSize);
+        const stepSize = parseFloat(info.lotSize);
+        const minAmount = parseFloat(info.minQuantity);
+        const pricePrecision = tickSize > 0 ? Math.max(0, -Math.floor(Math.log10(tickSize))) : ETHEREAL_DEFAULT_PRECISION.price;
+        const amountPrecision = stepSize > 0 ? Math.max(0, -Math.floor(Math.log10(stepSize))) : ETHEREAL_DEFAULT_PRECISION.amount;
+        return {
+          id: info.id,
+          symbol: unifiedSymbol,
+          base,
+          quote,
+          settle: quote,
+          active: info.status === "ACTIVE",
+          minAmount,
+          pricePrecision,
+          amountPrecision,
+          priceTickSize: tickSize,
+          amountStepSize: stepSize,
+          makerFee: parseFloat(info.makerFee),
+          takerFee: parseFloat(info.takerFee),
+          maxLeverage: info.maxLeverage,
+          fundingIntervalHours: ETHEREAL_FUNDING_INTERVAL_HOURS,
+          info
+        };
+      }
+      // ===========================================================================
+      // Ticker Normalization
+      // ===========================================================================
+      normalizeTicker(raw, symbol, product) {
+        EtherealTickerSchema.parse(raw);
+        const bid = parseFloat(raw.bestBidPrice);
+        const ask = parseFloat(raw.bestAskPrice);
+        const last = (bid + ask) / 2;
+        const oraclePrice = parseFloat(raw.oraclePrice);
+        const price24hAgo = parseFloat(raw.price24hAgo);
+        const change = oraclePrice - price24hAgo;
+        const percentage = price24hAgo !== 0 ? change / price24hAgo * 100 : 0;
+        const volume24h = product ? parseFloat(product.volume24h) : 0;
+        return {
+          symbol,
+          last,
+          bid,
+          ask,
+          high: 0,
+          // not available from market-price endpoint
+          low: 0,
+          open: price24hAgo,
+          close: last,
+          change,
+          percentage,
+          baseVolume: volume24h,
+          quoteVolume: volume24h * last,
+          timestamp: Date.now(),
+          info: raw
+        };
+      }
+      // ===========================================================================
+      // Order Book Normalization
+      // ===========================================================================
+      normalizeOrderBook(raw, symbol) {
+        EtherealOrderBookResponseSchema.parse(raw);
+        return {
+          symbol,
+          timestamp: raw.timestamp,
+          bids: (raw.bids ?? []).map(([p, s]) => [parseFloat(p), parseFloat(s)]),
+          asks: (raw.asks ?? []).map(([p, s]) => [parseFloat(p), parseFloat(s)]),
+          exchange: "ethereal"
+        };
+      }
+      // ===========================================================================
+      // Trade Normalization
+      // ===========================================================================
+      normalizeTrade(raw, symbol) {
+        EtherealTradeResponseSchema.parse(raw);
+        const price = parseFloat(raw.price);
+        const amount = parseFloat(raw.filled);
+        const side = raw.takerSide === 0 ? "buy" : "sell";
+        return {
+          id: raw.id,
+          symbol,
+          side,
+          price,
+          amount,
+          cost: price * amount,
+          timestamp: raw.createdAt,
+          info: raw
+        };
+      }
+      // ===========================================================================
+      // Order Normalization
+      // ===========================================================================
+      normalizeOrder(raw, symbol) {
+        EtherealOrderResponseSchema.parse(raw);
+        const filled = parseFloat(raw.filledQuantity);
+        const amount = parseFloat(raw.quantity);
+        const price = parseFloat(raw.price);
+        const avgPrice = parseFloat(raw.avgPrice);
+        return {
+          id: raw.orderId,
+          symbol: symbol ?? etherealToUnified(raw.symbol),
+          type: raw.type.toLowerCase() === "market" ? "market" : "limit",
+          side: raw.side === "BUY" ? "buy" : "sell",
+          amount,
+          price: price || void 0,
+          status: ETHEREAL_ORDER_STATUS[raw.status] ?? "open",
+          filled,
+          remaining: amount - filled,
+          averagePrice: avgPrice || void 0,
+          cost: filled * (avgPrice || price),
+          reduceOnly: raw.reduceOnly,
+          postOnly: raw.postOnly,
+          clientOrderId: raw.clientOrderId,
+          timestamp: raw.updatedAt,
+          info: raw
+        };
+      }
+      // ===========================================================================
+      // Position Normalization
+      // ===========================================================================
+      normalizePosition(raw, symbol) {
+        EtherealPositionResponseSchema.parse(raw);
+        const size = parseFloat(raw.size);
+        const leverage = parseFloat(raw.leverage);
+        return {
+          symbol: symbol ?? etherealToUnified(raw.symbol),
+          side: raw.side === "LONG" ? "long" : "short",
+          size,
+          entryPrice: parseFloat(raw.entryPrice),
+          markPrice: parseFloat(raw.markPrice),
+          liquidationPrice: parseFloat(raw.liquidationPrice),
+          unrealizedPnl: parseFloat(raw.unrealizedPnl),
+          realizedPnl: parseFloat(raw.realizedPnl),
+          leverage,
+          marginMode: raw.marginMode === "isolated" ? "isolated" : "cross",
+          margin: parseFloat(raw.margin),
+          maintenanceMargin: 0,
+          marginRatio: 0,
+          timestamp: raw.updatedAt,
+          info: {
+            ...raw,
+            _marginRatioSource: "not_available"
+          }
+        };
+      }
+      // ===========================================================================
+      // Balance Normalization
+      // ===========================================================================
+      normalizeBalance(raw) {
+        EtherealBalanceResponseSchema.parse(raw);
+        return {
+          currency: raw.asset,
+          total: parseFloat(raw.total),
+          free: parseFloat(raw.available),
+          used: parseFloat(raw.locked),
+          info: raw
+        };
+      }
+      // ===========================================================================
+      // Funding Rate Normalization
+      // ===========================================================================
+      normalizeFundingRate(raw, symbol) {
+        EtherealFundingRateResponseSchema.parse(raw);
+        const now = Date.now();
+        const nextHour = Math.ceil(now / 36e5) * 36e5;
+        return {
+          symbol,
+          fundingRate: parseFloat(raw.fundingRate1h),
+          fundingTimestamp: now,
+          nextFundingTimestamp: nextHour,
+          markPrice: 0,
+          // not available from projected endpoint
+          indexPrice: 0,
+          fundingIntervalHours: ETHEREAL_FUNDING_INTERVAL_HOURS
+        };
+      }
+      // ===========================================================================
+      // OHLCV Normalization
+      // ===========================================================================
+      normalizeCandles(candles) {
+        return candles.map((c) => {
+          EtherealCandleResponseSchema.parse(c);
+          return [
+            c.timestamp,
+            parseFloat(c.open),
+            parseFloat(c.high),
+            parseFloat(c.low),
+            parseFloat(c.close),
+            parseFloat(c.volume)
+          ];
+        });
+      }
+      // ===========================================================================
+      // Helper Methods
+      // ===========================================================================
+      normalizeSymbol(exchangeSymbol) {
+        return this.symbolToCCXT(exchangeSymbol);
+      }
+      toExchangeSymbol(symbol) {
+        return this.symbolFromCCXT(symbol);
+      }
+    };
+  }
+});
+
+// src/adapters/ethereal/utils.ts
+function toEtherealOrderSide(side) {
+  return ETHEREAL_ORDER_SIDES[side] ?? side.toUpperCase();
+}
+function toEtherealOrderType(type) {
+  return ETHEREAL_ORDER_TYPES[type] ?? type.toUpperCase();
+}
+function toEtherealTimeInForce(tif, postOnly) {
+  if (postOnly) return "POST_ONLY";
+  if (tif) return ETHEREAL_TIME_IN_FORCE[tif] ?? tif;
+  return "GTC";
+}
+function buildOrderRequest2(request, accountId, signature, nonce) {
+  const etherealSymbol = unifiedToEthereal(request.symbol);
+  const orderReq = {
+    symbol: etherealSymbol,
+    side: toEtherealOrderSide(request.side),
+    type: toEtherealOrderType(request.type),
+    quantity: request.amount.toString(),
+    signature,
+    nonce,
+    accountId
+  };
+  if (request.price !== void 0) {
+    orderReq.price = request.price.toString();
+  }
+  if (request.stopPrice !== void 0) {
+    orderReq.stopPrice = request.stopPrice.toString();
+  }
+  if (request.type !== "market") {
+    orderReq.timeInForce = toEtherealTimeInForce(request.timeInForce, request.postOnly);
+  }
+  if (request.reduceOnly) {
+    orderReq.reduceOnly = true;
+  }
+  if (request.postOnly) {
+    orderReq.postOnly = true;
+  }
+  if (request.clientOrderId) {
+    orderReq.clientOrderId = request.clientOrderId;
+  }
+  return orderReq;
+}
+var init_utils15 = __esm({
+  "src/adapters/ethereal/utils.ts"() {
+    "use strict";
+    init_constants18();
+  }
+});
+
+// src/adapters/ethereal/error-codes.ts
+function extractErrorCode3(errorMessage) {
+  const messageLower = errorMessage.toLowerCase();
+  for (const [pattern, code] of Object.entries(ETHEREAL_ERROR_MESSAGES)) {
+    if (messageLower.includes(pattern)) {
+      return code;
+    }
+  }
+  if (messageLower.includes("429")) {
+    return ETHEREAL_RATE_LIMIT_ERROR;
+  }
+  if (messageLower.includes("500") || messageLower.includes("503")) {
+    return ETHEREAL_SERVER_ERRORS.INTERNAL_SERVER_ERROR;
+  }
+  return "UNKNOWN_ERROR";
+}
+function mapEtherealError(errorCode, message, originalError) {
+  switch (errorCode) {
+    case "INSUFFICIENT_MARGIN":
+      return new InsufficientMarginError(message, errorCode, "ethereal", originalError);
+    case ETHEREAL_CLIENT_ERRORS.INVALID_SIGNATURE:
+      return new InvalidSignatureError(message, errorCode, "ethereal", originalError);
+    case ETHEREAL_CLIENT_ERRORS.INPUT_VALIDATION_ERROR:
+    case ETHEREAL_CLIENT_ERRORS.SYMBOL_NOT_FOUND:
+    case ETHEREAL_CLIENT_ERRORS.ACCOUNT_NOT_FOUND:
+      return new BadRequestError(message, errorCode, "ethereal", originalError);
+    case ETHEREAL_CLIENT_ERRORS.INVALID_ORDER:
+    case ETHEREAL_CLIENT_ERRORS.INVALID_NONCE:
+      return new InvalidOrderError(message, errorCode, "ethereal", originalError);
+    case ETHEREAL_CLIENT_ERRORS.ORDER_NOT_FOUND:
+      return new OrderNotFoundError(message, errorCode, "ethereal", originalError);
+    case ETHEREAL_RATE_LIMIT_ERROR:
+      return new RateLimitError(message, errorCode, "ethereal", void 0, originalError);
+    default:
+      if (includesValue(Object.values(ETHEREAL_SERVER_ERRORS), errorCode)) {
+        return new ExchangeUnavailableError(message, errorCode, "ethereal", originalError);
+      }
+      return new PerpDEXError(message, errorCode, "ethereal", originalError);
+  }
+}
+function mapError6(error) {
+  if (error instanceof PerpDEXError) {
+    return error;
+  }
+  if (error instanceof Error) {
+    const errorCode = extractErrorCode3(error.message);
+    return mapEtherealError(errorCode, error.message, error);
+  }
+  return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "ethereal", error);
+}
+function isRetryableError4(errorCode) {
+  return includesValue(Object.values(ETHEREAL_SERVER_ERRORS), errorCode) || errorCode === ETHEREAL_RATE_LIMIT_ERROR;
+}
+var ETHEREAL_CLIENT_ERRORS, ETHEREAL_SERVER_ERRORS, ETHEREAL_RATE_LIMIT_ERROR, ETHEREAL_ERROR_MESSAGES;
+var init_error_codes13 = __esm({
+  "src/adapters/ethereal/error-codes.ts"() {
+    "use strict";
+    init_type_guards();
+    init_errors();
+    ETHEREAL_CLIENT_ERRORS = {
+      SYMBOL_NOT_FOUND: "SYMBOL_NOT_FOUND",
+      INVALID_ORDER: "INVALID_ORDER",
+      ORDER_NOT_FOUND: "ORDER_NOT_FOUND",
+      INVALID_SIGNATURE: "INVALID_SIGNATURE",
+      INVALID_NONCE: "INVALID_NONCE",
+      INPUT_VALIDATION_ERROR: "INPUT_VALIDATION_ERROR",
+      ACCOUNT_NOT_FOUND: "ACCOUNT_NOT_FOUND"
+    };
+    ETHEREAL_SERVER_ERRORS = {
+      INTERNAL_SERVER_ERROR: "INTERNAL_SERVER_ERROR",
+      SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE"
+    };
+    ETHEREAL_RATE_LIMIT_ERROR = "RATE_LIMIT_EXCEEDED";
+    ETHEREAL_ERROR_MESSAGES = {
+      "insufficient margin": "INSUFFICIENT_MARGIN",
+      "symbol not found": ETHEREAL_CLIENT_ERRORS.SYMBOL_NOT_FOUND,
+      "invalid signature": ETHEREAL_CLIENT_ERRORS.INVALID_SIGNATURE,
+      unauthorized: ETHEREAL_CLIENT_ERRORS.INVALID_SIGNATURE,
+      "rate limit": ETHEREAL_RATE_LIMIT_ERROR,
+      "too many requests": ETHEREAL_RATE_LIMIT_ERROR,
+      "invalid nonce": ETHEREAL_CLIENT_ERRORS.INVALID_NONCE,
+      "order not found": ETHEREAL_CLIENT_ERRORS.ORDER_NOT_FOUND,
+      "invalid order": ETHEREAL_CLIENT_ERRORS.INVALID_ORDER,
+      "service unavailable": ETHEREAL_SERVER_ERRORS.SERVICE_UNAVAILABLE
+    };
+  }
+});
+
+// src/adapters/ethereal/EtherealAdapter.ts
+var import_ethers10, EtherealAdapter;
+var init_EtherealAdapter = __esm({
+  "src/adapters/ethereal/EtherealAdapter.ts"() {
+    "use strict";
+    import_ethers10 = require("ethers");
+    init_errors();
+    init_BaseAdapter();
+    init_HTTPClient();
+    init_RateLimiter();
+    init_constants18();
+    init_EtherealAuth();
+    init_EtherealNormalizer();
+    init_utils15();
+    init_error_codes13();
+    EtherealAdapter = class extends BaseAdapter {
+      id = "ethereal";
+      name = "Ethereal";
+      has = {
+        // Market Data
+        fetchMarkets: true,
+        fetchTicker: true,
+        fetchOrderBook: true,
+        fetchTrades: true,
+        fetchOHLCV: false,
+        fetchFundingRate: true,
+        fetchFundingRateHistory: false,
+        // Trading
+        createOrder: true,
+        cancelOrder: true,
+        cancelAllOrders: true,
+        editOrder: false,
+        // Account
+        fetchOpenOrders: true,
+        fetchOrderHistory: false,
+        fetchMyTrades: true,
+        fetchDeposits: false,
+        fetchWithdrawals: false,
+        // Positions & Balance
+        fetchPositions: true,
+        fetchBalance: true,
+        setLeverage: false,
+        setMarginMode: false,
+        // WebSocket
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchOrders: false,
+        watchPositions: false,
+        watchBalance: false
+      };
+      auth;
+      baseUrl;
+      httpClient;
+      rateLimiter;
+      normalizer;
+      accountId;
+      /** Maps unified symbol (e.g. "ETH/USD:USD") to product UUID */
+      productMap = /* @__PURE__ */ new Map();
+      /** Maps product UUID to cached product info */
+      productCache = /* @__PURE__ */ new Map();
+      constructor(config = {}) {
+        super(config);
+        const urls = config.testnet ? ETHEREAL_API_URLS.testnet : ETHEREAL_API_URLS.mainnet;
+        this.baseUrl = config.apiUrl ?? urls.rest;
+        this.accountId = config.accountId ?? "";
+        if (config.privateKey) {
+          const wallet = new import_ethers10.Wallet(config.privateKey);
+          this.auth = new EtherealAuth(wallet);
+        }
+        this.normalizer = new EtherealNormalizer();
+        this.rateLimiter = new RateLimiter({
+          maxTokens: config.rateLimit?.maxRequests ?? ETHEREAL_RATE_LIMITS.rest.maxRequests,
+          windowMs: config.rateLimit?.windowMs ?? ETHEREAL_RATE_LIMITS.rest.windowMs,
+          refillRate: (config.rateLimit?.maxRequests ?? ETHEREAL_RATE_LIMITS.rest.maxRequests) / 60,
+          weights: ETHEREAL_ENDPOINT_WEIGHTS
+        });
+        this.httpClient = new HTTPClient({
+          baseUrl: this.baseUrl,
+          timeout: config.timeout ?? 3e4,
+          retry: {
+            maxAttempts: 3,
+            initialDelay: 1e3,
+            maxDelay: 1e4,
+            multiplier: 2
+          },
+          circuitBreaker: {
+            enabled: true,
+            failureThreshold: 5,
+            resetTimeout: 6e4
+          },
+          exchange: this.id
+        });
+      }
+      async initialize() {
+        this._isReady = true;
+      }
+      // === Symbol conversion (required by BaseAdapter) ===
+      symbolToExchange(symbol) {
+        return unifiedToEthereal(symbol);
+      }
+      symbolFromExchange(exchangeSymbol) {
+        return etherealToUnified(exchangeSymbol);
+      }
+      // === Auth helpers ===
+      requireAuth() {
+        if (!this.auth) {
+          throw new PerpDEXError(
+            "Private key required for authenticated operations",
+            "MISSING_CREDENTIALS",
+            "ethereal"
+          );
+        }
+        return this.auth;
+      }
+      async publicGet(path, feature) {
+        await this.rateLimiter.acquire(feature);
+        try {
+          return await this.httpClient.get(path);
+        } catch (error) {
+          throw mapError6(error);
+        }
+      }
+      async authenticatedRequest(method, path, feature, body) {
+        this.requireAuth();
+        await this.rateLimiter.acquire(feature);
+        try {
+          const headers = this.auth.getHeaders();
+          if (method === "GET") {
+            return await this.httpClient.get(path, { headers });
+          } else if (method === "DELETE") {
+            return await this.httpClient.delete(path, { headers });
+          } else {
+            return await this.httpClient.post(path, { body, headers });
+          }
+        } catch (error) {
+          throw mapError6(error);
+        }
+      }
+      // === Product UUID helpers ===
+      async ensureProductMap() {
+        if (this.productMap.size > 0) return;
+        await this.fetchMarkets();
+      }
+      async getProductId(symbol) {
+        await this.ensureProductMap();
+        const productId = this.productMap.get(symbol);
+        if (!productId) {
+          throw new PerpDEXError(
+            `Unknown symbol: ${symbol}. Call fetchMarkets() first.`,
+            "INVALID_SYMBOL",
+            "ethereal"
+          );
+        }
+        return productId;
+      }
+      getProductInfo(productId) {
+        return this.productCache.get(productId);
+      }
+      // === Public Market Data ===
+      async fetchMarkets(_params) {
+        const response = await this.publicGet(
+          "/product",
+          "fetchMarkets"
+        );
+        const products = response.data;
+        if (!Array.isArray(products)) {
+          throw new PerpDEXError("Invalid markets response", "INVALID_RESPONSE", "ethereal");
+        }
+        for (const p of products) {
+          const unifiedSymbol = etherealToUnified(p.displayTicker);
+          this.productMap.set(unifiedSymbol, p.id);
+          this.productCache.set(p.id, p);
+        }
+        return products.filter((m) => m.status === "ACTIVE").map((m) => this.normalizer.normalizeMarket(m));
+      }
+      async _fetchTicker(symbol) {
+        const productId = await this.getProductId(symbol);
+        const response = await this.publicGet(
+          `/product/market-price?productIds=${productId}`,
+          "fetchTicker"
+        );
+        const prices = response.data;
+        if (!Array.isArray(prices) || prices.length === 0) {
+          throw new PerpDEXError("Invalid ticker response", "INVALID_RESPONSE", "ethereal");
+        }
+        const product = this.getProductInfo(productId);
+        return this.normalizer.normalizeTicker(prices[0], symbol, product);
+      }
+      async _fetchOrderBook(symbol, _params) {
+        const productId = await this.getProductId(symbol);
+        const response = await this.publicGet(
+          `/product/market-liquidity?productId=${productId}`,
+          "fetchOrderBook"
+        );
+        return this.normalizer.normalizeOrderBook(response, symbol);
+      }
+      async _fetchTrades(symbol, params) {
+        const productId = await this.getProductId(symbol);
+        let path = `/order/trade?productId=${productId}`;
+        if (params?.limit) {
+          path += `&limit=${params.limit}`;
+        }
+        if (params?.since) {
+          path += `&since=${params.since}`;
+        }
+        const response = await this.publicGet(
+          path,
+          "fetchTrades"
+        );
+        const trades = response.data;
+        if (!Array.isArray(trades)) {
+          throw new PerpDEXError("Invalid trades response", "INVALID_RESPONSE", "ethereal");
+        }
+        return trades.map((t) => this.normalizer.normalizeTrade(t, symbol));
+      }
+      async _fetchFundingRate(symbol) {
+        const productId = await this.getProductId(symbol);
+        const response = await this.publicGet(
+          `/funding/projected?productId=${productId}`,
+          "fetchFundingRate"
+        );
+        return this.normalizer.normalizeFundingRate(response, symbol);
+      }
+      async fetchFundingRateHistory(_symbol, _since, _limit) {
+        throw new NotSupportedError(
+          "Ethereal does not support funding rate history via REST API",
+          "NOT_SUPPORTED",
+          "ethereal"
+        );
+      }
+      async fetchOHLCV(_symbol, _timeframe = "1h", _params) {
+        throw new NotSupportedError(
+          "Ethereal does not support OHLCV/candles via REST API",
+          "NOT_SUPPORTED",
+          "ethereal"
+        );
+      }
+      // === Private Trading ===
+      async createOrder(request) {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("createOrder");
+        try {
+          const { signature, nonce } = await auth.signOrderAction({
+            accountId: this.accountId
+          });
+          const orderReq = buildOrderRequest2(request, this.accountId, signature, nonce);
+          const response = await this.httpClient.post("/order", {
+            body: orderReq,
+            headers: auth.getHeaders()
+          });
+          return this.normalizer.normalizeOrder(response, request.symbol);
+        } catch (error) {
+          throw mapError6(error);
+        }
+      }
+      async cancelOrder(orderId, symbol) {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("cancelOrder");
+        try {
+          const { signature, nonce } = await auth.signCancelAction(this.accountId, orderId);
+          const response = await this.httpClient.post("/order/cancel", {
+            body: { orderId },
+            headers: {
+              ...auth.getHeaders(),
+              "X-Signature": signature,
+              "X-Nonce": nonce,
+              "X-Account-Id": this.accountId
+            }
+          });
+          return this.normalizer.normalizeOrder(response, symbol);
+        } catch (error) {
+          throw mapError6(error);
+        }
+      }
+      async cancelAllOrders(symbol) {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("cancelAllOrders");
+        try {
+          const { signature, nonce } = await auth.signCancelAction(this.accountId);
+          const body = {};
+          if (symbol) {
+            const productId = await this.getProductId(symbol);
+            body.productId = productId;
+          }
+          await this.httpClient.post("/order/cancel", {
+            body,
+            headers: {
+              ...auth.getHeaders(),
+              "X-Signature": signature,
+              "X-Nonce": nonce,
+              "X-Account-Id": this.accountId
+            }
+          });
+          return [];
+        } catch (error) {
+          throw mapError6(error);
+        }
+      }
+      // === Account History ===
+      async fetchOpenOrders(symbol) {
+        this.requireAuth();
+        const response = await this.authenticatedRequest(
+          "GET",
+          "/order?status=OPEN",
+          "fetchOpenOrders"
+        );
+        if (!Array.isArray(response)) {
+          throw new PerpDEXError("Invalid orders response", "INVALID_RESPONSE", "ethereal");
+        }
+        let orders = response.map((o) => this.normalizer.normalizeOrder(o));
+        if (symbol) {
+          orders = orders.filter((o) => o.symbol === symbol);
+        }
+        return orders;
+      }
+      async fetchOrderHistory(_symbol, _since, _limit) {
+        throw new NotSupportedError(
+          "Ethereal does not provide order history via REST API",
+          "NOT_SUPPORTED",
+          "ethereal"
+        );
+      }
+      async fetchMyTrades(symbol, since, limit) {
+        this.requireAuth();
+        let path = "/order/trade";
+        const queryParts = [];
+        if (symbol) {
+          const productId = await this.getProductId(symbol);
+          queryParts.push(`productId=${productId}`);
+        }
+        if (since) {
+          queryParts.push(`since=${since}`);
+        }
+        if (limit) {
+          queryParts.push(`limit=${limit}`);
+        }
+        if (queryParts.length > 0) {
+          path += `?${queryParts.join("&")}`;
+        }
+        const response = await this.authenticatedRequest(
+          "GET",
+          path,
+          "fetchMyTrades"
+        );
+        if (!Array.isArray(response)) {
+          throw new PerpDEXError("Invalid trades response", "INVALID_RESPONSE", "ethereal");
+        }
+        return response.map((t) => {
+          const price = parseFloat(t.price);
+          const amount = parseFloat(t.filled);
+          const side = t.takerSide === 0 ? "buy" : "sell";
+          const tradeSymbol = symbol ?? "UNKNOWN";
+          return {
+            id: t.id,
+            symbol: tradeSymbol,
+            side,
+            price,
+            amount,
+            cost: price * amount,
+            timestamp: t.createdAt,
+            info: t
+          };
+        });
+      }
+      // === Positions & Balance ===
+      async fetchPositions(symbols) {
+        this.requireAuth();
+        const response = await this.authenticatedRequest(
+          "GET",
+          "/position/active",
+          "fetchPositions"
+        );
+        if (!Array.isArray(response)) {
+          throw new PerpDEXError("Invalid positions response", "INVALID_RESPONSE", "ethereal");
+        }
+        let positions = response.filter((p) => parseFloat(p.size) !== 0).map((p) => this.normalizer.normalizePosition(p));
+        if (symbols && symbols.length > 0) {
+          positions = positions.filter((p) => symbols.includes(p.symbol));
+        }
+        return positions;
+      }
+      async fetchBalance() {
+        this.requireAuth();
+        const response = await this.authenticatedRequest(
+          "GET",
+          "/subaccount/balance",
+          "fetchBalance"
+        );
+        if (!Array.isArray(response)) {
+          throw new PerpDEXError("Invalid balance response", "INVALID_RESPONSE", "ethereal");
+        }
+        return response.filter((b) => parseFloat(b.total) > 0).map((b) => this.normalizer.normalizeBalance(b));
+      }
+      async _setLeverage(_symbol, _leverage) {
+        throw new NotSupportedError(
+          "Ethereal does not support per-symbol leverage setting via REST API",
+          "NOT_SUPPORTED",
+          "ethereal"
+        );
+      }
+    };
+  }
+});
+
+// src/adapters/ethereal/index.ts
+var ethereal_exports = {};
+__export(ethereal_exports, {
+  ETHEREAL_API_URLS: () => ETHEREAL_API_URLS,
+  ETHEREAL_CHAIN_ID: () => ETHEREAL_CHAIN_ID,
+  ETHEREAL_CLIENT_ERRORS: () => ETHEREAL_CLIENT_ERRORS,
+  ETHEREAL_DEFAULT_PRECISION: () => ETHEREAL_DEFAULT_PRECISION,
+  ETHEREAL_EIP712_DOMAIN: () => ETHEREAL_EIP712_DOMAIN,
+  ETHEREAL_ENDPOINT_WEIGHTS: () => ETHEREAL_ENDPOINT_WEIGHTS,
+  ETHEREAL_FUNDING_INTERVAL_HOURS: () => ETHEREAL_FUNDING_INTERVAL_HOURS,
+  ETHEREAL_KLINE_INTERVALS: () => ETHEREAL_KLINE_INTERVALS,
+  ETHEREAL_ORDER_SIDES: () => ETHEREAL_ORDER_SIDES,
+  ETHEREAL_ORDER_STATUS: () => ETHEREAL_ORDER_STATUS,
+  ETHEREAL_ORDER_TYPES: () => ETHEREAL_ORDER_TYPES,
+  ETHEREAL_RATE_LIMITS: () => ETHEREAL_RATE_LIMITS,
+  ETHEREAL_TIME_IN_FORCE: () => ETHEREAL_TIME_IN_FORCE,
+  EtherealAdapter: () => EtherealAdapter,
+  EtherealAuth: () => EtherealAuth,
+  EtherealNormalizer: () => EtherealNormalizer,
+  etherealToUnified: () => etherealToUnified,
+  isRetryableError: () => isRetryableError4,
+  mapError: () => mapError6,
+  mapEtherealError: () => mapEtherealError,
+  unifiedToEthereal: () => unifiedToEthereal
+});
+var init_ethereal = __esm({
+  "src/adapters/ethereal/index.ts"() {
+    "use strict";
+    init_EtherealAdapter();
+    init_EtherealAuth();
+    init_EtherealNormalizer();
+    init_constants18();
+    init_error_codes13();
+  }
+});
+
+// src/adapters/avantis/constants.ts
+function unifiedToAvantis(symbol) {
+  const parts = symbol.split("/");
+  const base = parts[0] ?? "";
+  const pairIndex = AVANTIS_PAIR_INDEX_MAP[base];
+  if (pairIndex === void 0) {
+    throw new Error(`Unsupported Avantis symbol: ${symbol}`);
+  }
+  return pairIndex;
+}
+function avantisToUnified(pairIndex) {
+  const base = AVANTIS_INDEX_TO_SYMBOL[pairIndex];
+  if (!base) {
+    throw new Error(`Unknown Avantis pairIndex: ${pairIndex}`);
+  }
+  return `${base}/USD:USD`;
+}
+var AVANTIS_CHAIN_ID_MAINNET, AVANTIS_CHAIN_ID_TESTNET, AVANTIS_RPC_MAINNET, AVANTIS_RPC_TESTNET, AVANTIS_CONTRACTS_MAINNET, AVANTIS_CONTRACTS_TESTNET, PYTH_PRICE_FEED_IDS, AVANTIS_RATE_LIMIT, AVANTIS_ORDER_TYPES, AVANTIS_FUNDING_INTERVAL_HOURS, AVANTIS_DEFAULT_PRECISION, AVANTIS_PAIR_INDEX_MAP, AVANTIS_INDEX_TO_SYMBOL, AVANTIS_TRADING_ABI, AVANTIS_STORAGE_ABI, AVANTIS_PAIR_INFO_ABI, AVANTIS_PYTH_ABI, AVANTIS_ERC20_ABI;
+var init_constants19 = __esm({
+  "src/adapters/avantis/constants.ts"() {
+    "use strict";
+    AVANTIS_CHAIN_ID_MAINNET = 8453;
+    AVANTIS_CHAIN_ID_TESTNET = 84532;
+    AVANTIS_RPC_MAINNET = "https://mainnet.base.org";
+    AVANTIS_RPC_TESTNET = "https://sepolia.base.org";
+    AVANTIS_CONTRACTS_MAINNET = {
+      trading: "0x0000000000000000000000000000000000000001",
+      storage: "0x0000000000000000000000000000000000000002",
+      pairInfo: "0x0000000000000000000000000000000000000003",
+      pythOracle: "0x0000000000000000000000000000000000000004",
+      callbacks: "0x0000000000000000000000000000000000000005",
+      usdc: "0x0000000000000000000000000000000000000006"
+    };
+    AVANTIS_CONTRACTS_TESTNET = {
+      trading: "0x0000000000000000000000000000000000000011",
+      storage: "0x0000000000000000000000000000000000000012",
+      pairInfo: "0x0000000000000000000000000000000000000013",
+      pythOracle: "0x0000000000000000000000000000000000000014",
+      callbacks: "0x0000000000000000000000000000000000000015",
+      usdc: "0x0000000000000000000000000000000000000016"
+    };
+    PYTH_PRICE_FEED_IDS = {
+      BTC: "0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
+      ETH: "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
+      SOL: "0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",
+      DOGE: "0xdcef50dd0a4cd2dcc17e45df1676dcb336a11a61c69df7a0299b0150c672d25c",
+      AVAX: "0x93da3352f9f1d105fdfe4971cfa80e9dd777bfc5d0f683ebb6e1571f7d0b26ee",
+      LINK: "0x8ac0c70fff57e9aefdf5edf44b51d62c2d433653cbb2cf5cc06bb115af04d221",
+      ARB: "0x3fa4252848f9f0a1480be62745a4629d9eb1322aebab8a791e344b3b9c1adcf5",
+      OP: "0x385f64d993f7b77d8182ed5003d97c60aa3361f3cecfe711544d2d59165e9bdf"
+    };
+    AVANTIS_RATE_LIMIT = {
+      maxRequests: 100,
+      windowMs: 6e4,
+      weights: {
+        fetchMarkets: 1,
+        fetchTicker: 1,
+        fetchFundingRate: 1,
+        fetchPositions: 2,
+        fetchBalance: 1,
+        createOrder: 5,
+        cancelOrder: 3
+      }
+    };
+    AVANTIS_ORDER_TYPES = {
+      MARKET: 0,
+      LIMIT: 1,
+      STOP_LIMIT: 2
+    };
+    AVANTIS_FUNDING_INTERVAL_HOURS = 1;
+    AVANTIS_DEFAULT_PRECISION = {
+      price: 8,
+      amount: 6
+    };
+    AVANTIS_PAIR_INDEX_MAP = {
+      BTC: 0,
+      ETH: 1,
+      SOL: 2,
+      DOGE: 3,
+      AVAX: 4,
+      LINK: 5,
+      ARB: 6,
+      OP: 7
+    };
+    AVANTIS_INDEX_TO_SYMBOL = Object.fromEntries(
+      Object.entries(AVANTIS_PAIR_INDEX_MAP).map(([symbol, index]) => [index, symbol])
+    );
+    AVANTIS_TRADING_ABI = [
+      "function openTrade(tuple(address trader, uint256 pairIndex, uint256 index, uint256 initialPosToken, uint256 positionSizeDai, uint256 openPrice, bool buy, uint256 leverage, uint256 tp, uint256 sl) t, uint8 orderType, uint256 slippageP, bytes[] priceUpdateData) payable",
+      "function closeTradeMarket(uint256 pairIndex, uint256 index, bytes[] priceUpdateData) payable",
+      "function cancelOpenLimitOrder(uint256 pairIndex, uint256 index)"
+    ];
+    AVANTIS_STORAGE_ABI = [
+      "function openTrades(address trader, uint256 pairIndex, uint256 index) view returns (tuple(address trader, uint256 pairIndex, uint256 index, uint256 initialPosToken, uint256 positionSizeDai, uint256 openPrice, bool buy, uint256 leverage, uint256 tp, uint256 sl))",
+      "function openTradesCount(address trader, uint256 pairIndex) view returns (uint256)",
+      "function openLimitOrders(address trader, uint256 pairIndex, uint256 index) view returns (tuple(address trader, uint256 pairIndex, uint256 index, uint256 positionSize, bool buy, uint256 leverage, uint256 tp, uint256 sl, uint256 minPrice, uint256 maxPrice, uint256 block, uint256 tokenId))",
+      "function openLimitOrdersCount(address trader, uint256 pairIndex) view returns (uint256)"
+    ];
+    AVANTIS_PAIR_INFO_ABI = [
+      "function pairs(uint256 index) view returns (tuple(string from, string to, uint256 spreadP, uint256 groupIndex, uint256 feeIndex))",
+      "function pairsCount() view returns (uint256)",
+      "function pairFundingFees(uint256 pairIndex) view returns (tuple(int256 accPerOiLong, int256 accPerOiShort, uint256 lastUpdateBlock))"
+    ];
+    AVANTIS_PYTH_ABI = [
+      "function getPrice(bytes32 id) view returns (tuple(int64 price, uint64 conf, int32 expo, uint256 publishTime))",
+      "function getUpdateFee(bytes[] updateData) view returns (uint256)"
+    ];
+    AVANTIS_ERC20_ABI = [
+      "function balanceOf(address account) view returns (uint256)",
+      "function decimals() view returns (uint8)",
+      "function approve(address spender, uint256 amount) returns (bool)",
+      "function allowance(address owner, address spender) view returns (uint256)"
+    ];
+  }
+});
+
+// src/adapters/avantis/AvantisAuth.ts
+var import_ethers11, AvantisAuth;
+var init_AvantisAuth = __esm({
+  "src/adapters/avantis/AvantisAuth.ts"() {
+    "use strict";
+    import_ethers11 = require("ethers");
+    AvantisAuth = class {
+      wallet;
+      provider;
+      constructor(privateKey, rpcUrl) {
+        this.provider = new import_ethers11.ethers.JsonRpcProvider(rpcUrl);
+        this.wallet = new import_ethers11.ethers.Wallet(privateKey, this.provider);
+      }
+      /**
+       * Sign a request (no-op for on-chain DEX, signing happens at tx level)
+       */
+      async sign(request) {
+        return {
+          ...request,
+          headers: this.getHeaders()
+        };
+      }
+      /**
+       * Get headers (not used for on-chain interactions)
+       */
+      getHeaders() {
+        return {};
+      }
+      /**
+       * Get the connected wallet instance for sending transactions
+       */
+      getWallet() {
+        return this.wallet;
+      }
+      /**
+       * Get the JSON-RPC provider
+       */
+      getProvider() {
+        return this.provider;
+      }
+      /**
+       * Get wallet address
+       */
+      getAddress() {
+        return this.wallet.address;
+      }
+      /**
+       * Get current nonce for the wallet
+       */
+      async getNonce() {
+        return this.provider.getTransactionCount(this.wallet.address, "pending");
+      }
+    };
+  }
+});
+
+// src/adapters/avantis/utils.ts
+function getPairIndex(symbol) {
+  const base = symbol.split("/")[0] ?? "";
+  const index = AVANTIS_PAIR_INDEX_MAP[base];
+  if (index === void 0) {
+    throw new Error(`Unknown pair for symbol: ${symbol}`);
+  }
+  return index;
+}
+function convertPythPrice(price, expo) {
+  const priceNum = typeof price === "bigint" ? Number(price) : parseFloat(price);
+  return priceNum * Math.pow(10, expo);
+}
+function fromUsdcDecimals(amount) {
+  const raw = typeof amount === "bigint" ? amount : BigInt(amount);
+  return Number(raw) / 1e6;
+}
+function toUsdcDecimals(amount) {
+  return BigInt(Math.round(amount * 1e6));
+}
+function fromPriceDecimals(price) {
+  const raw = typeof price === "bigint" ? price : BigInt(price);
+  return Number(raw) / 1e10;
+}
+function toPriceDecimals(price) {
+  return BigInt(Math.round(price * 1e10));
+}
+function buildOrderParams2(request, traderAddress) {
+  const pairIndex = getPairIndex(request.symbol);
+  const isBuy = request.side === "buy";
+  const leverage = request.leverage ?? 10;
+  const positionSize = request.amount;
+  let openPrice = "0";
+  if (request.type === "limit" && request.price) {
+    openPrice = toPriceDecimals(request.price).toString();
+  }
+  const tp = "0";
+  const sl = request.stopPrice ? toPriceDecimals(request.stopPrice).toString() : "0";
+  return {
+    trader: traderAddress,
+    pairIndex,
+    index: 0,
+    initialPosToken: 0,
+    positionSizeDai: toUsdcDecimals(positionSize).toString(),
+    openPrice,
+    buy: isBuy,
+    leverage,
+    tp,
+    sl
+  };
+}
+var init_utils16 = __esm({
+  "src/adapters/avantis/utils.ts"() {
+    "use strict";
+    init_constants19();
+  }
+});
+
+// src/adapters/avantis/types.ts
+var AvantisPairInfoSchema, AvantisOpenTradeSchema, AvantisOpenLimitOrderSchema, AvantisPythPriceSchema, AvantisFundingFeesSchema, AvantisOrderParamsSchema, AvantisBalanceSchema;
+var init_types21 = __esm({
+  "src/adapters/avantis/types.ts"() {
+    "use strict";
+    init_zod();
+    AvantisPairInfoSchema = external_exports.object({
+      pairIndex: external_exports.number(),
+      from: external_exports.string(),
+      to: external_exports.string(),
+      spreadP: external_exports.string(),
+      groupIndex: external_exports.number(),
+      feeIndex: external_exports.number()
+    }).passthrough();
+    AvantisOpenTradeSchema = external_exports.object({
+      trader: external_exports.string(),
+      pairIndex: external_exports.number(),
+      index: external_exports.number(),
+      initialPosToken: external_exports.string(),
+      positionSizeDai: external_exports.string(),
+      openPrice: external_exports.string(),
+      buy: external_exports.boolean(),
+      leverage: external_exports.string(),
+      tp: external_exports.string(),
+      sl: external_exports.string()
+    }).passthrough();
+    AvantisOpenLimitOrderSchema = external_exports.object({
+      trader: external_exports.string(),
+      pairIndex: external_exports.number(),
+      index: external_exports.number(),
+      positionSize: external_exports.string(),
+      buy: external_exports.boolean(),
+      leverage: external_exports.string(),
+      tp: external_exports.string(),
+      sl: external_exports.string(),
+      minPrice: external_exports.string(),
+      maxPrice: external_exports.string(),
+      block: external_exports.number(),
+      tokenId: external_exports.number()
+    }).passthrough();
+    AvantisPythPriceSchema = external_exports.object({
+      price: external_exports.string(),
+      conf: external_exports.string(),
+      expo: external_exports.number(),
+      publishTime: external_exports.number()
+    }).passthrough();
+    AvantisFundingFeesSchema = external_exports.object({
+      accPerOiLong: external_exports.string(),
+      accPerOiShort: external_exports.string(),
+      lastUpdateBlock: external_exports.number()
+    }).passthrough();
+    AvantisOrderParamsSchema = external_exports.object({
+      trader: external_exports.string(),
+      pairIndex: external_exports.number(),
+      index: external_exports.number(),
+      initialPosToken: external_exports.number(),
+      positionSizeDai: external_exports.string(),
+      openPrice: external_exports.string(),
+      buy: external_exports.boolean(),
+      leverage: external_exports.number(),
+      tp: external_exports.string(),
+      sl: external_exports.string()
+    }).passthrough();
+    AvantisBalanceSchema = external_exports.object({
+      asset: external_exports.string(),
+      balance: external_exports.string(),
+      decimals: external_exports.number()
+    }).passthrough();
+  }
+});
+
+// src/adapters/avantis/AvantisNormalizer.ts
+var AvantisNormalizer;
+var init_AvantisNormalizer = __esm({
+  "src/adapters/avantis/AvantisNormalizer.ts"() {
+    "use strict";
+    init_constants19();
+    init_utils16();
+    init_types21();
+    AvantisNormalizer = class {
+      // ===========================================================================
+      // Symbol Conversion
+      // ===========================================================================
+      symbolToCCXT(pairIndex) {
+        return avantisToUnified(pairIndex);
+      }
+      // ===========================================================================
+      // Market Normalization
+      // ===========================================================================
+      normalizeMarket(pair) {
+        AvantisPairInfoSchema.parse(pair);
+        const base = pair.from;
+        const quote = pair.to;
+        const unifiedSymbol = `${base}/${quote}:${quote}`;
+        const spreadP = parseFloat(pair.spreadP);
+        return {
+          id: pair.pairIndex.toString(),
+          symbol: unifiedSymbol,
+          base,
+          quote,
+          settle: quote,
+          active: true,
+          minAmount: 0,
+          pricePrecision: AVANTIS_DEFAULT_PRECISION.price,
+          amountPrecision: AVANTIS_DEFAULT_PRECISION.amount,
+          priceTickSize: 0.01,
+          amountStepSize: 1e-3,
+          makerFee: spreadP / 100,
+          takerFee: spreadP / 100,
+          maxLeverage: 150,
+          fundingIntervalHours: AVANTIS_FUNDING_INTERVAL_HOURS,
+          info: {
+            pairIndex: pair.pairIndex,
+            groupIndex: pair.groupIndex,
+            feeIndex: pair.feeIndex,
+            spreadP: pair.spreadP
+          }
+        };
+      }
+      // ===========================================================================
+      // Ticker Normalization (from Pyth Oracle)
+      // ===========================================================================
+      normalizeTicker(pairIndex, pythPrice) {
+        AvantisPythPriceSchema.parse(pythPrice);
+        const unifiedSymbol = avantisToUnified(pairIndex);
+        const price = convertPythPrice(pythPrice.price, pythPrice.expo);
+        const confidence = convertPythPrice(pythPrice.conf, pythPrice.expo);
+        return {
+          symbol: unifiedSymbol,
+          last: price,
+          bid: price - confidence,
+          ask: price + confidence,
+          high: 0,
+          low: 0,
+          open: 0,
+          close: price,
+          change: 0,
+          percentage: 0,
+          baseVolume: 0,
+          quoteVolume: 0,
+          timestamp: pythPrice.publishTime * 1e3,
+          info: {
+            pythPrice: pythPrice.price,
+            pythConf: pythPrice.conf,
+            pythExpo: pythPrice.expo,
+            _bidAskSource: "pyth_oracle_confidence"
+          }
+        };
+      }
+      // ===========================================================================
+      // Position Normalization (from contract openTrades)
+      // ===========================================================================
+      normalizePosition(trade, markPrice) {
+        AvantisOpenTradeSchema.parse(trade);
+        const unifiedSymbol = avantisToUnified(trade.pairIndex);
+        const positionSize = fromUsdcDecimals(trade.positionSizeDai);
+        const entryPrice = fromPriceDecimals(trade.openPrice);
+        const leverage = parseFloat(trade.leverage);
+        const isLong = trade.buy;
+        const size = entryPrice > 0 ? positionSize * leverage / entryPrice : 0;
+        const priceDelta = isLong ? markPrice - entryPrice : entryPrice - markPrice;
+        const unrealizedPnl = size * priceDelta;
+        return {
+          symbol: unifiedSymbol,
+          side: isLong ? "long" : "short",
+          size,
+          entryPrice,
+          markPrice,
+          liquidationPrice: 0,
+          unrealizedPnl,
+          realizedPnl: 0,
+          leverage,
+          marginMode: "isolated",
+          margin: positionSize,
+          maintenanceMargin: 0,
+          marginRatio: 0,
+          timestamp: Date.now(),
+          info: {
+            trader: trade.trader,
+            pairIndex: trade.pairIndex,
+            tradeIndex: trade.index,
+            initialPosToken: trade.initialPosToken,
+            tp: trade.tp,
+            sl: trade.sl,
+            _realizedPnlSource: "not_available",
+            _marginRatioSource: "not_available"
+          }
+        };
+      }
+      // ===========================================================================
+      // Balance Normalization
+      // ===========================================================================
+      normalizeBalance(balance) {
+        AvantisBalanceSchema.parse(balance);
+        const total = parseFloat(balance.balance) / Math.pow(10, balance.decimals);
+        return {
+          currency: balance.asset,
+          total,
+          free: total,
+          used: 0,
+          usdValue: total
+        };
+      }
+      // ===========================================================================
+      // Funding Rate Normalization
+      // ===========================================================================
+      normalizeFundingRate(pairIndex, funding, markPrice) {
+        AvantisFundingFeesSchema.parse(funding);
+        const unifiedSymbol = avantisToUnified(pairIndex);
+        const longRate = parseFloat(funding.accPerOiLong) / 1e18;
+        const shortRate = parseFloat(funding.accPerOiShort) / 1e18;
+        const fundingRate = longRate - shortRate;
+        const now = Date.now();
+        return {
+          symbol: unifiedSymbol,
+          fundingRate,
+          fundingTimestamp: now,
+          nextFundingTimestamp: now + AVANTIS_FUNDING_INTERVAL_HOURS * 3600 * 1e3,
+          markPrice,
+          indexPrice: markPrice,
+          fundingIntervalHours: AVANTIS_FUNDING_INTERVAL_HOURS
+        };
+      }
+    };
+  }
+});
+
+// src/adapters/avantis/error-codes.ts
+function extractErrorCode4(errorMessage) {
+  const messageLower = errorMessage.toLowerCase();
+  for (const [pattern, code] of Object.entries(AVANTIS_ERROR_MESSAGES)) {
+    if (messageLower.includes(pattern)) {
+      return code;
+    }
+  }
+  if (messageLower.includes("429") || messageLower.includes("rate limit")) {
+    return "RATE_LIMIT_EXCEEDED";
+  }
+  if (messageLower.includes("500") || messageLower.includes("503")) {
+    return AVANTIS_TX_ERRORS.RPC_ERROR;
+  }
+  return "UNKNOWN_ERROR";
+}
+function mapAvantisError(errorCode, message, originalError) {
+  switch (errorCode) {
+    case "INSUFFICIENT_MARGIN":
+    case AVANTIS_TX_ERRORS.INSUFFICIENT_GAS:
+      return new InsufficientMarginError(message, errorCode, "avantis", originalError);
+    case AVANTIS_REVERT_ERRORS.WRONG_TRADE:
+    case AVANTIS_REVERT_ERRORS.WRONG_LEVERAGE:
+    case AVANTIS_REVERT_ERRORS.WRONG_TP:
+    case AVANTIS_REVERT_ERRORS.WRONG_SL:
+    case AVANTIS_REVERT_ERRORS.MAX_TRADES_PER_PAIR:
+    case AVANTIS_REVERT_ERRORS.ABOVE_MAX_POS:
+    case AVANTIS_REVERT_ERRORS.BELOW_MIN_POS:
+      return new InvalidOrderError(message, errorCode, "avantis", originalError);
+    case AVANTIS_REVERT_ERRORS.PAIR_NOT_LISTED:
+      return new BadRequestError(message, errorCode, "avantis", originalError);
+    case AVANTIS_REVERT_ERRORS.NO_TRADE:
+    case AVANTIS_REVERT_ERRORS.NO_LIMIT:
+    case AVANTIS_REVERT_ERRORS.ALREADY_BEING_CLOSED:
+      return new InvalidOrderError(message, errorCode, "avantis", originalError);
+    case "RATE_LIMIT_EXCEEDED":
+      return new RateLimitError(message, errorCode, "avantis", void 0, originalError);
+    default:
+      if (includesValue(Object.values(AVANTIS_TX_ERRORS), errorCode)) {
+        return new ExchangeUnavailableError(message, errorCode, "avantis", originalError);
+      }
+      return new PerpDEXError(message, errorCode, "avantis", originalError);
+  }
+}
+function mapError7(error) {
+  if (error instanceof PerpDEXError) {
+    return error;
+  }
+  if (error instanceof Error) {
+    const errorCode = extractErrorCode4(error.message);
+    return mapAvantisError(errorCode, error.message, error);
+  }
+  return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "avantis", error);
+}
+var AVANTIS_REVERT_ERRORS, AVANTIS_TX_ERRORS, AVANTIS_ERROR_MESSAGES;
+var init_error_codes14 = __esm({
+  "src/adapters/avantis/error-codes.ts"() {
+    "use strict";
+    init_type_guards();
+    init_errors();
+    AVANTIS_REVERT_ERRORS = {
+      WRONG_TRADE: "WRONG_TRADE",
+      WRONG_LEVERAGE: "WRONG_LEVERAGE",
+      WRONG_TP: "WRONG_TP",
+      WRONG_SL: "WRONG_SL",
+      MAX_TRADES_PER_PAIR: "MAX_TRADES_PER_PAIR",
+      ABOVE_MAX_POS: "ABOVE_MAX_POS",
+      BELOW_MIN_POS: "BELOW_MIN_POS",
+      PAIR_NOT_LISTED: "PAIR_NOT_LISTED",
+      NO_TRADE: "NO_TRADE",
+      NO_LIMIT: "NO_LIMIT",
+      ALREADY_BEING_CLOSED: "ALREADY_BEING_CLOSED",
+      PRICE_NOT_HIT: "PRICE_NOT_HIT"
+    };
+    AVANTIS_TX_ERRORS = {
+      INSUFFICIENT_GAS: "INSUFFICIENT_GAS",
+      NONCE_TOO_LOW: "NONCE_TOO_LOW",
+      TRANSACTION_REVERTED: "TRANSACTION_REVERTED",
+      REPLACEMENT_UNDERPRICED: "REPLACEMENT_UNDERPRICED",
+      RPC_ERROR: "RPC_ERROR",
+      TIMEOUT: "TIMEOUT"
+    };
+    AVANTIS_ERROR_MESSAGES = {
+      "insufficient funds": AVANTIS_TX_ERRORS.INSUFFICIENT_GAS,
+      "nonce too low": AVANTIS_TX_ERRORS.NONCE_TOO_LOW,
+      "transaction reverted": AVANTIS_TX_ERRORS.TRANSACTION_REVERTED,
+      reverted: AVANTIS_TX_ERRORS.TRANSACTION_REVERTED,
+      "replacement fee too low": AVANTIS_TX_ERRORS.REPLACEMENT_UNDERPRICED,
+      "execution reverted": AVANTIS_TX_ERRORS.TRANSACTION_REVERTED,
+      timeout: AVANTIS_TX_ERRORS.TIMEOUT,
+      wrong_trade: AVANTIS_REVERT_ERRORS.WRONG_TRADE,
+      wrong_leverage: AVANTIS_REVERT_ERRORS.WRONG_LEVERAGE,
+      max_trades_per_pair: AVANTIS_REVERT_ERRORS.MAX_TRADES_PER_PAIR,
+      above_max_pos: AVANTIS_REVERT_ERRORS.ABOVE_MAX_POS,
+      below_min_pos: AVANTIS_REVERT_ERRORS.BELOW_MIN_POS,
+      pair_not_listed: AVANTIS_REVERT_ERRORS.PAIR_NOT_LISTED,
+      no_trade: AVANTIS_REVERT_ERRORS.NO_TRADE,
+      no_limit: AVANTIS_REVERT_ERRORS.NO_LIMIT,
+      "insufficient margin": "INSUFFICIENT_MARGIN"
+    };
+  }
+});
+
+// src/adapters/avantis/AvantisAdapter.ts
+function getContractFn(contract, method) {
+  const fn = contract.getFunction(method);
+  return fn;
+}
+var import_ethers12, AvantisAdapter;
+var init_AvantisAdapter = __esm({
+  "src/adapters/avantis/AvantisAdapter.ts"() {
+    "use strict";
+    import_ethers12 = require("ethers");
+    init_errors();
+    init_BaseAdapter();
+    init_RateLimiter();
+    init_constants19();
+    init_AvantisAuth();
+    init_AvantisNormalizer();
+    init_utils16();
+    init_error_codes14();
+    AvantisAdapter = class extends BaseAdapter {
+      id = "avantis";
+      name = "Avantis";
+      has = {
+        // Market Data
+        fetchMarkets: true,
+        fetchTicker: true,
+        fetchOrderBook: false,
+        fetchTrades: false,
+        fetchOHLCV: false,
+        fetchFundingRate: true,
+        fetchFundingRateHistory: false,
+        // Trading
+        createOrder: true,
+        cancelOrder: true,
+        cancelAllOrders: false,
+        editOrder: false,
+        // Account
+        fetchOpenOrders: false,
+        fetchOrderHistory: false,
+        fetchMyTrades: false,
+        fetchDeposits: false,
+        fetchWithdrawals: false,
+        // Positions & Balance
+        fetchPositions: true,
+        fetchBalance: true,
+        setLeverage: false,
+        setMarginMode: false,
+        // WebSocket (not available - on-chain)
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchOrders: false,
+        watchPositions: false,
+        watchBalance: false
+      };
+      auth;
+      provider;
+      normalizer;
+      rateLimiter;
+      tradingContract;
+      storageContract;
+      pairInfoContract;
+      pythContract;
+      usdcContract;
+      contracts;
+      constructor(config = {}) {
+        super(config);
+        const rpcUrl = config.rpcUrl ?? (config.testnet ? AVANTIS_RPC_TESTNET : AVANTIS_RPC_MAINNET);
+        this.contracts = config.testnet ? AVANTIS_CONTRACTS_TESTNET : AVANTIS_CONTRACTS_MAINNET;
+        if (config.privateKey) {
+          this.auth = new AvantisAuth(config.privateKey, rpcUrl);
+          this.provider = this.auth.getProvider();
+        } else {
+          this.provider = new import_ethers12.ethers.JsonRpcProvider(rpcUrl);
+        }
+        this.normalizer = new AvantisNormalizer();
+        this.rateLimiter = new RateLimiter({
+          maxTokens: config.rateLimit?.maxRequests ?? AVANTIS_RATE_LIMIT.maxRequests,
+          windowMs: config.rateLimit?.windowMs ?? AVANTIS_RATE_LIMIT.windowMs,
+          weights: AVANTIS_RATE_LIMIT.weights
+        });
+      }
+      async initialize() {
+        if (this._isReady) {
+          return;
+        }
+        const signerOrProvider = this.auth ? this.auth.getWallet() : this.provider;
+        this.tradingContract = new import_ethers12.ethers.Contract(
+          this.contracts.trading,
+          AVANTIS_TRADING_ABI,
+          signerOrProvider
+        );
+        this.storageContract = new import_ethers12.ethers.Contract(
+          this.contracts.storage,
+          AVANTIS_STORAGE_ABI,
+          signerOrProvider
+        );
+        this.pairInfoContract = new import_ethers12.ethers.Contract(
+          this.contracts.pairInfo,
+          AVANTIS_PAIR_INFO_ABI,
+          signerOrProvider
+        );
+        this.pythContract = new import_ethers12.ethers.Contract(
+          this.contracts.pythOracle,
+          AVANTIS_PYTH_ABI,
+          signerOrProvider
+        );
+        this.usdcContract = new import_ethers12.ethers.Contract(
+          this.contracts.usdc,
+          AVANTIS_ERC20_ABI,
+          signerOrProvider
+        );
+        this._isReady = true;
+        this.debug("Adapter initialized");
+      }
+      // === Symbol conversion ===
+      symbolToExchange(symbol) {
+        return unifiedToAvantis(symbol).toString();
+      }
+      symbolFromExchange(exchangeSymbol) {
+        return avantisToUnified(parseInt(exchangeSymbol, 10));
+      }
+      // === Auth helpers ===
+      requireAuth() {
+        if (!this.auth) {
+          throw new PerpDEXError(
+            "Private key required for authenticated operations",
+            "MISSING_CREDENTIALS",
+            "avantis"
+          );
+        }
+        return this.auth;
+      }
+      requireContract(contract, name) {
+        if (!contract) {
+          throw new PerpDEXError(
+            `${name} contract not initialized. Call initialize() first`,
+            "NOT_INITIALIZED",
+            "avantis"
+          );
+        }
+        return contract;
+      }
+      // === Public Market Data ===
+      async fetchMarkets(_params) {
+        await this.rateLimiter.acquire("fetchMarkets");
+        try {
+          const pairInfoContract = this.requireContract(this.pairInfoContract, "PairInfo");
+          const pairsCountFn = getContractFn(pairInfoContract, "pairsCount");
+          const pairsFn = getContractFn(pairInfoContract, "pairs");
+          const pairsCount = await pairsCountFn();
+          const count = Number(pairsCount);
+          const markets = [];
+          for (let i = 0; i < count; i++) {
+            try {
+              const pairData = await pairsFn(i);
+              const pair = {
+                pairIndex: i,
+                from: pairData.from ?? pairData[0] ?? AVANTIS_INDEX_TO_SYMBOL[i] ?? `PAIR${i}`,
+                to: pairData.to ?? pairData[1] ?? "USD",
+                spreadP: (pairData.spreadP ?? pairData[2] ?? "0").toString(),
+                groupIndex: Number(pairData.groupIndex ?? pairData[3] ?? 0),
+                feeIndex: Number(pairData.feeIndex ?? pairData[4] ?? 0)
+              };
+              markets.push(this.normalizer.normalizeMarket(pair));
+            } catch {
+              this.debug(`Failed to fetch pair at index ${i}`);
+            }
+          }
+          return markets;
+        } catch (error) {
+          throw mapError7(error);
+        }
+      }
+      async _fetchTicker(symbol) {
+        await this.rateLimiter.acquire("fetchTicker");
+        try {
+          const pairIndex = getPairIndex(symbol);
+          const base = symbol.split("/")[0] ?? "";
+          const feedId = PYTH_PRICE_FEED_IDS[base];
+          if (!feedId) {
+            throw new PerpDEXError(`No Pyth price feed for ${base}`, "UNSUPPORTED_SYMBOL", "avantis");
+          }
+          const pythContract = this.requireContract(this.pythContract, "Pyth");
+          const getPriceFn = getContractFn(pythContract, "getPrice");
+          const priceData = await getPriceFn(feedId);
+          const pythPrice = {
+            price: priceData.price.toString(),
+            conf: priceData.conf.toString(),
+            expo: Number(priceData.expo),
+            publishTime: Number(priceData.publishTime)
+          };
+          return this.normalizer.normalizeTicker(pairIndex, pythPrice);
+        } catch (error) {
+          throw mapError7(error);
+        }
+      }
+      async _fetchOrderBook(_symbol, _params) {
+        throw new NotSupportedError(
+          "Avantis is an oracle-based DEX with no order book",
+          "NOT_SUPPORTED",
+          "avantis"
+        );
+      }
+      async _fetchTrades(_symbol, _params) {
+        throw new NotSupportedError(
+          "Avantis does not expose public trade history via contracts",
+          "NOT_SUPPORTED",
+          "avantis"
+        );
+      }
+      async _fetchFundingRate(symbol) {
+        await this.rateLimiter.acquire("fetchFundingRate");
+        try {
+          const pairIndex = getPairIndex(symbol);
+          const pairInfoContract = this.requireContract(this.pairInfoContract, "PairInfo");
+          const fundingFeesFn = getContractFn(pairInfoContract, "pairFundingFees");
+          const fundingData = await fundingFeesFn(pairIndex);
+          const funding = {
+            accPerOiLong: fundingData.accPerOiLong.toString(),
+            accPerOiShort: fundingData.accPerOiShort.toString(),
+            lastUpdateBlock: Number(fundingData.lastUpdateBlock)
+          };
+          const base = symbol.split("/")[0] ?? "";
+          const feedId = PYTH_PRICE_FEED_IDS[base];
+          let markPrice = 0;
+          if (feedId) {
+            const pythContract = this.requireContract(this.pythContract, "Pyth");
+            const getPriceFn = getContractFn(pythContract, "getPrice");
+            const priceData = await getPriceFn(feedId);
+            markPrice = convertPythPrice(priceData.price.toString(), Number(priceData.expo));
+          }
+          return this.normalizer.normalizeFundingRate(pairIndex, funding, markPrice);
+        } catch (error) {
+          throw mapError7(error);
+        }
+      }
+      async fetchFundingRateHistory(_symbol, _since, _limit) {
+        throw new NotSupportedError(
+          "Avantis funding rate history is not available via on-chain queries",
+          "NOT_SUPPORTED",
+          "avantis"
+        );
+      }
+      async fetchOHLCV(_symbol, _timeframe, _params) {
+        throw new NotSupportedError(
+          "Avantis does not provide OHLCV data on-chain",
+          "NOT_SUPPORTED",
+          "avantis"
+        );
+      }
+      // === Private Trading ===
+      async createOrder(request) {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("createOrder");
+        try {
+          const tradingContract = this.requireContract(this.tradingContract, "Trading");
+          const openTradeFn = getContractFn(tradingContract, "openTrade");
+          const orderParams = buildOrderParams2(request, auth.getAddress());
+          const orderType = request.type === "market" ? AVANTIS_ORDER_TYPES.MARKET : AVANTIS_ORDER_TYPES.LIMIT;
+          const slippageP = BigInt(Math.round(0.01 * 1e10));
+          const priceUpdateData = [];
+          const tx = await openTradeFn(
+            [
+              orderParams.trader,
+              orderParams.pairIndex,
+              orderParams.index,
+              orderParams.initialPosToken,
+              orderParams.positionSizeDai,
+              orderParams.openPrice,
+              orderParams.buy,
+              orderParams.leverage,
+              orderParams.tp,
+              orderParams.sl
+            ],
+            orderType,
+            slippageP,
+            priceUpdateData
+          );
+          const receipt = await tx.wait();
+          return {
+            id: receipt?.hash ?? tx.hash,
+            symbol: request.symbol,
+            type: request.type,
+            side: request.side,
+            amount: request.amount,
+            price: request.price,
+            status: receipt?.status === 1 ? "open" : "rejected",
+            filled: 0,
+            remaining: request.amount,
+            reduceOnly: request.reduceOnly ?? false,
+            postOnly: false,
+            clientOrderId: request.clientOrderId,
+            timestamp: Date.now(),
+            info: {
+              txHash: tx.hash,
+              blockNumber: receipt?.blockNumber
+            }
+          };
+        } catch (error) {
+          throw mapError7(error);
+        }
+      }
+      async cancelOrder(orderId, symbol) {
+        this.requireAuth();
+        await this.rateLimiter.acquire("cancelOrder");
+        try {
+          const tradingContract = this.requireContract(this.tradingContract, "Trading");
+          const cancelFn = getContractFn(tradingContract, "cancelOpenLimitOrder");
+          const parts = orderId.split("-");
+          const pairIndex = parseInt(parts[0] ?? "0", 10);
+          const tradeIndex = parseInt(parts[1] ?? "0", 10);
+          const tx = await cancelFn(pairIndex, tradeIndex);
+          const receipt = await tx.wait();
+          return {
+            id: orderId,
+            symbol: symbol ?? avantisToUnified(pairIndex),
+            type: "limit",
+            side: "buy",
+            amount: 0,
+            status: receipt?.status === 1 ? "canceled" : "rejected",
+            filled: 0,
+            remaining: 0,
+            reduceOnly: false,
+            postOnly: false,
+            timestamp: Date.now(),
+            info: {
+              txHash: tx.hash,
+              blockNumber: receipt?.blockNumber
+            }
+          };
+        } catch (error) {
+          throw mapError7(error);
+        }
+      }
+      async cancelAllOrders(_symbol) {
+        throw new NotSupportedError(
+          "Avantis does not support batch cancellation via a single contract call",
+          "NOT_SUPPORTED",
+          "avantis"
+        );
+      }
+      // === Account History ===
+      async fetchOpenOrders(_symbol, _since, _limit) {
+        throw new NotSupportedError(
+          "Avantis open limit orders require iterating on-chain storage; use fetchPositions instead",
+          "NOT_SUPPORTED",
+          "avantis"
+        );
+      }
+      async fetchOrderHistory(_symbol, _since, _limit) {
+        throw new NotSupportedError(
+          "Avantis order history is not available via on-chain queries",
+          "NOT_SUPPORTED",
+          "avantis"
+        );
+      }
+      async fetchMyTrades(_symbol, _since, _limit) {
+        throw new NotSupportedError(
+          "Avantis trade history requires event log indexing",
+          "NOT_SUPPORTED",
+          "avantis"
+        );
+      }
+      // === Positions & Balance ===
+      async fetchPositions(symbols) {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("fetchPositions");
+        try {
+          const storageContract = this.requireContract(this.storageContract, "Storage");
+          const openTradesCountFn = getContractFn(storageContract, "openTradesCount");
+          const openTradesFn = getContractFn(storageContract, "openTrades");
+          const address = auth.getAddress();
+          const positions = [];
+          const pairIndices = symbols ? symbols.map((s) => getPairIndex(s)) : Object.keys(AVANTIS_INDEX_TO_SYMBOL).map(Number);
+          for (const pairIndex of pairIndices) {
+            try {
+              const count = await openTradesCountFn(address, pairIndex);
+              const tradeCount = Number(count);
+              for (let i = 0; i < tradeCount; i++) {
+                try {
+                  const tradeData = await openTradesFn(address, pairIndex, i);
+                  const posSize = tradeData.positionSizeDai ?? tradeData[4];
+                  if (!posSize || BigInt(posSize) === BigInt(0)) continue;
+                  const trade = {
+                    trader: (tradeData.trader ?? tradeData[0] ?? "").toString(),
+                    pairIndex: Number(tradeData.pairIndex ?? tradeData[1] ?? pairIndex),
+                    index: Number(tradeData.index ?? tradeData[2] ?? i),
+                    initialPosToken: (tradeData.initialPosToken ?? tradeData[3] ?? "0").toString(),
+                    positionSizeDai: (tradeData.positionSizeDai ?? tradeData[4] ?? "0").toString(),
+                    openPrice: (tradeData.openPrice ?? tradeData[5] ?? "0").toString(),
+                    buy: Boolean(tradeData.buy ?? tradeData[6]),
+                    leverage: (tradeData.leverage ?? tradeData[7] ?? "0").toString(),
+                    tp: (tradeData.tp ?? tradeData[8] ?? "0").toString(),
+                    sl: (tradeData.sl ?? tradeData[9] ?? "0").toString()
+                  };
+                  const base = AVANTIS_INDEX_TO_SYMBOL[pairIndex] ?? "";
+                  const feedId = PYTH_PRICE_FEED_IDS[base];
+                  let markPrice = 0;
+                  if (feedId && this.pythContract) {
+                    try {
+                      const getPriceFn = getContractFn(this.pythContract, "getPrice");
+                      const priceData = await getPriceFn(feedId);
+                      markPrice = convertPythPrice(priceData.price.toString(), Number(priceData.expo));
+                    } catch {
+                      this.debug(`Failed to get mark price for ${base}`);
+                    }
+                  }
+                  positions.push(this.normalizer.normalizePosition(trade, markPrice));
+                } catch {
+                  this.debug(`Failed to read trade at pairIndex=${pairIndex}, index=${i}`);
+                }
+              }
+            } catch {
+              this.debug(`Failed to read trade count for pairIndex=${pairIndex}`);
+            }
+          }
+          return positions;
+        } catch (error) {
+          throw mapError7(error);
+        }
+      }
+      async fetchBalance() {
+        const auth = this.requireAuth();
+        await this.rateLimiter.acquire("fetchBalance");
+        try {
+          const usdcContract = this.requireContract(this.usdcContract, "USDC");
+          const balanceOfFn = getContractFn(usdcContract, "balanceOf");
+          const decimalsFn = getContractFn(usdcContract, "decimals");
+          const address = auth.getAddress();
+          const [balance, decimals] = await Promise.all([balanceOfFn(address), decimalsFn()]);
+          const balanceInfo = {
+            asset: "USDC",
+            balance: balance.toString(),
+            decimals: Number(decimals)
+          };
+          return [this.normalizer.normalizeBalance(balanceInfo)];
+        } catch (error) {
+          throw mapError7(error);
+        }
+      }
+      async _setLeverage(_symbol, _leverage) {
+        throw new NotSupportedError(
+          "Avantis sets leverage per-trade at order creation time, not as a separate operation",
+          "NOT_SUPPORTED",
+          "avantis"
+        );
+      }
+    };
+  }
+});
+
+// src/adapters/avantis/index.ts
+var avantis_exports = {};
+__export(avantis_exports, {
+  AVANTIS_CHAIN_ID_MAINNET: () => AVANTIS_CHAIN_ID_MAINNET,
+  AVANTIS_CHAIN_ID_TESTNET: () => AVANTIS_CHAIN_ID_TESTNET,
+  AVANTIS_CONTRACTS_MAINNET: () => AVANTIS_CONTRACTS_MAINNET,
+  AVANTIS_CONTRACTS_TESTNET: () => AVANTIS_CONTRACTS_TESTNET,
+  AVANTIS_DEFAULT_PRECISION: () => AVANTIS_DEFAULT_PRECISION,
+  AVANTIS_ERC20_ABI: () => AVANTIS_ERC20_ABI,
+  AVANTIS_FUNDING_INTERVAL_HOURS: () => AVANTIS_FUNDING_INTERVAL_HOURS,
+  AVANTIS_INDEX_TO_SYMBOL: () => AVANTIS_INDEX_TO_SYMBOL,
+  AVANTIS_ORDER_TYPES: () => AVANTIS_ORDER_TYPES,
+  AVANTIS_PAIR_INDEX_MAP: () => AVANTIS_PAIR_INDEX_MAP,
+  AVANTIS_PAIR_INFO_ABI: () => AVANTIS_PAIR_INFO_ABI,
+  AVANTIS_PYTH_ABI: () => AVANTIS_PYTH_ABI,
+  AVANTIS_RATE_LIMIT: () => AVANTIS_RATE_LIMIT,
+  AVANTIS_RPC_MAINNET: () => AVANTIS_RPC_MAINNET,
+  AVANTIS_RPC_TESTNET: () => AVANTIS_RPC_TESTNET,
+  AVANTIS_STORAGE_ABI: () => AVANTIS_STORAGE_ABI,
+  AVANTIS_TRADING_ABI: () => AVANTIS_TRADING_ABI,
+  AvantisAdapter: () => AvantisAdapter,
+  AvantisAuth: () => AvantisAuth,
+  PYTH_PRICE_FEED_IDS: () => PYTH_PRICE_FEED_IDS,
+  avantisToUnified: () => avantisToUnified,
+  unifiedToAvantis: () => unifiedToAvantis
+});
+var init_avantis = __esm({
+  "src/adapters/avantis/index.ts"() {
+    "use strict";
+    init_AvantisAdapter();
+    init_AvantisAuth();
+    init_constants19();
+  }
+});
+
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
@@ -42072,7 +45594,10 @@ var adapterLoaders = {
   gmx: async () => (await Promise.resolve().then(() => (init_gmx(), gmx_exports))).GmxAdapter,
   aster: async () => (await Promise.resolve().then(() => (init_aster(), aster_exports))).AsterAdapter,
   pacifica: async () => (await Promise.resolve().then(() => (init_pacifica(), pacifica_exports))).PacificaAdapter,
-  ostium: async () => (await Promise.resolve().then(() => (init_ostium(), ostium_exports))).OstiumAdapter
+  ostium: async () => (await Promise.resolve().then(() => (init_ostium(), ostium_exports))).OstiumAdapter,
+  reya: async () => (await Promise.resolve().then(() => (init_reya(), reya_exports))).ReyaAdapter,
+  ethereal: async () => (await Promise.resolve().then(() => (init_ethereal(), ethereal_exports))).EtherealAdapter,
+  avantis: async () => (await Promise.resolve().then(() => (init_avantis(), avantis_exports))).AvantisAdapter
 };
 var adapterCache = /* @__PURE__ */ new Map();
 var customRegistry = /* @__PURE__ */ new Map();
@@ -42915,7 +46440,13 @@ var EXCHANGE_ENV_REQUIREMENTS = {
   // Pacifica (Solana, Ed25519)
   pacifica: ["PACIFICA_API_KEY", "PACIFICA_API_SECRET"],
   // Ostium (Arbitrum, EVM contracts)
-  ostium: ["OSTIUM_PRIVATE_KEY"]
+  ostium: ["OSTIUM_PRIVATE_KEY"],
+  // Reya (L2, EIP-712 signing)
+  reya: ["REYA_PRIVATE_KEY"],
+  // Avantis (Base chain, on-chain contracts)
+  avantis: ["AVANTIS_PRIVATE_KEY"],
+  // Ethereal (EIP-712 signing)
+  ethereal: ["ETHEREAL_PRIVATE_KEY"]
 };
 var ConfigurationError = class _ConfigurationError extends Error {
   constructor(message, exchange, missingVars) {
@@ -42975,7 +46506,10 @@ function getConfigErrorMessage(exchange, missingVars) {
     gmx: "Set GMX_CHAIN to arbitrum or avalanche (add GMX_WALLET_ADDRESS for position data)",
     aster: "Register at asterdex.com and create API key + secret (HMAC-SHA256)",
     pacifica: "Register at pacifica.fi and create Ed25519 API credentials",
-    ostium: "Export your MetaMask private key for Arbitrum trading on Ostium"
+    ostium: "Export your MetaMask private key for Arbitrum trading on Ostium",
+    reya: "Export your wallet private key for Reya Network trading",
+    avantis: "Export your wallet private key for Base chain trading on Avantis",
+    ethereal: "Export your wallet private key for Ethereal perpetual DEX trading"
   };
   return `\u274C Missing environment variables for ${exchange}:
 

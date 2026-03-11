@@ -326,7 +326,7 @@ export class DriftAdapter extends BaseAdapter {
             const marketIndex = getMarketIndex(symbol);
             const orderbook = await this.request('GET', buildOrderbookUrl(this.dlobBaseUrl, marketIndex, 'perp', 1));
             // Build ticker from orderbook data
-            const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+            const oraclePrice = parseFloat(String(orderbook.oracle ?? orderbook.oraclePrice ?? '0')) / DRIFT_PRECISION.PRICE;
             const bestBid = orderbook.bids[0]
                 ? parseFloat(orderbook.bids[0].price) / DRIFT_PRECISION.PRICE
                 : oraclePrice * 0.999;
@@ -450,7 +450,7 @@ export class DriftAdapter extends BaseAdapter {
                     continue;
                 // Get mark price from orderbook
                 const orderbook = await this.request('GET', buildOrderbookUrl(this.dlobBaseUrl, pos.marketIndex, 'perp', 1));
-                const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+                const oraclePrice = parseFloat(String(orderbook.oracle ?? orderbook.oraclePrice ?? '0')) / DRIFT_PRECISION.PRICE;
                 const position = this.normalizer.normalizePosition({
                     ...pos,
                     lastCumulativeFundingRate: '0',
@@ -555,7 +555,7 @@ export class DriftAdapter extends BaseAdapter {
             // Get oracle price for the market
             const marketIndex = getMarketIndex(request.symbol);
             const orderbook = await this.request('GET', buildOrderbookUrl(this.dlobBaseUrl, marketIndex, 'perp', 1));
-            const oraclePrice = parseFloat(orderbook.oraclePrice) / DRIFT_PRECISION.PRICE;
+            const oraclePrice = parseFloat(String(orderbook.oracle ?? orderbook.oraclePrice ?? '0')) / DRIFT_PRECISION.PRICE;
             // Build order parameters
             const orderParams = this.orderBuilder.buildOrderParams(request, oraclePrice);
             // Place the order via Drift SDK

@@ -137,10 +137,10 @@ export const OstiumPairInfoSchema = z
 
 export const OstiumPriceResponseSchema = z
   .object({
-    pair: z.string(),
-    price: z.string(),
-    timestamp: z.number(),
-    source: z.string(),
+    pair: z.string().optional(),
+    price: z.string().optional(),
+    timestamp: z.number().optional(),
+    source: z.string().optional(),
     mid: z.union([z.string(), z.number()]).optional(),
     bid: z.union([z.string(), z.number()]).optional(),
     ask: z.union([z.string(), z.number()]).optional(),

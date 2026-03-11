@@ -136,28 +136,28 @@ export declare const OstiumPairInfoSchema: z.ZodObject<{
     feedId: z.ZodString;
 }, z.ZodTypeAny, "passthrough">>;
 export declare const OstiumPriceResponseSchema: z.ZodObject<{
-    pair: z.ZodString;
-    price: z.ZodString;
-    timestamp: z.ZodNumber;
-    source: z.ZodString;
+    pair: z.ZodOptional<z.ZodString>;
+    price: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+    source: z.ZodOptional<z.ZodString>;
     mid: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
     bid: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
     ask: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
     timestampSeconds: z.ZodOptional<z.ZodNumber>;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-    pair: z.ZodString;
-    price: z.ZodString;
-    timestamp: z.ZodNumber;
-    source: z.ZodString;
+    pair: z.ZodOptional<z.ZodString>;
+    price: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+    source: z.ZodOptional<z.ZodString>;
     mid: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
     bid: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
     ask: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
     timestampSeconds: z.ZodOptional<z.ZodNumber>;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-    pair: z.ZodString;
-    price: z.ZodString;
-    timestamp: z.ZodNumber;
-    source: z.ZodString;
+    pair: z.ZodOptional<z.ZodString>;
+    price: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodOptional<z.ZodNumber>;
+    source: z.ZodOptional<z.ZodString>;
     mid: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
     bid: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
     ask: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;

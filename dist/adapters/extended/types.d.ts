@@ -411,7 +411,8 @@ export declare const ExtendedMarketSchema: z.ZodObject<{
     settlementPeriod: z.ZodOptional<z.ZodNumber>;
 }, z.ZodTypeAny, "passthrough">>;
 export declare const ExtendedTickerSchema: z.ZodObject<{
-    symbol: z.ZodString;
+    symbol: z.ZodOptional<z.ZodString>;
+    market: z.ZodOptional<z.ZodString>;
     lastPrice: z.ZodOptional<z.ZodString>;
     bidPrice: z.ZodOptional<z.ZodString>;
     askPrice: z.ZodOptional<z.ZodString>;
@@ -427,8 +428,15 @@ export declare const ExtendedTickerSchema: z.ZodObject<{
     fundingRate: z.ZodOptional<z.ZodString>;
     nextFundingTime: z.ZodOptional<z.ZodNumber>;
     timestamp: z.ZodOptional<z.ZodNumber>;
+    dailyHigh: z.ZodOptional<z.ZodString>;
+    dailyLow: z.ZodOptional<z.ZodString>;
+    dailyVolume: z.ZodOptional<z.ZodString>;
+    dailyVolumeBase: z.ZodOptional<z.ZodString>;
+    dailyPriceChange: z.ZodOptional<z.ZodString>;
+    dailyPriceChangePercentage: z.ZodOptional<z.ZodString>;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-    symbol: z.ZodString;
+    symbol: z.ZodOptional<z.ZodString>;
+    market: z.ZodOptional<z.ZodString>;
     lastPrice: z.ZodOptional<z.ZodString>;
     bidPrice: z.ZodOptional<z.ZodString>;
     askPrice: z.ZodOptional<z.ZodString>;
@@ -444,8 +452,15 @@ export declare const ExtendedTickerSchema: z.ZodObject<{
     fundingRate: z.ZodOptional<z.ZodString>;
     nextFundingTime: z.ZodOptional<z.ZodNumber>;
     timestamp: z.ZodOptional<z.ZodNumber>;
+    dailyHigh: z.ZodOptional<z.ZodString>;
+    dailyLow: z.ZodOptional<z.ZodString>;
+    dailyVolume: z.ZodOptional<z.ZodString>;
+    dailyVolumeBase: z.ZodOptional<z.ZodString>;
+    dailyPriceChange: z.ZodOptional<z.ZodString>;
+    dailyPriceChangePercentage: z.ZodOptional<z.ZodString>;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-    symbol: z.ZodString;
+    symbol: z.ZodOptional<z.ZodString>;
+    market: z.ZodOptional<z.ZodString>;
     lastPrice: z.ZodOptional<z.ZodString>;
     bidPrice: z.ZodOptional<z.ZodString>;
     askPrice: z.ZodOptional<z.ZodString>;
@@ -461,23 +476,29 @@ export declare const ExtendedTickerSchema: z.ZodObject<{
     fundingRate: z.ZodOptional<z.ZodString>;
     nextFundingTime: z.ZodOptional<z.ZodNumber>;
     timestamp: z.ZodOptional<z.ZodNumber>;
+    dailyHigh: z.ZodOptional<z.ZodString>;
+    dailyLow: z.ZodOptional<z.ZodString>;
+    dailyVolume: z.ZodOptional<z.ZodString>;
+    dailyVolumeBase: z.ZodOptional<z.ZodString>;
+    dailyPriceChange: z.ZodOptional<z.ZodString>;
+    dailyPriceChangePercentage: z.ZodOptional<z.ZodString>;
 }, z.ZodTypeAny, "passthrough">>;
 export declare const ExtendedOrderBookSchema: z.ZodObject<{
-    symbol: z.ZodString;
+    symbol: z.ZodOptional<z.ZodString>;
     bids: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
     asks: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
     timestamp: z.ZodOptional<z.ZodNumber>;
     sequence: z.ZodOptional<z.ZodNumber>;
     checksum: z.ZodOptional<z.ZodString>;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
-    symbol: z.ZodString;
+    symbol: z.ZodOptional<z.ZodString>;
     bids: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
     asks: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
     timestamp: z.ZodOptional<z.ZodNumber>;
     sequence: z.ZodOptional<z.ZodNumber>;
     checksum: z.ZodOptional<z.ZodString>;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
-    symbol: z.ZodString;
+    symbol: z.ZodOptional<z.ZodString>;
     bids: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
     asks: z.ZodOptional<z.ZodArray<z.ZodTuple<[z.ZodString, z.ZodString], null>, "many">>;
     timestamp: z.ZodOptional<z.ZodNumber>;

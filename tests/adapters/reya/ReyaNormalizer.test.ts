@@ -166,9 +166,12 @@ describe('ReyaNormalizer', () => {
       expect(ticker.last).toBe(65010.25);
       expect(ticker.bid).toBe(65010.25);
       expect(ticker.ask).toBe(65010.25);
-      expect(ticker.close).toBe(65000.50);
+      // close = currentPrice (poolPrice), not oraclePrice
+      expect(ticker.close).toBe(65010.25);
+      // pxChange24h is absolute USD change
       expect(ticker.change).toBe(0.02);
-      expect(ticker.percentage).toBe(2);
+      // open = 65010.25 - 0.02 = 65010.23, pct = (0.02 / 65010.23) * 100
+      expect(ticker.percentage).toBeCloseTo((0.02 / 65010.23) * 100, 6);
       expect(ticker.quoteVolume).toBe(50000000);
       expect(ticker.timestamp).toBe(1700000000000);
     });
@@ -203,12 +206,11 @@ describe('ReyaNormalizer', () => {
       });
     });
 
-    test('calculates open price from oracle and pxChange', () => {
+    test('calculates open price from currentPrice minus absolute pxChange', () => {
       const ticker = normalizer.normalizeTicker(mockSummary, mockPrice);
 
-      // open = oraclePrice / (1 + pxChange) = 65000.50 / 1.02
-      const expectedOpen = 65000.50 / 1.02;
-      expect(ticker.open).toBeCloseTo(expectedOpen, 2);
+      // open = currentPrice - pxChangeAbs = 65010.25 - 0.02 = 65010.23
+      expect(ticker.open).toBeCloseTo(65010.23, 2);
     });
   });
 

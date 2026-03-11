@@ -12,7 +12,8 @@ export const HyperliquidAssetSchema = z
     name: z.string(),
     szDecimals: z.number(),
     maxLeverage: z.number(),
-    onlyIsolated: z.boolean(),
+    onlyIsolated: z.boolean().optional(),
+    marginTableId: z.number().optional(),
 })
     .passthrough();
 export const HyperliquidOrderResponseSchema = z

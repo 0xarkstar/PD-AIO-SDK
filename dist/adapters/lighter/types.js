@@ -66,12 +66,12 @@ export const LighterAPIMarketSchema = z
 export const LighterAPITickerSchema = z
     .object({
     symbol: z.string(),
-    last_trade_price: z.string().optional(),
-    daily_price_high: z.string().optional(),
-    daily_price_low: z.string().optional(),
-    daily_base_token_volume: z.string().optional(),
-    daily_quote_token_volume: z.string().optional(),
-    daily_price_change: z.string().optional(),
+    last_trade_price: z.union([z.string(), z.number()]).optional(),
+    daily_price_high: z.union([z.string(), z.number()]).optional(),
+    daily_price_low: z.union([z.string(), z.number()]).optional(),
+    daily_base_token_volume: z.union([z.string(), z.number()]).optional(),
+    daily_quote_token_volume: z.union([z.string(), z.number()]).optional(),
+    daily_price_change: z.union([z.string(), z.number()]).optional(),
 })
     .passthrough();
 //# sourceMappingURL=types.js.map

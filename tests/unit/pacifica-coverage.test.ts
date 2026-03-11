@@ -10,7 +10,10 @@ import { PacificaAuth } from '../../src/adapters/pacifica/PacificaAuth.js';
 import { PacificaNormalizer } from '../../src/adapters/pacifica/PacificaNormalizer.js';
 import { PerpDEXError } from '../../src/types/errors.js';
 import type {
+  PacificaMarket,
   PacificaOrderResponse,
+  PacificaTicker,
+  PacificaTradeResponse,
 } from '../../src/adapters/pacifica/types.js';
 
 // Mock HTTPClient
@@ -95,7 +98,7 @@ describe('PacificaAuth', () => {
         method: 'POST',
         path: '/orders',
         timestamp: 1700000000000,
-        body: { symbol: 'BTC-PERP' },
+        body: { symbol: 'BTC' },
       });
 
       expect(result.headers!['X-Timestamp']).toBe('1700000000000');
@@ -255,16 +258,6 @@ describe('PacificaAdapter unsupported methods', () => {
     adapter = new PacificaAdapter();
   });
 
-  test('fetchFundingRateHistory returns empty array', async () => {
-    const result = await adapter.fetchFundingRateHistory('BTC/USDC:USDC');
-    expect(result).toEqual([]);
-  });
-
-  test('fetchFundingRateHistory with optional params returns empty array', async () => {
-    const result = await adapter.fetchFundingRateHistory('BTC/USDC:USDC', 1700000000000, 10);
-    expect(result).toEqual([]);
-  });
-
   test('cancelAllOrders returns empty array', async () => {
     const result = await adapter.cancelAllOrders();
     expect(result).toEqual([]);
@@ -305,19 +298,19 @@ describe('PacificaNormalizer edge cases', () => {
 
   describe('countDecimals', () => {
     test('value with no dot returns 0', () => {
-      // Access via normalizeMarket since countDecimals is private
       const market = normalizer.normalizeMarket({
-        symbol: 'BTC-PERP',
-        base_currency: 'BTC',
-        quote_currency: 'USDC',
-        status: 'active',
-        price_step: '1',
-        size_step: '1',
-        min_size: '1',
+        symbol: 'BTC',
+        tick_size: '1',
+        lot_size: '1',
+        min_tick: '0',
+        max_tick: '1000000',
         max_leverage: 10,
-        maker_fee: '0.0002',
-        taker_fee: '0.0005',
-        funding_interval: 3600,
+        isolated_only: false,
+        min_order_size: '10',
+        max_order_size: '1000000',
+        funding_rate: '0.0001',
+        next_funding_rate: '0.00005',
+        created_at: 1748881333944,
       });
       expect(market.pricePrecision).toBe(0);
       expect(market.amountPrecision).toBe(0);
@@ -325,17 +318,18 @@ describe('PacificaNormalizer edge cases', () => {
 
     test('value with trailing zeros strips them', () => {
       const market = normalizer.normalizeMarket({
-        symbol: 'BTC-PERP',
-        base_currency: 'BTC',
-        quote_currency: 'USDC',
-        status: 'active',
-        price_step: '0.10',
-        size_step: '0.0100',
-        min_size: '0.001',
+        symbol: 'BTC',
+        tick_size: '0.10',
+        lot_size: '0.0100',
+        min_tick: '0',
+        max_tick: '1000000',
         max_leverage: 10,
-        maker_fee: '0.0002',
-        taker_fee: '0.0005',
-        funding_interval: 3600,
+        isolated_only: false,
+        min_order_size: '10',
+        max_order_size: '1000000',
+        funding_rate: '0.0001',
+        next_funding_rate: '0.00005',
+        created_at: 1748881333944,
       });
       expect(market.pricePrecision).toBe(1);
       expect(market.amountPrecision).toBe(2);
@@ -343,17 +337,18 @@ describe('PacificaNormalizer edge cases', () => {
 
     test('value with all trailing zeros after dot returns 0', () => {
       const market = normalizer.normalizeMarket({
-        symbol: 'BTC-PERP',
-        base_currency: 'BTC',
-        quote_currency: 'USDC',
-        status: 'active',
-        price_step: '1.000',
-        size_step: '1.0',
-        min_size: '1',
+        symbol: 'BTC',
+        tick_size: '1.000',
+        lot_size: '1.0',
+        min_tick: '0',
+        max_tick: '1000000',
         max_leverage: 10,
-        maker_fee: '0.0002',
-        taker_fee: '0.0005',
-        funding_interval: 3600,
+        isolated_only: false,
+        min_order_size: '10',
+        max_order_size: '1000000',
+        funding_rate: '0.0001',
+        next_funding_rate: '0.00005',
+        created_at: 1748881333944,
       });
       expect(market.pricePrecision).toBe(0);
       expect(market.amountPrecision).toBe(0);
@@ -361,17 +356,18 @@ describe('PacificaNormalizer edge cases', () => {
 
     test('empty string returns 0', () => {
       const market = normalizer.normalizeMarket({
-        symbol: 'BTC-PERP',
-        base_currency: 'BTC',
-        quote_currency: 'USDC',
-        status: 'active',
-        price_step: '',
-        size_step: '',
-        min_size: '1',
+        symbol: 'BTC',
+        tick_size: '',
+        lot_size: '',
+        min_tick: '0',
+        max_tick: '1000000',
         max_leverage: 10,
-        maker_fee: '0.0002',
-        taker_fee: '0.0005',
-        funding_interval: 3600,
+        isolated_only: false,
+        min_order_size: '10',
+        max_order_size: '1000000',
+        funding_rate: '0.0001',
+        next_funding_rate: '0.00005',
+        created_at: 1748881333944,
       });
       expect(market.pricePrecision).toBe(0);
       expect(market.amountPrecision).toBe(0);
@@ -379,41 +375,36 @@ describe('PacificaNormalizer edge cases', () => {
   });
 
   describe('normalizeOrder edge cases', () => {
+    const baseOrder: PacificaOrderResponse = {
+      order_id: 'order-no-fill',
+      client_order_id: 'cid-1',
+      symbol: 'BTC',
+      side: 'buy',
+      type: 'limit',
+      price: '50000.0',
+      size: '0.1',
+      filled_size: '0.0',
+      status: 'open',
+      reduce_only: false,
+      post_only: false,
+      created_at: 1699999000000,
+      updated_at: 1699999000000,
+    };
+
     test('normalizeOrder without avg_fill_price sets averagePrice to undefined', () => {
-      const raw: PacificaOrderResponse = {
-        order_id: 'order-no-fill',
-        client_order_id: 'cid-1',
-        symbol: 'BTC-PERP',
-        side: 'buy',
-        type: 'limit',
-        price: '50000.0',
-        size: '0.1',
-        filled_size: '0.0',
-        status: 'open',
-        reduce_only: false,
-        post_only: false,
-        created_at: 1699999000000,
-        updated_at: 1699999000000,
-      };
-      const order = normalizer.normalizeOrder(raw);
+      const order = normalizer.normalizeOrder(baseOrder);
       expect(order.averagePrice).toBeUndefined();
     });
 
     test('normalizeOrder with cancelled (double-l) status maps to canceled', () => {
       const raw: PacificaOrderResponse = {
+        ...baseOrder,
         order_id: 'order-cancel',
-        client_order_id: 'cid-2',
-        symbol: 'ETH-PERP',
+        symbol: 'ETH',
         side: 'sell',
-        type: 'limit',
         price: '3000.0',
         size: '1.0',
-        filled_size: '0.0',
         status: 'cancelled',
-        reduce_only: false,
-        post_only: false,
-        created_at: 1699999000000,
-        updated_at: 1699999000000,
       };
       const order = normalizer.normalizeOrder(raw);
       expect(order.status).toBe('canceled');
@@ -421,19 +412,14 @@ describe('PacificaNormalizer edge cases', () => {
 
     test('normalizeOrder with rejected status', () => {
       const raw: PacificaOrderResponse = {
+        ...baseOrder,
         order_id: 'order-reject',
-        client_order_id: 'cid-3',
-        symbol: 'SOL-PERP',
-        side: 'buy',
+        symbol: 'SOL',
         type: 'market',
         price: '100.0',
         size: '10',
         filled_size: '0',
         status: 'rejected',
-        reduce_only: false,
-        post_only: false,
-        created_at: 1699999000000,
-        updated_at: 1699999000000,
       };
       const order = normalizer.normalizeOrder(raw);
       expect(order.status).toBe('rejected');
@@ -441,19 +427,9 @@ describe('PacificaNormalizer edge cases', () => {
 
     test('normalizeOrder with unknown status defaults to open', () => {
       const raw: PacificaOrderResponse = {
+        ...baseOrder,
         order_id: 'order-unknown',
-        client_order_id: 'cid-4',
-        symbol: 'BTC-PERP',
-        side: 'buy',
-        type: 'limit',
-        price: '50000.0',
-        size: '0.1',
-        filled_size: '0.0',
         status: 'some_new_status' as string,
-        reduce_only: false,
-        post_only: false,
-        created_at: 1699999000000,
-        updated_at: 1699999000000,
       };
       const order = normalizer.normalizeOrder(raw);
       expect(order.status).toBe('open');
@@ -461,20 +437,14 @@ describe('PacificaNormalizer edge cases', () => {
 
     test('normalizeOrder without symbol uses exchange symbol conversion', () => {
       const raw: PacificaOrderResponse = {
+        ...baseOrder,
         order_id: 'order-nosymbol',
-        client_order_id: 'cid-5',
-        symbol: 'ETH-PERP',
-        side: 'buy',
-        type: 'limit',
+        symbol: 'ETH',
         price: '3000.0',
         size: '1.0',
         filled_size: '0.5',
         avg_fill_price: '2999.5',
         status: 'partially_filled',
-        reduce_only: false,
-        post_only: false,
-        created_at: 1699999000000,
-        updated_at: 1699999000000,
       };
       const order = normalizer.normalizeOrder(raw);
       expect(order.symbol).toBe('ETH/USDC:USDC');
@@ -487,19 +457,15 @@ describe('PacificaNormalizer edge cases', () => {
   describe('normalizeTicker without explicit symbol', () => {
     test('uses exchange symbol when no unified symbol provided', () => {
       const ticker = normalizer.normalizeTicker({
-        symbol: 'SOL-PERP',
-        last_price: '100.0',
-        mark_price: '100.1',
-        index_price: '100.2',
-        bid_price: '99.9',
-        ask_price: '100.1',
-        high_24h: '110.0',
-        low_24h: '90.0',
-        volume_24h: '50000.0',
-        quote_volume_24h: '5000000.0',
+        symbol: 'SOL',
+        mark: '100.1',
+        mid: '100.0',
+        oracle: '100.2',
+        funding: '0.0002',
+        next_funding: '0.0001',
         open_interest: '12345.6',
-        funding_rate: '0.0002',
-        next_funding_time: 1700000000000,
+        volume_24h: '5000000.0',
+        yesterday_price: '95.0',
         timestamp: 1699999000000,
       });
       expect(ticker.symbol).toBe('SOL/USDC:USDC');
@@ -507,24 +473,25 @@ describe('PacificaNormalizer edge cases', () => {
   });
 
   describe('normalizeTrade without explicit symbol', () => {
-    test('uses exchange symbol when no unified symbol provided', () => {
+    test('uses empty string when no unified symbol provided', () => {
       const trade = normalizer.normalizeTrade({
-        id: 'trade-xyz',
-        symbol: 'ETH-PERP',
+        event_type: 'fulfill_taker',
         price: '3000.0',
-        size: '0.5',
-        side: 'sell',
-        timestamp: 1699999000000,
+        amount: '0.5',
+        side: 'open_short',
+        cause: 'normal',
+        created_at: 1699999000000,
       });
-      expect(trade.symbol).toBe('ETH/USDC:USDC');
+      expect(trade.symbol).toBe('');
       expect(trade.cost).toBe(1500);
+      expect(trade.side).toBe('sell');
     });
   });
 
   describe('normalizePosition without explicit symbol', () => {
     test('uses exchange symbol when no unified symbol provided', () => {
       const position = normalizer.normalizePosition({
-        symbol: 'SOL-PERP',
+        symbol: 'SOL',
         side: 'short',
         size: '100',
         entry_price: '100.0',

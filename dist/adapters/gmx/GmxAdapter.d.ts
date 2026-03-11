@@ -93,7 +93,7 @@ export declare class GmxAdapter extends BaseAdapter implements IExchangeAdapter 
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
     _fetchTicker(symbol: string): Promise<Ticker>;
     _fetchOrderBook(_symbol: string, _params?: OrderBookParams): Promise<OrderBook>;
-    _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]>;
+    _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
     _fetchFundingRate(symbol: string): Promise<FundingRate>;
     fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
     fetchOHLCV(symbol: string, timeframe?: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]>;
@@ -101,7 +101,7 @@ export declare class GmxAdapter extends BaseAdapter implements IExchangeAdapter 
     fetchBalance(): Promise<Balance[]>;
     fetchOpenOrders(symbol?: string): Promise<Order[]>;
     fetchOrderHistory(symbol?: string, since?: number, limit?: number): Promise<Order[]>;
-    fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
+    fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]>;
     createOrder(request: OrderRequest): Promise<Order>;
     cancelOrder(orderId: string, symbol?: string): Promise<Order>;
     cancelAllOrders(symbol?: string): Promise<Order[]>;
