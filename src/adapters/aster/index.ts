@@ -5,6 +5,7 @@
 export { AsterAdapter } from './AsterAdapter.js';
 export { AsterAuth, type AsterAuthConfig } from './AsterAuth.js';
 export { AsterNormalizer } from './AsterNormalizer.js';
+export { AsterWebSocket, type AsterWebSocketDeps } from './AsterWebSocket.js';
 export type { AsterConfig } from './types.js';
 export type {
   AsterExchangeInfo,

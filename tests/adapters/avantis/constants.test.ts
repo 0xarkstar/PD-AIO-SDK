@@ -82,17 +82,26 @@ describe('Avantis Constants', () => {
       expect(AVANTIS_CONTRACTS_MAINNET).toHaveProperty('trading');
       expect(AVANTIS_CONTRACTS_MAINNET).toHaveProperty('storage');
       expect(AVANTIS_CONTRACTS_MAINNET).toHaveProperty('pairInfo');
+      expect(AVANTIS_CONTRACTS_MAINNET).toHaveProperty('pairStorage');
       expect(AVANTIS_CONTRACTS_MAINNET).toHaveProperty('pythOracle');
-      expect(AVANTIS_CONTRACTS_MAINNET).toHaveProperty('callbacks');
+      expect(AVANTIS_CONTRACTS_MAINNET).toHaveProperty('multicall');
+      expect(AVANTIS_CONTRACTS_MAINNET).toHaveProperty('referral');
       expect(AVANTIS_CONTRACTS_MAINNET).toHaveProperty('usdc');
+    });
+
+    test('mainnet contracts should have real addresses (not placeholders)', () => {
+      expect(AVANTIS_CONTRACTS_MAINNET.trading).toMatch(/^0x[a-fA-F0-9]{40}$/);
+      expect(AVANTIS_CONTRACTS_MAINNET.trading).not.toMatch(/^0x0{39}[0-9]$/);
     });
 
     test('testnet contracts should have all required fields', () => {
       expect(AVANTIS_CONTRACTS_TESTNET).toHaveProperty('trading');
       expect(AVANTIS_CONTRACTS_TESTNET).toHaveProperty('storage');
       expect(AVANTIS_CONTRACTS_TESTNET).toHaveProperty('pairInfo');
+      expect(AVANTIS_CONTRACTS_TESTNET).toHaveProperty('pairStorage');
       expect(AVANTIS_CONTRACTS_TESTNET).toHaveProperty('pythOracle');
-      expect(AVANTIS_CONTRACTS_TESTNET).toHaveProperty('callbacks');
+      expect(AVANTIS_CONTRACTS_TESTNET).toHaveProperty('multicall');
+      expect(AVANTIS_CONTRACTS_TESTNET).toHaveProperty('referral');
       expect(AVANTIS_CONTRACTS_TESTNET).toHaveProperty('usdc');
     });
 

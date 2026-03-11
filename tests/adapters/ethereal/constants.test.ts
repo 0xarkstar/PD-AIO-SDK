@@ -78,9 +78,9 @@ describe('Ethereal Constants', () => {
   describe('constant values', () => {
     test('API URLs have mainnet and testnet', () => {
       expect(ETHEREAL_API_URLS.mainnet.rest).toContain('https://');
-      expect(ETHEREAL_API_URLS.testnet.rest).toContain('testnet');
+      expect(ETHEREAL_API_URLS.testnet.rest).toContain('etherealtest');
       expect(ETHEREAL_API_URLS.mainnet.websocket).toContain('wss://');
-      expect(ETHEREAL_API_URLS.testnet.websocket).toContain('testnet');
+      expect(ETHEREAL_API_URLS.testnet.websocket).toContain('etherealtest');
     });
 
     test('rate limits are defined', () => {

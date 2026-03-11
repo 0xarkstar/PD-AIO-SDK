@@ -34,6 +34,7 @@ import {
 } from './constants.js';
 import { AsterAuth } from './AsterAuth.js';
 import { AsterNormalizer } from './AsterNormalizer.js';
+import { AsterWebSocket } from './AsterWebSocket.js';
 import { toAsterSymbol, buildOrderParams, toUnifiedSymbol } from './utils.js';
 import { mapAsterError } from './error-codes.js';
 import type {
@@ -72,9 +73,9 @@ export class AsterAdapter extends BaseAdapter implements IExchangeAdapter {
     fetchOpenOrders: false,
     editOrder: false,
     setMarginMode: false,
-    watchOrderBook: false,
-    watchTrades: false,
-    watchTicker: false,
+    watchOrderBook: true,
+    watchTrades: true,
+    watchTicker: true,
     watchOrders: false,
     watchPositions: false,
     watchBalance: false,
@@ -82,9 +83,11 @@ export class AsterAdapter extends BaseAdapter implements IExchangeAdapter {
 
   private readonly auth?: AsterAuth;
   private readonly baseUrl: string;
+  private readonly wsUrl: string;
   protected readonly httpClient: HTTPClient;
   protected rateLimiter: RateLimiter;
   private normalizer: AsterNormalizer;
+  private wsHandler?: AsterWebSocket;
   private readonly referralCode?: string;
   private readonly builderCodeEnabled: boolean;
 
@@ -93,6 +96,7 @@ export class AsterAdapter extends BaseAdapter implements IExchangeAdapter {
 
     const urls = config.testnet ? ASTER_API_URLS.testnet : ASTER_API_URLS.mainnet;
     this.baseUrl = config.apiUrl ?? urls.rest;
+    this.wsUrl = urls.websocket;
     this.referralCode = config.referralCode ?? config.builderCode;
     this.builderCodeEnabled = config.builderCodeEnabled ?? true;
 
@@ -131,7 +135,23 @@ export class AsterAdapter extends BaseAdapter implements IExchangeAdapter {
   }
 
   async initialize(): Promise<void> {
+    // Initialize WebSocket handler
+    this.wsHandler = new AsterWebSocket({
+      wsUrl: this.wsUrl,
+      normalizer: this.normalizer,
+      auth: this.auth,
+      symbolToExchange: this.symbolToExchange.bind(this),
+    });
+
+    await this.wsHandler.connect();
     this._isReady = true;
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.wsHandler) {
+      await this.wsHandler.disconnect();
+    }
+    this._isReady = false;
   }
 
   // === Symbol conversion (required by BaseAdapter) ===
@@ -413,6 +433,28 @@ export class AsterAdapter extends BaseAdapter implements IExchangeAdapter {
       maxNotionalValue: string;
       symbol: string;
     }>('POST', '/fapi/v1/leverage', 'setLeverage', { symbol: asterSymbol, leverage });
+  }
+
+  // === WebSocket Streams (delegated to AsterWebSocket) ===
+
+  private ensureWsHandler(): AsterWebSocket {
+    this.ensureInitialized();
+    if (!this.wsHandler) {
+      throw new PerpDEXError('WebSocket handler not initialized', 'NO_WEBSOCKET', 'aster');
+    }
+    return this.wsHandler;
+  }
+
+  async *watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook> {
+    yield* this.ensureWsHandler().watchOrderBook(symbol, limit);
+  }
+
+  async *watchTrades(symbol: string): AsyncGenerator<Trade> {
+    yield* this.ensureWsHandler().watchTrades(symbol);
+  }
+
+  async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
+    yield* this.ensureWsHandler().watchTicker(symbol);
   }
 
   // === Account History (required abstract methods) ===

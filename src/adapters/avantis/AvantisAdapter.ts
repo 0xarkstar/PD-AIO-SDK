@@ -63,8 +63,10 @@ interface AvantisContracts {
   trading: string;
   storage: string;
   pairInfo: string;
+  pairStorage: string;
   pythOracle: string;
-  callbacks: string;
+  multicall: string;
+  referral: string;
   usdc: string;
 }
 

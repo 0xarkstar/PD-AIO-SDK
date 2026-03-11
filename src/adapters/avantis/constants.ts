@@ -19,25 +19,40 @@ export const AVANTIS_RPC_MAINNET = 'https://mainnet.base.org';
 export const AVANTIS_RPC_TESTNET = 'https://sepolia.base.org';
 
 // =============================================================================
-// Contract Addresses (placeholders - replace with actual deployed addresses)
+// API Endpoints (REST + Socket)
+// =============================================================================
+
+export const AVANTIS_API_URLS = {
+  socketApi: 'https://socket-api-pub.avantisfi.com/socket-api/v1/data',
+  coreApi: 'https://core.avantisfi.com',
+  feedV3: 'https://feed-v3.avantisfi.com',
+  pythLazer: 'https://pyth-lazer-proxy-3.dourolabs.app/v1/stream',
+} as const;
+
+// =============================================================================
+// Contract Addresses (Base Mainnet — from Avantis Trader SDK config.py)
 // =============================================================================
 
 export const AVANTIS_CONTRACTS_MAINNET = {
-  trading: '0x0000000000000000000000000000000000000001',
-  storage: '0x0000000000000000000000000000000000000002',
-  pairInfo: '0x0000000000000000000000000000000000000003',
-  pythOracle: '0x0000000000000000000000000000000000000004',
-  callbacks: '0x0000000000000000000000000000000000000005',
-  usdc: '0x0000000000000000000000000000000000000006',
+  trading: '0x44914408af82bC9983bbb330e3578E1105e11d4e',
+  storage: '0x8a311D7048c35985aa31C131B9A13e03a5f7422d',
+  pairInfo: '0x81F22d0Cc22977c91bEfE648C9fddf1f2bd977e5',
+  pairStorage: '0x5db3772136e5557EFE028Db05EE95C84D76faEC4',
+  pythOracle: '0x64e2625621970F8cfA17B294670d61CB883dA511',
+  multicall: '0xA7cFc43872F4D7B0E6141ee8c36f1F7FEe5d099e',
+  referral: '0x1A110bBA13A1f16cCa4b79758BD39290f29De82D',
+  usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
 } as const;
 
 export const AVANTIS_CONTRACTS_TESTNET = {
   trading: '0x0000000000000000000000000000000000000011',
   storage: '0x0000000000000000000000000000000000000012',
   pairInfo: '0x0000000000000000000000000000000000000013',
-  pythOracle: '0x0000000000000000000000000000000000000014',
-  callbacks: '0x0000000000000000000000000000000000000015',
-  usdc: '0x0000000000000000000000000000000000000016',
+  pairStorage: '0x0000000000000000000000000000000000000014',
+  pythOracle: '0x0000000000000000000000000000000000000015',
+  multicall: '0x0000000000000000000000000000000000000016',
+  referral: '0x0000000000000000000000000000000000000017',
+  usdc: '0x0000000000000000000000000000000000000018',
 } as const;
 
 // =============================================================================
