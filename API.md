@@ -26,6 +26,9 @@ Complete API documentation for PD AIO SDK.
    - [Aster](#aster-adapter)
    - [Pacifica](#pacifica-adapter)
    - [Ostium](#ostium-adapter)
+   - [Reya](#reya-adapter)
+   - [Ethereal](#ethereal-adapter)
+   - [Avantis](#avantis-adapter)
 3. [Normalizers](#normalizers)
 4. [Types](#types)
    - [Market Data Types](#market-data-types)
@@ -1022,6 +1025,129 @@ const order = await exchange.createOrder({
 
 ---
 
+### Reya Adapter
+
+Oracle/pool-based perpetual DEX on Reya Network (Arbitrum L3).
+
+```typescript
+import { ReyaAdapter } from 'pd-aio-sdk/reya';
+// or
+const exchange = await createExchange('reya', config);
+```
+
+**Configuration:**
+```typescript
+interface ReyaConfig {
+  privateKey?: string;     // EVM private key for EIP-712 signing
+  testnet?: boolean;
+}
+```
+
+**Authentication:** EVM private key with EIP-712 ConditionalOrder signing
+
+**Supported Methods:**
+| Method | Supported | Notes |
+|--------|-----------|-------|
+| fetchMarkets | ✅ | 69 perp markets |
+| fetchTicker | ✅ | Oracle-based pricing |
+| fetchOrderBook | ❌ | Oracle/pool-based — no orderbook |
+| fetchTrades | ✅ | Recent trades |
+| fetchOHLCV | ❌ | Not supported |
+| fetchFundingRate | ✅ | Continuous funding (1hr) |
+| createOrder | ✅ | EIP-712 ConditionalOrder signing |
+| cancelOrder | ✅ | |
+| fetchPositions | ✅ | |
+| fetchBalance | ✅ | |
+
+**Notes:**
+- Reya is an oracle/pool-based DEX — no traditional orderbook exists
+- Uses EIP-712 signing for authenticated operations
+- Chain: Reya Network (Arbitrum L3)
+
+---
+
+### Ethereal Adapter
+
+USDe-collateralized perpetual DEX with EIP-712 authentication.
+
+```typescript
+import { EtherealAdapter } from 'pd-aio-sdk/ethereal';
+// or
+const exchange = await createExchange('ethereal', config);
+```
+
+**Configuration:**
+```typescript
+interface EtherealConfig {
+  privateKey?: string;     // EVM private key for EIP-712 signing
+  testnet?: boolean;
+}
+```
+
+**Authentication:** EVM private key with EIP-712 signing
+
+**Supported Methods:**
+| Method | Supported | Notes |
+|--------|-----------|-------|
+| fetchMarkets | ✅ | 15 perp markets |
+| fetchTicker | ✅ | |
+| fetchOrderBook | ✅ | |
+| fetchTrades | ✅ | |
+| fetchOHLCV | ❌ | Not supported |
+| fetchFundingRate | ✅ | |
+| createOrder | ✅ | EIP-712 signing |
+| cancelOrder | ✅ | |
+| fetchPositions | ✅ | |
+| fetchBalance | ✅ | |
+
+**Notes:**
+- Uses USDe as collateral
+- UUID-based product IDs, onchainId for signing
+- EIP-712 authentication
+
+---
+
+### Avantis Adapter
+
+On-chain perpetual DEX on Base with Pyth oracle pricing.
+
+```typescript
+import { AvantisAdapter } from 'pd-aio-sdk/avantis';
+// or
+const exchange = await createExchange('avantis', config);
+```
+
+**Configuration:**
+```typescript
+interface AvantisConfig {
+  privateKey?: string;     // EVM private key for wallet signing
+}
+```
+
+**Authentication:** EVM private key for on-chain transaction signing (Base)
+
+**Supported Methods:**
+| Method | Supported | Notes |
+|--------|-----------|-------|
+| fetchMarkets | ✅ | On-chain markets |
+| fetchTicker | ✅ | Pyth oracle pricing |
+| fetchOrderBook | ❌ | Oracle-based — no orderbook |
+| fetchTrades | ❌ | On-chain only |
+| fetchOHLCV | ❌ | Not supported |
+| fetchFundingRate | ❌ | Not supported |
+| createOrder | ✅ | On-chain via ethers.Contract |
+| cancelOrder | ✅ | On-chain |
+| fetchPositions | ✅ | |
+| fetchBalance | ✅ | |
+
+**Notes:**
+- On-chain execution on Base chain via ethers.Contract
+- Pyth oracle for price feeds
+- Currently uses placeholder contract addresses — needs real Base mainnet addresses
+- No orderbook, no public trades, no OHLCV (oracle-based)
+
+---
+
 ## Normalizers
 
 All adapters use dedicated Normalizer classes for data transformation (Pattern A architecture).
@@ -1084,6 +1210,9 @@ const market = normalizer.normalizeMarket(rawMarketData);
 - `AsterNormalizer`
 - `PacificaNormalizer`
 - `OstiumNormalizer`
+- `ReyaNormalizer`
+- `EtherealNormalizer`
+- `AvantisNormalizer`
 
 ---
 
@@ -1431,7 +1560,7 @@ type OrderType = 'market' | 'limit';
 type OrderSide = 'buy' | 'sell';
 type OrderStatus = 'open' | 'closed' | 'canceled' | 'rejected' | 'expired';
 type TimeInForce = 'GTC' | 'IOC' | 'FOK' | 'PO';
-type ExchangeId = 'hyperliquid' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'lighter' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx' | 'aster' | 'pacifica' | 'ostium';
+type ExchangeId = 'hyperliquid' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'lighter' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx' | 'aster' | 'pacifica' | 'ostium' | 'reya' | 'ethereal' | 'avantis';
 ```
 
 ---

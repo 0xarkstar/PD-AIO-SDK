@@ -11,7 +11,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.3.0] - 2026-03-01 (Cycle 25: Comprehensive Quality Audit)
+## [0.3.1] - 2026-03-11 (Live API Smoke Test + Bug Fixes)
+
+### Fixed
+- **Reya**: Marked `fetchOrderBook: false` — no orderbook REST endpoint exists (oracle/pool-based DEX)
+- **Pacifica**: Rewrote orderbook parsing — API returns `{s, l: [[{p,a,n}]], t}` not `{bids, asks}`
+- **Pacifica**: Updated Zod schemas and normalizer for new orderbook format
+- **Drift**: Fixed `parseFloat(string|number)` TypeScript errors — wrap with `String()`
+- **Smoke test**: Added Reya to NO_ORDERBOOK set (gmx, ostium, avantis, jupiter, reya)
+
+### Improved
+- Live API smoke test: **18/19 exchanges working** (only Avantis needs real contract addresses)
+- All 6,908 tests passing, 0 failures
+- Documentation updated to reflect 19 exchanges with live-verified data
+
+---
+
+## [0.3.0] - 2026-03-09 (Cycle 27: 3 New Adapters + Zod Hardening)
+
+### Added
+- **Reya** adapter — Reya Network (Arbitrum L3) perpetual DEX, EIP-712 auth, HTTPClient pattern, 121 tests
+- **Ethereal** adapter — EIP-712 auth, USDe collateral, UUID product IDs, ~180 tests
+- **Avantis** adapter — Base chain, on-chain execution via ethers.Contract, Pyth oracle, ~190 tests
+- SDK now supports **19 exchanges** total
+- Factory updated: 19 exchanges registered, package.json exports updated
+
+### Fixed
+- **Nado**: 10 Zod schemas hardened with `.passthrough()` + nested object fixes
+- **Drift**: 2 nested bid/ask Zod object schemas fixed with `.passthrough()`
+- All Zod schemas audited for missing `.passthrough()` across all adapters
+
+---
+
+## [0.3.0-rc1] - 2026-03-01 (Cycle 25: Comprehensive Quality Audit)
 
 ### ⚠️ BREAKING CHANGES
 - **`PerpDEXError.originalError` is now private** — Use `getOriginalErrorSafe()` instead
@@ -50,46 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tests: 6143 → 6241 passed (+98), 0 failures (was 4)
 - Variational: URLs verified, testnet corrected
 - Backpack/dYdX/Extended: guaranteed non-empty base/quote
-
----
-
-## [Unreleased] - Cycle 15
-
-### Fixed (Cycle 15)
-
-#### OHLCV Adapter Fixes
-- **dYdX**: Fixed 404 on fetchOHLCV — candles endpoint requires plural `perpetualMarkets` (not `perpetualMarket`)
-- **GMX**: Fixed "Unknown exchange error" — API returns `{period, candles: [[ts,o,h,l,c]]}` wrapper; adapter now unwraps `response.candles` and normalizer handles tuple format
-- **GRVT**: Fixed 400 on fetchOHLCV — replaced SDK `getCandlestick()` with direct POST to `/full/v1/kline` using `CandlestickInterval` enum strings (`CI_1_H`), `type: 'TRADE'`, and nanosecond timestamps
-
-#### Live API Validation
-- `NotSupportedError` now reported as SKIP instead of ERROR for accurate pass/fail counts
-- **Pacifica**: Marked as Closed Beta — public API unavailable, `fetchOHLCV` set to `false` in feature map
-
-### Security (Cycle 15)
-- `PerpDEXError.toJSON()` sanitizes originalError (no stack/internal data leakage)
-- Symbol regex whitelist + order parameter `MAX_SAFE_INTEGER` validation
-- Logger hex key redaction in Jupiter/Drift/Paradex auth modules
-
-### Improved (Cycle 15)
-
-#### Type Safety
-- `as any` count: 23 → 9 (14 removed)
-- ExtendedNormalizer: union type `ExtendedMarketRaw` + type guard replaces unsafe casts
-- DriftAdapter: 5 enum mapping functions replace unsafe casts
-- OstiumNormalizer: typed optional fields replace cast
-
-#### Test Quality
-- NEW `base-adapter-core.test.ts` (52 tests for BaseAdapterCore)
-- Drift adapter tests expanded: 89 → 184 tests (order lifecycle, error paths)
-- GMX test assertions: 104 weak `toBeDefined()`/`toBeTruthy()` → 0 (concrete value checks)
-- Error sanitization tests (4 new), input validation tests (7 new)
-
-#### Architecture
-- BaseAdapter split: 1394 lines → BaseAdapterCore (646) + BaseAdapter (768)
-  - Core: constructor, properties, logger, cache, metrics, HTTP, health check
-  - BaseAdapter: extends Core, adds API surface (market data, trading, WebSocket, aliases)
-  - Zero breaking changes — all 16 adapters unchanged
 
 ---
 

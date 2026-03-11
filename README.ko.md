@@ -4,10 +4,10 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-6092%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
-[![Coverage](https://img.shields.io/badge/coverage-82%25-green)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Tests](https://img.shields.io/badge/tests-6908%20passed-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
+[![Coverage](https://img.shields.io/badge/coverage-85%25-green)](https://github.com/0xarkstar/PD-AIO-SDK)
 [![ESLint](https://img.shields.io/badge/ESLint-0%20errors-brightgreen)](https://github.com/0xarkstar/PD-AIO-SDK)
-[![npm version](https://img.shields.io/badge/npm-v0.2.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
+[![npm version](https://img.shields.io/badge/npm-v0.3.0-blue)](https://www.npmjs.com/package/pd-aio-sdk)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
 한국어 | **[English](./README.md)**
@@ -46,17 +46,17 @@ const order = await exchange.createOrder({
 });
 ```
 
-> **16개 거래소, 하나의 인터페이스.** `'hyperliquid'`를 지원되는 다른 거래소로 바꾸기만 하면 — API는 동일합니다.
+> **19개 거래소, 하나의 인터페이스.** `'hyperliquid'`를 지원되는 다른 거래소로 바꾸기만 하면 — API는 동일합니다.
 
 ---
 
 ## 🎯 PD AIO SDK란?
 
-**PD AIO SDK** (Perp DEX All-In-One SDK)는 **16개의 탈중앙화 영구선물 거래소**를 단일 인터페이스로 거래할 수 있게 해주는 프로덕션 레벨의 통합 TypeScript SDK입니다. 더 이상 각 거래소마다 다른 API를 배울 필요 없이, 한 번 작성하면 어디서든 거래할 수 있습니다.
+**PD AIO SDK** (Perp DEX All-In-One SDK)는 **19개의 탈중앙화 영구선물 거래소**를 단일 인터페이스로 거래할 수 있게 해주는 프로덕션 레벨의 통합 TypeScript SDK입니다. 더 이상 각 거래소마다 다른 API를 배울 필요 없이, 한 번 작성하면 어디서든 거래할 수 있습니다.
 
 ### 왜 "All-In-One"인가?
 
-- **하나의 인터페이스** → 16개 거래소 (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX, Aster, Pacifica, Ostium)
+- **하나의 인터페이스** → 19개 거래소 (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX, Aster, Pacifica, Ostium, Reya, Ethereal, Avantis)
 - **하나의 코드베이스** → 모든 거래 작업 (시장 데이터, 주문, 포지션, WebSocket)
 - **하나의 설치** → 완전한 솔루션 (인증, 속도 제한, 에러 처리)
 
@@ -72,26 +72,33 @@ const order = await exchange.createOrder({
 
 ### 🌐 다중 거래소 지원
 
-| 거래소 | 상태 | Perp | Spot | Public API | Private API |
-|--------|------|------|------|------------|-------------|
-| **EdgeX** | ✅ 프로덕션 준비 | 292 | - | ✅ 전체 | ✅ 전체 |
-| **Hyperliquid** | ✅ 프로덕션 준비 | 228 | - | ✅ 전체 | ✅ 전체 |
-| **dYdX v4** | ✅ 프로덕션 준비 | 293 | - | ✅ 전체 | ✅ 전체 |
-| **Lighter** | ✅ 프로덕션 준비 | 145 | - | ✅ 전체 | ✅ 전체 (WASM) |
-| **Paradex** | 🟡 제한적 | 96 | - | ⚠️ 일부 제한 | ⚠️ JWT 필요 |
-| **GRVT** | ✅ 프로덕션 준비 | 80 | - | ✅ 전체 | ✅ 전체 |
-| **Backpack** | ✅ 프로덕션 준비 | 75 | 79 | ✅ 전체 | ✅ 전체 |
-| **Drift** | ✅ 프로덕션 준비 | 11 | - | ✅ 전체 | ✅ 전체 |
-| **Nado** | ✅ 프로덕션 준비 | 23 | 3 | ✅ 전체 | ✅ 전체 |
-| **GMX v2** | 🟡 읽기 전용 | 129 | - | ✅ 전체 | ❌ 온체인¹ |
-| **Jupiter** | 🔴 서비스 불안정 | 3 | - | ❌ API 변경 | ✅ 전체 |
-| **Extended** | 🔴 서비스 불안정 | 0 | - | ❌ 비정상 | ✅ 전체 |
-| **Variational** | 🔴 Alpha (RFQ) | - | - | ❌ | ❌ |
-| **Aster** | ✅ 프로덕션 준비 | 275 | - | ✅ 전체 | ✅ 전체 |
-| **Pacifica** | 🔴 오프라인 | 50+ | - | ❌ 오프라인 | ✅ 전체 |
-| **Ostium** | 🟡 제한적 | 11 RWA | - | ✅ 전체 | ✅ 전체 |
+| 거래소 | 상태 | 마켓 | 인증 | 비고 |
+|--------|------|------|------|------|
+| **Hyperliquid** | ✅ 검증 완료 | 229 perp | EIP-712 | 전체 API + WebSocket |
+| **EdgeX** | ✅ 검증 완료 | 292 perp | StarkNet ECDSA | REST 거래 없음¹ |
+| **Paradex** | ✅ 검증 완료 | 95 perp | StarkNet + JWT | OB 인증 필요 |
+| **GRVT** | ✅ 검증 완료 | 95 perp | API Key + EIP-712 | 서브밀리초 지연시간 |
+| **Backpack** | ✅ 검증 완료 | 159 perp+spot | ED25519 | 솔라나 기반 |
+| **Lighter** | ✅ 검증 완료 | 156 perp | WASM 서명 | 크로스 플랫폼 |
+| **Nado** | ✅ 검증 완료 | 44 perp+spot | EIP-712 (Ink L2) | REST 거래 없음¹ |
+| **Extended** | ✅ 검증 완료 | 114 perp | API Key | StarkNet DEX |
+| **Variational** | ✅ 검증 완료 | 470 RFQ | API Key | WebSocket 없음 |
+| **dYdX v4** | ✅ 검증 완료 | 293 perp | Cosmos SDK | 전체 거래 + WebSocket |
+| **Jupiter Perps** | ✅ 검증 완료 | 3 perp | Solana 지갑 | 오라클 기반, OB 없음⁴ |
+| **Drift Protocol** | ✅ 검증 완료 | 41 perp | Solana 지갑 | DLOB + WebSocket |
+| **GMX v2** | ✅ 검증 완료 | 129 markets | 온체인 | 오라클 기반, OB 없음⁴ |
+| **Aster** | ✅ 검증 완료 | 304 perp | HMAC-SHA256 | 전체 API + OHLCV |
+| **Pacifica** | ✅ 검증 완료 | 59 perp | ED25519 | 솔라나 기반 |
+| **Ostium** | ✅ 검증 완료 | 11 RWA perp | ethers.js | 오라클 기반, OB 없음⁴ |
+| **Reya** | ✅ 검증 완료 | 69 perp | EIP-712 | 오라클/풀 기반, OB 없음⁴ |
+| **Ethereal** | ✅ 검증 완료 | 15 perp | EIP-712 | USDe 담보 |
+| **Avantis** | 🟡 부분 지원 | 온체인 | 지갑 서명 | 컨트랙트 주소 필요⁵ |
 
-> ¹ GMX 거래는 ExchangeRouter 컨트랙트를 통한 온체인 트랜잭션 필요
+> ¹ 실시간 거래 데이터는 `watchTrades()` 사용
+> ² GMX 거래는 ExchangeRouter 컨트랙트를 통한 온체인 트랜잭션 필요
+> ³ Ostium은 RWA (실세계 자산) 영구선물 전문: 주식, 외환, 원자재, 지수
+> ⁴ 오라클/AMM 기반 DEX — 전통적인 오더북 없음
+> ⁵ Avantis는 Base 메인넷 실제 컨트랙트 주소 필요 (온체인 프로토콜)
 
 ### 📊 API 완성도 매트릭스
 
@@ -101,49 +108,49 @@ const order = await exchange.createOrder({
 - ❌ 미구현
 
 #### Public API 메서드
-| 메서드 | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX | Aster | Pacifica | Ostium |
-|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|:-----:|:--------:|:------:|
-| fetchMarkets | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| fetchTicker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| fetchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌⁴ | ✅ | ✅ | ❌ |
-| fetchTrades | ✅ | ❌¹ | ✅ | ✅ | ⚠️² | ✅ | ⚠️³ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ |
-| fetchOHLCV | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| fetchFundingRate | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| fetchFundingRateHistory | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| 메서드 | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX | Aster | Pacifica | Ostium | Reya | Ethereal | Avantis |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|:-----:|:--------:|:------:|:----:|:--------:|:-------:|
+| fetchMarkets | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchTicker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁵ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| fetchTrades | ✅ | ❌¹ | ❌ | ✅ | ⚠️² | ✅ | ⚠️³ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| fetchOHLCV | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| fetchFundingRate | ⚠️ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
+| fetchFundingRateHistory | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 #### 거래 메서드
-| 메서드 | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX | Aster | Pacifica | Ostium |
-|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|:-----:|:--------:|:------:|
-| createOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌⁵ | ✅ | ✅ | ✅ |
-| cancelOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌⁵ | ✅ | ✅ | ✅ |
-| cancelAllOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌⁵ | ✅ | ❌ | ❌ |
-| createBatchOrders | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| cancelBatchOrders | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| editOrder | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 메서드 | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX | Aster | Pacifica | Ostium | Reya | Ethereal | Avantis |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|:-----:|:--------:|:------:|:----:|:--------:|:-------:|
+| createOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁶ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| cancelOrder | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁶ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| cancelAllOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁶ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| createBatchOrders | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ⚠️⁴ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| cancelBatchOrders | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ⚠️⁴ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| editOrder | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 #### 계정 메서드
-| 메서드 | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX | Aster | Pacifica | Ostium |
-|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|:-----:|:--------:|:------:|
-| fetchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌⁶ | ✅ | ✅ | ✅ |
-| fetchBalance | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌⁶ | ✅ | ✅ | ✅ |
-| fetchOrderHistory | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| fetchMyTrades | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| fetchUserFees | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| fetchPortfolio | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| setLeverage | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌⁷ | ✅ | ✅ | ❌ |
-| setMarginMode | ❌ | ❌ | ✅ | ❌ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 메서드 | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX | Aster | Pacifica | Ostium | Reya | Ethereal | Avantis |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|:-----:|:--------:|:------:|:----:|:--------:|:-------:|
+| fetchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁷ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchBalance | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌⁷ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| fetchOrderHistory | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| fetchMyTrades | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| fetchUserFees | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| fetchPortfolio | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| setLeverage | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌⁸ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| setMarginMode | ❌ | ❌ | ✅ | ❌ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 #### WebSocket 메서드
-| 메서드 | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX | Aster | Pacifica | Ostium |
-|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|:-----:|:--------:|:------:|
-| watchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| watchTrades | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| watchTicker | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| watchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| watchOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| watchBalance | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| watchMyTrades | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| watchFundingRate | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 메서드 | Backpack | EdgeX | Extended | GRVT | Hyperliquid | Lighter | Nado | Paradex | Variational | dYdX | Jupiter | Drift | GMX | Aster | Pacifica | Ostium | Reya | Ethereal | Avantis |
+|--------|:--------:|:-----:|:--------:|:----:|:-----------:|:-------:|:----:|:-------:|:-----------:|:----:|:-------:|:-----:|:---:|:-----:|:--------:|:------:|:----:|:--------:|:-------:|
+| watchOrderBook | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| watchTrades | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| watchTicker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| watchPositions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| watchOrders | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| watchBalance | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| watchMyTrades | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| watchFundingRate | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 #### 어댑터별 완성도 요약
 
@@ -167,16 +174,17 @@ const order = await exchange.createOrder({
 | **Ostium** | 3/7 (43%) | 3/6 (50%) | 3/8 (38%) | 0/8 (0%) | **31%** |
 
 #### 참고사항
-- ¹ EdgeX: WebSocket (`watchTrades`) 사용 - REST 엔드포인트 없음
-- ² Hyperliquid: REST API에서 빈 배열 반환, 실시간 거래는 WebSocket 사용
-- ³ Nado: 실시간 거래는 WebSocket 필요
-- ⁴ GMX: AMM 기반, 전통적인 오더북 없음
-- ⁵ GMX: 거래는 ExchangeRouter를 통한 온체인 트랜잭션 필요
-- ⁶ GMX: 서브그래프 또는 RPC 통합 필요
-- ⁷ dYdX/Jupiter/Drift/GMX: 레버리지는 주문 시 포지션별로 설정
+- ¹ EdgeX: REST 엔드포인트 없음
+- ² Hyperliquid: REST에서 빈 배열 반환, WebSocket 사용
+- ³ Nado: REST 가능하나 제한적, WebSocket 권장
+- ⁴ Variational: 배치 작업은 에뮬레이션 (순차 처리)
+- ⁵ GMX: AMM 기반, 전통적인 오더북 없음
+- ⁶ GMX: 거래는 ExchangeRouter를 통한 온체인 트랜잭션 필요
+- ⁷ GMX: 서브그래프 또는 RPC 통합 필요
+- ⁸ dYdX/Jupiter/Drift/GMX: 레버리지는 주문 시 포지션별로 설정
 
 ### 🔐 프로덕션급 보안
-- **EIP-712 서명** (Hyperliquid, GRVT, Nado)
+- **EIP-712 서명** (Hyperliquid, GRVT, Nado, Reya, Ethereal)
 - **StarkNet ECDSA + SHA3** (EdgeX)
 - **StarkNet 서명** (Paradex)
 - **ED25519** (Backpack)
@@ -186,6 +194,7 @@ const order = await exchange.createOrder({
 - **Solana 지갑 서명** (Jupiter, Drift)
 - **HMAC-SHA256** (Aster)
 - **ethers.js 컨트랙트 서명** (Ostium)
+- **지갑 서명** (Avantis)
 - **보안 자격증명 관리** 및 검증 기능
 
 ### ⚡ 엔터프라이즈 기능
@@ -197,8 +206,8 @@ const order = await exchange.createOrder({
 - **타입 안전성** - 런타임 검증(Zod) + TypeScript strict mode
 
 ### 📊 개발자 경험
-- **Pattern A 아키텍처** - 16개 어댑터 모두 표준화된 구조 따름
-- **6092개 테스트** - 100% 통과율, 82% 커버리지 적용
+- **Pattern A 아키텍처** - 19개 어댑터 모두 표준화된 구조 따름
+- **6908개 테스트** - 100% 통과율, 85% 커버리지 적용
 - **구조화된 로깅** - 민감 데이터 마스킹을 포함한 JSON 로그
 - **헬스 체크** - 내장 시스템 모니터링
 - **포괄적인 문서** - 영어 + 한국어 문서 제공
@@ -283,7 +292,7 @@ const exchange = await createExchange('hyperliquid', {
   testnet: true
 });
 ```
-- **마켓**: 228 perp
+- **마켓**: 229 perp
 - **인증**: EIP-712 서명
 - **특징**: 초당 20만 주문, HIP-3 생태계, 완전한 WebSocket 지원
 
@@ -304,7 +313,7 @@ const exchange = await createExchange('nado', {
   testnet: true
 });
 ```
-- **마켓**: 23 perp + 3 spot
+- **마켓**: 44 perp+spot
 - **인증**: Ink L2 (Kraken)에서 EIP-712 서명
 
 #### GRVT
@@ -314,7 +323,7 @@ const exchange = await createExchange('grvt', {
   testnet: false
 });
 ```
-- **마켓**: 80 perp
+- **마켓**: 95 perp
 - **인증**: API Key + EIP-712 서명
 - **특징**: 서브밀리초 지연시간, CEX/DEX 하이브리드 아키텍처
 - **레버리지**: 최대 100x
@@ -328,7 +337,7 @@ const exchange = await createExchange('backpack', {
   testnet: false
 });
 ```
-- **마켓**: 75 perp + 79 spot
+- **마켓**: 159 perp+spot
 - **인증**: ED25519 서명
 - **특징**: 솔라나 기반, 완전한 REST API + WebSocket
 - **레버리지**: 선물 최대 20x
@@ -340,7 +349,7 @@ const exchange = await createExchange('lighter', {
   testnet: true
 });
 ```
-- **마켓**: 132 perp
+- **마켓**: 156 perp
 - **인증**: WASM 기반 서명 (크로스 플랫폼)
 - **특징**: 완전한 거래 지원, WebSocket 스트리밍
 - **설정**: 추가 설정 불필요 - WASM 모듈 자동 포함
@@ -352,7 +361,7 @@ const exchange = await createExchange('dydx', {
   testnet: true
 });
 ```
-- **마켓**: 220+ perp
+- **마켓**: 293 perp
 - **인증**: Cosmos SDK 서명
 - **특징**: L1 블록체인, 완전한 거래 + WebSocket 지원
 
@@ -374,7 +383,7 @@ const exchange = await createExchange('drift', {
   privateKey: process.env.DRIFT_PRIVATE_KEY,  // 거래용 선택사항
 });
 ```
-- **마켓**: 30+ perp
+- **마켓**: 41 perp
 - **인증**: Solana 지갑 서명
 - **특징**: DLOB (분산 지정가 주문서), 완전한 WebSocket 지원
 
@@ -397,7 +406,7 @@ const exchange = await createExchange('aster', {
   apiSecret: process.env.ASTER_API_SECRET,
 });
 ```
-- **마켓**: 100+ perp
+- **마켓**: 304 perp
 - **인증**: HMAC-SHA256 (Binance 스타일)
 - **체인**: BNB Chain
 - **특징**: 레퍼럴 코드 지원, OHLCV 데이터, 펀딩 레이트 히스토리
@@ -409,7 +418,7 @@ const exchange = await createExchange('pacifica', {
   apiSecret: process.env.PACIFICA_API_SECRET,  // ED25519 개인키 (base64)
 });
 ```
-- **마켓**: 50+ perp
+- **마켓**: 59 perp
 - **인증**: ED25519 서명 (Backpack 스타일)
 - **체인**: Solana
 - **특징**: 빌더 코드 지원
@@ -425,13 +434,45 @@ const exchange = await createExchange('ostium', {
 - **체인**: Arbitrum
 - **특징**: 실세계 자산(RWA) 영구선물, 서브그래프 서비스 마이그레이션 (일부 기능 제한)
 
+#### Reya
+```typescript
+const exchange = await createExchange('reya', {
+  privateKey: process.env.REYA_PRIVATE_KEY,  // EVM 개인키
+});
+```
+- **마켓**: 69 perp
+- **인증**: EIP-712 서명
+- **체인**: Reya Network (Arbitrum L3)
+- **특징**: 오라클/풀 기반 (오더북 없음), 연속 펀딩
+
+#### Ethereal
+```typescript
+const exchange = await createExchange('ethereal', {
+  privateKey: process.env.ETHEREAL_PRIVATE_KEY,  // EVM 개인키
+});
+```
+- **마켓**: 15 perp
+- **인증**: EIP-712 서명
+- **특징**: USDe 담보, UUID 제품 ID
+
+#### Avantis
+```typescript
+const exchange = await createExchange('avantis', {
+  privateKey: process.env.AVANTIS_PRIVATE_KEY,  // EVM 개인키
+});
+```
+- **마켓**: 온체인 (Base 체인)
+- **인증**: 지갑 서명
+- **특징**: Pyth 오라클 기반, 오더북 없음
+- **참고**: 실제 컨트랙트 주소 필요 (플레이스홀더)
+
 ### 🟡 부분 지원
 
 #### Paradex
 ```typescript
 const exchange = await createExchange('paradex', { testnet: true });
 ```
-- **마켓**: 96 perp
+- **마켓**: 95 perp
 - **Public API**: ⚠️ 공개 엔드포인트 작동
 - **Ticker/OrderBook**: ✅ 작동
 - **Private API**: StarkNet 서명 + JWT 필요
@@ -442,8 +483,9 @@ const exchange = await createExchange('extended', {
   apiKey: process.env.EXTENDED_API_KEY
 });
 ```
-- **상태**: 테스트넷 미운영, 메인넷만 작동
-- **마켓**: 현재 0개 반환 (서비스 상태 불명확)
+- **마켓**: 114 perp
+- **인증**: API Key
+- **참고**: 메인넷만 작동
 
 ### 🔴 프로덕션 미준비
 
@@ -533,6 +575,21 @@ PACIFICA_API_SECRET=base64_key            # ED25519 개인키 (base64)
 # Ostium (Arbitrum RWA) - ✅ 프로덕션 준비
 # ============================================
 OSTIUM_PRIVATE_KEY=0x...                  # EVM 개인키
+
+# ============================================
+# Reya (Reya Network L2) - ✅ 프로덕션 준비
+# ============================================
+REYA_PRIVATE_KEY=0x...                    # EVM 개인키
+
+# ============================================
+# Ethereal (EIP-712) - ✅ 프로덕션 준비
+# ============================================
+ETHEREAL_PRIVATE_KEY=0x...                # EVM 개인키
+
+# ============================================
+# Avantis (Base 체인) - 🟡 부분 지원
+# ============================================
+AVANTIS_PRIVATE_KEY=0x...                 # EVM 개인키
 ```
 
 ---
@@ -557,7 +614,7 @@ for (const [timestamp, open, high, low, close, volume] of candles) {
 }
 
 // 지원되는 타임프레임: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
-// 현재 사용 가능한 거래소: Hyperliquid, GRVT, dYdX, Drift, GMX
+// 현재 사용 가능한 거래소: Hyperliquid, GRVT, dYdX, GMX, Aster
 ```
 
 ### WebSocket 스트리밍
@@ -691,6 +748,9 @@ const exchange = await createExchange('hyperliquid', {
 import { HyperliquidAdapter } from 'pd-aio-sdk/hyperliquid';
 import { DriftAdapter } from 'pd-aio-sdk/drift';
 import { AsterAdapter } from 'pd-aio-sdk/aster';
+import { ReyaAdapter } from 'pd-aio-sdk/reya';
+import { EtherealAdapter } from 'pd-aio-sdk/ethereal';
+import { AvantisAdapter } from 'pd-aio-sdk/avantis';
 
 // 또는 전체 SDK 사용
 import { createExchange } from 'pd-aio-sdk';
@@ -719,33 +779,36 @@ npm test -- hyperliquid
 ### 테스트 결과
 
 ```
-✅ 6092개 테스트 통과 (100% 성공률)
-✅ 172개 테스트 스위트
-✅ 커버리지: 82% 구문, 87% 함수
-✅ ESLint: 0 에러
-✅ 라이브 API: 56/96 퍼블릭 메서드 검증 (12/16 거래소 정상 운영)
+✅ 6908개 테스트 통과 (100% 성공률)
+✅ 194개 테스트 스위트
+✅ 커버리지: 85% 구문, 89% 함수
+✅ ESLint: 0 에러, TypeScript strict: 0 에러
+✅ 라이브 API: 18/19 거래소 실제 API 검증 (2026년 3월 기준)
 ```
 
-### API 라이브 검증 결과 (2026-02-14 기준, Cycle 13)
+### API 라이브 검증 결과 (2026년 3월 기준)
 
 | 거래소 | Markets | Ticker | OrderBook | Trades | FundingRate | OHLCV | 상태 |
 |--------|---------|--------|-----------|--------|-------------|-------|------|
-| **Aster** | ✅ 275 | ✅ | ✅ | ✅ | ✅ | ✅ | 6/6 완벽 |
+| **Aster** | ✅ 304 | ✅ | ✅ | ✅ | ✅ | ✅ | 6/6 완벽 |
 | **Hyperliquid** | ✅ 229 | ✅ | ✅ | WS전용 | ✅ | ✅ | 5/6 |
-| **Lighter** | ✅ 145 | ✅ | ✅ | ✅ | ✅ | - | 5/6 |
-| **GRVT** | ✅ 82 | ✅ | ✅ | ✅ | ✅ | - | 5/6 |
-| **Paradex** | ✅ 96 | ✅ | ✅ | ✅ | ✅ | - | 5/6 |
+| **Lighter** | ✅ 156 | ✅ | ✅ | ✅ | ✅ | - | 5/6 |
+| **GRVT** | ✅ 95 | ✅ | ✅ | ✅ | ✅ | - | 5/6 |
+| **Paradex** | ✅ 95 | ✅ | ✅ | ✅ | ✅ | - | 5/6 |
 | **dYdX** | ✅ 293 | ✅ | ✅ | ✅ | ✅ | - | 5/6 |
+| **Reya** | ✅ 69 | ✅ | - | ✅ | ✅ | - | 4/6 |
+| **Ethereal** | ✅ 15 | ✅ | ✅ | ✅ | ✅ | - | 5/6 |
 | **EdgeX** | ✅ 292 | ✅ | ✅ | - | ✅ | - | 4/6 |
 | **Backpack** | ✅ 159 | ✅ | ✅ | ✅ | - | - | 4/6 |
-| **Variational** | ✅ 473 | ✅ | ✅ | - | ✅ | - | 4/6 |
-| **Drift** | ✅ 11 | ✅ | ✅ | - | ✅ | - | 4/6 |
-| **Nado** | ✅ 29 | ✅ | ✅ | - | - | - | 3/6 |
+| **Variational** | ✅ 470 | ✅ | ✅ | - | ✅ | - | 4/6 |
+| **Drift** | ✅ 41 | ✅ | ✅ | - | ✅ | - | 4/6 |
+| **Extended** | ✅ 114 | ✅ | ✅ | - | ✅ | - | 4/6 |
+| **Nado** | ✅ 44 | ✅ | ✅ | - | - | - | 3/6 |
 | **GMX** | ✅ 129 | ✅ | - | - | ✅ | - | 3/6 |
+| **Pacifica** | ✅ 59 | ✅ | ✅ | ✅ | ✅ | - | 5/6 |
 | **Ostium** | ✅ 11 | ✅ | - | - | - | - | 2/6 |
-| **Extended** | ✅ | ❌ | ❌ | ❌ | ❌ | - | 1/6 불안정 |
-| **Jupiter** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 0/6 API 변경 |
-| **Pacifica** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 0/6 오프라인 |
+| **Jupiter** | ✅ 3 | ✅ | ✅ | - | ✅ | - | 4/6 |
+| **Avantis** | 🟡 | - | - | - | - | - | 부분 지원 |
 
 ---
 
@@ -753,7 +816,7 @@ npm test -- hyperliquid
 
 ### Pattern A: Full-Featured 아키텍처
 
-**16개 모든 거래소 어댑터**가 **Pattern A** (Full-Featured) 아키텍처를 따릅니다:
+**19개 모든 거래소 어댑터**가 **Pattern A** (Full-Featured) 아키텍처를 따릅니다:
 
 ```
 src/adapters/{exchange}/

@@ -1,7 +1,7 @@
 # Perp DEX Landscape Analysis
 
-> Last updated: 2026-02-09
-> PD-AIO-SDK v0.2.0 — 13 adapters
+> Last updated: 2026-03-11
+> PD-AIO-SDK v0.3.0 — 19 adapters
 
 ---
 
@@ -9,17 +9,17 @@
 
 The perpetual DEX market has matured into a multi-trillion-dollar annualized sector. On February 5, 2026, the market recorded $70B in single-day volume — the second-highest ever — demonstrating the explosive growth trajectory. Hyperliquid leads with ~35% daily market share ($24.7B peak day), followed by Aster ($10B), EdgeX ($8.7B), and Lighter ($7.5B).
 
-**PD-AIO-SDK's position**: The SDK covers 13 exchanges spanning 8 chains/networks. However, several high-volume exchanges are not yet covered — notably **Aster** (#2 by daily volume), **Pacifica** (top Solana perp DEX by volume), and **Reya** (innovative L2 architecture). Adding these would significantly expand the SDK's addressable market.
+**PD-AIO-SDK's position**: The SDK covers 19 exchanges spanning 10+ chains/networks. Recent additions include Aster, Pacifica, Ostium (Cycle 9), Reya, Ethereal, and Avantis, significantly expanding chain and market coverage.
 
 **Key findings**:
 
 1. **Lighter has flipped Hyperliquid** in 30-day perps volume ($198B vs $166B), though HL retains dominance in OI ($7.3B vs $1.4B) and revenue
-2. **Aster (ex-SynFutures)** on BNB Chain has surged to #2 with $125B+ 30-day volume and $1.7B TVL — a critical gap in SDK coverage
+2. **Aster (ex-SynFutures)** on BNB Chain has surged to #2 with $125B+ 30-day volume and $1.7B TVL — now covered in SDK
 3. **Developer incentive programs** are substantial: Hyperliquid Builder Codes alone have generated $40M+ in developer revenue; dYdX's grants program has $8M allocated; Arbitrum ecosystem grants fund GMX and others
 
 ---
 
-## 2. Current SDK Coverage (13 Adapters)
+## 2. Current SDK Coverage (19 Adapters)
 
 | # | Exchange | Chain/Network | TVL | 30d Volume (est.) | Open Interest | Status |
 |---|----------|---------------|-----|-------------------|---------------|--------|
@@ -37,6 +37,12 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 | 12 | **Nado** | Ink (Kraken L2) | N/A | ~$800M/day (beta) | ~$40M | Open Beta Season 1; CEX-speed (5–15ms) |
 | 13 | **Extended** | Starknet | ~$200M | ~$10–15B (est.) | ~$55M | #1 Starknet app by TVL; 50+ markets |
 | — | **Variational** | Arbitrum | N/A | ~$9.6B | N/A | RFQ model; zero fees; loss rebates |
+| 14 | **Aster** | BNB Chain | ~$1.7B | ~$125B+ | N/A | Ex-SynFutures; #2 by daily volume |
+| 15 | **Pacifica** | Solana | N/A | ~$15–25B (est.) | ~$34M+ | Ex-FTX team; top Solana perp DEX |
+| 16 | **Ostium** | Arbitrum | N/A | ~$938M/week | N/A | RWA perps; official Python SDK |
+| 17 | **Reya** | Reya Network (Arbitrum L3) | ~$50M | N/A | N/A | Oracle/pool-based; continuous funding |
+| 18 | **Ethereal** | Ethereum L2 | N/A | ~$1.56B | N/A | USDe collateral; EIP-712 auth; 15 perp markets |
+| 19 | **Avantis** | Base | N/A | N/A | N/A | Pyth oracle; on-chain via ethers.Contract; placeholder contracts |
 
 > **Notes**: Volume estimates use a mix of DeFiLlama 30-day data and extrapolated daily figures from January–February 2026. TVL and OI figures are point-in-time snapshots. "N/A" indicates data not readily available from public sources.
 
@@ -45,25 +51,28 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 | Chain | Adapters | Notes |
 |-------|----------|-------|
 | Hyperliquid L1 | Hyperliquid | Dominant perp chain |
-| Solana | Jupiter, Drift, Backpack | 3 adapters; missing Pacifica |
-| Arbitrum | GMX, Variational | 2 adapters; missing Ostium |
+| Solana | Jupiter, Drift, Backpack, Pacifica | 4 adapters |
+| Arbitrum | GMX, Variational, Ostium | 3 adapters |
 | Starknet | Paradex, Extended | 2 adapters |
 | StarkEx | EdgeX | 1 adapter |
 | Lighter Chain | Lighter | 1 adapter |
 | ZKsync | GRVT | 1 adapter |
 | Ink (Kraken L2) | Nado | 1 adapter |
 | dYdX Chain | dYdX | 1 adapter |
-| **BNB Chain** | **NONE** | **Gap: Aster (#2 by volume)** |
-| **Ethena Network** | **NONE** | **Gap: Ethereal** |
-| **Reya Chain** | **NONE** | **Gap: Reya** |
+| BNB Chain | Aster | 1 adapter |
+| Reya Network | Reya | 1 adapter (Arbitrum L3) |
+| Base | Avantis | 1 adapter |
+| Ethereum L2 | Ethereal | 1 adapter (USDe collateral) |
 
 ---
 
 ## 3. New Adapter Candidates
 
-### 3.1 HIGH Priority
+> **Note**: Aster, Pacifica, and Ostium were integrated in Cycle 9. Reya, Ethereal, and Avantis were added subsequently. The sections below are retained for historical context but these exchanges are now covered by the SDK.
 
-#### Aster (formerly SynFutures) — BNB Chain + Multi-chain
+### 3.1 Now Covered (formerly HIGH Priority)
+
+#### Aster (formerly SynFutures) — BNB Chain + Multi-chain *(Added in Cycle 9)*
 
 | Metric | Value |
 |--------|-------|
@@ -75,13 +84,11 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 | SDK | API key system; no official TS/Python SDK yet |
 | Token | ASTER (live) |
 
-**Rationale**: Aster is the #2 perp DEX by daily volume and the dominant protocol on BNB Chain. The SDK currently has zero BNB Chain coverage — adding Aster would fill this critical gap and capture one of the highest-volume venues in the market. API documentation exists and is mature enough for integration. The SynFutures Builder Program provides infrastructure for external developers.
-
-**Priority: HIGH** — Volume justifies immediate integration; BNB Chain is an unserved ecosystem.
+**Status: COVERED** — Integrated in Cycle 9. Fills the BNB Chain gap; #2 perp DEX by daily volume.
 
 ---
 
-#### Pacifica — Solana
+#### Pacifica — Solana *(Added in Cycle 9)*
 
 | Metric | Value |
 |--------|-------|
@@ -94,13 +101,11 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 | Token | PACIFICA (expected) |
 | Team | Ex-FTX COO Constance Wang + ex-Alameda members |
 
-**Rationale**: Pacifica has overtaken Jupiter as the largest Solana perp DEX by daily trading volume. While the SDK already has 3 Solana adapters (Jupiter, Drift, Backpack), Pacifica represents the fastest-growing venue on the chain. The ex-FTX team brings institutional-grade engineering. API documentation is available.
-
-**Priority: HIGH** — Fastest-growing Solana perp DEX; strong API documentation; complements existing Solana coverage.
+**Status: COVERED** — Integrated in Cycle 9. Fastest-growing Solana perp DEX.
 
 ---
 
-#### Ostium — Arbitrum (RWA Focus)
+#### Ostium — Arbitrum (RWA Focus) *(Added in Cycle 9)*
 
 | Metric | Value |
 |--------|-------|
@@ -113,45 +118,39 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 | Token | Points program active; TGE anticipated |
 | Funding | $24M raised (Harvard alumni-founded) |
 
-**Rationale**: Ostium occupies a unique niche — RWA perpetuals (stocks, forex, commodities, indices) on Arbitrum. This is a differentiated market segment not served by any current adapter. The **official Python SDK** is the most developer-friendly among all candidates, significantly reducing integration effort. Builder Codes provide permissionless fee sharing.
-
-**Priority: HIGH** — Unique RWA niche; official Python SDK reduces dev effort; $24M funded; growing rapidly.
+**Status: COVERED** — Integrated in Cycle 9. Unique RWA niche; official Python SDK.
 
 ---
 
-### 3.2 MEDIUM Priority
+### 3.2 Now Covered (formerly MEDIUM Priority)
 
-#### Reya — Reya Chain (Arbitrum Orbit L2)
+#### Reya — Reya Network (Arbitrum L3) *(Now Covered)*
 
 | Metric | Value |
 |--------|-------|
-| Chain | Reya Chain (Arbitrum Orbit) |
+| Chain | Reya Network (Arbitrum L3) |
 | Weekly Volume | ~$3.6B |
-| TVL | ~$31M |
+| TVL | ~$50M |
 | API Maturity | REST API v2 documented (docs.reya.xyz); WebSocket available |
 | SDK | No official SDK; REST API only |
 | Token | Points program active |
 
-**Rationale**: Reya's L2-enshrined DEX architecture is technically innovative — gas-free, MEV-proof, FIFO matching, yield-bearing collateral (srUSD). The REST API v2 is well-documented. However, TVL is still modest ($31M) and volume is lower than HIGH priority candidates. Worth monitoring for growth.
-
-**Priority: MEDIUM** — Innovative architecture; good API docs; lower volume than top candidates.
+**Status: COVERED** — Oracle/pool-based model; continuous funding; gas-free, MEV-proof architecture.
 
 ---
 
-#### Ethereal — Ethena Network (L3)
+#### Ethereal — Ethereum L2 *(Now Covered)*
 
 | Metric | Value |
 |--------|-------|
-| Chain | Ethena Network L3 |
+| Chain | Ethereum L2 |
 | 30d Volume | ~$1.56B |
 | TVL | N/A |
 | API Maturity | REST API + WebSocket (docs.etherealtest.net); Python SDK |
 | SDK | Trading API + Python SDK documented |
 | Token | Season Zero points program; ENA integration |
 
-**Rationale**: Ethereal operates on the Ethena Network L3, using USDe as native collateral. Sub-20ms execution. Has developer docs and Python SDK. Volume is still early-stage but growing. The Ethena ecosystem backing provides strong tailwinds.
-
-**Priority: MEDIUM** — Early-stage but well-funded ecosystem; developer tools exist; USDe-native is differentiated.
+**Status: COVERED** — USDe collateral; EIP-712 auth; 15 perp markets; Ethena ecosystem backing.
 
 ---
 
@@ -209,7 +208,7 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 | **Extended** | Points Program | Active points program for traders | Points → potential token |
 | **Variational** | Zero Fees + Loss Rebate | 2–4% loss rebates to traders; zero maker/taker fees | Direct trader incentive |
 
-### 4.2 Candidate Exchanges
+### 4.2 Recently Added Exchanges
 
 | Exchange | Program Type | Details | Est. Value |
 |----------|-------------|---------|------------|
@@ -228,57 +227,24 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 
 ## 5. Recommended Next Adapters
 
-### Top 3 Picks
+> **Note**: The previous top 3 picks (Aster, Ostium, Pacifica) and honorable mentions (Reya, Ethereal) have all been integrated into the SDK. Avantis (Base) has also been added. The section below lists remaining candidates.
 
-#### 1. Aster (BNB Chain) — **HIGHEST PRIORITY**
-
-**Volume**: ~$125B 30-day; #2 daily behind Hyperliquid
-**Why**:
-- Fills the SDK's biggest chain gap (zero BNB Chain coverage)
-- Consistently top-3 by daily volume ($10B on peak days)
-- API documentation is available (docs.asterdex.com + GitHub)
-- SynFutures Builder Program provides developer support
-- Multi-chain expansion (ETH, Solana, Arbitrum) means one adapter covers multiple deployments
-
-**Effort estimate**: Medium — REST API documented; no official SDK, but API docs on GitHub
-
----
-
-#### 2. Ostium (Arbitrum) — **HIGH PRIORITY, LOW EFFORT**
-
-**Volume**: $25B+ cumulative; ~$938M weekly
-**Why**:
-- **Official Python SDK** dramatically reduces integration effort
-- Unique RWA niche (stocks, forex, commodities) — no other adapter covers this market
-- Builder Codes provide immediate revenue-sharing opportunity
-- $24M funded; Harvard alumni team; strong institutional backing
-- Arbitrum chain already supported (GMX, Variational) — infra reuse
-
-**Effort estimate**: Low — Official Python SDK available; Arbitrum already supported
-
----
-
-#### 3. Pacifica (Solana) — **HIGH PRIORITY**
-
-**Volume**: Overtaken Jupiter as #1 Solana perp DEX by daily volume
-**Why**:
-- Fastest-growing perp DEX on Solana
-- Ex-FTX team (Constance Wang, former COO) brings engineering credibility
-- API documentation available at docs.pacifica.fi
-- Solana infra already well-established in SDK (Jupiter, Drift, Backpack)
-- Likely token launch ahead — early integration captures airdrop-driven volume
-
-**Effort estimate**: Medium — REST API docs available; Solana tooling already in SDK
-
----
-
-### Honorable Mentions
+### Remaining Candidates
 
 | Exchange | Priority | Rationale |
 |----------|----------|-----------|
-| Reya | MEDIUM | Innovative L2 architecture; good API v2 docs; monitor for volume growth |
-| Ethereal | MEDIUM | Ethena ecosystem backing; Python SDK; early-stage volume |
-| Trade.xyz / Based | LOW | HL frontends — covered by existing Hyperliquid adapter |
+| Trade.xyz / Based | LOW | HL frontends — covered by existing Hyperliquid adapter; no separate adapter needed |
+
+### Previously Recommended (Now Covered)
+
+| Exchange | Chain | Added In | Notes |
+|----------|-------|----------|-------|
+| Aster | BNB Chain | Cycle 9 | #2 by daily volume; filled BNB Chain gap |
+| Ostium | Arbitrum | Cycle 9 | RWA perps; official Python SDK |
+| Pacifica | Solana | Cycle 9 | Top Solana perp DEX; ex-FTX team |
+| Reya | Reya Network (Arbitrum L3) | Post-C9 | Oracle/pool-based; continuous funding |
+| Ethereal | Ethereum L2 | Post-C9 | USDe collateral; EIP-712 auth |
+| Avantis | Base | Post-C9 | Pyth oracle; placeholder contracts |
 
 ---
 
@@ -317,4 +283,4 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 
 ### Disclaimer
 
-This analysis is based on publicly available data as of February 9, 2026. Metrics (TVL, volume, OI) change rapidly and should be verified against live sources before making integration decisions. Volume figures may include wash trading on some platforms. TVL figures from different sources may not be directly comparable due to differing methodologies.
+This analysis is based on publicly available data as of March 11, 2026. Metrics (TVL, volume, OI) change rapidly and should be verified against live sources before making integration decisions. Volume figures may include wash trading on some platforms. TVL figures from different sources may not be directly comparable due to differing methodologies.
