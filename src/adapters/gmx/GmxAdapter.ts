@@ -126,7 +126,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     fetchMarkets: true,
     fetchTicker: true,
     fetchOrderBook: false, // GMX doesn't have a traditional orderbook
-    fetchTrades: false, // Requires subgraph query
+    fetchTrades: true, // Via subgraph
     fetchFundingRate: true,
     fetchFundingRateHistory: false,
     fetchOHLCV: true,
@@ -144,7 +144,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     fetchBalance: true,
     fetchOpenOrders: true,
     fetchOrderHistory: true,
-    fetchMyTrades: false,
+    fetchMyTrades: true, // Via subgraph (requires auth)
 
     // Position management
     setLeverage: false, // Leverage is per-position
@@ -230,15 +230,16 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
       // Validate API connectivity by fetching markets
       await this.fetchMarketsInfo();
 
-      // Initialize contracts and subgraph if auth is available
+      // Initialize subgraph for public queries (trades)
+      this.subgraph = new GmxSubgraph(this.chain);
+
+      // Initialize contracts if auth is available
       if (this.auth) {
         this.contracts = new GmxContracts(
           this.chain,
           this.auth.getProvider(),
           this.auth.getSigner()
         );
-        this.subgraph = new GmxSubgraph(this.chain);
-
         // Initialize order builder if trading is enabled
         if (this.auth.canSign() && this.contracts) {
           this.orderBuilder = new GmxOrderBuilder(
@@ -331,9 +332,43 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     throw new Error('GMX does not have a traditional orderbook. Use fetchTicker for price data.');
   }
 
-  async _fetchTrades(_symbol: string, _params?: TradeParams): Promise<Trade[]> {
-    // Would require subgraph query - not implemented for REST-only version
-    throw new Error('fetchTrades requires subgraph integration. Not available via REST API.');
+  async _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
+    this.ensureInitialized();
+
+    if (!this.subgraph) {
+      throw new Error('Subgraph not initialized');
+    }
+
+    const marketKey = unifiedToGmx(symbol);
+    if (!marketKey) {
+      throw new Error(`Invalid market: ${symbol}`);
+    }
+
+    const marketConfig = GMX_MARKETS[marketKey];
+
+    try {
+      const rawTrades = await this.subgraph.fetchMarketTrades(
+        marketConfig.marketAddress,
+        params?.since,
+        params?.limit ?? 50
+      );
+
+      return rawTrades.map((t) => {
+        const normalized = this.subgraph!.normalizeTrade(t);
+        return {
+          id: normalized.id,
+          symbol,
+          side: normalized.side as 'buy' | 'sell',
+          price: normalized.price,
+          amount: normalized.amount,
+          cost: normalized.cost,
+          timestamp: normalized.timestamp,
+          info: normalized as unknown as Record<string, unknown>,
+        };
+      });
+    } catch (error) {
+      throw mapGmxError(error);
+    }
   }
 
   async _fetchFundingRate(symbol: string): Promise<FundingRate> {
@@ -676,8 +711,46 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     }
   }
 
-  async fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]> {
-    throw new Error('fetchMyTrades requires subgraph integration. Not available via REST API.');
+  async fetchMyTrades(symbol?: string, since?: number, limit?: number): Promise<Trade[]> {
+    this.ensureInitialized();
+
+    if (!this.subgraph) {
+      throw new Error('Subgraph not initialized');
+    }
+
+    if (!this.walletAddress) {
+      throw new Error('Private key required for fetchMyTrades');
+    }
+
+    try {
+      const rawTrades = await this.subgraph.fetchAccountTrades(
+        this.walletAddress,
+        since,
+        limit ?? 50
+      );
+
+      const trades = rawTrades.map((t) => {
+        const normalized = this.subgraph!.normalizeTrade(t);
+        return {
+          id: normalized.id,
+          symbol: normalized.symbol,
+          side: normalized.side as 'buy' | 'sell',
+          price: normalized.price,
+          amount: normalized.amount,
+          cost: normalized.cost,
+          timestamp: normalized.timestamp,
+          info: normalized as unknown as Record<string, unknown>,
+        };
+      });
+
+      if (symbol) {
+        return trades.filter((t) => t.symbol === symbol);
+      }
+
+      return trades;
+    } catch (error) {
+      throw mapGmxError(error);
+    }
   }
 
   // ==========================================================================

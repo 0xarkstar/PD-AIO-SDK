@@ -64,8 +64,8 @@ describe('GmxAdapter', () => {
       expect(adapter.has.fetchOrderBook).toBe(false);
     });
 
-    test('should NOT support fetchTrades (requires subgraph)', () => {
-      expect(adapter.has.fetchTrades).toBe(false);
+    test('should support fetchTrades (via subgraph)', () => {
+      expect(adapter.has.fetchTrades).toBe(true);
     });
 
     test('should support createOrder (on-chain via contracts)', () => {
@@ -134,8 +134,8 @@ describe('GmxAdapter', () => {
       await expect(adapter.fetchOrderBook('ETH/USD:ETH')).rejects.toThrow(/orderbook/i);
     });
 
-    test('fetchTrades should throw not supported error', async () => {
-      await expect(adapter.fetchTrades('ETH/USD:ETH')).rejects.toThrow(/subgraph/i);
+    test('fetchTrades should throw not initialized error', async () => {
+      await expect(adapter.fetchTrades('ETH/USD:ETH')).rejects.toThrow(/not initialized/i);
     });
 
     test('fetchPositions should throw not initialized error', async () => {
@@ -154,8 +154,8 @@ describe('GmxAdapter', () => {
       await expect(adapter.fetchOrderHistory()).rejects.toThrow(/not initialized/i);
     });
 
-    test('fetchMyTrades should throw subgraph required error', async () => {
-      await expect(adapter.fetchMyTrades()).rejects.toThrow(/subgraph/i);
+    test('fetchMyTrades should throw not initialized error', async () => {
+      await expect(adapter.fetchMyTrades()).rejects.toThrow(/not initialized/i);
     });
 
     test('fetchFundingRateHistory should throw subgraph required error', async () => {
