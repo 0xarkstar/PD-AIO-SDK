@@ -28,6 +28,7 @@ import type { OstiumConfig } from './adapters/ostium/index.js';
 import type { ReyaConfig } from './adapters/reya/index.js';
 import type { EtherealConfig } from './adapters/ethereal/index.js';
 import type { AvantisConfig } from './adapters/avantis/index.js';
+import type { KatanaConfig } from './adapters/katana/index.js';
 
 export type SupportedExchange =
   | 'hyperliquid'
@@ -48,7 +49,8 @@ export type SupportedExchange =
   | 'ostium'
   | 'reya'
   | 'ethereal'
-  | 'avantis';
+  | 'avantis'
+  | 'katana';
 
 export type ExchangeConfigMap = {
   hyperliquid: HyperliquidConfig;
@@ -70,6 +72,7 @@ export type ExchangeConfigMap = {
   reya: ReyaConfig;
   ethereal: EtherealConfig;
   avantis: AvantisConfig;
+  katana: KatanaConfig;
 };
 
 /**
@@ -114,6 +117,8 @@ const adapterLoaders: Record<string, () => Promise<AdapterConstructor>> = {
     (await import('./adapters/ethereal/index.js')).EtherealAdapter as AdapterConstructor,
   avantis: async () =>
     (await import('./adapters/avantis/index.js')).AvantisAdapter as AdapterConstructor,
+  katana: async () =>
+    (await import('./adapters/katana/index.js')).KatanaAdapter as AdapterConstructor,
 };
 
 /** Cache for loaded adapter constructors */
@@ -307,6 +312,7 @@ export function getBuiltInExchanges(): SupportedExchange[] {
     'reya',
     'ethereal',
     'avantis',
+    'katana',
   ];
 }
 

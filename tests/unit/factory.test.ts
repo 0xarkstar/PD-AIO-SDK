@@ -102,6 +102,7 @@ describe('getSupportedExchanges', () => {
       'reya',
       'ethereal',
       'avantis',
+      'katana',
     ]);
   });
 });
@@ -138,7 +139,7 @@ describe('getBuiltInExchanges', () => {
     expect(exchanges).toContain('edgex');
     expect(exchanges).toContain('backpack');
     expect(exchanges).toContain('nado');
-    expect(exchanges.length).toBe(19);
+    expect(exchanges.length).toBe(20);
   });
 });
 
