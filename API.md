@@ -1185,21 +1185,56 @@ const katana = await createExchange('katana', {
 | Method | Supported | Notes |
 |--------|-----------|-------|
 | fetchMarkets | ✅ | Dynamic market discovery |
-| fetchTicker | ✅ | |
-| fetchOrderBook | ✅ | |
-| fetchTrades | ✅ | |
-| fetchOHLCV | ❌ | Not supported |
-| fetchFundingRate | ✅ | |
+| fetchTicker | ✅ | 24h stats, mark/index price |
+| fetchOrderBook | ✅ | L2 depth with order count |
+| fetchTrades | ✅ | Public trade feed |
+| fetchOHLCV | ✅ | 1m, 5m, 15m, 1h, 4h, 1d |
+| fetchFundingRate | ✅ | 8h intervals (00/08/16 UTC) |
+| fetchFundingRateHistory | ✅ | Historical funding rates |
 | createOrder | ✅ | EIP-712 signed, UUID v1 nonce |
-| cancelOrder | ✅ | |
-| fetchPositions | ✅ | |
-| fetchBalance | ✅ | vbUSDC collateral |
+| cancelOrder | ✅ | EIP-712 signed cancel |
+| cancelAllOrders | ✅ | By market or all |
+| createBatchOrders | ❌ | No native batch endpoint |
+| editOrder | ❌ | Not supported |
+| fetchOpenOrders | ✅ | Filter by market |
+| fetchOrderHistory | ✅ | With since/limit pagination |
+| fetchMyTrades | ✅ | Via /fills endpoint |
+| fetchPositions | ✅ | Cross-margin, ADL quintile exposed |
+| fetchBalance | ✅ | vbUSDC → normalized as USDC |
+| setLeverage | ✅ | Per-market via initialMarginFractionOverride |
+| setMarginMode | ❌ | Cross-margin only |
+| watchOrderBook | ❌ | WebSocket Phase 2 (deferred) |
+| watchTrades | ❌ | WebSocket Phase 2 (deferred) |
+| emergencyCloseAll | ✅ | Katana-specific: atomic cancel + close + withdraw |
+
+**Order Types:**
+| SDK Type | Katana Code | Notes |
+|----------|-------------|-------|
+| `market` | `0` | Taker, 100ms latency |
+| `limit` | `1` | GTX (post-only) gets 0ms latency |
+| `stopMarket` | `2` | Trigger by index price |
+| `stopLimit` | `3` | Trigger + limit price |
+| `takeProfit` (market) | `4` | |
+| `takeProfit` (limit) | `5` | |
+
+**Time In Force:**
+| SDK Type | Katana Code | Notes |
+|----------|-------------|-------|
+| `GTC` | `0` | Good-til-cancel (default) |
+| `PO` | `1` | GTX / post-only / maker, 0ms latency |
+| `IOC` | `2` | Immediate-or-cancel |
+| `FOK` | `3` | Fill-or-kill |
 
 **Notes:**
-- Cross-margin only; vbUSDC collateral with 8-decimal zero-padded precision
-- UUID v1 nonces with 60-second freshness window
-- `emergencyCloseAll()` for atomic position close + withdrawal
-- Testnet: Bokuto sandbox environment
+- **Dual auth**: HMAC-SHA256 headers (`KP-API-KEY`, `KP-HMAC-SIGNATURE`) for all private requests + EIP-712 wallet signature for writes
+- **Cross-margin only**: vbUSDC collateral, 8-decimal zero-padded string precision
+- **UUID v1 nonces**: Timestamp-based, 60-second freshness window, fresh per request
+- **Maker incentive**: GTX (post-only) orders get 0ms latency vs 100ms for taker orders
+- **Default fees**: Maker 0.01%, Taker 0.04%
+- **`emergencyCloseAll()`**: Katana-specific method mapping to `DELETE /v1/wallets/{wallet}` — atomically cancels all orders, closes all positions, and initiates full withdrawal
+- **ADL quintile**: Exposed in `Position.info.adlQuintile` (0-5) for auto-deleveraging priority
+- **Testnet**: Bokuto sandbox (chainId 737373), production Katana L2 (chainId 747474)
+- **Rate limits**: 10 req/s authenticated, 5 req/s public
 
 ---
 
