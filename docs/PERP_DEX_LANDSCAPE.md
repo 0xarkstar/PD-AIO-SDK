@@ -1,7 +1,7 @@
 # Perp DEX Landscape Analysis
 
-> Last updated: 2026-03-11
-> PD-AIO-SDK v0.3.0 — 19 adapters
+> Last updated: 2026-03-25
+> PD-AIO-SDK v0.3.0 — 20 adapters
 
 ---
 
@@ -9,7 +9,7 @@
 
 The perpetual DEX market has matured into a multi-trillion-dollar annualized sector. On February 5, 2026, the market recorded $70B in single-day volume — the second-highest ever — demonstrating the explosive growth trajectory. Hyperliquid leads with ~35% daily market share ($24.7B peak day), followed by Aster ($10B), EdgeX ($8.7B), and Lighter ($7.5B).
 
-**PD-AIO-SDK's position**: The SDK covers 19 exchanges spanning 10+ chains/networks. Recent additions include Aster, Pacifica, Ostium (Cycle 9), Reya, Ethereal, and Avantis, significantly expanding chain and market coverage.
+**PD-AIO-SDK's position**: The SDK covers 20 exchanges spanning 10+ chains/networks. Recent additions include Aster, Pacifica, Ostium (Cycle 9), Reya, Ethereal, Avantis, and Katana, significantly expanding chain and market coverage.
 
 **Key findings**:
 
@@ -19,7 +19,7 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 
 ---
 
-## 2. Current SDK Coverage (19 Adapters)
+## 2. Current SDK Coverage (20 Adapters)
 
 | # | Exchange | Chain/Network | TVL | 30d Volume (est.) | Open Interest | Status |
 |---|----------|---------------|-----|-------------------|---------------|--------|
@@ -43,6 +43,7 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 | 17 | **Reya** | Reya Network (Arbitrum L3) | ~$50M | N/A | N/A | Oracle/pool-based; continuous funding |
 | 18 | **Ethereal** | Ethereum L2 | N/A | ~$1.56B | N/A | USDe collateral; EIP-712 auth; 15 perp markets |
 | 19 | **Avantis** | Base | N/A | N/A | N/A | Pyth oracle; on-chain via ethers.Contract; placeholder contracts |
+| 20 | **Katana** | Katana L2 (chainId 747474) | N/A | N/A | N/A | Dual HMAC+EIP-712 auth; vbUSDC collateral; cross-margin only |
 
 > **Notes**: Volume estimates use a mix of DeFiLlama 30-day data and extrapolated daily figures from January–February 2026. TVL and OI figures are point-in-time snapshots. "N/A" indicates data not readily available from public sources.
 
@@ -63,6 +64,7 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 | Reya Network | Reya | 1 adapter (Arbitrum L3) |
 | Base | Avantis | 1 adapter |
 | Ethereum L2 | Ethereal | 1 adapter (USDe collateral) |
+| Katana L2 | Katana | 1 adapter (chainId 747474) |
 
 ---
 
@@ -245,6 +247,7 @@ The perpetual DEX market has matured into a multi-trillion-dollar annualized sec
 | Reya | Reya Network (Arbitrum L3) | Post-C9 | Oracle/pool-based; continuous funding |
 | Ethereal | Ethereum L2 | Post-C9 | USDe collateral; EIP-712 auth |
 | Avantis | Base | Post-C9 | Pyth oracle; placeholder contracts |
+| Katana | Katana L2 | Post-C9 | Dual HMAC+EIP-712; vbUSDC; cross-margin; 173 tests |
 
 ---
 

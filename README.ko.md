@@ -46,17 +46,17 @@ const order = await exchange.createOrder({
 });
 ```
 
-> **19개 거래소, 하나의 인터페이스.** `'hyperliquid'`를 지원되는 다른 거래소로 바꾸기만 하면 — API는 동일합니다.
+> **20개 거래소, 하나의 인터페이스.** `'hyperliquid'`를 지원되는 다른 거래소로 바꾸기만 하면 — API는 동일합니다.
 
 ---
 
 ## 🎯 PD AIO SDK란?
 
-**PD AIO SDK** (Perp DEX All-In-One SDK)는 **19개의 탈중앙화 영구선물 거래소**를 단일 인터페이스로 거래할 수 있게 해주는 프로덕션 레벨의 통합 TypeScript SDK입니다. 더 이상 각 거래소마다 다른 API를 배울 필요 없이, 한 번 작성하면 어디서든 거래할 수 있습니다.
+**PD AIO SDK** (Perp DEX All-In-One SDK)는 **20개의 탈중앙화 영구선물 거래소**를 단일 인터페이스로 거래할 수 있게 해주는 프로덕션 레벨의 통합 TypeScript SDK입니다. 더 이상 각 거래소마다 다른 API를 배울 필요 없이, 한 번 작성하면 어디서든 거래할 수 있습니다.
 
 ### 왜 "All-In-One"인가?
 
-- **하나의 인터페이스** → 19개 거래소 (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX, Aster, Pacifica, Ostium, Reya, Ethereal, Avantis)
+- **하나의 인터페이스** → 20개 거래소 (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX, Aster, Pacifica, Ostium, Reya, Ethereal, Avantis, Katana)
 - **하나의 코드베이스** → 모든 거래 작업 (시장 데이터, 주문, 포지션, WebSocket)
 - **하나의 설치** → 완전한 솔루션 (인증, 속도 제한, 에러 처리)
 
@@ -93,6 +93,7 @@ const order = await exchange.createOrder({
 | **Reya** | ✅ 검증 완료 | 69 perp | EIP-712 | 오라클/풀 기반, OB 없음⁴ |
 | **Ethereal** | ✅ 검증 완료 | 15 perp | EIP-712 | USDe 담보 |
 | **Avantis** | 🟡 부분 지원 | 온체인 | 지갑 서명 | 컨트랙트 주소 필요⁵ |
+| **Katana Network** | ✅ 검증 완료 | perp | HMAC-SHA256 + EIP-712 | Katana L2 (chainId 747474), 크로스 전용 |
 
 > ¹ 실시간 거래 데이터는 `watchTrades()` 사용
 > ² GMX 거래는 ExchangeRouter 컨트랙트를 통한 온체인 트랜잭션 필요
@@ -206,7 +207,7 @@ const order = await exchange.createOrder({
 - **타입 안전성** - 런타임 검증(Zod) + TypeScript strict mode
 
 ### 📊 개발자 경험
-- **Pattern A 아키텍처** - 19개 어댑터 모두 표준화된 구조 따름
+- **Pattern A 아키텍처** - 20개 어댑터 모두 표준화된 구조 따름
 - **6908개 테스트** - 100% 통과율, 85% 커버리지 적용
 - **구조화된 로깅** - 민감 데이터 마스킹을 포함한 JSON 로그
 - **헬스 체크** - 내장 시스템 모니터링
@@ -783,7 +784,7 @@ npm test -- hyperliquid
 ✅ 194개 테스트 스위트
 ✅ 커버리지: 85% 구문, 89% 함수
 ✅ ESLint: 0 에러, TypeScript strict: 0 에러
-✅ 라이브 API: 18/19 거래소 실제 API 검증 (2026년 3월 기준)
+✅ 라이브 API: 19/20 거래소 실제 API 검증 (2026년 3월 기준)
 ```
 
 ### API 라이브 검증 결과 (2026년 3월 기준)
@@ -816,7 +817,7 @@ npm test -- hyperliquid
 
 ### Pattern A: Full-Featured 아키텍처
 
-**19개 모든 거래소 어댑터**가 **Pattern A** (Full-Featured) 아키텍처를 따릅니다:
+**20개 모든 거래소 어댑터**가 **Pattern A** (Full-Featured) 아키텍처를 따릅니다:
 
 ```
 src/adapters/{exchange}/

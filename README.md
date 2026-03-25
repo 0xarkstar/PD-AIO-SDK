@@ -46,17 +46,17 @@ const order = await exchange.createOrder({
 });
 ```
 
-> **19 exchanges, one interface.** Swap `'hyperliquid'` for any supported exchange — the API stays the same.
+> **20 exchanges, one interface.** Swap `'hyperliquid'` for any supported exchange — the API stays the same.
 
 ---
 
 ## 🎯 What is PD AIO SDK?
 
-**PD AIO SDK** (Perp DEX All-In-One SDK) is a production-ready, unified TypeScript SDK that lets you trade on **19 decentralized perpetual exchanges** through a single, consistent interface. No more learning different APIs for each exchange - write once, trade anywhere.
+**PD AIO SDK** (Perp DEX All-In-One SDK) is a production-ready, unified TypeScript SDK that lets you trade on **20 decentralized perpetual exchanges** through a single, consistent interface. No more learning different APIs for each exchange - write once, trade anywhere.
 
 ### Why "All-In-One"?
 
-- **One Interface** → 19 Exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX, Aster, Pacifica, Ostium, Reya, Ethereal, Avantis)
+- **One Interface** → 20 Exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX, Aster, Pacifica, Ostium, Reya, Ethereal, Avantis, Katana)
 - **One Codebase** → All Trading Operations (market data, orders, positions, WebSocket)
 - **One Installation** → Full-Stack Solution (authentication, rate limiting, error handling)
 
@@ -93,6 +93,7 @@ const order = await exchange.createOrder({
 | **Reya** | ✅ Verified | 69 perp | EIP-712 | Oracle/pool-based, no OB⁴ |
 | **Ethereal** | ✅ Verified | 15 perp | EIP-712 | USDe collateral |
 | **Avantis** | 🟡 Partial | On-chain | Wallet Signing | Needs contract addresses⁵ |
+| **Katana** | ✅ Verified | Cross | HMAC + EIP-712 | Katana L2, vbUSDC collateral |
 
 > ¹ Use `watchTrades()` for real-time trade data
 > ² GMX trading requires on-chain transactions via ExchangeRouter contract
@@ -716,7 +717,7 @@ npm test -- hyperliquid
 ✅ 194 test suites
 ✅ Coverage: 85% statements, 89% functions
 ✅ ESLint: 0 errors, TypeScript strict: 0 errors
-✅ Live API: 18/19 exchanges verified against real APIs (March 2026)
+✅ Live API: 19/20 exchanges verified against real APIs (March 2026)
 ```
 
 ---
@@ -725,7 +726,7 @@ npm test -- hyperliquid
 
 ### Pattern A: Full-Featured Architecture
 
-All **19 exchange adapters** follow **Pattern A** (Full-Featured) architecture:
+All **20 exchange adapters** follow **Pattern A** (Full-Featured) architecture:
 
 ```
 src/adapters/{exchange}/

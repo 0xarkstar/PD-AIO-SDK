@@ -3,7 +3,7 @@
 > Development context and guidelines for contributors and AI-assisted development tools.
 
 ## Project Overview
-Unified TypeScript SDK for decentralized perpetual exchanges. Supports 19 exchanges: Hyperliquid, Lighter, GRVT, Paradex, EdgeX, Backpack, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX, Aster, Pacifica, Ostium, Reya, Ethereal, Avantis.
+Unified TypeScript SDK for decentralized perpetual exchanges. Supports 20 exchanges: Hyperliquid, Lighter, GRVT, Paradex, EdgeX, Backpack, Nado, Extended, Variational, dYdX, Jupiter, Drift, GMX, Aster, Pacifica, Ostium, Reya, Ethereal, Avantis, Katana.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ Unified TypeScript SDK for decentralized perpetual exchanges. Supports 19 exchan
 - **Infrastructure**: WebSocket, rate limiting, authentication
 
 ### Pattern A (Full-Featured) Architecture
-All 19 exchange adapters follow **Pattern A** for consistency and maintainability.
+All 20 exchange adapters follow **Pattern A** for consistency and maintainability.
 
 **File Structure (9-11 files per adapter):**
 ```
@@ -168,6 +168,7 @@ Every adapter must implement:
 - **Aster**: HMAC-SHA256 (Binance-compatible)
 - **Pacifica**: Ed25519 API key
 - **Ostium**: EVM private key (ethers.js)
+- **Katana**: HMAC-SHA256 + EIP-712 wallet signatures (dual auth)
 
 ### Rate Limiting
 - **Hyperliquid**: 1200 weight/min

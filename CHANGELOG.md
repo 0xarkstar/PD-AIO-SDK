@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Katana Network adapter** — 20th exchange, perpetual futures DEX on Katana L2 (chainId 747474)
+  - Dual authentication: HMAC-SHA256 + EIP-712 wallet signatures
+  - Cross-margin only, vbUSDC collateral, 8-decimal zero-padded precision
+  - UUID v1 nonces with 60-second freshness window
+  - `emergencyCloseAll()` for atomic position close + withdrawal
+  - 173 tests, 86.87% statement coverage
+
+---
+
 ## [0.3.1] - 2026-03-11 (Live API Smoke Test + Bug Fixes)
 
 ### Fixed

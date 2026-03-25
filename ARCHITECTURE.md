@@ -15,7 +15,7 @@
 
 ## Overview
 
-PD-AIO-SDK is built on **hexagonal architecture** principles with a focus on clean separation of concerns, testability, and maintainability. After a comprehensive 5-week refactoring project, all 19 exchange adapters now follow **Pattern A (Full-Featured)** architecture, providing consistent structure and implementation patterns across the entire codebase.
+PD-AIO-SDK is built on **hexagonal architecture** principles with a focus on clean separation of concerns, testability, and maintainability. After a comprehensive 5-week refactoring project, all 20 exchange adapters now follow **Pattern A (Full-Featured)** architecture, providing consistent structure and implementation patterns across the entire codebase.
 
 ### Why Hexagonal Architecture?
 
@@ -471,7 +471,7 @@ Over 5 weeks (November-December 2025), we systematically refactored all exchange
 - **Modified**: utils.ts (353 → 115 lines, 67% reduction)
 - **Result**: ✅ 0 TypeScript errors, project 100% complete
 
-### Original 7 Adapters Standardized (Now Expanded to 19)
+### Original 7 Adapters Standardized (Now Expanded to 20)
 
 | Adapter     | Pattern | Normalizer Size | utils.ts Before | utils.ts After | Reduction |
 |-------------|---------|-----------------|-----------------|----------------|-----------|
@@ -770,10 +770,10 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ## Conclusion
 
-The Pattern A standardization represents a major milestone in PD-AIO-SDK's evolution. With all 19 adapters now following consistent architecture patterns, the codebase is more maintainable, testable, and scalable than ever before.
+The Pattern A standardization represents a major milestone in PD-AIO-SDK's evolution. With all 20 adapters now following consistent architecture patterns, the codebase is more maintainable, testable, and scalable than ever before.
 
 **Key Achievements**:
-- ✅ 100% Pattern A compliance across all 19 adapters
+- ✅ 100% Pattern A compliance across all 20 adapters
 - ✅ 1,366 lines of new normalizer code (original 7 adapters); 12 additional adapters added since
 - ✅ 73% average reduction in utils.ts size
 - ✅ 6,908 tests ensuring quality (85% coverage)

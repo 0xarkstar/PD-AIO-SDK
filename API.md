@@ -29,6 +29,7 @@ Complete API documentation for PD AIO SDK.
    - [Reya](#reya-adapter)
    - [Ethereal](#ethereal-adapter)
    - [Avantis](#avantis-adapter)
+   - [Katana](#katana-adapter)
 3. [Normalizers](#normalizers)
 4. [Types](#types)
    - [Market Data Types](#market-data-types)
@@ -110,7 +111,7 @@ function createExchange(
 ```
 
 **Parameters:**
-- `exchangeId`: Exchange identifier (`'hyperliquid'` | `'grvt'` | `'paradex'` | `'edgex'` | `'backpack'` | `'lighter'` | `'nado'` | `'variational'` | `'extended'` | `'dydx'` | `'jupiter'` | `'drift'` | `'gmx'` | `'aster'` | `'pacifica'` | `'ostium'`)
+- `exchangeId`: Exchange identifier (`'hyperliquid'` | `'grvt'` | `'paradex'` | `'edgex'` | `'backpack'` | `'lighter'` | `'nado'` | `'variational'` | `'extended'` | `'dydx'` | `'jupiter'` | `'drift'` | `'gmx'` | `'aster'` | `'pacifica'` | `'ostium'` | `'katana'`)
 - `config`: Exchange-specific configuration
 
 **Returns:** Exchange adapter instance
@@ -1145,6 +1146,60 @@ interface AvantisConfig {
 - Pyth oracle for price feeds
 - Currently uses placeholder contract addresses — needs real Base mainnet addresses
 - No orderbook, no public trades, no OHLCV (oracle-based)
+
+---
+
+### Katana Adapter
+
+Perpetual futures DEX on Katana L2 (chainId 747474) with dual HMAC + EIP-712 authentication.
+
+```typescript
+import { KatanaAdapter } from 'pd-aio-sdk/katana';
+// or
+const exchange = await createExchange('katana', config);
+```
+
+**Configuration:**
+```typescript
+interface KatanaConfig {
+  apiKey?: string;         // HMAC-SHA256 API key
+  apiSecret?: string;      // HMAC-SHA256 API secret
+  wallet?: Wallet;         // ethers.js Wallet for EIP-712 signing
+  testnet?: boolean;       // true = Bokuto sandbox
+}
+```
+
+**Authentication:** Dual — HMAC-SHA256 for REST requests + EIP-712 wallet signatures for order actions
+
+**Example:**
+```typescript
+const katana = await createExchange('katana', {
+  apiKey: process.env.KATANA_API_KEY,
+  apiSecret: process.env.KATANA_API_SECRET,
+  wallet: new Wallet(process.env.KATANA_PRIVATE_KEY),
+  testnet: true, // Bokuto sandbox
+});
+```
+
+**Supported Methods:**
+| Method | Supported | Notes |
+|--------|-----------|-------|
+| fetchMarkets | ✅ | Dynamic market discovery |
+| fetchTicker | ✅ | |
+| fetchOrderBook | ✅ | |
+| fetchTrades | ✅ | |
+| fetchOHLCV | ❌ | Not supported |
+| fetchFundingRate | ✅ | |
+| createOrder | ✅ | EIP-712 signed, UUID v1 nonce |
+| cancelOrder | ✅ | |
+| fetchPositions | ✅ | |
+| fetchBalance | ✅ | vbUSDC collateral |
+
+**Notes:**
+- Cross-margin only; vbUSDC collateral with 8-decimal zero-padded precision
+- UUID v1 nonces with 60-second freshness window
+- `emergencyCloseAll()` for atomic position close + withdrawal
+- Testnet: Bokuto sandbox environment
 
 ---
 
