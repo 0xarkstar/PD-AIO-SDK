@@ -1615,7 +1615,7 @@ type OrderType = 'market' | 'limit';
 type OrderSide = 'buy' | 'sell';
 type OrderStatus = 'open' | 'closed' | 'canceled' | 'rejected' | 'expired';
 type TimeInForce = 'GTC' | 'IOC' | 'FOK' | 'PO';
-type ExchangeId = 'hyperliquid' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'lighter' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx' | 'aster' | 'pacifica' | 'ostium' | 'reya' | 'ethereal' | 'avantis';
+type ExchangeId = 'hyperliquid' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'lighter' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx' | 'aster' | 'pacifica' | 'ostium' | 'reya' | 'ethereal' | 'avantis' | 'katana';
 ```
 
 ---

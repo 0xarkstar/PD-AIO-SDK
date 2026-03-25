@@ -33,9 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Smoke test**: Added Reya to NO_ORDERBOOK set (gmx, ostium, avantis, jupiter, reya)
 
 ### Improved
-- Live API smoke test: **18/19 exchanges working** (only Avantis needs real contract addresses)
+- Live API smoke test: **19/20 exchanges working** (only Avantis needs real contract addresses)
 - All 6,908 tests passing, 0 failures
-- Documentation updated to reflect 19 exchanges with live-verified data
+- Documentation updated to reflect 20 exchanges with live-verified data
 
 ---
 
@@ -45,8 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reya** adapter — Reya Network (Arbitrum L3) perpetual DEX, EIP-712 auth, HTTPClient pattern, 121 tests
 - **Ethereal** adapter — EIP-712 auth, USDe collateral, UUID product IDs, ~180 tests
 - **Avantis** adapter — Base chain, on-chain execution via ethers.Contract, Pyth oracle, ~190 tests
-- SDK now supports **19 exchanges** total
-- Factory updated: 19 exchanges registered, package.json exports updated
+- SDK now supports **20 exchanges** total
+- Factory updated: 20 exchanges registered, package.json exports updated
 
 ### Fixed
 - **Nado**: 10 Zod schemas hardened with `.passthrough()` + nested object fixes

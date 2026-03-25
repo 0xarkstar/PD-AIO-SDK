@@ -1,5 +1,5 @@
 /**
- * Smoke Test - Real API calls against all 19 exchanges
+ * Smoke Test - Real API calls against all 20 exchanges
  *
  * Tests public endpoints (no auth required):
  * - createExchange() + initialize()
