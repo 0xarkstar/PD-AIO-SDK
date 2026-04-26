@@ -24,8 +24,8 @@ import type WsWebSocket from 'ws';
 type WebSocketLike = WsWebSocket | globalThis.WebSocket;
 
 // Cached WebSocket class (lazy-loaded)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let WS: any = null;
+type WSCtor = typeof WsWebSocket | typeof globalThis.WebSocket;
+let WS: WSCtor | null = null;
 
 // Helper to load ws module in Node.js (async, using dynamic imports)
 // Works in both CommonJS (Jest) and ESM (runtime) contexts
@@ -56,7 +56,7 @@ async function loadWsModule(): Promise<unknown> {
 }
 
 // Get the appropriate WebSocket class (lazy initialization)
-async function getWebSocketClass(): Promise<typeof WebSocket> {
+async function getWebSocketClass(): Promise<WSCtor> {
   if (WS) {
     return WS;
   }
@@ -64,7 +64,7 @@ async function getWebSocketClass(): Promise<typeof WebSocket> {
   if (isBrowser) {
     WS = window.WebSocket;
   } else {
-    WS = await loadWsModule();
+    WS = (await loadWsModule()) as WSCtor;
   }
 
   return WS;

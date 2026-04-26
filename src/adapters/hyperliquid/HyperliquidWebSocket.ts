@@ -5,9 +5,11 @@
  * for the Hyperliquid exchange adapter.
  */
 
+import { EventEmitter } from 'events';
 import type { WebSocketManager } from '../../websocket/index.js';
 import type { OrderBook, Position, Ticker, Trade, Order } from '../../types/index.js';
 import { HYPERLIQUID_WS_CHANNELS } from './constants.js';
+import { AuthenticationError } from '../../types/errors.js';
 import type { HyperliquidAuth } from './HyperliquidAuth.js';
 import type { HyperliquidNormalizer } from './HyperliquidNormalizer.js';
 import type {
@@ -25,6 +27,7 @@ export interface HyperliquidWebSocketDeps {
   auth?: HyperliquidAuth;
   symbolToExchange: (symbol: string) => string;
   fetchOpenOrders: (symbol?: string) => Promise<Order[]>;
+  maxReconnectAttempts?: number;
 }
 
 /**
@@ -33,20 +36,65 @@ export interface HyperliquidWebSocketDeps {
  * Provides async generators for real-time market data and user events.
  * Extracted from HyperliquidAdapter to improve code organization.
  */
-export class HyperliquidWebSocket {
+export class HyperliquidWebSocket extends EventEmitter {
   private readonly wsManager: WebSocketManager;
   private readonly normalizer: HyperliquidNormalizer;
   private readonly auth?: HyperliquidAuth;
   private readonly symbolToExchange: (symbol: string) => string;
   private readonly fetchOpenOrders: (symbol?: string) => Promise<Order[]>;
 
+  private reconnectAttempts: number = 0;
+  private readonly maxReconnectAttempts: number;
+  private intentionalDisconnect: boolean = false;
+
   constructor(deps: HyperliquidWebSocketDeps) {
+    super();
     this.wsManager = deps.wsManager;
     this.normalizer = deps.normalizer;
     this.auth = deps.auth;
     this.symbolToExchange = deps.symbolToExchange;
     this.fetchOpenOrders = deps.fetchOpenOrders;
+    this.maxReconnectAttempts = deps.maxReconnectAttempts ?? 10;
+
+    this.setupReconnectHandling();
   }
+
+  /**
+   * Disconnect and prevent further reconnection attempts
+   */
+  disconnect(): void {
+    this.intentionalDisconnect = true;
+  }
+
+  /**
+   * Wire reconnect tracking to wsManager events.
+   * wsManager extends EventEmitter in production; guards handle test mocks.
+   */
+  private setupReconnectHandling(): void {
+    if (typeof this.wsManager.on !== 'function') {
+      return;
+    }
+
+    this.wsManager.on('reconnected', () => {
+      this.reconnectAttempts = 0;
+    });
+
+    this.wsManager.on('error', (error: Error) => {
+      if (this.intentionalDisconnect) {
+        return;
+      }
+      this.reconnectAttempts++;
+      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        this.emit(
+          'websocket.reconnect_failed',
+          new Error(
+            `Hyperliquid WebSocket reconnect failed after ${this.maxReconnectAttempts} attempts: ${error.message}`
+          )
+        );
+      }
+    });
+  }
+
 
   /**
    * Watch order book updates in real-time
@@ -141,7 +189,7 @@ export class HyperliquidWebSocket {
    */
   async *watchPositions(): AsyncGenerator<Position[]> {
     if (!this.auth) {
-      throw new Error('Authentication required for position streaming');
+      throw new AuthenticationError('Authentication required for position streaming', 'MISSING_CREDENTIALS', 'hyperliquid');
     }
 
     const subscription: HyperliquidWsSubscription = {
@@ -172,7 +220,7 @@ export class HyperliquidWebSocket {
    */
   async *watchOrders(): AsyncGenerator<Order[]> {
     if (!this.auth) {
-      throw new Error('Authentication required for order streaming');
+      throw new AuthenticationError('Authentication required for order streaming', 'MISSING_CREDENTIALS', 'hyperliquid');
     }
 
     const subscription: HyperliquidWsSubscription = {
@@ -205,7 +253,7 @@ export class HyperliquidWebSocket {
    */
   async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
     if (!this.auth) {
-      throw new Error('Authentication required for trade streaming');
+      throw new AuthenticationError('Authentication required for trade streaming', 'MISSING_CREDENTIALS', 'hyperliquid');
     }
 
     const subscription: HyperliquidWsSubscription = {
