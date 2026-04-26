@@ -5,6 +5,7 @@
  */
 // Main adapter
 export { VariationalAdapter } from './VariationalAdapter.js';
+export { VariationalNormalizer } from './VariationalNormalizer.js';
 // Constants
 export { VARIATIONAL_API_URLS, VARIATIONAL_ENDPOINTS, VARIATIONAL_RATE_LIMITS, VARIATIONAL_ORDER_TYPES, VARIATIONAL_ORDER_SIDES, VARIATIONAL_ORDER_STATUS, } from './constants.js';
 // Error codes

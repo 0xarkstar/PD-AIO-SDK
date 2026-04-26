@@ -16325,6 +16325,7 @@ __export(grvt_exports, {
   GRVTAuth: () => GRVTAuth,
   GRVTBalanceSchema: () => GRVTBalanceSchema,
   GRVTMarketSchema: () => GRVTMarketSchema,
+  GRVTNormalizer: () => GRVTNormalizer,
   GRVTOrderBookSchema: () => GRVTOrderBookSchema,
   GRVTOrderSchema: () => GRVTOrderSchema,
   GRVTPositionSchema: () => GRVTPositionSchema,
@@ -16362,6 +16363,7 @@ var init_grvt = __esm({
   "src/adapters/grvt/index.ts"() {
     "use strict";
     init_GRVTAdapter();
+    init_GRVTNormalizer();
     init_GRVTAuth();
     init_types5();
     init_constants3();
@@ -19159,12 +19161,14 @@ var init_ParadexAdapter = __esm({
 var paradex_exports = {};
 __export(paradex_exports, {
   ParadexAdapter: () => ParadexAdapter,
-  ParadexAuth: () => ParadexAuth
+  ParadexAuth: () => ParadexAuth,
+  ParadexNormalizer: () => ParadexNormalizer
 });
 var init_paradex = __esm({
   "src/adapters/paradex/index.ts"() {
     "use strict";
     init_ParadexAdapter();
+    init_ParadexNormalizer();
     init_ParadexAuth();
   }
 });
@@ -20380,12 +20384,14 @@ var init_EdgeXAdapter = __esm({
 var edgex_exports = {};
 __export(edgex_exports, {
   EdgeXAdapter: () => EdgeXAdapter,
-  EdgeXAuth: () => EdgeXAuth
+  EdgeXAuth: () => EdgeXAuth,
+  EdgeXNormalizer: () => EdgeXNormalizer
 });
 var init_edgex = __esm({
   "src/adapters/edgex/index.ts"() {
     "use strict";
     init_EdgeXAdapter();
+    init_EdgeXNormalizer();
     init_EdgeXAuth();
   }
 });
@@ -22236,12 +22242,14 @@ var init_BackpackAdapter = __esm({
 var backpack_exports = {};
 __export(backpack_exports, {
   BackpackAdapter: () => BackpackAdapter,
-  BackpackAuth: () => BackpackAuth
+  BackpackAuth: () => BackpackAuth,
+  BackpackNormalizer: () => BackpackNormalizer
 });
 var init_backpack = __esm({
   "src/adapters/backpack/index.ts"() {
     "use strict";
     init_BackpackAdapter();
+    init_BackpackNormalizer();
     init_BackpackAuth();
   }
 });
@@ -24451,6 +24459,7 @@ __export(nado_exports, {
   NadoAdapter: () => NadoAdapter,
   NadoBalanceSchema: () => NadoBalanceSchema,
   NadoContractsSchema: () => NadoContractsSchema,
+  NadoNormalizer: () => NadoNormalizer,
   NadoOrderBookSchema: () => NadoOrderBookSchema,
   NadoOrderSchema: () => NadoOrderSchema,
   NadoPositionSchema: () => NadoPositionSchema,
@@ -24464,6 +24473,7 @@ var init_nado = __esm({
   "src/adapters/nado/index.ts"() {
     "use strict";
     init_NadoAdapter();
+    init_NadoNormalizer();
     init_constants7();
     init_types9();
   }
@@ -25912,12 +25922,14 @@ __export(variational_exports, {
   VARIATIONAL_RATE_LIMIT_ERROR: () => VARIATIONAL_RATE_LIMIT_ERROR,
   VARIATIONAL_SERVER_ERRORS: () => VARIATIONAL_SERVER_ERRORS,
   VariationalAdapter: () => VariationalAdapter,
+  VariationalNormalizer: () => VariationalNormalizer,
   mapVariationalError: () => mapVariationalError
 });
 var init_variational = __esm({
   "src/adapters/variational/index.ts"() {
     "use strict";
     init_VariationalAdapter();
+    init_VariationalNormalizer();
     init_constants8();
     init_error_codes3();
   }
@@ -58760,6 +58772,7 @@ __export(reya_exports, {
   REYA_WS_RECONNECT: () => REYA_WS_RECONNECT,
   ReyaAdapter: () => ReyaAdapter,
   ReyaAuth: () => ReyaAuth,
+  ReyaNormalizer: () => ReyaNormalizer,
   reyaToUnified: () => reyaToUnified,
   unifiedToReya: () => unifiedToReya
 });
@@ -58767,6 +58780,7 @@ var init_reya = __esm({
   "src/adapters/reya/index.ts"() {
     "use strict";
     init_ReyaAdapter();
+    init_ReyaNormalizer();
     init_ReyaAuth();
     init_constants17();
   }
@@ -60928,6 +60942,7 @@ __export(avantis_exports, {
   AVANTIS_TRADING_ABI: () => AVANTIS_TRADING_ABI,
   AvantisAdapter: () => AvantisAdapter,
   AvantisAuth: () => AvantisAuth,
+  AvantisNormalizer: () => AvantisNormalizer,
   PYTH_PRICE_FEED_IDS: () => PYTH_PRICE_FEED_IDS,
   avantisToUnified: () => avantisToUnified,
   unifiedToAvantis: () => unifiedToAvantis
@@ -60936,6 +60951,7 @@ var init_avantis = __esm({
   "src/adapters/avantis/index.ts"() {
     "use strict";
     init_AvantisAdapter();
+    init_AvantisNormalizer();
     init_AvantisAuth();
     init_constants19();
   }
