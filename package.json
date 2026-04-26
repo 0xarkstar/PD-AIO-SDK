@@ -1,6 +1,6 @@
 {
   "name": "pd-aio-sdk",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "PD AIO SDK - Unified TypeScript SDK for 16 decentralized perpetual exchanges (Hyperliquid, GRVT, Paradex, EdgeX, Backpack, Lighter, Nado, Variational, Extended, dYdX v4, Jupiter, Drift, GMX v2, Aster, Pacifica, Ostium)",
   "type": "module",
   "repository": {
