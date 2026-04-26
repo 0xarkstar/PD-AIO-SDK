@@ -18,6 +18,7 @@ import { DYDX_MAINNET_API, DYDX_TESTNET_API, DYDX_RATE_LIMIT, DYDX_DEFAULT_SUBAC
 import { DydxAuth } from './DydxAuth.js';
 import { DydxNormalizer } from './DydxNormalizer.js';
 import { mapDydxError } from './error-codes.js';
+import { AuthenticationError, InvalidSymbolError, NotSupportedError, } from '../../types/errors.js';
 import { mapTimeframeToDydx, getDefaultOHLCVDuration, buildUrl } from './utils.js';
 /**
  * dYdX v4 Exchange Adapter
@@ -63,16 +64,20 @@ export class DydxAdapter extends BaseAdapter {
         cancelBatchOrders: 'emulated',
         editOrder: false,
         // Order Query
-        fetchOpenOrders: true,
+        // NOTE: account-scoped fetches require a real Cosmos address. Until proper
+        // bech32/Bip39 derivation is wired in (see DydxAuth.initialize JSDoc),
+        // these throw NotSupportedError and are advertised as unsupported here so
+        // the capability matrix matches actual behavior.
+        fetchOpenOrders: false,
         fetchOrder: false,
         // Account History
-        fetchOrderHistory: true,
-        fetchMyTrades: true,
+        fetchOrderHistory: false,
+        fetchMyTrades: false,
         fetchDeposits: false,
         fetchWithdrawals: false,
         // Positions & Balance
-        fetchPositions: true,
-        fetchBalance: true,
+        fetchPositions: false,
+        fetchBalance: false,
         setLeverage: false, // dYdX v4 uses cross-margin
         setMarginMode: false,
         // WebSocket
@@ -136,7 +141,7 @@ export class DydxAdapter extends BaseAdapter {
         if (this.auth) {
             const isValid = await this.auth.verify();
             if (!isValid) {
-                throw new Error('Failed to verify dYdX credentials');
+                throw new AuthenticationError('Failed to verify dYdX credentials', 'INVALID_CREDENTIALS', 'dydx');
             }
             this.debug('Authentication verified', { subaccountNumber: this.subaccountNumber });
         }
@@ -189,7 +194,7 @@ export class DydxAdapter extends BaseAdapter {
             const exchangeSymbol = this.symbolToExchange(symbol);
             const market = response.markets[exchangeSymbol];
             if (!market) {
-                throw new Error(`Market not found: ${symbol}`);
+                throw new InvalidSymbolError(`Market not found: ${symbol}`, 'INVALID_SYMBOL', 'dydx');
             }
             // Update cache
             this.marketDataCache.set(exchangeSymbol, {
@@ -239,7 +244,7 @@ export class DydxAdapter extends BaseAdapter {
             const marketsResponse = await this.request('GET', `${this.apiUrl}/perpetualMarkets`);
             const market = marketsResponse.markets[exchangeSymbol];
             if (!market) {
-                throw new Error(`Market not found: ${symbol}`);
+                throw new InvalidSymbolError(`Market not found: ${symbol}`, 'INVALID_SYMBOL', 'dydx');
             }
             const oraclePrice = parseFloat(market.oraclePrice);
             // Return current funding rate from market data
@@ -312,7 +317,7 @@ export class DydxAdapter extends BaseAdapter {
     async createOrder(_request) {
         this.ensureInitialized();
         if (!this.auth) {
-            throw new Error('Authentication required for trading. Provide mnemonic or privateKey.');
+            throw new AuthenticationError('Authentication required for trading. Provide mnemonic or privateKey.', 'MISSING_CREDENTIALS', 'dydx');
         }
         await this.rateLimiter.acquire('createOrder');
         try {
@@ -329,9 +334,9 @@ export class DydxAdapter extends BaseAdapter {
             // const client = await CompositeClient.connect(Network.mainnet());
             // const subaccount = new SubaccountClient(wallet, 0);
             // await client.placeOrder(subaccount, marketId, type, side, price, size, ...);
-            throw new Error('Trading operations require the official @dydxprotocol/v4-client-js SDK. ' +
+            throw new NotSupportedError('Trading operations require the official @dydxprotocol/v4-client-js SDK. ' +
                 'This adapter provides read-only access to the Indexer API. ' +
-                'Please integrate the official SDK for order placement.');
+                'Please integrate the official SDK for order placement.', 'NOT_SUPPORTED', 'dydx');
         }
         catch (error) {
             throw mapDydxError(error);
@@ -340,13 +345,13 @@ export class DydxAdapter extends BaseAdapter {
     async cancelOrder(_orderId, _symbol) {
         this.ensureInitialized();
         if (!this.auth) {
-            throw new Error('Authentication required for trading');
+            throw new AuthenticationError('Authentication required for trading', 'MISSING_CREDENTIALS', 'dydx');
         }
         await this.rateLimiter.acquire('cancelOrder');
         try {
             // Same note as createOrder - requires official SDK for actual cancellation
-            throw new Error('Trading operations require the official @dydxprotocol/v4-client-js SDK. ' +
-                'This adapter provides read-only access to the Indexer API.');
+            throw new NotSupportedError('Trading operations require the official @dydxprotocol/v4-client-js SDK. ' +
+                'This adapter provides read-only access to the Indexer API.', 'NOT_SUPPORTED', 'dydx');
         }
         catch (error) {
             throw mapDydxError(error);
@@ -355,12 +360,12 @@ export class DydxAdapter extends BaseAdapter {
     async cancelAllOrders(_symbol) {
         this.ensureInitialized();
         if (!this.auth) {
-            throw new Error('Authentication required for trading');
+            throw new AuthenticationError('Authentication required for trading', 'MISSING_CREDENTIALS', 'dydx');
         }
         await this.rateLimiter.acquire('cancelAllOrders');
         try {
-            throw new Error('Trading operations require the official @dydxprotocol/v4-client-js SDK. ' +
-                'This adapter provides read-only access to the Indexer API.');
+            throw new NotSupportedError('Trading operations require the official @dydxprotocol/v4-client-js SDK. ' +
+                'This adapter provides read-only access to the Indexer API.', 'NOT_SUPPORTED', 'dydx');
         }
         catch (error) {
             throw mapDydxError(error);
@@ -372,7 +377,7 @@ export class DydxAdapter extends BaseAdapter {
     async fetchPositions(symbols) {
         this.ensureInitialized();
         if (!this.auth) {
-            throw new Error('Authentication required');
+            throw new AuthenticationError('Authentication required', 'MISSING_CREDENTIALS', 'dydx');
         }
         await this.rateLimiter.acquire('fetchPositions');
         try {
@@ -397,7 +402,7 @@ export class DydxAdapter extends BaseAdapter {
     async fetchBalance() {
         this.ensureInitialized();
         if (!this.auth) {
-            throw new Error('Authentication required');
+            throw new AuthenticationError('Authentication required', 'MISSING_CREDENTIALS', 'dydx');
         }
         await this.rateLimiter.acquire('fetchBalance');
         try {
@@ -412,7 +417,7 @@ export class DydxAdapter extends BaseAdapter {
     async _setLeverage(_symbol, _leverage) {
         // dYdX v4 uses cross-margin and doesn't support per-symbol leverage setting
         this.debug('setLeverage: dYdX v4 uses cross-margin mode without per-symbol leverage');
-        throw new Error('dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity.');
+        throw new NotSupportedError('dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity.', 'NOT_SUPPORTED', 'dydx');
     }
     // ===========================================================================
     // Order History
@@ -420,7 +425,7 @@ export class DydxAdapter extends BaseAdapter {
     async fetchOrderHistory(symbol, since, limit) {
         this.ensureInitialized();
         if (!this.auth) {
-            throw new Error('Authentication required');
+            throw new AuthenticationError('Authentication required', 'MISSING_CREDENTIALS', 'dydx');
         }
         await this.rateLimiter.acquire('fetchOrderHistory');
         try {
@@ -449,7 +454,7 @@ export class DydxAdapter extends BaseAdapter {
     async fetchMyTrades(symbol, since, limit) {
         this.ensureInitialized();
         if (!this.auth) {
-            throw new Error('Authentication required');
+            throw new AuthenticationError('Authentication required', 'MISSING_CREDENTIALS', 'dydx');
         }
         await this.rateLimiter.acquire('fetchMyTrades');
         try {
@@ -484,7 +489,7 @@ export class DydxAdapter extends BaseAdapter {
     async fetchOpenOrders(symbol) {
         this.ensureInitialized();
         if (!this.auth) {
-            throw new Error('Authentication required');
+            throw new AuthenticationError('Authentication required', 'MISSING_CREDENTIALS', 'dydx');
         }
         await this.rateLimiter.acquire('fetchOpenOrders');
         try {
@@ -510,32 +515,32 @@ export class DydxAdapter extends BaseAdapter {
         this.ensureInitialized();
         // WebSocket implementation would go here
         // For now, we provide a polling fallback
-        throw new Error('WebSocket streams require additional implementation. Use fetchOrderBook for polling.');
+        throw new NotSupportedError('WebSocket streams require additional implementation. Use fetchOrderBook for polling.', 'NOT_SUPPORTED', 'dydx');
         yield {}; // Type system requirement
     }
     async *watchTrades(_symbol) {
         this.ensureInitialized();
-        throw new Error('WebSocket streams require additional implementation. Use fetchTrades for polling.');
+        throw new NotSupportedError('WebSocket streams require additional implementation. Use fetchTrades for polling.', 'NOT_SUPPORTED', 'dydx');
         yield {};
     }
     async *watchTicker(_symbol) {
         this.ensureInitialized();
-        throw new Error('WebSocket streams require additional implementation. Use fetchTicker for polling.');
+        throw new NotSupportedError('WebSocket streams require additional implementation. Use fetchTicker for polling.', 'NOT_SUPPORTED', 'dydx');
         yield {};
     }
     async *watchPositions() {
         this.ensureInitialized();
-        throw new Error('WebSocket streams require additional implementation. Use fetchPositions for polling.');
+        throw new NotSupportedError('WebSocket streams require additional implementation. Use fetchPositions for polling.', 'NOT_SUPPORTED', 'dydx');
         yield [];
     }
     async *watchOrders() {
         this.ensureInitialized();
-        throw new Error('WebSocket streams require additional implementation. Use fetchOpenOrders for polling.');
+        throw new NotSupportedError('WebSocket streams require additional implementation. Use fetchOpenOrders for polling.', 'NOT_SUPPORTED', 'dydx');
         yield [];
     }
     async *watchBalance() {
         this.ensureInitialized();
-        throw new Error('WebSocket streams require additional implementation. Use fetchBalance for polling.');
+        throw new NotSupportedError('WebSocket streams require additional implementation. Use fetchBalance for polling.', 'NOT_SUPPORTED', 'dydx');
         yield [];
     }
     // ===========================================================================

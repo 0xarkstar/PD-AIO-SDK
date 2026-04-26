@@ -5,6 +5,7 @@
  * Handles position opening, closing, and modification.
  */
 import { JUPITER_PERPS_PROGRAM_ID, JUPITER_TOKEN_MINTS, unifiedToJupiter } from './constants.js';
+import { PerpDEXError, InvalidSymbolError } from '../../types/errors.js';
 // =============================================================================
 // Instruction Discriminators (from Anchor IDL)
 // =============================================================================
@@ -62,7 +63,7 @@ export class JupiterInstructionBuilder {
      */
     ensureInitialized() {
         if (!this.isInitialized || !this.programId) {
-            throw new Error('JupiterInstructionBuilder not initialized. Call initialize() first.');
+            throw new PerpDEXError('JupiterInstructionBuilder not initialized. Call initialize() first.', 'NOT_INITIALIZED', 'jupiter');
         }
     }
     // ==========================================================================
@@ -409,7 +410,7 @@ export class JupiterInstructionBuilder {
         const baseToken = jupiterSymbol.replace('-PERP', '');
         const tokenMint = JUPITER_TOKEN_MINTS[baseToken];
         if (!tokenMint) {
-            throw new Error(`Unknown token for market: ${symbol}`);
+            throw new InvalidSymbolError(`Unknown token for market: ${symbol}`, 'INVALID_SYMBOL', 'jupiter');
         }
         // Derive PDAs
         const programId = this.programId;

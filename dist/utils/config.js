@@ -48,6 +48,8 @@ const EXCHANGE_ENV_REQUIREMENTS = {
     avantis: ['AVANTIS_PRIVATE_KEY'],
     // Ethereal (EIP-712 signing)
     ethereal: ['ETHEREAL_PRIVATE_KEY'],
+    // Katana (HMAC-SHA256 + EIP-712 dual auth)
+    katana: ['KATANA_API_KEY', 'KATANA_API_SECRET'],
 };
 /**
  * Validation error with helpful context
@@ -160,6 +162,7 @@ export function getConfigErrorMessage(exchange, missingVars) {
         reya: 'Export your wallet private key for Reya Network trading',
         avantis: 'Export your wallet private key for Base chain trading on Avantis',
         ethereal: 'Export your wallet private key for Ethereal perpetual DEX trading',
+        katana: 'Register at katana.network and create API key + secret (add wallet private key for trading)',
     };
     return (`❌ Missing environment variables for ${exchange}:\n\n` +
         `${varList}\n\n` +

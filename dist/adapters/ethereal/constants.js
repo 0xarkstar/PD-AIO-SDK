@@ -10,8 +10,8 @@ export const ETHEREAL_API_URLS = {
         websocket: 'wss://ws.ethereal.trade',
     },
     testnet: {
-        rest: 'https://api-testnet.ethereal.trade/v1',
-        websocket: 'wss://ws-testnet.ethereal.trade',
+        rest: 'https://api.etherealtest.net/v1',
+        websocket: 'wss://ws.etherealtest.net',
     },
 };
 // =============================================================================

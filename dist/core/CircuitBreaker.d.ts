@@ -150,6 +150,19 @@ export declare class CircuitBreaker extends EventEmitter<CircuitBreakerEvents> {
     getState(): CircuitState;
     /**
      * Get current metrics
+     *
+     * SECURITY NOTE: The returned metrics include operational counters
+     * (failureCount, consecutiveFailures, lastStateChange, errorRate)
+     * that can fingerprint exchange health. If exposed to a public
+     * Prometheus endpoint or external API, an adversary observing the
+     * stream may infer when this client stops trading at a venue and
+     * front-run the resulting volatility window.
+     *
+     * The default Prometheus exporter (`PrometheusMetrics` in
+     * src/monitoring/prometheus.ts) only emits the `circuit_breaker_state`
+     * gauge and is safe to expose. If you pipe `getMetrics()` output to
+     * your own logging or external dashboard, treat that endpoint as
+     * authenticated and non-public.
      */
     getMetrics(): CircuitBreakerMetrics;
     /**

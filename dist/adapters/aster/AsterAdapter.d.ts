@@ -15,13 +15,16 @@ export declare class AsterAdapter extends BaseAdapter implements IExchangeAdapte
     readonly has: Partial<FeatureMap>;
     private readonly auth?;
     private readonly baseUrl;
+    private readonly wsUrl;
     protected readonly httpClient: HTTPClient;
     protected rateLimiter: RateLimiter;
     private normalizer;
+    private wsHandler?;
     private readonly referralCode?;
     private readonly builderCodeEnabled;
     constructor(config?: AsterConfig);
     initialize(): Promise<void>;
+    disconnect(): Promise<void>;
     protected symbolToExchange(symbol: string): string;
     protected symbolFromExchange(exchangeSymbol: string): string;
     private requireAuth;
@@ -41,6 +44,10 @@ export declare class AsterAdapter extends BaseAdapter implements IExchangeAdapte
     fetchPositions(_symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
     _setLeverage(symbol: string, leverage: number): Promise<void>;
+    private ensureWsHandler;
+    watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook>;
+    watchTrades(symbol: string): AsyncGenerator<Trade>;
+    watchTicker(symbol: string): AsyncGenerator<Ticker>;
     fetchOrderHistory(_symbol?: string, _since?: number, _limit?: number): Promise<Order[]>;
     fetchMyTrades(_symbol?: string, _since?: number, _limit?: number): Promise<Trade[]>;
 }

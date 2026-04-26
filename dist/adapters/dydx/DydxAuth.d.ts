@@ -6,9 +6,16 @@
  * For trading operations, the official dYdX client library handles signing.
  *
  * This module provides:
- * - Cosmos SDK wallet derivation from mnemonic
- * - Address generation for subaccount identification
- * - Signing support for trading operations (when using the official SDK)
+ * - Input validation for mnemonic / private key credentials
+ * - Stubbed address derivation that throws NotSupportedError after validation
+ *   (proper BIP39 → HD key → bech32 derivation requires Cosmos SDK libraries
+ *   that are not yet integrated — see TODOs in derive methods below)
+ *
+ * Account-scoped operations (fetchPositions, fetchBalance, fetchOpenOrders,
+ * fetchOrderHistory, fetchMyTrades) are unavailable until proper Cosmos SDK
+ * derivation is implemented (e.g., @cosmjs/crypto or @dydxprotocol/v4-client-js).
+ * Public read-only operations (fetchMarkets, fetchTicker, fetchOrderBook,
+ * fetchTrades) do not require an address and remain fully functional.
  */
 import type { AuthenticatedRequest, IAuthStrategy, RequestParams } from '../../types/index.js';
 /**
@@ -31,10 +38,9 @@ export interface DydxAuthConfig {
  * Trading operations require the official @dydxprotocol/v4-client-js library
  * which handles Cosmos SDK transaction signing internally.
  *
- * This auth strategy is primarily used for:
- * 1. Generating the dYdX address from mnemonic/private key
- * 2. Tracking subaccount information
- * 3. Providing wallet context for trading operations
+ * This auth strategy validates credentials and tracks subaccount information,
+ * but throws NotSupportedError for any operation that requires a derived address
+ * until proper Cosmos SDK libraries are integrated.
  *
  * @example
  * ```typescript
@@ -43,8 +49,8 @@ export interface DydxAuthConfig {
  *   subaccountNumber: 0,
  * });
  *
- * const address = auth.getAddress();
- * console.log(`dYdX Address: ${address}`);
+ * // Throws NotSupportedError until Cosmos SDK derivation is integrated
+ * const address = await auth.getAddress();
  * ```
  */
 export declare class DydxAuth implements IAuthStrategy {
@@ -56,19 +62,25 @@ export declare class DydxAuth implements IAuthStrategy {
     private initialized;
     constructor(config: DydxAuthConfig);
     /**
-     * Initialize the auth strategy
+     * Initialize the auth strategy by running input validation via derive methods.
      *
-     * Derives the dYdX address from the mnemonic or private key.
-     * This is called lazily when the address is first needed.
+     * If input is invalid (wrong word count / wrong key length), throws
+     * InvalidParameterError immediately. If input passes validation, the derive
+     * methods throw NotSupportedError because real Cosmos SDK address derivation
+     * is not yet wired in — the failure is intentionally loud so callers know
+     * account-scoped operations are unavailable.
+     *
+     * PerpDEXError subclasses (InvalidParameterError, NotSupportedError, etc.)
+     * are re-thrown as-is so callers can distinguish error types. Unknown errors
+     * are wrapped in NetworkError.
      */
     private initialize;
     /**
-     * Derive dYdX address from mnemonic
+     * Validate mnemonic word count, then throw NotSupportedError.
      *
-     * @WARNING This is a PLACEHOLDER that generates a deterministic but INVALID
-     * Cosmos address. It does NOT perform proper BIP39 → HD key → bech32 derivation.
-     * Addresses produced by this method will NOT match the real dYdX address for the
-     * given mnemonic and CANNOT be used for on-chain operations.
+     * Input validation runs first so callers receive InvalidParameterError for
+     * bad input. Once validation passes, NotSupportedError is thrown because
+     * proper BIP39 → HD key → bech32 derivation is not yet implemented.
      *
      * TODO: Replace with proper Cosmos address derivation:
      *   1. `@cosmjs/crypto` — Bip39.decode(mnemonic) → seed
@@ -80,25 +92,25 @@ export declare class DydxAuth implements IAuthStrategy {
      */
     private deriveAddressFromMnemonic;
     /**
-     * Derive dYdX address from private key
+     * Validate private key length, then throw NotSupportedError.
      *
-     * @WARNING PLACEHOLDER — same limitations as deriveAddressFromMnemonic.
-     * Does NOT perform real secp256k1 → ripemd160(sha256(pubkey)) → bech32 derivation.
+     * Same validation-first pattern as deriveAddressFromMnemonic: bad key length
+     * yields InvalidParameterError; valid key yields NotSupportedError because
+     * real secp256k1 → ripemd160(sha256(pubkey)) → bech32 derivation is not yet
+     * implemented.
      *
      * TODO: Use @cosmjs/crypto Secp256k1.makeKeypair() + pubkeyToAddress()
      */
     private deriveAddressFromPrivateKey;
     /**
-     * Simple hash function for placeholder address generation.
-     * NOT cryptographically secure — used only for deterministic placeholder addresses.
-     * @internal
-     */
-    private simpleHash;
-    /**
      * Sign a request
      *
      * For dYdX Indexer API, most requests don't require signing.
      * Trading operations use the official SDK's internal signing.
+     *
+     * Note: sign() calls initialize() which throws NotSupportedError for valid
+     * credentials. This means sign() is currently only usable for read-only
+     * requests that do not need an address (getHeaders() alone suffices for those).
      */
     sign(request: RequestParams): Promise<AuthenticatedRequest>;
     /**
@@ -115,7 +127,8 @@ export declare class DydxAuth implements IAuthStrategy {
     /**
      * Get the dYdX address
      *
-     * @returns The derived dYdX address (bech32 format)
+     * @throws NotSupportedError until Cosmos SDK derivation is integrated
+     * @throws InvalidParameterError if credentials are malformed
      */
     getAddress(): Promise<string>;
     /**
@@ -128,13 +141,16 @@ export declare class DydxAuth implements IAuthStrategy {
      * Get subaccount ID (address + subaccount number)
      *
      * dYdX uses the format: {address}/{subaccountNumber}
+     *
+     * @throws NotSupportedError until Cosmos SDK derivation is integrated
      */
     getSubaccountId(): Promise<string>;
     /**
      * Check if credentials are valid
      *
-     * For dYdX, this validates that the mnemonic/private key
-     * can derive a valid address.
+     * Returns false when credentials are malformed (InvalidParameterError) or
+     * when derivation is unsupported (NotSupportedError). Returns false in both
+     * cases because neither yields a usable address.
      */
     verify(): Promise<boolean>;
     /**

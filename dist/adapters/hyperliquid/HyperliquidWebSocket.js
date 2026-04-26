@@ -4,25 +4,60 @@
  * Manages WebSocket subscriptions and real-time data streaming
  * for the Hyperliquid exchange adapter.
  */
+import { EventEmitter } from 'events';
 import { HYPERLIQUID_WS_CHANNELS } from './constants.js';
+import { AuthenticationError } from '../../types/errors.js';
 /**
  * WebSocket streaming handler for Hyperliquid
  *
  * Provides async generators for real-time market data and user events.
  * Extracted from HyperliquidAdapter to improve code organization.
  */
-export class HyperliquidWebSocket {
+export class HyperliquidWebSocket extends EventEmitter {
     wsManager;
     normalizer;
     auth;
     symbolToExchange;
     fetchOpenOrders;
+    reconnectAttempts = 0;
+    maxReconnectAttempts;
+    intentionalDisconnect = false;
     constructor(deps) {
+        super();
         this.wsManager = deps.wsManager;
         this.normalizer = deps.normalizer;
         this.auth = deps.auth;
         this.symbolToExchange = deps.symbolToExchange;
         this.fetchOpenOrders = deps.fetchOpenOrders;
+        this.maxReconnectAttempts = deps.maxReconnectAttempts ?? 10;
+        this.setupReconnectHandling();
+    }
+    /**
+     * Disconnect and prevent further reconnection attempts
+     */
+    disconnect() {
+        this.intentionalDisconnect = true;
+    }
+    /**
+     * Wire reconnect tracking to wsManager events.
+     * wsManager extends EventEmitter in production; guards handle test mocks.
+     */
+    setupReconnectHandling() {
+        if (typeof this.wsManager.on !== 'function') {
+            return;
+        }
+        this.wsManager.on('reconnected', () => {
+            this.reconnectAttempts = 0;
+        });
+        this.wsManager.on('error', (error) => {
+            if (this.intentionalDisconnect) {
+                return;
+            }
+            this.reconnectAttempts++;
+            if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+                this.emit('websocket.reconnect_failed', new Error(`Hyperliquid WebSocket reconnect failed after ${this.maxReconnectAttempts} attempts: ${error.message}`));
+            }
+        });
     }
     /**
      * Watch order book updates in real-time
@@ -97,7 +132,7 @@ export class HyperliquidWebSocket {
      */
     async *watchPositions() {
         if (!this.auth) {
-            throw new Error('Authentication required for position streaming');
+            throw new AuthenticationError('Authentication required for position streaming', 'MISSING_CREDENTIALS', 'hyperliquid');
         }
         const subscription = {
             method: 'subscribe',
@@ -121,7 +156,7 @@ export class HyperliquidWebSocket {
      */
     async *watchOrders() {
         if (!this.auth) {
-            throw new Error('Authentication required for order streaming');
+            throw new AuthenticationError('Authentication required for order streaming', 'MISSING_CREDENTIALS', 'hyperliquid');
         }
         const subscription = {
             method: 'subscribe',
@@ -147,7 +182,7 @@ export class HyperliquidWebSocket {
      */
     async *watchMyTrades(symbol) {
         if (!this.auth) {
-            throw new Error('Authentication required for trade streaming');
+            throw new AuthenticationError('Authentication required for trade streaming', 'MISSING_CREDENTIALS', 'hyperliquid');
         }
         const subscription = {
             method: 'subscribe',

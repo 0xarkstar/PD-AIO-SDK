@@ -5,6 +5,7 @@
  * Provides a simplified interface for order management.
  */
 import { Logger } from '../../core/logger.js';
+import { PerpDEXError, NetworkError, OrderNotFoundError } from '../../types/errors.js';
 /**
  * Wrapper around @drift-labs/sdk DriftClient
  *
@@ -71,7 +72,7 @@ export class DriftClientWrapper {
             this.isInitialized = true;
         }
         catch (error) {
-            throw new Error(`Failed to initialize Drift client: ${error instanceof Error ? error.message : String(error)}`);
+            throw new NetworkError(`Failed to initialize Drift client: ${error instanceof Error ? error.message : String(error)}`, 'NETWORK_ERROR', 'drift', error);
         }
     }
     /**
@@ -79,7 +80,7 @@ export class DriftClientWrapper {
      */
     ensureInitialized() {
         if (!this.isInitialized) {
-            throw new Error('DriftClientWrapper not initialized. Call initialize() first.');
+            throw new PerpDEXError('DriftClientWrapper not initialized. Call initialize() first.', 'NOT_INITIALIZED', 'drift');
         }
     }
     // ==========================================================================
@@ -193,7 +194,7 @@ export class DriftClientWrapper {
         const orders = user.getOpenOrders();
         const originalOrder = orders.find((o) => o.orderId === orderId);
         if (!originalOrder) {
-            throw new Error(`Order ${orderId} not found`);
+            throw new OrderNotFoundError(`Order ${orderId} not found`, 'ORDER_NOT_FOUND', 'drift');
         }
         // Place new order with merged params
         const mergedParams = {
@@ -278,7 +279,7 @@ export class DriftClientWrapper {
         this.ensureInitialized();
         const perpMarket = this.driftClient.getPerpMarketAccount(marketIndex);
         if (!perpMarket) {
-            throw new Error(`Perp market ${marketIndex} not found`);
+            throw new PerpDEXError(`Perp market ${marketIndex} not found`, 'INVALID_SYMBOL', 'drift');
         }
         const oracleData = this.driftClient.getOracleDataForPerpMarket(marketIndex);
         return oracleData.price;
@@ -292,7 +293,7 @@ export class DriftClientWrapper {
         const { calculateReservePrice } = driftSdk;
         const perpMarket = this.driftClient.getPerpMarketAccount(marketIndex);
         if (!perpMarket) {
-            throw new Error(`Perp market ${marketIndex} not found`);
+            throw new PerpDEXError(`Perp market ${marketIndex} not found`, 'INVALID_SYMBOL', 'drift');
         }
         const price = calculateReservePrice(perpMarket, this.driftClient.getOracleDataForPerpMarket(marketIndex));
         // Convert BN to bigint

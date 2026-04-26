@@ -4,6 +4,7 @@
  * Manages WebSocket subscriptions and real-time data streaming
  * for the Lighter exchange adapter.
  */
+import { EventEmitter } from 'events';
 import { PerpDEXError } from '../../types/errors.js';
 import { LIGHTER_WS_CHANNELS } from './constants.js';
 /**
@@ -12,7 +13,7 @@ import { LIGHTER_WS_CHANNELS } from './constants.js';
  * Provides async generators for real-time market data and user events.
  * Extracted from LighterAdapter to improve code organization.
  */
-export class LighterWebSocket {
+export class LighterWebSocket extends EventEmitter {
     wsManager;
     normalizer;
     signer;
@@ -21,7 +22,11 @@ export class LighterWebSocket {
     apiKeyIndex;
     _hasAuthentication;
     _hasWasmSigning;
+    reconnectAttempts = 0;
+    maxReconnectAttempts;
+    intentionalDisconnect = false;
     constructor(deps) {
+        super();
         this.wsManager = deps.wsManager;
         this.normalizer = deps.normalizer;
         this.signer = deps.signer;
@@ -30,6 +35,35 @@ export class LighterWebSocket {
         this.apiKeyIndex = deps.apiKeyIndex;
         this._hasAuthentication = deps.hasAuthentication;
         this._hasWasmSigning = deps.hasWasmSigning;
+        this.maxReconnectAttempts = deps.maxReconnectAttempts ?? 10;
+        this.setupReconnectHandling();
+    }
+    /**
+     * Disconnect and prevent further reconnection attempts
+     */
+    disconnect() {
+        this.intentionalDisconnect = true;
+    }
+    /**
+     * Wire reconnect tracking to wsManager events.
+     * wsManager extends EventEmitter in production; guards handle test mocks.
+     */
+    setupReconnectHandling() {
+        if (typeof this.wsManager.on !== 'function') {
+            return;
+        }
+        this.wsManager.on('reconnected', () => {
+            this.reconnectAttempts = 0;
+        });
+        this.wsManager.on('error', (error) => {
+            if (this.intentionalDisconnect) {
+                return;
+            }
+            this.reconnectAttempts++;
+            if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+                this.emit('websocket.reconnect_failed', new Error(`Lighter WebSocket reconnect failed after ${this.maxReconnectAttempts} attempts: ${error.message}`));
+            }
+        });
     }
     /**
      * Watch order book updates in real-time

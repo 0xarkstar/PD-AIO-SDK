@@ -451,7 +451,7 @@ function isRateLimitError(error) {
 function isAuthError(error) {
   return error instanceof InvalidSignatureError || error instanceof ExpiredAuthError || error instanceof InsufficientPermissionsError;
 }
-var PerpDEXError, NotSupportedError, BadRequestError, InsufficientMarginError, OrderNotFoundError, InvalidOrderError, PositionNotFoundError, NetworkError, RateLimitError, ExchangeUnavailableError, WebSocketDisconnectedError, InvalidSignatureError, ExpiredAuthError, InsufficientPermissionsError, InvalidSymbolError, InsufficientBalanceError, TransactionFailedError, SlippageExceededError, LiquidationError;
+var PerpDEXError, NotSupportedError, BadRequestError, BadResponseError, AuthenticationError, InsufficientMarginError, OrderNotFoundError, InvalidOrderError, PositionNotFoundError, NetworkError, RateLimitError, ExchangeUnavailableError, WebSocketDisconnectedError, InvalidSignatureError, ExpiredAuthError, InsufficientPermissionsError, InvalidSymbolError, InvalidParameterError, InsufficientBalanceError, OrderRejectedError, TransactionFailedError, SlippageExceededError, LiquidationError;
 var init_errors = __esm({
   "src/types/errors.ts"() {
     "use strict";
@@ -522,6 +522,20 @@ var init_errors = __esm({
         super(message, code, exchange, originalError);
         this.name = "BadRequestError";
         Object.setPrototypeOf(this, _BadRequestError.prototype);
+      }
+    };
+    BadResponseError = class _BadResponseError extends PerpDEXError {
+      constructor(message, code, exchange, originalError) {
+        super(message, code, exchange, originalError);
+        this.name = "BadResponseError";
+        Object.setPrototypeOf(this, _BadResponseError.prototype);
+      }
+    };
+    AuthenticationError = class _AuthenticationError extends PerpDEXError {
+      constructor(message, code, exchange, originalError) {
+        super(message, code, exchange, originalError);
+        this.name = "AuthenticationError";
+        Object.setPrototypeOf(this, _AuthenticationError.prototype);
       }
     };
     InsufficientMarginError = class _InsufficientMarginError extends PerpDEXError {
@@ -609,6 +623,13 @@ var init_errors = __esm({
         Object.setPrototypeOf(this, _InvalidSymbolError.prototype);
       }
     };
+    InvalidParameterError = class _InvalidParameterError extends PerpDEXError {
+      constructor(message, code, exchange, originalError) {
+        super(message, code, exchange, originalError);
+        this.name = "InvalidParameterError";
+        Object.setPrototypeOf(this, _InvalidParameterError.prototype);
+      }
+    };
     InsufficientBalanceError = class _InsufficientBalanceError extends PerpDEXError {
       constructor(message, code, exchange, required, available, originalError) {
         super(message, code, exchange, originalError);
@@ -616,6 +637,14 @@ var init_errors = __esm({
         this.available = available;
         this.name = "InsufficientBalanceError";
         Object.setPrototypeOf(this, _InsufficientBalanceError.prototype);
+      }
+    };
+    OrderRejectedError = class _OrderRejectedError extends PerpDEXError {
+      constructor(message, code, exchange, reason, originalError) {
+        super(message, code, exchange, originalError);
+        this.reason = reason;
+        this.name = "OrderRejectedError";
+        Object.setPrototypeOf(this, _OrderRejectedError.prototype);
       }
     };
     TransactionFailedError = class _TransactionFailedError extends PerpDEXError {
@@ -676,11 +705,11 @@ var require_eventemitter3 = __commonJS({
       if (--emitter._eventsCount === 0) emitter._events = new Events();
       else delete emitter._events[evt];
     }
-    function EventEmitter3() {
+    function EventEmitter6() {
       this._events = new Events();
       this._eventsCount = 0;
     }
-    EventEmitter3.prototype.eventNames = function eventNames() {
+    EventEmitter6.prototype.eventNames = function eventNames() {
       var names = [], events, name;
       if (this._eventsCount === 0) return names;
       for (name in events = this._events) {
@@ -691,7 +720,7 @@ var require_eventemitter3 = __commonJS({
       }
       return names;
     };
-    EventEmitter3.prototype.listeners = function listeners(event) {
+    EventEmitter6.prototype.listeners = function listeners(event) {
       var evt = prefix ? prefix + event : event, handlers = this._events[evt];
       if (!handlers) return [];
       if (handlers.fn) return [handlers.fn];
@@ -700,13 +729,13 @@ var require_eventemitter3 = __commonJS({
       }
       return ee;
     };
-    EventEmitter3.prototype.listenerCount = function listenerCount(event) {
+    EventEmitter6.prototype.listenerCount = function listenerCount(event) {
       var evt = prefix ? prefix + event : event, listeners = this._events[evt];
       if (!listeners) return 0;
       if (listeners.fn) return 1;
       return listeners.length;
     };
-    EventEmitter3.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
+    EventEmitter6.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
       var evt = prefix ? prefix + event : event;
       if (!this._events[evt]) return false;
       var listeners = this._events[evt], len = arguments.length, args, i;
@@ -757,13 +786,13 @@ var require_eventemitter3 = __commonJS({
       }
       return true;
     };
-    EventEmitter3.prototype.on = function on(event, fn, context) {
+    EventEmitter6.prototype.on = function on(event, fn, context) {
       return addListener(this, event, fn, context, false);
     };
-    EventEmitter3.prototype.once = function once(event, fn, context) {
+    EventEmitter6.prototype.once = function once(event, fn, context) {
       return addListener(this, event, fn, context, true);
     };
-    EventEmitter3.prototype.removeListener = function removeListener(event, fn, context, once) {
+    EventEmitter6.prototype.removeListener = function removeListener(event, fn, context, once) {
       var evt = prefix ? prefix + event : event;
       if (!this._events[evt]) return this;
       if (!fn) {
@@ -786,7 +815,7 @@ var require_eventemitter3 = __commonJS({
       }
       return this;
     };
-    EventEmitter3.prototype.removeAllListeners = function removeAllListeners(event) {
+    EventEmitter6.prototype.removeAllListeners = function removeAllListeners(event) {
       var evt;
       if (event) {
         evt = prefix ? prefix + event : event;
@@ -797,12 +826,12 @@ var require_eventemitter3 = __commonJS({
       }
       return this;
     };
-    EventEmitter3.prototype.off = EventEmitter3.prototype.removeListener;
-    EventEmitter3.prototype.addListener = EventEmitter3.prototype.on;
-    EventEmitter3.prefixed = prefix;
-    EventEmitter3.EventEmitter = EventEmitter3;
+    EventEmitter6.prototype.off = EventEmitter6.prototype.removeListener;
+    EventEmitter6.prototype.addListener = EventEmitter6.prototype.on;
+    EventEmitter6.prefixed = prefix;
+    EventEmitter6.EventEmitter = EventEmitter6;
     if ("undefined" !== typeof module2) {
-      module2.exports = EventEmitter3;
+      module2.exports = EventEmitter6;
     }
   }
 });
@@ -1747,6 +1776,19 @@ var init_CircuitBreaker = __esm({
       }
       /**
        * Get current metrics
+       *
+       * SECURITY NOTE: The returned metrics include operational counters
+       * (failureCount, consecutiveFailures, lastStateChange, errorRate)
+       * that can fingerprint exchange health. If exposed to a public
+       * Prometheus endpoint or external API, an adversary observing the
+       * stream may infer when this client stops trading at a venue and
+       * front-run the resulting volatility window.
+       *
+       * The default Prometheus exporter (`PrometheusMetrics` in
+       * src/monitoring/prometheus.ts) only emits the `circuit_breaker_state`
+       * gauge and is safe to expose. If you pipe `getMetrics()` output to
+       * your own logging or external dashboard, treat that endpoint as
+       * authenticated and non-public.
        */
       getMetrics() {
         this.getRecentRequestCount();
@@ -7828,7 +7870,7 @@ function unifiedToHyperliquid(symbol) {
   const parts = symbol.split("/");
   const base = parts[0];
   if (!base) {
-    throw new Error(`Invalid symbol format: ${symbol}`);
+    throw new InvalidSymbolError(`Invalid symbol format: ${symbol}`, "INVALID_SYMBOL", "hyperliquid");
   }
   return base;
 }
@@ -7839,6 +7881,7 @@ var HYPERLIQUID_MAINNET_API, HYPERLIQUID_TESTNET_API, HYPERLIQUID_MAINNET_WS, HY
 var init_constants = __esm({
   "src/adapters/hyperliquid/constants.ts"() {
     "use strict";
+    init_errors();
     HYPERLIQUID_MAINNET_API = "https://api.hyperliquid.xyz";
     HYPERLIQUID_TESTNET_API = "https://api.hyperliquid-testnet.xyz";
     HYPERLIQUID_MAINNET_WS = "wss://api.hyperliquid.xyz/ws";
@@ -8551,23 +8594,63 @@ var init_HyperliquidNormalizer = __esm({
 });
 
 // src/adapters/hyperliquid/HyperliquidWebSocket.ts
-var HyperliquidWebSocket;
+var import_events2, HyperliquidWebSocket;
 var init_HyperliquidWebSocket = __esm({
   "src/adapters/hyperliquid/HyperliquidWebSocket.ts"() {
     "use strict";
+    import_events2 = require("events");
     init_constants();
-    HyperliquidWebSocket = class {
+    init_errors();
+    HyperliquidWebSocket = class extends import_events2.EventEmitter {
       wsManager;
       normalizer;
       auth;
       symbolToExchange;
       fetchOpenOrders;
+      reconnectAttempts = 0;
+      maxReconnectAttempts;
+      intentionalDisconnect = false;
       constructor(deps) {
+        super();
         this.wsManager = deps.wsManager;
         this.normalizer = deps.normalizer;
         this.auth = deps.auth;
         this.symbolToExchange = deps.symbolToExchange;
         this.fetchOpenOrders = deps.fetchOpenOrders;
+        this.maxReconnectAttempts = deps.maxReconnectAttempts ?? 10;
+        this.setupReconnectHandling();
+      }
+      /**
+       * Disconnect and prevent further reconnection attempts
+       */
+      disconnect() {
+        this.intentionalDisconnect = true;
+      }
+      /**
+       * Wire reconnect tracking to wsManager events.
+       * wsManager extends EventEmitter in production; guards handle test mocks.
+       */
+      setupReconnectHandling() {
+        if (typeof this.wsManager.on !== "function") {
+          return;
+        }
+        this.wsManager.on("reconnected", () => {
+          this.reconnectAttempts = 0;
+        });
+        this.wsManager.on("error", (error) => {
+          if (this.intentionalDisconnect) {
+            return;
+          }
+          this.reconnectAttempts++;
+          if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            this.emit(
+              "websocket.reconnect_failed",
+              new Error(
+                `Hyperliquid WebSocket reconnect failed after ${this.maxReconnectAttempts} attempts: ${error.message}`
+              )
+            );
+          }
+        });
       }
       /**
        * Watch order book updates in real-time
@@ -8652,7 +8735,7 @@ var init_HyperliquidWebSocket = __esm({
        */
       async *watchPositions() {
         if (!this.auth) {
-          throw new Error("Authentication required for position streaming");
+          throw new AuthenticationError("Authentication required for position streaming", "MISSING_CREDENTIALS", "hyperliquid");
         }
         const subscription = {
           method: "subscribe",
@@ -8677,7 +8760,7 @@ var init_HyperliquidWebSocket = __esm({
        */
       async *watchOrders() {
         if (!this.auth) {
-          throw new Error("Authentication required for order streaming");
+          throw new AuthenticationError("Authentication required for order streaming", "MISSING_CREDENTIALS", "hyperliquid");
         }
         const subscription = {
           method: "subscribe",
@@ -8704,7 +8787,7 @@ var init_HyperliquidWebSocket = __esm({
        */
       async *watchMyTrades(symbol) {
         if (!this.auth) {
-          throw new Error("Authentication required for trade streaming");
+          throw new AuthenticationError("Authentication required for trade streaming", "MISSING_CREDENTIALS", "hyperliquid");
         }
         const subscription = {
           method: "subscribe",
@@ -9182,7 +9265,7 @@ var init_HyperliquidAdapter = __esm({
           const exchangeSymbol = this.symbolToExchange(symbol);
           const mid = allMids[exchangeSymbol];
           if (!mid) {
-            throw new Error(`No ticker data for ${symbol}`);
+            throw new BadResponseError(`No ticker data for ${symbol}`, "BAD_RESPONSE", "hyperliquid");
           }
           return this.normalizer.normalizeTicker(exchangeSymbol, { mid });
         } catch (error) {
@@ -9242,11 +9325,11 @@ var init_HyperliquidAdapter = __esm({
             // Last 24h
           });
           if (!response || response.length === 0) {
-            throw new Error(`No funding rate data for ${symbol}`);
+            throw new BadResponseError(`No funding rate data for ${symbol}`, "BAD_RESPONSE", "hyperliquid");
           }
           const latest = response[response.length - 1];
           if (!latest) {
-            throw new Error(`No funding rate data for ${symbol}`);
+            throw new BadResponseError(`No funding rate data for ${symbol}`, "BAD_RESPONSE", "hyperliquid");
           }
           const allMids = await this.request("POST", `${this.apiUrl}/info`, {
             type: "allMids"
@@ -9308,14 +9391,14 @@ var init_HyperliquidAdapter = __esm({
             signedRequest.headers
           );
           if (response.status === "err") {
-            throw new Error("Order creation failed");
+            throw new OrderRejectedError("Order creation failed", "ORDER_REJECTED", "hyperliquid");
           }
           const status = response.response.data.statuses[0];
           if (!status) {
-            throw new Error("No order status in response");
+            throw new BadResponseError("No order status in response", "BAD_RESPONSE", "hyperliquid");
           }
           if ("error" in status) {
-            throw new Error(status.error);
+            throw new OrderRejectedError(status.error, "ORDER_REJECTED", "hyperliquid");
           }
           let orderId;
           if ("resting" in status) {
@@ -9323,7 +9406,7 @@ var init_HyperliquidAdapter = __esm({
           } else if ("filled" in status) {
             orderId = status.filled.oid.toString();
           } else {
-            throw new Error("Unknown order status");
+            throw new BadResponseError("Unknown order status", "BAD_RESPONSE", "hyperliquid");
           }
           return {
             id: orderId,
@@ -9349,7 +9432,7 @@ var init_HyperliquidAdapter = __esm({
         await this.rateLimiter.acquire("cancelOrder");
         try {
           if (!symbol) {
-            throw new Error("Symbol required for order cancellation");
+            throw new InvalidParameterError("Symbol required for order cancellation", "INVALID_PARAMETER", "hyperliquid");
           }
           const exchangeSymbol = this.symbolToExchange(symbol);
           const action = {
@@ -9470,7 +9553,7 @@ var init_HyperliquidAdapter = __esm({
       ensureAuth() {
         this.ensureInitialized();
         if (!this.auth) {
-          throw new Error("Authentication required");
+          throw new AuthenticationError("Authentication required", "MISSING_CREDENTIALS", "hyperliquid");
         }
         return this.auth;
       }
@@ -9522,7 +9605,7 @@ var init_HyperliquidAdapter = __esm({
       ensureWsHandler() {
         this.ensureInitialized();
         if (!this.wsHandler) {
-          throw new Error("WebSocket handler not initialized");
+          throw new PerpDEXError("WebSocket handler not initialized", "NOT_INITIALIZED", "hyperliquid");
         }
         return this.wsHandler;
       }
@@ -9565,7 +9648,7 @@ var init_HyperliquidAdapter = __esm({
        */
       async fetchOpenOrders(symbol) {
         if (!this.auth) {
-          throw new Error("Authentication required");
+          throw new AuthenticationError("Authentication required", "MISSING_CREDENTIALS", "hyperliquid");
         }
         try {
           const response = await this.request("POST", `${this.apiUrl}/info`, {
@@ -10918,13 +11001,14 @@ var init_LighterNormalizer = __esm({
 });
 
 // src/adapters/lighter/LighterWebSocket.ts
-var LighterWebSocket;
+var import_events3, LighterWebSocket;
 var init_LighterWebSocket = __esm({
   "src/adapters/lighter/LighterWebSocket.ts"() {
     "use strict";
+    import_events3 = require("events");
     init_errors();
     init_constants2();
-    LighterWebSocket = class {
+    LighterWebSocket = class extends import_events3.EventEmitter {
       wsManager;
       normalizer;
       signer;
@@ -10933,7 +11017,11 @@ var init_LighterWebSocket = __esm({
       apiKeyIndex;
       _hasAuthentication;
       _hasWasmSigning;
+      reconnectAttempts = 0;
+      maxReconnectAttempts;
+      intentionalDisconnect = false;
       constructor(deps) {
+        super();
         this.wsManager = deps.wsManager;
         this.normalizer = deps.normalizer;
         this.signer = deps.signer;
@@ -10942,6 +11030,40 @@ var init_LighterWebSocket = __esm({
         this.apiKeyIndex = deps.apiKeyIndex;
         this._hasAuthentication = deps.hasAuthentication;
         this._hasWasmSigning = deps.hasWasmSigning;
+        this.maxReconnectAttempts = deps.maxReconnectAttempts ?? 10;
+        this.setupReconnectHandling();
+      }
+      /**
+       * Disconnect and prevent further reconnection attempts
+       */
+      disconnect() {
+        this.intentionalDisconnect = true;
+      }
+      /**
+       * Wire reconnect tracking to wsManager events.
+       * wsManager extends EventEmitter in production; guards handle test mocks.
+       */
+      setupReconnectHandling() {
+        if (typeof this.wsManager.on !== "function") {
+          return;
+        }
+        this.wsManager.on("reconnected", () => {
+          this.reconnectAttempts = 0;
+        });
+        this.wsManager.on("error", (error) => {
+          if (this.intentionalDisconnect) {
+            return;
+          }
+          this.reconnectAttempts++;
+          if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            this.emit(
+              "websocket.reconnect_failed",
+              new Error(
+                `Lighter WebSocket reconnect failed after ${this.maxReconnectAttempts} attempts: ${error.message}`
+              )
+            );
+          }
+        });
       }
       /**
        * Watch order book updates in real-time
@@ -22073,9 +22195,9 @@ var init_BackpackAdapter = __esm({
         await this.rateLimiter.acquire(endpoint);
         const fullPath = `/api/v1${path}`;
         const headers = {};
-        if (this.auth) {
+        if (this.auth && _BackpackAdapter.INSTRUCTION_MAP[endpoint]) {
           const timestamp = Date.now().toString();
-          const instruction = _BackpackAdapter.INSTRUCTION_MAP[endpoint] ?? "";
+          const instruction = _BackpackAdapter.INSTRUCTION_MAP[endpoint];
           headers["X-API-KEY"] = this.auth.getApiKey();
           headers["X-Timestamp"] = timestamp;
           headers["X-Window"] = "5000";
@@ -28293,7 +28415,7 @@ function unifiedToDydx(symbol) {
   const parts = symbol.split("/");
   const base = parts[0];
   if (!base) {
-    throw new Error(`Invalid symbol format: ${symbol}`);
+    throw new InvalidSymbolError(`Invalid symbol format: ${symbol}`, "INVALID_SYMBOL", "dydx");
   }
   return `${base}-USD`;
 }
@@ -28307,6 +28429,7 @@ var DYDX_API_URLS, DYDX_MAINNET_API, DYDX_TESTNET_API, DYDX_MAINNET_WS, DYDX_TES
 var init_constants10 = __esm({
   "src/adapters/dydx/constants.ts"() {
     "use strict";
+    init_errors();
     DYDX_API_URLS = {
       mainnet: {
         indexer: "https://indexer.dydx.trade/v4",
@@ -28421,6 +28544,7 @@ var init_DydxAuth = __esm({
   "src/adapters/dydx/DydxAuth.ts"() {
     "use strict";
     init_constants10();
+    init_errors();
     DydxAuth = class {
       mnemonic;
       privateKey;
@@ -28434,19 +28558,24 @@ var init_DydxAuth = __esm({
         this.subaccountNumber = config.subaccountNumber ?? DYDX_DEFAULT_SUBACCOUNT_NUMBER;
         this.testnet = config.testnet ?? false;
         if (!this.mnemonic && !this.privateKey) {
-          throw new Error("Either mnemonic or privateKey must be provided");
+          throw new AuthenticationError("Either mnemonic or privateKey must be provided", "MISSING_CREDENTIALS", "dydx");
         }
       }
       /**
-       * Initialize the auth strategy
+       * Initialize the auth strategy by running input validation via derive methods.
        *
-       * Derives the dYdX address from the mnemonic or private key.
-       * This is called lazily when the address is first needed.
+       * If input is invalid (wrong word count / wrong key length), throws
+       * InvalidParameterError immediately. If input passes validation, the derive
+       * methods throw NotSupportedError because real Cosmos SDK address derivation
+       * is not yet wired in — the failure is intentionally loud so callers know
+       * account-scoped operations are unavailable.
+       *
+       * PerpDEXError subclasses (InvalidParameterError, NotSupportedError, etc.)
+       * are re-thrown as-is so callers can distinguish error types. Unknown errors
+       * are wrapped in NetworkError.
        */
       async initialize() {
-        if (this.initialized) {
-          return;
-        }
+        if (this.initialized) return;
         try {
           if (this.mnemonic) {
             this.address = await this.deriveAddressFromMnemonic(this.mnemonic);
@@ -28455,18 +28584,20 @@ var init_DydxAuth = __esm({
           }
           this.initialized = true;
         } catch (error) {
-          throw new Error(
-            `Failed to initialize dYdX auth: ${error instanceof Error ? error.message : "Unknown error"}`
+          if (error instanceof PerpDEXError) throw error;
+          throw new NetworkError(
+            `Failed to initialize dYdX auth: ${error instanceof Error ? error.message : String(error)}`,
+            "NETWORK_ERROR",
+            "dydx"
           );
         }
       }
       /**
-       * Derive dYdX address from mnemonic
+       * Validate mnemonic word count, then throw NotSupportedError.
        *
-       * @WARNING This is a PLACEHOLDER that generates a deterministic but INVALID
-       * Cosmos address. It does NOT perform proper BIP39 → HD key → bech32 derivation.
-       * Addresses produced by this method will NOT match the real dYdX address for the
-       * given mnemonic and CANNOT be used for on-chain operations.
+       * Input validation runs first so callers receive InvalidParameterError for
+       * bad input. Once validation passes, NotSupportedError is thrown because
+       * proper BIP39 → HD key → bech32 derivation is not yet implemented.
        *
        * TODO: Replace with proper Cosmos address derivation:
        *   1. `@cosmjs/crypto` — Bip39.decode(mnemonic) → seed
@@ -28479,53 +28610,44 @@ var init_DydxAuth = __esm({
       async deriveAddressFromMnemonic(mnemonic) {
         const words = mnemonic.trim().split(/\s+/);
         if (words.length !== 24 && words.length !== 12) {
-          throw new Error("Invalid mnemonic: must be 12 or 24 words");
+          throw new InvalidParameterError("Invalid mnemonic: must be 12 or 24 words", "INVALID_PARAMETER", "dydx");
         }
-        const hash3 = this.simpleHash(mnemonic);
-        return `dydx${hash3.slice(0, 38)}`;
+        throw new NotSupportedError(
+          "dYdX address derivation requires Cosmos SDK libraries that are not yet integrated. Account-scoped operations (fetchPositions, fetchBalance, fetchOpenOrders, fetchOrderHistory, fetchMyTrades) are unavailable until proper derivation is implemented (e.g., @cosmjs/crypto or @dydxprotocol/v4-client-js). Public read-only operations (fetchMarkets, fetchTicker, fetchOrderBook, fetchTrades) remain available.",
+          "NOT_SUPPORTED",
+          "dydx"
+        );
       }
       /**
-       * Derive dYdX address from private key
+       * Validate private key length, then throw NotSupportedError.
        *
-       * @WARNING PLACEHOLDER — same limitations as deriveAddressFromMnemonic.
-       * Does NOT perform real secp256k1 → ripemd160(sha256(pubkey)) → bech32 derivation.
+       * Same validation-first pattern as deriveAddressFromMnemonic: bad key length
+       * yields InvalidParameterError; valid key yields NotSupportedError because
+       * real secp256k1 → ripemd160(sha256(pubkey)) → bech32 derivation is not yet
+       * implemented.
        *
        * TODO: Use @cosmjs/crypto Secp256k1.makeKeypair() + pubkeyToAddress()
        */
       async deriveAddressFromPrivateKey(privateKey) {
         const cleanKey = privateKey.startsWith("0x") ? privateKey.slice(2) : privateKey;
         if (cleanKey.length !== 64) {
-          throw new Error("Invalid private key: must be 32 bytes (64 hex characters)");
+          throw new InvalidParameterError("Invalid private key: must be 32 bytes (64 hex characters)", "INVALID_PARAMETER", "dydx");
         }
-        const hash3 = this.simpleHash(cleanKey);
-        return `dydx${hash3.slice(0, 38)}`;
-      }
-      /**
-       * Simple hash function for placeholder address generation.
-       * NOT cryptographically secure — used only for deterministic placeholder addresses.
-       * @internal
-       */
-      simpleHash(input) {
-        let hash3 = 0;
-        for (let i = 0; i < input.length; i++) {
-          const char = input.charCodeAt(i);
-          hash3 = (hash3 << 5) - hash3 + char;
-          hash3 = hash3 & hash3;
-        }
-        const hexChars = "0123456789abcdef";
-        let result = "";
-        for (let i = 0; i < 40; i++) {
-          hash3 = (hash3 << 5) - hash3 + i;
-          hash3 = hash3 & hash3;
-          result += hexChars[Math.abs(hash3) % 16];
-        }
-        return result;
+        throw new NotSupportedError(
+          "dYdX address derivation requires Cosmos SDK libraries that are not yet integrated. Account-scoped operations (fetchPositions, fetchBalance, fetchOpenOrders, fetchOrderHistory, fetchMyTrades) are unavailable until proper derivation is implemented (e.g., @cosmjs/crypto or @dydxprotocol/v4-client-js). Public read-only operations (fetchMarkets, fetchTicker, fetchOrderBook, fetchTrades) remain available.",
+          "NOT_SUPPORTED",
+          "dydx"
+        );
       }
       /**
        * Sign a request
        *
        * For dYdX Indexer API, most requests don't require signing.
        * Trading operations use the official SDK's internal signing.
+       *
+       * Note: sign() calls initialize() which throws NotSupportedError for valid
+       * credentials. This means sign() is currently only usable for read-only
+       * requests that do not need an address (getHeaders() alone suffices for those).
        */
       async sign(request) {
         await this.initialize();
@@ -28553,7 +28675,8 @@ var init_DydxAuth = __esm({
       /**
        * Get the dYdX address
        *
-       * @returns The derived dYdX address (bech32 format)
+       * @throws NotSupportedError until Cosmos SDK derivation is integrated
+       * @throws InvalidParameterError if credentials are malformed
        */
       async getAddress() {
         await this.initialize();
@@ -28571,6 +28694,8 @@ var init_DydxAuth = __esm({
        * Get subaccount ID (address + subaccount number)
        *
        * dYdX uses the format: {address}/{subaccountNumber}
+       *
+       * @throws NotSupportedError until Cosmos SDK derivation is integrated
        */
       async getSubaccountId() {
         const address = await this.getAddress();
@@ -28579,8 +28704,9 @@ var init_DydxAuth = __esm({
       /**
        * Check if credentials are valid
        *
-       * For dYdX, this validates that the mnemonic/private key
-       * can derive a valid address.
+       * Returns false when credentials are malformed (InvalidParameterError) or
+       * when derivation is unsupported (NotSupportedError). Returns false in both
+       * cases because neither yields a usable address.
        */
       async verify() {
         try {
@@ -29413,6 +29539,7 @@ var init_DydxAdapter = __esm({
     init_DydxAuth();
     init_DydxNormalizer();
     init_error_codes5();
+    init_errors();
     init_utils8();
     DydxAdapter = class extends BaseAdapter {
       id = "dydx";
@@ -29434,16 +29561,20 @@ var init_DydxAdapter = __esm({
         cancelBatchOrders: "emulated",
         editOrder: false,
         // Order Query
-        fetchOpenOrders: true,
+        // NOTE: account-scoped fetches require a real Cosmos address. Until proper
+        // bech32/Bip39 derivation is wired in (see DydxAuth.initialize JSDoc),
+        // these throw NotSupportedError and are advertised as unsupported here so
+        // the capability matrix matches actual behavior.
+        fetchOpenOrders: false,
         fetchOrder: false,
         // Account History
-        fetchOrderHistory: true,
-        fetchMyTrades: true,
+        fetchOrderHistory: false,
+        fetchMyTrades: false,
         fetchDeposits: false,
         fetchWithdrawals: false,
         // Positions & Balance
-        fetchPositions: true,
-        fetchBalance: true,
+        fetchPositions: false,
+        fetchBalance: false,
         setLeverage: false,
         // dYdX v4 uses cross-margin
         setMarginMode: false,
@@ -29503,7 +29634,7 @@ var init_DydxAdapter = __esm({
         if (this.auth) {
           const isValid2 = await this.auth.verify();
           if (!isValid2) {
-            throw new Error("Failed to verify dYdX credentials");
+            throw new AuthenticationError("Failed to verify dYdX credentials", "INVALID_CREDENTIALS", "dydx");
           }
           this.debug("Authentication verified", { subaccountNumber: this.subaccountNumber });
         }
@@ -29556,7 +29687,7 @@ var init_DydxAdapter = __esm({
           const exchangeSymbol = this.symbolToExchange(symbol);
           const market = response.markets[exchangeSymbol];
           if (!market) {
-            throw new Error(`Market not found: ${symbol}`);
+            throw new InvalidSymbolError(`Market not found: ${symbol}`, "INVALID_SYMBOL", "dydx");
           }
           this.marketDataCache.set(exchangeSymbol, {
             oraclePrice: parseFloat(market.oraclePrice),
@@ -29607,7 +29738,7 @@ var init_DydxAdapter = __esm({
           );
           const market = marketsResponse.markets[exchangeSymbol];
           if (!market) {
-            throw new Error(`Market not found: ${symbol}`);
+            throw new InvalidSymbolError(`Market not found: ${symbol}`, "INVALID_SYMBOL", "dydx");
           }
           const oraclePrice = parseFloat(market.oraclePrice);
           const fundingTimestamp = new Date(market.nextFundingAt).getTime();
@@ -29674,12 +29805,14 @@ var init_DydxAdapter = __esm({
       async createOrder(_request) {
         this.ensureInitialized();
         if (!this.auth) {
-          throw new Error("Authentication required for trading. Provide mnemonic or privateKey.");
+          throw new AuthenticationError("Authentication required for trading. Provide mnemonic or privateKey.", "MISSING_CREDENTIALS", "dydx");
         }
         await this.rateLimiter.acquire("createOrder");
         try {
-          throw new Error(
-            "Trading operations require the official @dydxprotocol/v4-client-js SDK. This adapter provides read-only access to the Indexer API. Please integrate the official SDK for order placement."
+          throw new NotSupportedError(
+            "Trading operations require the official @dydxprotocol/v4-client-js SDK. This adapter provides read-only access to the Indexer API. Please integrate the official SDK for order placement.",
+            "NOT_SUPPORTED",
+            "dydx"
           );
         } catch (error) {
           throw mapDydxError(error);
@@ -29688,12 +29821,14 @@ var init_DydxAdapter = __esm({
       async cancelOrder(_orderId, _symbol) {
         this.ensureInitialized();
         if (!this.auth) {
-          throw new Error("Authentication required for trading");
+          throw new AuthenticationError("Authentication required for trading", "MISSING_CREDENTIALS", "dydx");
         }
         await this.rateLimiter.acquire("cancelOrder");
         try {
-          throw new Error(
-            "Trading operations require the official @dydxprotocol/v4-client-js SDK. This adapter provides read-only access to the Indexer API."
+          throw new NotSupportedError(
+            "Trading operations require the official @dydxprotocol/v4-client-js SDK. This adapter provides read-only access to the Indexer API.",
+            "NOT_SUPPORTED",
+            "dydx"
           );
         } catch (error) {
           throw mapDydxError(error);
@@ -29702,12 +29837,14 @@ var init_DydxAdapter = __esm({
       async cancelAllOrders(_symbol) {
         this.ensureInitialized();
         if (!this.auth) {
-          throw new Error("Authentication required for trading");
+          throw new AuthenticationError("Authentication required for trading", "MISSING_CREDENTIALS", "dydx");
         }
         await this.rateLimiter.acquire("cancelAllOrders");
         try {
-          throw new Error(
-            "Trading operations require the official @dydxprotocol/v4-client-js SDK. This adapter provides read-only access to the Indexer API."
+          throw new NotSupportedError(
+            "Trading operations require the official @dydxprotocol/v4-client-js SDK. This adapter provides read-only access to the Indexer API.",
+            "NOT_SUPPORTED",
+            "dydx"
           );
         } catch (error) {
           throw mapDydxError(error);
@@ -29719,7 +29856,7 @@ var init_DydxAdapter = __esm({
       async fetchPositions(symbols) {
         this.ensureInitialized();
         if (!this.auth) {
-          throw new Error("Authentication required");
+          throw new AuthenticationError("Authentication required", "MISSING_CREDENTIALS", "dydx");
         }
         await this.rateLimiter.acquire("fetchPositions");
         try {
@@ -29747,7 +29884,7 @@ var init_DydxAdapter = __esm({
       async fetchBalance() {
         this.ensureInitialized();
         if (!this.auth) {
-          throw new Error("Authentication required");
+          throw new AuthenticationError("Authentication required", "MISSING_CREDENTIALS", "dydx");
         }
         await this.rateLimiter.acquire("fetchBalance");
         try {
@@ -29763,8 +29900,10 @@ var init_DydxAdapter = __esm({
       }
       async _setLeverage(_symbol, _leverage) {
         this.debug("setLeverage: dYdX v4 uses cross-margin mode without per-symbol leverage");
-        throw new Error(
-          "dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity."
+        throw new NotSupportedError(
+          "dYdX v4 uses cross-margin mode. Leverage is automatically calculated based on account equity.",
+          "NOT_SUPPORTED",
+          "dydx"
         );
       }
       // ===========================================================================
@@ -29773,7 +29912,7 @@ var init_DydxAdapter = __esm({
       async fetchOrderHistory(symbol, since, limit) {
         this.ensureInitialized();
         if (!this.auth) {
-          throw new Error("Authentication required");
+          throw new AuthenticationError("Authentication required", "MISSING_CREDENTIALS", "dydx");
         }
         await this.rateLimiter.acquire("fetchOrderHistory");
         try {
@@ -29803,7 +29942,7 @@ var init_DydxAdapter = __esm({
       async fetchMyTrades(symbol, since, limit) {
         this.ensureInitialized();
         if (!this.auth) {
-          throw new Error("Authentication required");
+          throw new AuthenticationError("Authentication required", "MISSING_CREDENTIALS", "dydx");
         }
         await this.rateLimiter.acquire("fetchMyTrades");
         try {
@@ -29839,7 +29978,7 @@ var init_DydxAdapter = __esm({
       async fetchOpenOrders(symbol) {
         this.ensureInitialized();
         if (!this.auth) {
-          throw new Error("Authentication required");
+          throw new AuthenticationError("Authentication required", "MISSING_CREDENTIALS", "dydx");
         }
         await this.rateLimiter.acquire("fetchOpenOrders");
         try {
@@ -29866,43 +30005,55 @@ var init_DydxAdapter = __esm({
       // ===========================================================================
       async *watchOrderBook(_symbol, _limit) {
         this.ensureInitialized();
-        throw new Error(
-          "WebSocket streams require additional implementation. Use fetchOrderBook for polling."
+        throw new NotSupportedError(
+          "WebSocket streams require additional implementation. Use fetchOrderBook for polling.",
+          "NOT_SUPPORTED",
+          "dydx"
         );
         yield {};
       }
       async *watchTrades(_symbol) {
         this.ensureInitialized();
-        throw new Error(
-          "WebSocket streams require additional implementation. Use fetchTrades for polling."
+        throw new NotSupportedError(
+          "WebSocket streams require additional implementation. Use fetchTrades for polling.",
+          "NOT_SUPPORTED",
+          "dydx"
         );
         yield {};
       }
       async *watchTicker(_symbol) {
         this.ensureInitialized();
-        throw new Error(
-          "WebSocket streams require additional implementation. Use fetchTicker for polling."
+        throw new NotSupportedError(
+          "WebSocket streams require additional implementation. Use fetchTicker for polling.",
+          "NOT_SUPPORTED",
+          "dydx"
         );
         yield {};
       }
       async *watchPositions() {
         this.ensureInitialized();
-        throw new Error(
-          "WebSocket streams require additional implementation. Use fetchPositions for polling."
+        throw new NotSupportedError(
+          "WebSocket streams require additional implementation. Use fetchPositions for polling.",
+          "NOT_SUPPORTED",
+          "dydx"
         );
         yield [];
       }
       async *watchOrders() {
         this.ensureInitialized();
-        throw new Error(
-          "WebSocket streams require additional implementation. Use fetchOpenOrders for polling."
+        throw new NotSupportedError(
+          "WebSocket streams require additional implementation. Use fetchOpenOrders for polling.",
+          "NOT_SUPPORTED",
+          "dydx"
         );
         yield [];
       }
       async *watchBalance() {
         this.ensureInitialized();
-        throw new Error(
-          "WebSocket streams require additional implementation. Use fetchBalance for polling."
+        throw new NotSupportedError(
+          "WebSocket streams require additional implementation. Use fetchBalance for polling.",
+          "NOT_SUPPORTED",
+          "dydx"
         );
         yield [];
       }
@@ -30146,7 +30297,7 @@ function unifiedToJupiter(symbol) {
   const parts = symbol.split("/");
   const base = parts[0];
   if (!base) {
-    throw new Error(`Invalid symbol format: ${symbol}`);
+    throw new InvalidSymbolError(`Invalid symbol format: ${symbol}`, "INVALID_SYMBOL", "jupiter");
   }
   return `${base}-PERP`;
 }
@@ -30162,6 +30313,7 @@ var JUPITER_API_URLS, PYTH_HERMES_ENDPOINTS, JUPITER_MAINNET_PRICE_API, JUPITER_
 var init_constants11 = __esm({
   "src/adapters/jupiter/constants.ts"() {
     "use strict";
+    init_errors();
     JUPITER_API_URLS = {
       mainnet: {
         price: "https://hermes.pyth.network/v2/updates/price/latest",
@@ -30830,6 +30982,7 @@ var init_JupiterAuth = __esm({
     "use strict";
     init_constants11();
     init_logger();
+    init_errors();
     JupiterAuth = class {
       keypair;
       walletAddress;
@@ -30893,8 +31046,11 @@ var init_JupiterAuth = __esm({
             }
             this.isInitialized = true;
           } catch (error) {
-            throw new Error(
-              `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`
+            throw new NetworkError(
+              `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`,
+              "NETWORK_ERROR",
+              "jupiter",
+              error
             );
           }
         }
@@ -30921,7 +31077,7 @@ var init_JupiterAuth = __esm({
        */
       async signMessage(message) {
         if (!this.keypair) {
-          throw new Error("Private key required for signing");
+          throw new AuthenticationError("Private key required for signing", "MISSING_CREDENTIALS", "jupiter");
         }
         const { sign: sign2 } = await Promise.resolve().then(() => (init_ed25519(), ed25519_exports));
         const messageBytes = new TextEncoder().encode(message);
@@ -30932,7 +31088,7 @@ var init_JupiterAuth = __esm({
        */
       async signBytes(bytes) {
         if (!this.keypair) {
-          throw new Error("Private key required for signing");
+          throw new AuthenticationError("Private key required for signing", "MISSING_CREDENTIALS", "jupiter");
         }
         const { sign: sign2 } = await Promise.resolve().then(() => (init_ed25519(), ed25519_exports));
         return sign2(bytes, this.keypair.secretKey.slice(0, 32));
@@ -30942,7 +31098,7 @@ var init_JupiterAuth = __esm({
        */
       async signTransaction(transaction) {
         if (!this.keypair) {
-          throw new Error("Private key required for transaction signing");
+          throw new AuthenticationError("Private key required for transaction signing", "MISSING_CREDENTIALS", "jupiter");
         }
         transaction.sign(this.keypair);
         return transaction;
@@ -30952,7 +31108,7 @@ var init_JupiterAuth = __esm({
        */
       async signAllTransactions(transactions) {
         if (!this.keypair) {
-          throw new Error("Private key required for transaction signing");
+          throw new AuthenticationError("Private key required for transaction signing", "MISSING_CREDENTIALS", "jupiter");
         }
         for (const tx of transactions) {
           tx.sign(this.keypair);
@@ -31001,7 +31157,7 @@ var init_JupiterAuth = __esm({
       async getConnection() {
         await this.ensureInitialized();
         if (!this.connection) {
-          throw new Error("Connection not initialized");
+          throw new NetworkError("Connection not initialized", "NETWORK_ERROR", "jupiter");
         }
         return this.connection;
       }
@@ -31011,7 +31167,7 @@ var init_JupiterAuth = __esm({
       async getSolBalance() {
         await this.ensureInitialized();
         if (!this.connection || !this.publicKey) {
-          throw new Error("Connection or public key not initialized");
+          throw new NetworkError("Connection or public key not initialized", "NETWORK_ERROR", "jupiter");
         }
         const balance = await this.connection.getBalance(this.publicKey);
         return balance / 1e9;
@@ -31022,7 +31178,7 @@ var init_JupiterAuth = __esm({
       async getTokenBalance(tokenMint) {
         await this.ensureInitialized();
         if (!this.connection || !this.publicKey) {
-          throw new Error("Connection or public key not initialized");
+          throw new NetworkError("Connection or public key not initialized", "NETWORK_ERROR", "jupiter");
         }
         const { PublicKey } = await import("@solana/web3.js");
         const tokenMintPubkey = new PublicKey(tokenMint);
@@ -31046,7 +31202,7 @@ var init_JupiterAuth = __esm({
        */
       async getAssociatedTokenAddress(tokenMint) {
         if (!this.publicKey) {
-          throw new Error("Public key not initialized");
+          throw new AuthenticationError("Public key not initialized", "MISSING_CREDENTIALS", "jupiter");
         }
         const { PublicKey } = await import("@solana/web3.js");
         const mintPubkey = new PublicKey(tokenMint);
@@ -31075,7 +31231,7 @@ var init_JupiterAuth = __esm({
             const parsed = JSON.parse(key);
             return new Uint8Array(parsed);
           } catch {
-            throw new Error("Invalid private key JSON array format");
+            throw new InvalidParameterError("Invalid private key JSON array format", "INVALID_PARAMETER", "jupiter");
           }
         }
         if (/^[1-9A-HJ-NP-Za-km-z]+$/.test(key)) {
@@ -31083,7 +31239,7 @@ var init_JupiterAuth = __esm({
             const bs58 = require_cjs2();
             return bs58.decode(key);
           } catch {
-            throw new Error("Invalid base58 private key format");
+            throw new InvalidParameterError("Invalid base58 private key format", "INVALID_PARAMETER", "jupiter");
           }
         }
         if (/^(0x)?[0-9a-fA-F]+$/.test(key)) {
@@ -31094,7 +31250,7 @@ var init_JupiterAuth = __esm({
           }
           return bytes;
         }
-        throw new Error("Unsupported private key format");
+        throw new InvalidParameterError("Unsupported private key format", "INVALID_PARAMETER", "jupiter");
       }
     };
   }
@@ -31109,6 +31265,7 @@ var init_solana = __esm({
   "src/adapters/jupiter/solana.ts"() {
     "use strict";
     init_constants11();
+    init_errors();
     SolanaClient = class {
       connection;
       config;
@@ -31136,8 +31293,11 @@ var init_solana = __esm({
           this.connection = new Connection(this.config.rpcEndpoint, this.config.commitment);
           this.isInitialized = true;
         } catch (error) {
-          throw new Error(
-            `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`
+          throw new NetworkError(
+            `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`,
+            "NETWORK_ERROR",
+            "jupiter",
+            error
           );
         }
       }
@@ -31146,7 +31306,7 @@ var init_solana = __esm({
        */
       ensureInitialized() {
         if (!this.isInitialized || !this.connection) {
-          throw new Error("SolanaClient not initialized. Call initialize() first.");
+          throw new PerpDEXError("SolanaClient not initialized. Call initialize() first.", "NOT_INITIALIZED", "jupiter");
         }
         return this.connection;
       }
@@ -31295,7 +31455,7 @@ var init_solana = __esm({
           this.config.commitment
         );
         if (confirmation.value.err) {
-          throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+          throw new TransactionFailedError(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`, "TRANSACTION_FAILED", "jupiter");
         }
         return {
           signature,
@@ -31483,6 +31643,7 @@ var init_instructions = __esm({
   "src/adapters/jupiter/instructions.ts"() {
     "use strict";
     init_constants11();
+    init_errors();
     INSTRUCTION_DISCRIMINATORS = {
       // Position creation/modification (market orders)
       createIncreasePositionMarketRequest: Buffer.from([
@@ -31539,7 +31700,7 @@ var init_instructions = __esm({
        */
       ensureInitialized() {
         if (!this.isInitialized || !this.programId) {
-          throw new Error("JupiterInstructionBuilder not initialized. Call initialize() first.");
+          throw new PerpDEXError("JupiterInstructionBuilder not initialized. Call initialize() first.", "NOT_INITIALIZED", "jupiter");
         }
       }
       // ==========================================================================
@@ -31852,7 +32013,7 @@ var init_instructions = __esm({
         const baseToken = jupiterSymbol.replace("-PERP", "");
         const tokenMint = JUPITER_TOKEN_MINTS[baseToken];
         if (!tokenMint) {
-          throw new Error(`Unknown token for market: ${symbol}`);
+          throw new InvalidSymbolError(`Unknown token for market: ${symbol}`, "INVALID_SYMBOL", "jupiter");
         }
         const programId = this.programId;
         const [poolPda] = await PublicKey.findProgramAddress([Buffer.from("pool")], programId);
@@ -32407,13 +32568,13 @@ var init_JupiterAdapter = __esm({
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "jupiter");
         }
         try {
           const baseToken = jupiterSymbol.replace("-PERP", "");
           const mint = JUPITER_TOKEN_MINTS[baseToken];
           if (!mint) {
-            throw new Error(`Unknown token: ${baseToken}`);
+            throw new InvalidSymbolError(`Unknown token: ${baseToken}`, "INVALID_SYMBOL", "jupiter");
           }
           const priceData = await this.fetchPrice(mint);
           return this.normalizer.normalizeTicker(jupiterSymbol, priceData);
@@ -32425,13 +32586,13 @@ var init_JupiterAdapter = __esm({
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "jupiter");
         }
         try {
           const baseToken = jupiterSymbol.replace("-PERP", "");
           const mint = JUPITER_TOKEN_MINTS[baseToken];
           if (!mint) {
-            throw new Error(`Unknown token: ${baseToken}`);
+            throw new InvalidSymbolError(`Unknown token: ${baseToken}`, "INVALID_SYMBOL", "jupiter");
           }
           const priceData = await this.fetchPrice(mint);
           const currentPrice = parseFloat(priceData.price);
@@ -32451,13 +32612,13 @@ var init_JupiterAdapter = __esm({
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "jupiter");
         }
         try {
           const baseToken = jupiterSymbol.replace("-PERP", "");
           const mint = JUPITER_TOKEN_MINTS[baseToken];
           if (!mint) {
-            throw new Error(`Unknown token: ${baseToken}`);
+            throw new InvalidSymbolError(`Unknown token: ${baseToken}`, "INVALID_SYMBOL", "jupiter");
           }
           const priceData = await this.fetchPrice(mint);
           const currentPrice = parseFloat(priceData.price);
@@ -32477,14 +32638,14 @@ var init_JupiterAdapter = __esm({
       async fetchPositions(symbols) {
         this.ensureInitialized();
         if (!this.auth?.canRead()) {
-          throw new Error("Wallet address required to fetch positions");
+          throw new AuthenticationError("Wallet address required to fetch positions", "MISSING_CREDENTIALS", "jupiter");
         }
         if (!this.solanaClient) {
-          throw new Error("Solana client not initialized");
+          throw new PerpDEXError("Solana client not initialized", "NOT_INITIALIZED", "jupiter");
         }
         const walletAddress = this.auth.getWalletAddress();
         if (!walletAddress) {
-          throw new Error("Wallet address not configured");
+          throw new AuthenticationError("Wallet address not configured", "MISSING_CREDENTIALS", "jupiter");
         }
         try {
           const positionAccounts = await this.solanaClient.getJupiterPositions(walletAddress);
@@ -32516,11 +32677,11 @@ var init_JupiterAdapter = __esm({
       async fetchBalance() {
         this.ensureInitialized();
         if (!this.auth?.canRead()) {
-          throw new Error("Wallet address required to fetch balance");
+          throw new AuthenticationError("Wallet address required to fetch balance", "MISSING_CREDENTIALS", "jupiter");
         }
         const walletAddress = this.auth.getWalletAddress();
         if (!walletAddress) {
-          throw new Error("Wallet address not configured");
+          throw new AuthenticationError("Wallet address not configured", "MISSING_CREDENTIALS", "jupiter");
         }
         try {
           const balances = [];
@@ -32579,18 +32740,18 @@ var init_JupiterAdapter = __esm({
       async createOrder(request) {
         this.ensureInitialized();
         if (!this.auth?.canSign()) {
-          throw new Error("Private key required for trading");
+          throw new AuthenticationError("Private key required for trading", "MISSING_CREDENTIALS", "jupiter");
         }
         if (!this.solanaClient || !this.instructionBuilder) {
-          throw new Error("Solana client not initialized");
+          throw new PerpDEXError("Solana client not initialized", "NOT_INITIALIZED", "jupiter");
         }
         const walletAddress = this.auth.getWalletAddress();
         if (!walletAddress) {
-          throw new Error("Wallet address not configured");
+          throw new AuthenticationError("Wallet address not configured", "MISSING_CREDENTIALS", "jupiter");
         }
         const jupiterSymbol = this.symbolToExchange(request.symbol);
         if (!isValidMarket(jupiterSymbol)) {
-          throw new Error(`Invalid market: ${request.symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${request.symbol}`, "INVALID_SYMBOL", "jupiter");
         }
         const leverage = request.leverage || 1;
         const validation = validateOrderParams({
@@ -32600,7 +32761,7 @@ var init_JupiterAdapter = __esm({
           leverage
         });
         if (!validation.valid) {
-          throw new Error(`Order validation failed: ${validation.errors.join(", ")}`);
+          throw new InvalidOrderError(`Order validation failed: ${validation.errors.join(", ")}`, "VALIDATION_ERROR", "jupiter");
         }
         try {
           const currentPrice = request.price || await this.getCurrentPrice(request.symbol);
@@ -32633,7 +32794,7 @@ var init_JupiterAdapter = __esm({
           const signedTx = await this.auth.signTransaction(transaction);
           const keypair = this.auth.getKeypair();
           if (!keypair) {
-            throw new Error("Keypair not available");
+            throw new AuthenticationError("Keypair not available", "MISSING_CREDENTIALS", "jupiter");
           }
           const result = await this.solanaClient.sendTransaction(signedTx, [keypair]);
           const orderId = result.signature;
@@ -32670,10 +32831,10 @@ var init_JupiterAdapter = __esm({
         }
       }
       async cancelOrder(_orderId, _symbol) {
-        throw new Error("Jupiter uses instant execution - no orders to cancel");
+        throw new NotSupportedError("Jupiter uses instant execution - no orders to cancel", "NOT_SUPPORTED", "jupiter");
       }
       async cancelAllOrders(_symbol) {
-        throw new Error("Jupiter uses instant execution - no orders to cancel");
+        throw new NotSupportedError("Jupiter uses instant execution - no orders to cancel", "NOT_SUPPORTED", "jupiter");
       }
       /**
        * Close a position
@@ -32681,20 +32842,20 @@ var init_JupiterAdapter = __esm({
       async closePosition(positionId, params) {
         this.ensureInitialized();
         if (!this.auth?.canSign()) {
-          throw new Error("Private key required for trading");
+          throw new AuthenticationError("Private key required for trading", "MISSING_CREDENTIALS", "jupiter");
         }
         if (!this.solanaClient || !this.instructionBuilder) {
-          throw new Error("Solana client not initialized");
+          throw new PerpDEXError("Solana client not initialized", "NOT_INITIALIZED", "jupiter");
         }
         const walletAddress = this.auth.getWalletAddress();
         if (!walletAddress) {
-          throw new Error("Wallet address not configured");
+          throw new AuthenticationError("Wallet address not configured", "MISSING_CREDENTIALS", "jupiter");
         }
         try {
           const positions = await this.fetchPositions();
           const position = positions.find((p) => p.info?.id === positionId);
           if (!position) {
-            throw new Error(`Position not found: ${positionId}`);
+            throw new PositionNotFoundError(`Position not found: ${positionId}`, "POSITION_NOT_FOUND", "jupiter");
           }
           const side = position.side === "long" ? "long" : "short";
           const accounts = await this.instructionBuilder.resolvePositionAccounts(
@@ -32721,7 +32882,7 @@ var init_JupiterAdapter = __esm({
           const signedTx = await this.auth.signTransaction(transaction);
           const keypair = this.auth.getKeypair();
           if (!keypair) {
-            throw new Error("Keypair not available");
+            throw new AuthenticationError("Keypair not available", "MISSING_CREDENTIALS", "jupiter");
           }
           const result = await this.solanaClient.sendTransaction(signedTx, [keypair]);
           const timestamp = Date.now();
@@ -32762,7 +32923,7 @@ var init_JupiterAdapter = __esm({
         return [];
       }
       async _setLeverage(_symbol, _leverage) {
-        throw new Error("Jupiter leverage is set per-trade, not globally");
+        throw new NotSupportedError("Jupiter leverage is set per-trade, not globally", "NOT_SUPPORTED", "jupiter");
       }
       // ==========================================================================
       // Health Check
@@ -32781,7 +32942,7 @@ var init_JupiterAdapter = __esm({
         const baseToken = jupiterSymbol.replace("-PERP", "");
         const mint = JUPITER_TOKEN_MINTS[baseToken];
         if (!mint) {
-          throw new Error(`Unknown token for market: ${symbol}`);
+          throw new InvalidSymbolError(`Unknown token for market: ${symbol}`, "INVALID_SYMBOL", "jupiter");
         }
         const priceData = await this.fetchPrice(mint);
         return parseFloat(priceData.price);
@@ -32797,7 +32958,7 @@ var init_JupiterAdapter = __esm({
         const prices = await this.fetchPrices([tokenMint]);
         const price = prices[tokenMint];
         if (!price) {
-          throw new Error(`Price not available for ${tokenMint}`);
+          throw new BadResponseError(`Price not available for ${tokenMint}`, "BAD_RESPONSE", "jupiter");
         }
         return price;
       }
@@ -33295,7 +33456,7 @@ function unifiedToDrift(symbol) {
   const parts = symbol.split("/");
   const base = parts[0];
   if (!base) {
-    throw new Error(`Invalid symbol format: ${symbol}`);
+    throw new InvalidSymbolError(`Invalid symbol format: ${symbol}`, "INVALID_SYMBOL", "drift");
   }
   return `${base}-PERP`;
 }
@@ -33307,7 +33468,7 @@ function getMarketIndex(symbol) {
   const driftSymbol = symbol.includes("-PERP") ? symbol : unifiedToDrift(symbol);
   const market = DRIFT_PERP_MARKETS[driftSymbol];
   if (!market) {
-    throw new Error(`Unknown market: ${symbol}`);
+    throw new InvalidSymbolError(`Unknown market: ${symbol}`, "INVALID_SYMBOL", "drift");
   }
   return market.marketIndex;
 }
@@ -33322,6 +33483,7 @@ var DRIFT_API_URLS, DRIFT_MAINNET_DLOB_API, DRIFT_MAINNET_DATA_API, DRIFT_DEVNET
 var init_constants12 = __esm({
   "src/adapters/drift/constants.ts"() {
     "use strict";
+    init_errors();
     DRIFT_API_URLS = {
       mainnet: {
         dlob: "https://dlob.drift.trade",
@@ -33949,6 +34111,7 @@ var DriftOrderBuilder;
 var init_orderBuilder = __esm({
   "src/adapters/drift/orderBuilder.ts"() {
     "use strict";
+    init_errors();
     init_constants12();
     DriftOrderBuilder = class {
       config;
@@ -33968,7 +34131,7 @@ var init_orderBuilder = __esm({
         const marketKey = unifiedToDrift(request.symbol);
         const marketConfig = DRIFT_PERP_MARKETS[marketKey];
         if (!marketConfig) {
-          throw new Error(`Unknown market: ${request.symbol}`);
+          throw new InvalidSymbolError(`Unknown market: ${request.symbol}`, "INVALID_SYMBOL", "drift");
         }
         this.validateOrder(request, marketConfig);
         const baseAssetAmount = BigInt(Math.floor(request.amount * DRIFT_PRECISION.BASE));
@@ -34026,7 +34189,7 @@ var init_orderBuilder = __esm({
         const marketKey = unifiedToDrift(symbol);
         const marketConfig = DRIFT_PERP_MARKETS[marketKey];
         if (!marketConfig) {
-          throw new Error(`Unknown market: ${symbol}`);
+          throw new InvalidSymbolError(`Unknown market: ${symbol}`, "INVALID_SYMBOL", "drift");
         }
         const baseAssetAmount = BigInt(Math.floor(Math.abs(size) * DRIFT_PRECISION.BASE));
         const direction = isLong ? "short" : "long";
@@ -34051,31 +34214,35 @@ var init_orderBuilder = __esm({
        */
       validateOrder(request, marketConfig) {
         if (request.amount < marketConfig.minOrderSize) {
-          throw new Error(
-            `Order size ${request.amount} is below minimum ${marketConfig.minOrderSize} for ${request.symbol}`
+          throw new InvalidOrderError(
+            `Order size ${request.amount} is below minimum ${marketConfig.minOrderSize} for ${request.symbol}`,
+            "MIN_ORDER_SIZE",
+            "drift"
           );
         }
         if (request.leverage && request.leverage > marketConfig.maxLeverage) {
-          throw new Error(
-            `Leverage ${request.leverage}x exceeds maximum ${marketConfig.maxLeverage}x for ${request.symbol}`
+          throw new InvalidOrderError(
+            `Leverage ${request.leverage}x exceeds maximum ${marketConfig.maxLeverage}x for ${request.symbol}`,
+            "MAX_LEVERAGE_EXCEEDED",
+            "drift"
           );
         }
         if (request.type === "limit" && !request.price) {
-          throw new Error("Price is required for limit orders");
+          throw new InvalidOrderError("Price is required for limit orders", "INVALID_PRICE", "drift");
         }
         if ((request.type === "stopMarket" || request.type === "stopLimit") && !request.stopPrice) {
-          throw new Error("Stop price is required for trigger orders");
+          throw new InvalidOrderError("Stop price is required for trigger orders", "INVALID_PRICE", "drift");
         }
         const stepSize = marketConfig.stepSize;
         const remainder = request.amount % stepSize;
         if (remainder !== 0 && remainder / stepSize > 1e-3) {
-          throw new Error(`Order amount ${request.amount} does not conform to step size ${stepSize}`);
+          throw new InvalidOrderError(`Order amount ${request.amount} does not conform to step size ${stepSize}`, "INVALID_AMOUNT", "drift");
         }
         if (request.price) {
           const tickSize = marketConfig.tickSize;
           const priceRemainder = request.price % tickSize;
           if (priceRemainder !== 0 && priceRemainder / tickSize > 1e-3) {
-            throw new Error(`Order price ${request.price} does not conform to tick size ${tickSize}`);
+            throw new InvalidOrderError(`Order price ${request.price} does not conform to tick size ${tickSize}`, "INVALID_PRICE", "drift");
           }
         }
       }
@@ -34109,7 +34276,7 @@ var init_orderBuilder = __esm({
         const marketKey = unifiedToDrift(symbol);
         const marketConfig = DRIFT_PERP_MARKETS[marketKey];
         if (!marketConfig) {
-          throw new Error(`Unknown market: ${symbol}`);
+          throw new InvalidSymbolError(`Unknown market: ${symbol}`, "INVALID_SYMBOL", "drift");
         }
         const notional = amount * price;
         const effectiveLeverage = leverage || 1 / marketConfig.initialMarginRatio;
@@ -34127,7 +34294,7 @@ var init_orderBuilder = __esm({
         const marketKey = unifiedToDrift(symbol);
         const marketConfig = DRIFT_PERP_MARKETS[marketKey];
         if (!marketConfig) {
-          throw new Error(`Unknown market: ${symbol}`);
+          throw new InvalidSymbolError(`Unknown market: ${symbol}`, "INVALID_SYMBOL", "drift");
         }
         const maintenanceMargin = marketConfig.maintenanceMarginRatio;
         const liquidationThreshold = 1 - maintenanceMargin;
@@ -34668,6 +34835,7 @@ var DriftAuth;
 var init_DriftAuth = __esm({
   "src/adapters/drift/DriftAuth.ts"() {
     "use strict";
+    init_errors();
     init_constants12();
     init_logger();
     DriftAuth = class {
@@ -34738,8 +34906,11 @@ var init_DriftAuth = __esm({
             }
             this.isInitialized = true;
           } catch (error) {
-            throw new Error(
-              `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`
+            throw new NetworkError(
+              `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`,
+              "NETWORK_ERROR",
+              "drift",
+              error
             );
           }
         }
@@ -34766,7 +34937,7 @@ var init_DriftAuth = __esm({
        */
       async signMessage(message) {
         if (!this.keypair) {
-          throw new Error("Private key required for signing");
+          throw new AuthenticationError("Private key required for signing", "MISSING_CREDENTIALS", "drift");
         }
         const { sign: sign2 } = await Promise.resolve().then(() => (init_ed25519(), ed25519_exports));
         const messageBytes = new TextEncoder().encode(message);
@@ -34777,7 +34948,7 @@ var init_DriftAuth = __esm({
        */
       async signBytes(bytes) {
         if (!this.keypair) {
-          throw new Error("Private key required for signing");
+          throw new AuthenticationError("Private key required for signing", "MISSING_CREDENTIALS", "drift");
         }
         const { sign: sign2 } = await Promise.resolve().then(() => (init_ed25519(), ed25519_exports));
         return sign2(bytes, this.keypair.secretKey.slice(0, 32));
@@ -34836,7 +35007,7 @@ var init_DriftAuth = __esm({
       async getConnection() {
         await this.ensureInitialized();
         if (!this.connection) {
-          throw new Error("Connection not initialized");
+          throw new NetworkError("Connection not initialized", "NETWORK_ERROR", "drift");
         }
         return this.connection;
       }
@@ -34846,7 +35017,7 @@ var init_DriftAuth = __esm({
       async getSolBalance() {
         await this.ensureInitialized();
         if (!this.connection || !this.publicKey) {
-          throw new Error("Connection or public key not initialized");
+          throw new NetworkError("Connection or public key not initialized", "NETWORK_ERROR", "drift");
         }
         const balance = await this.connection.getBalance(this.publicKey);
         return balance / 1e9;
@@ -34857,7 +35028,7 @@ var init_DriftAuth = __esm({
       async getTokenBalance(tokenMint) {
         await this.ensureInitialized();
         if (!this.connection || !this.publicKey) {
-          throw new Error("Connection or public key not initialized");
+          throw new NetworkError("Connection or public key not initialized", "NETWORK_ERROR", "drift");
         }
         const { PublicKey } = await import("@solana/web3.js");
         const tokenMintPubkey = new PublicKey(tokenMint);
@@ -34901,7 +35072,7 @@ var init_DriftAuth = __esm({
             const parsed = JSON.parse(key);
             return new Uint8Array(parsed);
           } catch {
-            throw new Error("Invalid private key JSON array format");
+            throw new InvalidParameterError("Invalid private key JSON array format", "INVALID_PARAMETER", "drift");
           }
         }
         if (/^[1-9A-HJ-NP-Za-km-z]+$/.test(key)) {
@@ -34909,7 +35080,7 @@ var init_DriftAuth = __esm({
             const bs58 = require_cjs2();
             return bs58.decode(key);
           } catch {
-            throw new Error("Invalid base58 private key format");
+            throw new InvalidParameterError("Invalid base58 private key format", "INVALID_PARAMETER", "drift");
           }
         }
         if (/^(0x)?[0-9a-fA-F]+$/.test(key)) {
@@ -34920,7 +35091,7 @@ var init_DriftAuth = __esm({
           }
           return bytes;
         }
-        throw new Error("Unsupported private key format");
+        throw new InvalidParameterError("Unsupported private key format", "INVALID_PARAMETER", "drift");
       }
     };
   }
@@ -34932,6 +35103,7 @@ var init_DriftClientWrapper = __esm({
   "src/adapters/drift/DriftClientWrapper.ts"() {
     "use strict";
     init_logger();
+    init_errors();
     DriftClientWrapper = class {
       config;
       // is only available after dynamic import() at runtime. Cannot use static type because the SDK uses
@@ -34988,8 +35160,11 @@ var init_DriftClientWrapper = __esm({
           }
           this.isInitialized = true;
         } catch (error) {
-          throw new Error(
-            `Failed to initialize Drift client: ${error instanceof Error ? error.message : String(error)}`
+          throw new NetworkError(
+            `Failed to initialize Drift client: ${error instanceof Error ? error.message : String(error)}`,
+            "NETWORK_ERROR",
+            "drift",
+            error
           );
         }
       }
@@ -34998,7 +35173,7 @@ var init_DriftClientWrapper = __esm({
        */
       ensureInitialized() {
         if (!this.isInitialized) {
-          throw new Error("DriftClientWrapper not initialized. Call initialize() first.");
+          throw new PerpDEXError("DriftClientWrapper not initialized. Call initialize() first.", "NOT_INITIALIZED", "drift");
         }
       }
       // ==========================================================================
@@ -35100,7 +35275,7 @@ var init_DriftClientWrapper = __esm({
         const orders = user.getOpenOrders();
         const originalOrder = orders.find((o) => o.orderId === orderId);
         if (!originalOrder) {
-          throw new Error(`Order ${orderId} not found`);
+          throw new OrderNotFoundError(`Order ${orderId} not found`, "ORDER_NOT_FOUND", "drift");
         }
         const mergedParams = {
           orderType: newParams.orderType || originalOrder.orderType,
@@ -35184,7 +35359,7 @@ var init_DriftClientWrapper = __esm({
         this.ensureInitialized();
         const perpMarket = this.driftClient.getPerpMarketAccount(marketIndex);
         if (!perpMarket) {
-          throw new Error(`Perp market ${marketIndex} not found`);
+          throw new PerpDEXError(`Perp market ${marketIndex} not found`, "INVALID_SYMBOL", "drift");
         }
         const oracleData = this.driftClient.getOracleDataForPerpMarket(marketIndex);
         return oracleData.price;
@@ -35198,7 +35373,7 @@ var init_DriftClientWrapper = __esm({
         const { calculateReservePrice } = driftSdk;
         const perpMarket = this.driftClient.getPerpMarketAccount(marketIndex);
         if (!perpMarket) {
-          throw new Error(`Perp market ${marketIndex} not found`);
+          throw new PerpDEXError(`Perp market ${marketIndex} not found`, "INVALID_SYMBOL", "drift");
         }
         const price = calculateReservePrice(
           perpMarket,
@@ -35266,6 +35441,7 @@ var init_DriftAdapter = __esm({
     init_orderBuilder();
     init_constants12();
     init_error_codes7();
+    init_errors();
     init_utils10();
     init_DriftAuth();
     init_DriftClientWrapper();
@@ -35366,14 +35542,14 @@ var init_DriftAdapter = __esm({
        */
       async initializeDriftClient() {
         if (!this.auth) {
-          throw new Error("Auth not configured");
+          throw new PerpDEXError("Auth not configured", "NOT_INITIALIZED", "drift");
         }
         try {
           const { Connection } = await import("@solana/web3.js");
           const connection = new Connection(this.auth.getRpcEndpoint(), "confirmed");
           const keypair = this.auth.getKeypair();
           if (!keypair) {
-            throw new Error("Keypair not available");
+            throw new AuthenticationError("Keypair not available", "MISSING_CREDENTIALS", "drift");
           }
           this.driftClient = new DriftClientWrapper({
             connection,
@@ -35525,7 +35701,7 @@ var init_DriftAdapter = __esm({
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket2(driftSymbol)) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "drift");
         }
         try {
           const marketIndex = getMarketIndex(symbol);
@@ -35568,7 +35744,7 @@ var init_DriftAdapter = __esm({
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket2(driftSymbol)) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "drift");
         }
         try {
           const marketIndex = getMarketIndex(symbol);
@@ -35583,15 +35759,17 @@ var init_DriftAdapter = __esm({
         }
       }
       async _fetchTrades(_symbol, _params) {
-        throw new Error(
-          "fetchTrades is not available via the Drift REST API. Trade data requires on-chain indexing or the historical data archive."
+        throw new NotSupportedError(
+          "fetchTrades is not available via the Drift REST API. Trade data requires on-chain indexing or the historical data archive.",
+          "NOT_SUPPORTED",
+          "drift"
         );
       }
       async _fetchFundingRate(symbol) {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket2(driftSymbol)) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "drift");
         }
         try {
           const marketIndex = getMarketIndex(symbol);
@@ -35599,7 +35777,7 @@ var init_DriftAdapter = __esm({
           const response = await this.request("GET", url);
           const fundingRates = response.fundingRates || [];
           if (fundingRates.length === 0) {
-            throw new Error(`No funding rate data available for ${symbol}`);
+            throw new BadResponseError(`No funding rate data available for ${symbol}`, "BAD_RESPONSE", "drift");
           }
           const latestRate = fundingRates[0];
           return this.normalizer.normalizeFundingRate(latestRate);
@@ -35611,7 +35789,7 @@ var init_DriftAdapter = __esm({
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket2(driftSymbol)) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "drift");
         }
         try {
           const marketIndex = getMarketIndex(symbol);
@@ -35632,12 +35810,12 @@ var init_DriftAdapter = __esm({
       async fetchPositions(symbols) {
         this.ensureInitialized();
         if (!this.auth?.canRead()) {
-          throw new Error("Wallet address required to fetch positions");
+          throw new AuthenticationError("Wallet address required to fetch positions", "MISSING_CREDENTIALS", "drift");
         }
         const walletAddress = this.auth.getWalletAddress();
         const subAccountId = this.auth.getSubAccountId();
         if (!walletAddress) {
-          throw new Error("Wallet address not configured");
+          throw new AuthenticationError("Wallet address not configured", "MISSING_CREDENTIALS", "drift");
         }
         try {
           const url = `${this.dlobBaseUrl}/user?userAccount=${walletAddress}&subAccountId=${subAccountId}`;
@@ -35673,12 +35851,12 @@ var init_DriftAdapter = __esm({
       async fetchBalance() {
         this.ensureInitialized();
         if (!this.auth?.canRead()) {
-          throw new Error("Wallet address required to fetch balance");
+          throw new AuthenticationError("Wallet address required to fetch balance", "MISSING_CREDENTIALS", "drift");
         }
         const walletAddress = this.auth.getWalletAddress();
         const subAccountId = this.auth.getSubAccountId();
         if (!walletAddress) {
-          throw new Error("Wallet address not configured");
+          throw new AuthenticationError("Wallet address not configured", "MISSING_CREDENTIALS", "drift");
         }
         try {
           const url = `${this.dlobBaseUrl}/user?userAccount=${walletAddress}&subAccountId=${subAccountId}`;
@@ -35703,12 +35881,12 @@ var init_DriftAdapter = __esm({
       async fetchOpenOrders(symbol) {
         this.ensureInitialized();
         if (!this.auth?.canRead()) {
-          throw new Error("Wallet address required to fetch orders");
+          throw new AuthenticationError("Wallet address required to fetch orders", "MISSING_CREDENTIALS", "drift");
         }
         const walletAddress = this.auth.getWalletAddress();
         const subAccountId = this.auth.getSubAccountId();
         if (!walletAddress) {
-          throw new Error("Wallet address not configured");
+          throw new AuthenticationError("Wallet address not configured", "MISSING_CREDENTIALS", "drift");
         }
         try {
           const url = `${this.dlobBaseUrl}/orders?userAccount=${walletAddress}&subAccountId=${subAccountId}`;
@@ -35739,13 +35917,13 @@ var init_DriftAdapter = __esm({
       async createOrder(request) {
         this.ensureInitialized();
         if (!this.auth?.canSign()) {
-          throw new Error("Private key required for trading");
+          throw new AuthenticationError("Private key required for trading", "MISSING_CREDENTIALS", "drift");
         }
         if (!this.driftClient) {
-          throw new Error("Drift SDK client not initialized. Ensure private key is provided.");
+          throw new PerpDEXError("Drift SDK client not initialized. Ensure private key is provided.", "NOT_INITIALIZED", "drift");
         }
         if (!this.orderBuilder) {
-          throw new Error("Order builder not initialized");
+          throw new PerpDEXError("Order builder not initialized", "NOT_INITIALIZED", "drift");
         }
         try {
           const marketIndex = getMarketIndex(request.symbol);
@@ -35784,10 +35962,10 @@ var init_DriftAdapter = __esm({
       async cancelOrder(orderId, symbol) {
         this.ensureInitialized();
         if (!this.auth?.canSign()) {
-          throw new Error("Private key required for trading");
+          throw new AuthenticationError("Private key required for trading", "MISSING_CREDENTIALS", "drift");
         }
         if (!this.driftClient) {
-          throw new Error("Drift SDK client not initialized");
+          throw new PerpDEXError("Drift SDK client not initialized", "NOT_INITIALIZED", "drift");
         }
         try {
           const result = await this.driftClient.cancelOrder(parseInt(orderId));
@@ -35814,10 +35992,10 @@ var init_DriftAdapter = __esm({
       async cancelAllOrders(symbol) {
         this.ensureInitialized();
         if (!this.auth?.canSign()) {
-          throw new Error("Private key required for trading");
+          throw new AuthenticationError("Private key required for trading", "MISSING_CREDENTIALS", "drift");
         }
         if (!this.driftClient) {
-          throw new Error("Drift SDK client not initialized");
+          throw new PerpDEXError("Drift SDK client not initialized", "NOT_INITIALIZED", "drift");
         }
         try {
           let txSig;
@@ -35870,8 +36048,10 @@ var init_DriftAdapter = __esm({
         return [];
       }
       async _setLeverage(_symbol, _leverage) {
-        throw new Error(
-          "Drift uses cross-margin. Leverage is determined by position size relative to collateral."
+        throw new NotSupportedError(
+          "Drift uses cross-margin. Leverage is determined by position size relative to collateral.",
+          "NOT_SUPPORTED",
+          "drift"
         );
       }
       // ==========================================================================
@@ -37055,6 +37235,7 @@ var init_GmxAuth = __esm({
     "use strict";
     import_ethers6 = require("ethers");
     init_constants13();
+    init_errors();
     GmxAuth = class {
       wallet;
       walletAddress;
@@ -37097,7 +37278,7 @@ var init_GmxAuth = __esm({
        */
       async signMessage(message) {
         if (!this.wallet) {
-          throw new Error("Wallet required for signing");
+          throw new AuthenticationError("Wallet required for signing", "MISSING_CREDENTIALS", "gmx");
         }
         return this.wallet.signMessage(message);
       }
@@ -37106,7 +37287,7 @@ var init_GmxAuth = __esm({
        */
       async signTypedData(domain, types, value) {
         if (!this.wallet) {
-          throw new Error("Wallet required for signing");
+          throw new AuthenticationError("Wallet required for signing", "MISSING_CREDENTIALS", "gmx");
         }
         return this.wallet.signTypedData(domain, types, value);
       }
@@ -37194,7 +37375,7 @@ var init_GmxAuth = __esm({
        */
       async getBalance() {
         if (!this.walletAddress) {
-          throw new Error("Wallet address required");
+          throw new AuthenticationError("Wallet address required", "MISSING_CREDENTIALS", "gmx");
         }
         return this.provider.getBalance(this.walletAddress);
       }
@@ -37203,7 +37384,7 @@ var init_GmxAuth = __esm({
        */
       async getTokenBalance(tokenAddress) {
         if (!this.walletAddress) {
-          throw new Error("Wallet address required");
+          throw new AuthenticationError("Wallet address required", "MISSING_CREDENTIALS", "gmx");
         }
         const erc20Abi = ["function balanceOf(address owner) view returns (uint256)"];
         const contract = new import_ethers6.ethers.Contract(tokenAddress, erc20Abi, this.provider);
@@ -37214,7 +37395,7 @@ var init_GmxAuth = __esm({
        */
       async getTokenAllowance(tokenAddress, spenderAddress) {
         if (!this.walletAddress) {
-          throw new Error("Wallet address required");
+          throw new AuthenticationError("Wallet address required", "MISSING_CREDENTIALS", "gmx");
         }
         const erc20Abi = ["function allowance(address owner, address spender) view returns (uint256)"];
         const contract = new import_ethers6.ethers.Contract(tokenAddress, erc20Abi, this.provider);
@@ -37225,7 +37406,7 @@ var init_GmxAuth = __esm({
        */
       async approveToken(tokenAddress, spenderAddress, amount) {
         if (!this.wallet) {
-          throw new Error("Wallet required for approval");
+          throw new AuthenticationError("Wallet required for approval", "MISSING_CREDENTIALS", "gmx");
         }
         const erc20Abi = ["function approve(address spender, uint256 amount) returns (bool)"];
         const contract = new import_ethers6.ethers.Contract(tokenAddress, erc20Abi, this.wallet);
@@ -37242,6 +37423,7 @@ var init_GmxContracts = __esm({
     "use strict";
     import_ethers7 = require("ethers");
     init_constants13();
+    init_errors();
     EXCHANGE_ROUTER_ABI = [
       // Create order
       "function createOrder(tuple(address[] addresses, uint256[] numbers, bytes32 orderType, bytes32 decreasePositionSwapType, bool isLong, bool shouldUnwrapNativeToken, bytes32 referralCode) params) payable returns (bytes32)",
@@ -37346,7 +37528,7 @@ var init_GmxContracts = __esm({
        */
       async createOrder(params, executionFee) {
         if (!this.signer) {
-          throw new Error("Signer required for trading operations");
+          throw new AuthenticationError("Signer required for trading operations", "MISSING_CREDENTIALS", "gmx");
         }
         const exchangeRouter = this.getExchangeRouter();
         const orderParams = {
@@ -37382,7 +37564,7 @@ var init_GmxContracts = __esm({
        */
       async cancelOrder(orderKey) {
         if (!this.signer) {
-          throw new Error("Signer required for trading operations");
+          throw new AuthenticationError("Signer required for trading operations", "MISSING_CREDENTIALS", "gmx");
         }
         const exchangeRouter = this.getExchangeRouter();
         return exchangeRouter.cancelOrder(orderKey);
@@ -37392,7 +37574,7 @@ var init_GmxContracts = __esm({
        */
       async sendWnt(receiver, amount) {
         if (!this.signer) {
-          throw new Error("Signer required for trading operations");
+          throw new AuthenticationError("Signer required for trading operations", "MISSING_CREDENTIALS", "gmx");
         }
         const exchangeRouter = this.getExchangeRouter();
         return exchangeRouter.sendWnt(receiver, amount, {
@@ -37404,7 +37586,7 @@ var init_GmxContracts = __esm({
        */
       async sendTokens(token, receiver, amount) {
         if (!this.signer) {
-          throw new Error("Signer required for trading operations");
+          throw new AuthenticationError("Signer required for trading operations", "MISSING_CREDENTIALS", "gmx");
         }
         const exchangeRouter = this.getExchangeRouter();
         return exchangeRouter.sendTokens(token, receiver, amount);
@@ -37788,14 +37970,14 @@ var init_GmxSubgraph = __esm({
           });
           clearTimeout(timeoutId);
           if (!response.ok) {
-            throw new Error(`Subgraph request failed: ${response.status} ${response.statusText}`);
+            throw new NetworkError(`Subgraph request failed: ${response.status} ${response.statusText}`, "NETWORK_ERROR", "gmx");
           }
           const json = await response.json();
           if (json.errors && json.errors.length > 0) {
-            throw new Error(`Subgraph query error: ${json.errors[0]?.message || "Unknown error"}`);
+            throw new NetworkError(`Subgraph query error: ${json.errors[0]?.message || "Unknown error"}`, "BAD_RESPONSE", "gmx");
           }
           if (!json.data) {
-            throw new Error("No data returned from subgraph");
+            throw new NetworkError("No data returned from subgraph", "BAD_RESPONSE", "gmx");
           }
           return json.data;
         } catch (error) {
@@ -37922,6 +38104,7 @@ var init_GmxOrderBuilder = __esm({
   "src/adapters/gmx/GmxOrderBuilder.ts"() {
     "use strict";
     import_ethers8 = require("ethers");
+    init_errors();
     init_constants13();
     GmxOrderBuilder = class {
       chain;
@@ -37945,12 +38128,12 @@ var init_GmxOrderBuilder = __esm({
       buildCreateOrderParams(request, prices) {
         const marketKey = unifiedToGmx(request.symbol);
         if (!marketKey) {
-          throw new Error(`Invalid market: ${request.symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${request.symbol}`, "INVALID_SYMBOL", "gmx");
         }
         const marketConfig = GMX_MARKETS[marketKey];
         const walletAddress = this.auth.getWalletAddress();
         if (!walletAddress) {
-          throw new Error("Wallet address required");
+          throw new AuthenticationError("Wallet address required", "MISSING_CREDENTIALS", "gmx");
         }
         const isLong = request.side === "buy";
         const isIncrease = !request.reduceOnly;
@@ -38000,12 +38183,12 @@ var init_GmxOrderBuilder = __esm({
       buildClosePositionParams(symbol, sizeUsd, isLong, prices) {
         const marketKey = unifiedToGmx(symbol);
         if (!marketKey) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "gmx");
         }
         const marketConfig = GMX_MARKETS[marketKey];
         const walletAddress = this.auth.getWalletAddress();
         if (!walletAddress) {
-          throw new Error("Wallet address required");
+          throw new AuthenticationError("Wallet address required", "MISSING_CREDENTIALS", "gmx");
         }
         const acceptablePrice = this.calculateAcceptablePrice(
           prices.indexPrice,
@@ -38110,25 +38293,29 @@ var init_GmxOrderBuilder = __esm({
       validateOrderParams(request) {
         const marketKey = unifiedToGmx(request.symbol);
         if (!marketKey) {
-          throw new Error(`Invalid market: ${request.symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${request.symbol}`, "INVALID_SYMBOL", "gmx");
         }
         const marketConfig = GMX_MARKETS[marketKey];
         if (request.amount < marketConfig.minOrderSize) {
-          throw new Error(
-            `Order size ${request.amount} is below minimum ${marketConfig.minOrderSize} for ${request.symbol}`
+          throw new InvalidOrderError(
+            `Order size ${request.amount} is below minimum ${marketConfig.minOrderSize} for ${request.symbol}`,
+            "MIN_ORDER_SIZE",
+            "gmx"
           );
         }
         const leverage = request.leverage || 10;
         if (leverage > marketConfig.maxLeverage) {
-          throw new Error(
-            `Leverage ${leverage}x exceeds maximum ${marketConfig.maxLeverage}x for ${request.symbol}`
+          throw new InvalidOrderError(
+            `Leverage ${leverage}x exceeds maximum ${marketConfig.maxLeverage}x for ${request.symbol}`,
+            "MAX_LEVERAGE_EXCEEDED",
+            "gmx"
           );
         }
         if (request.type === "limit" && !request.price) {
-          throw new Error("Price required for limit orders");
+          throw new InvalidOrderError("Price required for limit orders", "INVALID_PRICE", "gmx");
         }
         if ((request.type === "stopMarket" || request.type === "stopLimit") && !request.stopPrice) {
-          throw new Error("Stop price required for stop orders");
+          throw new InvalidOrderError("Stop price required for stop orders", "INVALID_PRICE", "gmx");
         }
       }
       /**
@@ -38137,7 +38324,7 @@ var init_GmxOrderBuilder = __esm({
       getMarketConfig(symbol) {
         const marketKey = unifiedToGmx(symbol);
         if (!marketKey) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "gmx");
         }
         return GMX_MARKETS[marketKey];
       }
@@ -38368,6 +38555,7 @@ var init_GmxAdapter = __esm({
     init_GmxOrderBuilder();
     init_constants13();
     init_error_codes8();
+    init_errors();
     GmxAdapter = class extends BaseAdapter {
       id = "gmx";
       name = "GMX v2";
@@ -38517,7 +38705,7 @@ var init_GmxAdapter = __esm({
         this.ensureInitialized();
         const marketKey = unifiedToGmx(symbol);
         if (!marketKey) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "gmx");
         }
         try {
           const [marketsInfo, prices] = await Promise.all([
@@ -38529,7 +38717,7 @@ var init_GmxAdapter = __esm({
             (m) => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase()
           );
           if (!marketInfo) {
-            throw new Error(`Market info not found for ${symbol}`);
+            throw new BadResponseError(`Market info not found for ${symbol}`, "BAD_RESPONSE", "gmx");
           }
           const indexTokenPrice = prices.get(config.indexToken.toLowerCase());
           const priceDivisor = getOraclePriceDivisor(config.baseAsset);
@@ -38543,16 +38731,16 @@ var init_GmxAdapter = __esm({
         }
       }
       async _fetchOrderBook(_symbol, _params) {
-        throw new Error("GMX does not have a traditional orderbook. Use fetchTicker for price data.");
+        throw new NotSupportedError("GMX does not have a traditional orderbook. Use fetchTicker for price data.", "NOT_SUPPORTED", "gmx");
       }
       async _fetchTrades(symbol, params) {
         this.ensureInitialized();
         if (!this.subgraph) {
-          throw new Error("Subgraph not initialized");
+          throw new PerpDEXError("Subgraph not initialized", "NOT_INITIALIZED", "gmx");
         }
         const marketKey = unifiedToGmx(symbol);
         if (!marketKey) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "gmx");
         }
         const marketConfig = GMX_MARKETS[marketKey];
         try {
@@ -38582,7 +38770,7 @@ var init_GmxAdapter = __esm({
         this.ensureInitialized();
         const marketKey = unifiedToGmx(symbol);
         if (!marketKey) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "gmx");
         }
         try {
           const [marketsInfo, prices] = await Promise.all([
@@ -38594,7 +38782,7 @@ var init_GmxAdapter = __esm({
             (m) => m.marketToken.toLowerCase() === config.marketAddress.toLowerCase()
           );
           if (!marketInfo) {
-            throw new Error(`Market info not found for ${symbol}`);
+            throw new BadResponseError(`Market info not found for ${symbol}`, "BAD_RESPONSE", "gmx");
           }
           const indexTokenPrice = prices.get(config.indexToken.toLowerCase());
           const priceDivisor = getOraclePriceDivisor(config.baseAsset);
@@ -38636,15 +38824,17 @@ var init_GmxAdapter = __esm({
         }
       }
       async fetchFundingRateHistory(_symbol, _since, _limit) {
-        throw new Error(
-          "fetchFundingRateHistory requires subgraph integration. Not available via REST API."
+        throw new NotSupportedError(
+          "fetchFundingRateHistory requires subgraph integration. Not available via REST API.",
+          "NOT_SUPPORTED",
+          "gmx"
         );
       }
       async fetchOHLCV(symbol, timeframe = "1h", params) {
         this.ensureInitialized();
         const marketKey = unifiedToGmx(symbol);
         if (!marketKey) {
-          throw new Error(`Invalid market: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market: ${symbol}`, "INVALID_SYMBOL", "gmx");
         }
         const config = GMX_MARKETS[marketKey];
         try {
@@ -38672,10 +38862,10 @@ var init_GmxAdapter = __esm({
       async fetchPositions(symbols) {
         this.ensureInitialized();
         if (!this.auth || !this.walletAddress) {
-          throw new Error("Wallet address required to fetch positions");
+          throw new AuthenticationError("Wallet address required to fetch positions", "MISSING_CREDENTIALS", "gmx");
         }
         if (!this.subgraph) {
-          throw new Error("Subgraph not initialized");
+          throw new PerpDEXError("Subgraph not initialized", "NOT_INITIALIZED", "gmx");
         }
         try {
           const rawPositions = await this.subgraph.fetchPositions(this.walletAddress);
@@ -38707,7 +38897,7 @@ var init_GmxAdapter = __esm({
       async fetchBalance() {
         this.ensureInitialized();
         if (!this.auth || !this.walletAddress) {
-          throw new Error("Wallet address required to fetch balance");
+          throw new AuthenticationError("Wallet address required to fetch balance", "MISSING_CREDENTIALS", "gmx");
         }
         try {
           const ethBalance = await this.auth.getBalance();
@@ -38750,10 +38940,10 @@ var init_GmxAdapter = __esm({
       async fetchOpenOrders(symbol) {
         this.ensureInitialized();
         if (!this.auth || !this.walletAddress) {
-          throw new Error("Wallet address required to fetch orders");
+          throw new AuthenticationError("Wallet address required to fetch orders", "MISSING_CREDENTIALS", "gmx");
         }
         if (!this.subgraph) {
-          throw new Error("Subgraph not initialized");
+          throw new PerpDEXError("Subgraph not initialized", "NOT_INITIALIZED", "gmx");
         }
         try {
           const orders = await this.subgraph.fetchOpenOrders(this.walletAddress);
@@ -38786,10 +38976,10 @@ var init_GmxAdapter = __esm({
       async fetchOrderHistory(symbol, since, limit) {
         this.ensureInitialized();
         if (!this.auth || !this.walletAddress) {
-          throw new Error("Wallet address required to fetch order history");
+          throw new AuthenticationError("Wallet address required to fetch order history", "MISSING_CREDENTIALS", "gmx");
         }
         if (!this.subgraph) {
-          throw new Error("Subgraph not initialized");
+          throw new PerpDEXError("Subgraph not initialized", "NOT_INITIALIZED", "gmx");
         }
         try {
           const orders = await this.subgraph.fetchOrderHistory(this.walletAddress, since);
@@ -38825,10 +39015,10 @@ var init_GmxAdapter = __esm({
       async fetchMyTrades(symbol, since, limit) {
         this.ensureInitialized();
         if (!this.subgraph) {
-          throw new Error("Subgraph not initialized");
+          throw new PerpDEXError("Subgraph not initialized", "NOT_INITIALIZED", "gmx");
         }
         if (!this.walletAddress) {
-          throw new Error("Private key required for fetchMyTrades");
+          throw new AuthenticationError("Private key required for fetchMyTrades", "MISSING_CREDENTIALS", "gmx");
         }
         try {
           const rawTrades = await this.subgraph.fetchAccountTrades(
@@ -38863,22 +39053,22 @@ var init_GmxAdapter = __esm({
       async createOrder(request) {
         this.ensureInitialized();
         if (!this.auth || !this.auth.canSign()) {
-          throw new Error("Private key required for trading");
+          throw new AuthenticationError("Private key required for trading", "MISSING_CREDENTIALS", "gmx");
         }
         if (!this.contracts || !this.orderBuilder) {
-          throw new Error("Trading components not initialized");
+          throw new PerpDEXError("Trading components not initialized", "NOT_INITIALIZED", "gmx");
         }
         try {
           this.orderBuilder.validateOrderParams(request);
           const prices = await this.fetchPrices();
           const marketKey = unifiedToGmx(request.symbol);
           if (!marketKey) {
-            throw new Error(`Invalid market: ${request.symbol}`);
+            throw new InvalidSymbolError(`Invalid market: ${request.symbol}`, "INVALID_SYMBOL", "gmx");
           }
           const marketConfig = GMX_MARKETS[marketKey];
           const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
           if (!indexTokenPrice) {
-            throw new Error(`Price not available for ${request.symbol}`);
+            throw new BadResponseError(`Price not available for ${request.symbol}`, "BAD_RESPONSE", "gmx");
           }
           const createOrderPriceDivisor = getOraclePriceDivisor(marketConfig.baseAsset);
           const minPrice = parseFloat(indexTokenPrice.minPrice) / createOrderPriceDivisor;
@@ -38917,7 +39107,7 @@ var init_GmxAdapter = __esm({
           const tx = await this.contracts.createOrder(orderParams, executionFee);
           const receipt = await tx.wait();
           if (!receipt) {
-            throw new Error("Transaction failed");
+            throw new TransactionFailedError("Transaction failed", "TRANSACTION_FAILED", "gmx");
           }
           const orderKey = receipt.logs[0]?.topics[1] || receipt.hash;
           return {
@@ -38947,16 +39137,16 @@ var init_GmxAdapter = __esm({
       async cancelOrder(orderId, symbol) {
         this.ensureInitialized();
         if (!this.auth || !this.auth.canSign()) {
-          throw new Error("Private key required for trading");
+          throw new AuthenticationError("Private key required for trading", "MISSING_CREDENTIALS", "gmx");
         }
         if (!this.contracts) {
-          throw new Error("Contracts not initialized");
+          throw new PerpDEXError("Contracts not initialized", "NOT_INITIALIZED", "gmx");
         }
         try {
           const tx = await this.contracts.cancelOrder(orderId);
           const receipt = await tx.wait();
           if (!receipt) {
-            throw new Error("Transaction failed");
+            throw new TransactionFailedError("Transaction failed", "TRANSACTION_FAILED", "gmx");
           }
           return {
             id: orderId,
@@ -38981,7 +39171,7 @@ var init_GmxAdapter = __esm({
       async cancelAllOrders(symbol) {
         this.ensureInitialized();
         if (!this.auth || !this.auth.canSign()) {
-          throw new Error("Private key required for trading");
+          throw new AuthenticationError("Private key required for trading", "MISSING_CREDENTIALS", "gmx");
         }
         try {
           const openOrders = await this.fetchOpenOrders(symbol);
@@ -39002,8 +39192,10 @@ var init_GmxAdapter = __esm({
         }
       }
       async _setLeverage(_symbol, _leverage) {
-        throw new Error(
-          "GMX v2 does not have account-level leverage settings. Leverage is determined per-position at order creation time."
+        throw new NotSupportedError(
+          "GMX v2 does not have account-level leverage settings. Leverage is determined per-position at order creation time.",
+          "NOT_SUPPORTED",
+          "gmx"
         );
       }
       // ==========================================================================
@@ -39088,7 +39280,7 @@ var init_GmxAdapter = __esm({
       symbolToExchange(symbol) {
         const gmxSymbol = unifiedToGmx(symbol);
         if (!gmxSymbol) {
-          throw new Error(`Invalid market symbol: ${symbol}`);
+          throw new InvalidSymbolError(`Invalid market symbol: ${symbol}`, "INVALID_SYMBOL", "gmx");
         }
         return gmxSymbol;
       }
@@ -39676,6 +39868,326 @@ var init_AsterNormalizer = __esm({
   }
 });
 
+// src/adapters/aster/AsterWebSocket.ts
+var import_events4, MAX_QUEUE_SIZE2, ASTER_WS_CHANNELS, AsterWebSocket;
+var init_AsterWebSocket = __esm({
+  "src/adapters/aster/AsterWebSocket.ts"() {
+    "use strict";
+    import_events4 = require("events");
+    init_WebSocketClient();
+    MAX_QUEUE_SIZE2 = 1e3;
+    ASTER_WS_CHANNELS = {
+      DEPTH: (symbol, levels = 20) => `${symbol}@depth${levels}@100ms`,
+      AGG_TRADE: (symbol) => `${symbol}@aggTrade`,
+      TICKER: (symbol) => `${symbol}@ticker`
+    };
+    AsterWebSocket = class extends import_events4.EventEmitter {
+      wsUrl;
+      symbolToExchange;
+      client = null;
+      subscriptions = /* @__PURE__ */ new Map();
+      subscribeIdCounter = 1;
+      constructor(deps) {
+        super();
+        this.setMaxListeners(100);
+        this.wsUrl = deps.wsUrl;
+        this.symbolToExchange = deps.symbolToExchange;
+      }
+      /**
+       * Connect to the Aster combined stream WebSocket endpoint
+       */
+      async connect() {
+        if (this.client) {
+          return;
+        }
+        const url = `${this.wsUrl}/stream`;
+        this.client = new WebSocketClient({
+          url,
+          reconnect: {
+            enabled: true,
+            maxAttempts: 10,
+            initialDelay: 500,
+            maxDelay: 3e4,
+            multiplier: 2,
+            jitter: 0.1
+          },
+          heartbeat: {
+            enabled: false,
+            // Aster/Binance handles ping/pong at protocol level
+            interval: 3e4,
+            timeout: 5e3
+          },
+          onMessage: (data) => this.handleMessage(data),
+          onError: (error) => this.emit("error", error)
+        });
+        this.client.on("reconnected", () => {
+          void this.resubscribeAll();
+        });
+        await this.client.connect();
+      }
+      /**
+       * Disconnect and cleanup
+       */
+      async disconnect() {
+        if (!this.client) {
+          return;
+        }
+        this.subscriptions.clear();
+        await this.client.disconnect();
+        this.client = null;
+      }
+      /**
+       * Check if connected
+       */
+      isConnected() {
+        return this.client?.isConnected() ?? false;
+      }
+      /**
+       * Watch order book updates in real-time
+       *
+       * @param symbol - Symbol in unified format (e.g., "BTC/USDT:USDT")
+       * @param limit - Depth levels (default: 20)
+       */
+      async *watchOrderBook(symbol, limit) {
+        const exchangeSymbol = this.symbolToExchange(symbol).toLowerCase();
+        const levels = limit ?? 20;
+        const channel = ASTER_WS_CHANNELS.DEPTH(exchangeSymbol, levels);
+        for await (const data of this.watch(channel)) {
+          yield this.normalizeDepthUpdate(data, symbol);
+        }
+      }
+      /**
+       * Watch trades in real-time
+       *
+       * @param symbol - Symbol in unified format (e.g., "BTC/USDT:USDT")
+       */
+      async *watchTrades(symbol) {
+        const exchangeSymbol = this.symbolToExchange(symbol).toLowerCase();
+        const channel = ASTER_WS_CHANNELS.AGG_TRADE(exchangeSymbol);
+        for await (const data of this.watch(channel)) {
+          yield this.normalizeAggTrade(data, symbol);
+        }
+      }
+      /**
+       * Watch ticker updates in real-time
+       *
+       * @param symbol - Symbol in unified format (e.g., "BTC/USDT:USDT")
+       */
+      async *watchTicker(symbol) {
+        const exchangeSymbol = this.symbolToExchange(symbol).toLowerCase();
+        const channel = ASTER_WS_CHANNELS.TICKER(exchangeSymbol);
+        for await (const data of this.watch(channel)) {
+          yield this.normalizeWsTicker(data, symbol);
+        }
+      }
+      // ===========================================================================
+      // Internal subscription management
+      // ===========================================================================
+      /**
+       * Core watch method - subscribes to a channel and yields messages
+       *
+       * Uses the Binance combined stream protocol for message routing.
+       * The combined stream wraps each message with {"stream":"<name>","data":{...}}.
+       */
+      async *watch(channel) {
+        const messageQueue = [];
+        let resolveNext = null;
+        const subscription = {
+          channel,
+          handler: (data) => {
+            const typedData = data;
+            if (resolveNext) {
+              resolveNext(typedData);
+              resolveNext = null;
+            } else {
+              if (messageQueue.length >= MAX_QUEUE_SIZE2) {
+                messageQueue.shift();
+              }
+              messageQueue.push(typedData);
+            }
+          },
+          active: true
+        };
+        this.subscriptions.set(channel, subscription);
+        this.sendSubscribe(channel);
+        try {
+          while (true) {
+            if (messageQueue.length > 0) {
+              yield messageQueue.shift();
+            } else {
+              yield await new Promise((resolve) => {
+                resolveNext = resolve;
+              });
+            }
+          }
+        } finally {
+          subscription.active = false;
+          this.subscriptions.delete(channel);
+          this.sendUnsubscribe(channel);
+        }
+      }
+      /**
+       * Send a SUBSCRIBE message for a channel
+       */
+      sendSubscribe(channel) {
+        if (!this.client?.isConnected()) {
+          return;
+        }
+        const id = this.subscribeIdCounter++;
+        this.client.send({
+          method: "SUBSCRIBE",
+          params: [channel],
+          id
+        });
+      }
+      /**
+       * Send an UNSUBSCRIBE message for a channel
+       */
+      sendUnsubscribe(channel) {
+        if (!this.client?.isConnected()) {
+          return;
+        }
+        const id = this.subscribeIdCounter++;
+        this.client.send({
+          method: "UNSUBSCRIBE",
+          params: [channel],
+          id
+        });
+      }
+      /**
+       * Handle incoming WebSocket message
+       *
+       * Routes messages to the correct subscription handler based on
+       * the Binance combined stream format: {"stream":"<name>","data":{...}}
+       */
+      handleMessage(data) {
+        try {
+          const parsed = data;
+          if (parsed.stream && parsed.data) {
+            const msg = parsed;
+            const subscription = this.subscriptions.get(msg.stream);
+            if (subscription?.active) {
+              subscription.handler(msg.data);
+            }
+            return;
+          }
+          const eventType = parsed.e;
+          const symbolField = parsed.s;
+          if (eventType && symbolField) {
+            const channelFromEvent = this.resolveChannelFromEvent(
+              eventType,
+              symbolField.toLowerCase()
+            );
+            if (channelFromEvent) {
+              const subscription = this.subscriptions.get(channelFromEvent);
+              if (subscription?.active) {
+                subscription.handler(parsed);
+              }
+            }
+          }
+        } catch (error) {
+          this.emit("error", new Error(`Failed to handle message: ${String(error)}`));
+        }
+      }
+      /**
+       * Resolve channel name from event type and symbol
+       */
+      resolveChannelFromEvent(eventType, symbol) {
+        switch (eventType) {
+          case "depthUpdate": {
+            for (const channel of this.subscriptions.keys()) {
+              if (channel.startsWith(`${symbol}@depth`)) {
+                return channel;
+              }
+            }
+            return void 0;
+          }
+          case "aggTrade":
+            return `${symbol}@aggTrade`;
+          case "24hrTicker":
+            return `${symbol}@ticker`;
+          default:
+            return void 0;
+        }
+      }
+      /**
+       * Resubscribe to all active channels after reconnection
+       */
+      async resubscribeAll() {
+        const channels = Array.from(this.subscriptions.keys());
+        if (channels.length === 0) {
+          return;
+        }
+        const id = this.subscribeIdCounter++;
+        if (this.client?.isConnected()) {
+          this.client.send({
+            method: "SUBSCRIBE",
+            params: channels,
+            id
+          });
+        }
+      }
+      // ===========================================================================
+      // Normalization helpers
+      // ===========================================================================
+      /**
+       * Normalize a WS depth update to unified OrderBook
+       */
+      normalizeDepthUpdate(data, symbol) {
+        return {
+          symbol,
+          timestamp: data.T ?? Date.now(),
+          bids: data.b.map(([p, s]) => [parseFloat(p), parseFloat(s)]),
+          asks: data.a.map(([p, s]) => [parseFloat(p), parseFloat(s)]),
+          exchange: "aster"
+        };
+      }
+      /**
+       * Normalize a WS aggTrade to unified Trade
+       */
+      normalizeAggTrade(data, symbol) {
+        const price = parseFloat(data.p);
+        const amount = parseFloat(data.q);
+        return {
+          id: String(data.a),
+          symbol,
+          side: data.m ? "sell" : "buy",
+          price,
+          amount,
+          cost: price * amount,
+          timestamp: data.T,
+          info: data
+        };
+      }
+      /**
+       * Normalize a WS 24hrTicker to unified Ticker
+       */
+      normalizeWsTicker(data, symbol) {
+        const last = parseFloat(data.c);
+        return {
+          symbol,
+          last,
+          bid: last,
+          ask: last,
+          high: parseFloat(data.h),
+          low: parseFloat(data.l),
+          open: parseFloat(data.o),
+          close: last,
+          change: parseFloat(data.p),
+          percentage: parseFloat(data.P),
+          baseVolume: parseFloat(data.v),
+          quoteVolume: parseFloat(data.q),
+          timestamp: data.E,
+          info: {
+            ...data,
+            _bidAskSource: "last_price"
+          }
+        };
+      }
+    };
+  }
+});
+
 // src/adapters/aster/error-codes.ts
 function isRetryableError2(code) {
   return code === -1001 || code === -1003 || code === -1006 || code === -1007 || code === -1010 || code === -1016;
@@ -39755,6 +40267,7 @@ var init_AsterAdapter = __esm({
     init_constants14();
     init_AsterAuth();
     init_AsterNormalizer();
+    init_AsterWebSocket();
     init_utils11();
     init_error_codes9();
     AsterAdapter = class extends BaseAdapter {
@@ -39779,24 +40292,27 @@ var init_AsterAdapter = __esm({
         fetchOpenOrders: false,
         editOrder: false,
         setMarginMode: false,
-        watchOrderBook: false,
-        watchTrades: false,
-        watchTicker: false,
+        watchOrderBook: true,
+        watchTrades: true,
+        watchTicker: true,
         watchOrders: false,
         watchPositions: false,
         watchBalance: false
       };
       auth;
       baseUrl;
+      wsUrl;
       httpClient;
       rateLimiter;
       normalizer;
+      wsHandler;
       referralCode;
       builderCodeEnabled;
       constructor(config = {}) {
         super(config);
         const urls = config.testnet ? ASTER_API_URLS.testnet : ASTER_API_URLS.mainnet;
         this.baseUrl = config.apiUrl ?? urls.rest;
+        this.wsUrl = urls.websocket;
         this.referralCode = config.referralCode ?? config.builderCode;
         this.builderCodeEnabled = config.builderCodeEnabled ?? true;
         if (config.apiKey && config.apiSecret) {
@@ -39830,7 +40346,20 @@ var init_AsterAdapter = __esm({
         });
       }
       async initialize() {
+        this.wsHandler = new AsterWebSocket({
+          wsUrl: this.wsUrl,
+          normalizer: this.normalizer,
+          auth: this.auth,
+          symbolToExchange: this.symbolToExchange.bind(this)
+        });
+        await this.wsHandler.connect();
         this._isReady = true;
+      }
+      async disconnect() {
+        if (this.wsHandler) {
+          await this.wsHandler.disconnect();
+        }
+        this._isReady = false;
       }
       // === Symbol conversion (required by BaseAdapter) ===
       symbolToExchange(symbol) {
@@ -40035,6 +40564,23 @@ var init_AsterAdapter = __esm({
         const asterSymbol = toAsterSymbol(symbol);
         await this.signedRequest("POST", "/fapi/v1/leverage", "setLeverage", { symbol: asterSymbol, leverage });
       }
+      // === WebSocket Streams (delegated to AsterWebSocket) ===
+      ensureWsHandler() {
+        this.ensureInitialized();
+        if (!this.wsHandler) {
+          throw new PerpDEXError("WebSocket handler not initialized", "NO_WEBSOCKET", "aster");
+        }
+        return this.wsHandler;
+      }
+      async *watchOrderBook(symbol, limit) {
+        yield* this.ensureWsHandler().watchOrderBook(symbol, limit);
+      }
+      async *watchTrades(symbol) {
+        yield* this.ensureWsHandler().watchTrades(symbol);
+      }
+      async *watchTicker(symbol) {
+        yield* this.ensureWsHandler().watchTicker(symbol);
+      }
       // === Account History (required abstract methods) ===
       async fetchOrderHistory(_symbol, _since, _limit) {
         throw new PerpDEXError("fetchOrderHistory not yet implemented", "NOT_IMPLEMENTED", "aster");
@@ -40055,6 +40601,7 @@ __export(aster_exports, {
   AsterAdapter: () => AsterAdapter,
   AsterAuth: () => AsterAuth,
   AsterNormalizer: () => AsterNormalizer,
+  AsterWebSocket: () => AsterWebSocket,
   isRetryableError: () => isRetryableError2,
   mapAsterError: () => mapAsterError
 });
@@ -40064,6 +40611,7 @@ var init_aster = __esm({
     init_AsterAdapter();
     init_AsterAuth();
     init_AsterNormalizer();
+    init_AsterWebSocket();
     init_error_codes9();
     init_constants14();
   }
@@ -43275,8 +43823,8 @@ var init_constants18 = __esm({
         websocket: "wss://ws.ethereal.trade"
       },
       testnet: {
-        rest: "https://api-testnet.ethereal.trade/v1",
-        websocket: "wss://ws-testnet.ethereal.trade"
+        rest: "https://api.etherealtest.net/v1",
+        websocket: "wss://ws.etherealtest.net"
       }
     };
     ETHEREAL_CHAIN_ID = 0;
@@ -44377,7 +44925,7 @@ function avantisToUnified(pairIndex) {
   }
   return `${base}/USD:USD`;
 }
-var AVANTIS_CHAIN_ID_MAINNET, AVANTIS_CHAIN_ID_TESTNET, AVANTIS_RPC_MAINNET, AVANTIS_RPC_TESTNET, AVANTIS_CONTRACTS_MAINNET, AVANTIS_CONTRACTS_TESTNET, PYTH_PRICE_FEED_IDS, AVANTIS_RATE_LIMIT, AVANTIS_ORDER_TYPES, AVANTIS_FUNDING_INTERVAL_HOURS, AVANTIS_DEFAULT_PRECISION, AVANTIS_PAIR_INDEX_MAP, AVANTIS_INDEX_TO_SYMBOL, AVANTIS_TRADING_ABI, AVANTIS_STORAGE_ABI, AVANTIS_PAIR_INFO_ABI, AVANTIS_PYTH_ABI, AVANTIS_ERC20_ABI;
+var AVANTIS_CHAIN_ID_MAINNET, AVANTIS_CHAIN_ID_TESTNET, AVANTIS_RPC_MAINNET, AVANTIS_RPC_TESTNET, AVANTIS_API_URLS, AVANTIS_CONTRACTS_MAINNET, AVANTIS_CONTRACTS_TESTNET, PYTH_PRICE_FEED_IDS, AVANTIS_RATE_LIMIT, AVANTIS_ORDER_TYPES, AVANTIS_FUNDING_INTERVAL_HOURS, AVANTIS_DEFAULT_PRECISION, AVANTIS_PAIR_INDEX_MAP, AVANTIS_INDEX_TO_SYMBOL, AVANTIS_TRADING_ABI, AVANTIS_STORAGE_ABI, AVANTIS_PAIR_INFO_ABI, AVANTIS_PYTH_ABI, AVANTIS_ERC20_ABI;
 var init_constants19 = __esm({
   "src/adapters/avantis/constants.ts"() {
     "use strict";
@@ -44385,21 +44933,31 @@ var init_constants19 = __esm({
     AVANTIS_CHAIN_ID_TESTNET = 84532;
     AVANTIS_RPC_MAINNET = "https://mainnet.base.org";
     AVANTIS_RPC_TESTNET = "https://sepolia.base.org";
+    AVANTIS_API_URLS = {
+      socketApi: "https://socket-api-pub.avantisfi.com/socket-api/v1/data",
+      coreApi: "https://core.avantisfi.com",
+      feedV3: "https://feed-v3.avantisfi.com",
+      pythLazer: "https://pyth-lazer-proxy-3.dourolabs.app/v1/stream"
+    };
     AVANTIS_CONTRACTS_MAINNET = {
-      trading: "0x0000000000000000000000000000000000000001",
-      storage: "0x0000000000000000000000000000000000000002",
-      pairInfo: "0x0000000000000000000000000000000000000003",
-      pythOracle: "0x0000000000000000000000000000000000000004",
-      callbacks: "0x0000000000000000000000000000000000000005",
-      usdc: "0x0000000000000000000000000000000000000006"
+      trading: "0x44914408af82bC9983bbb330e3578E1105e11d4e",
+      storage: "0x8a311D7048c35985aa31C131B9A13e03a5f7422d",
+      pairInfo: "0x81F22d0Cc22977c91bEfE648C9fddf1f2bd977e5",
+      pairStorage: "0x5db3772136e5557EFE028Db05EE95C84D76faEC4",
+      pythOracle: "0x64e2625621970F8cfA17B294670d61CB883dA511",
+      multicall: "0xA7cFc43872F4D7B0E6141ee8c36f1F7FEe5d099e",
+      referral: "0x1A110bBA13A1f16cCa4b79758BD39290f29De82D",
+      usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     };
     AVANTIS_CONTRACTS_TESTNET = {
       trading: "0x0000000000000000000000000000000000000011",
       storage: "0x0000000000000000000000000000000000000012",
       pairInfo: "0x0000000000000000000000000000000000000013",
-      pythOracle: "0x0000000000000000000000000000000000000014",
-      callbacks: "0x0000000000000000000000000000000000000015",
-      usdc: "0x0000000000000000000000000000000000000016"
+      pairStorage: "0x0000000000000000000000000000000000000014",
+      pythOracle: "0x0000000000000000000000000000000000000015",
+      multicall: "0x0000000000000000000000000000000000000016",
+      referral: "0x0000000000000000000000000000000000000017",
+      usdc: "0x0000000000000000000000000000000000000018"
     };
     PYTH_PRICE_FEED_IDS = {
       BTC: "0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
@@ -45374,6 +45932,7 @@ var init_AvantisAdapter = __esm({
 // src/adapters/avantis/index.ts
 var avantis_exports = {};
 __export(avantis_exports, {
+  AVANTIS_API_URLS: () => AVANTIS_API_URLS,
   AVANTIS_CHAIN_ID_MAINNET: () => AVANTIS_CHAIN_ID_MAINNET,
   AVANTIS_CHAIN_ID_TESTNET: () => AVANTIS_CHAIN_ID_TESTNET,
   AVANTIS_CONTRACTS_MAINNET: () => AVANTIS_CONTRACTS_MAINNET,
@@ -45403,6 +45962,1321 @@ var init_avantis = __esm({
     init_AvantisAdapter();
     init_AvantisAuth();
     init_constants19();
+  }
+});
+
+// node_modules/uuid/dist-node/stringify.js
+function unsafeStringify(arr, offset = 0) {
+  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
+}
+var byteToHex;
+var init_stringify = __esm({
+  "node_modules/uuid/dist-node/stringify.js"() {
+    byteToHex = [];
+    for (let i = 0; i < 256; ++i) {
+      byteToHex.push((i + 256).toString(16).slice(1));
+    }
+  }
+});
+
+// node_modules/uuid/dist-node/rng.js
+function rng() {
+  if (poolPtr > rnds8Pool.length - 16) {
+    (0, import_node_crypto.randomFillSync)(rnds8Pool);
+    poolPtr = 0;
+  }
+  return rnds8Pool.slice(poolPtr, poolPtr += 16);
+}
+var import_node_crypto, rnds8Pool, poolPtr;
+var init_rng = __esm({
+  "node_modules/uuid/dist-node/rng.js"() {
+    import_node_crypto = require("node:crypto");
+    rnds8Pool = new Uint8Array(256);
+    poolPtr = rnds8Pool.length;
+  }
+});
+
+// node_modules/uuid/dist-node/v1.js
+function v1(options, buf, offset) {
+  let bytes;
+  const isV6 = options?._v6 ?? false;
+  if (options) {
+    const optionsKeys = Object.keys(options);
+    if (optionsKeys.length === 1 && optionsKeys[0] === "_v6") {
+      options = void 0;
+    }
+  }
+  if (options) {
+    bytes = v1Bytes(options.random ?? options.rng?.() ?? rng(), options.msecs, options.nsecs, options.clockseq, options.node, buf, offset);
+  } else {
+    const now = Date.now();
+    const rnds = rng();
+    updateV1State(_state, now, rnds);
+    bytes = v1Bytes(rnds, _state.msecs, _state.nsecs, isV6 ? void 0 : _state.clockseq, isV6 ? void 0 : _state.node, buf, offset);
+  }
+  return buf ?? unsafeStringify(bytes);
+}
+function updateV1State(state, now, rnds) {
+  state.msecs ??= -Infinity;
+  state.nsecs ??= 0;
+  if (now === state.msecs) {
+    state.nsecs++;
+    if (state.nsecs >= 1e4) {
+      state.node = void 0;
+      state.nsecs = 0;
+    }
+  } else if (now > state.msecs) {
+    state.nsecs = 0;
+  } else if (now < state.msecs) {
+    state.node = void 0;
+  }
+  if (!state.node) {
+    state.node = rnds.slice(10, 16);
+    state.node[0] |= 1;
+    state.clockseq = (rnds[8] << 8 | rnds[9]) & 16383;
+  }
+  state.msecs = now;
+  return state;
+}
+function v1Bytes(rnds, msecs, nsecs, clockseq, node, buf, offset = 0) {
+  if (rnds.length < 16) {
+    throw new Error("Random bytes length must be >= 16");
+  }
+  if (!buf) {
+    buf = new Uint8Array(16);
+    offset = 0;
+  } else {
+    if (offset < 0 || offset + 16 > buf.length) {
+      throw new RangeError(`UUID byte range ${offset}:${offset + 15} is out of buffer bounds`);
+    }
+  }
+  msecs ??= Date.now();
+  nsecs ??= 0;
+  clockseq ??= (rnds[8] << 8 | rnds[9]) & 16383;
+  node ??= rnds.slice(10, 16);
+  msecs += 122192928e5;
+  const tl = ((msecs & 268435455) * 1e4 + nsecs) % 4294967296;
+  buf[offset++] = tl >>> 24 & 255;
+  buf[offset++] = tl >>> 16 & 255;
+  buf[offset++] = tl >>> 8 & 255;
+  buf[offset++] = tl & 255;
+  const tmh = msecs / 4294967296 * 1e4 & 268435455;
+  buf[offset++] = tmh >>> 8 & 255;
+  buf[offset++] = tmh & 255;
+  buf[offset++] = tmh >>> 24 & 15 | 16;
+  buf[offset++] = tmh >>> 16 & 255;
+  buf[offset++] = clockseq >>> 8 | 128;
+  buf[offset++] = clockseq & 255;
+  for (let n = 0; n < 6; ++n) {
+    buf[offset++] = node[n];
+  }
+  return buf;
+}
+var _state, v1_default;
+var init_v1 = __esm({
+  "node_modules/uuid/dist-node/v1.js"() {
+    init_rng();
+    init_stringify();
+    _state = {};
+    v1_default = v1;
+  }
+});
+
+// node_modules/uuid/dist-node/index.js
+var init_dist_node = __esm({
+  "node_modules/uuid/dist-node/index.js"() {
+    init_v1();
+  }
+});
+
+// src/adapters/katana/constants.ts
+var KATANA_API_URLS, KATANA_RATE_LIMITS, KATANA_ENDPOINT_WEIGHTS, KATANA_ORDER_TYPES, KATANA_ORDER_TYPE_REVERSE, KATANA_ORDER_SIDES, KATANA_ORDER_SIDE_REVERSE, KATANA_TIME_IN_FORCE, KATANA_TIME_IN_FORCE_REVERSE, KATANA_TRIGGER_TYPES, KATANA_SELF_TRADE_PREVENTION, KATANA_ORDER_STATUS, KATANA_EIP712_DOMAIN, KATANA_EIP712_ORDER_TYPE, KATANA_EIP712_CANCEL_TYPE, KATANA_EIP712_WITHDRAW_TYPE, KATANA_PRECISION, KATANA_AUTH_HEADERS, KATANA_FUNDING_INTERVAL_HOURS, KATANA_NONCE_WINDOW_MS, KATANA_DEFAULT_FEES, KATANA_WS_CONFIG, KATANA_WS_CHANNELS, KATANA_TIMEFRAMES, KATANA_NULL_ADDRESS, KATANA_ZERO_DECIMAL;
+var init_constants20 = __esm({
+  "src/adapters/katana/constants.ts"() {
+    "use strict";
+    KATANA_API_URLS = {
+      mainnet: {
+        rest: "https://api-perps.katana.network/v1",
+        websocket: "wss://websocket-perps.katana.network/v1"
+      },
+      sandbox: {
+        rest: "https://api-perps-sandbox.katana.network/v1",
+        websocket: "wss://websocket-perps-sandbox.katana.network/v1"
+      }
+    };
+    KATANA_RATE_LIMITS = {
+      public: {
+        maxRequests: 10,
+        windowMs: 1e3
+      },
+      private: {
+        maxRequests: 10,
+        windowMs: 1e3
+      }
+    };
+    KATANA_ENDPOINT_WEIGHTS = {
+      fetchMarkets: 1,
+      fetchTicker: 1,
+      fetchOrderBook: 2,
+      fetchTrades: 2,
+      fetchOHLCV: 2,
+      fetchFundingRate: 1,
+      fetchFundingRateHistory: 2,
+      fetchPositions: 2,
+      fetchBalance: 2,
+      fetchOpenOrders: 2,
+      fetchOrderHistory: 3,
+      fetchMyTrades: 3,
+      createOrder: 5,
+      cancelOrder: 3,
+      cancelAllOrders: 10,
+      setLeverage: 3
+    };
+    KATANA_ORDER_TYPES = {
+      market: 0,
+      limit: 1,
+      stopMarket: 2,
+      stopLimit: 3,
+      takeProfitMarket: 4,
+      takeProfitLimit: 5
+    };
+    KATANA_ORDER_TYPE_REVERSE = {
+      0: "market",
+      1: "limit",
+      2: "stopMarket",
+      3: "stopLimit",
+      4: "takeProfit",
+      5: "takeProfit"
+    };
+    KATANA_ORDER_SIDES = {
+      buy: 0,
+      sell: 1
+    };
+    KATANA_ORDER_SIDE_REVERSE = {
+      0: "buy",
+      1: "sell"
+    };
+    KATANA_TIME_IN_FORCE = {
+      GTC: 0,
+      PO: 1,
+      // GTX / post-only / maker
+      IOC: 2,
+      FOK: 3
+    };
+    KATANA_TIME_IN_FORCE_REVERSE = {
+      0: "GTC",
+      1: "PO",
+      2: "IOC",
+      3: "FOK"
+    };
+    KATANA_TRIGGER_TYPES = {
+      none: 0,
+      index: 1,
+      trade: 2
+    };
+    KATANA_SELF_TRADE_PREVENTION = {
+      decrementAndCancel: 0,
+      cancelOldest: 1,
+      cancelNewest: 2,
+      cancelBoth: 3
+    };
+    KATANA_ORDER_STATUS = {
+      active: "open",
+      open: "open",
+      partiallyFilled: "partiallyFilled",
+      filled: "closed",
+      canceled: "canceled",
+      rejected: "rejected",
+      notFound: "rejected"
+    };
+    KATANA_EIP712_DOMAIN = {
+      mainnet: {
+        name: "Katana",
+        version: "1",
+        chainId: 747474,
+        verifyingContract: "0x835Ba5b1B202773A94Daaa07168b26B22584637a"
+      },
+      sandbox: {
+        name: "Katana",
+        version: "1",
+        chainId: 737373,
+        // Bokuto testnet
+        verifyingContract: "0x835Ba5b1B202773A94Daaa07168b26B22584637a"
+      }
+    };
+    KATANA_EIP712_ORDER_TYPE = {
+      Order: [
+        { name: "nonce", type: "string" },
+        { name: "wallet", type: "address" },
+        { name: "market", type: "string" },
+        { name: "type", type: "uint8" },
+        { name: "side", type: "uint8" },
+        { name: "quantity", type: "string" },
+        { name: "limitPrice", type: "string" },
+        { name: "triggerPrice", type: "string" },
+        { name: "triggerType", type: "uint8" },
+        { name: "callbackRate", type: "string" },
+        { name: "conditionalOrderId", type: "uint128" },
+        { name: "isReduceOnly", type: "bool" },
+        { name: "timeInForce", type: "uint8" },
+        { name: "selfTradePrevention", type: "uint8" },
+        { name: "isLiquidationAcquisitionOnly", type: "bool" },
+        { name: "delegatedPublicKey", type: "address" },
+        { name: "clientOrderId", type: "string" }
+      ]
+    };
+    KATANA_EIP712_CANCEL_TYPE = {
+      Cancel: [
+        { name: "nonce", type: "string" },
+        { name: "wallet", type: "address" },
+        { name: "orderId", type: "string" },
+        { name: "market", type: "string" }
+      ]
+    };
+    KATANA_EIP712_WITHDRAW_TYPE = {
+      Withdraw: [
+        { name: "nonce", type: "string" },
+        { name: "wallet", type: "address" },
+        { name: "quantity", type: "string" }
+      ]
+    };
+    KATANA_PRECISION = {
+      amount: 8,
+      price: 8
+    };
+    KATANA_AUTH_HEADERS = {
+      apiKey: "KP-API-KEY",
+      hmacSignature: "KP-HMAC-SIGNATURE"
+    };
+    KATANA_FUNDING_INTERVAL_HOURS = 8;
+    KATANA_NONCE_WINDOW_MS = 6e4;
+    KATANA_DEFAULT_FEES = {
+      maker: 1e-4,
+      // 0.01%
+      taker: 4e-4
+      // 0.04%
+    };
+    KATANA_WS_CONFIG = {
+      pingInterval: 3e4,
+      pongTimeout: 5e3,
+      inactivityTimeout: 3e5,
+      // 5 minutes
+      reconnectDelay: 1e3,
+      maxReconnectDelay: 3e4,
+      reconnectAttempts: 5
+    };
+    KATANA_WS_CHANNELS = {
+      // Public
+      tickers: "tickers",
+      candles: "candles",
+      trades: "trades",
+      liquidations: "liquidations",
+      orderbookL1: "orderbook_l1",
+      orderbookL2: "orderbook_l2",
+      // Private (require auth token)
+      orders: "orders",
+      positions: "positions",
+      deposits: "deposits",
+      withdrawals: "withdrawals",
+      funding: "funding"
+    };
+    KATANA_TIMEFRAMES = {
+      "1m": "1m",
+      "5m": "5m",
+      "15m": "15m",
+      "1h": "1h",
+      "4h": "4h",
+      "1d": "1d"
+    };
+    KATANA_NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
+    KATANA_ZERO_DECIMAL = "0.00000000";
+  }
+});
+
+// src/adapters/katana/KatanaAuth.ts
+var KatanaAuth;
+var init_KatanaAuth = __esm({
+  "src/adapters/katana/KatanaAuth.ts"() {
+    "use strict";
+    init_dist_node();
+    init_crypto();
+    init_constants20();
+    KatanaAuth = class {
+      apiKey;
+      apiSecret;
+      wallet;
+      testnet;
+      _serverTimeOffset = 0;
+      constructor(config) {
+        this.apiKey = config.apiKey;
+        this.apiSecret = config.apiSecret;
+        this.wallet = config.wallet;
+        this.testnet = config.testnet ?? false;
+      }
+      /**
+       * Check if HMAC credentials are available
+       */
+      hasCredentials() {
+        return !!(this.apiKey && this.apiSecret);
+      }
+      /**
+       * Check if wallet is available for EIP-712 signing
+       */
+      hasWallet() {
+        return !!this.wallet;
+      }
+      /**
+       * Require HMAC authentication for private methods
+       */
+      requireAuth() {
+        if (!this.hasCredentials()) {
+          throw new Error("Authentication required. Provide apiKey and apiSecret in config.");
+        }
+      }
+      /**
+       * Require wallet for write operations
+       */
+      requireWallet() {
+        if (!this.wallet) {
+          throw new Error("Wallet required for trading operations. Provide wallet in config.");
+        }
+      }
+      /**
+       * Set server time offset for nonce accuracy
+       */
+      setServerTimeOffset(offset) {
+        this._serverTimeOffset = offset;
+      }
+      /**
+       * Generate fresh UUID v1 nonce
+       *
+       * UUID v1 embeds a timestamp — server time offset is tracked
+       * to detect clock skew (logged as warning during initialize).
+       */
+      generateNonce() {
+        return v1_default();
+      }
+      /**
+       * Get server time offset (ms). Positive = server ahead of local clock.
+       */
+      getServerTimeOffset() {
+        return this._serverTimeOffset;
+      }
+      /**
+       * Get wallet address
+       */
+      getAddress() {
+        return this.wallet?.address;
+      }
+      /**
+       * Sign a request with HMAC-SHA256 headers
+       *
+       * GET: HMAC of URL-encoded query string
+       * POST/DELETE: HMAC of JSON request body
+       */
+      async sign(request) {
+        const headers = {
+          "Content-Type": "application/json"
+        };
+        if (this.apiKey && this.apiSecret) {
+          headers[KATANA_AUTH_HEADERS.apiKey] = this.apiKey;
+          const method = request.method.toUpperCase();
+          let payload;
+          if (method === "GET") {
+            payload = request.params ? new URLSearchParams(request.params).toString() : "";
+          } else {
+            payload = request.body ? JSON.stringify(request.body) : "";
+          }
+          const signature = await createHmacSha256(this.apiSecret, payload);
+          headers[KATANA_AUTH_HEADERS.hmacSignature] = signature;
+        }
+        return {
+          ...request,
+          headers
+        };
+      }
+      /**
+       * Verify authentication credentials
+       */
+      async verify() {
+        try {
+          if (this.apiKey && this.apiSecret) {
+            return true;
+          }
+          if (this.wallet) {
+            const address = await this.wallet.getAddress();
+            return address.length > 0;
+          }
+          return false;
+        } catch {
+          return false;
+        }
+      }
+      /**
+       * Sign an order using EIP-712 typed data
+       */
+      async signOrder(payload) {
+        this.requireWallet();
+        const domain = this.testnet ? KATANA_EIP712_DOMAIN.sandbox : KATANA_EIP712_DOMAIN.mainnet;
+        const signature = await this.wallet.signTypedData(
+          domain,
+          KATANA_EIP712_ORDER_TYPE,
+          payload
+        );
+        return signature;
+      }
+      /**
+       * Sign a cancel request using EIP-712 typed data
+       */
+      async signCancel(payload) {
+        this.requireWallet();
+        const domain = this.testnet ? KATANA_EIP712_DOMAIN.sandbox : KATANA_EIP712_DOMAIN.mainnet;
+        const signature = await this.wallet.signTypedData(
+          domain,
+          KATANA_EIP712_CANCEL_TYPE,
+          payload
+        );
+        return signature;
+      }
+      /**
+       * Get authentication headers (for simple GET requests)
+       */
+      getHeaders() {
+        const headers = {
+          "Content-Type": "application/json"
+        };
+        if (this.apiKey) {
+          headers[KATANA_AUTH_HEADERS.apiKey] = this.apiKey;
+        }
+        return headers;
+      }
+    };
+  }
+});
+
+// src/adapters/katana/utils.ts
+function formatDecimal(value) {
+  return value.toFixed(KATANA_PRECISION.price);
+}
+function parseDecimal(value) {
+  if (!value || value === KATANA_ZERO_DECIMAL) return 0;
+  return parseFloat(value);
+}
+function countDecimals3(value) {
+  const parts = value.split(".");
+  return parts.length === 2 && parts[1] ? parts[1].replace(/0+$/, "").length || 1 : 0;
+}
+function normalizeSymbol2(katanaSymbol) {
+  const [base, quote] = katanaSymbol.split("-");
+  return `${base}/${quote}:${quote}`;
+}
+function toKatanaSymbol(symbol) {
+  const pair = symbol.split(":")[0] ?? "";
+  const [base, quote] = pair.split("/");
+  return `${base}-${quote}`;
+}
+function normalizeMarket2(raw) {
+  const symbol = normalizeSymbol2(raw.market);
+  const [base, quote] = raw.market.split("-");
+  const initialMargin = parseDecimal(raw.initialMarginFraction);
+  const maxLeverage = initialMargin > 0 ? Math.round(1 / initialMargin) : 20;
+  return {
+    id: raw.market,
+    symbol,
+    base: base ?? "",
+    quote: quote ?? "",
+    settle: quote ?? "",
+    active: raw.status === "active",
+    minAmount: parseDecimal(raw.takerOrderMinimum),
+    pricePrecision: countDecimals3(raw.tickSize),
+    amountPrecision: countDecimals3(raw.stepSize),
+    priceTickSize: parseDecimal(raw.tickSize),
+    amountStepSize: parseDecimal(raw.stepSize),
+    makerFee: parseDecimal(raw.makerFeeRate),
+    takerFee: parseDecimal(raw.takerFeeRate),
+    maxLeverage,
+    fundingIntervalHours: KATANA_FUNDING_INTERVAL_HOURS
+  };
+}
+function normalizeOrder2(raw) {
+  const symbol = normalizeSymbol2(raw.market);
+  const quantity = parseDecimal(raw.quantity);
+  const filledQty = parseDecimal(raw.filledQuantity);
+  return {
+    id: raw.orderId,
+    clientOrderId: raw.clientOrderId || void 0,
+    symbol,
+    type: normalizeOrderType2(raw.type),
+    side: normalizeOrderSide2(raw.side),
+    amount: quantity,
+    price: raw.limitPrice !== KATANA_ZERO_DECIMAL ? parseDecimal(raw.limitPrice) : void 0,
+    filled: filledQty,
+    remaining: quantity - filledQty,
+    status: normalizeOrderStatus2(raw.state),
+    reduceOnly: false,
+    postOnly: false,
+    timestamp: raw.createdAt,
+    lastUpdateTimestamp: raw.time,
+    info: raw
+  };
+}
+function normalizePosition2(raw) {
+  const symbol = normalizeSymbol2(raw.market);
+  const qty = parseDecimal(raw.quantity);
+  const side = qty >= 0 ? "long" : "short";
+  return {
+    symbol,
+    side,
+    marginMode: "cross",
+    size: Math.abs(qty),
+    entryPrice: parseDecimal(raw.entryPrice),
+    markPrice: parseDecimal(raw.markPrice),
+    liquidationPrice: parseDecimal(raw.liquidationPrice),
+    unrealizedPnl: parseDecimal(raw.unrealizedPnL),
+    realizedPnl: parseDecimal(raw.realizedPnL),
+    margin: parseDecimal(raw.marginRequirement),
+    leverage: parseDecimal(raw.leverage),
+    maintenanceMargin: 0,
+    marginRatio: 0,
+    timestamp: raw.time,
+    info: {
+      ...raw,
+      adlQuintile: raw.adlQuintile
+    }
+  };
+}
+function normalizeBalance2(raw) {
+  return {
+    currency: "USDC",
+    // vbUSDC → USDC
+    total: parseDecimal(raw.equity),
+    free: parseDecimal(raw.freeCollateral),
+    used: parseDecimal(raw.heldCollateral),
+    info: raw
+  };
+}
+function normalizeOrderBook2(raw, market) {
+  return {
+    symbol: normalizeSymbol2(market),
+    exchange: "katana",
+    bids: raw.bids.map(([price, qty]) => [parseDecimal(price), parseDecimal(qty)]),
+    asks: raw.asks.map(([price, qty]) => [parseDecimal(price), parseDecimal(qty)]),
+    timestamp: Date.now()
+  };
+}
+function normalizeTrade2(raw) {
+  const price = parseDecimal(raw.price);
+  const amount = parseDecimal(raw.quantity);
+  return {
+    id: raw.fillId,
+    symbol: normalizeSymbol2(raw.market),
+    side: raw.side === "buy" ? "buy" : "sell",
+    price,
+    amount,
+    cost: price * amount,
+    timestamp: raw.time,
+    info: raw
+  };
+}
+function normalizeFill(raw) {
+  const price = parseDecimal(raw.price);
+  const amount = parseDecimal(raw.quantity);
+  return {
+    id: raw.fillId,
+    orderId: raw.orderId,
+    symbol: normalizeSymbol2(raw.market),
+    side: raw.side === "buy" ? "buy" : "sell",
+    price,
+    amount,
+    cost: price * amount,
+    fee: {
+      cost: parseDecimal(raw.fee),
+      currency: raw.feeAsset || "USDC"
+    },
+    timestamp: raw.time,
+    info: raw
+  };
+}
+function normalizeTicker2(raw) {
+  return {
+    symbol: normalizeSymbol2(raw.market),
+    last: parseDecimal(raw.close),
+    open: parseDecimal(raw.open),
+    close: parseDecimal(raw.close),
+    bid: parseDecimal(raw.bid),
+    ask: parseDecimal(raw.ask),
+    high: parseDecimal(raw.high),
+    low: parseDecimal(raw.low),
+    change: 0,
+    percentage: parseDecimal(raw.percentChange),
+    baseVolume: parseDecimal(raw.baseVolume),
+    quoteVolume: parseDecimal(raw.quoteVolume),
+    timestamp: raw.time,
+    info: raw
+  };
+}
+function normalizeFundingRate(raw) {
+  return {
+    symbol: normalizeSymbol2(raw.market),
+    fundingRate: parseDecimal(raw.rate),
+    fundingTimestamp: raw.time,
+    nextFundingTimestamp: raw.time + KATANA_FUNDING_INTERVAL_HOURS * 36e5,
+    markPrice: 0,
+    indexPrice: 0,
+    fundingIntervalHours: KATANA_FUNDING_INTERVAL_HOURS,
+    info: raw
+  };
+}
+function convertOrderRequest5(request, walletAddress, nonce) {
+  const katanaMarket = toKatanaSymbol(request.symbol);
+  return {
+    nonce,
+    wallet: walletAddress,
+    market: katanaMarket,
+    type: toKatanaOrderType(request.type, request.price),
+    side: KATANA_ORDER_SIDES[request.side] ?? 0,
+    quantity: formatDecimal(request.amount),
+    limitPrice: request.price != null ? formatDecimal(request.price) : KATANA_ZERO_DECIMAL,
+    triggerPrice: request.stopPrice != null ? formatDecimal(request.stopPrice) : KATANA_ZERO_DECIMAL,
+    triggerType: request.stopPrice != null ? KATANA_TRIGGER_TYPES.index : KATANA_TRIGGER_TYPES.none,
+    callbackRate: KATANA_ZERO_DECIMAL,
+    conditionalOrderId: 0,
+    isReduceOnly: request.reduceOnly ?? false,
+    timeInForce: toKatanaTimeInForce(request.timeInForce, request.postOnly),
+    selfTradePrevention: KATANA_SELF_TRADE_PREVENTION.decrementAndCancel,
+    isLiquidationAcquisitionOnly: false,
+    delegatedPublicKey: KATANA_NULL_ADDRESS,
+    clientOrderId: request.clientOrderId ?? ""
+  };
+}
+function toKatanaOrderType(type, price) {
+  switch (type) {
+    case "market":
+      return KATANA_ORDER_TYPES.market;
+    case "limit":
+      return KATANA_ORDER_TYPES.limit;
+    case "stopMarket":
+      return KATANA_ORDER_TYPES.stopMarket;
+    case "stopLimit":
+      return KATANA_ORDER_TYPES.stopLimit;
+    case "takeProfit":
+      return price != null ? KATANA_ORDER_TYPES.takeProfitLimit : KATANA_ORDER_TYPES.takeProfitMarket;
+    default:
+      return KATANA_ORDER_TYPES.limit;
+  }
+}
+function toKatanaTimeInForce(tif, postOnly) {
+  if (postOnly) return KATANA_TIME_IN_FORCE.PO;
+  switch (tif) {
+    case "IOC":
+      return KATANA_TIME_IN_FORCE.IOC;
+    case "FOK":
+      return KATANA_TIME_IN_FORCE.FOK;
+    case "PO":
+      return KATANA_TIME_IN_FORCE.PO;
+    case "GTC":
+    default:
+      return KATANA_TIME_IN_FORCE.GTC;
+  }
+}
+function normalizeOrderType2(katanaType) {
+  const mapped = KATANA_ORDER_TYPE_REVERSE[katanaType];
+  return mapped ?? "limit";
+}
+function normalizeOrderSide2(katanaSide) {
+  return katanaSide === 0 ? "buy" : "sell";
+}
+function normalizeOrderStatus2(katanaState) {
+  return KATANA_ORDER_STATUS[katanaState] ?? "open";
+}
+function mapError8(error) {
+  if (error instanceof PerpDEXError) {
+    return error;
+  }
+  if (typeof error !== "object" || error === null) {
+    return new PerpDEXError("Unknown Katana error", "UNKNOWN", "katana", error);
+  }
+  const err2 = error;
+  const message = err2.message ?? "Unknown error";
+  const lowerMsg = message.toLowerCase();
+  if (lowerMsg.includes("insufficient") && lowerMsg.includes("margin")) {
+    return new InsufficientMarginError(message, "INSUFFICIENT_MARGIN", "katana", error);
+  }
+  if (lowerMsg.includes("invalid order") || lowerMsg.includes("invalid parameter")) {
+    return new InvalidOrderError(message, "INVALID_ORDER", "katana", error);
+  }
+  if (lowerMsg.includes("signature") || lowerMsg.includes("unauthorized")) {
+    return new InvalidSignatureError(message, "INVALID_SIGNATURE", "katana", error);
+  }
+  if (lowerMsg.includes("not found") && lowerMsg.includes("order")) {
+    return new OrderNotFoundError(message, "ORDER_NOT_FOUND", "katana", error);
+  }
+  if (lowerMsg.includes("rate limit") || lowerMsg.includes("too many")) {
+    return new RateLimitError(message, "RATE_LIMIT_EXCEEDED", "katana", void 0, error);
+  }
+  if (lowerMsg.includes("unavailable") || lowerMsg.includes("maintenance")) {
+    return new ExchangeUnavailableError(message, "EXCHANGE_UNAVAILABLE", "katana", error);
+  }
+  return new PerpDEXError(message, err2.code ?? "UNKNOWN", "katana", error);
+}
+var init_utils17 = __esm({
+  "src/adapters/katana/utils.ts"() {
+    "use strict";
+    init_constants20();
+    init_errors();
+  }
+});
+
+// src/adapters/katana/KatanaAdapter.ts
+var KatanaAdapter;
+var init_KatanaAdapter = __esm({
+  "src/adapters/katana/KatanaAdapter.ts"() {
+    "use strict";
+    init_BaseAdapter();
+    init_RateLimiter();
+    init_errors();
+    init_HTTPClient();
+    init_KatanaAuth();
+    init_constants20();
+    init_utils17();
+    KatanaAdapter = class extends BaseAdapter {
+      id = "katana";
+      name = "Katana";
+      has = {
+        // Market Data (Public)
+        fetchMarkets: true,
+        fetchTicker: true,
+        fetchOrderBook: true,
+        fetchTrades: true,
+        fetchOHLCV: true,
+        fetchFundingRate: true,
+        fetchFundingRateHistory: true,
+        // Trading (Private)
+        createOrder: true,
+        cancelOrder: true,
+        cancelAllOrders: true,
+        createBatchOrders: false,
+        cancelBatchOrders: false,
+        editOrder: false,
+        // Order Query
+        fetchOpenOrders: true,
+        fetchOrderHistory: true,
+        fetchMyTrades: true,
+        // Positions & Balance
+        fetchPositions: true,
+        fetchBalance: true,
+        setLeverage: true,
+        setMarginMode: false,
+        // cross-margin only
+        // WebSocket (Phase 2)
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchPositions: false,
+        watchOrders: false,
+        watchBalance: false,
+        watchMyTrades: false
+      };
+      auth;
+      rateLimiter;
+      http;
+      testnet;
+      baseUrl;
+      constructor(config = {}) {
+        super(config);
+        this.testnet = config.testnet ?? false;
+        this.baseUrl = this.testnet ? KATANA_API_URLS.sandbox.rest : KATANA_API_URLS.mainnet.rest;
+        this.auth = new KatanaAuth(config);
+        this.rateLimiter = new RateLimiter({
+          maxTokens: KATANA_RATE_LIMITS.private.maxRequests,
+          windowMs: KATANA_RATE_LIMITS.private.windowMs,
+          weights: KATANA_ENDPOINT_WEIGHTS
+        });
+        this.http = new HTTPClient({
+          baseUrl: this.baseUrl,
+          timeout: config.timeout ?? 3e4,
+          exchange: "katana",
+          retry: {
+            maxAttempts: 3,
+            initialDelay: 1e3,
+            maxDelay: 1e4,
+            multiplier: 2,
+            retryableStatuses: [408, 429, 500, 502, 503, 504]
+          }
+        });
+      }
+      // -- Abstract method implementations --
+      symbolToExchange(symbol) {
+        return toKatanaSymbol(symbol);
+      }
+      symbolFromExchange(exchangeSymbol) {
+        return normalizeSymbol2(exchangeSymbol);
+      }
+      // -- Lifecycle --
+      async initialize() {
+        try {
+          const serverTime = await this.publicGet("/time");
+          const localTime = Date.now();
+          this.auth.setServerTimeOffset(serverTime.serverTime - localTime);
+        } catch {
+          this.warn("Failed to sync server time, using local clock");
+        }
+        await this.fetchMarkets();
+        this._isReady = true;
+      }
+      // -- Public Market Data --
+      async fetchMarkets(_params) {
+        await this.rateLimiter.acquire("fetchMarkets");
+        const raw = await this.publicGet("/markets");
+        const markets = raw.map(normalizeMarket2);
+        this.marketCache = markets;
+        this.marketCacheExpiry = Date.now() + this.marketCacheTTL;
+        return markets;
+      }
+      async _fetchTicker(symbol) {
+        await this.rateLimiter.acquire("fetchTicker");
+        const katanaSymbol = toKatanaSymbol(symbol);
+        const raw = await this.publicGet("/tickers", { market: katanaSymbol });
+        if (!raw.length) {
+          throw new PerpDEXError(`No ticker data for ${symbol}`, "NOT_FOUND", "katana");
+        }
+        return normalizeTicker2(raw[0]);
+      }
+      async _fetchOrderBook(symbol, params) {
+        await this.rateLimiter.acquire("fetchOrderBook");
+        const katanaSymbol = toKatanaSymbol(symbol);
+        const limit = params?.limit ?? 100;
+        const raw = await this.publicGet("/orderbook", {
+          market: katanaSymbol,
+          level: 2,
+          limit
+        });
+        return normalizeOrderBook2(raw, katanaSymbol);
+      }
+      async _fetchTrades(symbol, params) {
+        await this.rateLimiter.acquire("fetchTrades");
+        const katanaSymbol = toKatanaSymbol(symbol);
+        const raw = await this.publicGet("/trades", {
+          market: katanaSymbol,
+          limit: params?.limit ?? 50
+        });
+        return raw.map(normalizeTrade2);
+      }
+      async fetchOHLCV(symbol, timeframe, params) {
+        await this.rateLimiter.acquire("fetchOHLCV");
+        const katanaSymbol = toKatanaSymbol(symbol);
+        const interval = KATANA_TIMEFRAMES[timeframe ?? "1h"] ?? "1h";
+        const query = {
+          market: katanaSymbol,
+          interval,
+          limit: params?.limit ?? 100
+        };
+        if (params?.since) query.start = params.since;
+        const raw = await this.publicGet("/candles", query);
+        return raw.map((c) => [
+          c.start,
+          parseFloat(c.open),
+          parseFloat(c.high),
+          parseFloat(c.low),
+          parseFloat(c.close),
+          parseFloat(c.baseVolume)
+        ]);
+      }
+      async _fetchFundingRate(symbol) {
+        await this.rateLimiter.acquire("fetchFundingRate");
+        const katanaSymbol = toKatanaSymbol(symbol);
+        const raw = await this.publicGet("/fundingRates", {
+          market: katanaSymbol,
+          limit: 1
+        });
+        if (!raw.length) {
+          throw new PerpDEXError(`No funding rate for ${symbol}`, "NOT_FOUND", "katana");
+        }
+        return normalizeFundingRate(raw[0]);
+      }
+      async fetchFundingRateHistory(symbol, since, limit) {
+        await this.rateLimiter.acquire("fetchFundingRateHistory");
+        const katanaSymbol = toKatanaSymbol(symbol);
+        const query = {
+          market: katanaSymbol,
+          limit: limit ?? 100
+        };
+        if (since) query.start = since;
+        const raw = await this.publicGet("/fundingRates", query);
+        return raw.map(normalizeFundingRate);
+      }
+      // -- Private Trading --
+      async createOrder(request) {
+        this.auth.requireAuth();
+        this.auth.requireWallet();
+        await this.rateLimiter.acquire("createOrder");
+        const walletAddress = this.auth.getAddress();
+        const nonce = this.auth.generateNonce();
+        const payload = convertOrderRequest5(request, walletAddress, nonce);
+        const signature = await this.auth.signOrder(payload);
+        const body = { ...payload, signature };
+        const raw = await this.privatePost("/orders", body);
+        return normalizeOrder2(raw);
+      }
+      async cancelOrder(orderId, symbol) {
+        this.auth.requireAuth();
+        this.auth.requireWallet();
+        await this.rateLimiter.acquire("cancelOrder");
+        const walletAddress = this.auth.getAddress();
+        const nonce = this.auth.generateNonce();
+        const market = symbol ? toKatanaSymbol(symbol) : "";
+        const cancelPayload = { nonce, wallet: walletAddress, orderId, market };
+        const signature = await this.auth.signCancel(cancelPayload);
+        const body = { ...cancelPayload, signature };
+        const raw = await this.privateDelete("/orders", body);
+        return normalizeOrder2(raw);
+      }
+      async cancelAllOrders(symbol) {
+        this.auth.requireAuth();
+        this.auth.requireWallet();
+        await this.rateLimiter.acquire("cancelAllOrders");
+        const walletAddress = this.auth.getAddress();
+        const nonce = this.auth.generateNonce();
+        const market = symbol ? toKatanaSymbol(symbol) : "";
+        const cancelPayload = { nonce, wallet: walletAddress, orderId: "", market };
+        const signature = await this.auth.signCancel(cancelPayload);
+        const body = { ...cancelPayload, signature };
+        const raw = await this.privateDelete("/orders", body);
+        return (Array.isArray(raw) ? raw : []).map(normalizeOrder2);
+      }
+      // -- Order Query --
+      async fetchOpenOrders(symbol) {
+        this.auth.requireAuth();
+        await this.rateLimiter.acquire("fetchOpenOrders");
+        const query = {
+          wallet: this.auth.getAddress(),
+          status: "open"
+        };
+        if (symbol) query.market = toKatanaSymbol(symbol);
+        const raw = await this.privateGet("/orders", query);
+        return raw.map(normalizeOrder2);
+      }
+      async fetchOrderHistory(symbol, since, limit) {
+        this.auth.requireAuth();
+        await this.rateLimiter.acquire("fetchOrderHistory");
+        const query = {
+          wallet: this.auth.getAddress(),
+          limit: limit ?? 50
+        };
+        if (symbol) query.market = toKatanaSymbol(symbol);
+        if (since) query.start = since;
+        const raw = await this.privateGet("/orders", query);
+        return raw.map(normalizeOrder2);
+      }
+      async fetchMyTrades(symbol, since, limit) {
+        this.auth.requireAuth();
+        await this.rateLimiter.acquire("fetchMyTrades");
+        const query = {
+          wallet: this.auth.getAddress(),
+          limit: limit ?? 50
+        };
+        if (symbol) query.market = toKatanaSymbol(symbol);
+        if (since) query.start = since;
+        const raw = await this.privateGet("/fills", query);
+        return raw.map(normalizeFill);
+      }
+      // -- Positions & Balance --
+      async fetchPositions(symbols) {
+        this.auth.requireAuth();
+        await this.rateLimiter.acquire("fetchPositions");
+        const query = {
+          wallet: this.auth.getAddress()
+        };
+        const raw = await this.privateGet("/positions", query);
+        let positions = raw.map(normalizePosition2);
+        if (symbols?.length) {
+          const symbolSet = new Set(symbols);
+          positions = positions.filter((p) => symbolSet.has(p.symbol));
+        }
+        return positions;
+      }
+      async fetchBalance() {
+        this.auth.requireAuth();
+        await this.rateLimiter.acquire("fetchBalance");
+        const raw = await this.privateGet("/wallets", {
+          wallet: this.auth.getAddress()
+        });
+        return [normalizeBalance2(raw)];
+      }
+      async _setLeverage(symbol, leverage) {
+        this.auth.requireAuth();
+        await this.rateLimiter.acquire("setLeverage");
+        const initialMarginFraction = formatDecimal(1 / leverage);
+        const katanaSymbol = toKatanaSymbol(symbol);
+        await this.privatePost("/initialMarginFractionOverride", {
+          wallet: this.auth.getAddress(),
+          market: katanaSymbol,
+          initialMarginFraction
+        });
+      }
+      // -- Katana-specific: Emergency close all --
+      /**
+       * Emergency close all positions and withdraw
+       *
+       * Maps to DELETE /v1/wallets/{wallet}
+       * Atomically: cancels all orders, closes all positions, initiates full withdrawal
+       */
+      async emergencyCloseAll() {
+        this.auth.requireAuth();
+        this.auth.requireWallet();
+        const walletAddress = this.auth.getAddress();
+        const nonce = this.auth.generateNonce();
+        const payload = { nonce, wallet: walletAddress, orderId: "", market: "" };
+        const signature = await this.auth.signCancel(payload);
+        await this.privateDelete(`/wallets/${walletAddress}`, {
+          nonce,
+          wallet: walletAddress,
+          signature
+        });
+      }
+      // -- HTTP helpers --
+      async publicGet(path, query) {
+        try {
+          const fullPath = this.buildPath(path, query);
+          return await this.http.get(fullPath);
+        } catch (error) {
+          throw mapError8(error);
+        }
+      }
+      async privateGet(path, query) {
+        try {
+          const fullPath = this.buildPath(path, query);
+          const request = { method: "GET", path, query };
+          const signed = await this.auth.sign(request);
+          return await this.http.get(fullPath, { headers: signed.headers });
+        } catch (error) {
+          throw mapError8(error);
+        }
+      }
+      async privatePost(path, body) {
+        try {
+          const request = { method: "POST", path, body };
+          const signed = await this.auth.sign(request);
+          return await this.http.post(path, { headers: signed.headers, body });
+        } catch (error) {
+          throw mapError8(error);
+        }
+      }
+      async privateDelete(path, body) {
+        try {
+          const request = { method: "DELETE", path, body };
+          const signed = await this.auth.sign(request);
+          return await this.http.delete(path, { headers: signed.headers, body });
+        } catch (error) {
+          throw mapError8(error);
+        }
+      }
+      buildPath(path, query) {
+        if (!query) return path;
+        const params = new URLSearchParams();
+        for (const [key, value] of Object.entries(query)) {
+          if (value != null) params.append(key, String(value));
+        }
+        const qs = params.toString();
+        return qs ? `${path}?${qs}` : path;
+      }
+    };
+  }
+});
+
+// src/adapters/katana/types.ts
+var KatanaMarketSchema, KatanaTickerSchema, KatanaOrderBookSchema, KatanaTradeSchema, KatanaCandleSchema, KatanaFundingRateSchema, KatanaOrderSchema, KatanaPositionSchema, KatanaWalletSchema, KatanaFillSchema;
+var init_types22 = __esm({
+  "src/adapters/katana/types.ts"() {
+    "use strict";
+    init_zod();
+    KatanaMarketSchema = external_exports.object({
+      market: external_exports.string(),
+      type: external_exports.string(),
+      status: external_exports.string(),
+      baseAsset: external_exports.string(),
+      quoteAsset: external_exports.string(),
+      stepSize: external_exports.string(),
+      tickSize: external_exports.string(),
+      indexPrice: external_exports.string(),
+      lastFundingRate: external_exports.string(),
+      currentFundingRate: external_exports.string(),
+      nextFundingTime: external_exports.number(),
+      makerOrderMinimum: external_exports.string(),
+      takerOrderMinimum: external_exports.string(),
+      minimumPositionSize: external_exports.string(),
+      maximumPositionSize: external_exports.string(),
+      initialMarginFraction: external_exports.string(),
+      maintenanceMarginFraction: external_exports.string(),
+      makerFeeRate: external_exports.string(),
+      takerFeeRate: external_exports.string(),
+      volume24h: external_exports.string(),
+      openInterest: external_exports.string()
+    }).passthrough();
+    KatanaTickerSchema = external_exports.object({
+      market: external_exports.string(),
+      time: external_exports.number(),
+      open: external_exports.string(),
+      high: external_exports.string(),
+      low: external_exports.string(),
+      close: external_exports.string(),
+      baseVolume: external_exports.string(),
+      quoteVolume: external_exports.string(),
+      percentChange: external_exports.string(),
+      ask: external_exports.string(),
+      bid: external_exports.string(),
+      markPrice: external_exports.string(),
+      indexPrice: external_exports.string()
+    }).passthrough();
+    KatanaOrderBookSchema = external_exports.object({
+      sequence: external_exports.number(),
+      bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string(), external_exports.number()])),
+      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string(), external_exports.number()])),
+      lastPrice: external_exports.string(),
+      markPrice: external_exports.string(),
+      indexPrice: external_exports.string()
+    }).passthrough();
+    KatanaTradeSchema = external_exports.object({
+      fillId: external_exports.string(),
+      market: external_exports.string(),
+      price: external_exports.string(),
+      quantity: external_exports.string(),
+      quoteQuantity: external_exports.string(),
+      time: external_exports.number(),
+      side: external_exports.string()
+    }).passthrough();
+    KatanaCandleSchema = external_exports.object({
+      start: external_exports.number(),
+      open: external_exports.string(),
+      high: external_exports.string(),
+      low: external_exports.string(),
+      close: external_exports.string(),
+      baseVolume: external_exports.string(),
+      quoteVolume: external_exports.string(),
+      trades: external_exports.number()
+    }).passthrough();
+    KatanaFundingRateSchema = external_exports.object({
+      market: external_exports.string(),
+      rate: external_exports.string(),
+      time: external_exports.number()
+    }).passthrough();
+    KatanaOrderSchema = external_exports.object({
+      orderId: external_exports.string(),
+      clientOrderId: external_exports.string(),
+      market: external_exports.string(),
+      type: external_exports.number(),
+      side: external_exports.number(),
+      state: external_exports.string(),
+      quantity: external_exports.string(),
+      filledQuantity: external_exports.string(),
+      limitPrice: external_exports.string(),
+      triggerPrice: external_exports.string(),
+      time: external_exports.number(),
+      fees: external_exports.string(),
+      createdAt: external_exports.number()
+    }).passthrough();
+    KatanaPositionSchema = external_exports.object({
+      market: external_exports.string(),
+      quantity: external_exports.string(),
+      entryPrice: external_exports.string(),
+      markPrice: external_exports.string(),
+      indexPrice: external_exports.string(),
+      liquidationPrice: external_exports.string(),
+      realizedPnL: external_exports.string(),
+      unrealizedPnL: external_exports.string(),
+      marginRequirement: external_exports.string(),
+      leverage: external_exports.string(),
+      adlQuintile: external_exports.number(),
+      time: external_exports.number()
+    }).passthrough();
+    KatanaWalletSchema = external_exports.object({
+      wallet: external_exports.string(),
+      equity: external_exports.string(),
+      freeCollateral: external_exports.string(),
+      heldCollateral: external_exports.string(),
+      availableCollateral: external_exports.string(),
+      quoteBalance: external_exports.string(),
+      unrealizedPnL: external_exports.string()
+    }).passthrough();
+    KatanaFillSchema = external_exports.object({
+      fillId: external_exports.string(),
+      orderId: external_exports.string(),
+      market: external_exports.string(),
+      price: external_exports.string(),
+      quantity: external_exports.string(),
+      quoteQuantity: external_exports.string(),
+      side: external_exports.string(),
+      time: external_exports.number(),
+      fee: external_exports.string()
+    }).passthrough();
+  }
+});
+
+// src/adapters/katana/index.ts
+var katana_exports = {};
+__export(katana_exports, {
+  KATANA_API_URLS: () => KATANA_API_URLS,
+  KATANA_AUTH_HEADERS: () => KATANA_AUTH_HEADERS,
+  KATANA_DEFAULT_FEES: () => KATANA_DEFAULT_FEES,
+  KATANA_EIP712_CANCEL_TYPE: () => KATANA_EIP712_CANCEL_TYPE,
+  KATANA_EIP712_DOMAIN: () => KATANA_EIP712_DOMAIN,
+  KATANA_EIP712_ORDER_TYPE: () => KATANA_EIP712_ORDER_TYPE,
+  KATANA_EIP712_WITHDRAW_TYPE: () => KATANA_EIP712_WITHDRAW_TYPE,
+  KATANA_ENDPOINT_WEIGHTS: () => KATANA_ENDPOINT_WEIGHTS,
+  KATANA_FUNDING_INTERVAL_HOURS: () => KATANA_FUNDING_INTERVAL_HOURS,
+  KATANA_NONCE_WINDOW_MS: () => KATANA_NONCE_WINDOW_MS,
+  KATANA_NULL_ADDRESS: () => KATANA_NULL_ADDRESS,
+  KATANA_ORDER_SIDES: () => KATANA_ORDER_SIDES,
+  KATANA_ORDER_SIDE_REVERSE: () => KATANA_ORDER_SIDE_REVERSE,
+  KATANA_ORDER_STATUS: () => KATANA_ORDER_STATUS,
+  KATANA_ORDER_TYPES: () => KATANA_ORDER_TYPES,
+  KATANA_ORDER_TYPE_REVERSE: () => KATANA_ORDER_TYPE_REVERSE,
+  KATANA_PRECISION: () => KATANA_PRECISION,
+  KATANA_RATE_LIMITS: () => KATANA_RATE_LIMITS,
+  KATANA_SELF_TRADE_PREVENTION: () => KATANA_SELF_TRADE_PREVENTION,
+  KATANA_TIMEFRAMES: () => KATANA_TIMEFRAMES,
+  KATANA_TIME_IN_FORCE: () => KATANA_TIME_IN_FORCE,
+  KATANA_TIME_IN_FORCE_REVERSE: () => KATANA_TIME_IN_FORCE_REVERSE,
+  KATANA_TRIGGER_TYPES: () => KATANA_TRIGGER_TYPES,
+  KATANA_WS_CHANNELS: () => KATANA_WS_CHANNELS,
+  KATANA_WS_CONFIG: () => KATANA_WS_CONFIG,
+  KATANA_ZERO_DECIMAL: () => KATANA_ZERO_DECIMAL,
+  KatanaAdapter: () => KatanaAdapter,
+  KatanaAuth: () => KatanaAuth,
+  KatanaCandleSchema: () => KatanaCandleSchema,
+  KatanaFillSchema: () => KatanaFillSchema,
+  KatanaFundingRateSchema: () => KatanaFundingRateSchema,
+  KatanaMarketSchema: () => KatanaMarketSchema,
+  KatanaOrderBookSchema: () => KatanaOrderBookSchema,
+  KatanaOrderSchema: () => KatanaOrderSchema,
+  KatanaPositionSchema: () => KatanaPositionSchema,
+  KatanaTickerSchema: () => KatanaTickerSchema,
+  KatanaTradeSchema: () => KatanaTradeSchema,
+  KatanaWalletSchema: () => KatanaWalletSchema,
+  convertOrderRequest: () => convertOrderRequest5,
+  formatDecimal: () => formatDecimal,
+  mapError: () => mapError8,
+  normalizeBalance: () => normalizeBalance2,
+  normalizeFill: () => normalizeFill,
+  normalizeFundingRate: () => normalizeFundingRate,
+  normalizeMarket: () => normalizeMarket2,
+  normalizeOrder: () => normalizeOrder2,
+  normalizeOrderBook: () => normalizeOrderBook2,
+  normalizePosition: () => normalizePosition2,
+  normalizeSymbol: () => normalizeSymbol2,
+  normalizeTicker: () => normalizeTicker2,
+  normalizeTrade: () => normalizeTrade2,
+  parseDecimal: () => parseDecimal,
+  toKatanaSymbol: () => toKatanaSymbol
+});
+var init_katana = __esm({
+  "src/adapters/katana/index.ts"() {
+    "use strict";
+    init_KatanaAdapter();
+    init_KatanaAuth();
+    init_types22();
+    init_constants20();
+    init_utils17();
   }
 });
 
@@ -45544,7 +47418,7 @@ __export(index_exports, {
   isValidPrivateKey: () => isValidPrivateKey,
   isValidSymbol: () => isValidSymbol,
   maskSensitive: () => maskSensitive,
-  normalizeSymbol: () => normalizeSymbol2,
+  normalizeSymbol: () => normalizeSymbol3,
   parseSymbol: () => parseSymbol,
   preloadAdapters: () => preloadAdapters,
   readBigUInt64BE: () => readBigUInt64BE,
@@ -45597,7 +47471,8 @@ var adapterLoaders = {
   ostium: async () => (await Promise.resolve().then(() => (init_ostium(), ostium_exports))).OstiumAdapter,
   reya: async () => (await Promise.resolve().then(() => (init_reya(), reya_exports))).ReyaAdapter,
   ethereal: async () => (await Promise.resolve().then(() => (init_ethereal(), ethereal_exports))).EtherealAdapter,
-  avantis: async () => (await Promise.resolve().then(() => (init_avantis(), avantis_exports))).AvantisAdapter
+  avantis: async () => (await Promise.resolve().then(() => (init_avantis(), avantis_exports))).AvantisAdapter,
+  katana: async () => (await Promise.resolve().then(() => (init_katana(), katana_exports))).KatanaAdapter
 };
 var adapterCache = /* @__PURE__ */ new Map();
 var customRegistry = /* @__PURE__ */ new Map();
@@ -46355,7 +48230,7 @@ function getSettleCurrency(symbol) {
 function isPerpetual(symbol) {
   return symbol.includes(":");
 }
-function normalizeSymbol2(symbol) {
+function normalizeSymbol3(symbol) {
   const trimmed = symbol.trim().toUpperCase();
   if (trimmed.includes("PERP") || trimmed.includes("PERPETUAL")) {
     const base = trimmed.split(/[-_]/)[0];
@@ -46446,7 +48321,9 @@ var EXCHANGE_ENV_REQUIREMENTS = {
   // Avantis (Base chain, on-chain contracts)
   avantis: ["AVANTIS_PRIVATE_KEY"],
   // Ethereal (EIP-712 signing)
-  ethereal: ["ETHEREAL_PRIVATE_KEY"]
+  ethereal: ["ETHEREAL_PRIVATE_KEY"],
+  // Katana (HMAC-SHA256 + EIP-712 dual auth)
+  katana: ["KATANA_API_KEY", "KATANA_API_SECRET"]
 };
 var ConfigurationError = class _ConfigurationError extends Error {
   constructor(message, exchange, missingVars) {
@@ -46509,7 +48386,8 @@ function getConfigErrorMessage(exchange, missingVars) {
     ostium: "Export your MetaMask private key for Arbitrum trading on Ostium",
     reya: "Export your wallet private key for Reya Network trading",
     avantis: "Export your wallet private key for Base chain trading on Avantis",
-    ethereal: "Export your wallet private key for Ethereal perpetual DEX trading"
+    ethereal: "Export your wallet private key for Ethereal perpetual DEX trading",
+    katana: "Register at katana.network and create API key + secret (add wallet private key for trading)"
   };
   return `\u274C Missing environment variables for ${exchange}:
 

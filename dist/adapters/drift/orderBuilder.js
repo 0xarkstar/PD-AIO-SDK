@@ -4,6 +4,7 @@
  * Builds order parameters for Drift Protocol trading.
  * Converts unified order requests to Drift SDK format.
  */
+import { InvalidSymbolError, InvalidOrderError, } from '../../types/errors.js';
 import { DRIFT_PERP_MARKETS, DRIFT_PRECISION, getMarketIndex, unifiedToDrift, } from './constants.js';
 /**
  * Builds order parameters for Drift Protocol
@@ -27,7 +28,7 @@ export class DriftOrderBuilder {
         const marketKey = unifiedToDrift(request.symbol);
         const marketConfig = DRIFT_PERP_MARKETS[marketKey];
         if (!marketConfig) {
-            throw new Error(`Unknown market: ${request.symbol}`);
+            throw new InvalidSymbolError(`Unknown market: ${request.symbol}`, 'INVALID_SYMBOL', 'drift');
         }
         // Validate order
         this.validateOrder(request, marketConfig);
@@ -98,7 +99,7 @@ export class DriftOrderBuilder {
         const marketKey = unifiedToDrift(symbol);
         const marketConfig = DRIFT_PERP_MARKETS[marketKey];
         if (!marketConfig) {
-            throw new Error(`Unknown market: ${symbol}`);
+            throw new InvalidSymbolError(`Unknown market: ${symbol}`, 'INVALID_SYMBOL', 'drift');
         }
         const baseAssetAmount = BigInt(Math.floor(Math.abs(size) * DRIFT_PRECISION.BASE));
         // To close, we need to trade in the opposite direction
@@ -127,32 +128,32 @@ export class DriftOrderBuilder {
     validateOrder(request, marketConfig) {
         // Check minimum order size
         if (request.amount < marketConfig.minOrderSize) {
-            throw new Error(`Order size ${request.amount} is below minimum ${marketConfig.minOrderSize} for ${request.symbol}`);
+            throw new InvalidOrderError(`Order size ${request.amount} is below minimum ${marketConfig.minOrderSize} for ${request.symbol}`, 'MIN_ORDER_SIZE', 'drift');
         }
         // Check leverage if specified
         if (request.leverage && request.leverage > marketConfig.maxLeverage) {
-            throw new Error(`Leverage ${request.leverage}x exceeds maximum ${marketConfig.maxLeverage}x for ${request.symbol}`);
+            throw new InvalidOrderError(`Leverage ${request.leverage}x exceeds maximum ${marketConfig.maxLeverage}x for ${request.symbol}`, 'MAX_LEVERAGE_EXCEEDED', 'drift');
         }
         // Validate price for limit orders
         if (request.type === 'limit' && !request.price) {
-            throw new Error('Price is required for limit orders');
+            throw new InvalidOrderError('Price is required for limit orders', 'INVALID_PRICE', 'drift');
         }
         // Validate stop price for trigger orders
         if ((request.type === 'stopMarket' || request.type === 'stopLimit') && !request.stopPrice) {
-            throw new Error('Stop price is required for trigger orders');
+            throw new InvalidOrderError('Stop price is required for trigger orders', 'INVALID_PRICE', 'drift');
         }
         // Validate amount step size
         const stepSize = marketConfig.stepSize;
         const remainder = request.amount % stepSize;
         if (remainder !== 0 && remainder / stepSize > 0.001) {
-            throw new Error(`Order amount ${request.amount} does not conform to step size ${stepSize}`);
+            throw new InvalidOrderError(`Order amount ${request.amount} does not conform to step size ${stepSize}`, 'INVALID_AMOUNT', 'drift');
         }
         // Validate price tick size for limit orders
         if (request.price) {
             const tickSize = marketConfig.tickSize;
             const priceRemainder = request.price % tickSize;
             if (priceRemainder !== 0 && priceRemainder / tickSize > 0.001) {
-                throw new Error(`Order price ${request.price} does not conform to tick size ${tickSize}`);
+                throw new InvalidOrderError(`Order price ${request.price} does not conform to tick size ${tickSize}`, 'INVALID_PRICE', 'drift');
             }
         }
     }
@@ -188,7 +189,7 @@ export class DriftOrderBuilder {
         const marketKey = unifiedToDrift(symbol);
         const marketConfig = DRIFT_PERP_MARKETS[marketKey];
         if (!marketConfig) {
-            throw new Error(`Unknown market: ${symbol}`);
+            throw new InvalidSymbolError(`Unknown market: ${symbol}`, 'INVALID_SYMBOL', 'drift');
         }
         // Calculate notional value
         const notional = amount * price;
@@ -209,7 +210,7 @@ export class DriftOrderBuilder {
         const marketKey = unifiedToDrift(symbol);
         const marketConfig = DRIFT_PERP_MARKETS[marketKey];
         if (!marketConfig) {
-            throw new Error(`Unknown market: ${symbol}`);
+            throw new InvalidSymbolError(`Unknown market: ${symbol}`, 'INVALID_SYMBOL', 'drift');
         }
         const maintenanceMargin = marketConfig.maintenanceMarginRatio;
         const liquidationThreshold = 1 - maintenanceMargin;

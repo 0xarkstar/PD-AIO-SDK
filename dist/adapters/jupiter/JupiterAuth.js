@@ -6,6 +6,7 @@
  */
 import { SOLANA_DEFAULT_RPC } from './constants.js';
 import { Logger } from '../../core/logger.js';
+import { AuthenticationError, NetworkError, InvalidParameterError, } from '../../types/errors.js';
 /**
  * Solana wallet authentication for Jupiter Perps
  *
@@ -78,7 +79,7 @@ export class JupiterAuth {
                 this.isInitialized = true;
             }
             catch (error) {
-                throw new Error(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`);
+                throw new NetworkError(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`, 'NETWORK_ERROR', 'jupiter', error);
             }
         }
     }
@@ -107,7 +108,7 @@ export class JupiterAuth {
      */
     async signMessage(message) {
         if (!this.keypair) {
-            throw new Error('Private key required for signing');
+            throw new AuthenticationError('Private key required for signing', 'MISSING_CREDENTIALS', 'jupiter');
         }
         const { sign } = await import('@noble/ed25519');
         const messageBytes = new TextEncoder().encode(message);
@@ -118,7 +119,7 @@ export class JupiterAuth {
      */
     async signBytes(bytes) {
         if (!this.keypair) {
-            throw new Error('Private key required for signing');
+            throw new AuthenticationError('Private key required for signing', 'MISSING_CREDENTIALS', 'jupiter');
         }
         const { sign } = await import('@noble/ed25519');
         return sign(bytes, this.keypair.secretKey.slice(0, 32));
@@ -128,7 +129,7 @@ export class JupiterAuth {
      */
     async signTransaction(transaction) {
         if (!this.keypair) {
-            throw new Error('Private key required for transaction signing');
+            throw new AuthenticationError('Private key required for transaction signing', 'MISSING_CREDENTIALS', 'jupiter');
         }
         transaction.sign(this.keypair);
         return transaction;
@@ -138,7 +139,7 @@ export class JupiterAuth {
      */
     async signAllTransactions(transactions) {
         if (!this.keypair) {
-            throw new Error('Private key required for transaction signing');
+            throw new AuthenticationError('Private key required for transaction signing', 'MISSING_CREDENTIALS', 'jupiter');
         }
         for (const tx of transactions) {
             tx.sign(this.keypair);
@@ -187,7 +188,7 @@ export class JupiterAuth {
     async getConnection() {
         await this.ensureInitialized();
         if (!this.connection) {
-            throw new Error('Connection not initialized');
+            throw new NetworkError('Connection not initialized', 'NETWORK_ERROR', 'jupiter');
         }
         return this.connection;
     }
@@ -197,7 +198,7 @@ export class JupiterAuth {
     async getSolBalance() {
         await this.ensureInitialized();
         if (!this.connection || !this.publicKey) {
-            throw new Error('Connection or public key not initialized');
+            throw new NetworkError('Connection or public key not initialized', 'NETWORK_ERROR', 'jupiter');
         }
         const balance = await this.connection.getBalance(this.publicKey);
         return balance / 1e9; // Convert lamports to SOL
@@ -208,7 +209,7 @@ export class JupiterAuth {
     async getTokenBalance(tokenMint) {
         await this.ensureInitialized();
         if (!this.connection || !this.publicKey) {
-            throw new Error('Connection or public key not initialized');
+            throw new NetworkError('Connection or public key not initialized', 'NETWORK_ERROR', 'jupiter');
         }
         const { PublicKey } = await import('@solana/web3.js');
         const tokenMintPubkey = new PublicKey(tokenMint);
@@ -235,7 +236,7 @@ export class JupiterAuth {
      */
     async getAssociatedTokenAddress(tokenMint) {
         if (!this.publicKey) {
-            throw new Error('Public key not initialized');
+            throw new AuthenticationError('Public key not initialized', 'MISSING_CREDENTIALS', 'jupiter');
         }
         const { PublicKey } = await import('@solana/web3.js');
         const mintPubkey = new PublicKey(tokenMint);
@@ -261,7 +262,7 @@ export class JupiterAuth {
                 return new Uint8Array(parsed);
             }
             catch {
-                throw new Error('Invalid private key JSON array format');
+                throw new InvalidParameterError('Invalid private key JSON array format', 'INVALID_PARAMETER', 'jupiter');
             }
         }
         // Try to parse as base58 (Phantom wallet format)
@@ -273,7 +274,7 @@ export class JupiterAuth {
                 return bs58.decode(key);
             }
             catch {
-                throw new Error('Invalid base58 private key format');
+                throw new InvalidParameterError('Invalid base58 private key format', 'INVALID_PARAMETER', 'jupiter');
             }
         }
         // Try hex format
@@ -285,7 +286,7 @@ export class JupiterAuth {
             }
             return bytes;
         }
-        throw new Error('Unsupported private key format');
+        throw new InvalidParameterError('Unsupported private key format', 'INVALID_PARAMETER', 'jupiter');
     }
 }
 /**

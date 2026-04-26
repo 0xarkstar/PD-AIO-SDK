@@ -19,6 +19,7 @@ import { DriftNormalizer } from './DriftNormalizer.js';
 import { DriftOrderBuilder } from './orderBuilder.js';
 import { DRIFT_API_URLS, DRIFT_PERP_MARKETS, DRIFT_PRECISION, unifiedToDrift, driftToUnified, getMarketIndex, } from './constants.js';
 import { mapDriftError } from './error-codes.js';
+import { PerpDEXError, AuthenticationError, InvalidSymbolError, BadResponseError, NotSupportedError, } from '../../types/errors.js';
 import { isValidMarket, getMarketConfig, buildOrderbookUrl, mapDriftOrderType, mapDriftOrderStatus, mapDriftTriggerCondition, mapDriftPostOnly, mapDriftPositionDirection, } from './utils.js';
 import { DriftAuth } from './DriftAuth.js';
 import { DriftClientWrapper } from './DriftClientWrapper.js';
@@ -153,14 +154,14 @@ export class DriftAdapter extends BaseAdapter {
      */
     async initializeDriftClient() {
         if (!this.auth) {
-            throw new Error('Auth not configured');
+            throw new PerpDEXError('Auth not configured', 'NOT_INITIALIZED', 'drift');
         }
         try {
             const { Connection } = await import('@solana/web3.js');
             const connection = new Connection(this.auth.getRpcEndpoint(), 'confirmed');
             const keypair = this.auth.getKeypair();
             if (!keypair) {
-                throw new Error('Keypair not available');
+                throw new AuthenticationError('Keypair not available', 'MISSING_CREDENTIALS', 'drift');
             }
             this.driftClient = new DriftClientWrapper({
                 connection,
@@ -320,7 +321,7 @@ export class DriftAdapter extends BaseAdapter {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(driftSymbol)) {
-            throw new Error(`Invalid market: ${symbol}`);
+            throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'drift');
         }
         try {
             const marketIndex = getMarketIndex(symbol);
@@ -364,7 +365,7 @@ export class DriftAdapter extends BaseAdapter {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(driftSymbol)) {
-            throw new Error(`Invalid market: ${symbol}`);
+            throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'drift');
         }
         try {
             const marketIndex = getMarketIndex(symbol);
@@ -379,14 +380,14 @@ export class DriftAdapter extends BaseAdapter {
     async _fetchTrades(_symbol, _params) {
         // The DLOB /trades endpoint has been removed from the Drift API.
         // Trade data requires on-chain transaction indexing or historical S3 data.
-        throw new Error('fetchTrades is not available via the Drift REST API. ' +
-            'Trade data requires on-chain indexing or the historical data archive.');
+        throw new NotSupportedError('fetchTrades is not available via the Drift REST API. ' +
+            'Trade data requires on-chain indexing or the historical data archive.', 'NOT_SUPPORTED', 'drift');
     }
     async _fetchFundingRate(symbol) {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(driftSymbol)) {
-            throw new Error(`Invalid market: ${symbol}`);
+            throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'drift');
         }
         try {
             const marketIndex = getMarketIndex(symbol);
@@ -395,7 +396,7 @@ export class DriftAdapter extends BaseAdapter {
             const response = await this.request('GET', url);
             const fundingRates = response.fundingRates || [];
             if (fundingRates.length === 0) {
-                throw new Error(`No funding rate data available for ${symbol}`);
+                throw new BadResponseError(`No funding rate data available for ${symbol}`, 'BAD_RESPONSE', 'drift');
             }
             const latestRate = fundingRates[0];
             return this.normalizer.normalizeFundingRate(latestRate);
@@ -408,7 +409,7 @@ export class DriftAdapter extends BaseAdapter {
         this.ensureInitialized();
         const driftSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(driftSymbol)) {
-            throw new Error(`Invalid market: ${symbol}`);
+            throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'drift');
         }
         try {
             const marketIndex = getMarketIndex(symbol);
@@ -432,12 +433,12 @@ export class DriftAdapter extends BaseAdapter {
     async fetchPositions(symbols) {
         this.ensureInitialized();
         if (!this.auth?.canRead()) {
-            throw new Error('Wallet address required to fetch positions');
+            throw new AuthenticationError('Wallet address required to fetch positions', 'MISSING_CREDENTIALS', 'drift');
         }
         const walletAddress = this.auth.getWalletAddress();
         const subAccountId = this.auth.getSubAccountId();
         if (!walletAddress) {
-            throw new Error('Wallet address not configured');
+            throw new AuthenticationError('Wallet address not configured', 'MISSING_CREDENTIALS', 'drift');
         }
         try {
             // Fetch user positions from DLOB API
@@ -472,12 +473,12 @@ export class DriftAdapter extends BaseAdapter {
     async fetchBalance() {
         this.ensureInitialized();
         if (!this.auth?.canRead()) {
-            throw new Error('Wallet address required to fetch balance');
+            throw new AuthenticationError('Wallet address required to fetch balance', 'MISSING_CREDENTIALS', 'drift');
         }
         const walletAddress = this.auth.getWalletAddress();
         const subAccountId = this.auth.getSubAccountId();
         if (!walletAddress) {
-            throw new Error('Wallet address not configured');
+            throw new AuthenticationError('Wallet address not configured', 'MISSING_CREDENTIALS', 'drift');
         }
         try {
             // Fetch user account from DLOB API
@@ -506,12 +507,12 @@ export class DriftAdapter extends BaseAdapter {
     async fetchOpenOrders(symbol) {
         this.ensureInitialized();
         if (!this.auth?.canRead()) {
-            throw new Error('Wallet address required to fetch orders');
+            throw new AuthenticationError('Wallet address required to fetch orders', 'MISSING_CREDENTIALS', 'drift');
         }
         const walletAddress = this.auth.getWalletAddress();
         const subAccountId = this.auth.getSubAccountId();
         if (!walletAddress) {
-            throw new Error('Wallet address not configured');
+            throw new AuthenticationError('Wallet address not configured', 'MISSING_CREDENTIALS', 'drift');
         }
         try {
             const url = `${this.dlobBaseUrl}/orders?userAccount=${walletAddress}&subAccountId=${subAccountId}`;
@@ -543,13 +544,13 @@ export class DriftAdapter extends BaseAdapter {
     async createOrder(request) {
         this.ensureInitialized();
         if (!this.auth?.canSign()) {
-            throw new Error('Private key required for trading');
+            throw new AuthenticationError('Private key required for trading', 'MISSING_CREDENTIALS', 'drift');
         }
         if (!this.driftClient) {
-            throw new Error('Drift SDK client not initialized. Ensure private key is provided.');
+            throw new PerpDEXError('Drift SDK client not initialized. Ensure private key is provided.', 'NOT_INITIALIZED', 'drift');
         }
         if (!this.orderBuilder) {
-            throw new Error('Order builder not initialized');
+            throw new PerpDEXError('Order builder not initialized', 'NOT_INITIALIZED', 'drift');
         }
         try {
             // Get oracle price for the market
@@ -590,10 +591,10 @@ export class DriftAdapter extends BaseAdapter {
     async cancelOrder(orderId, symbol) {
         this.ensureInitialized();
         if (!this.auth?.canSign()) {
-            throw new Error('Private key required for trading');
+            throw new AuthenticationError('Private key required for trading', 'MISSING_CREDENTIALS', 'drift');
         }
         if (!this.driftClient) {
-            throw new Error('Drift SDK client not initialized');
+            throw new PerpDEXError('Drift SDK client not initialized', 'NOT_INITIALIZED', 'drift');
         }
         try {
             const result = await this.driftClient.cancelOrder(parseInt(orderId));
@@ -621,10 +622,10 @@ export class DriftAdapter extends BaseAdapter {
     async cancelAllOrders(symbol) {
         this.ensureInitialized();
         if (!this.auth?.canSign()) {
-            throw new Error('Private key required for trading');
+            throw new AuthenticationError('Private key required for trading', 'MISSING_CREDENTIALS', 'drift');
         }
         if (!this.driftClient) {
-            throw new Error('Drift SDK client not initialized');
+            throw new PerpDEXError('Drift SDK client not initialized', 'NOT_INITIALIZED', 'drift');
         }
         try {
             let txSig;
@@ -680,7 +681,7 @@ export class DriftAdapter extends BaseAdapter {
         return [];
     }
     async _setLeverage(_symbol, _leverage) {
-        throw new Error('Drift uses cross-margin. Leverage is determined by position size relative to collateral.');
+        throw new NotSupportedError('Drift uses cross-margin. Leverage is determined by position size relative to collateral.', 'NOT_SUPPORTED', 'drift');
     }
     // ==========================================================================
     // Health Check

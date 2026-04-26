@@ -24,7 +24,8 @@ import type { OstiumConfig } from './adapters/ostium/index.js';
 import type { ReyaConfig } from './adapters/reya/index.js';
 import type { EtherealConfig } from './adapters/ethereal/index.js';
 import type { AvantisConfig } from './adapters/avantis/index.js';
-export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx' | 'aster' | 'pacifica' | 'ostium' | 'reya' | 'ethereal' | 'avantis';
+import type { KatanaConfig } from './adapters/katana/index.js';
+export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx' | 'aster' | 'pacifica' | 'ostium' | 'reya' | 'ethereal' | 'avantis' | 'katana';
 export type ExchangeConfigMap = {
     hyperliquid: HyperliquidConfig;
     lighter: LighterConfig;
@@ -45,6 +46,7 @@ export type ExchangeConfigMap = {
     reya: ReyaConfig;
     ethereal: EtherealConfig;
     avantis: AvantisConfig;
+    katana: KatanaConfig;
 };
 /**
  * Type for adapter constructor function

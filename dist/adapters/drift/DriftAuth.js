@@ -4,6 +4,7 @@
  * Handles Solana wallet authentication for Drift Protocol trading.
  * Drift uses on-chain transactions signed by the wallet.
  */
+import { AuthenticationError, NetworkError, InvalidParameterError, } from '../../types/errors.js';
 import { DRIFT_API_URLS } from './constants.js';
 import { Logger } from '../../core/logger.js';
 /**
@@ -83,7 +84,7 @@ export class DriftAuth {
                 this.isInitialized = true;
             }
             catch (error) {
-                throw new Error(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`);
+                throw new NetworkError(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`, 'NETWORK_ERROR', 'drift', error);
             }
         }
     }
@@ -112,7 +113,7 @@ export class DriftAuth {
      */
     async signMessage(message) {
         if (!this.keypair) {
-            throw new Error('Private key required for signing');
+            throw new AuthenticationError('Private key required for signing', 'MISSING_CREDENTIALS', 'drift');
         }
         const { sign } = await import('@noble/ed25519');
         const messageBytes = new TextEncoder().encode(message);
@@ -123,7 +124,7 @@ export class DriftAuth {
      */
     async signBytes(bytes) {
         if (!this.keypair) {
-            throw new Error('Private key required for signing');
+            throw new AuthenticationError('Private key required for signing', 'MISSING_CREDENTIALS', 'drift');
         }
         const { sign } = await import('@noble/ed25519');
         return sign(bytes, this.keypair.secretKey.slice(0, 32));
@@ -182,7 +183,7 @@ export class DriftAuth {
     async getConnection() {
         await this.ensureInitialized();
         if (!this.connection) {
-            throw new Error('Connection not initialized');
+            throw new NetworkError('Connection not initialized', 'NETWORK_ERROR', 'drift');
         }
         return this.connection;
     }
@@ -192,7 +193,7 @@ export class DriftAuth {
     async getSolBalance() {
         await this.ensureInitialized();
         if (!this.connection || !this.publicKey) {
-            throw new Error('Connection or public key not initialized');
+            throw new NetworkError('Connection or public key not initialized', 'NETWORK_ERROR', 'drift');
         }
         const balance = await this.connection.getBalance(this.publicKey);
         return balance / 1e9; // Convert lamports to SOL
@@ -203,7 +204,7 @@ export class DriftAuth {
     async getTokenBalance(tokenMint) {
         await this.ensureInitialized();
         if (!this.connection || !this.publicKey) {
-            throw new Error('Connection or public key not initialized');
+            throw new NetworkError('Connection or public key not initialized', 'NETWORK_ERROR', 'drift');
         }
         const { PublicKey } = await import('@solana/web3.js');
         const tokenMintPubkey = new PublicKey(tokenMint);
@@ -254,7 +255,7 @@ export class DriftAuth {
                 return new Uint8Array(parsed);
             }
             catch {
-                throw new Error('Invalid private key JSON array format');
+                throw new InvalidParameterError('Invalid private key JSON array format', 'INVALID_PARAMETER', 'drift');
             }
         }
         // Try to parse as base58 (Phantom wallet format)
@@ -266,7 +267,7 @@ export class DriftAuth {
                 return bs58.decode(key);
             }
             catch {
-                throw new Error('Invalid base58 private key format');
+                throw new InvalidParameterError('Invalid base58 private key format', 'INVALID_PARAMETER', 'drift');
             }
         }
         // Try hex format
@@ -278,7 +279,7 @@ export class DriftAuth {
             }
             return bytes;
         }
-        throw new Error('Unsupported private key format');
+        throw new InvalidParameterError('Unsupported private key format', 'INVALID_PARAMETER', 'drift');
     }
 }
 /**

@@ -14,7 +14,7 @@
  * @see https://dev.jup.ag/docs/perps
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
-import { NotSupportedError } from '../../types/errors.js';
+import { PerpDEXError, AuthenticationError, InvalidSymbolError, InvalidOrderError, BadResponseError, PositionNotFoundError, NotSupportedError, } from '../../types/errors.js';
 import { JupiterNormalizer } from './JupiterNormalizer.js';
 import { JupiterAuth } from './JupiterAuth.js';
 import { SolanaClient } from './solana.js';
@@ -198,13 +198,13 @@ export class JupiterAdapter extends BaseAdapter {
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
-            throw new Error(`Invalid market: ${symbol}`);
+            throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'jupiter');
         }
         try {
             const baseToken = jupiterSymbol.replace('-PERP', '');
             const mint = JUPITER_TOKEN_MINTS[baseToken];
             if (!mint) {
-                throw new Error(`Unknown token: ${baseToken}`);
+                throw new InvalidSymbolError(`Unknown token: ${baseToken}`, 'INVALID_SYMBOL', 'jupiter');
             }
             const priceData = await this.fetchPrice(mint);
             return this.normalizer.normalizeTicker(jupiterSymbol, priceData);
@@ -217,14 +217,14 @@ export class JupiterAdapter extends BaseAdapter {
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
-            throw new Error(`Invalid market: ${symbol}`);
+            throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'jupiter');
         }
         try {
             // Get current price
             const baseToken = jupiterSymbol.replace('-PERP', '');
             const mint = JUPITER_TOKEN_MINTS[baseToken];
             if (!mint) {
-                throw new Error(`Unknown token: ${baseToken}`);
+                throw new InvalidSymbolError(`Unknown token: ${baseToken}`, 'INVALID_SYMBOL', 'jupiter');
             }
             const priceData = await this.fetchPrice(mint);
             const currentPrice = parseFloat(priceData.price);
@@ -242,14 +242,14 @@ export class JupiterAdapter extends BaseAdapter {
         this.ensureInitialized();
         const jupiterSymbol = this.symbolToExchange(symbol);
         if (!isValidMarket(jupiterSymbol)) {
-            throw new Error(`Invalid market: ${symbol}`);
+            throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'jupiter');
         }
         try {
             // Get current price
             const baseToken = jupiterSymbol.replace('-PERP', '');
             const mint = JUPITER_TOKEN_MINTS[baseToken];
             if (!mint) {
-                throw new Error(`Unknown token: ${baseToken}`);
+                throw new InvalidSymbolError(`Unknown token: ${baseToken}`, 'INVALID_SYMBOL', 'jupiter');
             }
             const priceData = await this.fetchPrice(mint);
             const currentPrice = parseFloat(priceData.price);
@@ -272,14 +272,14 @@ export class JupiterAdapter extends BaseAdapter {
     async fetchPositions(symbols) {
         this.ensureInitialized();
         if (!this.auth?.canRead()) {
-            throw new Error('Wallet address required to fetch positions');
+            throw new AuthenticationError('Wallet address required to fetch positions', 'MISSING_CREDENTIALS', 'jupiter');
         }
         if (!this.solanaClient) {
-            throw new Error('Solana client not initialized');
+            throw new PerpDEXError('Solana client not initialized', 'NOT_INITIALIZED', 'jupiter');
         }
         const walletAddress = this.auth.getWalletAddress();
         if (!walletAddress) {
-            throw new Error('Wallet address not configured');
+            throw new AuthenticationError('Wallet address not configured', 'MISSING_CREDENTIALS', 'jupiter');
         }
         try {
             // Fetch position accounts from on-chain
@@ -320,11 +320,11 @@ export class JupiterAdapter extends BaseAdapter {
     async fetchBalance() {
         this.ensureInitialized();
         if (!this.auth?.canRead()) {
-            throw new Error('Wallet address required to fetch balance');
+            throw new AuthenticationError('Wallet address required to fetch balance', 'MISSING_CREDENTIALS', 'jupiter');
         }
         const walletAddress = this.auth.getWalletAddress();
         if (!walletAddress) {
-            throw new Error('Wallet address not configured');
+            throw new AuthenticationError('Wallet address not configured', 'MISSING_CREDENTIALS', 'jupiter');
         }
         try {
             const balances = [];
@@ -392,19 +392,19 @@ export class JupiterAdapter extends BaseAdapter {
     async createOrder(request) {
         this.ensureInitialized();
         if (!this.auth?.canSign()) {
-            throw new Error('Private key required for trading');
+            throw new AuthenticationError('Private key required for trading', 'MISSING_CREDENTIALS', 'jupiter');
         }
         if (!this.solanaClient || !this.instructionBuilder) {
-            throw new Error('Solana client not initialized');
+            throw new PerpDEXError('Solana client not initialized', 'NOT_INITIALIZED', 'jupiter');
         }
         const walletAddress = this.auth.getWalletAddress();
         if (!walletAddress) {
-            throw new Error('Wallet address not configured');
+            throw new AuthenticationError('Wallet address not configured', 'MISSING_CREDENTIALS', 'jupiter');
         }
         // Validate order
         const jupiterSymbol = this.symbolToExchange(request.symbol);
         if (!isValidMarket(jupiterSymbol)) {
-            throw new Error(`Invalid market: ${request.symbol}`);
+            throw new InvalidSymbolError(`Invalid market: ${request.symbol}`, 'INVALID_SYMBOL', 'jupiter');
         }
         const leverage = request.leverage || 1;
         const validation = validateOrderParams({
@@ -414,7 +414,7 @@ export class JupiterAdapter extends BaseAdapter {
             leverage,
         });
         if (!validation.valid) {
-            throw new Error(`Order validation failed: ${validation.errors.join(', ')}`);
+            throw new InvalidOrderError(`Order validation failed: ${validation.errors.join(', ')}`, 'VALIDATION_ERROR', 'jupiter');
         }
         try {
             // Get current price
@@ -445,7 +445,7 @@ export class JupiterAdapter extends BaseAdapter {
             const signedTx = await this.auth.signTransaction(transaction);
             const keypair = this.auth.getKeypair();
             if (!keypair) {
-                throw new Error('Keypair not available');
+                throw new AuthenticationError('Keypair not available', 'MISSING_CREDENTIALS', 'jupiter');
             }
             const result = await this.solanaClient.sendTransaction(signedTx, [keypair]);
             // Return normalized order
@@ -481,10 +481,10 @@ export class JupiterAdapter extends BaseAdapter {
         }
     }
     async cancelOrder(_orderId, _symbol) {
-        throw new Error('Jupiter uses instant execution - no orders to cancel');
+        throw new NotSupportedError('Jupiter uses instant execution - no orders to cancel', 'NOT_SUPPORTED', 'jupiter');
     }
     async cancelAllOrders(_symbol) {
-        throw new Error('Jupiter uses instant execution - no orders to cancel');
+        throw new NotSupportedError('Jupiter uses instant execution - no orders to cancel', 'NOT_SUPPORTED', 'jupiter');
     }
     /**
      * Close a position
@@ -492,21 +492,21 @@ export class JupiterAdapter extends BaseAdapter {
     async closePosition(positionId, params) {
         this.ensureInitialized();
         if (!this.auth?.canSign()) {
-            throw new Error('Private key required for trading');
+            throw new AuthenticationError('Private key required for trading', 'MISSING_CREDENTIALS', 'jupiter');
         }
         if (!this.solanaClient || !this.instructionBuilder) {
-            throw new Error('Solana client not initialized');
+            throw new PerpDEXError('Solana client not initialized', 'NOT_INITIALIZED', 'jupiter');
         }
         const walletAddress = this.auth.getWalletAddress();
         if (!walletAddress) {
-            throw new Error('Wallet address not configured');
+            throw new AuthenticationError('Wallet address not configured', 'MISSING_CREDENTIALS', 'jupiter');
         }
         try {
             // Fetch position to get details
             const positions = await this.fetchPositions();
             const position = positions.find((p) => p.info?.id === positionId);
             if (!position) {
-                throw new Error(`Position not found: ${positionId}`);
+                throw new PositionNotFoundError(`Position not found: ${positionId}`, 'POSITION_NOT_FOUND', 'jupiter');
             }
             // Resolve accounts
             const side = position.side === 'long' ? 'long' : 'short';
@@ -527,7 +527,7 @@ export class JupiterAdapter extends BaseAdapter {
             const signedTx = await this.auth.signTransaction(transaction);
             const keypair = this.auth.getKeypair();
             if (!keypair) {
-                throw new Error('Keypair not available');
+                throw new AuthenticationError('Keypair not available', 'MISSING_CREDENTIALS', 'jupiter');
             }
             const result = await this.solanaClient.sendTransaction(signedTx, [keypair]);
             const timestamp = Date.now();
@@ -571,7 +571,7 @@ export class JupiterAdapter extends BaseAdapter {
         return [];
     }
     async _setLeverage(_symbol, _leverage) {
-        throw new Error('Jupiter leverage is set per-trade, not globally');
+        throw new NotSupportedError('Jupiter leverage is set per-trade, not globally', 'NOT_SUPPORTED', 'jupiter');
     }
     // ==========================================================================
     // Health Check
@@ -591,7 +591,7 @@ export class JupiterAdapter extends BaseAdapter {
         const baseToken = jupiterSymbol.replace('-PERP', '');
         const mint = JUPITER_TOKEN_MINTS[baseToken];
         if (!mint) {
-            throw new Error(`Unknown token for market: ${symbol}`);
+            throw new InvalidSymbolError(`Unknown token for market: ${symbol}`, 'INVALID_SYMBOL', 'jupiter');
         }
         const priceData = await this.fetchPrice(mint);
         return parseFloat(priceData.price);
@@ -608,7 +608,7 @@ export class JupiterAdapter extends BaseAdapter {
         const prices = await this.fetchPrices([tokenMint]);
         const price = prices[tokenMint];
         if (!price) {
-            throw new Error(`Price not available for ${tokenMint}`);
+            throw new BadResponseError(`Price not available for ${tokenMint}`, 'BAD_RESPONSE', 'jupiter');
         }
         return price;
     }

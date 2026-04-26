@@ -387,9 +387,15 @@ export class BackpackAdapter extends BaseAdapter {
         // Backpack requires /api/v1 prefix for all endpoints
         const fullPath = `/api/v1${path}`;
         const headers = {};
-        if (this.auth) {
+        // Sign only when this endpoint maps to a Backpack instruction.
+        // Public endpoints (markets/ticker/depth/trades) have no INSTRUCTION_MAP
+        // entry; signing them with an empty instruction produces a malformed
+        // signature payload that Backpack rejects (401/400) — even though the
+        // endpoint itself is public. Skipping signing keeps public reads working
+        // for users who happen to have API keys configured.
+        if (this.auth && BackpackAdapter.INSTRUCTION_MAP[endpoint]) {
             const timestamp = Date.now().toString();
-            const instruction = BackpackAdapter.INSTRUCTION_MAP[endpoint] ?? '';
+            const instruction = BackpackAdapter.INSTRUCTION_MAP[endpoint];
             headers['X-API-KEY'] = this.auth.getApiKey();
             headers['X-Timestamp'] = timestamp;
             headers['X-Window'] = '5000';

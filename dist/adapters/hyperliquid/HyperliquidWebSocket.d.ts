@@ -4,6 +4,7 @@
  * Manages WebSocket subscriptions and real-time data streaming
  * for the Hyperliquid exchange adapter.
  */
+import { EventEmitter } from 'events';
 import type { WebSocketManager } from '../../websocket/index.js';
 import type { OrderBook, Position, Ticker, Trade, Order } from '../../types/index.js';
 import type { HyperliquidAuth } from './HyperliquidAuth.js';
@@ -14,6 +15,7 @@ export interface HyperliquidWebSocketDeps {
     auth?: HyperliquidAuth;
     symbolToExchange: (symbol: string) => string;
     fetchOpenOrders: (symbol?: string) => Promise<Order[]>;
+    maxReconnectAttempts?: number;
 }
 /**
  * WebSocket streaming handler for Hyperliquid
@@ -21,13 +23,25 @@ export interface HyperliquidWebSocketDeps {
  * Provides async generators for real-time market data and user events.
  * Extracted from HyperliquidAdapter to improve code organization.
  */
-export declare class HyperliquidWebSocket {
+export declare class HyperliquidWebSocket extends EventEmitter {
     private readonly wsManager;
     private readonly normalizer;
     private readonly auth?;
     private readonly symbolToExchange;
     private readonly fetchOpenOrders;
+    private reconnectAttempts;
+    private readonly maxReconnectAttempts;
+    private intentionalDisconnect;
     constructor(deps: HyperliquidWebSocketDeps);
+    /**
+     * Disconnect and prevent further reconnection attempts
+     */
+    disconnect(): void;
+    /**
+     * Wire reconnect tracking to wsManager events.
+     * wsManager extends EventEmitter in production; guards handle test mocks.
+     */
+    private setupReconnectHandling;
     /**
      * Watch order book updates in real-time
      *

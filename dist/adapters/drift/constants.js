@@ -7,6 +7,7 @@
  * @see https://docs.drift.trade/
  * @see https://drift-labs.github.io/v2-teacher/
  */
+import { InvalidSymbolError } from '../../types/errors.js';
 // =============================================================================
 // API Endpoints
 // =============================================================================
@@ -249,7 +250,7 @@ export function unifiedToDrift(symbol) {
     const parts = symbol.split('/');
     const base = parts[0];
     if (!base) {
-        throw new Error(`Invalid symbol format: ${symbol}`);
+        throw new InvalidSymbolError(`Invalid symbol format: ${symbol}`, 'INVALID_SYMBOL', 'drift');
     }
     return `${base}-PERP`;
 }
@@ -269,7 +270,7 @@ export function getMarketIndex(symbol) {
     const driftSymbol = symbol.includes('-PERP') ? symbol : unifiedToDrift(symbol);
     const market = DRIFT_PERP_MARKETS[driftSymbol];
     if (!market) {
-        throw new Error(`Unknown market: ${symbol}`);
+        throw new InvalidSymbolError(`Unknown market: ${symbol}`, 'INVALID_SYMBOL', 'drift');
     }
     return market.marketIndex;
 }

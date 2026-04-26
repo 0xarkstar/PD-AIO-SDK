@@ -6,6 +6,7 @@
  */
 import { ethers } from 'ethers';
 import { GMX_CONTRACTS, GMX_API_URLS } from './constants.js';
+import { AuthenticationError } from '../../types/errors.js';
 // =============================================================================
 // ABI Definitions
 // =============================================================================
@@ -123,7 +124,7 @@ export class GmxContracts {
      */
     async createOrder(params, executionFee) {
         if (!this.signer) {
-            throw new Error('Signer required for trading operations');
+            throw new AuthenticationError('Signer required for trading operations', 'MISSING_CREDENTIALS', 'gmx');
         }
         const exchangeRouter = this.getExchangeRouter();
         // Encode order params for the contract
@@ -160,7 +161,7 @@ export class GmxContracts {
      */
     async cancelOrder(orderKey) {
         if (!this.signer) {
-            throw new Error('Signer required for trading operations');
+            throw new AuthenticationError('Signer required for trading operations', 'MISSING_CREDENTIALS', 'gmx');
         }
         const exchangeRouter = this.getExchangeRouter();
         return exchangeRouter.cancelOrder(orderKey);
@@ -170,7 +171,7 @@ export class GmxContracts {
      */
     async sendWnt(receiver, amount) {
         if (!this.signer) {
-            throw new Error('Signer required for trading operations');
+            throw new AuthenticationError('Signer required for trading operations', 'MISSING_CREDENTIALS', 'gmx');
         }
         const exchangeRouter = this.getExchangeRouter();
         return exchangeRouter.sendWnt(receiver, amount, {
@@ -182,7 +183,7 @@ export class GmxContracts {
      */
     async sendTokens(token, receiver, amount) {
         if (!this.signer) {
-            throw new Error('Signer required for trading operations');
+            throw new AuthenticationError('Signer required for trading operations', 'MISSING_CREDENTIALS', 'gmx');
         }
         const exchangeRouter = this.getExchangeRouter();
         return exchangeRouter.sendTokens(token, receiver, amount);

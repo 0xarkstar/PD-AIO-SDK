@@ -7,6 +7,7 @@
  * @see https://jup.ag/perps
  * @see https://dev.jup.ag/docs/perps
  */
+import { InvalidSymbolError } from '../../types/errors.js';
 // =============================================================================
 // API Endpoints
 // =============================================================================
@@ -126,7 +127,7 @@ export function unifiedToJupiter(symbol) {
     const parts = symbol.split('/');
     const base = parts[0];
     if (!base) {
-        throw new Error(`Invalid symbol format: ${symbol}`);
+        throw new InvalidSymbolError(`Invalid symbol format: ${symbol}`, 'INVALID_SYMBOL', 'jupiter');
     }
     // Jupiter format: "SOL-PERP", "ETH-PERP", "BTC-PERP"
     return `${base}-PERP`;

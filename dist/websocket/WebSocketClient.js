@@ -7,8 +7,6 @@
 import { EventEmitter } from 'eventemitter3';
 // Browser/Node.js WebSocket detection
 const isBrowser = typeof window !== 'undefined' && typeof window.WebSocket !== 'undefined';
-// Cached WebSocket class (lazy-loaded)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let WS = null;
 // Helper to load ws module in Node.js (async, using dynamic imports)
 // Works in both CommonJS (Jest) and ESM (runtime) contexts
@@ -43,7 +41,7 @@ async function getWebSocketClass() {
         WS = window.WebSocket;
     }
     else {
-        WS = await loadWsModule();
+        WS = (await loadWsModule());
     }
     return WS;
 }

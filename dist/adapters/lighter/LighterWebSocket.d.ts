@@ -4,6 +4,7 @@
  * Manages WebSocket subscriptions and real-time data streaming
  * for the Lighter exchange adapter.
  */
+import { EventEmitter } from 'events';
 import type { WebSocketManager } from '../../websocket/WebSocketManager.js';
 import type { Balance, Order, OrderBook, Position, Ticker, Trade } from '../../types/common.js';
 import type { LighterNormalizer } from './LighterNormalizer.js';
@@ -17,6 +18,7 @@ export interface LighterWebSocketDeps {
     apiKeyIndex: number;
     hasAuthentication: boolean;
     hasWasmSigning: boolean;
+    maxReconnectAttempts?: number;
 }
 /**
  * WebSocket streaming handler for Lighter
@@ -24,7 +26,7 @@ export interface LighterWebSocketDeps {
  * Provides async generators for real-time market data and user events.
  * Extracted from LighterAdapter to improve code organization.
  */
-export declare class LighterWebSocket {
+export declare class LighterWebSocket extends EventEmitter {
     private readonly wsManager;
     private readonly normalizer;
     private readonly signer;
@@ -33,7 +35,19 @@ export declare class LighterWebSocket {
     private readonly apiKeyIndex;
     private readonly _hasAuthentication;
     private readonly _hasWasmSigning;
+    private reconnectAttempts;
+    private readonly maxReconnectAttempts;
+    private intentionalDisconnect;
     constructor(deps: LighterWebSocketDeps);
+    /**
+     * Disconnect and prevent further reconnection attempts
+     */
+    disconnect(): void;
+    /**
+     * Wire reconnect tracking to wsManager events.
+     * wsManager extends EventEmitter in production; guards handle test mocks.
+     */
+    private setupReconnectHandling;
     /**
      * Watch order book updates in real-time
      *

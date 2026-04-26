@@ -262,14 +262,14 @@ export class GmxSubgraph {
             });
             clearTimeout(timeoutId);
             if (!response.ok) {
-                throw new Error(`Subgraph request failed: ${response.status} ${response.statusText}`);
+                throw new NetworkError(`Subgraph request failed: ${response.status} ${response.statusText}`, 'NETWORK_ERROR', 'gmx');
             }
             const json = (await response.json());
             if (json.errors && json.errors.length > 0) {
-                throw new Error(`Subgraph query error: ${json.errors[0]?.message || 'Unknown error'}`);
+                throw new NetworkError(`Subgraph query error: ${json.errors[0]?.message || 'Unknown error'}`, 'BAD_RESPONSE', 'gmx');
             }
             if (!json.data) {
-                throw new Error('No data returned from subgraph');
+                throw new NetworkError('No data returned from subgraph', 'BAD_RESPONSE', 'gmx');
             }
             return json.data;
         }

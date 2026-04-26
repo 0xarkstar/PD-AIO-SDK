@@ -6,6 +6,7 @@
  */
 import { ethers } from 'ethers';
 import { GMX_API_URLS } from './constants.js';
+import { AuthenticationError } from '../../types/errors.js';
 /**
  * Ethereum wallet authentication for GMX v2
  *
@@ -61,7 +62,7 @@ export class GmxAuth {
      */
     async signMessage(message) {
         if (!this.wallet) {
-            throw new Error('Wallet required for signing');
+            throw new AuthenticationError('Wallet required for signing', 'MISSING_CREDENTIALS', 'gmx');
         }
         return this.wallet.signMessage(message);
     }
@@ -70,7 +71,7 @@ export class GmxAuth {
      */
     async signTypedData(domain, types, value) {
         if (!this.wallet) {
-            throw new Error('Wallet required for signing');
+            throw new AuthenticationError('Wallet required for signing', 'MISSING_CREDENTIALS', 'gmx');
         }
         return this.wallet.signTypedData(domain, types, value);
     }
@@ -158,7 +159,7 @@ export class GmxAuth {
      */
     async getBalance() {
         if (!this.walletAddress) {
-            throw new Error('Wallet address required');
+            throw new AuthenticationError('Wallet address required', 'MISSING_CREDENTIALS', 'gmx');
         }
         return this.provider.getBalance(this.walletAddress);
     }
@@ -167,7 +168,7 @@ export class GmxAuth {
      */
     async getTokenBalance(tokenAddress) {
         if (!this.walletAddress) {
-            throw new Error('Wallet address required');
+            throw new AuthenticationError('Wallet address required', 'MISSING_CREDENTIALS', 'gmx');
         }
         const erc20Abi = ['function balanceOf(address owner) view returns (uint256)'];
         const contract = new ethers.Contract(tokenAddress, erc20Abi, this.provider);
@@ -178,7 +179,7 @@ export class GmxAuth {
      */
     async getTokenAllowance(tokenAddress, spenderAddress) {
         if (!this.walletAddress) {
-            throw new Error('Wallet address required');
+            throw new AuthenticationError('Wallet address required', 'MISSING_CREDENTIALS', 'gmx');
         }
         const erc20Abi = ['function allowance(address owner, address spender) view returns (uint256)'];
         const contract = new ethers.Contract(tokenAddress, erc20Abi, this.provider);
@@ -189,7 +190,7 @@ export class GmxAuth {
      */
     async approveToken(tokenAddress, spenderAddress, amount) {
         if (!this.wallet) {
-            throw new Error('Wallet required for approval');
+            throw new AuthenticationError('Wallet required for approval', 'MISSING_CREDENTIALS', 'gmx');
         }
         const erc20Abi = ['function approve(address spender, uint256 amount) returns (bool)'];
         const contract = new ethers.Contract(tokenAddress, erc20Abi, this.wallet);

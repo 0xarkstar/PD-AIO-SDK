@@ -29,6 +29,7 @@ const adapterLoaders = {
     reya: async () => (await import('./adapters/reya/index.js')).ReyaAdapter,
     ethereal: async () => (await import('./adapters/ethereal/index.js')).EtherealAdapter,
     avantis: async () => (await import('./adapters/avantis/index.js')).AvantisAdapter,
+    katana: async () => (await import('./adapters/katana/index.js')).KatanaAdapter,
 };
 /** Cache for loaded adapter constructors */
 const adapterCache = new Map();
@@ -190,6 +191,7 @@ export function getBuiltInExchanges() {
         'reya',
         'ethereal',
         'avantis',
+        'katana',
     ];
 }
 /**

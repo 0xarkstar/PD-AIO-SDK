@@ -5,6 +5,7 @@
  * Handles account fetching, transaction building, and submission.
  */
 import { SOLANA_DEFAULT_RPC, JUPITER_PERPS_PROGRAM_ID } from './constants.js';
+import { PerpDEXError, NetworkError, TransactionFailedError } from '../../types/errors.js';
 /**
  * Solana RPC Client for Jupiter Perps operations
  *
@@ -41,7 +42,7 @@ export class SolanaClient {
             this.isInitialized = true;
         }
         catch (error) {
-            throw new Error(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`);
+            throw new NetworkError(`Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`, 'NETWORK_ERROR', 'jupiter', error);
         }
     }
     /**
@@ -49,7 +50,7 @@ export class SolanaClient {
      */
     ensureInitialized() {
         if (!this.isInitialized || !this.connection) {
-            throw new Error('SolanaClient not initialized. Call initialize() first.');
+            throw new PerpDEXError('SolanaClient not initialized. Call initialize() first.', 'NOT_INITIALIZED', 'jupiter');
         }
         return this.connection;
     }
@@ -196,7 +197,7 @@ export class SolanaClient {
             lastValidBlockHeight: transaction.lastValidBlockHeight,
         }, this.config.commitment);
         if (confirmation.value.err) {
-            throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+            throw new TransactionFailedError(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`, 'TRANSACTION_FAILED', 'jupiter');
         }
         return {
             signature,
