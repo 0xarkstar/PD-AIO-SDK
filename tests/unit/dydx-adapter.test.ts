@@ -3,6 +3,7 @@
  */
 
 import { DydxAdapter, type DydxConfig } from '../../src/adapters/dydx/DydxAdapter.js';
+import { NotSupportedError } from '../../src/types/errors.js';
 import { DydxNormalizer } from '../../src/adapters/dydx/DydxNormalizer.js';
 import {
   unifiedToDydx,
@@ -77,11 +78,13 @@ describe('DydxAdapter', () => {
       expect(adapter.has.cancelBatchOrders).toBe('emulated');
     });
 
-    test('supports account data', () => {
-      expect(adapter.has.fetchPositions).toBe(true);
-      expect(adapter.has.fetchBalance).toBe(true);
-      expect(adapter.has.fetchOrderHistory).toBe(true);
-      expect(adapter.has.fetchMyTrades).toBe(true);
+    test('does not support account data (Cosmos SDK not integrated)', () => {
+      // Account-scoped operations are disabled until proper Cosmos SDK address
+      // derivation is implemented — see DydxAuth.ts for details.
+      expect(adapter.has.fetchPositions).toBe(false);
+      expect(adapter.has.fetchBalance).toBe(false);
+      expect(adapter.has.fetchOrderHistory).toBe(false);
+      expect(adapter.has.fetchMyTrades).toBe(false);
     });
 
     test('does not support leverage/margin mode changes', () => {
@@ -204,15 +207,13 @@ describe('DydxAdapter', () => {
       expect(address).toBeUndefined();
     });
 
-    test('returns address when authenticated', async () => {
+    test('throws NotSupportedError when authenticated (Cosmos SDK not integrated)', async () => {
       const adapter = new DydxAdapter({
         mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
       });
 
-      const address = await adapter.getAddress();
-
-      expect(address).toBeDefined();
-      expect(address?.startsWith('dydx')).toBe(true);
+      // Address derivation requires Cosmos SDK libraries not yet integrated
+      await expect(adapter.getAddress()).rejects.toThrow(NotSupportedError);
     });
   });
 

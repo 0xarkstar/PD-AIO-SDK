@@ -124,18 +124,22 @@ export class DydxAdapter extends BaseAdapter implements IExchangeAdapter {
     editOrder: false,
 
     // Order Query
-    fetchOpenOrders: true,
+    // NOTE: account-scoped fetches require a real Cosmos address. Until proper
+    // bech32/Bip39 derivation is wired in (see DydxAuth.initialize JSDoc),
+    // these throw NotSupportedError and are advertised as unsupported here so
+    // the capability matrix matches actual behavior.
+    fetchOpenOrders: false,
     fetchOrder: false,
 
     // Account History
-    fetchOrderHistory: true,
-    fetchMyTrades: true,
+    fetchOrderHistory: false,
+    fetchMyTrades: false,
     fetchDeposits: false,
     fetchWithdrawals: false,
 
     // Positions & Balance
-    fetchPositions: true,
-    fetchBalance: true,
+    fetchPositions: false,
+    fetchBalance: false,
     setLeverage: false, // dYdX v4 uses cross-margin
     setMarginMode: false,
 
