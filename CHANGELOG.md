@@ -14,12 +14,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - **Katana Network adapter** — 20th exchange, perpetual futures DEX on Katana L2 (chainId 747474)
   - Dual authentication: HMAC-SHA256 + EIP-712 wallet signatures
   - Cross-margin only, vbUSDC collateral, 8-decimal zero-padded precision
   - UUID v1 nonces with 60-second freshness window
   - `emergencyCloseAll()` for atomic position close + withdrawal
   - 173 tests, 86.87% statement coverage
+- **Capability matrix codegen** — `scripts/generate-capability-matrix.ts` walks the TypeScript AST to extract each adapter's `has` field and renders 5 grouped markdown tables (Market Data, Trading, Account, WebSocket Streams, Advanced Features). Run with `npm run gen:capability-matrix`. Output at `docs/CAPABILITY_MATRIX.md`. Fails loudly (exit 1) if any adapter's `has` cannot be parsed.
+- **ADR system** — `docs/adr/` with ADR-0001 (Native Dependency Isolation Strategy) documenting the in-process FFI/WASM choice and explicitly rejecting subprocess IPC for breaking lazy loading, browser support, and tree-shaking. Includes template README for future ADRs.
+- **Cross-adapter parametric contract test** — `tests/integration/cross-adapter-contract.test.ts`: `describe.each` over all 20 adapters asserts `IExchangeAdapter` read-only contract conformance with mocked HTTPClient + WebSocketManager. 480 tests, ~2s.
+- **WebSocket reconnect** for `HyperliquidWebSocket` and `LighterWebSocket` — both previously had ZERO reconnect references (silent dead WS on network drop). Now extend `EventEmitter`, hook into `wsManager` events, respect exponential backoff scheduled by `WebSocketClient`, emit `websocket.reconnect_failed` once `maxReconnectAttempts` (default 10) exhausts. New constructor option: `maxReconnectAttempts?: number`.
+- **Deferred items registry** — `docs/wave-1-deferred.md` documents items considered during Wave 1 (bot-infrastructure adoption review) and Wave 2 (SDK completeness audit) that were intentionally deferred or rejected, with re-open criteria. Captures the discipline rule: "every polish item must answer *which named user is blocked without this?*"
+
+### Fixed
+
+- **dYdX silent wrong-data correctness bug** — `DydxAuth.deriveAddressFromMnemonic` / `deriveAddressFromPrivateKey` previously used a non-cryptographic 32-bit shift hash (`simpleHash`) to produce deterministic-but-INVALID Cosmos addresses. Account-scoped reads (`fetchPositions`, `fetchBalance`, `fetchOpenOrders`, `fetchOrderHistory`, `fetchMyTrades`) silently queried the Indexer API for the fake address and returned empty arrays / zero balance, leading users to build bot logic on the assumption "this account has no positions" when in fact it just had the wrong address. **Real-money loss potential — silent correctness bug eliminated.** Now throws `NotSupportedError` after input validation; `has` flags flipped to false. Public read-only methods (`fetchMarkets`, `fetchTicker`, `fetchOrderBook`, `fetchTrades`) do not require an address and remain fully functional. Real fix requires `@cosmjs/crypto` Bip39+Slip10 derivation — tracked as future work.
+- **Backpack inverted-trust signing bug** — `BackpackAdapter.makeRequest` unconditionally signed every request when `this.auth` was set. Backpack's `INSTRUCTION_MAP` only covers trading/account endpoints; public endpoints (markets, ticker, depth, trades) had no entry, so signing them with empty `instruction` produced malformed signatures that Backpack rejected with 401/400. Net effect: a user *with* API keys was locked out of public reads while a user *without* keys worked fine. Fixed by gating signing on `BackpackAdapter.INSTRUCTION_MAP[endpoint]` being defined.
+- **Pre-existing prettier formatting error** in `src/utils/config.ts:200` (inherited from Katana adapter commit) — auto-fixed via `eslint --fix`. Lint now reports 0 errors.
+
+### Refactored
+
+- **Typed errors across 5 adapters** — `drift`, `dydx`, `gmx`, `hyperliquid`, `jupiter`: 156 raw `throw new Error(...)` calls converted to typed `PerpDEXError` variants (`AuthenticationError`, `NetworkError`, `InvalidParameterError`, `InvalidSymbolError`, `InvalidOrderError`, `OrderRejectedError`, `OrderNotFoundError`, `NotSupportedError`, `BadResponseError`, `TransactionFailedError`, `ExchangeUnavailableError`, etc.) with exchange context preserved. Adapter contract per ADAPTER_GUIDE.md restored — every adapter now throws typed errors so consumers can catch by class. No behavior change; error message text preserved verbatim.
+- **WebSocketClient typing** — `src/websocket/WebSocketClient.ts:28`: replaced `let WS: any = null` (the cascade source for ~10 lint warnings) with `let WS: WSCtor | null = null` where `type WSCtor = typeof WsWebSocket | typeof globalThis.WebSocket`. Net lint impact: −2 `@typescript-eslint/no-unsafe-return` warnings.
+
+### Documentation
+
+- **CircuitBreaker threat model** — `src/core/CircuitBreaker.ts:getMetrics()` JSDoc now includes a SECURITY NOTE warning that operational counters (`failureCount`, `consecutiveFailures`, `lastStateChange`, `errorRate`) can fingerprint exchange health if exposed to a public Prometheus endpoint. Default `PrometheusMetrics` exporter only emits the `circuit_breaker_state` gauge and remains safe by default. `MetricsTrackerMixin.getCircuitBreakerMetrics()` cross-references the threat model via `@remarks`.
+- **`.gitignore`** — added `.omc/` (session state) and `scripts/{check,debug}-*.ts` (developer scratch scripts).
 
 ---
 

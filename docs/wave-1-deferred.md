@@ -28,7 +28,6 @@ A 3-panel audit (code-reviewer + architect + critic) surfaced these and the crit
 - **Pattern A enforcement** — katana missing Normalizer + error-codes.ts, nado missing utils.ts, lighter Normalizer not exported, variational missing Auth. Defer until specific consumer hits a missing file.
 - **Distributed tracing / OpenTelemetry integration** — complex permanent burden. No consumer demand.
 - **Coverage push 85.87% → 90%+** — diminishing returns; remaining branches are error-path edge cases.
-- **Pre-existing prettier error in `src/utils/config.ts:200`** — fix opportunistically when next touching that file. Not worth a standalone commit.
 - **Zod 3 → 4 migration** — major API surface change. Batch with future major version.
 - **Always-false `watch*` flags on on-chain DEXes (gmx, jupiter, avantis, ostium, drift)** — these are pool/oracle-based venues with nothing to stream; the `false` is honest, not drift.
 
