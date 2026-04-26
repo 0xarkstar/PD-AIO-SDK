@@ -29,6 +29,10 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Pattern A compliance (strict)
+        if: matrix.node-version == '22.x'
+        run: npm run check:pattern-a -- --strict
+
       - name: Run tests
         run: npm test -- --forceExit
 

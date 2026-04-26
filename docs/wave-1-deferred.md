@@ -25,7 +25,7 @@ A 3-panel audit (code-reviewer + architect + critic) surfaced these and the crit
 - **3 contract drifts in cross-adapter test (backpack signs public GET, nado strict Zod schema, drift initialize ordering)** — surfaced by mock-based test only; no production user has reported. Defer until reported.
 - **Logger middleware integration into HTTPClient + WebSocket** — non-linear maintenance burden across 20 adapters. Consumers inject their own logger. Re-open only if a specific debugging scenario demands it.
 - **WebSocketManager adoption across all 6 WS adapters** — too broad. Wave 2 fixed only Hyperliquid + Lighter (zero reconnect references). Adopt others per-need.
-- **Pattern A enforcement** — katana missing Normalizer + error-codes.ts, nado missing utils.ts, lighter Normalizer not exported, variational missing Auth. Defer until specific consumer hits a missing file.
+- **Pattern A enforcement** — nado missing utils.ts, lighter Normalizer not exported, variational missing Auth. Defer until specific consumer hits a missing file. **Katana** (missing Normalizer) is now formally allowlisted as an intentional divergence — see `scripts/pattern-a-allowlist.json`. Katana's API responses arrive in unified format; a separate Normalizer would be cargo-cult. Review milestone: v0.5.0.
 - **Distributed tracing / OpenTelemetry integration** — complex permanent burden. No consumer demand.
 - **Coverage push 85.87% → 90%+** — diminishing returns; remaining branches are error-path edge cases.
 - **Zod 3 → 4 migration** — major API surface change. Batch with future major version.

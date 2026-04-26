@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "comment": "Adapters with intentional Pattern A divergence. Each entry must justify why a stub canonical file would be cargo-cult.",
+  "exceptions": [
+    {
+      "adapter": "katana",
+      "violations": ["missing-normalizer", "normalizer-not-exported"],
+      "reason": "Katana's API responses already arrive in unified format; a separate Normalizer would be a cargo-cult shim. Re-evaluate if Katana's API diverges in the future.",
+      "added": "2026-04-27",
+      "review_by": "v0.5.0"
+    }
+  ]
+}

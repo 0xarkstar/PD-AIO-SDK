@@ -934,7 +934,7 @@ To enforce violations as hard errors (suitable for CI):
 npm run check:pattern-a -- --strict
 ```
 
-The default mode (no `--strict`) always exits `0` so it can be used as an advisory check. The `--strict` flag exits `1` when required files or exports are missing.
+The default mode (no `--strict`) always exits `0` so it can be used as an advisory check. The `--strict` flag exits `1` when required files or exports are missing. If an adapter has an intentional architectural divergence, add an entry to `scripts/pattern-a-allowlist.json` — allowlisted violations are still printed in the report (with a `[allowlisted: <reason>]` annotation) but do not count toward strict-mode failure.
 
 ---
 

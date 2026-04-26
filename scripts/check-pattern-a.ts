@@ -22,7 +22,10 @@
  *
  * Usage:
  *   npm run check:pattern-a           # advisory (always exit 0)
- *   npm run check:pattern-a -- --strict  # exit 1 on required-file violations
+ *   npm run check:pattern-a -- --strict  # exit 1 on unallowlisted violations
+ *
+ * Allowlist:
+ *   scripts/pattern-a-allowlist.json  # exceptions for intentional divergences
  */
 
 import * as fs from 'node:fs';
@@ -42,6 +45,99 @@ interface AdapterReport {
   readonly exchangeName: string;
   readonly violations: string[];
   readonly warnings: string[];
+}
+
+interface AllowlistEntry {
+  readonly adapter: string;
+  readonly violations: string[];
+  readonly reason: string;
+  readonly added: string;
+  readonly review_by: string;
+}
+
+interface AllowlistFile {
+  readonly exceptions: AllowlistEntry[];
+}
+
+// Maps allowlist violation kind → pattern matched against violation string
+const VIOLATION_KIND_PATTERNS: Record<string, (exchangeName: string) => RegExp> = {
+  'missing-normalizer': (exchangeName) =>
+    new RegExp(`^missing ${exchangeName}Normalizer\\.ts$`),
+  'normalizer-not-exported': (exchangeName) =>
+    new RegExp(`^${exchangeName}Normalizer not exported in index\\.ts$`),
+  'missing-utils': (_exchangeName) => /^missing utils\.ts$/,
+  'missing-auth': (exchangeName) =>
+    new RegExp(`^missing ${exchangeName}Auth\\.ts$`),
+};
+
+// ---------------------------------------------------------------------------
+// Load allowlist
+// ---------------------------------------------------------------------------
+
+function loadAllowlist(): ReadonlyArray<AllowlistEntry> {
+  const allowlistPath = path.join(ROOT, 'scripts', 'pattern-a-allowlist.json');
+
+  if (!fs.existsSync(allowlistPath)) {
+    return [];
+  }
+
+  let raw: string;
+  try {
+    raw = fs.readFileSync(allowlistPath, 'utf8');
+  } catch (err) {
+    process.stderr.write(
+      `[ERROR] Cannot read pattern-a-allowlist.json: ${(err as NodeJS.ErrnoException).message}\n`,
+    );
+    process.exit(1);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    process.stderr.write(
+      `[ERROR] pattern-a-allowlist.json is malformed JSON: ${(err as Error).message}\n`,
+    );
+    process.exit(1);
+  }
+
+  if (
+    typeof parsed !== 'object' ||
+    parsed === null ||
+    !('exceptions' in parsed) ||
+    !Array.isArray((parsed as Record<string, unknown>)['exceptions'])
+  ) {
+    process.stderr.write(
+      '[ERROR] pattern-a-allowlist.json must have an "exceptions" array at the top level.\n',
+    );
+    process.exit(1);
+  }
+
+  return (parsed as AllowlistFile).exceptions;
+}
+
+// ---------------------------------------------------------------------------
+// Check if a violation is allowlisted
+// Returns the matching entry or null
+// ---------------------------------------------------------------------------
+
+function findAllowlistMatch(
+  adapterName: string,
+  exchangeName: string,
+  violation: string,
+  allowlist: ReadonlyArray<AllowlistEntry>,
+): AllowlistEntry | null {
+  for (const entry of allowlist) {
+    if (entry.adapter !== adapterName) continue;
+    for (const kind of entry.violations) {
+      const patternFn = VIOLATION_KIND_PATTERNS[kind];
+      if (patternFn == null) continue;
+      if (patternFn(exchangeName).test(violation)) {
+        return entry;
+      }
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -193,9 +289,22 @@ function checkIndexExport(
 // Report rendering
 // ---------------------------------------------------------------------------
 
-function renderReport(reports: ReadonlyArray<AdapterReport>): void {
+function renderReport(
+  reports: ReadonlyArray<AdapterReport>,
+  allowlist: ReadonlyArray<AllowlistEntry>,
+): void {
   const total = reports.length;
   const compliant = reports.filter((r) => r.violations.length === 0).length;
+
+  // Count allowlisted violations across all reports
+  let allowlistedCount = 0;
+  for (const report of reports) {
+    for (const v of report.violations) {
+      if (findAllowlistMatch(report.name, report.exchangeName, v, allowlist) !== null) {
+        allowlistedCount++;
+      }
+    }
+  }
 
   const withViolations = reports.filter((r) => r.violations.length > 0);
   const withWarnings = reports.filter(
@@ -205,12 +314,20 @@ function renderReport(reports: ReadonlyArray<AdapterReport>): void {
   process.stdout.write('\nPattern A Compliance Report\n');
   process.stdout.write('===========================\n');
   process.stdout.write(`Compliant adapters: ${compliant}/${total}\n`);
+  process.stdout.write(`Allowlisted exceptions: ${allowlistedCount}\n`);
 
   if (withViolations.length > 0) {
     process.stdout.write('\nViolations:\n');
     for (const report of withViolations) {
       for (const v of report.violations) {
-        process.stdout.write(`  ${report.name}: ${v}\n`);
+        const match = findAllowlistMatch(report.name, report.exchangeName, v, allowlist);
+        if (match !== null) {
+          process.stdout.write(
+            `  ${report.name}: ${v} [allowlisted: ${match.reason}]\n`,
+          );
+        } else {
+          process.stdout.write(`  ${report.name}: ${v}\n`);
+        }
       }
     }
   }
@@ -238,6 +355,8 @@ function renderReport(reports: ReadonlyArray<AdapterReport>): void {
 function main(): void {
   const strict = process.argv.includes('--strict');
 
+  const allowlist = loadAllowlist();
+
   const adapters = discoverAdapters();
 
   if (adapters.length === 0) {
@@ -250,13 +369,18 @@ function main(): void {
     reports.push(checkAdapter(name, dir));
   }
 
-  renderReport(reports);
+  renderReport(reports, allowlist);
 
-  const hasViolations = reports.some((r) => r.violations.length > 0);
+  // In strict mode, only unallowlisted violations count as failures
+  const hasUnallowlistedViolations = reports.some((report) =>
+    report.violations.some(
+      (v) => findAllowlistMatch(report.name, report.exchangeName, v, allowlist) === null,
+    ),
+  );
 
-  if (strict && hasViolations) {
+  if (strict && hasUnallowlistedViolations) {
     process.stderr.write(
-      '[STRICT] Pattern A violations found. Fix required files before merging.\n',
+      '[STRICT] Unallowlisted Pattern A violations found. Fix required files before merging.\n',
     );
     process.exit(1);
   }
