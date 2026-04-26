@@ -64,20 +64,16 @@ export class DydxAdapter extends BaseAdapter {
         cancelBatchOrders: 'emulated',
         editOrder: false,
         // Order Query
-        // NOTE: account-scoped fetches require a real Cosmos address. Until proper
-        // bech32/Bip39 derivation is wired in (see DydxAuth.initialize JSDoc),
-        // these throw NotSupportedError and are advertised as unsupported here so
-        // the capability matrix matches actual behavior.
-        fetchOpenOrders: false,
+        fetchOpenOrders: true,
         fetchOrder: false,
         // Account History
-        fetchOrderHistory: false,
-        fetchMyTrades: false,
+        fetchOrderHistory: true,
+        fetchMyTrades: true,
         fetchDeposits: false,
         fetchWithdrawals: false,
         // Positions & Balance
-        fetchPositions: false,
-        fetchBalance: false,
+        fetchPositions: true,
+        fetchBalance: true,
         setLeverage: false, // dYdX v4 uses cross-margin
         setMarginMode: false,
         // WebSocket

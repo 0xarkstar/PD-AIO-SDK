@@ -2,6 +2,7 @@
  * Hyperliquid Adapter Exports
  */
 export { HyperliquidAdapter } from './HyperliquidAdapter.js';
+export { HyperliquidNormalizer } from './HyperliquidNormalizer.js';
 export { HyperliquidAuth } from './HyperliquidAuth.js';
 export * from './constants.js';
 // Market data helpers

@@ -2,6 +2,7 @@
  * Lighter adapter exports
  */
 export { LighterAdapter, type LighterConfig } from './LighterAdapter.js';
+export { LighterNormalizer } from './LighterNormalizer.js';
 export * from './types.js';
 export * from './constants.js';
 export { NonceManager, type NonceManagerConfig } from './NonceManager.js';
