@@ -132,6 +132,7 @@
     "test:production:websocket": "tsx tests/production/websocket-stability.test.ts",
     "test:production:stress": "tsx tests/production/stress-test.ts",
     "check:api": "tsx scripts/check-api-compatibility.ts",
+    "gen:capability-matrix": "tsx scripts/generate-capability-matrix.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",

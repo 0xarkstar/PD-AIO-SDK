@@ -184,6 +184,16 @@ const order = await exchange.createOrder({
 > - ⁷ GMX: Requires subgraph or RPC integration
 > - ⁸ dYdX/Jupiter/Drift/GMX: Leverage is per-position at order time
 
+### Auto-Generated Capability Matrix
+
+See [docs/CAPABILITY_MATRIX.md](./docs/CAPABILITY_MATRIX.md) — auto-generated from each adapter's `has` field.
+
+Regenerate after adding or modifying adapters:
+
+```bash
+npm run gen:capability-matrix
+```
+
 ### ⚡ Enterprise Features
 - **WebSocket streaming** - Real-time data with backpressure handling
 - **Auto-reconnection** - Exponential backoff with subscription recovery
