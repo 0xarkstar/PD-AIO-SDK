@@ -6,6 +6,7 @@
 
 // Main adapter
 export { VariationalAdapter } from './VariationalAdapter.js';
+export { VariationalNormalizer } from './VariationalNormalizer.js';
 
 // Configuration type
 export type { VariationalConfig } from './VariationalAdapter.js';

@@ -5,6 +5,7 @@
  */
 
 export { NadoAdapter } from './NadoAdapter.js';
+export { NadoNormalizer } from './NadoNormalizer.js';
 export type { NadoConfig } from './types.js';
 export * from './constants.js';
 export * from './types.js';
