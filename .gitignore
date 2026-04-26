@@ -34,6 +34,8 @@ coverage/
 # Developer scratch scripts (not part of public API)
 scripts/check-*.ts
 scripts/debug-*.ts
+# Official Pattern A enforcement script (run via npm run check:pattern-a)
+!scripts/check-pattern-a.ts
 
 # Logs
 logs/

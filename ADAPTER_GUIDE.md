@@ -915,6 +915,29 @@ Use this checklist to track your progress:
 
 ---
 
+## Pattern A Compliance Check
+
+Before submitting an adapter PR, run the compliance checker to verify your adapter follows Pattern A:
+
+```bash
+npm run check:pattern-a
+```
+
+This script discovers all adapters under `src/adapters/*/` and checks for:
+- **Required files** (violations): `{Exchange}Adapter.ts`, `{Exchange}Normalizer.ts`, `index.ts`
+- **Required exports** (violations): `{Exchange}Adapter` and `{Exchange}Normalizer` exported from `index.ts`
+- **Optional files** (warnings): `{Exchange}Auth.ts`, `utils.ts`, `constants.ts`, `types.ts`, `error-codes.ts`
+
+To enforce violations as hard errors (suitable for CI):
+
+```bash
+npm run check:pattern-a -- --strict
+```
+
+The default mode (no `--strict`) always exits `0` so it can be used as an advisory check. The `--strict` flag exits `1` when required files or exports are missing.
+
+---
+
 ## Getting Help
 
 If you get stuck:
