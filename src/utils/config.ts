@@ -197,7 +197,8 @@ export function getConfigErrorMessage(exchange: SupportedExchange, missingVars: 
     reya: 'Export your wallet private key for Reya Network trading',
     avantis: 'Export your wallet private key for Base chain trading on Avantis',
     ethereal: 'Export your wallet private key for Ethereal perpetual DEX trading',
-    katana: 'Register at katana.network and create API key + secret (add wallet private key for trading)',
+    katana:
+      'Register at katana.network and create API key + secret (add wallet private key for trading)',
   };
 
   return (
