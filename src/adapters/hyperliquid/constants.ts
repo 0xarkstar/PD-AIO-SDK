@@ -2,6 +2,8 @@
  * Hyperliquid Exchange Constants
  */
 
+import { InvalidSymbolError } from '../../types/errors.js';
+
 // =============================================================================
 // API Endpoints
 // =============================================================================
@@ -87,7 +89,7 @@ export function unifiedToHyperliquid(symbol: string): string {
   const parts = symbol.split('/');
   const base = parts[0];
   if (!base) {
-    throw new Error(`Invalid symbol format: ${symbol}`);
+    throw new InvalidSymbolError(`Invalid symbol format: ${symbol}`, 'INVALID_SYMBOL', 'hyperliquid');
   }
 
   // Hyperliquid API uses just the base symbol

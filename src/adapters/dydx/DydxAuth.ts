@@ -13,6 +13,7 @@
 
 import type { AuthenticatedRequest, IAuthStrategy, RequestParams } from '../../types/index.js';
 import { DYDX_DEFAULT_SUBACCOUNT_NUMBER } from './constants.js';
+import { AuthenticationError, NetworkError, InvalidParameterError } from '../../types/errors.js';
 
 /**
  * dYdX authentication configuration
@@ -66,7 +67,7 @@ export class DydxAuth implements IAuthStrategy {
     this.testnet = config.testnet ?? false;
 
     if (!this.mnemonic && !this.privateKey) {
-      throw new Error('Either mnemonic or privateKey must be provided');
+      throw new AuthenticationError('Either mnemonic or privateKey must be provided', 'MISSING_CREDENTIALS', 'dydx');
     }
   }
 
@@ -97,8 +98,11 @@ export class DydxAuth implements IAuthStrategy {
 
       this.initialized = true;
     } catch (error) {
-      throw new Error(
-        `Failed to initialize dYdX auth: ${error instanceof Error ? error.message : 'Unknown error'}`
+      throw new NetworkError(
+        `Failed to initialize dYdX auth: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'NETWORK_ERROR',
+        'dydx',
+        error
       );
     }
   }
@@ -123,7 +127,7 @@ export class DydxAuth implements IAuthStrategy {
     // Validate mnemonic has correct word count
     const words = mnemonic.trim().split(/\s+/);
     if (words.length !== 24 && words.length !== 12) {
-      throw new Error('Invalid mnemonic: must be 12 or 24 words');
+      throw new InvalidParameterError('Invalid mnemonic: must be 12 or 24 words', 'INVALID_PARAMETER', 'dydx');
     }
 
     // PLACEHOLDER: generates a fake deterministic address — NOT a real Cosmos address
@@ -144,7 +148,7 @@ export class DydxAuth implements IAuthStrategy {
     const cleanKey = privateKey.startsWith('0x') ? privateKey.slice(2) : privateKey;
 
     if (cleanKey.length !== 64) {
-      throw new Error('Invalid private key: must be 32 bytes (64 hex characters)');
+      throw new InvalidParameterError('Invalid private key: must be 32 bytes (64 hex characters)', 'INVALID_PARAMETER', 'dydx');
     }
 
     // PLACEHOLDER: generates a fake deterministic address — NOT a real Cosmos address

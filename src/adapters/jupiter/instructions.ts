@@ -10,6 +10,7 @@ type PublicKey = import('@solana/web3.js').PublicKey;
 type TransactionInstruction = import('@solana/web3.js').TransactionInstruction;
 
 import { JUPITER_PERPS_PROGRAM_ID, JUPITER_TOKEN_MINTS, unifiedToJupiter } from './constants.js';
+import { PerpDEXError, InvalidSymbolError } from '../../types/errors.js';
 
 // =============================================================================
 // Instruction Discriminators (from Anchor IDL)
@@ -196,7 +197,7 @@ export class JupiterInstructionBuilder {
    */
   private ensureInitialized(): void {
     if (!this.isInitialized || !this.programId) {
-      throw new Error('JupiterInstructionBuilder not initialized. Call initialize() first.');
+      throw new PerpDEXError('JupiterInstructionBuilder not initialized. Call initialize() first.', 'NOT_INITIALIZED', 'jupiter');
     }
   }
 
@@ -643,7 +644,7 @@ export class JupiterInstructionBuilder {
     const tokenMint = JUPITER_TOKEN_MINTS[baseToken as keyof typeof JUPITER_TOKEN_MINTS];
 
     if (!tokenMint) {
-      throw new Error(`Unknown token for market: ${symbol}`);
+      throw new InvalidSymbolError(`Unknown token for market: ${symbol}`, 'INVALID_SYMBOL', 'jupiter');
     }
 
     // Derive PDAs

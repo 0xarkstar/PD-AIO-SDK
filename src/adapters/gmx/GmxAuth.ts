@@ -9,6 +9,7 @@ import { ethers, type Signer, type Provider } from 'ethers';
 import type { IAuthStrategy, RequestParams, AuthenticatedRequest } from '../../types/adapter.js';
 import { GMX_API_URLS } from './constants.js';
 import type { GmxChain } from './GmxAdapter.js';
+import { AuthenticationError } from '../../types/errors.js';
 
 /**
  * Configuration for GMX authentication
@@ -84,7 +85,7 @@ export class GmxAuth implements IAuthStrategy {
    */
   async signMessage(message: string): Promise<string> {
     if (!this.wallet) {
-      throw new Error('Wallet required for signing');
+      throw new AuthenticationError('Wallet required for signing', 'MISSING_CREDENTIALS', 'gmx');
     }
     return this.wallet.signMessage(message);
   }
@@ -98,7 +99,7 @@ export class GmxAuth implements IAuthStrategy {
     value: Record<string, unknown>
   ): Promise<string> {
     if (!this.wallet) {
-      throw new Error('Wallet required for signing');
+      throw new AuthenticationError('Wallet required for signing', 'MISSING_CREDENTIALS', 'gmx');
     }
     return this.wallet.signTypedData(domain, types, value);
   }
@@ -203,7 +204,7 @@ export class GmxAuth implements IAuthStrategy {
    */
   async getBalance(): Promise<bigint> {
     if (!this.walletAddress) {
-      throw new Error('Wallet address required');
+      throw new AuthenticationError('Wallet address required', 'MISSING_CREDENTIALS', 'gmx');
     }
     return this.provider.getBalance(this.walletAddress);
   }
@@ -213,7 +214,7 @@ export class GmxAuth implements IAuthStrategy {
    */
   async getTokenBalance(tokenAddress: string): Promise<bigint> {
     if (!this.walletAddress) {
-      throw new Error('Wallet address required');
+      throw new AuthenticationError('Wallet address required', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     const erc20Abi = ['function balanceOf(address owner) view returns (uint256)'];
@@ -226,7 +227,7 @@ export class GmxAuth implements IAuthStrategy {
    */
   async getTokenAllowance(tokenAddress: string, spenderAddress: string): Promise<bigint> {
     if (!this.walletAddress) {
-      throw new Error('Wallet address required');
+      throw new AuthenticationError('Wallet address required', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     const erc20Abi = ['function allowance(address owner, address spender) view returns (uint256)'];
@@ -243,7 +244,7 @@ export class GmxAuth implements IAuthStrategy {
     amount: bigint
   ): Promise<ethers.TransactionResponse> {
     if (!this.wallet) {
-      throw new Error('Wallet required for approval');
+      throw new AuthenticationError('Wallet required for approval', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     const erc20Abi = ['function approve(address spender, uint256 amount) returns (bool)'];

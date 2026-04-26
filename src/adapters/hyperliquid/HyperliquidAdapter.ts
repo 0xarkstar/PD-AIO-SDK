@@ -26,7 +26,14 @@ import type {
   TradeParams,
 } from '../../types/index.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
-import { NotSupportedError } from '../../types/errors.js';
+import {
+  PerpDEXError,
+  AuthenticationError,
+  BadResponseError,
+  InvalidParameterError,
+  OrderRejectedError,
+  NotSupportedError,
+} from '../../types/errors.js';
 import { WebSocketManager } from '../../websocket/index.js';
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import {
@@ -248,7 +255,7 @@ export class HyperliquidAdapter extends BaseAdapter implements IExchangeAdapter 
       const mid = allMids[exchangeSymbol];
 
       if (!mid) {
-        throw new Error(`No ticker data for ${symbol}`);
+        throw new BadResponseError(`No ticker data for ${symbol}`, 'BAD_RESPONSE', 'hyperliquid');
       }
 
       return this.normalizer.normalizeTicker(exchangeSymbol, { mid });
@@ -328,12 +335,12 @@ export class HyperliquidAdapter extends BaseAdapter implements IExchangeAdapter 
       });
 
       if (!response || response.length === 0) {
-        throw new Error(`No funding rate data for ${symbol}`);
+        throw new BadResponseError(`No funding rate data for ${symbol}`, 'BAD_RESPONSE', 'hyperliquid');
       }
 
       const latest = response[response.length - 1];
       if (!latest) {
-        throw new Error(`No funding rate data for ${symbol}`);
+        throw new BadResponseError(`No funding rate data for ${symbol}`, 'BAD_RESPONSE', 'hyperliquid');
       }
 
       // Fetch current mark price
@@ -430,15 +437,15 @@ export class HyperliquidAdapter extends BaseAdapter implements IExchangeAdapter 
       );
 
       if (response.status === 'err') {
-        throw new Error('Order creation failed');
+        throw new OrderRejectedError('Order creation failed', 'ORDER_REJECTED', 'hyperliquid');
       }
 
       const status = response.response.data.statuses[0];
       if (!status) {
-        throw new Error('No order status in response');
+        throw new BadResponseError('No order status in response', 'BAD_RESPONSE', 'hyperliquid');
       }
       if ('error' in status) {
-        throw new Error(status.error);
+        throw new OrderRejectedError(status.error, 'ORDER_REJECTED', 'hyperliquid');
       }
 
       // Extract order ID
@@ -448,7 +455,7 @@ export class HyperliquidAdapter extends BaseAdapter implements IExchangeAdapter 
       } else if ('filled' in status) {
         orderId = status.filled.oid.toString();
       } else {
-        throw new Error('Unknown order status');
+        throw new BadResponseError('Unknown order status', 'BAD_RESPONSE', 'hyperliquid');
       }
 
       return {
@@ -477,7 +484,7 @@ export class HyperliquidAdapter extends BaseAdapter implements IExchangeAdapter 
 
     try {
       if (!symbol) {
-        throw new Error('Symbol required for order cancellation');
+        throw new InvalidParameterError('Symbol required for order cancellation', 'INVALID_PARAMETER', 'hyperliquid');
       }
 
       const exchangeSymbol = this.symbolToExchange(symbol);
@@ -625,7 +632,7 @@ export class HyperliquidAdapter extends BaseAdapter implements IExchangeAdapter 
   private ensureAuth(): HyperliquidAuth {
     this.ensureInitialized();
     if (!this.auth) {
-      throw new Error('Authentication required');
+      throw new AuthenticationError('Authentication required', 'MISSING_CREDENTIALS', 'hyperliquid');
     }
     return this.auth;
   }
@@ -683,7 +690,7 @@ export class HyperliquidAdapter extends BaseAdapter implements IExchangeAdapter 
   private ensureWsHandler(): HyperliquidWebSocket {
     this.ensureInitialized();
     if (!this.wsHandler) {
-      throw new Error('WebSocket handler not initialized');
+      throw new PerpDEXError('WebSocket handler not initialized', 'NOT_INITIALIZED', 'hyperliquid');
     }
     return this.wsHandler;
   }
@@ -737,7 +744,7 @@ export class HyperliquidAdapter extends BaseAdapter implements IExchangeAdapter 
    */
   async fetchOpenOrders(symbol?: string): Promise<Order[]> {
     if (!this.auth) {
-      throw new Error('Authentication required');
+      throw new AuthenticationError('Authentication required', 'MISSING_CREDENTIALS', 'hyperliquid');
     }
 
     try {

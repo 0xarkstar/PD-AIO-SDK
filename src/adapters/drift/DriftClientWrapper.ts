@@ -7,6 +7,7 @@
 
 import type { Connection, PublicKey, Keypair } from '@solana/web3.js';
 import { Logger } from '../../core/logger.js';
+import { PerpDEXError, NetworkError, OrderNotFoundError } from '../../types/errors.js';
 
 // Types for @drift-labs/sdk - actual import would be:
 // import { DriftClient, OrderParams, PositionDirection, OrderType, ... } from '@drift-labs/sdk';
@@ -157,8 +158,11 @@ export class DriftClientWrapper {
 
       this.isInitialized = true;
     } catch (error) {
-      throw new Error(
-        `Failed to initialize Drift client: ${error instanceof Error ? error.message : String(error)}`
+      throw new NetworkError(
+        `Failed to initialize Drift client: ${error instanceof Error ? error.message : String(error)}`,
+        'NETWORK_ERROR',
+        'drift',
+        error
       );
     }
   }
@@ -168,7 +172,7 @@ export class DriftClientWrapper {
    */
   private ensureInitialized(): void {
     if (!this.isInitialized) {
-      throw new Error('DriftClientWrapper not initialized. Call initialize() first.');
+      throw new PerpDEXError('DriftClientWrapper not initialized. Call initialize() first.', 'NOT_INITIALIZED', 'drift');
     }
   }
 
@@ -315,7 +319,7 @@ export class DriftClientWrapper {
     const originalOrder = orders.find((o: any) => o.orderId === orderId);
 
     if (!originalOrder) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new OrderNotFoundError(`Order ${orderId} not found`, 'ORDER_NOT_FOUND', 'drift');
     }
 
     // Place new order with merged params
@@ -420,7 +424,7 @@ export class DriftClientWrapper {
 
     const perpMarket = this.driftClient.getPerpMarketAccount(marketIndex);
     if (!perpMarket) {
-      throw new Error(`Perp market ${marketIndex} not found`);
+      throw new PerpDEXError(`Perp market ${marketIndex} not found`, 'INVALID_SYMBOL', 'drift');
     }
 
     const oracleData = this.driftClient.getOracleDataForPerpMarket(marketIndex);
@@ -438,7 +442,7 @@ export class DriftClientWrapper {
 
     const perpMarket = this.driftClient.getPerpMarketAccount(marketIndex);
     if (!perpMarket) {
-      throw new Error(`Perp market ${marketIndex} not found`);
+      throw new PerpDEXError(`Perp market ${marketIndex} not found`, 'INVALID_SYMBOL', 'drift');
     }
 
     const price = calculateReservePrice(

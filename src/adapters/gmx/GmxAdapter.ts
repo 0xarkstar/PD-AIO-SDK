@@ -51,6 +51,14 @@ import {
   type GMXMarketKey,
 } from './constants.js';
 import { mapGmxError } from './error-codes.js';
+import {
+  PerpDEXError,
+  AuthenticationError,
+  InvalidSymbolError,
+  NotSupportedError,
+  BadResponseError,
+  TransactionFailedError,
+} from '../../types/errors.js';
 import type { GmxMarketInfo, GmxCandlesResponse } from './types.js';
 
 /**
@@ -293,7 +301,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
 
     const marketKey = unifiedToGmx(symbol);
     if (!marketKey) {
-      throw new Error(`Invalid market: ${symbol}`);
+      throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'gmx');
     }
 
     try {
@@ -307,7 +315,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
       );
 
       if (!marketInfo) {
-        throw new Error(`Market info not found for ${symbol}`);
+        throw new BadResponseError(`Market info not found for ${symbol}`, 'BAD_RESPONSE', 'gmx');
       }
 
       // Get price for the index token
@@ -329,19 +337,19 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
 
   async _fetchOrderBook(_symbol: string, _params?: OrderBookParams): Promise<OrderBook> {
     // GMX doesn't have a traditional orderbook - it's AMM-based with price impact
-    throw new Error('GMX does not have a traditional orderbook. Use fetchTicker for price data.');
+    throw new NotSupportedError('GMX does not have a traditional orderbook. Use fetchTicker for price data.', 'NOT_SUPPORTED', 'gmx');
   }
 
   async _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]> {
     this.ensureInitialized();
 
     if (!this.subgraph) {
-      throw new Error('Subgraph not initialized');
+      throw new PerpDEXError('Subgraph not initialized', 'NOT_INITIALIZED', 'gmx');
     }
 
     const marketKey = unifiedToGmx(symbol);
     if (!marketKey) {
-      throw new Error(`Invalid market: ${symbol}`);
+      throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'gmx');
     }
 
     const marketConfig = GMX_MARKETS[marketKey];
@@ -376,7 +384,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
 
     const marketKey = unifiedToGmx(symbol);
     if (!marketKey) {
-      throw new Error(`Invalid market: ${symbol}`);
+      throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'gmx');
     }
 
     try {
@@ -390,7 +398,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
       );
 
       if (!marketInfo) {
-        throw new Error(`Market info not found for ${symbol}`);
+        throw new BadResponseError(`Market info not found for ${symbol}`, 'BAD_RESPONSE', 'gmx');
       }
 
       // Get price for calculations from prices endpoint
@@ -447,8 +455,10 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     _limit?: number
   ): Promise<FundingRate[]> {
     // Would require subgraph query - not implemented for REST-only version
-    throw new Error(
-      'fetchFundingRateHistory requires subgraph integration. Not available via REST API.'
+    throw new NotSupportedError(
+      'fetchFundingRateHistory requires subgraph integration. Not available via REST API.',
+      'NOT_SUPPORTED',
+      'gmx'
     );
   }
 
@@ -461,7 +471,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
 
     const marketKey = unifiedToGmx(symbol);
     if (!marketKey) {
-      throw new Error(`Invalid market: ${symbol}`);
+      throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'gmx');
     }
 
     const config = GMX_MARKETS[marketKey];
@@ -500,11 +510,11 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     this.ensureInitialized();
 
     if (!this.auth || !this.walletAddress) {
-      throw new Error('Wallet address required to fetch positions');
+      throw new AuthenticationError('Wallet address required to fetch positions', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     if (!this.subgraph) {
-      throw new Error('Subgraph not initialized');
+      throw new PerpDEXError('Subgraph not initialized', 'NOT_INITIALIZED', 'gmx');
     }
 
     try {
@@ -551,7 +561,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     this.ensureInitialized();
 
     if (!this.auth || !this.walletAddress) {
-      throw new Error('Wallet address required to fetch balance');
+      throw new AuthenticationError('Wallet address required to fetch balance', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     try {
@@ -614,11 +624,11 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     this.ensureInitialized();
 
     if (!this.auth || !this.walletAddress) {
-      throw new Error('Wallet address required to fetch orders');
+      throw new AuthenticationError('Wallet address required to fetch orders', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     if (!this.subgraph) {
-      throw new Error('Subgraph not initialized');
+      throw new PerpDEXError('Subgraph not initialized', 'NOT_INITIALIZED', 'gmx');
     }
 
     try {
@@ -662,11 +672,11 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     this.ensureInitialized();
 
     if (!this.auth || !this.walletAddress) {
-      throw new Error('Wallet address required to fetch order history');
+      throw new AuthenticationError('Wallet address required to fetch order history', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     if (!this.subgraph) {
-      throw new Error('Subgraph not initialized');
+      throw new PerpDEXError('Subgraph not initialized', 'NOT_INITIALIZED', 'gmx');
     }
 
     try {
@@ -715,11 +725,11 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     this.ensureInitialized();
 
     if (!this.subgraph) {
-      throw new Error('Subgraph not initialized');
+      throw new PerpDEXError('Subgraph not initialized', 'NOT_INITIALIZED', 'gmx');
     }
 
     if (!this.walletAddress) {
-      throw new Error('Private key required for fetchMyTrades');
+      throw new AuthenticationError('Private key required for fetchMyTrades', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     try {
@@ -761,11 +771,11 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     this.ensureInitialized();
 
     if (!this.auth || !this.auth.canSign()) {
-      throw new Error('Private key required for trading');
+      throw new AuthenticationError('Private key required for trading', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     if (!this.contracts || !this.orderBuilder) {
-      throw new Error('Trading components not initialized');
+      throw new PerpDEXError('Trading components not initialized', 'NOT_INITIALIZED', 'gmx');
     }
 
     try {
@@ -776,14 +786,14 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
       const prices = await this.fetchPrices();
       const marketKey = unifiedToGmx(request.symbol);
       if (!marketKey) {
-        throw new Error(`Invalid market: ${request.symbol}`);
+        throw new InvalidSymbolError(`Invalid market: ${request.symbol}`, 'INVALID_SYMBOL', 'gmx');
       }
       const marketConfig = GMX_MARKETS[marketKey];
 
       // Get index token price
       const indexTokenPrice = prices.get(marketConfig.indexToken.toLowerCase());
       if (!indexTokenPrice) {
-        throw new Error(`Price not available for ${request.symbol}`);
+        throw new BadResponseError(`Price not available for ${request.symbol}`, 'BAD_RESPONSE', 'gmx');
       }
 
       const createOrderPriceDivisor = getOraclePriceDivisor(marketConfig.baseAsset);
@@ -834,7 +844,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
       const receipt = await tx.wait();
 
       if (!receipt) {
-        throw new Error('Transaction failed');
+        throw new TransactionFailedError('Transaction failed', 'TRANSACTION_FAILED', 'gmx');
       }
 
       // Extract order key from events (simplified - would need proper event parsing)
@@ -870,11 +880,11 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     this.ensureInitialized();
 
     if (!this.auth || !this.auth.canSign()) {
-      throw new Error('Private key required for trading');
+      throw new AuthenticationError('Private key required for trading', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     if (!this.contracts) {
-      throw new Error('Contracts not initialized');
+      throw new PerpDEXError('Contracts not initialized', 'NOT_INITIALIZED', 'gmx');
     }
 
     try {
@@ -883,7 +893,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
       const receipt = await tx.wait();
 
       if (!receipt) {
-        throw new Error('Transaction failed');
+        throw new TransactionFailedError('Transaction failed', 'TRANSACTION_FAILED', 'gmx');
       }
 
       return {
@@ -911,7 +921,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
     this.ensureInitialized();
 
     if (!this.auth || !this.auth.canSign()) {
-      throw new Error('Private key required for trading');
+      throw new AuthenticationError('Private key required for trading', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     try {
@@ -940,9 +950,11 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
   async _setLeverage(_symbol: string, _leverage: number): Promise<void> {
     // GMX v2 leverage is per-position, not per-account or per-symbol
     // Leverage is determined at order creation time
-    throw new Error(
+    throw new NotSupportedError(
       'GMX v2 does not have account-level leverage settings. ' +
-        'Leverage is determined per-position at order creation time.'
+        'Leverage is determined per-position at order creation time.',
+      'NOT_SUPPORTED',
+      'gmx'
     );
   }
 
@@ -1040,7 +1052,7 @@ export class GmxAdapter extends BaseAdapter implements IExchangeAdapter {
   protected symbolToExchange(symbol: string): string {
     const gmxSymbol = unifiedToGmx(symbol);
     if (!gmxSymbol) {
-      throw new Error(`Invalid market symbol: ${symbol}`);
+      throw new InvalidSymbolError(`Invalid market symbol: ${symbol}`, 'INVALID_SYMBOL', 'gmx');
     }
     return gmxSymbol;
   }

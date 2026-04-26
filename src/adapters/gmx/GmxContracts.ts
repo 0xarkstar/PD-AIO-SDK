@@ -9,6 +9,7 @@ import { ethers, type Provider, type Signer, type TransactionResponse } from 'et
 import { GMX_CONTRACTS, GMX_API_URLS } from './constants.js';
 import type { GmxChain } from './GmxAdapter.js';
 import type { GmxCreateOrderParams } from './types.js';
+import { AuthenticationError } from '../../types/errors.js';
 
 // =============================================================================
 // ABI Definitions
@@ -153,7 +154,7 @@ export class GmxContracts {
     executionFee: bigint
   ): Promise<TransactionResponse> {
     if (!this.signer) {
-      throw new Error('Signer required for trading operations');
+      throw new AuthenticationError('Signer required for trading operations', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     const exchangeRouter = this.getExchangeRouter();
@@ -194,7 +195,7 @@ export class GmxContracts {
    */
   async cancelOrder(orderKey: string): Promise<TransactionResponse> {
     if (!this.signer) {
-      throw new Error('Signer required for trading operations');
+      throw new AuthenticationError('Signer required for trading operations', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     const exchangeRouter = this.getExchangeRouter();
@@ -206,7 +207,7 @@ export class GmxContracts {
    */
   async sendWnt(receiver: string, amount: bigint): Promise<TransactionResponse> {
     if (!this.signer) {
-      throw new Error('Signer required for trading operations');
+      throw new AuthenticationError('Signer required for trading operations', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     const exchangeRouter = this.getExchangeRouter();
@@ -220,7 +221,7 @@ export class GmxContracts {
    */
   async sendTokens(token: string, receiver: string, amount: bigint): Promise<TransactionResponse> {
     if (!this.signer) {
-      throw new Error('Signer required for trading operations');
+      throw new AuthenticationError('Signer required for trading operations', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     const exchangeRouter = this.getExchangeRouter();

@@ -8,6 +8,11 @@
 import type { IAuthStrategy, RequestParams, AuthenticatedRequest } from '../../types/adapter.js';
 import { SOLANA_DEFAULT_RPC } from './constants.js';
 import { Logger } from '../../core/logger.js';
+import {
+  AuthenticationError,
+  NetworkError,
+  InvalidParameterError,
+} from '../../types/errors.js';
 
 // Dynamic imports for @solana/web3.js types
 type Connection = import('@solana/web3.js').Connection;
@@ -106,8 +111,11 @@ export class JupiterAuth implements IAuthStrategy {
         }
         this.isInitialized = true;
       } catch (error) {
-        throw new Error(
-          `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`
+        throw new NetworkError(
+          `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`,
+          'NETWORK_ERROR',
+          'jupiter',
+          error
         );
       }
     }
@@ -140,7 +148,7 @@ export class JupiterAuth implements IAuthStrategy {
    */
   async signMessage(message: string): Promise<Uint8Array> {
     if (!this.keypair) {
-      throw new Error('Private key required for signing');
+      throw new AuthenticationError('Private key required for signing', 'MISSING_CREDENTIALS', 'jupiter');
     }
 
     const { sign } = await import('@noble/ed25519');
@@ -153,7 +161,7 @@ export class JupiterAuth implements IAuthStrategy {
    */
   async signBytes(bytes: Uint8Array): Promise<Uint8Array> {
     if (!this.keypair) {
-      throw new Error('Private key required for signing');
+      throw new AuthenticationError('Private key required for signing', 'MISSING_CREDENTIALS', 'jupiter');
     }
 
     const { sign } = await import('@noble/ed25519');
@@ -165,7 +173,7 @@ export class JupiterAuth implements IAuthStrategy {
    */
   async signTransaction(transaction: Transaction): Promise<Transaction> {
     if (!this.keypair) {
-      throw new Error('Private key required for transaction signing');
+      throw new AuthenticationError('Private key required for transaction signing', 'MISSING_CREDENTIALS', 'jupiter');
     }
 
     transaction.sign(this.keypair);
@@ -177,7 +185,7 @@ export class JupiterAuth implements IAuthStrategy {
    */
   async signAllTransactions(transactions: Transaction[]): Promise<Transaction[]> {
     if (!this.keypair) {
-      throw new Error('Private key required for transaction signing');
+      throw new AuthenticationError('Private key required for transaction signing', 'MISSING_CREDENTIALS', 'jupiter');
     }
 
     for (const tx of transactions) {
@@ -234,7 +242,7 @@ export class JupiterAuth implements IAuthStrategy {
   async getConnection(): Promise<Connection> {
     await this.ensureInitialized();
     if (!this.connection) {
-      throw new Error('Connection not initialized');
+      throw new NetworkError('Connection not initialized', 'NETWORK_ERROR', 'jupiter');
     }
     return this.connection;
   }
@@ -245,7 +253,7 @@ export class JupiterAuth implements IAuthStrategy {
   async getSolBalance(): Promise<number> {
     await this.ensureInitialized();
     if (!this.connection || !this.publicKey) {
-      throw new Error('Connection or public key not initialized');
+      throw new NetworkError('Connection or public key not initialized', 'NETWORK_ERROR', 'jupiter');
     }
 
     const balance = await this.connection.getBalance(this.publicKey);
@@ -258,7 +266,7 @@ export class JupiterAuth implements IAuthStrategy {
   async getTokenBalance(tokenMint: string): Promise<number> {
     await this.ensureInitialized();
     if (!this.connection || !this.publicKey) {
-      throw new Error('Connection or public key not initialized');
+      throw new NetworkError('Connection or public key not initialized', 'NETWORK_ERROR', 'jupiter');
     }
 
     const { PublicKey } = await import('@solana/web3.js');
@@ -292,7 +300,7 @@ export class JupiterAuth implements IAuthStrategy {
    */
   async getAssociatedTokenAddress(tokenMint: string): Promise<string> {
     if (!this.publicKey) {
-      throw new Error('Public key not initialized');
+      throw new AuthenticationError('Public key not initialized', 'MISSING_CREDENTIALS', 'jupiter');
     }
 
     const { PublicKey } = await import('@solana/web3.js');
@@ -328,7 +336,7 @@ export class JupiterAuth implements IAuthStrategy {
         const parsed = JSON.parse(key) as number[];
         return new Uint8Array(parsed);
       } catch {
-        throw new Error('Invalid private key JSON array format');
+        throw new InvalidParameterError('Invalid private key JSON array format', 'INVALID_PARAMETER', 'jupiter');
       }
     }
 
@@ -340,7 +348,7 @@ export class JupiterAuth implements IAuthStrategy {
         const bs58 = require('bs58') as { decode: (str: string) => Uint8Array };
         return bs58.decode(key);
       } catch {
-        throw new Error('Invalid base58 private key format');
+        throw new InvalidParameterError('Invalid base58 private key format', 'INVALID_PARAMETER', 'jupiter');
       }
     }
 
@@ -354,7 +362,7 @@ export class JupiterAuth implements IAuthStrategy {
       return bytes;
     }
 
-    throw new Error('Unsupported private key format');
+    throw new InvalidParameterError('Unsupported private key format', 'INVALID_PARAMETER', 'jupiter');
   }
 }
 

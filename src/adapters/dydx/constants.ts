@@ -4,6 +4,8 @@
  * dYdX v4 is built on a Cosmos SDK L1 blockchain
  */
 
+import { InvalidSymbolError } from '../../types/errors.js';
+
 // =============================================================================
 // API Endpoints
 // =============================================================================
@@ -102,7 +104,7 @@ export function unifiedToDydx(symbol: string): string {
   const base = parts[0];
 
   if (!base) {
-    throw new Error(`Invalid symbol format: ${symbol}`);
+    throw new InvalidSymbolError(`Invalid symbol format: ${symbol}`, 'INVALID_SYMBOL', 'dydx');
   }
 
   // dYdX format: "BTC-USD", "ETH-USD"

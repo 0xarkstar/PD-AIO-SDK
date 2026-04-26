@@ -14,6 +14,7 @@ type ConfirmOptions = import('@solana/web3.js').ConfirmOptions;
 type AccountInfo = import('@solana/web3.js').AccountInfo<Buffer>;
 
 import { SOLANA_DEFAULT_RPC, JUPITER_PERPS_PROGRAM_ID } from './constants.js';
+import { PerpDEXError, NetworkError, TransactionFailedError } from '../../types/errors.js';
 
 /**
  * Solana client configuration
@@ -91,8 +92,11 @@ export class SolanaClient {
       this.connection = new Connection(this.config.rpcEndpoint, this.config.commitment);
       this.isInitialized = true;
     } catch (error) {
-      throw new Error(
-        `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`
+      throw new NetworkError(
+        `Failed to initialize Solana connection: ${error instanceof Error ? error.message : String(error)}`,
+        'NETWORK_ERROR',
+        'jupiter',
+        error
       );
     }
   }
@@ -102,7 +106,7 @@ export class SolanaClient {
    */
   private ensureInitialized(): Connection {
     if (!this.isInitialized || !this.connection) {
-      throw new Error('SolanaClient not initialized. Call initialize() first.');
+      throw new PerpDEXError('SolanaClient not initialized. Call initialize() first.', 'NOT_INITIALIZED', 'jupiter');
     }
     return this.connection;
   }
@@ -293,7 +297,7 @@ export class SolanaClient {
     );
 
     if (confirmation.value.err) {
-      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+      throw new TransactionFailedError(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`, 'TRANSACTION_FAILED', 'jupiter');
     }
 
     return {

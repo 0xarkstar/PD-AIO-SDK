@@ -7,6 +7,11 @@
 import { ethers } from 'ethers';
 import type { OrderRequest } from '../../types/index.js';
 import {
+  AuthenticationError,
+  InvalidSymbolError,
+  InvalidOrderError,
+} from '../../types/errors.js';
+import {
   GMX_MARKETS,
   GMX_PRECISION,
   GMX_ORDER_TYPES,
@@ -74,14 +79,14 @@ export class GmxOrderBuilder {
     // Get market configuration
     const marketKey = unifiedToGmx(request.symbol);
     if (!marketKey) {
-      throw new Error(`Invalid market: ${request.symbol}`);
+      throw new InvalidSymbolError(`Invalid market: ${request.symbol}`, 'INVALID_SYMBOL', 'gmx');
     }
     const marketConfig = GMX_MARKETS[marketKey];
 
     // Get wallet address
     const walletAddress = this.auth.getWalletAddress();
     if (!walletAddress) {
-      throw new Error('Wallet address required');
+      throw new AuthenticationError('Wallet address required', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     // Determine order type and direction
@@ -153,14 +158,14 @@ export class GmxOrderBuilder {
     // Get market configuration
     const marketKey = unifiedToGmx(symbol);
     if (!marketKey) {
-      throw new Error(`Invalid market: ${symbol}`);
+      throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'gmx');
     }
     const marketConfig = GMX_MARKETS[marketKey];
 
     // Get wallet address
     const walletAddress = this.auth.getWalletAddress();
     if (!walletAddress) {
-      throw new Error('Wallet address required');
+      throw new AuthenticationError('Wallet address required', 'MISSING_CREDENTIALS', 'gmx');
     }
 
     // Calculate acceptable price with slippage
@@ -299,34 +304,38 @@ export class GmxOrderBuilder {
   validateOrderParams(request: OrderRequest): void {
     const marketKey = unifiedToGmx(request.symbol);
     if (!marketKey) {
-      throw new Error(`Invalid market: ${request.symbol}`);
+      throw new InvalidSymbolError(`Invalid market: ${request.symbol}`, 'INVALID_SYMBOL', 'gmx');
     }
 
     const marketConfig = GMX_MARKETS[marketKey];
 
     // Check minimum order size
     if (request.amount < marketConfig.minOrderSize) {
-      throw new Error(
-        `Order size ${request.amount} is below minimum ${marketConfig.minOrderSize} for ${request.symbol}`
+      throw new InvalidOrderError(
+        `Order size ${request.amount} is below minimum ${marketConfig.minOrderSize} for ${request.symbol}`,
+        'MIN_ORDER_SIZE',
+        'gmx'
       );
     }
 
     // Check leverage
     const leverage = request.leverage || 10;
     if (leverage > marketConfig.maxLeverage) {
-      throw new Error(
-        `Leverage ${leverage}x exceeds maximum ${marketConfig.maxLeverage}x for ${request.symbol}`
+      throw new InvalidOrderError(
+        `Leverage ${leverage}x exceeds maximum ${marketConfig.maxLeverage}x for ${request.symbol}`,
+        'MAX_LEVERAGE_EXCEEDED',
+        'gmx'
       );
     }
 
     // Validate price for limit orders
     if (request.type === 'limit' && !request.price) {
-      throw new Error('Price required for limit orders');
+      throw new InvalidOrderError('Price required for limit orders', 'INVALID_PRICE', 'gmx');
     }
 
     // Validate stop price for stop orders
     if ((request.type === 'stopMarket' || request.type === 'stopLimit') && !request.stopPrice) {
-      throw new Error('Stop price required for stop orders');
+      throw new InvalidOrderError('Stop price required for stop orders', 'INVALID_PRICE', 'gmx');
     }
   }
 
@@ -336,7 +345,7 @@ export class GmxOrderBuilder {
   getMarketConfig(symbol: string): (typeof GMX_MARKETS)[GMXMarketKey] {
     const marketKey = unifiedToGmx(symbol);
     if (!marketKey) {
-      throw new Error(`Invalid market: ${symbol}`);
+      throw new InvalidSymbolError(`Invalid market: ${symbol}`, 'INVALID_SYMBOL', 'gmx');
     }
     return GMX_MARKETS[marketKey];
   }
