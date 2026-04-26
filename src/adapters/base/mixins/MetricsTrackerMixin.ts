@@ -124,6 +124,12 @@ export function MetricsTrackerMixin<T extends Constructor<IMetricsMixinBase>>(Ba
      *
      * @returns Circuit breaker metrics including state and performance stats
      *
+     * @remarks
+     * SECURITY: The returned metrics include operational counters that
+     * can fingerprint exchange health. See `CircuitBreaker.getMetrics()`
+     * JSDoc for threat model. Default Prometheus exporter is safe.
+     * Custom exporters of this object should be authenticated.
+     *
      * @example
      * ```typescript
      * const cbMetrics = exchange.getCircuitBreakerMetrics();

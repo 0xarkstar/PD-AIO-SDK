@@ -25,10 +25,15 @@ coverage/
 .idea/
 .cursor/
 .claude/
+.omc/
 *.swp
 *.swo
 *~
 .DS_Store
+
+# Developer scratch scripts (not part of public API)
+scripts/check-*.ts
+scripts/debug-*.ts
 
 # Logs
 logs/
