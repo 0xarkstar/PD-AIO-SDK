@@ -3,11 +3,20 @@
  */
 
 import { DydxAuth, type DydxAuthConfig } from '../../src/adapters/dydx/DydxAuth.js';
-import { NotSupportedError, InvalidParameterError } from '../../src/types/errors.js';
+import { InvalidParameterError } from '../../src/types/errors.js';
 
 describe('DydxAuth', () => {
-  // Test mnemonic (DO NOT USE IN PRODUCTION - this is a test mnemonic)
+  // Standard BIP39 12-word "abandon ... about" test mnemonic (DO NOT USE IN PRODUCTION)
   const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+  // Standard BIP39 24-word "abandon ... art" test mnemonic (DO NOT USE IN PRODUCTION)
+  const testMnemonic24 = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art';
+
+  // Expected dYdX bech32 addresses derived via BIP39 → SLIP-10 (m/44'/118'/0'/0/0)
+  // → secp256k1 → bech32("dydx") for the test inputs above. Pinned via
+  // scripts/_derive-dydx-test-vectors.ts at @cosmjs 0.38.x.
+  const expectedAddress12 = 'dydx19rl4cm2hmr8afy4kldpxz3fka4jguq0a4erelz';
+  const expectedAddress24 = 'dydx1r5v5srda7xfth3hn2s26txvrcrntldjujjflhg';
+  const expectedAddressPrivkey1 = 'dydx1l3e9pgs3mmwuwrh95fecme0s0qtn2880qnulfw';
 
   describe('constructor', () => {
     test('creates auth instance with mnemonic', () => {
@@ -68,77 +77,79 @@ describe('DydxAuth', () => {
   });
 
   describe('getAddress', () => {
-    // Address derivation is unsupported until Cosmos SDK libraries are integrated.
-    // Valid credentials pass validation but then hit NotSupportedError.
-    test('throws NotSupportedError for valid mnemonic (Cosmos SDK not integrated)', async () => {
+    test('derives correct address for 12-word mnemonic', async () => {
       const auth = new DydxAuth({
         mnemonic: testMnemonic,
       });
 
-      await expect(auth.getAddress()).rejects.toThrow(NotSupportedError);
+      await expect(auth.getAddress()).resolves.toBe(expectedAddress12);
     });
 
-    test('throws NotSupportedError for valid private key (Cosmos SDK not integrated)', async () => {
+    test('derives correct address for valid private key', async () => {
       const auth = new DydxAuth({
         privateKey: '1'.repeat(64),
       });
 
-      await expect(auth.getAddress()).rejects.toThrow(NotSupportedError);
+      await expect(auth.getAddress()).resolves.toBe(expectedAddressPrivkey1);
     });
 
-    test('throws NotSupportedError on repeated calls (no caching of unsupported result)', async () => {
+    test('caches derived address across repeated calls', async () => {
       const auth = new DydxAuth({
         mnemonic: testMnemonic,
       });
 
-      // Both calls should consistently throw NotSupportedError
-      await expect(auth.getAddress()).rejects.toThrow(NotSupportedError);
-      await expect(auth.getAddress()).rejects.toThrow(NotSupportedError);
+      const a = await auth.getAddress();
+      const b = await auth.getAddress();
+      expect(a).toBe(expectedAddress12);
+      expect(b).toBe(expectedAddress12);
     });
   });
 
   describe('getSubaccountId', () => {
-    test('throws NotSupportedError (depends on getAddress which is unsupported)', async () => {
+    test('returns address/subaccountNumber for valid mnemonic', async () => {
       const auth = new DydxAuth({
         mnemonic: testMnemonic,
         subaccountNumber: 3,
       });
 
-      await expect(auth.getSubaccountId()).rejects.toThrow(NotSupportedError);
+      await expect(auth.getSubaccountId()).resolves.toBe(`${expectedAddress12}/3`);
     });
   });
 
   describe('verify', () => {
-    test('returns false for valid mnemonic (NotSupportedError is caught)', async () => {
+    test('returns true for valid mnemonic', async () => {
       const auth = new DydxAuth({
         mnemonic: testMnemonic,
       });
 
-      // verify() catches all errors and returns false
-      const isValid = await auth.verify();
-      expect(isValid).toBe(false);
+      await expect(auth.verify()).resolves.toBe(true);
     });
 
-    test('returns false for valid private key (NotSupportedError is caught)', async () => {
+    test('returns true for valid private key', async () => {
       const auth = new DydxAuth({
         privateKey: '1'.repeat(64),
       });
 
-      const isValid = await auth.verify();
-      expect(isValid).toBe(false);
+      await expect(auth.verify()).resolves.toBe(true);
+    });
+
+    test('returns false for malformed mnemonic', async () => {
+      const auth = new DydxAuth({
+        mnemonic: 'word1 word2 word3',
+      });
+
+      await expect(auth.verify()).resolves.toBe(false);
     });
   });
 
   describe('sign', () => {
-    test('throws NotSupportedError (sign calls initialize which requires address derivation)', async () => {
+    test('signs request with content-type header for valid mnemonic', async () => {
       const auth = new DydxAuth({
         mnemonic: testMnemonic,
       });
 
-      // sign() calls initialize() which throws NotSupportedError for valid credentials
-      await expect(
-        auth.sign({ method: 'GET', path: '/test' })
-      ).rejects.toThrow(NotSupportedError);
+      const signed = await auth.sign({ method: 'GET', path: '/test' });
+      expect(signed.headers['Content-Type']).toBe('application/json');
     });
   });
 
@@ -189,43 +200,55 @@ describe('DydxAuth', () => {
         mnemonic: 'word1 word2 word3', // Only 3 words
       });
 
-      // Validation runs before NotSupportedError — bad word count yields InvalidParameterError
       await expect(auth.getAddress()).rejects.toThrow(InvalidParameterError);
       await expect(auth.getAddress()).rejects.toThrow('Invalid mnemonic');
     });
 
-    test('throws NotSupportedError (not InvalidParameterError) for valid 12-word mnemonic', async () => {
+    test('derives address for valid 12-word mnemonic', async () => {
       const auth = new DydxAuth({
-        mnemonic: testMnemonic, // 12 words — passes validation
+        mnemonic: testMnemonic,
       });
 
-      await expect(auth.getAddress()).rejects.toThrow(NotSupportedError);
+      await expect(auth.getAddress()).resolves.toBe(expectedAddress12);
     });
 
-    test('throws NotSupportedError (not InvalidParameterError) for valid 24-word mnemonic', async () => {
+    test('derives address for valid 24-word mnemonic', async () => {
       const auth = new DydxAuth({
-        mnemonic: testMnemonic + ' ' + testMnemonic, // 24 words — passes validation
+        mnemonic: testMnemonic24,
       });
 
-      await expect(auth.getAddress()).rejects.toThrow(NotSupportedError);
+      await expect(auth.getAddress()).resolves.toBe(expectedAddress24);
+    });
+
+    test('throws InvalidParameterError for 12-word mnemonic with bad BIP39 checksum', async () => {
+      // Constructed by repeating "abandon" 11 times + "abandon" — checksum is wrong
+      // because the standard 12-word vector ends in "about" (which encodes the checksum).
+      const badChecksum = 'abandon '.repeat(12).trim();
+      const auth = new DydxAuth({
+        mnemonic: badChecksum,
+      });
+
+      // Word count passes, but @cosmjs/crypto rejects the checksum and we wrap it.
+      await expect(auth.getAddress()).rejects.toThrow(InvalidParameterError);
+      await expect(auth.getAddress()).rejects.toThrow('Failed to derive dYdX address from mnemonic');
     });
   });
 
   describe('private key validation', () => {
-    test('throws NotSupportedError for valid key with 0x prefix (passes validation)', async () => {
+    test('derives address for valid key with 0x prefix', async () => {
       const auth = new DydxAuth({
         privateKey: '0x' + '1'.repeat(64),
       });
 
-      await expect(auth.getAddress()).rejects.toThrow(NotSupportedError);
+      await expect(auth.getAddress()).resolves.toBe(expectedAddressPrivkey1);
     });
 
-    test('throws NotSupportedError for valid key without 0x prefix (passes validation)', async () => {
+    test('derives address for valid key without 0x prefix', async () => {
       const auth = new DydxAuth({
         privateKey: '1'.repeat(64),
       });
 
-      await expect(auth.getAddress()).rejects.toThrow(NotSupportedError);
+      await expect(auth.getAddress()).resolves.toBe(expectedAddressPrivkey1);
     });
 
     test('throws InvalidParameterError on invalid private key length', async () => {
@@ -233,7 +256,7 @@ describe('DydxAuth', () => {
         privateKey: '1'.repeat(32), // Too short
       });
 
-      // Validation runs before NotSupportedError — bad length yields InvalidParameterError
+      // Validation runs first — bad length yields InvalidParameterError before derivation
       await expect(auth.getAddress()).rejects.toThrow(InvalidParameterError);
       await expect(auth.getAddress()).rejects.toThrow('Invalid private key');
     });

@@ -7,34 +7,52 @@
  *
  * This module provides:
  * - Input validation for mnemonic / private key credentials
- * - Stubbed address derivation that throws NotSupportedError after validation
- *   (proper BIP39 → HD key → bech32 derivation requires Cosmos SDK libraries
- *   that are not yet integrated — see TODOs in derive methods below)
+ * - Real Cosmos SDK address derivation (BIP39 → SLIP-10 → bech32 with "dydx"
+ *   prefix) using `@cosmjs/crypto` and `@cosmjs/amino`
  *
  * Account-scoped operations (fetchPositions, fetchBalance, fetchOpenOrders,
- * fetchOrderHistory, fetchMyTrades) are unavailable until proper Cosmos SDK
- * derivation is implemented (e.g., @cosmjs/crypto or @dydxprotocol/v4-client-js).
- * Public read-only operations (fetchMarkets, fetchTicker, fetchOrderBook,
- * fetchTrades) do not require an address and remain fully functional.
+ * fetchOrderHistory, fetchMyTrades) are now functional. Public read-only
+ * operations (fetchMarkets, fetchTicker, fetchOrderBook, fetchTrades) do not
+ * require an address and remain unaffected.
+ *
+ * Note: derivation runs in pure TypeScript (no native deps) — safe in any
+ * Node 18+ environment per ADR-0001.
  */
+
+import {
+  Bip39,
+  EnglishMnemonic,
+  Secp256k1,
+  Slip10,
+  Slip10Curve,
+  stringToPath,
+} from '@cosmjs/crypto';
+import { fromHex, toBase64 } from '@cosmjs/encoding';
+import { pubkeyToAddress } from '@cosmjs/amino';
 
 import type { AuthenticatedRequest, IAuthStrategy, RequestParams } from '../../types/index.js';
 import { DYDX_DEFAULT_SUBACCOUNT_NUMBER } from './constants.js';
 import {
   AuthenticationError,
-  NotSupportedError,
   InvalidParameterError,
   NetworkError,
   PerpDEXError,
 } from '../../types/errors.js';
 
 /**
+ * dYdX HD derivation path — Cosmos coin type 118, account 0, change 0, index 0.
+ * Both mainnet and testnet use the "dydx" bech32 prefix.
+ */
+const DYDX_HD_PATH = "m/44'/118'/0'/0/0";
+const DYDX_BECH32_PREFIX = 'dydx';
+
+/**
  * dYdX authentication configuration
  */
 export interface DydxAuthConfig {
-  /** Mnemonic phrase (24 words) */
+  /** Mnemonic phrase (12 or 24 words) */
   mnemonic?: string;
-  /** Private key (hex string) */
+  /** Private key (hex string, 64 chars, optional 0x prefix) */
   privateKey?: string;
   /** Subaccount number (default: 0) */
   subaccountNumber?: number;
@@ -49,9 +67,8 @@ export interface DydxAuthConfig {
  * Trading operations require the official @dydxprotocol/v4-client-js library
  * which handles Cosmos SDK transaction signing internally.
  *
- * This auth strategy validates credentials and tracks subaccount information,
- * but throws NotSupportedError for any operation that requires a derived address
- * until proper Cosmos SDK libraries are integrated.
+ * This auth strategy validates credentials, derives the dYdX bech32 address,
+ * and tracks subaccount information.
  *
  * @example
  * ```typescript
@@ -60,8 +77,7 @@ export interface DydxAuthConfig {
  *   subaccountNumber: 0,
  * });
  *
- * // Throws NotSupportedError until Cosmos SDK derivation is integrated
- * const address = await auth.getAddress();
+ * const address = await auth.getAddress(); // "dydx1..."
  * ```
  */
 export class DydxAuth implements IAuthStrategy {
@@ -84,17 +100,13 @@ export class DydxAuth implements IAuthStrategy {
   }
 
   /**
-   * Initialize the auth strategy by running input validation via derive methods.
+   * Initialize the auth strategy by deriving the dYdX address from the
+   * configured mnemonic or private key.
    *
-   * If input is invalid (wrong word count / wrong key length), throws
-   * InvalidParameterError immediately. If input passes validation, the derive
-   * methods throw NotSupportedError because real Cosmos SDK address derivation
-   * is not yet wired in — the failure is intentionally loud so callers know
-   * account-scoped operations are unavailable.
-   *
-   * PerpDEXError subclasses (InvalidParameterError, NotSupportedError, etc.)
-   * are re-thrown as-is so callers can distinguish error types. Unknown errors
-   * are wrapped in NetworkError.
+   * Bad input (wrong word count / wrong key length) yields
+   * InvalidParameterError. PerpDEXError subclasses are re-thrown unchanged so
+   * callers can distinguish error types. Unknown errors are wrapped in
+   * NetworkError.
    */
   private async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -106,7 +118,7 @@ export class DydxAuth implements IAuthStrategy {
       }
       this.initialized = true;
     } catch (error) {
-      // Re-throw known PerpDEX errors (InvalidParameterError, NotSupportedError, etc.) unchanged
+      // Re-throw known PerpDEX errors (InvalidParameterError, etc.) unchanged
       if (error instanceof PerpDEXError) throw error;
       // Wrap unexpected errors
       throw new NetworkError(
@@ -118,67 +130,72 @@ export class DydxAuth implements IAuthStrategy {
   }
 
   /**
-   * Validate mnemonic word count, then throw NotSupportedError.
+   * Derive the dYdX bech32 address from a BIP39 mnemonic.
    *
-   * Input validation runs first so callers receive InvalidParameterError for
-   * bad input. Once validation passes, NotSupportedError is thrown because
-   * proper BIP39 → HD key → bech32 derivation is not yet implemented.
-   *
-   * TODO: Replace with proper Cosmos address derivation:
-   *   1. `@cosmjs/crypto` — Bip39.decode(mnemonic) → seed
-   *   2. `@cosmjs/crypto` — Slip10.derivePath(Slip10Curve.Secp256k1, seed, stringToPath("m/44'/118'/0'/0/0"))
-   *   3. `@cosmjs/amino` — pubkeyToAddress(compressedPubkey, "dydx")
-   *   Or use `@dydxprotocol/v4-client-js` CompositeClient which handles this internally.
-   *
-   * Required packages: @cosmjs/amino, @cosmjs/crypto, @cosmjs/proto-signing
+   * Steps:
+   *   1. Validate word count (12 or 24)
+   *   2. BIP39 mnemonic → seed (`@cosmjs/crypto` `Bip39.mnemonicToSeed`)
+   *   3. SLIP-10 derive secp256k1 privkey at Cosmos path m/44'/118'/0'/0/0
+   *   4. secp256k1 keypair → compressed pubkey
+   *   5. bech32 encode with "dydx" prefix (`pubkeyToAddress`)
    */
   private async deriveAddressFromMnemonic(mnemonic: string): Promise<string> {
-    // Validate mnemonic has correct word count — throws InvalidParameterError for bad input
-    const words = mnemonic.trim().split(/\s+/);
+    const trimmed = mnemonic.trim();
+    const words = trimmed.split(/\s+/);
     if (words.length !== 24 && words.length !== 12) {
       throw new InvalidParameterError('Invalid mnemonic: must be 12 or 24 words', 'INVALID_PARAMETER', 'dydx');
     }
 
-    // Input is valid but Cosmos SDK derivation is not yet integrated — fail loudly
-    throw new NotSupportedError(
-      'dYdX address derivation requires Cosmos SDK libraries that are not yet integrated. ' +
-        'Account-scoped operations (fetchPositions, fetchBalance, fetchOpenOrders, ' +
-        'fetchOrderHistory, fetchMyTrades) are unavailable until proper derivation is ' +
-        'implemented (e.g., @cosmjs/crypto or @dydxprotocol/v4-client-js). Public ' +
-        'read-only operations (fetchMarkets, fetchTicker, fetchOrderBook, fetchTrades) remain available.',
-      'NOT_SUPPORTED',
-      'dydx'
-    );
+    try {
+      const seed = await Bip39.mnemonicToSeed(new EnglishMnemonic(trimmed));
+      const path = stringToPath(DYDX_HD_PATH);
+      const { privkey } = Slip10.derivePath(Slip10Curve.Secp256k1, seed, path);
+      const { pubkey } = await Secp256k1.makeKeypair(privkey);
+      const compressed = Secp256k1.compressPubkey(pubkey);
+      return pubkeyToAddress(
+        { type: 'tendermint/PubKeySecp256k1', value: toBase64(compressed) },
+        DYDX_BECH32_PREFIX
+      );
+    } catch (err) {
+      throw new InvalidParameterError(
+        `Failed to derive dYdX address from mnemonic: ${err instanceof Error ? err.message : String(err)}`,
+        'DERIVATION_FAILED',
+        'dydx'
+      );
+    }
   }
 
   /**
-   * Validate private key length, then throw NotSupportedError.
+   * Derive the dYdX bech32 address from a 32-byte secp256k1 private key.
    *
-   * Same validation-first pattern as deriveAddressFromMnemonic: bad key length
-   * yields InvalidParameterError; valid key yields NotSupportedError because
-   * real secp256k1 → ripemd160(sha256(pubkey)) → bech32 derivation is not yet
-   * implemented.
-   *
-   * TODO: Use @cosmjs/crypto Secp256k1.makeKeypair() + pubkeyToAddress()
+   * Steps:
+   *   1. Strip optional 0x prefix and validate length (64 hex chars)
+   *   2. Hex → 32-byte Uint8Array
+   *   3. secp256k1 keypair → compressed pubkey
+   *   4. bech32 encode with "dydx" prefix
    */
   private async deriveAddressFromPrivateKey(privateKey: string): Promise<string> {
-    // Remove 0x prefix if present
     const cleanKey = privateKey.startsWith('0x') ? privateKey.slice(2) : privateKey;
 
     if (cleanKey.length !== 64) {
       throw new InvalidParameterError('Invalid private key: must be 32 bytes (64 hex characters)', 'INVALID_PARAMETER', 'dydx');
     }
 
-    // Input is valid but Cosmos SDK derivation is not yet integrated — fail loudly
-    throw new NotSupportedError(
-      'dYdX address derivation requires Cosmos SDK libraries that are not yet integrated. ' +
-        'Account-scoped operations (fetchPositions, fetchBalance, fetchOpenOrders, ' +
-        'fetchOrderHistory, fetchMyTrades) are unavailable until proper derivation is ' +
-        'implemented (e.g., @cosmjs/crypto or @dydxprotocol/v4-client-js). Public ' +
-        'read-only operations (fetchMarkets, fetchTicker, fetchOrderBook, fetchTrades) remain available.',
-      'NOT_SUPPORTED',
-      'dydx'
-    );
+    try {
+      const privkeyBytes = fromHex(cleanKey);
+      const { pubkey } = await Secp256k1.makeKeypair(privkeyBytes);
+      const compressed = Secp256k1.compressPubkey(pubkey);
+      return pubkeyToAddress(
+        { type: 'tendermint/PubKeySecp256k1', value: toBase64(compressed) },
+        DYDX_BECH32_PREFIX
+      );
+    } catch (err) {
+      throw new InvalidParameterError(
+        `Failed to derive dYdX address from private key: ${err instanceof Error ? err.message : String(err)}`,
+        'DERIVATION_FAILED',
+        'dydx'
+      );
+    }
   }
 
   /**
@@ -186,10 +203,6 @@ export class DydxAuth implements IAuthStrategy {
    *
    * For dYdX Indexer API, most requests don't require signing.
    * Trading operations use the official SDK's internal signing.
-   *
-   * Note: sign() calls initialize() which throws NotSupportedError for valid
-   * credentials. This means sign() is currently only usable for read-only
-   * requests that do not need an address (getHeaders() alone suffices for those).
    */
   async sign(request: RequestParams): Promise<AuthenticatedRequest> {
     await this.initialize();
@@ -222,10 +235,9 @@ export class DydxAuth implements IAuthStrategy {
   }
 
   /**
-   * Get the dYdX address
+   * Get the dYdX bech32 address derived from the configured credentials.
    *
-   * @throws NotSupportedError until Cosmos SDK derivation is integrated
-   * @throws InvalidParameterError if credentials are malformed
+   * @throws InvalidParameterError if credentials are malformed or derivation fails
    */
   async getAddress(): Promise<string> {
     await this.initialize();
@@ -245,8 +257,6 @@ export class DydxAuth implements IAuthStrategy {
    * Get subaccount ID (address + subaccount number)
    *
    * dYdX uses the format: {address}/{subaccountNumber}
-   *
-   * @throws NotSupportedError until Cosmos SDK derivation is integrated
    */
   async getSubaccountId(): Promise<string> {
     const address = await this.getAddress();
@@ -256,9 +266,8 @@ export class DydxAuth implements IAuthStrategy {
   /**
    * Check if credentials are valid
    *
-   * Returns false when credentials are malformed (InvalidParameterError) or
-   * when derivation is unsupported (NotSupportedError). Returns false in both
-   * cases because neither yields a usable address.
+   * Returns true when an address can be derived from the configured
+   * credentials. Returns false for malformed input.
    */
   async verify(): Promise<boolean> {
     try {

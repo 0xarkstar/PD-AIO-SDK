@@ -21,7 +21,7 @@ export default {
     ],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(@noble|starknet|@scure|@paradex|uuid)/)',
+    'node_modules/(?!(@noble|starknet|@scure|@paradex|uuid|@cosmjs)/)',
   ],
   testMatch: [
     '**/tests/unit/**/*.test.ts',

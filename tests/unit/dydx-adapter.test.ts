@@ -3,7 +3,6 @@
  */
 
 import { DydxAdapter, type DydxConfig } from '../../src/adapters/dydx/DydxAdapter.js';
-import { NotSupportedError } from '../../src/types/errors.js';
 import { DydxNormalizer } from '../../src/adapters/dydx/DydxNormalizer.js';
 import {
   unifiedToDydx,
@@ -78,13 +77,13 @@ describe('DydxAdapter', () => {
       expect(adapter.has.cancelBatchOrders).toBe('emulated');
     });
 
-    test('does not support account data (Cosmos SDK not integrated)', () => {
-      // Account-scoped operations are disabled until proper Cosmos SDK address
-      // derivation is implemented — see DydxAuth.ts for details.
-      expect(adapter.has.fetchPositions).toBe(false);
-      expect(adapter.has.fetchBalance).toBe(false);
-      expect(adapter.has.fetchOrderHistory).toBe(false);
-      expect(adapter.has.fetchMyTrades).toBe(false);
+    test('supports account data (Cosmos SDK address derivation wired in)', () => {
+      // Account-scoped operations are enabled once @cosmjs derivation lands.
+      expect(adapter.has.fetchPositions).toBe(true);
+      expect(adapter.has.fetchBalance).toBe(true);
+      expect(adapter.has.fetchOrderHistory).toBe(true);
+      expect(adapter.has.fetchMyTrades).toBe(true);
+      expect(adapter.has.fetchOpenOrders).toBe(true);
     });
 
     test('does not support leverage/margin mode changes', () => {
@@ -207,13 +206,15 @@ describe('DydxAdapter', () => {
       expect(address).toBeUndefined();
     });
 
-    test('throws NotSupportedError when authenticated (Cosmos SDK not integrated)', async () => {
+    test('returns derived dYdX bech32 address when authenticated', async () => {
       const adapter = new DydxAdapter({
         mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
       });
 
-      // Address derivation requires Cosmos SDK libraries not yet integrated
-      await expect(adapter.getAddress()).rejects.toThrow(NotSupportedError);
+      const address = await adapter.getAddress();
+      // Pinned via scripts/_derive-dydx-test-vectors.ts (BIP39 → SLIP-10
+      // m/44'/118'/0'/0/0 → secp256k1 → bech32("dydx"))
+      expect(address).toBe('dydx19rl4cm2hmr8afy4kldpxz3fka4jguq0a4erelz');
     });
   });
 

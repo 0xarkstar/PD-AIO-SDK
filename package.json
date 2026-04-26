@@ -132,6 +132,7 @@
     "test:production:websocket": "tsx tests/production/websocket-stability.test.ts",
     "test:production:stress": "tsx tests/production/stress-test.ts",
     "check:api": "tsx scripts/check-api-compatibility.ts",
+    "check:pattern-a": "tsx scripts/check-pattern-a.ts",
     "gen:capability-matrix": "tsx scripts/generate-capability-matrix.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
@@ -180,6 +181,9 @@
   "author": "0xarkstar",
   "license": "MIT",
   "dependencies": {
+    "@cosmjs/amino": "^0.38.1",
+    "@cosmjs/crypto": "^0.38.1",
+    "@cosmjs/encoding": "^0.38.1",
     "@drift-labs/sdk": "^2.156.0",
     "@grvt/client": "^1.6.11",
     "@noble/ed25519": "^3.0.0",
