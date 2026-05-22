@@ -14,6 +14,12 @@ export interface KatanaAuthConfig {
     apiKey?: string;
     apiSecret?: string;
     wallet?: Wallet;
+    /**
+     * Wallet address (0x…) for read-only auth without exposing a private key.
+     * Used as the `wallet` query/body param on user-data endpoints.
+     * If `wallet` is provided, its `.address` takes precedence.
+     */
+    walletAddress?: string;
     testnet?: boolean;
 }
 /**
@@ -26,6 +32,7 @@ export declare class KatanaAuth implements IAuthStrategy {
     private readonly apiKey?;
     private readonly apiSecret?;
     private readonly wallet?;
+    private readonly walletAddress?;
     private readonly testnet;
     private _serverTimeOffset;
     constructor(config: KatanaAuthConfig);
@@ -61,14 +68,25 @@ export declare class KatanaAuth implements IAuthStrategy {
      */
     getServerTimeOffset(): number;
     /**
-     * Get wallet address
+     * Get wallet address. Prefers the ethers Wallet (trading-capable),
+     * falls back to the read-only `walletAddress` config field.
      */
     getAddress(): string | undefined;
     /**
-     * Sign a request with HMAC-SHA256 headers
+     * Sign a request with HMAC-SHA256 headers.
      *
-     * GET: HMAC of URL-encoded query string
-     * POST/DELETE: HMAC of JSON request body
+     * Auto-injects a UUID v1 nonce into the payload when missing — Katana requires
+     * `nonce` in the query string (GET) or JSON body (POST/DELETE), and the signature
+     * is computed over the payload *including* that nonce. Callers that already set
+     * `nonce` (e.g. write endpoints that pre-build EIP-712 signed bodies) are not
+     * overridden.
+     *
+     * GET: HMAC of URL-encoded query string (with injected nonce)
+     * POST/DELETE: HMAC of JSON request body (with injected nonce)
+     *
+     * @returns AuthenticatedRequest with updated `params`/`body` reflecting the
+     *   injected nonce; callers MUST use these for the actual HTTP request so the
+     *   wire payload matches the signed payload.
      */
     sign(request: RequestParams): Promise<AuthenticatedRequest>;
     /**

@@ -24,6 +24,12 @@ export interface KatanaAuthConfig {
   apiKey?: string;
   apiSecret?: string;
   wallet?: Wallet;
+  /**
+   * Wallet address (0x…) for read-only auth without exposing a private key.
+   * Used as the `wallet` query/body param on user-data endpoints.
+   * If `wallet` is provided, its `.address` takes precedence.
+   */
+  walletAddress?: string;
   testnet?: boolean;
 }
 
@@ -37,6 +43,7 @@ export class KatanaAuth implements IAuthStrategy {
   private readonly apiKey?: string;
   private readonly apiSecret?: string;
   private readonly wallet?: Wallet;
+  private readonly walletAddress?: string;
   private readonly testnet: boolean;
   private _serverTimeOffset: number = 0;
 
@@ -44,6 +51,7 @@ export class KatanaAuth implements IAuthStrategy {
     this.apiKey = config.apiKey;
     this.apiSecret = config.apiSecret;
     this.wallet = config.wallet;
+    this.walletAddress = config.walletAddress;
     this.testnet = config.testnet ?? false;
   }
 
@@ -106,22 +114,36 @@ export class KatanaAuth implements IAuthStrategy {
   }
 
   /**
-   * Get wallet address
+   * Get wallet address. Prefers the ethers Wallet (trading-capable),
+   * falls back to the read-only `walletAddress` config field.
    */
   getAddress(): string | undefined {
-    return this.wallet?.address;
+    return this.wallet?.address ?? this.walletAddress;
   }
 
   /**
-   * Sign a request with HMAC-SHA256 headers
+   * Sign a request with HMAC-SHA256 headers.
    *
-   * GET: HMAC of URL-encoded query string
-   * POST/DELETE: HMAC of JSON request body
+   * Auto-injects a UUID v1 nonce into the payload when missing — Katana requires
+   * `nonce` in the query string (GET) or JSON body (POST/DELETE), and the signature
+   * is computed over the payload *including* that nonce. Callers that already set
+   * `nonce` (e.g. write endpoints that pre-build EIP-712 signed bodies) are not
+   * overridden.
+   *
+   * GET: HMAC of URL-encoded query string (with injected nonce)
+   * POST/DELETE: HMAC of JSON request body (with injected nonce)
+   *
+   * @returns AuthenticatedRequest with updated `params`/`body` reflecting the
+   *   injected nonce; callers MUST use these for the actual HTTP request so the
+   *   wire payload matches the signed payload.
    */
   async sign(request: RequestParams): Promise<AuthenticatedRequest> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
+
+    let params = request.params;
+    let body = request.body;
 
     if (this.apiKey && this.apiSecret) {
       headers[KATANA_AUTH_HEADERS.apiKey] = this.apiKey;
@@ -130,11 +152,21 @@ export class KatanaAuth implements IAuthStrategy {
       let payload: string;
 
       if (method === 'GET') {
-        payload = request.params
-          ? new URLSearchParams(request.params as Record<string, string>).toString()
-          : '';
+        const merged: Record<string, string | number | boolean> = { ...(params ?? {}) };
+        if (merged['nonce'] === undefined) merged['nonce'] = this.generateNonce();
+        // Katana verifies the HMAC against the canonical (alphabetically-sorted) query
+        // string. We must both sign AND send in that order — see Findings:
+        // utf8 secret + `nonce=…&wallet=…` returns 200; `wallet=…&nonce=…` returns 401.
+        const sortedEntries = Object.entries(merged)
+          .map(([k, v]) => [k, String(v)] as const)
+          .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+        params = Object.fromEntries(sortedEntries);
+        payload = new URLSearchParams(sortedEntries.map(([k, v]) => [k, v])).toString();
       } else {
-        payload = request.body ? JSON.stringify(request.body) : '';
+        const mergedBody: Record<string, unknown> = { ...((body as Record<string, unknown>) ?? {}) };
+        if (mergedBody['nonce'] === undefined) mergedBody['nonce'] = this.generateNonce();
+        body = mergedBody;
+        payload = JSON.stringify(mergedBody);
       }
 
       const signature = await createHmacSha256(this.apiSecret, payload);
@@ -143,6 +175,8 @@ export class KatanaAuth implements IAuthStrategy {
 
     return {
       ...request,
+      params,
+      body,
       headers,
     };
   }

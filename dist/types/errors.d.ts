@@ -12,7 +12,7 @@ export declare class PerpDEXError extends Error {
     private readonly originalError?;
     /** Correlation ID for request tracing */
     correlationId?: string;
-    constructor(message: string, code: string, exchange: string, originalError?: unknown);
+    constructor(message: string, code: string, exchange: string, originalError?: unknown | undefined);
     /**
      * Set correlation ID for this error
      */

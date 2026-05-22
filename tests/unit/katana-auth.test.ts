@@ -207,6 +207,127 @@ describe('KatanaAuth', () => {
       expect(signed.headers).not.toHaveProperty(KATANA_AUTH_HEADERS.apiKey);
       expect(signed.headers).not.toHaveProperty(KATANA_AUTH_HEADERS.hmacSignature);
     });
+
+    test('GET auto-injects UUID v1 nonce into signed.params', async () => {
+      const request: RequestParams = { method: 'GET', path: '/v1/positions', params: { wallet: '0xabc' } };
+      const signed = await auth.sign(request);
+
+      expect(signed.params).toBeDefined();
+      const nonce = (signed.params as Record<string, string>)['nonce'];
+      expect(nonce).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-1[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
+      // Wallet param preserved
+      expect((signed.params as Record<string, string>)['wallet']).toBe('0xabc');
+    });
+
+    test('GET signed.params are alphabetically sorted (canonical form)', async () => {
+      // Katana verifies HMAC against the canonical (alphabetically-sorted) query.
+      // signed.params must reflect that order so the wire payload matches.
+      const request: RequestParams = {
+        method: 'GET',
+        path: '/v1/positions',
+        params: { wallet: '0xabc', market: 'BTC-USD' },
+      };
+      const signed = await auth.sign(request);
+      const keys = Object.keys(signed.params as Record<string, string>);
+      const sorted = [...keys].sort();
+      expect(keys).toEqual(sorted);
+      // And `nonce` should land before `wallet` (a→z)
+      expect(keys.indexOf('nonce')).toBeLessThan(keys.indexOf('wallet'));
+    });
+
+    test('GET with no params still injects nonce', async () => {
+      const request: RequestParams = { method: 'GET', path: '/v1/positions' };
+      const signed = await auth.sign(request);
+
+      expect(signed.params).toBeDefined();
+      const nonce = (signed.params as Record<string, string>)['nonce'];
+      expect(nonce).toMatch(/^[0-9a-f-]{36}$/i);
+    });
+
+    test('POST auto-injects nonce into signed.body', async () => {
+      const request: RequestParams = {
+        method: 'POST',
+        path: '/v1/orders',
+        body: { market: 'BTC-USD', quantity: '0.1' },
+      };
+      const signed = await auth.sign(request);
+
+      const body = signed.body as Record<string, unknown>;
+      expect(body['nonce']).toMatch(/^[0-9a-f-]{36}$/i);
+      expect(body['market']).toBe('BTC-USD');
+      expect(body['quantity']).toBe('0.1');
+    });
+
+    test('sign() does not overwrite an existing nonce', async () => {
+      const existing = 'preset-nonce-uuid';
+      const request: RequestParams = {
+        method: 'POST',
+        path: '/v1/orders',
+        body: { nonce: existing, market: 'BTC-USD' },
+      };
+      const signed = await auth.sign(request);
+
+      expect((signed.body as Record<string, unknown>)['nonce']).toBe(existing);
+    });
+
+    test('signature matches HMAC of the *signed* payload (incl. injected nonce)', async () => {
+      // Spy on generateNonce so we know what got injected
+      const fixedNonce = 'fixed-nonce-uuid';
+      const spy = jest.spyOn(auth, 'generateNonce').mockReturnValue(fixedNonce);
+      try {
+        const request: RequestParams = {
+          method: 'GET',
+          path: '/v1/positions',
+          params: { wallet: '0xabc' },
+        };
+        const signed = await auth.sign(request);
+
+        // Returned params include the fixed nonce
+        expect((signed.params as Record<string, string>)['nonce']).toBe(fixedNonce);
+        // Signature exists and is hex
+        expect(signed.headers![KATANA_AUTH_HEADERS.hmacSignature]).toMatch(/^[0-9a-f]+$/i);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    test('public sign (no credentials) does not inject nonce', async () => {
+      const publicAuth = new KatanaAuth({});
+      const request: RequestParams = { method: 'GET', path: '/v1/markets', params: { foo: 'bar' } };
+      const signed = await publicAuth.sign(request);
+
+      // No nonce injection without credentials — public endpoints don't need it
+      expect((signed.params as Record<string, string> | undefined)?.['nonce']).toBeUndefined();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 3b. Wallet address (read-only)
+  // ---------------------------------------------------------------------------
+
+  describe('walletAddress (read-only)', () => {
+    const ADDR = '0x1234567890123456789012345678901234567890';
+
+    test('getAddress() returns walletAddress when no Wallet is provided', () => {
+      const auth = new KatanaAuth({
+        apiKey: TEST_API_KEY,
+        apiSecret: TEST_API_SECRET,
+        walletAddress: ADDR,
+      });
+      expect(auth.getAddress()).toBe(ADDR);
+    });
+
+    test('Wallet takes precedence over walletAddress', () => {
+      const auth = new KatanaAuth({ wallet, walletAddress: ADDR });
+      expect(auth.getAddress()).toBe(wallet.address);
+    });
+
+    test('getAddress() returns undefined when neither is set', () => {
+      const auth = new KatanaAuth({ apiKey: TEST_API_KEY, apiSecret: TEST_API_SECRET });
+      expect(auth.getAddress()).toBeUndefined();
+    });
   });
 
   // ---------------------------------------------------------------------------

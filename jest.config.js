@@ -21,7 +21,10 @@ export default {
     ],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(@noble|starknet|@scure|@paradex|uuid|@cosmjs)/)',
+    // Allow ESM-only deps to be transformed by Jest, accounting for pnpm's
+    // `.pnpm/<pkg>@<ver>/node_modules/<pkg>` hoist layout (the literal
+    // `.pnpm/` prefix is optional).
+    'node_modules/(?!(?:\\.pnpm/)?(@noble|starknet|@scure|@paradex|uuid|@cosmjs))',
   ],
   testMatch: [
     '**/tests/unit/**/*.test.ts',

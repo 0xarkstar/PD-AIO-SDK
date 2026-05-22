@@ -61297,12 +61297,14 @@ var init_KatanaAuth = __esm({
       apiKey;
       apiSecret;
       wallet;
+      walletAddress;
       testnet;
       _serverTimeOffset = 0;
       constructor(config) {
         this.apiKey = config.apiKey;
         this.apiSecret = config.apiSecret;
         this.wallet = config.wallet;
+        this.walletAddress = config.walletAddress;
         this.testnet = config.testnet ?? false;
       }
       /**
@@ -61355,35 +61357,66 @@ var init_KatanaAuth = __esm({
         return this._serverTimeOffset;
       }
       /**
-       * Get wallet address
+       * Get wallet address. Prefers the ethers Wallet (trading-capable),
+       * falls back to the read-only `walletAddress` config field.
        */
       getAddress() {
-        return this.wallet?.address;
+        return this.wallet?.address ?? this.walletAddress;
       }
       /**
-       * Sign a request with HMAC-SHA256 headers
+       * Sign a request with HMAC-SHA256 headers.
        *
-       * GET: HMAC of URL-encoded query string
-       * POST/DELETE: HMAC of JSON request body
+       * Auto-injects a UUID v1 nonce into the payload when missing — Katana requires
+       * `nonce` in the query string (GET) or JSON body (POST/DELETE), and the signature
+       * is computed over the payload *including* that nonce. Callers that already set
+       * `nonce` (e.g. write endpoints that pre-build EIP-712 signed bodies) are not
+       * overridden.
+       *
+       * GET: HMAC of URL-encoded query string (with injected nonce)
+       * POST/DELETE: HMAC of JSON request body (with injected nonce)
+       *
+       * @returns AuthenticatedRequest with updated `params`/`body` reflecting the
+       *   injected nonce; callers MUST use these for the actual HTTP request so the
+       *   wire payload matches the signed payload.
        */
       async sign(request) {
         const headers = {
           "Content-Type": "application/json"
         };
+        let params = request.params;
+        let body = request.body;
         if (this.apiKey && this.apiSecret) {
           headers[KATANA_AUTH_HEADERS.apiKey] = this.apiKey;
           const method = request.method.toUpperCase();
           let payload;
           if (method === "GET") {
-            payload = request.params ? new URLSearchParams(request.params).toString() : "";
+            const merged = { ...params ?? {} };
+            if (merged["nonce"] === void 0) merged["nonce"] = this.generateNonce();
+            const sortedEntries = Object.entries(merged).map(([k, v]) => [k, String(v)]).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
+            params = Object.fromEntries(sortedEntries);
+            payload = new URLSearchParams(sortedEntries.map(([k, v]) => [k, v])).toString();
           } else {
-            payload = request.body ? JSON.stringify(request.body) : "";
+            const mergedBody = { ...body ?? {} };
+            if (mergedBody["nonce"] === void 0) mergedBody["nonce"] = this.generateNonce();
+            body = mergedBody;
+            payload = JSON.stringify(mergedBody);
           }
           const signature = await createHmacSha256(this.apiSecret, payload);
           headers[KATANA_AUTH_HEADERS.hmacSignature] = signature;
+          if (process.env.KATANA_DEBUG === "1") {
+            console.error("[katana-debug]", {
+              method,
+              path: request.path,
+              payload,
+              signature,
+              apiKey: this.apiKey?.slice(0, 8) + "\u2026"
+            });
+          }
         }
         return {
           ...request,
+          params,
+          body,
           headers
         };
       }
@@ -62037,9 +62070,13 @@ var init_KatanaAdapter = __esm({
       }
       async privateGet(path, query) {
         try {
-          const fullPath = this.buildPath(path, query);
-          const request = { method: "GET", path, query };
+          const request = {
+            method: "GET",
+            path,
+            params: query
+          };
           const signed = await this.auth.sign(request);
+          const fullPath = this.buildPath(path, signed.params);
           return await this.http.get(fullPath, { headers: signed.headers });
         } catch (error) {
           throw mapError8(error);
@@ -62049,7 +62086,10 @@ var init_KatanaAdapter = __esm({
         try {
           const request = { method: "POST", path, body };
           const signed = await this.auth.sign(request);
-          return await this.http.post(path, { headers: signed.headers, body });
+          return await this.http.post(path, {
+            headers: signed.headers,
+            body: signed.body
+          });
         } catch (error) {
           throw mapError8(error);
         }
@@ -62058,7 +62098,10 @@ var init_KatanaAdapter = __esm({
         try {
           const request = { method: "DELETE", path, body };
           const signed = await this.auth.sign(request);
-          return await this.http.delete(path, { headers: signed.headers, body });
+          return await this.http.delete(path, {
+            headers: signed.headers,
+            body: signed.body
+          });
         } catch (error) {
           throw mapError8(error);
         }

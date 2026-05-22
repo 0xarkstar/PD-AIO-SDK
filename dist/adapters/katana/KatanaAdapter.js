@@ -292,10 +292,19 @@ export class KatanaAdapter extends BaseAdapter {
     async fetchBalance() {
         this.auth.requireAuth();
         await this.rateLimiter.acquire('fetchBalance');
+        // /v1/wallets returns an ARRAY of wallet records. Pick the one matching our
+        // configured address (or the first if there is only one).
+        const walletAddress = this.auth.getAddress();
         const raw = await this.privateGet('/wallets', {
-            wallet: this.auth.getAddress(),
+            wallet: walletAddress,
         });
-        return [normalizeBalance(raw)];
+        const list = Array.isArray(raw) ? raw : [raw];
+        if (list.length === 0)
+            return [];
+        const matching = walletAddress && list.length > 1
+            ? (list.find((w) => w.wallet?.toLowerCase() === walletAddress.toLowerCase()) ?? list[0])
+            : list[0];
+        return [normalizeBalance(matching)];
     }
     async _setLeverage(symbol, leverage) {
         this.auth.requireAuth();
@@ -340,9 +349,15 @@ export class KatanaAdapter extends BaseAdapter {
     }
     async privateGet(path, query) {
         try {
-            const fullPath = this.buildPath(path, query);
-            const request = { method: 'GET', path, query: query };
+            const request = {
+                method: 'GET',
+                path,
+                params: query,
+            };
             const signed = await this.auth.sign(request);
+            // sign() injects nonce into params — rebuild the URL from signed.params
+            // so the wire payload matches the signed payload exactly.
+            const fullPath = this.buildPath(path, signed.params);
             return await this.http.get(fullPath, { headers: signed.headers });
         }
         catch (error) {
@@ -353,7 +368,10 @@ export class KatanaAdapter extends BaseAdapter {
         try {
             const request = { method: 'POST', path, body };
             const signed = await this.auth.sign(request);
-            return await this.http.post(path, { headers: signed.headers, body });
+            return await this.http.post(path, {
+                headers: signed.headers,
+                body: signed.body,
+            });
         }
         catch (error) {
             throw mapError(error);
@@ -363,7 +381,10 @@ export class KatanaAdapter extends BaseAdapter {
         try {
             const request = { method: 'DELETE', path, body };
             const signed = await this.auth.sign(request);
-            return await this.http.delete(path, { headers: signed.headers, body });
+            return await this.http.delete(path, {
+                headers: signed.headers,
+                body: signed.body,
+            });
         }
         catch (error) {
             throw mapError(error);

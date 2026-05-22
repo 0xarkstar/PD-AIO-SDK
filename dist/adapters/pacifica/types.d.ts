@@ -146,16 +146,10 @@ export declare const PacificaApiResponseSchema: <T extends z.ZodTypeAny>(dataSch
 }, "strip", z.ZodTypeAny, z.objectUtil.addQuestionMarks<z.baseObjectOutputType<{
     success: z.ZodBoolean;
     data: T;
-}>, any> extends infer T_1 ? { [k in keyof T_1]: z.objectUtil.addQuestionMarks<z.baseObjectOutputType<{
+}>, any> extends infer T_1 ? { [k in keyof T_1]: T_1[k]; } : never, z.baseObjectInputType<{
     success: z.ZodBoolean;
     data: T;
-}>, any>[k]; } : never, z.baseObjectInputType<{
-    success: z.ZodBoolean;
-    data: T;
-}> extends infer T_2 ? { [k_1 in keyof T_2]: z.baseObjectInputType<{
-    success: z.ZodBoolean;
-    data: T;
-}>[k_1]; } : never>;
+}> extends infer T_2 ? { [k_1 in keyof T_2]: T_2[k_1]; } : never>;
 export declare const PacificaMarketSchema: z.ZodObject<{
     symbol: z.ZodString;
     tick_size: z.ZodString;

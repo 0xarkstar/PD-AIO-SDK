@@ -17,12 +17,14 @@ export class KatanaAuth {
     apiKey;
     apiSecret;
     wallet;
+    walletAddress;
     testnet;
     _serverTimeOffset = 0;
     constructor(config) {
         this.apiKey = config.apiKey;
         this.apiSecret = config.apiSecret;
         this.wallet = config.wallet;
+        this.walletAddress = config.walletAddress;
         this.testnet = config.testnet ?? false;
     }
     /**
@@ -77,38 +79,65 @@ export class KatanaAuth {
         return this._serverTimeOffset;
     }
     /**
-     * Get wallet address
+     * Get wallet address. Prefers the ethers Wallet (trading-capable),
+     * falls back to the read-only `walletAddress` config field.
      */
     getAddress() {
-        return this.wallet?.address;
+        return this.wallet?.address ?? this.walletAddress;
     }
     /**
-     * Sign a request with HMAC-SHA256 headers
+     * Sign a request with HMAC-SHA256 headers.
      *
-     * GET: HMAC of URL-encoded query string
-     * POST/DELETE: HMAC of JSON request body
+     * Auto-injects a UUID v1 nonce into the payload when missing — Katana requires
+     * `nonce` in the query string (GET) or JSON body (POST/DELETE), and the signature
+     * is computed over the payload *including* that nonce. Callers that already set
+     * `nonce` (e.g. write endpoints that pre-build EIP-712 signed bodies) are not
+     * overridden.
+     *
+     * GET: HMAC of URL-encoded query string (with injected nonce)
+     * POST/DELETE: HMAC of JSON request body (with injected nonce)
+     *
+     * @returns AuthenticatedRequest with updated `params`/`body` reflecting the
+     *   injected nonce; callers MUST use these for the actual HTTP request so the
+     *   wire payload matches the signed payload.
      */
     async sign(request) {
         const headers = {
             'Content-Type': 'application/json',
         };
+        let params = request.params;
+        let body = request.body;
         if (this.apiKey && this.apiSecret) {
             headers[KATANA_AUTH_HEADERS.apiKey] = this.apiKey;
             const method = request.method.toUpperCase();
             let payload;
             if (method === 'GET') {
-                payload = request.params
-                    ? new URLSearchParams(request.params).toString()
-                    : '';
+                const merged = { ...(params ?? {}) };
+                if (merged['nonce'] === undefined)
+                    merged['nonce'] = this.generateNonce();
+                // Katana verifies the HMAC against the canonical (alphabetically-sorted) query
+                // string. We must both sign AND send in that order — see Findings:
+                // utf8 secret + `nonce=…&wallet=…` returns 200; `wallet=…&nonce=…` returns 401.
+                const sortedEntries = Object.entries(merged)
+                    .map(([k, v]) => [k, String(v)])
+                    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+                params = Object.fromEntries(sortedEntries);
+                payload = new URLSearchParams(sortedEntries.map(([k, v]) => [k, v])).toString();
             }
             else {
-                payload = request.body ? JSON.stringify(request.body) : '';
+                const mergedBody = { ...(body ?? {}) };
+                if (mergedBody['nonce'] === undefined)
+                    mergedBody['nonce'] = this.generateNonce();
+                body = mergedBody;
+                payload = JSON.stringify(mergedBody);
             }
             const signature = await createHmacSha256(this.apiSecret, payload);
             headers[KATANA_AUTH_HEADERS.hmacSignature] = signature;
         }
         return {
             ...request,
+            params,
+            body,
             headers,
         };
     }

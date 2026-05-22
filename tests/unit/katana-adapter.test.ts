@@ -37,7 +37,14 @@ function stubAuth(adapter: KatanaAdapter, overrides: Record<string, unknown> = {
     generateNonce: jest.fn().mockReturnValue('test-nonce-uuid'),
     signOrder: jest.fn().mockResolvedValue('0xSIGNATURE'),
     signCancel: jest.fn().mockResolvedValue('0xCANCEL_SIG'),
-    sign: jest.fn().mockResolvedValue({ headers: { 'KP-API-KEY': 'key', 'KP-HMAC-SIGNATURE': 'sig' } }),
+    // Pass-through sign mock: mirrors the real KatanaAuth contract where the
+    // returned request carries the (possibly-mutated) params/body that the caller
+    // must send on the wire.
+    sign: jest.fn().mockImplementation(async (req: { params?: unknown; body?: unknown }) => ({
+      params: req.params,
+      body: req.body,
+      headers: { 'KP-API-KEY': 'key', 'KP-HMAC-SIGNATURE': 'sig' },
+    })),
     setServerTimeOffset: jest.fn(),
     ...overrides,
   };

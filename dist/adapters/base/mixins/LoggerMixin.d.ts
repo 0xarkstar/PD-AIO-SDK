@@ -45,7 +45,7 @@ export declare function LoggerMixin<T extends Constructor<ILoggerMixinBase>>(Bas
          * Get logger instance (lazy initialization with adapter name as context)
          * @internal
          */
-        readonly logger: Logger;
+        get logger(): Logger;
         /**
          * Log debug message
          * @internal

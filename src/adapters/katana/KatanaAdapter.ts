@@ -420,10 +420,21 @@ export class KatanaAdapter extends BaseAdapter {
     this.auth.requireAuth();
     await this.rateLimiter.acquire('fetchBalance');
 
-    const raw = await this.privateGet<KatanaWallet>('/wallets', {
-      wallet: this.auth.getAddress(),
+    // /v1/wallets returns an ARRAY of wallet records. Pick the one matching our
+    // configured address (or the first if there is only one).
+    const walletAddress = this.auth.getAddress();
+    const raw = await this.privateGet<KatanaWallet | KatanaWallet[]>('/wallets', {
+      wallet: walletAddress,
     });
-    return [normalizeBalance(raw)];
+    const list = Array.isArray(raw) ? raw : [raw];
+    if (list.length === 0) return [];
+    const matching =
+      walletAddress && list.length > 1
+        ? (list.find(
+            (w) => (w as { wallet?: string }).wallet?.toLowerCase() === walletAddress.toLowerCase(),
+          ) ?? list[0]!)
+        : list[0]!;
+    return [normalizeBalance(matching)];
   }
 
   async _setLeverage(symbol: string, leverage: number): Promise<void> {
@@ -478,9 +489,15 @@ export class KatanaAdapter extends BaseAdapter {
 
   private async privateGet<T>(path: string, query?: Record<string, unknown>): Promise<T> {
     try {
-      const fullPath = this.buildPath(path, query);
-      const request = { method: 'GET' as const, path, query: query as Record<string, string> };
+      const request = {
+        method: 'GET' as const,
+        path,
+        params: query as Record<string, string | number | boolean> | undefined,
+      };
       const signed = await this.auth.sign(request);
+      // sign() injects nonce into params — rebuild the URL from signed.params
+      // so the wire payload matches the signed payload exactly.
+      const fullPath = this.buildPath(path, signed.params);
       return await this.http.get<T>(fullPath, { headers: signed.headers });
     } catch (error) {
       throw mapError(error);
@@ -491,7 +508,10 @@ export class KatanaAdapter extends BaseAdapter {
     try {
       const request = { method: 'POST' as const, path, body };
       const signed = await this.auth.sign(request);
-      return await this.http.post<T>(path, { headers: signed.headers, body });
+      return await this.http.post<T>(path, {
+        headers: signed.headers,
+        body: signed.body as Record<string, unknown>,
+      });
     } catch (error) {
       throw mapError(error);
     }
@@ -501,7 +521,10 @@ export class KatanaAdapter extends BaseAdapter {
     try {
       const request = { method: 'DELETE' as const, path, body };
       const signed = await this.auth.sign(request);
-      return await this.http.delete<T>(path, { headers: signed.headers, body });
+      return await this.http.delete<T>(path, {
+        headers: signed.headers,
+        body: signed.body as Record<string, unknown>,
+      });
     } catch (error) {
       throw mapError(error);
     }
