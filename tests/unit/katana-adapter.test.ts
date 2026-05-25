@@ -5,19 +5,15 @@
  * HTTPClient and auth are replaced with jest mocks after construction.
  */
 
+import { jest } from '@jest/globals';
 import { KatanaAdapter } from '../../src/adapters/katana/KatanaAdapter.js';
 import { PerpDEXError } from '../../src/types/errors.js';
 import { nonceToUint128 } from '../../src/adapters/katana/utils.js';
 
-// Mock HTTPClient to prevent real network calls
-jest.mock('../../src/core/http/HTTPClient.js', () => ({
-  HTTPClient: jest.fn().mockImplementation(() => ({
-    get: jest.fn(),
-    post: jest.fn(),
-    put: jest.fn(),
-    delete: jest.fn(),
-  })),
-}));
+// NOTE: `jest.mock()` of a local ES module does NOT take effect under this
+// repo's `--experimental-vm-modules` config, so we inject the HTTPClient fake
+// via the adapter's private field after construction (same pattern as the
+// rateLimiter/auth stubs below and the GRVT integration tests).
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -25,6 +21,13 @@ jest.mock('../../src/core/http/HTTPClient.js', () => ({
 
 function makeAdapter(config: Record<string, unknown> = {}): KatanaAdapter {
   const adapter = new KatanaAdapter(config as any);
+  // Replace the real HTTPClient with jest-mock methods (ESM-safe injection).
+  (adapter as any).http = {
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
+  };
   // Bypass real rate-limiter so tests are synchronous
   (adapter as any).rateLimiter = {
     acquire: jest.fn().mockResolvedValue(undefined),
