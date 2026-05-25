@@ -7,6 +7,7 @@
 
 import { KatanaAdapter } from '../../src/adapters/katana/KatanaAdapter.js';
 import { PerpDEXError } from '../../src/types/errors.js';
+import { nonceToUint128 } from '../../src/adapters/katana/utils.js';
 
 // Mock HTTPClient to prevent real network calls
 jest.mock('../../src/core/http/HTTPClient.js', () => ({
@@ -25,7 +26,10 @@ jest.mock('../../src/core/http/HTTPClient.js', () => ({
 function makeAdapter(config: Record<string, unknown> = {}): KatanaAdapter {
   const adapter = new KatanaAdapter(config as any);
   // Bypass real rate-limiter so tests are synchronous
-  (adapter as any).rateLimiter = { acquire: jest.fn().mockResolvedValue(undefined), destroy: jest.fn() };
+  (adapter as any).rateLimiter = {
+    acquire: jest.fn().mockResolvedValue(undefined),
+    destroy: jest.fn(),
+  };
   return adapter;
 }
 
@@ -34,7 +38,8 @@ function stubAuth(adapter: KatanaAdapter, overrides: Record<string, unknown> = {
     requireAuth: jest.fn(),
     requireWallet: jest.fn(),
     getAddress: jest.fn().mockReturnValue('0xWALLET'),
-    generateNonce: jest.fn().mockReturnValue('test-nonce-uuid'),
+    // UUID-v1-shaped so nonceToUint128() (used by createOrder) can parse it.
+    generateNonce: jest.fn().mockReturnValue('6ba7b810-9dad-11d1-80b4-00c04fd430c8'),
     signOrder: jest.fn().mockResolvedValue('0xSIGNATURE'),
     signCancel: jest.fn().mockResolvedValue('0xCANCEL_SIG'),
     // Pass-through sign mock: mirrors the real KatanaAuth contract where the
@@ -50,7 +55,9 @@ function stubAuth(adapter: KatanaAdapter, overrides: Record<string, unknown> = {
   };
 }
 
-function getHttp(adapter: KatanaAdapter): jest.Mocked<{ get: jest.Mock; post: jest.Mock; delete: jest.Mock }> {
+function getHttp(
+  adapter: KatanaAdapter
+): jest.Mocked<{ get: jest.Mock; post: jest.Mock; delete: jest.Mock }> {
   return (adapter as any).http;
 }
 
@@ -126,8 +133,14 @@ function mockTicker(overrides: Record<string, unknown> = {}) {
 function mockOrderBook(overrides: Record<string, unknown> = {}) {
   return {
     sequence: 1,
-    bids: [['49999.00000000', '1.00000000', 3], ['49998.00000000', '2.00000000', 5]],
-    asks: [['50001.00000000', '0.50000000', 2], ['50002.00000000', '1.50000000', 4]],
+    bids: [
+      ['49999.00000000', '1.00000000', 3],
+      ['49998.00000000', '2.00000000', 5],
+    ],
+    asks: [
+      ['50001.00000000', '0.50000000', 2],
+      ['50002.00000000', '1.50000000', 4],
+    ],
     lastPrice: '50000.00000000',
     markPrice: '50000.00000000',
     indexPrice: '50000.00000000',
@@ -299,7 +312,10 @@ describe('KatanaAdapter', () => {
     test('returns normalized markets and caches them', async () => {
       const adapter = makeAdapter();
       const http = getHttp(adapter);
-      http.get.mockResolvedValue([mockMarket(), mockMarket({ market: 'ETH-USD', baseAsset: 'ETH' })]);
+      http.get.mockResolvedValue([
+        mockMarket(),
+        mockMarket({ market: 'ETH-USD', baseAsset: 'ETH' }),
+      ]);
 
       const markets = await adapter.fetchMarkets();
 
@@ -433,9 +449,7 @@ describe('KatanaAdapter', () => {
 
       await adapter.fetchFundingRateHistory('BTC/USD:USD', NOW - 86400000, 10);
 
-      expect(http.get).toHaveBeenCalledWith(
-        expect.stringContaining('start='),
-      );
+      expect(http.get).toHaveBeenCalledWith(expect.stringContaining('start='));
     });
   });
 
@@ -461,9 +475,93 @@ describe('KatanaAdapter', () => {
       expect((adapter as any).auth.signOrder).toHaveBeenCalledTimes(1);
       expect(http.post).toHaveBeenCalledWith(
         '/orders',
-        expect.objectContaining({ body: expect.objectContaining({ signature: '0xSIGNATURE' }) }),
+        expect.objectContaining({ body: expect.objectContaining({ signature: '0xSIGNATURE' }) })
       );
       expect(order.id).toBe('order-001');
+    });
+
+    test('wire body uses human-string fields; EIP-712 payload uses struct field names + uint128 nonce', async () => {
+      // This test explicitly asserts the TWO representations diverge correctly:
+      //   EIP-712 typed-data (what gets signed) → marketSymbol / orderType uint8 / orderSide uint8 / nonce uint128 bigint
+      //   HTTP wire body (what gets POSTed)     → market / type string / side string / nonce UUID string
+      const adapter = makeAdapter();
+      stubAuth(adapter);
+      const http = getHttp(adapter);
+      http.post.mockResolvedValue(mockOrder());
+
+      const fixedNonce = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+      (adapter as any).auth.generateNonce = jest.fn().mockReturnValue(fixedNonce);
+
+      await adapter.createOrder({
+        symbol: 'BTC/USD:USD',
+        side: 'buy',
+        type: 'limit',
+        amount: 0.1,
+        price: 50000,
+      });
+
+      // --- EIP-712 signed payload (captured via signOrder spy) ---
+      const signedPayload = (adapter as any).auth.signOrder.mock.calls[0][0];
+      expect(signedPayload.marketSymbol).toBe('BTC-USD'); // struct field name
+      expect(signedPayload.orderType).toBe(1); // uint8: limit = 1
+      expect(signedPayload.orderSide).toBe(0); // uint8: buy = 0
+      expect(typeof signedPayload.nonce).toBe('bigint'); // uint128 as bigint
+      expect(signedPayload.nonce).toBe(nonceToUint128(fixedNonce));
+      expect(signedPayload.conditionalOrderId).toBe(0n); // uint128 bigint
+
+      // --- HTTP wire body (captured via http.post spy) ---
+      const wireBody = http.post.mock.calls[0][1].body as Record<string, unknown>;
+      expect(wireBody['market']).toBe('BTC-USD'); // human field name
+      expect(wireBody['type']).toBe('limit'); // human string, NOT 1
+      expect(wireBody['side']).toBe('buy'); // human string, NOT 0
+      expect(wireBody['nonce']).toBe(fixedNonce); // UUID string, NOT uint128
+      expect(wireBody['timeInForce']).toBe('gtc'); // human string
+      expect(wireBody['selfTradePrevention']).toBe('dc'); // human string
+      expect(wireBody['price']).toBe('50000.00000000'); // limit price present
+      expect(wireBody['signature']).toBe('0xSIGNATURE');
+
+      // Fields that exist only in signed payload must NOT appear in wire body
+      expect(wireBody['marketSymbol']).toBeUndefined();
+      expect(wireBody['orderType']).toBeUndefined();
+      expect(wireBody['orderSide']).toBeUndefined();
+    });
+
+    test('wire body omits price for market orders', async () => {
+      const adapter = makeAdapter();
+      stubAuth(adapter);
+      const http = getHttp(adapter);
+      http.post.mockResolvedValue(mockOrder());
+
+      await adapter.createOrder({
+        symbol: 'ETH/USD:USD',
+        side: 'sell',
+        type: 'market',
+        amount: 1,
+      });
+
+      const wireBody = http.post.mock.calls[0][1].body as Record<string, unknown>;
+      expect(wireBody['type']).toBe('market');
+      expect(wireBody['side']).toBe('sell');
+      expect(wireBody['price']).toBeUndefined();
+    });
+
+    test('wire body timeInForce is gtx for postOnly limit orders', async () => {
+      const adapter = makeAdapter();
+      stubAuth(adapter);
+      const http = getHttp(adapter);
+      http.post.mockResolvedValue(mockOrder());
+
+      await adapter.createOrder({
+        symbol: 'BTC/USD:USD',
+        side: 'buy',
+        type: 'limit',
+        amount: 0.1,
+        price: 50000,
+        postOnly: true,
+      });
+
+      const wireBody = http.post.mock.calls[0][1].body as Record<string, unknown>;
+      expect(wireBody['timeInForce']).toBe('gtx');
     });
   });
 
@@ -479,7 +577,9 @@ describe('KatanaAdapter', () => {
       expect((adapter as any).auth.signCancel).toHaveBeenCalledTimes(1);
       expect(http.delete).toHaveBeenCalledWith(
         '/orders',
-        expect.objectContaining({ body: expect.objectContaining({ orderId: 'order-001', signature: '0xCANCEL_SIG' }) }),
+        expect.objectContaining({
+          body: expect.objectContaining({ orderId: 'order-001', signature: '0xCANCEL_SIG' }),
+        })
       );
       expect(order.id).toBe('order-001');
     });
@@ -490,7 +590,10 @@ describe('KatanaAdapter', () => {
       const adapter = makeAdapter();
       stubAuth(adapter);
       const http = getHttp(adapter);
-      http.delete.mockResolvedValue([mockOrder({ state: 'canceled' }), mockOrder({ orderId: 'order-002', state: 'canceled' })]);
+      http.delete.mockResolvedValue([
+        mockOrder({ state: 'canceled' }),
+        mockOrder({ orderId: 'order-002', state: 'canceled' }),
+      ]);
 
       const orders = await adapter.cancelAllOrders();
 
@@ -510,11 +613,11 @@ describe('KatanaAdapter', () => {
 
       expect(http.get).toHaveBeenCalledWith(
         expect.stringContaining('status=open'),
-        expect.any(Object),
+        expect.any(Object)
       );
       expect(http.get).toHaveBeenCalledWith(
         expect.stringContaining('wallet=0xWALLET'),
-        expect.any(Object),
+        expect.any(Object)
       );
       expect(orders).toHaveLength(1);
     });
@@ -529,13 +632,10 @@ describe('KatanaAdapter', () => {
 
       await adapter.fetchOrderHistory('BTC/USD:USD', NOW - 86400000, 25);
 
-      expect(http.get).toHaveBeenCalledWith(
-        expect.stringContaining('start='),
-        expect.any(Object),
-      );
+      expect(http.get).toHaveBeenCalledWith(expect.stringContaining('start='), expect.any(Object));
       expect(http.get).toHaveBeenCalledWith(
         expect.stringContaining('limit=25'),
-        expect.any(Object),
+        expect.any(Object)
       );
     });
   });
@@ -549,10 +649,7 @@ describe('KatanaAdapter', () => {
 
       const trades = await adapter.fetchMyTrades('BTC/USD:USD');
 
-      expect(http.get).toHaveBeenCalledWith(
-        expect.stringContaining('/fills'),
-        expect.any(Object),
-      );
+      expect(http.get).toHaveBeenCalledWith(expect.stringContaining('/fills'), expect.any(Object));
       expect(trades).toHaveLength(2);
       expect(trades[0]!.symbol).toBe('BTC/USD:USD');
     });
@@ -567,7 +664,10 @@ describe('KatanaAdapter', () => {
       const adapter = makeAdapter();
       stubAuth(adapter);
       const http = getHttp(adapter);
-      http.get.mockResolvedValue([mockPosition(), mockPosition({ market: 'ETH-USD', quantity: '10.00000000' })]);
+      http.get.mockResolvedValue([
+        mockPosition(),
+        mockPosition({ market: 'ETH-USD', quantity: '10.00000000' }),
+      ]);
 
       const positions = await adapter.fetchPositions();
 
@@ -580,7 +680,10 @@ describe('KatanaAdapter', () => {
       const adapter = makeAdapter();
       stubAuth(adapter);
       const http = getHttp(adapter);
-      http.get.mockResolvedValue([mockPosition(), mockPosition({ market: 'ETH-USD', quantity: '10.00000000' })]);
+      http.get.mockResolvedValue([
+        mockPosition(),
+        mockPosition({ market: 'ETH-USD', quantity: '10.00000000' }),
+      ]);
 
       const positions = await adapter.fetchPositions(['BTC/USD:USD']);
 
@@ -623,7 +726,7 @@ describe('KatanaAdapter', () => {
             // 1/20 = 0.05 formatted as 8-decimal string
             initialMarginFraction: '0.05000000',
           }),
-        }),
+        })
       );
     });
   });
@@ -646,7 +749,7 @@ describe('KatanaAdapter', () => {
         '/wallets/0xWALLET',
         expect.objectContaining({
           body: expect.objectContaining({ wallet: '0xWALLET', signature: '0xCANCEL_SIG' }),
-        }),
+        })
       );
     });
 

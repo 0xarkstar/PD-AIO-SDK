@@ -17,6 +17,7 @@ import {
   normalizeTicker,
   normalizeFundingRate,
   convertOrderRequest,
+  nonceToUint128,
   mapError,
 } from '../../src/adapters/katana/utils.js';
 import type {
@@ -30,7 +31,11 @@ import type {
   KatanaTicker,
   KatanaFundingRate,
 } from '../../src/adapters/katana/types.js';
-import { KATANA_FUNDING_INTERVAL_HOURS, KATANA_NULL_ADDRESS, KATANA_ZERO_DECIMAL } from '../../src/adapters/katana/constants.js';
+import {
+  KATANA_FUNDING_INTERVAL_HOURS,
+  KATANA_NULL_ADDRESS,
+  KATANA_ZERO_DECIMAL,
+} from '../../src/adapters/katana/constants.js';
 import {
   InsufficientMarginError,
   InvalidOrderError,
@@ -676,17 +681,37 @@ describe('normalizeFundingRate', () => {
   });
 
   test('fundingIntervalHours matches KATANA_FUNDING_INTERVAL_HOURS constant', () => {
-    expect(normalizeFundingRate(rawFundingRate).fundingIntervalHours).toBe(KATANA_FUNDING_INTERVAL_HOURS);
+    expect(normalizeFundingRate(rawFundingRate).fundingIntervalHours).toBe(
+      KATANA_FUNDING_INTERVAL_HOURS
+    );
   });
 });
 
 // -- convertOrderRequest --
 
+describe('nonceToUint128', () => {
+  test('converts a UUID v1 to its 128-bit integer (mask is a no-op for 128-bit input)', () => {
+    const uuid = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+    expect(nonceToUint128(uuid)).toBe(0x6ba7b8109dad11d180b400c04fd430c8n);
+  });
+
+  test('result always fits in uint128', () => {
+    const uuid = 'ffffffff-ffff-1fff-bfff-ffffffffffff';
+    const max = (1n << 128n) - 1n;
+    expect(nonceToUint128(uuid) <= max).toBe(true);
+  });
+
+  test('returns a bigint, not a number (a uint128 cannot fit in a JS number)', () => {
+    expect(typeof nonceToUint128('00000000-0000-1000-8000-000000000001')).toBe('bigint');
+  });
+});
+
 describe('convertOrderRequest', () => {
   const wallet = '0xDeAdBeEf1234567890AbCdEf1234567890AbCdEf';
-  const nonce = 'nonce-uuid-v1-001';
+  // Valid UUID-v1-shaped nonce so nonceToUint128() can parse the 32 hex digits.
+  const nonce = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
-  test('market buy order: type=0, side=0', () => {
+  test('market buy order: orderType=0, orderSide=0', () => {
     const request: OrderRequest = {
       symbol: 'ETH/USD:USD',
       type: 'market',
@@ -694,11 +719,11 @@ describe('convertOrderRequest', () => {
       amount: 1,
     };
     const payload = convertOrderRequest(request, wallet, nonce);
-    expect(payload.type).toBe(0); // market
-    expect(payload.side).toBe(0); // buy
+    expect(payload.orderType).toBe(0); // market
+    expect(payload.orderSide).toBe(0); // buy
   });
 
-  test('limit sell order: type=1, side=1', () => {
+  test('limit sell order: orderType=1, orderSide=1', () => {
     const request: OrderRequest = {
       symbol: 'BTC/USD:USD',
       type: 'limit',
@@ -707,11 +732,11 @@ describe('convertOrderRequest', () => {
       price: 43000,
     };
     const payload = convertOrderRequest(request, wallet, nonce);
-    expect(payload.type).toBe(1); // limit
-    expect(payload.side).toBe(1); // sell
+    expect(payload.orderType).toBe(1); // limit
+    expect(payload.orderSide).toBe(1); // sell
   });
 
-  test('limit order: market converted to katana format', () => {
+  test('limit order: marketSymbol converted to katana format', () => {
     const request: OrderRequest = {
       symbol: 'ETH/USD:USD',
       type: 'limit',
@@ -720,7 +745,7 @@ describe('convertOrderRequest', () => {
       price: 1850,
     };
     const payload = convertOrderRequest(request, wallet, nonce);
-    expect(payload.market).toBe('ETH-USD');
+    expect(payload.marketSymbol).toBe('ETH-USD');
   });
 
   test('quantity is zero-padded 8-decimal string', () => {
@@ -756,7 +781,7 @@ describe('convertOrderRequest', () => {
     const payload = convertOrderRequest(request, wallet, nonce);
     expect(payload.triggerPrice).toBe('1700.00000000');
     expect(payload.triggerType).toBe(1); // index
-    expect(payload.type).toBe(2); // stopMarket
+    expect(payload.orderType).toBe(2); // stopMarket
   });
 
   test('reduceOnly flag propagated', () => {
@@ -782,7 +807,19 @@ describe('convertOrderRequest', () => {
     expect(payload.delegatedPublicKey).toBe(KATANA_NULL_ADDRESS);
   });
 
-  test('wallet and nonce set in payload', () => {
+  test('conditionalOrderId defaults to the uint128 bigint 0n', () => {
+    const request: OrderRequest = {
+      symbol: 'ETH/USD:USD',
+      type: 'limit',
+      side: 'buy',
+      amount: 1,
+      price: 1850,
+    };
+    const payload = convertOrderRequest(request, wallet, nonce);
+    expect(payload.conditionalOrderId).toBe(0n);
+  });
+
+  test('wallet set, and nonce encoded as masked uint128 bigint (not the UUID string)', () => {
     const request: OrderRequest = {
       symbol: 'ETH/USD:USD',
       type: 'limit',
@@ -792,7 +829,8 @@ describe('convertOrderRequest', () => {
     };
     const payload = convertOrderRequest(request, wallet, nonce);
     expect(payload.wallet).toBe(wallet);
-    expect(payload.nonce).toBe(nonce);
+    expect(payload.nonce).toBe(nonceToUint128(nonce));
+    expect(typeof payload.nonce).toBe('bigint');
   });
 });
 

@@ -154,16 +154,28 @@ export class KatanaAuth implements IAuthStrategy {
       if (method === 'GET') {
         const merged: Record<string, string | number | boolean> = { ...(params ?? {}) };
         if (merged['nonce'] === undefined) merged['nonce'] = this.generateNonce();
-        // Katana verifies the HMAC against the canonical (alphabetically-sorted) query
-        // string. We must both sign AND send in that order — see Findings:
-        // utf8 secret + `nonce=…&wallet=…` returns 200; `wallet=…&nonce=…` returns 401.
+        // HMAC canonicalization: the signed string MUST equal the string actually
+        // SENT. We sort the query alphabetically and then both sign AND send that
+        // exact sorted order, so signed === sent regardless of caller insertion
+        // order (the `params` returned below carry the sorted order to the wire).
+        //
+        // VERIFY-LIVE: the docs say the engine validates "the request as
+        // represented". Empirically `nonce=…&wallet=…` (sorted) returned 200 and
+        // `wallet=…&nonce=…` returned 401, which is consistent with sorted-canonical.
+        // Confirm the exact canonicalization against the live engine before relying
+        // on it for signed GET endpoints.
         const sortedEntries = Object.entries(merged)
           .map(([k, v]) => [k, String(v)] as const)
           .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
         params = Object.fromEntries(sortedEntries);
         payload = new URLSearchParams(sortedEntries.map(([k, v]) => [k, v])).toString();
       } else {
-        const mergedBody: Record<string, unknown> = { ...((body as Record<string, unknown>) ?? {}) };
+        // POST/DELETE: HMAC over the EXACT serialized JSON body bytes. We sign
+        // JSON.stringify(mergedBody) and return that same object as `body`, so the
+        // HTTP client serializes the identical bytes (signed === sent).
+        const mergedBody: Record<string, unknown> = {
+          ...((body as Record<string, unknown>) ?? {}),
+        };
         if (mergedBody['nonce'] === undefined) mergedBody['nonce'] = this.generateNonce();
         body = mergedBody;
         payload = JSON.stringify(mergedBody);
@@ -205,15 +217,9 @@ export class KatanaAuth implements IAuthStrategy {
   async signOrder(payload: KatanaOrderSignPayload): Promise<string> {
     this.requireWallet();
 
-    const domain = this.testnet
-      ? KATANA_EIP712_DOMAIN.sandbox
-      : KATANA_EIP712_DOMAIN.mainnet;
+    const domain = this.testnet ? KATANA_EIP712_DOMAIN.sandbox : KATANA_EIP712_DOMAIN.mainnet;
 
-    const signature = await this.wallet!.signTypedData(
-      domain,
-      KATANA_EIP712_ORDER_TYPE,
-      payload
-    );
+    const signature = await this.wallet!.signTypedData(domain, KATANA_EIP712_ORDER_TYPE, payload);
 
     return signature;
   }
@@ -224,15 +230,9 @@ export class KatanaAuth implements IAuthStrategy {
   async signCancel(payload: KatanaCancelSignPayload): Promise<string> {
     this.requireWallet();
 
-    const domain = this.testnet
-      ? KATANA_EIP712_DOMAIN.sandbox
-      : KATANA_EIP712_DOMAIN.mainnet;
+    const domain = this.testnet ? KATANA_EIP712_DOMAIN.sandbox : KATANA_EIP712_DOMAIN.mainnet;
 
-    const signature = await this.wallet!.signTypedData(
-      domain,
-      KATANA_EIP712_CANCEL_TYPE,
-      payload
-    );
+    const signature = await this.wallet!.signTypedData(domain, KATANA_EIP712_CANCEL_TYPE, payload);
 
     return signature;
   }

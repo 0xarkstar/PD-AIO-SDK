@@ -5,10 +5,13 @@
  * credential checks, and server time offset management.
  */
 
-import { Wallet } from 'ethers';
+import { Wallet, verifyTypedData } from 'ethers';
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import { KatanaAuth } from '../../src/adapters/katana/KatanaAuth.js';
-import type { KatanaOrderSignPayload, KatanaCancelSignPayload } from '../../src/adapters/katana/types.js';
+import type {
+  KatanaOrderSignPayload,
+  KatanaCancelSignPayload,
+} from '../../src/adapters/katana/types.js';
 import type { RequestParams } from '../../src/types/adapter.js';
 import {
   KATANA_EIP712_DOMAIN,
@@ -21,32 +24,36 @@ const TEST_PRIVATE_KEY = '0x' + '1'.repeat(64);
 const TEST_API_KEY = 'test-api-key';
 const TEST_API_SECRET = 'test-api-secret';
 
-/** Minimal order payload for EIP-712 signing tests */
+/**
+ * Minimal order payload for EIP-712 signing tests.
+ *
+ * Mirrors the live Katana `Order` struct: `nonce` + `conditionalOrderId` are
+ * uint128 bigints, fields are `marketSymbol`/`orderType`/`orderSide`. Pinned for
+ * a PostOnly maker (orderType=1 limit, timeInForce=1 gtx).
+ */
 const makeOrderPayload = (): KatanaOrderSignPayload => ({
-  nonce: 'abc-def-123',
+  nonce: 0x6ba7b8109dad11d180b400c04fd430c8n,
   wallet: '0x1234567890123456789012345678901234567890',
-  market: 'BTC-USD',
-  type: 1,
-  side: 0,
+  marketSymbol: 'BTC-USD',
+  orderType: 1,
+  orderSide: 0,
   quantity: '0.10000000',
   limitPrice: '50000.00000000',
   triggerPrice: '0.00000000',
   triggerType: 0,
   callbackRate: '0.00000000',
-  conditionalOrderId: 0,
+  conditionalOrderId: 0n,
   isReduceOnly: false,
-  timeInForce: 0,
+  timeInForce: 1,
   selfTradePrevention: 0,
   isLiquidationAcquisitionOnly: false,
   delegatedPublicKey: '0x0000000000000000000000000000000000000000',
   clientOrderId: 'client-order-1',
 });
 
-/** Minimal cancel payload for EIP-712 signing tests */
+/** Minimal cancel-by-market payload for EIP-712 signing tests */
 const makeCancelPayload = (): KatanaCancelSignPayload => ({
-  nonce: 'xyz-456',
   wallet: '0x1234567890123456789012345678901234567890',
-  orderId: 'order-789',
   market: 'BTC-USD',
 });
 
@@ -209,13 +216,17 @@ describe('KatanaAuth', () => {
     });
 
     test('GET auto-injects UUID v1 nonce into signed.params', async () => {
-      const request: RequestParams = { method: 'GET', path: '/v1/positions', params: { wallet: '0xabc' } };
+      const request: RequestParams = {
+        method: 'GET',
+        path: '/v1/positions',
+        params: { wallet: '0xabc' },
+      };
       const signed = await auth.sign(request);
 
       expect(signed.params).toBeDefined();
       const nonce = (signed.params as Record<string, string>)['nonce'];
       expect(nonce).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-1[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        /^[0-9a-f]{8}-[0-9a-f]{4}-1[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
       );
       // Wallet param preserved
       expect((signed.params as Record<string, string>)['wallet']).toBe('0xabc');
@@ -335,6 +346,60 @@ describe('KatanaAuth', () => {
   // ---------------------------------------------------------------------------
 
   describe('EIP-712 signing', () => {
+    describe('verified domain + struct spec', () => {
+      // Guards against regressing back to the WRONG legacy spec
+      // (name "Katana", version "1", verifyingContract 0x835Ba5b…637a).
+      test('mainnet domain matches the live-verified KatanaPerps spec', () => {
+        expect(KATANA_EIP712_DOMAIN.mainnet).toEqual({
+          name: 'KatanaPerps',
+          version: '2.0.0',
+          chainId: 747474,
+          verifyingContract: '0x62230CeA619F734cc215bB8074bbF07bE4Eb633e',
+        });
+      });
+
+      test('sandbox domain matches the verified spec (chainId 737373)', () => {
+        expect(KATANA_EIP712_DOMAIN.sandbox).toEqual({
+          name: 'KatanaPerps',
+          version: '2.0.0-sandbox',
+          chainId: 737373,
+          verifyingContract: '0x92d3072dDe1aD3e9B7895500F504aA5e664E71d3',
+        });
+      });
+
+      test('Order struct has 17 fields in the exact verified order + types', () => {
+        expect(KATANA_EIP712_ORDER_TYPE.Order).toEqual([
+          { name: 'nonce', type: 'uint128' },
+          { name: 'wallet', type: 'address' },
+          { name: 'marketSymbol', type: 'string' },
+          { name: 'orderType', type: 'uint8' },
+          { name: 'orderSide', type: 'uint8' },
+          { name: 'quantity', type: 'string' },
+          { name: 'limitPrice', type: 'string' },
+          { name: 'triggerPrice', type: 'string' },
+          { name: 'triggerType', type: 'uint8' },
+          { name: 'callbackRate', type: 'string' },
+          { name: 'conditionalOrderId', type: 'uint128' },
+          { name: 'isReduceOnly', type: 'bool' },
+          { name: 'timeInForce', type: 'uint8' },
+          { name: 'selfTradePrevention', type: 'uint8' },
+          { name: 'isLiquidationAcquisitionOnly', type: 'bool' },
+          { name: 'delegatedPublicKey', type: 'address' },
+          { name: 'clientOrderId', type: 'string' },
+        ]);
+        expect(KATANA_EIP712_ORDER_TYPE.Order).toHaveLength(17);
+      });
+
+      test('Cancel-by-market struct is OrderCancellationByMarketSymbol { wallet, market }', () => {
+        expect(KATANA_EIP712_CANCEL_TYPE).toEqual({
+          OrderCancellationByMarketSymbol: [
+            { name: 'wallet', type: 'address' },
+            { name: 'market', type: 'string' },
+          ],
+        });
+      });
+    });
+
     describe('signOrder()', () => {
       test('calls wallet.signTypedData with correct domain (mainnet by default)', async () => {
         const signTypedDataSpy = jest.spyOn(wallet, 'signTypedData');
@@ -377,6 +442,34 @@ describe('KatanaAuth', () => {
         expect(typeof signature).toBe('string');
         expect(signature).toMatch(/^0x[0-9a-fA-F]{130}$/);
       });
+
+      test('signature recovers the signer via verifyTypedData (mainnet domain)', async () => {
+        const auth = new KatanaAuth({ wallet, testnet: false });
+        const payload = makeOrderPayload();
+        const signature = await auth.signOrder(payload);
+
+        const recovered = verifyTypedData(
+          KATANA_EIP712_DOMAIN.mainnet,
+          KATANA_EIP712_ORDER_TYPE,
+          payload,
+          signature
+        );
+        expect(recovered.toLowerCase()).toBe(wallet.address.toLowerCase());
+      });
+
+      test('signature recovers the signer via verifyTypedData (sandbox domain)', async () => {
+        const auth = new KatanaAuth({ wallet, testnet: true });
+        const payload = makeOrderPayload();
+        const signature = await auth.signOrder(payload);
+
+        const recovered = verifyTypedData(
+          KATANA_EIP712_DOMAIN.sandbox,
+          KATANA_EIP712_ORDER_TYPE,
+          payload,
+          signature
+        );
+        expect(recovered.toLowerCase()).toBe(wallet.address.toLowerCase());
+      });
     });
 
     describe('signCancel()', () => {
@@ -401,6 +494,20 @@ describe('KatanaAuth', () => {
           payload
         );
         signTypedDataSpy.mockRestore();
+      });
+
+      test('cancel signature recovers the signer via verifyTypedData', async () => {
+        const auth = new KatanaAuth({ wallet, testnet: false });
+        const payload = makeCancelPayload();
+        const signature = await auth.signCancel(payload);
+
+        const recovered = verifyTypedData(
+          KATANA_EIP712_DOMAIN.mainnet,
+          KATANA_EIP712_CANCEL_TYPE,
+          payload,
+          signature
+        );
+        expect(recovered.toLowerCase()).toBe(wallet.address.toLowerCase());
       });
 
       test('throws without wallet', async () => {
