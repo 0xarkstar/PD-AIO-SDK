@@ -1,429 +1,403 @@
 /**
- * GRVT SDK Wrapper
+ * GRVT HTTP client.
  *
- * Thin wrapper around official @grvt/client SDK
- * Provides consistent error handling and session management
+ * Direct REST client for the REAL GRVT API (no `@grvt/client` SDK — that was
+ * built against a guessed shape). GRVT splits its API across three hosts:
+ *  - edge:        `POST /auth/api_key/login` -> `gravity` cookie + X-Grvt-Account-Id
+ *  - trades:      authed orders / account (`full/v1/create_order`, ...)
+ *  - market-data: public market data (`full/v1/{instruments,ticker,book,trade}`)
+ *
+ * All REST is POST with a JSON body; responses wrap the payload in `{ result }`.
+ * Authed requests carry `Cookie: gravity=<cookie>` + `X-Grvt-Account-Id: <id>`.
+ * This client owns the session (login, refresh-on-expiry) and delegates order
+ * signing to the adapter (which uses `signing.ts`); it does no signing itself.
  */
 
-import { MDG, TDG } from '@grvt/client';
-import type { IConfig } from '@grvt/client/interfaces';
-import type { AxiosRequestConfig } from 'axios';
+import { GRVT_API_URLS, GRVT_ENDPOINTS, GRVT_SESSION_DURATION } from './constants.js';
+import type {
+  GRVTSession,
+  GRVTLoginResult,
+  GRVTCreateOrderBody,
+  GRVTCancelOrderBody,
+} from './types.js';
 
 /**
- * GRVT SDK Wrapper configuration
+ * Resolved GRVT host set for one environment.
+ */
+interface GRVTHosts {
+  edge: string;
+  trades: string;
+  marketData: string;
+}
+
+/**
+ * GRVT HTTP client configuration.
  */
 export interface GRVTSDKWrapperConfig {
-  host: string;
+  /** Use testnet hosts (chainId 326). */
+  testnet?: boolean;
+  /** API key (created in the GRVT UI; required for authed calls). */
   apiKey?: string;
-  apiSecret?: string;
+  /** Per-request timeout (ms). */
   timeout?: number;
 }
 
 /**
- * Wrapper around official GRVT TypeScript SDK
- *
- * Responsibilities:
- * - Initialize MDG (Market Data Gateway) and TDG (Trading Data Gateway)
- * - Provide unified error handling
- * - Extract and manage session cookies
- * - Expose SDK methods with consistent interface
+ * Minimal fetch-like response shape (Node 18+/browser global `fetch`).
+ */
+type FetchResponse = {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  headers: { get(name: string): string | null };
+  text(): Promise<string>;
+};
+
+const DEFAULT_TIMEOUT_MS = 30000;
+
+/**
+ * Direct GRVT REST client + session manager.
  */
 export class GRVTSDKWrapper {
-  private mdg: MDG;
-  private tdg: TDG;
-  private sessionCookie?: string;
+  private readonly hosts: GRVTHosts;
+  private readonly apiKey?: string;
+  private readonly timeout: number;
+  private session?: GRVTSession;
 
-  constructor(config: GRVTSDKWrapperConfig) {
-    const sdkConfig: IConfig = {
-      host: config.host,
+  constructor(config: GRVTSDKWrapperConfig = {}) {
+    const urls = config.testnet ? GRVT_API_URLS.testnet : GRVT_API_URLS.mainnet;
+    this.hosts = {
+      edge: urls.edge,
+      trades: urls.trades,
+      marketData: urls.marketData,
     };
-
-    this.mdg = new MDG(sdkConfig);
-    this.tdg = new TDG(sdkConfig);
+    this.apiKey = config.apiKey;
+    this.timeout = config.timeout ?? DEFAULT_TIMEOUT_MS;
   }
 
-  /**
-   * Get axios instance from MDG for direct access if needed
-   */
-  get mdgAxios() {
-    return this.mdg.axios;
-  }
+  // ==================== Session ====================
 
   /**
-   * Get axios instance from TDG for direct access if needed
+   * Log in with the API key, capturing the `gravity` session cookie, the
+   * `X-Grvt-Account-Id` header, and the body `{ sub_account_id,
+   * funding_account_address }`. Returns the resolved session.
+   *
+   * @throws {Error} if no API key is configured or the login fails.
    */
-  get tdgAxios() {
-    return this.tdg.axios;
-  }
+  async login(): Promise<GRVTSession> {
+    if (!this.apiKey) {
+      throw new Error('GRVT login requires an apiKey');
+    }
 
-  // ==================== Market Data Methods ====================
-
-  /**
-   * Get single instrument details
-   */
-  async getInstrument(instrumentId: string, config?: AxiosRequestConfig) {
-    return this.mdg.instrument({ instrument: instrumentId }, config);
-  }
-
-  /**
-   * Get filtered instruments
-   */
-  async getInstruments(params?: any, config?: AxiosRequestConfig) {
-    return this.mdg.instruments(params || {}, config);
-  }
-
-  /**
-   * Get all instruments
-   */
-  async getAllInstruments(config?: AxiosRequestConfig) {
-    return this.mdg.allInstruments({}, config);
-  }
-
-  /**
-   * Get mini ticker (lightweight)
-   */
-  async getMiniTicker(instrumentId?: string, config?: AxiosRequestConfig) {
-    return this.mdg.miniTicker({ instrument: instrumentId }, config);
-  }
-
-  /**
-   * Get full ticker
-   */
-  async getTicker(instrumentId?: string, config?: AxiosRequestConfig) {
-    return this.mdg.ticker({ instrument: instrumentId }, config);
-  }
-
-  /**
-   * Get order book
-   */
-  async getOrderBook(instrumentId: string, depth?: number, config?: AxiosRequestConfig) {
-    return this.mdg.orderBook({ instrument: instrumentId, depth }, config);
-  }
-
-  /**
-   * Get latest trade for instrument
-   */
-  async getTrade(instrumentId: string, config?: AxiosRequestConfig) {
-    return this.mdg.trade({ instrument: instrumentId }, config);
-  }
-
-  /**
-   * Get trade history
-   */
-  async getTradeHistory(params?: any, config?: AxiosRequestConfig) {
-    return this.mdg.tradesHistory(params || {}, config);
-  }
-
-  /**
-   * Get settlement price
-   */
-  async getSettlement(params?: any, config?: AxiosRequestConfig) {
-    return this.mdg.settlement(params || {}, config);
-  }
-
-  /**
-   * Get funding rate
-   */
-  async getFunding(instrumentId?: string, config?: AxiosRequestConfig) {
-    return this.mdg.funding({ instrument: instrumentId }, config);
-  }
-
-  /**
-   * Get candlestick data
-   */
-  async getCandlestick(params: any, config?: AxiosRequestConfig) {
-    return this.mdg.candlestick(params, config);
-  }
-
-  /**
-   * Get margin rules
-   */
-  async getMarginRules(config?: AxiosRequestConfig) {
-    return this.mdg.marginRules({}, config);
-  }
-
-  // ==================== Trading Methods ====================
-
-  /**
-   * Create new order
-   */
-  async createOrder(order: any, config?: AxiosRequestConfig) {
-    const response = await this.tdg.createOrder(order, config);
-    this.extractSessionCookieFromResponse(response);
-    return response;
-  }
-
-  /**
-   * Create bulk orders
-   */
-  async createBulkOrders(orders: any, config?: AxiosRequestConfig) {
-    const response = await this.tdg.createBulkOrders(orders, config);
-    this.extractSessionCookieFromResponse(response);
-    return response;
-  }
-
-  /**
-   * Cancel single order
-   */
-  async cancelOrder(
-    params: {
-      order_id?: string;
-      client_order_id?: string;
-    },
-    config?: AxiosRequestConfig
-  ) {
-    const response = await this.tdg.cancelOrder(params, config);
-    this.extractSessionCookieFromResponse(response);
-    return response;
-  }
-
-  /**
-   * Cancel all orders
-   */
-  async cancelAllOrders(params?: any, config?: AxiosRequestConfig) {
-    const response = await this.tdg.cancelAllOrders(params || {}, config);
-    this.extractSessionCookieFromResponse(response);
-    return response;
-  }
-
-  /**
-   * Get single order
-   */
-  async getOrder(
-    params: {
-      order_id?: string;
-      client_order_id?: string;
-    },
-    config?: AxiosRequestConfig
-  ) {
-    return this.tdg.order(params, config);
-  }
-
-  /**
-   * Get open orders
-   */
-  async getOpenOrders(params?: any, config?: AxiosRequestConfig) {
-    return this.tdg.openOrders(params || {}, config);
-  }
-
-  /**
-   * Get order history (CRITICAL: fixes unimplemented method)
-   */
-  async getOrderHistory(params?: any, config?: AxiosRequestConfig) {
-    return this.tdg.orderHistory(params || {}, config);
-  }
-
-  /**
-   * Get order group
-   */
-  async getOrderGroup(params: any, config?: AxiosRequestConfig) {
-    return this.tdg.orderGroup(params, config);
-  }
-
-  /**
-   * Replace orders (TP/SL)
-   */
-  async replaceOrders(params: any, config?: AxiosRequestConfig) {
-    const response = await this.tdg.replaceOrders(params, config);
-    this.extractSessionCookieFromResponse(response);
-    return response;
-  }
-
-  /**
-   * Pre-order check
-   */
-  async preOrderCheck(order: any, config?: AxiosRequestConfig) {
-    return this.tdg.preOrderCheck(order, config);
-  }
-
-  /**
-   * Get price protection bands
-   */
-  async getPriceProtectionBands(config?: AxiosRequestConfig) {
-    return this.tdg.getPriceProtectionBands(config);
-  }
-
-  // ==================== Account Methods ====================
-
-  /**
-   * Get positions
-   */
-  async getPositions(params?: any, config?: AxiosRequestConfig) {
-    return this.tdg.positions(params || {}, config);
-  }
-
-  /**
-   * Get sub-account summary (balance)
-   */
-  async getSubAccountSummary(params?: any, config?: AxiosRequestConfig) {
-    return this.tdg.subAccountSummary(params || {}, config);
-  }
-
-  /**
-   * Get sub-account history
-   */
-  async getSubAccountHistory(params?: any, config?: AxiosRequestConfig) {
-    return this.tdg.subAccountHistory(params || {}, config);
-  }
-
-  /**
-   * Get fill history (my trades) (CRITICAL: fixes unimplemented method)
-   */
-  async getFillHistory(params?: any, config?: AxiosRequestConfig) {
-    return this.tdg.fillHistory(params || {}, config);
-  }
-
-  /**
-   * Get aggregated account summary
-   */
-  async getAggregatedAccountSummary(config?: AxiosRequestConfig) {
-    return this.tdg.aggregatedAccountSummary(config);
-  }
-
-  /**
-   * Get funding account summary
-   */
-  async getFundingAccountSummary(config?: AxiosRequestConfig) {
-    return this.tdg.fundingAccountSummary(config);
-  }
-
-  /**
-   * Get funding payment history
-   */
-  async getFundingPaymentHistory(params?: any, config?: AxiosRequestConfig) {
-    return this.tdg.fundingPaymentHistory(params || {}, config);
-  }
-
-  // ==================== Transfer Methods ====================
-
-  /**
-   * Pre-deposit check
-   */
-  async preDepositCheck(params: any, config?: AxiosRequestConfig) {
-    return this.tdg.preDepositCheck(params, config);
-  }
-
-  /**
-   * Get deposit history
-   */
-  async getDepositHistory(params?: any, config?: AxiosRequestConfig) {
-    return this.tdg.depositHistory(params || {}, config);
-  }
-
-  /**
-   * Transfer funds
-   */
-  async transfer(params: any, config?: AxiosRequestConfig) {
-    const response = await this.tdg.transfer(params, config);
-    this.extractSessionCookieFromResponse(response);
-    return response;
-  }
-
-  /**
-   * Get transfer history
-   */
-  async getTransferHistory(params?: any, config?: AxiosRequestConfig) {
-    return this.tdg.transferHistory(params || {}, config);
-  }
-
-  /**
-   * Request withdrawal
-   */
-  async withdrawal(params: any, config?: AxiosRequestConfig) {
-    const response = await this.tdg.withdrawal(params, config);
-    this.extractSessionCookieFromResponse(response);
-    return response;
-  }
-
-  /**
-   * Get withdrawal history
-   */
-  async getWithdrawalHistory(params?: any, config?: AxiosRequestConfig) {
-    return this.tdg.withdrawalHistory(params || {}, config);
-  }
-
-  // ==================== Leverage Methods ====================
-
-  /**
-   * Get all initial leverage
-   */
-  async getAllInitialLeverage(params?: any, config?: AxiosRequestConfig) {
-    return this.tdg.getAllInitialLeverage(params || {}, config);
-  }
-
-  /**
-   * Set initial leverage
-   */
-  async setInitialLeverage(params: any, config?: AxiosRequestConfig) {
-    const response = await this.tdg.setInitialLeverage(params, config);
-    this.extractSessionCookieFromResponse(response);
-    return response;
-  }
-
-  /**
-   * Get margin tiers
-   */
-  async getMarginTiers(config?: AxiosRequestConfig) {
-    return this.tdg.getMarginTiers(config);
-  }
-
-  // ==================== Session Management ====================
-
-  /**
-   * Extract session cookie from axios response
-   */
-  private extractSessionCookieFromResponse(response: unknown): void {
-    if (!response || typeof response !== 'object') return;
-
-    // Check if it's an axios response with headers
-    const resp = response as Record<string, unknown>;
-    const config = resp.config as Record<string, unknown> | undefined;
-    const headers =
-      (resp.headers as Record<string, unknown>) || (config?.headers as Record<string, unknown>);
-    if (!headers) return;
-
-    // Look for Set-Cookie header
-    const setCookie = headers['set-cookie'] || headers['Set-Cookie'];
-    if (!setCookie) return;
-
-    // Extract session cookie
-    const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
-    const sessionCookie = cookies.find((cookie: string) =>
-      cookie.toLowerCase().includes('session')
+    const response = await this.rawPost(
+      `${this.hosts.edge}${GRVT_ENDPOINTS.login}`,
+      { api_key: this.apiKey },
+      {}
     );
 
-    if (sessionCookie) {
-      // Extract just the cookie value before the first semicolon
-      const cookieValue = sessionCookie.split(';')[0];
-      this.sessionCookie = cookieValue;
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`GRVT login failed (${response.status} ${response.statusText}): ${body}`);
+    }
+
+    const cookie = this.parseGravityCookie(response.headers.get('set-cookie'));
+    if (!cookie) {
+      throw new Error('GRVT login response did not include a gravity session cookie');
+    }
+
+    const accountId = response.headers.get('x-grvt-account-id') ?? '';
+    const bodyText = await response.text();
+    const parsed = bodyText ? (JSON.parse(bodyText) as { result?: GRVTLoginResult } | GRVTLoginResult) : {};
+    const result: GRVTLoginResult =
+      parsed && typeof parsed === 'object' && 'result' in parsed && parsed.result
+        ? parsed.result
+        : (parsed as GRVTLoginResult);
+
+    const session: GRVTSession = {
+      cookie,
+      accountId,
+      subAccountId: result.sub_account_id,
+      fundingAccountAddress: result.funding_account_address,
+      expiresAt: Date.now() + GRVT_SESSION_DURATION,
+    };
+    this.session = session;
+    return session;
+  }
+
+  /**
+   * The current session, if logged in.
+   */
+  getSession(): GRVTSession | undefined {
+    return this.session;
+  }
+
+  /**
+   * The trading sub-account id from the current session (if any).
+   */
+  getSubAccountId(): string | undefined {
+    return this.session?.subAccountId;
+  }
+
+  /**
+   * Manually set the session (e.g. restored from elsewhere).
+   */
+  setSession(session: GRVTSession): void {
+    this.session = session;
+  }
+
+  /**
+   * Clear the current session.
+   */
+  clearSession(): void {
+    this.session = undefined;
+  }
+
+  /**
+   * Whether a session is present.
+   */
+  hasSession(): boolean {
+    return this.session !== undefined;
+  }
+
+  /**
+   * Whether the client is configured with an API key (can authenticate).
+   */
+  hasCredentials(): boolean {
+    return !!this.apiKey;
+  }
+
+  // ==================== Market Data (public, market-data host) ====================
+
+  /**
+   * Fetch active perpetual instruments (`full/v1/instruments`).
+   */
+  async getInstruments(): Promise<unknown> {
+    return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.instruments, {
+      kind: ['PERPETUAL'],
+      is_active: true,
+    });
+  }
+
+  /**
+   * Fetch a full ticker for one instrument (`full/v1/ticker`).
+   */
+  async getTicker(instrument: string): Promise<unknown> {
+    return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.ticker, { instrument });
+  }
+
+  /**
+   * Fetch a FULL order-book snapshot (`full/v1/book`). Depth ∈ {10,50,100,500}.
+   */
+  async getOrderBook(instrument: string, depth: number): Promise<unknown> {
+    return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.book, { instrument, depth });
+  }
+
+  /**
+   * Fetch recent public trades (`full/v1/trade`).
+   */
+  async getTrades(instrument: string, limit: number): Promise<unknown> {
+    return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.trade, { instrument, limit });
+  }
+
+  /**
+   * Fetch funding-rate entries (`full/v1/funding`).
+   */
+  async getFunding(instrument: string): Promise<unknown> {
+    return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.funding, { instrument });
+  }
+
+  /**
+   * Fetch candlesticks (`full/v1/kline`).
+   */
+  async getKline(body: Record<string, unknown>): Promise<unknown> {
+    return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.kline, body);
+  }
+
+  // ==================== Trading (authed, trades host) ====================
+
+  /**
+   * Submit a signed order (`full/v1/create_order`). The caller builds + signs
+   * the body via `signing.ts`; this method just POSTs it under `{ order }`.
+   */
+  async createOrder(order: GRVTCreateOrderBody): Promise<unknown> {
+    return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.createOrder, { order });
+  }
+
+  /**
+   * Cancel a single order by `order_id` or `client_order_id`.
+   */
+  async cancelOrder(body: GRVTCancelOrderBody): Promise<unknown> {
+    return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.cancelOrder, {
+      ...body,
+    });
+  }
+
+  /**
+   * Cancel all open orders for the sub-account.
+   */
+  async cancelAllOrders(subAccountId: string): Promise<unknown> {
+    return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.cancelAllOrders, {
+      sub_account_id: subAccountId,
+    });
+  }
+
+  /**
+   * Fetch open orders for the sub-account.
+   */
+  async getOpenOrders(subAccountId: string, instrument?: string): Promise<unknown> {
+    const body: Record<string, unknown> = { sub_account_id: subAccountId };
+    if (instrument) body.instrument = instrument;
+    return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.openOrders, body);
+  }
+
+  /**
+   * Fetch historical orders for the sub-account.
+   */
+  async getOrderHistory(subAccountId: string, instrument?: string, limit?: number): Promise<unknown> {
+    const body: Record<string, unknown> = { sub_account_id: subAccountId };
+    if (instrument) body.instrument = instrument;
+    if (limit !== undefined) body.limit = limit;
+    return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.orderHistory, body);
+  }
+
+  /**
+   * Fetch user fills (`full/v1/fill_history`).
+   */
+  async getFillHistory(subAccountId: string, instrument?: string, limit?: number): Promise<unknown> {
+    const body: Record<string, unknown> = { sub_account_id: subAccountId };
+    if (instrument) body.instrument = instrument;
+    if (limit !== undefined) body.limit = limit;
+    return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.fillHistory, body);
+  }
+
+  /**
+   * Fetch open positions for the sub-account.
+   */
+  async getPositions(subAccountId: string): Promise<unknown> {
+    return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.positions, {
+      sub_account_id: subAccountId,
+    });
+  }
+
+  /**
+   * Fetch the sub-account summary (balances).
+   */
+  async getSubAccountSummary(subAccountId: string): Promise<unknown> {
+    return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.accountSummary, {
+      sub_account_id: subAccountId,
+    });
+  }
+
+  // ==================== Internals ====================
+
+  /**
+   * POST a public request and unwrap the `{ result }` envelope.
+   */
+  private async postUnwrapped(
+    host: string,
+    path: string,
+    body: Record<string, unknown>
+  ): Promise<unknown> {
+    const response = await this.rawPost(`${host}/${path}`, body, {});
+    return this.handleJson(response);
+  }
+
+  /**
+   * POST an authenticated request (cookie + account id), refreshing the session
+   * first if it is missing or near expiry. Unwraps the `{ result }` envelope.
+   */
+  private async postAuthed(
+    host: string,
+    path: string,
+    body: Record<string, unknown>
+  ): Promise<unknown> {
+    await this.ensureSession();
+    const session = this.session;
+    if (!session) {
+      throw new Error('GRVT authenticated request requires a session (login failed)');
+    }
+    const headers: Record<string, string> = {
+      Cookie: `gravity=${session.cookie}`,
+      'X-Grvt-Account-Id': session.accountId,
+    };
+    const response = await this.rawPost(`${host}/${path}`, body, headers);
+    return this.handleJson(response);
+  }
+
+  /**
+   * Ensure a live session exists, logging in (or refreshing) when needed.
+   */
+  private async ensureSession(): Promise<void> {
+    const now = Date.now();
+    const stale =
+      !this.session || this.session.expiresAt - now < 5000; // GRVT_SESSION_REFRESH_BUFFER_MS
+    if (stale) {
+      await this.login();
     }
   }
 
   /**
-   * Get current session cookie
+   * Raw POST helper using the global `fetch` (Node 18+/browser), with a timeout.
    */
-  getSessionCookie(): string | undefined {
-    return this.sessionCookie;
+  private async rawPost(
+    url: string,
+    body: Record<string, unknown>,
+    extraHeaders: Record<string, string>
+  ): Promise<FetchResponse> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeout);
+    try {
+      const response = (await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...extraHeaders,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })) as unknown as FetchResponse;
+      return response;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   /**
-   * Set session cookie manually
+   * Read a response body, throw on non-2xx, and unwrap the `{ result }` envelope.
    */
-  setSessionCookie(cookie: string): void {
-    this.sessionCookie = cookie;
+  private async handleJson(response: FetchResponse): Promise<unknown> {
+    const text = await response.text();
+    let parsed: unknown;
+    try {
+      parsed = text ? JSON.parse(text) : undefined;
+    } catch {
+      parsed = undefined;
+    }
+
+    if (!response.ok) {
+      const error = new Error(
+        `GRVT request failed (${response.status} ${response.statusText})`
+      ) as Error & { status: number; response: { status: number; data: unknown } };
+      error.status = response.status;
+      error.response = { status: response.status, data: parsed };
+      throw error;
+    }
+
+    if (parsed && typeof parsed === 'object' && 'result' in parsed) {
+      return (parsed as { result: unknown }).result;
+    }
+    return parsed;
   }
 
   /**
-   * Check if we have a valid session
+   * Extract the `gravity` cookie value from a Set-Cookie header (single value;
+   * `fetch` collapses multiple Set-Cookie headers into one comma-joined string).
    */
-  hasSession(): boolean {
-    return !!this.sessionCookie;
-  }
-
-  /**
-   * Clear session cookie
-   */
-  clearSession(): void {
-    this.sessionCookie = undefined;
+  private parseGravityCookie(setCookie: string | null): string | undefined {
+    if (!setCookie) {
+      return undefined;
+    }
+    const match = setCookie.match(/gravity=([^;,\s]+)/i);
+    return match ? match[1] : undefined;
   }
 }

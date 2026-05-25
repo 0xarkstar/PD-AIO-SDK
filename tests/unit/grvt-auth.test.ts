@@ -1,471 +1,213 @@
 /**
- * Unit Tests for GRVTAuth
+ * Unit Tests for GRVTAuth (cookie-session + delegated EIP-712 signing).
  *
- * Tests EIP-712 signing, session management, and signature parsing
+ * GRVT auth is cookie-session (gravity cookie + X-Grvt-Account-Id), NOT per-request
+ * message signing. Order signing is delegated to signing.ts (leg-based EIP-712);
+ * the sign->recover roundtrip lives in grvt-signing.test.ts, but we assert here
+ * that GRVTAuth.signOrder produces a recoverable signature for the wallet.
  */
 
 import { Wallet } from 'ethers';
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { GRVTAuth } from '../../src/adapters/grvt/GRVTAuth.js';
-import type { GRVTOrderSignPayload } from '../../src/adapters/grvt/types.js';
+import { recoverOrderSigner, GRVT_CHAIN_IDS } from '../../src/adapters/grvt/signing.js';
+import type { GRVTSession } from '../../src/adapters/grvt/types.js';
 import type { RequestParams } from '../../src/types/adapter.js';
+
+const TEST_PRIVATE_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+
+function makeSession(overrides: Partial<GRVTSession> = {}): GRVTSession {
+  return {
+    cookie: 'gravity-cookie-value',
+    accountId: 'acct-123',
+    subAccountId: '987654321',
+    fundingAccountAddress: '0xfund',
+    expiresAt: Date.now() + 60_000,
+    ...overrides,
+  };
+}
 
 describe('GRVTAuth', () => {
   let wallet: Wallet;
   let auth: GRVTAuth;
-  const testPrivateKey = '0x' + '1'.repeat(64);
 
   beforeEach(() => {
-    wallet = new Wallet(testPrivateKey);
-    auth = new GRVTAuth({
-      apiKey: 'test-api-key',
-      wallet,
-      testnet: true,
+    wallet = new Wallet(TEST_PRIVATE_KEY);
+    auth = new GRVTAuth({ apiKey: 'test-api-key', wallet, testnet: true });
+  });
+
+  describe('constructor / credentials', () => {
+    it('reports credentials when an apiKey is set', () => {
+      expect(auth.hasCredentials()).toBe(true);
+      expect(new GRVTAuth({}).hasCredentials()).toBe(false);
+    });
+
+    it('reports wallet presence', () => {
+      expect(auth.hasWallet()).toBe(true);
+      expect(new GRVTAuth({ apiKey: 'k' }).hasWallet()).toBe(false);
+    });
+
+    it('requireAuth throws without credentials', () => {
+      const noCreds = new GRVTAuth({});
+      expect(() => noCreds.requireAuth()).toThrow('Authentication required. Provide apiKey in config.');
+    });
+
+    it('exposes the testnet chainId (326)', () => {
+      expect(auth.chainId).toBe(GRVT_CHAIN_IDS.testnet);
+      expect(new GRVTAuth({ apiKey: 'k', testnet: false }).chainId).toBe(GRVT_CHAIN_IDS.mainnet);
     });
   });
 
-  describe('constructor', () => {
-    it('should create instance with API key only', () => {
-      const authWithKey = new GRVTAuth({
-        apiKey: 'test-key',
-      });
-      expect(authWithKey).toBeInstanceOf(GRVTAuth);
-    });
-
-    it('should create instance with wallet only', () => {
-      const authWithWallet = new GRVTAuth({
-        wallet,
-      });
-      expect(authWithWallet).toBeInstanceOf(GRVTAuth);
-    });
-
-    it('should create instance with both API key and wallet', () => {
-      expect(auth).toBeInstanceOf(GRVTAuth);
-    });
-
-    it('should create instance without credentials (for public API access)', () => {
-      const authNoCredentials = new GRVTAuth({});
-      expect(authNoCredentials).toBeInstanceOf(GRVTAuth);
-      expect(authNoCredentials.hasCredentials()).toBe(false);
-    });
-
-    it('should return false from verify when wallet.getAddress throws (lines 133-135)', async () => {
-      const mockWallet = {
-        getAddress: jest.fn().mockRejectedValue(new Error('Wallet error')),
-        signMessage: jest.fn(),
-        signTypedData: jest.fn(),
-      } as unknown as Wallet;
-
-      const authWithBrokenWallet = new GRVTAuth({
-        wallet: mockWallet,
-      });
-
-      // verify() catches the error and returns false
-      const isValid = await authWithBrokenWallet.verify();
-      expect(isValid).toBe(false);
-    });
-
-    it('should throw requireAuth when no credentials and private method called', () => {
-      const authNoCredentials = new GRVTAuth({});
-      expect(() => authNoCredentials.requireAuth()).toThrow(
-        'Authentication required. Provide apiKey or wallet in config.'
-      );
-    });
-
-    it('should default testnet to false', () => {
-      const authMainnet = new GRVTAuth({
-        apiKey: 'test-key',
-      });
-      expect(authMainnet).toBeInstanceOf(GRVTAuth);
-    });
-  });
-
-  describe('getHeaders', () => {
-    it('should return headers with API key', () => {
+  describe('getHeaders (cookie-session)', () => {
+    it('returns only Content-Type before a session is set', () => {
       const headers = auth.getHeaders();
-
-      expect(headers).toHaveProperty('Content-Type', 'application/json');
-      expect(headers).toHaveProperty('X-API-KEY', 'test-api-key');
+      expect(headers['Content-Type']).toBe('application/json');
+      expect(headers['Cookie']).toBeUndefined();
+      expect(headers['X-Grvt-Account-Id']).toBeUndefined();
     });
 
-    it('should return headers with session cookie if set', () => {
-      auth.setSessionCookie('session-token-123');
+    it('adds gravity cookie + X-Grvt-Account-Id once a session is set', () => {
+      auth.setSession(makeSession());
       const headers = auth.getHeaders();
-
-      expect(headers).toHaveProperty('Cookie', 'session=session-token-123');
+      expect(headers['Cookie']).toBe('gravity=gravity-cookie-value');
+      expect(headers['X-Grvt-Account-Id']).toBe('acct-123');
     });
 
-    it('should not include cookie if session expired', () => {
-      // Set session with immediate expiry
-      auth.setSessionCookie('expired-token', 0);
+    it('omits cookie headers when the session is within the 5s refresh buffer', () => {
+      auth.setSession(makeSession({ expiresAt: Date.now() + 1000 }));
       const headers = auth.getHeaders();
-
-      expect(headers).not.toHaveProperty('Cookie');
+      expect(headers['Cookie']).toBeUndefined();
     });
 
-    it('should work without API key', () => {
-      const authWalletOnly = new GRVTAuth({ wallet });
-      const headers = authWalletOnly.getHeaders();
-
-      expect(headers).toHaveProperty('Content-Type', 'application/json');
-      expect(headers).not.toHaveProperty('X-API-KEY');
+    it('does NOT use per-request message-signing headers', () => {
+      auth.setSession(makeSession());
+      const headers = auth.getHeaders();
+      expect(headers['X-Signature']).toBeUndefined();
+      expect(headers['X-Timestamp']).toBeUndefined();
+      expect(headers['X-API-KEY']).toBeUndefined();
     });
   });
 
-  describe('sign', () => {
-    it('should add API key to request headers', async () => {
-      const request: RequestParams = {
-        method: 'GET',
-        path: '/markets',
-      };
-
+  describe('sign (IAuthStrategy)', () => {
+    it('attaches cookie-session headers to the request', async () => {
+      auth.setSession(makeSession());
+      const request: RequestParams = { method: 'POST', path: 'full/v1/create_order' };
       const signed = await auth.sign(request);
-
-      expect(signed.headers).toHaveProperty('X-API-KEY', 'test-api-key');
-    });
-
-    it('should add session cookie if available', async () => {
-      auth.setSessionCookie('test-session');
-
-      const request: RequestParams = {
-        method: 'GET',
-        path: '/markets',
-      };
-
-      const signed = await auth.sign(request);
-
-      expect(signed.headers).toHaveProperty('Cookie', 'session=test-session');
-    });
-
-    it('should add signature for trading operations', async () => {
-      const request: RequestParams = {
-        method: 'POST',
-        path: '/orders',
-        body: { instrument: 'BTC_USDT_Perp' },
-      };
-
-      const signed = await auth.sign(request);
-
-      expect(signed.headers).toHaveProperty('X-Signature');
-      expect(signed.headers).toHaveProperty('X-Timestamp');
-      expect(signed.headers).toHaveProperty('X-Address', wallet.address);
-    });
-
-    it('should sign transfer requests', async () => {
-      const request: RequestParams = {
-        method: 'POST',
-        path: '/transfer',
-        body: { amount: '100' },
-      };
-
-      const signed = await auth.sign(request);
-
-      expect(signed.headers).toHaveProperty('X-Signature');
-    });
-
-    it('should not sign market data requests', async () => {
-      const request: RequestParams = {
-        method: 'GET',
-        path: '/markets',
-      };
-
-      const signed = await auth.sign(request);
-
-      expect(signed.headers).not.toHaveProperty('X-Signature');
-    });
-
-    it('should throw when signing trading request without wallet (line 201)', async () => {
-      const authNoWallet = new GRVTAuth({ apiKey: 'test-key' });
-
-      const request: RequestParams = {
-        method: 'POST',
-        path: '/orders',
-        body: { instrument: 'BTC_USDT_Perp' },
-      };
-
-      await expect(authNoWallet.sign(request)).rejects.toThrow(
-        'Wallet required for signing requests'
-      );
-    });
-  });
-
-  describe('verify', () => {
-    it('should return true with valid API key', async () => {
-      const result = await auth.verify();
-      expect(result).toBe(true);
-    });
-
-    it('should return true with valid wallet', async () => {
-      const authWallet = new GRVTAuth({ wallet });
-      const result = await authWallet.verify();
-      expect(result).toBe(true);
-    });
-
-    it('should return false with empty API key and no wallet', async () => {
-      // Need to create a mock wallet that returns empty address
-      const emptyWallet = {
-        getAddress: async () => '',
-      } as any;
-      const authEmpty = new GRVTAuth({ apiKey: '', wallet: emptyWallet });
-      const result = await authEmpty.verify();
-      expect(result).toBe(false);
+      expect(signed.headers?.['Cookie']).toBe('gravity=gravity-cookie-value');
+      expect(signed.headers?.['X-Grvt-Account-Id']).toBe('acct-123');
     });
   });
 
   describe('session management', () => {
-    describe('setSessionCookie', () => {
-      it('should set session cookie with default duration', () => {
-        auth.setSessionCookie('test-token');
-        expect(auth.getSessionCookie()).toBe('test-token');
-      });
-
-      it('should set session cookie with custom expiration', () => {
-        // Use 120 seconds to account for 60-second buffer
-        auth.setSessionCookie('test-token', 120000);
-        expect(auth.getSessionCookie()).toBe('test-token');
-      });
-    });
-
-    describe('getSessionCookie', () => {
-      it('should return undefined initially', () => {
-        const freshAuth = new GRVTAuth({ apiKey: 'test' });
-        expect(freshAuth.getSessionCookie()).toBeUndefined();
-      });
-
-      it('should return token after setting', () => {
-        auth.setSessionCookie('my-token');
-        expect(auth.getSessionCookie()).toBe('my-token');
-      });
-
-      it('should return undefined for expired session', () => {
-        auth.setSessionCookie('expired', 0);
-        // Wait a tiny bit
-        setTimeout(() => {
-          expect(auth.getSessionCookie()).toBeUndefined();
-        }, 10);
-      });
-    });
-
-    describe('clearSessionCookie', () => {
-      it('should clear session cookie', () => {
-        auth.setSessionCookie('test-token');
-        expect(auth.getSessionCookie()).toBe('test-token');
-
-        auth.clearSessionCookie();
-        expect(auth.getSessionCookie()).toBeUndefined();
-      });
+    it('stores, returns, and clears the session', () => {
+      const session = makeSession();
+      auth.setSession(session);
+      expect(auth.getSession()).toBe(session);
+      auth.clearSession();
+      expect(auth.getSession()).toBeUndefined();
     });
   });
 
-  describe('nonce management', () => {
-    describe('getNextNonce', () => {
-      it('should start at 1', () => {
-        expect(auth.getNextNonce()).toBe(1);
-      });
-
-      it('should increment on each call', () => {
-        expect(auth.getNextNonce()).toBe(1);
-        expect(auth.getNextNonce()).toBe(2);
-        expect(auth.getNextNonce()).toBe(3);
-      });
+  describe('verify', () => {
+    it('returns true with a valid API key', async () => {
+      expect(await auth.verify()).toBe(true);
     });
 
-    describe('resetNonce', () => {
-      it('should reset nonce to 0', () => {
-        auth.getNextNonce(); // 1
-        auth.getNextNonce(); // 2
-        auth.resetNonce();
-        expect(auth.getNextNonce()).toBe(1);
-      });
+    it('returns true with a wallet only', async () => {
+      expect(await new GRVTAuth({ wallet }).verify()).toBe(true);
+    });
+
+    it('returns false when the wallet getAddress throws', async () => {
+      const brokenWallet = {
+        getAddress: async () => {
+          throw new Error('wallet error');
+        },
+      } as unknown as Wallet;
+      expect(await new GRVTAuth({ wallet: brokenWallet }).verify()).toBe(false);
+    });
+
+    it('returns false with empty apiKey and no wallet', async () => {
+      expect(await new GRVTAuth({ apiKey: '' }).verify()).toBe(false);
     });
   });
 
-  describe('EIP-712 signing', () => {
-    describe('signOrder', () => {
-      it('should sign order payload with EIP-712', async () => {
-        const payload: GRVTOrderSignPayload = {
-          instrument: 'BTC_USDT_Perp',
-          order_type: 'LIMIT',
-          side: 'BUY',
-          size: '0.1',
-          price: '50000',
-          time_in_force: 'GTC',
-          reduce_only: false,
-          post_only: false,
-          nonce: 1,
-          expiry: Date.now() + 60000,
-        };
-
-        const signature = await auth.signOrder(payload);
-
-        expect(signature).toBeDefined();
-        expect(signature).toMatch(/^0x[0-9a-f]{130}$/i);
-      });
-
-      it('should throw error if wallet not provided', async () => {
-        const authNoWallet = new GRVTAuth({ apiKey: 'test' });
-
-        const payload: GRVTOrderSignPayload = {
-          instrument: 'BTC_USDT_Perp',
-          order_type: 'LIMIT',
-          side: 'BUY',
-          size: '0.1',
-          price: '50000',
-          time_in_force: 'GTC',
-          reduce_only: false,
-          post_only: false,
-          nonce: 1,
-          expiry: Date.now() + 60000,
-        };
-
-        await expect(authNoWallet.signOrder(payload)).rejects.toThrow(
-          'Wallet required for signing orders'
-        );
-      });
-
-      it('should use testnet chain ID', async () => {
-        const payload: GRVTOrderSignPayload = {
-          instrument: 'ETH_USDT_Perp',
-          order_type: 'MARKET',
-          side: 'SELL',
-          size: '1.0',
-          price: '0',
-          time_in_force: 'IOC',
-          reduce_only: true,
-          post_only: false,
-          nonce: 5,
-          expiry: Date.now() + 30000,
-        };
-
-        const signature = await auth.signOrder(payload);
-        expect(signature).toBeDefined();
-      });
-
-      it('should use mainnet chain ID when testnet=false', async () => {
-        const authMainnet = new GRVTAuth({ wallet, testnet: false });
-
-        const payload: GRVTOrderSignPayload = {
-          instrument: 'BTC_USDT_Perp',
-          order_type: 'LIMIT',
-          side: 'BUY',
-          size: '0.5',
-          price: '45000',
-          time_in_force: 'GTC',
-          reduce_only: false,
-          post_only: true,
-          nonce: 1,
-          expiry: Date.now() + 120000,
-        };
-
-        const signature = await authMainnet.signOrder(payload);
-        expect(signature).toBeDefined();
-      });
+  describe('nonce / expiration generators (delegated to signing.ts)', () => {
+    it('generateNonce stays within [0, 1e9)', () => {
+      for (let i = 0; i < 100; i += 1) {
+        const n = auth.generateNonce();
+        expect(n).toBeGreaterThanOrEqual(0);
+        expect(n).toBeLessThan(1e9);
+      }
     });
 
-    describe('parseSignature', () => {
-      it('should parse valid signature with 0x prefix', () => {
-        const signature =
-          '0x' +
-          'a'.repeat(64) + // r
-          'b'.repeat(64) + // s
-          '1b'; // v
+    it('generateExpiration returns future nanoseconds', () => {
+      const nowNs = BigInt(Date.now()) * 1_000_000n;
+      expect(BigInt(auth.generateExpiration())).toBeGreaterThan(nowNs);
+    });
+  });
 
-        const parsed = auth.parseSignature(signature);
+  describe('signOrder (delegated leg-based EIP-712)', () => {
+    it('produces a signature that recovers the wallet address', async () => {
+      const input = {
+        subAccountId: '987654321',
+        isMarket: false,
+        timeInForce: 'GOOD_TILL_TIME' as const,
+        postOnly: true,
+        reduceOnly: false,
+        nonce: 12345,
+        expiration: '1900000000000000000',
+        legs: [
+          {
+            instrumentHash: '0x030501',
+            baseDecimals: 9,
+            size: '0.001',
+            limitPrice: '50000.0',
+            isBuyingAsset: true,
+          },
+        ],
+      };
 
-        expect(parsed.r).toBe('0x' + 'a'.repeat(64));
-        expect(parsed.s).toBe('0x' + 'b'.repeat(64));
-        expect(parsed.v).toBe(27); // 0x1b = 27
-      });
+      const sig = await auth.signOrder(input);
 
-      it('should parse valid signature without 0x prefix', () => {
-        const signature =
-          'c'.repeat(64) + // r
-          'd'.repeat(64) + // s
-          '1c'; // v
+      expect(sig.signer).toBe(wallet.address);
+      expect(sig.r).toMatch(/^0x[0-9a-f]{64}$/);
+      expect(sig.s).toMatch(/^0x[0-9a-f]{64}$/);
+      expect([27, 28]).toContain(sig.v);
+      expect(sig.nonce).toBe(12345);
+      // Auth defaults to testnet chainId 326 when caller omits it.
+      expect(sig.chainId).toBe(GRVT_CHAIN_IDS.testnet);
 
-        const parsed = auth.parseSignature(signature);
-
-        expect(parsed.r).toBe('0x' + 'c'.repeat(64));
-        expect(parsed.s).toBe('0x' + 'd'.repeat(64));
-        expect(parsed.v).toBe(28); // 0x1c = 28
-      });
-
-      it('should throw error for invalid signature length', () => {
-        const shortSignature = '0x' + 'a'.repeat(100);
-
-        expect(() => auth.parseSignature(shortSignature)).toThrow(
-          'Invalid signature length'
-        );
-      });
-
-      it('should throw error for too long signature', () => {
-        const longSignature = '0x' + 'a'.repeat(200);
-
-        expect(() => auth.parseSignature(longSignature)).toThrow(
-          'Invalid signature length'
-        );
-      });
+      const recovered = recoverOrderSigner(
+        { ...input, chainId: GRVT_CHAIN_IDS.testnet },
+        sig
+      );
+      expect(recovered).toBe(wallet.address);
     });
 
-    describe('createSignature', () => {
-      it('should create full ISignature object', async () => {
-        const payload: GRVTOrderSignPayload = {
-          instrument: 'BTC_USDT_Perp',
-          order_type: 'LIMIT',
-          side: 'BUY',
-          size: '0.1',
-          price: '50000',
-          time_in_force: 'GTC',
-          reduce_only: false,
-          post_only: false,
-          nonce: 1,
-          expiry: 1234567890,
-        };
-
-        const signature = await auth.createSignature(payload);
-
-        expect(signature).toHaveProperty('signer', wallet.address);
-        expect(signature).toHaveProperty('r');
-        expect(signature).toHaveProperty('s');
-        expect(signature).toHaveProperty('v');
-        expect(signature).toHaveProperty('expiration', '1234567890');
-        expect(signature).toHaveProperty('nonce', 1);
-        expect(signature.r).toMatch(/^0x[0-9a-f]{64}$/i);
-        expect(signature.s).toMatch(/^0x[0-9a-f]{64}$/i);
-        expect([27, 28]).toContain(signature.v);
-      });
-
-      it('should throw error if wallet not provided', async () => {
-        const authNoWallet = new GRVTAuth({ apiKey: 'test' });
-
-        const payload: GRVTOrderSignPayload = {
-          instrument: 'BTC_USDT_Perp',
-          order_type: 'LIMIT',
-          side: 'BUY',
-          size: '0.1',
-          price: '50000',
-          time_in_force: 'GTC',
-          reduce_only: false,
-          post_only: false,
-          nonce: 1,
-          expiry: Date.now(),
-        };
-
-        await expect(authNoWallet.createSignature(payload)).rejects.toThrow(
-          'Wallet required for creating signatures'
-        );
-      });
+    it('throws when no wallet is configured', async () => {
+      const noWallet = new GRVTAuth({ apiKey: 'k' });
+      await expect(
+        noWallet.signOrder({
+          subAccountId: '1',
+          isMarket: false,
+          timeInForce: 'GOOD_TILL_TIME',
+          postOnly: true,
+          reduceOnly: false,
+          legs: [
+            { instrumentHash: '0x030501', baseDecimals: 9, size: '0.001', limitPrice: '50000', isBuyingAsset: true },
+          ],
+        })
+      ).rejects.toThrow('Wallet required for signing orders');
     });
   });
 
   describe('getAddress', () => {
-    it('should return wallet address when wallet provided', () => {
+    it('returns the wallet address when present', () => {
       expect(auth.getAddress()).toBe(wallet.address);
     });
 
-    it('should return undefined when no wallet', () => {
-      const authNoWallet = new GRVTAuth({ apiKey: 'test' });
-      expect(authNoWallet.getAddress()).toBeUndefined();
+    it('returns undefined without a wallet', () => {
+      expect(new GRVTAuth({ apiKey: 'k' }).getAddress()).toBeUndefined();
     });
   });
 });

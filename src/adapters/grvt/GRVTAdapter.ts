@@ -1,15 +1,14 @@
 /**
- * GRVT Exchange Adapter - Refactored with SDK Integration
+ * GRVT Exchange Adapter.
  *
- * High-performance hybrid DEX with sub-millisecond latency
+ * High-performance hybrid perp DEX (ZKsync hyperchain). This adapter talks to
+ * the REAL GRVT API directly (cookie-session auth + POST `full/v1/*` + leg-based
+ * EIP-712 order signing delegated to `signing.ts`). It builds + sends correctly
+ * signed orders; it does NOT run any auto-execution/trading loop.
  *
- * Features:
- * - Official @grvt/client SDK integration
- * - REST API for trading and market data
- * - WebSocket for real-time updates
- * - API key + session cookie authentication
- * - EIP-712 signatures for orders
- * - Up to 100x leverage
+ * Auth: `GRVTSDKWrapper.login()` exchanges the API key for a `gravity` session
+ * cookie + `X-Grvt-Account-Id` + `sub_account_id`; that sub-account id and the
+ * cached instrument meta (instrument_hash + base_decimals) feed `createOrder`.
  */
 
 import { BaseAdapter } from '../base/BaseAdapter.js';
@@ -34,25 +33,52 @@ import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { InvalidSignatureError, NotSupportedError, PerpDEXError } from '../../types/errors.js';
 
-// New components
 import { GRVTSDKWrapper } from './GRVTSDKWrapper.js';
 import { GRVTAuth, type GRVTAuthConfig } from './GRVTAuth.js';
 import { GRVTNormalizer } from './GRVTNormalizer.js';
 import { mapAxiosError } from './GRVTErrorMapper.js';
 import { GRVTWebSocketWrapper } from './GRVTWebSocketWrapper.js';
 
-import { GRVT_API_URLS, GRVT_RATE_LIMITS, GRVT_ENDPOINT_WEIGHTS } from './constants.js';
+import {
+  GRVT_RATE_LIMITS,
+  GRVT_ENDPOINT_WEIGHTS,
+  GRVT_UNIFIED_TIF_TO_API,
+  GRVT_BOOK_DEPTHS,
+} from './constants.js';
+import type {
+  GRVTMarket,
+  GRVTTicker,
+  GRVTOrderBook,
+  GRVTTrade,
+  GRVTFunding,
+  GRVTOrder,
+  GRVTPosition,
+  GRVTSpotBalance,
+  GRVTFill,
+  GRVTCreateOrderBody,
+} from './types.js';
+import type { GrvtTimeInForce } from './signing.js';
 
 /**
- * GRVT adapter configuration
+ * Cached instrument metadata needed to build a signed order.
+ */
+interface GRVTInstrumentMeta {
+  instrumentHash: string;
+  baseDecimals: number;
+}
+
+/**
+ * GRVT adapter configuration.
  */
 export interface GRVTConfig extends GRVTAuthConfig {
   testnet?: boolean;
   timeout?: number;
   debug?: boolean;
-  /** Builder code for fee attribution */
+  /** Builder address for fee attribution (enables OrderWithBuilderFee signing). */
   builderCode?: string;
-  /** Enable/disable builder code (default: true when builderCode is set) */
+  /** Builder fee (human units) when a builder address is set. */
+  builderFee?: string;
+  /** Enable/disable builder code (default: true when builderCode is set). */
   builderCodeEnabled?: boolean;
 }
 
@@ -62,7 +88,7 @@ export interface GRVTConfig extends GRVTAuthConfig {
 export type GRVTAdapterConfig = GRVTConfig;
 
 /**
- * GRVT Exchange Adapter
+ * GRVT Exchange Adapter.
  */
 export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
   readonly id = 'grvt';
@@ -75,11 +101,11 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     fetchTrades: true,
     fetchOHLCV: true,
     fetchFundingRate: true,
-    fetchFundingRateHistory: false, // GRVT doesn't provide historical funding rates
+    fetchFundingRateHistory: false,
     fetchPositions: true,
     fetchBalance: true,
-    fetchOrderHistory: true, // NOW IMPLEMENTED via SDK
-    fetchMyTrades: true, // NOW IMPLEMENTED via SDK
+    fetchOrderHistory: true,
+    fetchMyTrades: true,
     createOrder: true,
     createBatchOrders: true,
     cancelOrder: true,
@@ -93,7 +119,7 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     watchMyTrades: true,
     cancelBatchOrders: false,
     editOrder: false,
-    fetchOpenOrders: false,
+    fetchOpenOrders: true,
     setLeverage: false,
     setMarginMode: false,
   };
@@ -105,19 +131,20 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
   protected readonly rateLimiter: RateLimiter;
   private readonly testnet: boolean;
   private readonly builderCode?: string;
+  private readonly builderFee?: string;
   private readonly builderCodeEnabled: boolean;
+  /** instrument -> { instrument_hash, base_decimals }, cached from fetchMarkets. */
+  private instrumentMeta = new Map<string, GRVTInstrumentMeta>();
 
   constructor(config: GRVTAdapterConfig = {}) {
     super(config);
 
     this.testnet = config.testnet ?? false;
-    const urls = this.testnet ? GRVT_API_URLS.testnet : GRVT_API_URLS.mainnet;
 
-    // Initialize components
     this.auth = new GRVTAuth(config);
     this.normalizer = new GRVTNormalizer();
     this.sdk = new GRVTSDKWrapper({
-      host: urls.rest,
+      testnet: this.testnet,
       apiKey: config.apiKey,
       timeout: config.timeout,
     });
@@ -130,12 +157,11 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     });
 
     this.builderCode = config.builderCode;
+    this.builderFee = config.builderFee;
     this.builderCodeEnabled = config.builderCodeEnabled ?? true;
   }
 
   async initialize(): Promise<void> {
-    // Verify credentials only if provided
-    // Public API methods work without authentication
     if (this.auth.hasCredentials()) {
       const isValid = await this.auth.verify();
       if (!isValid) {
@@ -145,29 +171,39 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
           'grvt'
         );
       }
+      // Establish the cookie session (login) and share it with the auth strategy.
+      const session = await this.sdk.login();
+      this.auth.setSession(session);
     }
 
     this._isReady = true;
   }
 
-  // ==================== Market Data Methods ====================
+  // ==================== Market Data ====================
 
   async fetchMarkets(params?: MarketParams): Promise<Market[]> {
     await this.rateLimiter.acquire('fetchMarkets');
 
     try {
-      const response = await this.sdk.getAllInstruments();
-
-      if (!response.result) {
+      const result = (await this.sdk.getInstruments()) as GRVTMarket[] | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
 
-      let markets = this.normalizer.normalizeMarkets(response.result);
+      // Cache instrument meta (hash + base_decimals) for order signing.
+      for (const m of result) {
+        if (m.instrument && m.instrument_hash) {
+          this.instrumentMeta.set(m.instrument, {
+            instrumentHash: m.instrument_hash,
+            baseDecimals: m.base_decimals,
+          });
+        }
+      }
 
+      let markets = this.normalizer.normalizeMarkets(result);
       if (params?.active !== undefined) {
         markets = markets.filter((m) => m.active === params.active);
       }
-
       return markets;
     } catch (error) {
       throw mapAxiosError(error);
@@ -179,13 +215,11 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
 
     try {
       const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-      const response = await this.sdk.getTicker(grvtSymbol);
-
-      if (!response.result) {
+      const result = (await this.sdk.getTicker(grvtSymbol)) as GRVTTicker | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
-
-      return this.normalizer.normalizeTicker(response.result);
+      return this.normalizer.normalizeTicker(result);
     } catch (error) {
       throw mapAxiosError(error);
     }
@@ -196,16 +230,12 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
 
     try {
       const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-      // GRVT only supports specific depth values: 10, 50, 100
-      const requestedLimit = params?.limit || 50;
-      const depth = requestedLimit <= 10 ? 10 : requestedLimit <= 50 ? 50 : 100;
-      const response = await this.sdk.getOrderBook(grvtSymbol, depth);
-
-      if (!response.result) {
+      const depth = this.resolveDepth(params?.limit);
+      const result = (await this.sdk.getOrderBook(grvtSymbol, depth)) as GRVTOrderBook | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
-
-      return this.normalizer.normalizeOrderBook(response.result);
+      return this.normalizer.normalizeOrderBook(result);
     } catch (error) {
       throw mapAxiosError(error);
     }
@@ -216,29 +246,16 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
 
     try {
       const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-      const response = await this.sdk.getTradeHistory({
-        instrument: grvtSymbol,
-        limit: params?.limit || 100,
-      });
-
-      if (!response.result) {
+      const result = (await this.sdk.getTrades(grvtSymbol, params?.limit ?? 100)) as GRVTTrade[] | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
-
-      return this.normalizer.normalizeTrades(response.result);
+      return this.normalizer.normalizeTrades(result);
     } catch (error) {
       throw mapAxiosError(error);
     }
   }
 
-  /**
-   * Fetch OHLCV (candlestick) data
-   *
-   * @param symbol - Symbol in unified format (e.g., "BTC/USDT:USDT")
-   * @param timeframe - Candlestick timeframe
-   * @param params - Optional parameters (since, until, limit)
-   * @returns Array of OHLCV tuples [timestamp, open, high, low, close, volume]
-   */
   async fetchOHLCV(
     symbol: string,
     timeframe: OHLCVTimeframe = '1h',
@@ -249,8 +266,6 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     try {
       const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
 
-      // Map unified timeframe to GRVT CandlestickInterval enum
-      // GRVT API does not support monthly candles — only minute through weekly
       if (timeframe === '1M') {
         throw new NotSupportedError(
           'GRVT does not support monthly (1M) candlestick intervals',
@@ -275,37 +290,29 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
         '3d': 'CI_3_D',
         '1w': 'CI_1_W',
       };
-
       const interval = intervalMap[timeframe] || 'CI_1_H';
 
-      // Calculate time range — GRVT requires nanosecond timestamps as strings
       const now = Date.now();
-      const defaultDuration = this.getDefaultDuration(timeframe);
-      const startTime = params?.since ?? now - defaultDuration;
+      const startTime = params?.since ?? now - this.getDefaultDuration(timeframe);
       const endTime = params?.until ?? now;
       const startTimeNs = (BigInt(startTime) * 1_000_000n).toString();
       const endTimeNs = (BigInt(endTime) * 1_000_000n).toString();
 
-      // Direct POST to /full/v1/kline — SDK's getCandlestick sends wrong format
-      const restUrl = this.testnet ? GRVT_API_URLS.testnet.rest : GRVT_API_URLS.mainnet.rest;
-      const response = await this.sdk.mdgAxios.post(`${restUrl}/full/v1/kline`, {
+      const result = (await this.sdk.getKline({
         instrument: grvtSymbol,
         interval,
         type: 'TRADE',
         start_time: startTimeNs,
         end_time: endTimeNs,
         limit: params?.limit ?? 100,
-      });
+      })) as Array<Record<string, string>> | null;
 
-      const result = response.data?.result;
       if (!result || !Array.isArray(result)) {
         return [];
       }
 
-      // Convert GRVT candle format to OHLCV tuple
-      // Response: { open_time (ns string), open, high, low, close, volume_b, ... }
       return result.map(
-        (candle: any): OHLCV => [
+        (candle): OHLCV => [
           Number(BigInt(candle.open_time || '0') / 1_000_000n),
           parseFloat(candle.open || '0'),
           parseFloat(candle.high || '0'),
@@ -319,28 +326,26 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     }
   }
 
-  /**
-   * Get default duration based on timeframe for initial data fetch
-   */
   private getDefaultDuration(timeframe: OHLCVTimeframe): number {
+    const day = 24 * 60 * 60 * 1000;
     const durationMap: Record<OHLCVTimeframe, number> = {
-      '1m': 24 * 60 * 60 * 1000, // 24 hours
-      '3m': 3 * 24 * 60 * 60 * 1000, // 3 days
-      '5m': 5 * 24 * 60 * 60 * 1000, // 5 days
-      '15m': 7 * 24 * 60 * 60 * 1000, // 7 days
-      '30m': 14 * 24 * 60 * 60 * 1000, // 14 days
-      '1h': 30 * 24 * 60 * 60 * 1000, // 30 days
-      '2h': 60 * 24 * 60 * 60 * 1000, // 60 days
-      '4h': 90 * 24 * 60 * 60 * 1000, // 90 days
-      '6h': 120 * 24 * 60 * 60 * 1000, // 120 days
-      '8h': 180 * 24 * 60 * 60 * 1000, // 180 days
-      '12h': 365 * 24 * 60 * 60 * 1000, // 1 year
-      '1d': 365 * 24 * 60 * 60 * 1000, // 1 year
-      '3d': 2 * 365 * 24 * 60 * 60 * 1000, // 2 years
-      '1w': 3 * 365 * 24 * 60 * 60 * 1000, // 3 years
-      '1M': 5 * 365 * 24 * 60 * 60 * 1000, // 5 years
+      '1m': day,
+      '3m': 3 * day,
+      '5m': 5 * day,
+      '15m': 7 * day,
+      '30m': 14 * day,
+      '1h': 30 * day,
+      '2h': 60 * day,
+      '4h': 90 * day,
+      '6h': 120 * day,
+      '8h': 180 * day,
+      '12h': 365 * day,
+      '1d': 365 * day,
+      '3d': 2 * 365 * day,
+      '1w': 3 * 365 * day,
+      '1M': 5 * 365 * day,
     };
-    return durationMap[timeframe] || 30 * 24 * 60 * 60 * 1000;
+    return durationMap[timeframe] || 30 * day;
   }
 
   async _fetchFundingRate(symbol: string): Promise<FundingRate> {
@@ -348,104 +353,95 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
 
     try {
       const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-      const response = await this.sdk.getFunding(grvtSymbol);
-
-      if (!response.result || response.result.length === 0) {
+      const result = (await this.sdk.getFunding(grvtSymbol)) as GRVTFunding[] | GRVTFunding | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
-
-      // SDK returns array, take the first (latest) funding rate
-      const funding = response.result[0];
-
-      // Add type guard to ensure funding exists
-      if (!funding) {
+      const entry = Array.isArray(result) ? result[0] : result;
+      if (!entry) {
         throw new PerpDEXError('No funding data available', 'NO_FUNDING_DATA', 'grvt');
       }
-
-      const fundingTimestamp = funding.funding_time ? parseInt(funding.funding_time) : Date.now();
-      const fundingIntervalHours = funding.funding_interval_hours ?? 8;
-      const nextFundingTimestamp = fundingTimestamp + fundingIntervalHours * 60 * 60 * 1000;
-
-      return {
-        symbol,
-        fundingRate: parseFloat(funding.funding_rate ?? '0'),
-        fundingTimestamp,
-        nextFundingTimestamp,
-        markPrice: parseFloat(funding.mark_price ?? '0'),
-        indexPrice: 0, // Not provided in funding API
-        fundingIntervalHours,
-        info: funding as Record<string, unknown>,
-      };
+      return this.normalizer.normalizeFundingRate(entry);
     } catch (error) {
       throw mapAxiosError(error);
     }
   }
 
-  // ==================== Trading Methods ====================
+  // ==================== Trading ====================
 
   async createOrder(request: OrderRequest): Promise<Order> {
-    // Validate order request
     const validatedRequest = this.validateOrder(request);
-
     this.auth.requireAuth();
     await this.rateLimiter.acquire('createOrder');
 
     try {
       const grvtSymbol = this.normalizer.symbolFromCCXT(validatedRequest.symbol);
+      const meta = await this.getInstrumentMeta(grvtSymbol);
+      const subAccountId = this.requireSubAccountId();
 
-      // Prepare order request
-      const orderRequest: any = {
-        instrument: grvtSymbol,
-        order_type: this.mapOrderType(validatedRequest.type),
-        side: validatedRequest.side === 'buy' ? 'BUY' : 'SELL',
-        size: validatedRequest.amount.toString(),
-        price: validatedRequest.price?.toString() || '0',
-        time_in_force: this.mapTimeInForce(validatedRequest.timeInForce),
-        reduce_only: validatedRequest.reduceOnly || false,
-        post_only: validatedRequest.postOnly || false,
-        client_order_id: validatedRequest.clientOrderId,
-      };
+      const isMarket = validatedRequest.type === 'market';
+      const postOnly = validatedRequest.postOnly ?? false;
+      const reduceOnly = validatedRequest.reduceOnly ?? false;
+      const timeInForce = this.resolveSignTimeInForce(validatedRequest.timeInForce, isMarket, postOnly);
 
-      // Add builder code for fee attribution
+      // Build + sign the leg-based EIP-712 order (delegated to signing.ts).
       const builderCode = this.builderCodeEnabled
         ? (request.builderCode ?? this.builderCode)
         : undefined;
-      if (builderCode) {
-        orderRequest.builder_id = builderCode;
-      }
 
-      // Sign if wallet available
-      if (this.auth.getAddress()) {
-        const payload = {
-          instrument: grvtSymbol,
-          order_type: orderRequest.order_type,
-          side: orderRequest.side,
-          size: orderRequest.size,
-          price: orderRequest.price,
-          time_in_force: orderRequest.time_in_force,
-          reduce_only: orderRequest.reduce_only,
-          post_only: orderRequest.post_only,
-          nonce: this.auth.getNextNonce(),
-          expiry: Date.now() + 60000, // 1 minute
-        };
+      const signature = await this.auth.signOrder({
+        subAccountId,
+        isMarket,
+        timeInForce,
+        postOnly,
+        reduceOnly,
+        legs: [
+          {
+            instrumentHash: meta.instrumentHash,
+            baseDecimals: meta.baseDecimals,
+            size: validatedRequest.amount.toString(),
+            limitPrice: (validatedRequest.price ?? 0).toString(),
+            isBuyingAsset: validatedRequest.side === 'buy',
+          },
+        ],
+        builder: builderCode,
+        builderFee: builderCode ? this.builderFee : undefined,
+      });
 
-        const signature = await this.auth.createSignature(payload);
-        orderRequest.signature = signature;
-      }
+      const body: GRVTCreateOrderBody = {
+        sub_account_id: subAccountId,
+        is_market: isMarket,
+        time_in_force: GRVT_UNIFIED_TIF_TO_API[
+          (validatedRequest.timeInForce ?? (postOnly ? 'PO' : 'GTC')) as keyof typeof GRVT_UNIFIED_TIF_TO_API
+        ],
+        post_only: postOnly,
+        reduce_only: reduceOnly,
+        legs: [
+          {
+            instrument: grvtSymbol,
+            size: validatedRequest.amount.toString(),
+            limit_price: (validatedRequest.price ?? 0).toString(),
+            is_buying_asset: validatedRequest.side === 'buy',
+          },
+        ],
+        signature: {
+          r: signature.r,
+          s: signature.s,
+          v: signature.v,
+          expiration: signature.expiration,
+          nonce: signature.nonce,
+          signer: signature.signer,
+        },
+        metadata: {
+          client_order_id: validatedRequest.clientOrderId ?? this.generateClientOrderId(),
+        },
+      };
 
-      const response = await this.sdk.createOrder(orderRequest);
-
-      if (!response.result) {
+      const result = (await this.sdk.createOrder(body)) as GRVTOrder | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
-
-      // Extract and store session cookie
-      const sessionCookie = this.sdk.getSessionCookie();
-      if (sessionCookie) {
-        this.auth.setSessionCookie(sessionCookie);
-      }
-
-      return this.normalizer.normalizeOrder(response.result);
+      return this.normalizer.normalizeOrder(result);
     } catch (error) {
       throw mapAxiosError(error);
     }
@@ -456,32 +452,28 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     await this.rateLimiter.acquire('cancelOrder');
 
     try {
-      const response = await this.sdk.cancelOrder({ order_id: orderId });
-
-      if (!response.result) {
+      const subAccountId = this.requireSubAccountId();
+      const result = (await this.sdk.cancelOrder({
+        sub_account_id: subAccountId,
+        order_id: orderId,
+      })) as GRVTOrder | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
-
-      return this.normalizer.normalizeOrder(response.result);
+      return this.normalizer.normalizeOrder(result);
     } catch (error) {
       throw mapAxiosError(error);
     }
   }
 
-  async cancelAllOrders(symbol?: string): Promise<Order[]> {
+  async cancelAllOrders(_symbol?: string): Promise<Order[]> {
     this.auth.requireAuth();
     await this.rateLimiter.acquire('cancelAllOrders');
 
     try {
-      const params: any = {};
-      if (symbol) {
-        params.instrument = this.normalizer.symbolFromCCXT(symbol);
-      }
-
-      await this.sdk.cancelAllOrders(params);
-
-      // SDK returns number of canceled orders, not the orders themselves
-      // Return empty array since we don't have order details
+      const subAccountId = this.requireSubAccountId();
+      await this.sdk.cancelAllOrders(subAccountId);
+      // GRVT returns a count, not the cancelled orders.
       return [];
     } catch (error) {
       throw mapAxiosError(error);
@@ -493,92 +485,72 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     await this.rateLimiter.acquire('fetchOpenOrders');
 
     try {
-      const params: any = {};
-      if (symbol) {
-        params.instrument = this.normalizer.symbolFromCCXT(symbol);
-      }
-
-      const response = await this.sdk.getOpenOrders(params);
-
-      if (!response.result) {
+      const subAccountId = this.requireSubAccountId();
+      const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : undefined;
+      const result = (await this.sdk.getOpenOrders(subAccountId, instrument)) as GRVTOrder[] | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
-
-      return this.normalizer.normalizeOrders(response.result);
+      return this.normalizer.normalizeOrders(result);
     } catch (error) {
       throw mapAxiosError(error);
     }
   }
 
-  /**
-   * Fetch order history - NOW IMPLEMENTED via SDK!
-   */
   async fetchOrderHistory(symbol?: string, _since?: number, limit?: number): Promise<Order[]> {
     this.auth.requireAuth();
     await this.rateLimiter.acquire('fetchClosedOrders');
 
     try {
-      const params: any = { limit: limit || 100 };
-      if (symbol) {
-        params.instrument = this.normalizer.symbolFromCCXT(symbol);
-      }
-
-      const response = await this.sdk.getOrderHistory(params);
-
-      if (!response.result) {
+      const subAccountId = this.requireSubAccountId();
+      const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : undefined;
+      const result = (await this.sdk.getOrderHistory(subAccountId, instrument, limit ?? 100)) as
+        | GRVTOrder[]
+        | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
-
-      return this.normalizer.normalizeOrders(response.result);
+      return this.normalizer.normalizeOrders(result);
     } catch (error) {
       throw mapAxiosError(error);
     }
   }
 
-  /**
-   * Fetch user trade history - NOW IMPLEMENTED via SDK!
-   */
   async fetchMyTrades(symbol?: string, _since?: number, limit?: number): Promise<Trade[]> {
     this.auth.requireAuth();
     await this.rateLimiter.acquire('fetchMyTrades');
 
     try {
-      const params: any = { limit: limit || 100 };
-      if (symbol) {
-        params.instrument = this.normalizer.symbolFromCCXT(symbol);
-      }
-
-      const response = await this.sdk.getFillHistory(params);
-
-      if (!response.result) {
+      const subAccountId = this.requireSubAccountId();
+      const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : undefined;
+      const result = (await this.sdk.getFillHistory(subAccountId, instrument, limit ?? 100)) as
+        | GRVTFill[]
+        | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
-
-      return this.normalizer.normalizeFills(response.result);
+      return this.normalizer.normalizeFills(result);
     } catch (error) {
       throw mapAxiosError(error);
     }
   }
 
-  // ==================== Account Methods ====================
+  // ==================== Account ====================
 
   async fetchPositions(symbols?: string[]): Promise<Position[]> {
     this.auth.requireAuth();
     await this.rateLimiter.acquire('fetchPositions');
 
     try {
-      const response = await this.sdk.getPositions();
-
-      if (!response.result) {
+      const subAccountId = this.requireSubAccountId();
+      const result = (await this.sdk.getPositions(subAccountId)) as GRVTPosition[] | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
-
-      let positions = this.normalizer.normalizePositions(response.result);
-
+      let positions = this.normalizer.normalizePositions(result);
       if (symbols && symbols.length > 0) {
         positions = positions.filter((p) => symbols.includes(p.symbol));
       }
-
       return positions;
     } catch (error) {
       throw mapAxiosError(error);
@@ -590,44 +562,107 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     await this.rateLimiter.acquire('fetchBalance');
 
     try {
-      const response = await this.sdk.getSubAccountSummary();
-
-      if (!response.result) {
+      const subAccountId = this.requireSubAccountId();
+      const result = (await this.sdk.getSubAccountSummary(subAccountId)) as
+        | { spot_balances?: GRVTSpotBalance[] }
+        | null;
+      if (!result) {
         throw new PerpDEXError('Invalid API response', 'INVALID_RESPONSE', 'grvt');
       }
-
-      // Extract balances from sub-account summary
-      const balances = response.result.spot_balances || [];
-      return this.normalizer.normalizeBalances(balances);
+      return this.normalizer.normalizeBalances(result.spot_balances ?? []);
     } catch (error) {
       throw mapAxiosError(error);
     }
   }
 
-  // ==================== Helper Methods ====================
+  // ==================== Helpers ====================
 
-  private mapOrderType(type: string): string {
-    const typeMap: Record<string, string> = {
-      market: 'MARKET',
-      limit: 'LIMIT',
-      limitMaker: 'LIMIT_MAKER',
-    };
-    return typeMap[type] || 'LIMIT';
+  /**
+   * Resolve a requested book depth to the nearest valid GRVT depth.
+   */
+  private resolveDepth(limit?: number): number {
+    const requested = limit ?? 50;
+    for (const depth of GRVT_BOOK_DEPTHS) {
+      if (requested <= depth) {
+        return depth;
+      }
+    }
+    return 500;
   }
 
-  private mapTimeInForce(tif?: string): string {
-    if (!tif) return 'GTC';
-
-    const tifMap: Record<string, string> = {
-      GTC: 'GTC',
-      IOC: 'IOC',
-      FOK: 'FOK',
-      PO: 'POST_ONLY',
-    };
-    return tifMap[tif] || 'GTC';
+  /**
+   * Map the unified TIF + market/post-only intent to the SIGN-enum TIF key.
+   * Maker quotes (post_only, non-market) use GOOD_TILL_TIME.
+   */
+  private resolveSignTimeInForce(
+    tif: string | undefined,
+    isMarket: boolean,
+    postOnly: boolean
+  ): GrvtTimeInForce {
+    if (postOnly && !isMarket) {
+      return 'GOOD_TILL_TIME';
+    }
+    switch (tif) {
+      case 'IOC':
+        return 'IMMEDIATE_OR_CANCEL';
+      case 'FOK':
+        return 'FILL_OR_KILL';
+      case 'GTC':
+      case 'PO':
+      default:
+        return isMarket ? 'IMMEDIATE_OR_CANCEL' : 'GOOD_TILL_TIME';
+    }
   }
 
-  // ==================== Required BaseAdapter Methods ====================
+  /**
+   * Get cached instrument meta (hash + base_decimals), fetching markets if the
+   * cache is cold.
+   *
+   * @throws {PerpDEXError} if the instrument is unknown after fetching markets.
+   */
+  private async getInstrumentMeta(grvtSymbol: string): Promise<GRVTInstrumentMeta> {
+    if (!this.instrumentMeta.has(grvtSymbol)) {
+      await this.fetchMarkets();
+    }
+    const meta = this.instrumentMeta.get(grvtSymbol);
+    if (!meta) {
+      throw new PerpDEXError(
+        `Unknown GRVT instrument: ${grvtSymbol}`,
+        'UNKNOWN_INSTRUMENT',
+        'grvt'
+      );
+    }
+    return meta;
+  }
+
+  /**
+   * The trading sub-account id from the active session.
+   *
+   * @throws {PerpDEXError} if no session/sub-account id is available.
+   */
+  private requireSubAccountId(): string {
+    const subAccountId = this.sdk.getSubAccountId() ?? this.auth.getSession()?.subAccountId;
+    if (!subAccountId) {
+      throw new PerpDEXError(
+        'No GRVT sub-account id; call initialize() to log in first',
+        'NO_SUB_ACCOUNT',
+        'grvt'
+      );
+    }
+    return subAccountId;
+  }
+
+  /**
+   * Generate a GRVT client_order_id: a random integer in [2^63, 2^64-1].
+   */
+  private generateClientOrderId(): string {
+    const min = 1n << 63n;
+    const span = (1n << 64n) - min; // 2^63
+    const randomBits =
+      (BigInt(Math.floor(Math.random() * 0xffffffff)) << 32n) |
+      BigInt(Math.floor(Math.random() * 0xffffffff));
+    return (min + (randomBits % span)).toString();
+  }
 
   async fetchFundingRateHistory(
     _symbol: string,
@@ -641,19 +676,12 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     );
   }
 
-  async _setLeverage(symbol: string, leverage: number): Promise<void> {
-    // GRVT uses cross-margin, but we can try to set initial leverage
-    await this.rateLimiter.acquire('modifyOrder');
-
-    try {
-      const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-      await this.sdk.setInitialLeverage({
-        instrument: grvtSymbol,
-        leverage: leverage.toString(),
-      });
-    } catch (error) {
-      throw mapAxiosError(error);
-    }
+  async _setLeverage(_symbol: string, _leverage: number): Promise<void> {
+    throw new NotSupportedError(
+      'GRVT uses cross-margin; setLeverage is not supported',
+      'NOT_SUPPORTED',
+      'grvt'
+    );
   }
 
   symbolToExchange(symbol: string): string {
@@ -664,177 +692,65 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     return this.normalizer.symbolToCCXT(exchangeSymbol);
   }
 
-  // ==================== WebSocket Methods ====================
+  // ==================== WebSocket ====================
 
-  /**
-   * Initialize WebSocket connection if not already initialized
-   */
   private async ensureWebSocket(): Promise<GRVTWebSocketWrapper> {
     if (!this.ws) {
-      // Get sub-account ID from config if available
-      const subAccountId = (this.config as GRVTConfig & { subAccountId?: string }).subAccountId;
-
       this.ws = new GRVTWebSocketWrapper({
         testnet: this.testnet,
-        subAccountId,
+        session: this.auth.getSession(),
         timeout: this.config.timeout,
       });
-
       await this.ws.connect();
     }
-
     return this.ws;
   }
 
-  /**
-   * Watch order book updates in real-time
-   *
-   * @param symbol - Trading symbol (e.g., "BTC/USDT:USDT")
-   * @param limit - Order book depth (default: 50)
-   * @returns AsyncGenerator yielding OrderBook updates
-   *
-   * @example
-   * ```typescript
-   * for await (const orderBook of adapter.watchOrderBook('BTC/USDT:USDT')) {
-   *   console.log('Best bid:', orderBook.bids[0]);
-   *   console.log('Best ask:', orderBook.asks[0]);
-   * }
-   * ```
-   */
   async *watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook> {
     const ws = await this.ensureWebSocket();
-    const depth = limit || 50;
-
-    yield* ws.watchOrderBook(symbol, depth);
+    yield* ws.watchOrderBook(symbol, limit ?? 50);
   }
 
-  /**
-   * Watch public trades in real-time
-   *
-   * @param symbol - Trading symbol
-   * @returns AsyncGenerator yielding Trade updates
-   *
-   * @example
-   * ```typescript
-   * for await (const trade of adapter.watchTrades('BTC/USDT:USDT')) {
-   *   console.log('Trade:', trade.price, trade.amount, trade.side);
-   * }
-   * ```
-   */
   async *watchTrades(symbol: string): AsyncGenerator<Trade> {
     const ws = await this.ensureWebSocket();
     yield* ws.watchTrades(symbol);
   }
 
-  /**
-   * Watch position updates in real-time
-   *
-   * @returns AsyncGenerator yielding Position array updates
-   *
-   * @example
-   * ```typescript
-   * for await (const positions of adapter.watchPositions()) {
-   *   for (const position of positions) {
-   *     console.log('Position:', position.symbol, position.size, position.unrealizedPnl);
-   *   }
-   * }
-   * ```
-   */
-  async *watchPositions(): AsyncGenerator<Position[]> {
-    const ws = await this.ensureWebSocket();
-
-    // GRVT sends individual position updates, collect and yield as array
-    for await (const position of ws.watchPositions()) {
-      yield [position];
-    }
-  }
-
-  /**
-   * Watch order updates in real-time
-   *
-   * @returns AsyncGenerator yielding Order array updates
-   *
-   * @example
-   * ```typescript
-   * for await (const orders of adapter.watchOrders()) {
-   *   for (const order of orders) {
-   *     console.log('Order update:', order.id, order.status, order.filled);
-   *   }
-   * }
-   * ```
-   */
-  async *watchOrders(): AsyncGenerator<Order[]> {
-    const ws = await this.ensureWebSocket();
-
-    // GRVT sends individual order updates, collect and yield as array
-    for await (const order of ws.watchOrders()) {
-      yield [order];
-    }
-  }
-
-  /**
-   * Watch ticker updates in real-time
-   *
-   * @param symbol - Trading symbol (e.g., "BTC/USDT:USDT")
-   * @returns AsyncGenerator yielding Ticker updates
-   *
-   * @example
-   * ```typescript
-   * for await (const ticker of adapter.watchTicker('BTC/USDT:USDT')) {
-   *   console.log('Price:', ticker.last);
-   * }
-   * ```
-   */
   async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
     const ws = await this.ensureWebSocket();
     yield* ws.watchTicker(symbol);
   }
 
-  /**
-   * Watch balance updates in real-time
-   *
-   * @returns AsyncGenerator yielding Balance array
-   *
-   * @example
-   * ```typescript
-   * for await (const balances of adapter.watchBalance()) {
-   *   console.log('Balance update:', balances);
-   * }
-   * ```
-   */
+  async *watchPositions(): AsyncGenerator<Position[]> {
+    const ws = await this.ensureWebSocket();
+    for await (const position of ws.watchPositions()) {
+      yield [position];
+    }
+  }
+
+  async *watchOrders(): AsyncGenerator<Order[]> {
+    const ws = await this.ensureWebSocket();
+    for await (const order of ws.watchOrders()) {
+      yield [order];
+    }
+  }
+
   async *watchBalance(): AsyncGenerator<Balance[]> {
     const ws = await this.ensureWebSocket();
     yield* ws.watchBalance();
   }
 
-  /**
-   * Watch user trades (fills) in real-time
-   *
-   * @param symbol - Optional symbol filter
-   * @returns AsyncGenerator yielding Trade updates
-   *
-   * @example
-   * ```typescript
-   * for await (const trade of adapter.watchMyTrades()) {
-   *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
-   * }
-   * ```
-   */
   async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
     const ws = await this.ensureWebSocket();
     yield* ws.watchMyTrades(symbol);
   }
 
-  /**
-   * Close WebSocket connection
-   */
   async disconnect(): Promise<void> {
     if (this.ws) {
       this.ws.disconnect();
       this.ws = undefined;
     }
-
-    this.auth.clearSessionCookie();
+    this.auth.clearSession();
     this.sdk.clearSession();
     this._isReady = false;
   }

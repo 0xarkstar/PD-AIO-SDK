@@ -1,601 +1,221 @@
 /**
- * Unit tests for GRVTSDKWrapper
+ * Unit tests for GRVTSDKWrapper (direct REST client + cookie session).
+ *
+ * Mocks the global `fetch` — no live network. Verifies the cookie-session login
+ * (gravity cookie + X-Grvt-Account-Id + sub_account_id), authed request headers,
+ * the `full/v1/*` POST paths, the `{ result }` unwrapping, and error mapping.
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { GRVTSDKWrapper } from '../../src/adapters/grvt/GRVTSDKWrapper.js';
 
-// Mock @grvt/client SDK
-const mockMDGInstance = {
-  axios: { defaults: {} },
-  instrument: jest.fn(),
-  instruments: jest.fn(),
-  allInstruments: jest.fn(),
-  miniTicker: jest.fn(),
-  ticker: jest.fn(),
-  orderBook: jest.fn(),
-  trade: jest.fn(),
-  tradesHistory: jest.fn(),
-  settlement: jest.fn(),
-  funding: jest.fn(),
-  candlestick: jest.fn(),
-  marginRules: jest.fn(),
+type MockResponse = {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  headers: { get(name: string): string | null };
+  text: () => Promise<string>;
 };
 
-const mockTDGInstance = {
-  axios: { defaults: {} },
-  createOrder: jest.fn(),
-  createBulkOrders: jest.fn(),
-  cancelOrder: jest.fn(),
-  cancelAllOrders: jest.fn(),
-  order: jest.fn(),
-  openOrders: jest.fn(),
-  orderHistory: jest.fn(),
-  orderGroup: jest.fn(),
-  replaceOrders: jest.fn(),
-  preOrderCheck: jest.fn(),
-  getPriceProtectionBands: jest.fn(),
-  positions: jest.fn(),
-  subAccountSummary: jest.fn(),
-  subAccountHistory: jest.fn(),
-  fillHistory: jest.fn(),
-  aggregatedAccountSummary: jest.fn(),
-  fundingAccountSummary: jest.fn(),
-  fundingPaymentHistory: jest.fn(),
-  preDepositCheck: jest.fn(),
-  depositHistory: jest.fn(),
-  transfer: jest.fn(),
-  transferHistory: jest.fn(),
-  withdrawal: jest.fn(),
-  withdrawalHistory: jest.fn(),
-  getAllInitialLeverage: jest.fn(),
-  setInitialLeverage: jest.fn(),
-  getMarginTiers: jest.fn(),
-};
-
-jest.mock('@grvt/client', () => ({
-  MDG: jest.fn(() => mockMDGInstance),
-  TDG: jest.fn(() => mockTDGInstance),
-}));
+function jsonResponse(
+  body: unknown,
+  { ok = true, status = 200, headers = {} }: { ok?: boolean; status?: number; headers?: Record<string, string> } = {}
+): MockResponse {
+  const lower: Record<string, string> = {};
+  for (const [k, v] of Object.entries(headers)) lower[k.toLowerCase()] = v;
+  return {
+    ok,
+    status,
+    statusText: ok ? 'OK' : 'Error',
+    headers: { get: (name: string) => lower[name.toLowerCase()] ?? null },
+    text: async () => (body === undefined ? '' : JSON.stringify(body)),
+  };
+}
 
 describe('GRVTSDKWrapper', () => {
-  let wrapper: GRVTSDKWrapper;
+  let fetchMock: jest.Mock;
 
   beforeEach(() => {
-    // Reset all mocks
+    fetchMock = jest.fn();
+    (globalThis as unknown as { fetch: unknown }).fetch = fetchMock;
+  });
+
+  afterEach(() => {
     jest.clearAllMocks();
+  });
 
-    // Create wrapper
-    wrapper = new GRVTSDKWrapper({
-      host: 'https://api-testnet.grvt.io/v1',
+  describe('login (cookie session)', () => {
+    it('captures gravity cookie + X-Grvt-Account-Id + sub_account_id', async () => {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(
+          { result: { sub_account_id: '987654321', funding_account_address: '0xfund' } },
+          {
+            headers: {
+              'set-cookie': 'gravity=abc123; Path=/; HttpOnly; Secure',
+              'x-grvt-account-id': 'acct-777',
+            },
+          }
+        )
+      );
+
+      const wrapper = new GRVTSDKWrapper({ testnet: true, apiKey: 'KEY' });
+      const session = await wrapper.login();
+
+      // hits the edge host login endpoint with the api_key body
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://edge.testnet.grvt.io/auth/api_key/login');
+      expect(JSON.parse(init.body as string)).toEqual({ api_key: 'KEY' });
+
+      expect(session.cookie).toBe('abc123');
+      expect(session.accountId).toBe('acct-777');
+      expect(session.subAccountId).toBe('987654321');
+      expect(session.fundingAccountAddress).toBe('0xfund');
+      expect(wrapper.getSubAccountId()).toBe('987654321');
+      expect(wrapper.hasSession()).toBe(true);
+    });
+
+    it('throws without an apiKey', async () => {
+      const wrapper = new GRVTSDKWrapper({ testnet: true });
+      await expect(wrapper.login()).rejects.toThrow('GRVT login requires an apiKey');
+    });
+
+    it('throws when the login response lacks a gravity cookie', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse({ result: {} }, { headers: {} }));
+      const wrapper = new GRVTSDKWrapper({ apiKey: 'KEY' });
+      await expect(wrapper.login()).rejects.toThrow(/gravity session cookie/);
+    });
+
+    it('throws on a non-2xx login', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'bad' }, { ok: false, status: 401 }));
+      const wrapper = new GRVTSDKWrapper({ apiKey: 'KEY' });
+      await expect(wrapper.login()).rejects.toThrow(/GRVT login failed/);
     });
   });
 
-  describe('constructor', () => {
-    it('should create instance with testnet config', () => {
-      expect(wrapper).toBeInstanceOf(GRVTSDKWrapper);
+  describe('public market data', () => {
+    it('POSTs full/v1/instruments to the market-data host and unwraps result', async () => {
+      const instruments = [{ instrument: 'BTC_USDT_Perp', instrument_hash: '0x030501' }];
+      fetchMock.mockResolvedValueOnce(jsonResponse({ result: instruments }));
+
+      const wrapper = new GRVTSDKWrapper({});
+      const result = await wrapper.getInstruments();
+
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://market-data.grvt.io/full/v1/instruments');
+      expect(JSON.parse(init.body as string)).toEqual({ kind: ['PERPETUAL'], is_active: true });
+      expect(result).toEqual(instruments);
     });
 
-    it('should create instance with custom config', () => {
-      const customWrapper = new GRVTSDKWrapper({
-        host: 'https://custom.api.com',
-        apiKey: 'test-key',
-        apiSecret: 'test-secret',
-        timeout: 60000,
-      });
-
-      expect(customWrapper).toBeInstanceOf(GRVTSDKWrapper);
-    });
-  });
-
-  describe('axios accessors', () => {
-    it('should expose mdgAxios', () => {
-      expect(wrapper.mdgAxios).toBeDefined();
+    it('POSTs full/v1/book with instrument + depth', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse({ result: { bids: [], asks: [] } }));
+      const wrapper = new GRVTSDKWrapper({});
+      await wrapper.getOrderBook('BTC_USDT_Perp', 50);
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://market-data.grvt.io/full/v1/book');
+      expect(JSON.parse(init.body as string)).toEqual({ instrument: 'BTC_USDT_Perp', depth: 50 });
     });
 
-    it('should expose tdgAxios', () => {
-      expect(wrapper.tdgAxios).toBeDefined();
-    });
-  });
-
-  describe('Market Data Methods', () => {
-    describe('getInstrument', () => {
-      it('should call MDG.instrument with correct params', async () => {
-        const mockResponse = { result: { instrument_id: 'BTC_USDT_Perp' } };
-        (mockMDGInstance.instrument as jest.Mock).mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getInstrument('BTC_USDT_Perp');
-
-        expect(mockMDGInstance.instrument).toHaveBeenCalledWith(
-          { instrument: 'BTC_USDT_Perp' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
-
-      it('should pass through axios config', async () => {
-        const config = { timeout: 5000 };
-        (mockMDGInstance.instrument as jest.Mock).mockResolvedValue({});
-
-        await wrapper.getInstrument('ETH_USDT_Perp', config);
-
-        expect(mockMDGInstance.instrument).toHaveBeenCalledWith(
-          { instrument: 'ETH_USDT_Perp' },
-          config
-        );
-      });
+    it('POSTs full/v1/ticker and full/v1/trade', async () => {
+      fetchMock.mockResolvedValue(jsonResponse({ result: {} }));
+      const wrapper = new GRVTSDKWrapper({});
+      await wrapper.getTicker('BTC_USDT_Perp');
+      await wrapper.getTrades('BTC_USDT_Perp', 25);
+      expect((fetchMock.mock.calls[0] as [string])[0]).toBe('https://market-data.grvt.io/full/v1/ticker');
+      expect((fetchMock.mock.calls[1] as [string])[0]).toBe('https://market-data.grvt.io/full/v1/trade');
     });
 
-    describe('getInstruments', () => {
-      it('should call MDG.instruments', async () => {
-        const mockResponse = { result: [] };
-        mockMDGInstance.instruments.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getInstruments();
-
-        expect(mockMDGInstance.instruments).toHaveBeenCalledWith({}, undefined);
-        expect(result).toEqual(mockResponse);
-      });
-
-      it('should pass filter params', async () => {
-        const params = { is_active: true };
-        mockMDGInstance.instruments.mockResolvedValue({});
-
-        await wrapper.getInstruments(params);
-
-        expect(mockMDGInstance.instruments).toHaveBeenCalledWith(params, undefined);
-      });
-    });
-
-    describe('getAllInstruments', () => {
-      it('should call MDG.allInstruments', async () => {
-        const mockResponse = { result: [] };
-        mockMDGInstance.allInstruments.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getAllInstruments();
-
-        expect(mockMDGInstance.allInstruments).toHaveBeenCalledWith({}, undefined);
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getMiniTicker', () => {
-      it('should call MDG.miniTicker', async () => {
-        const mockResponse = { result: {} };
-        mockMDGInstance.miniTicker.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getMiniTicker('BTC_USDT_Perp');
-
-        expect(mockMDGInstance.miniTicker).toHaveBeenCalledWith(
-          { instrument: 'BTC_USDT_Perp' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getTicker', () => {
-      it('should call MDG.ticker', async () => {
-        const mockResponse = { result: {} };
-        mockMDGInstance.ticker.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getTicker('BTC_USDT_Perp');
-
-        expect(mockMDGInstance.ticker).toHaveBeenCalledWith(
-          { instrument: 'BTC_USDT_Perp' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getOrderBook', () => {
-      it('should call MDG.orderBook with depth', async () => {
-        const mockResponse = { result: { bids: [], asks: [] } };
-        mockMDGInstance.orderBook.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getOrderBook('BTC_USDT_Perp', 50);
-
-        expect(mockMDGInstance.orderBook).toHaveBeenCalledWith(
-          { instrument: 'BTC_USDT_Perp', depth: 50 },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getTrade', () => {
-      it('should call MDG.trade', async () => {
-        const mockResponse = { result: {} };
-        mockMDGInstance.trade.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getTrade('BTC_USDT_Perp');
-
-        expect(mockMDGInstance.trade).toHaveBeenCalledWith(
-          { instrument: 'BTC_USDT_Perp' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getTradeHistory', () => {
-      it('should call MDG.tradesHistory', async () => {
-        const mockResponse = { result: [] };
-        mockMDGInstance.tradesHistory.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getTradeHistory({ instrument: 'BTC_USDT_Perp' });
-
-        expect(mockMDGInstance.tradesHistory).toHaveBeenCalledWith(
-          { instrument: 'BTC_USDT_Perp' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getSettlement', () => {
-      it('should call MDG.settlement', async () => {
-        const mockResponse = { result: [] };
-        mockMDGInstance.settlement.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getSettlement({ base: 'BTC', quote: 'USD' });
-
-        expect(mockMDGInstance.settlement).toHaveBeenCalledWith(
-          { base: 'BTC', quote: 'USD' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getFunding', () => {
-      it('should call MDG.funding', async () => {
-        const mockResponse = { result: {} };
-        mockMDGInstance.funding.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getFunding('BTC_USDT_Perp');
-
-        expect(mockMDGInstance.funding).toHaveBeenCalledWith(
-          { instrument: 'BTC_USDT_Perp' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getCandlestick', () => {
-      it('should call MDG.candlestick', async () => {
-        const mockResponse = { result: [] };
-        mockMDGInstance.candlestick.mockResolvedValue(mockResponse);
-
-        const params = { instrument: 'BTC_USDT_Perp', interval: '1m' };
-        const result = await wrapper.getCandlestick(params);
-
-        expect(mockMDGInstance.candlestick).toHaveBeenCalledWith(params, undefined);
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getMarginRules', () => {
-      it('should call MDG.marginRules', async () => {
-        const mockResponse = { result: {} };
-        mockMDGInstance.marginRules.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getMarginRules();
-
-        expect(mockMDGInstance.marginRules).toHaveBeenCalledWith({}, undefined);
-        expect(result).toEqual(mockResponse);
-      });
+    it('throws a status-bearing error on non-2xx', async () => {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({ error: { code: 'INVALID_ORDER' } }, { ok: false, status: 400 })
+      );
+      const wrapper = new GRVTSDKWrapper({});
+      await expect(wrapper.getInstruments()).rejects.toMatchObject({ status: 400 });
     });
   });
 
-  describe('Trading Methods', () => {
-    describe('createOrder', () => {
-      it('should call TDG.createOrder and extract session cookie', async () => {
-        const mockResponse = {
-          data: { order_id: '123' },
-          headers: {
-            'set-cookie': ['session=abc123; Path=/; HttpOnly'],
-          },
-        };
-        mockTDGInstance.createOrder.mockResolvedValue(mockResponse);
+  describe('authed requests', () => {
+    it('attaches gravity cookie + X-Grvt-Account-Id and targets the trades host', async () => {
+      // First call: login. Second call: createOrder.
+      fetchMock
+        .mockResolvedValueOnce(
+          jsonResponse(
+            { result: { sub_account_id: '111' } },
+            { headers: { 'set-cookie': 'gravity=sess; Path=/', 'x-grvt-account-id': 'acct-1' } }
+          )
+        )
+        .mockResolvedValueOnce(jsonResponse({ result: { order_id: 'o-1' } }));
 
-        const order = { instrument: 'BTC_USDT_Perp', side: 'BUY', size: '0.1' };
-        const result = await wrapper.createOrder(order);
+      const wrapper = new GRVTSDKWrapper({ testnet: true, apiKey: 'KEY' });
+      await wrapper.login();
+      const order = (await wrapper.createOrder({
+        sub_account_id: '111',
+        is_market: false,
+        time_in_force: 'GOOD_TILL_TIME',
+        post_only: true,
+        reduce_only: false,
+        legs: [{ instrument: 'BTC_USDT_Perp', size: '0.001', limit_price: '50000', is_buying_asset: true }],
+        signature: { r: '0xr', s: '0xs', v: 27, expiration: '1', nonce: 1, signer: '0xsig' },
+        metadata: { client_order_id: '999' },
+      })) as { order_id: string };
 
-        expect(mockTDGInstance.createOrder).toHaveBeenCalledWith(order, undefined);
-        expect(result).toEqual(mockResponse);
-        expect(wrapper.getSessionCookie()).toBe('session=abc123');
-      });
+      const [url, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+      expect(url).toBe('https://trades.testnet.grvt.io/full/v1/create_order');
+      const headers = init.headers as Record<string, string>;
+      expect(headers['Cookie']).toBe('gravity=sess');
+      expect(headers['X-Grvt-Account-Id']).toBe('acct-1');
+      // wire body wraps the order under `{ order }`
+      expect(JSON.parse(init.body as string)).toHaveProperty('order.sub_account_id', '111');
+      expect(order.order_id).toBe('o-1');
     });
 
-    describe('cancelOrder', () => {
-      it('should call TDG.cancelOrder', async () => {
-        const mockResponse = { data: {} };
-        mockTDGInstance.cancelOrder.mockResolvedValue(mockResponse);
+    it('auto-logs-in before an authed call when no session exists', async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          jsonResponse(
+            { result: { sub_account_id: '222' } },
+            { headers: { 'set-cookie': 'gravity=auto; Path=/', 'x-grvt-account-id': 'acct-2' } }
+          )
+        )
+        .mockResolvedValueOnce(jsonResponse({ result: [] }));
 
-        const result = await wrapper.cancelOrder({ order_id: '123' });
+      const wrapper = new GRVTSDKWrapper({ apiKey: 'KEY' });
+      await wrapper.getPositions('222');
 
-        expect(mockTDGInstance.cancelOrder).toHaveBeenCalledWith(
-          { order_id: '123' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
+      // first call is the login (edge host)
+      expect((fetchMock.mock.calls[0] as [string])[0]).toBe('https://edge.grvt.io/auth/api_key/login');
+      // second call is the positions request (trades host)
+      expect((fetchMock.mock.calls[1] as [string])[0]).toBe('https://trades.grvt.io/full/v1/positions');
     });
 
-    describe('cancelAllOrders', () => {
-      it('should call TDG.cancelAllOrders', async () => {
-        const mockResponse = { data: {} };
-        mockTDGInstance.cancelAllOrders.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.cancelAllOrders({ instrument: 'BTC_USDT_Perp' });
-
-        expect(mockTDGInstance.cancelAllOrders).toHaveBeenCalledWith(
-          { instrument: 'BTC_USDT_Perp' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getOrder', () => {
-      it('should call TDG.order', async () => {
-        const mockResponse = { result: {} };
-        mockTDGInstance.order.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getOrder({ order_id: '123' });
-
-        expect(mockTDGInstance.order).toHaveBeenCalledWith({ order_id: '123' }, undefined);
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getOpenOrders', () => {
-      it('should call TDG.openOrders', async () => {
-        const mockResponse = { result: [] };
-        mockTDGInstance.openOrders.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getOpenOrders();
-
-        expect(mockTDGInstance.openOrders).toHaveBeenCalledWith({}, undefined);
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getOrderHistory', () => {
-      it('should call TDG.orderHistory (fixes unimplemented)', async () => {
-        const mockResponse = { result: [] };
-        mockTDGInstance.orderHistory.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getOrderHistory({ instrument: 'BTC_USDT_Perp' });
-
-        expect(mockTDGInstance.orderHistory).toHaveBeenCalledWith(
-          { instrument: 'BTC_USDT_Perp' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getOrderGroup', () => {
-      it('should call TDG.orderGroup', async () => {
-        const mockResponse = { result: {} };
-        mockTDGInstance.orderGroup.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getOrderGroup({ sub_account_id: 'sub123' });
-
-        expect(mockTDGInstance.orderGroup).toHaveBeenCalledWith(
-          { sub_account_id: 'sub123' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
+    it('cancelAllOrders posts the sub_account_id', async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          jsonResponse({ result: {} }, { headers: { 'set-cookie': 'gravity=s; Path=/', 'x-grvt-account-id': 'a' } })
+        )
+        .mockResolvedValueOnce(jsonResponse({ result: { num_cancelled: 3 } }));
+      const wrapper = new GRVTSDKWrapper({ apiKey: 'KEY' });
+      await wrapper.login();
+      await wrapper.cancelAllOrders('555');
+      const [url, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+      expect(url).toBe('https://trades.grvt.io/full/v1/cancel_all_orders');
+      expect(JSON.parse(init.body as string)).toEqual({ sub_account_id: '555' });
     });
   });
 
-  describe('Account Methods', () => {
-    describe('getPositions', () => {
-      it('should call TDG.positions', async () => {
-        const mockResponse = { result: [] };
-        mockTDGInstance.positions.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getPositions();
-
-        expect(mockTDGInstance.positions).toHaveBeenCalledWith({}, undefined);
-        expect(result).toEqual(mockResponse);
-      });
+  describe('session helpers', () => {
+    it('set/clear/has session', () => {
+      const wrapper = new GRVTSDKWrapper({ apiKey: 'KEY' });
+      expect(wrapper.hasSession()).toBe(false);
+      wrapper.setSession({ cookie: 'c', accountId: 'a', subAccountId: 's', expiresAt: Date.now() + 60000 });
+      expect(wrapper.hasSession()).toBe(true);
+      expect(wrapper.getSubAccountId()).toBe('s');
+      wrapper.clearSession();
+      expect(wrapper.hasSession()).toBe(false);
     });
 
-    describe('getSubAccountSummary', () => {
-      it('should call TDG.subAccountSummary', async () => {
-        const mockResponse = { result: {} };
-        mockTDGInstance.subAccountSummary.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getSubAccountSummary();
-
-        expect(mockTDGInstance.subAccountSummary).toHaveBeenCalledWith({}, undefined);
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('getFillHistory', () => {
-      it('should call TDG.fillHistory (fixes unimplemented)', async () => {
-        const mockResponse = { result: [] };
-        mockTDGInstance.fillHistory.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getFillHistory({ instrument: 'BTC_USDT_Perp' });
-
-        expect(mockTDGInstance.fillHistory).toHaveBeenCalledWith(
-          { instrument: 'BTC_USDT_Perp' },
-          undefined
-        );
-        expect(result).toEqual(mockResponse);
-      });
-    });
-  });
-
-  describe('Session Management', () => {
-    describe('extractSessionCookieFromResponse', () => {
-      it('should extract session cookie from Set-Cookie header', async () => {
-        const mockResponse = {
-          data: {},
-          headers: {
-            'set-cookie': ['session=xyz789; Path=/; HttpOnly', 'other=value'],
-          },
-        };
-        mockTDGInstance.createOrder.mockResolvedValue(mockResponse);
-
-        await wrapper.createOrder({});
-
-        expect(wrapper.getSessionCookie()).toBe('session=xyz789');
-      });
-
-      it('should handle multiple cookies and find session', async () => {
-        const mockResponse = {
-          data: {},
-          headers: {
-            'set-cookie': [
-              'csrf=abc123',
-              'SESSION_TOKEN=mysession; Secure',
-              'other=val',
-            ],
-          },
-        };
-        mockTDGInstance.transfer.mockResolvedValue(mockResponse);
-
-        await wrapper.transfer({});
-
-        expect(wrapper.getSessionCookie()).toBe('SESSION_TOKEN=mysession');
-      });
-
-      it('should not crash if no headers', async () => {
-        const mockResponse = { data: {} };
-        mockTDGInstance.createOrder.mockResolvedValue(mockResponse);
-
-        await wrapper.createOrder({});
-
-        expect(wrapper.getSessionCookie()).toBeUndefined();
-      });
-
-      it('should not crash if no Set-Cookie header', async () => {
-        const mockResponse = {
-          data: {},
-          headers: { 'content-type': 'application/json' },
-        };
-        mockTDGInstance.createOrder.mockResolvedValue(mockResponse);
-
-        await wrapper.createOrder({});
-
-        expect(wrapper.getSessionCookie()).toBeUndefined();
-      });
-    });
-
-    describe('getSessionCookie', () => {
-      it('should return undefined initially', () => {
-        expect(wrapper.getSessionCookie()).toBeUndefined();
-      });
-
-      it('should return cookie after extraction', async () => {
-        const mockResponse = {
-          headers: { 'set-cookie': ['session=test123'] },
-        };
-        mockTDGInstance.createOrder.mockResolvedValue(mockResponse);
-
-        await wrapper.createOrder({});
-
-        expect(wrapper.getSessionCookie()).toBe('session=test123');
-      });
-    });
-
-    describe('setSessionCookie', () => {
-      it('should set cookie manually', () => {
-        wrapper.setSessionCookie('manual=cookie123');
-        expect(wrapper.getSessionCookie()).toBe('manual=cookie123');
-      });
-    });
-
-    describe('hasSession', () => {
-      it('should return false initially', () => {
-        expect(wrapper.hasSession()).toBe(false);
-      });
-
-      it('should return true after setting cookie', () => {
-        wrapper.setSessionCookie('session=abc');
-        expect(wrapper.hasSession()).toBe(true);
-      });
-    });
-
-    describe('clearSession', () => {
-      it('should clear session cookie', () => {
-        wrapper.setSessionCookie('session=test');
-        expect(wrapper.hasSession()).toBe(true);
-
-        wrapper.clearSession();
-
-        expect(wrapper.hasSession()).toBe(false);
-        expect(wrapper.getSessionCookie()).toBeUndefined();
-      });
-    });
-  });
-
-  describe('Transfer Methods', () => {
-    describe('transfer', () => {
-      it('should call TDG.transfer and extract session', async () => {
-        const mockResponse = {
-          data: {},
-          headers: { 'set-cookie': ['session=transfer123'] },
-        };
-        mockTDGInstance.transfer.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.transfer({ amount: '100' });
-
-        expect(mockTDGInstance.transfer).toHaveBeenCalledWith({ amount: '100' }, undefined);
-        expect(wrapper.getSessionCookie()).toBe('session=transfer123');
-      });
-    });
-
-    describe('withdrawal', () => {
-      it('should call TDG.withdrawal', async () => {
-        const mockResponse = { data: {} };
-        mockTDGInstance.withdrawal.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.withdrawal({ amount: '50' });
-
-        expect(mockTDGInstance.withdrawal).toHaveBeenCalledWith({ amount: '50' }, undefined);
-        expect(result).toEqual(mockResponse);
-      });
-    });
-  });
-
-  describe('Leverage Methods', () => {
-    describe('setInitialLeverage', () => {
-      it('should call TDG.setInitialLeverage and extract session', async () => {
-        const mockResponse = {
-          data: {},
-          headers: { 'set-cookie': ['session=leverage123'] },
-        };
-        mockTDGInstance.setInitialLeverage.mockResolvedValue(mockResponse);
-
-        const params = { instrument: 'BTC_USDT_Perp', leverage: '10' };
-        const result = await wrapper.setInitialLeverage(params);
-
-        expect(mockTDGInstance.setInitialLeverage).toHaveBeenCalledWith(params, undefined);
-        expect(wrapper.getSessionCookie()).toBe('session=leverage123');
-      });
-    });
-
-    describe('getMarginTiers', () => {
-      it('should call TDG.getMarginTiers', async () => {
-        const mockResponse = { result: [] };
-        mockTDGInstance.getMarginTiers.mockResolvedValue(mockResponse);
-
-        const result = await wrapper.getMarginTiers();
-
-        expect(mockTDGInstance.getMarginTiers).toHaveBeenCalledWith(undefined);
-        expect(result).toEqual(mockResponse);
-      });
+    it('reports credentials based on apiKey presence', () => {
+      expect(new GRVTSDKWrapper({ apiKey: 'KEY' }).hasCredentials()).toBe(true);
+      expect(new GRVTSDKWrapper({}).hasCredentials()).toBe(false);
     });
   });
 });

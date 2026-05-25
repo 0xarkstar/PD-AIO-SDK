@@ -1,326 +1,369 @@
 /**
- * GRVT-specific type definitions
+ * GRVT-specific type definitions.
+ *
+ * Ground-truthed 2026-05-26 against the official GRVT api-docs + live API and
+ * the working zo-mm-sim market-data parsers. These mirror the REAL GRVT REST
+ * response shapes (all numeric fields are STRINGS on the wire):
+ *  - instruments carry `instrument_hash` + `base_decimals` (used for signing),
+ *    `kind: 'PERPETUAL'`, and NO per-instrument fee fields (fees are per-fill).
+ *  - books are FULL snapshots with `{ price, size, num_orders }` levels + `event_time`.
+ *  - trades carry `is_taker_buyer` (true => BUY aggressor) and a string `trade_id`.
+ *  - tickers carry mark/index/last/mid + best bid/ask + 24h volume fields.
+ *
+ * Order EIP-712 signing input/output live in `signing.ts`
+ * (`GrvtSignOrderInput` / `GrvtSignature`) — they are NOT redefined here.
  */
 
 import { z } from 'zod';
 
+// =============================================================================
+// Response envelope
+// =============================================================================
+
 /**
- * GRVT market information
+ * Every GRVT REST response wraps its payload under `result`.
+ */
+export interface GRVTResult<T> {
+  result: T;
+}
+
+// =============================================================================
+// Market / instrument
+// =============================================================================
+
+/**
+ * GRVT instrument (from `full/v1/instruments`). NO fee fields — fees are per-fill.
  */
 export interface GRVTMarket {
-  instrument_id: string;
   instrument: string;
-  base_currency: string;
-  quote_currency: string;
-  settlement_currency: string;
-  instrument_type: 'PERP' | 'SPOT';
-  is_active: boolean;
-  maker_fee: string;
-  taker_fee: string;
-  max_leverage: string;
-  min_size: string;
-  max_size: string;
+  instrument_hash: string;
+  base: string;
+  quote: string;
+  base_decimals: number;
+  quote_decimals: number;
   tick_size: string;
-  step_size: string;
-  mark_price: string;
-  index_price: string;
-  funding_rate?: string;
-  next_funding_time?: number;
-  open_interest?: string;
+  min_size: string;
+  min_notional?: string;
+  max_size?: string;
+  funding_interval_hours?: number;
+  kind: string;
+  is_active?: boolean;
 }
 
 export const GRVTMarketSchema = z
   .object({
-    instrument_id: z.string(),
     instrument: z.string(),
-    base_currency: z.string(),
-    quote_currency: z.string(),
-    settlement_currency: z.string(),
-    instrument_type: z.string(),
-    is_active: z.boolean(),
-    maker_fee: z.string(),
-    taker_fee: z.string(),
-    max_leverage: z.string(),
-    min_size: z.string(),
-    max_size: z.string(),
+    instrument_hash: z.string(),
+    base: z.string(),
+    quote: z.string(),
+    base_decimals: z.number().int(),
+    quote_decimals: z.number().int(),
     tick_size: z.string(),
-    step_size: z.string(),
-    mark_price: z.string(),
-    index_price: z.string(),
-    funding_rate: z.string().optional(),
-    next_funding_time: z.number().optional(),
-    open_interest: z.string().optional(),
+    min_size: z.string(),
+    min_notional: z.string().optional(),
+    max_size: z.string().optional(),
+    funding_interval_hours: z.number().optional(),
+    kind: z.string(),
+    is_active: z.boolean().optional(),
   })
   .passthrough();
 
+// =============================================================================
+// Order book
+// =============================================================================
+
 /**
- * GRVT order book snapshot
+ * GRVT order book level (object form, NOT a `[price, size]` tuple).
+ */
+export interface GRVTOrderBookLevel {
+  price: string;
+  size: string;
+  num_orders?: number;
+}
+
+/**
+ * GRVT order book FULL snapshot (from `full/v1/book` and the `v1.book.s` stream).
+ * No sequence/diff — `event_time` (ns string) is the monotonic clock.
  */
 export interface GRVTOrderBook {
-  instrument: string;
-  bids: Array<[string, string]>; // [price, size]
-  asks: Array<[string, string]>;
-  timestamp: number;
-  sequence: number;
+  instrument?: string;
+  event_time: string;
+  bids: GRVTOrderBookLevel[];
+  asks: GRVTOrderBookLevel[];
 }
+
+export const GRVTOrderBookLevelSchema = z
+  .object({
+    price: z.string(),
+    size: z.string(),
+    num_orders: z.number().optional(),
+  })
+  .passthrough();
 
 export const GRVTOrderBookSchema = z
   .object({
-    instrument: z.string(),
-    bids: z.array(z.tuple([z.string(), z.string()])),
-    asks: z.array(z.tuple([z.string(), z.string()])),
-    timestamp: z.number(),
-    sequence: z.number(),
+    instrument: z.string().optional(),
+    event_time: z.string(),
+    bids: z.array(GRVTOrderBookLevelSchema),
+    asks: z.array(GRVTOrderBookLevelSchema),
   })
   .passthrough();
 
-/**
- * GRVT order
- */
-export interface GRVTOrder {
-  order_id: string;
-  client_order_id?: string;
-  instrument: string;
-  order_type: 'MARKET' | 'LIMIT' | 'LIMIT_MAKER';
-  side: 'BUY' | 'SELL';
-  size: string;
-  price?: string;
-  time_in_force: 'GTC' | 'IOC' | 'FOK' | 'POST_ONLY';
-  reduce_only: boolean;
-  post_only: boolean;
-  status: 'PENDING' | 'OPEN' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLED' | 'REJECTED';
-  filled_size: string;
-  average_fill_price?: string;
-  created_at: number;
-  updated_at: number;
-}
-
-export const GRVTOrderSchema = z
-  .object({
-    order_id: z.string(),
-    client_order_id: z.string().optional(),
-    instrument: z.string(),
-    order_type: z.string(),
-    side: z.string(),
-    size: z.string(),
-    price: z.string().optional(),
-    time_in_force: z.string(),
-    reduce_only: z.boolean(),
-    post_only: z.boolean(),
-    status: z.string(),
-    filled_size: z.string(),
-    average_fill_price: z.string().optional(),
-    created_at: z.number(),
-    updated_at: z.number(),
-  })
-  .passthrough();
+// =============================================================================
+// Trade
+// =============================================================================
 
 /**
- * GRVT position
- */
-export interface GRVTPosition {
-  instrument: string;
-  side: 'LONG' | 'SHORT';
-  size: string;
-  entry_price: string;
-  mark_price: string;
-  liquidation_price?: string;
-  unrealized_pnl: string;
-  realized_pnl: string;
-  margin: string;
-  leverage: string;
-  timestamp: number;
-}
-
-export const GRVTPositionSchema = z
-  .object({
-    instrument: z.string(),
-    side: z.string(),
-    size: z.string(),
-    entry_price: z.string(),
-    mark_price: z.string(),
-    liquidation_price: z.string().optional(),
-    unrealized_pnl: z.string(),
-    realized_pnl: z.string(),
-    margin: z.string(),
-    leverage: z.string(),
-    timestamp: z.number(),
-  })
-  .passthrough();
-
-/**
- * GRVT balance
- */
-export interface GRVTBalance {
-  currency: string;
-  total: string;
-  available: string;
-  reserved: string;
-  unrealized_pnl: string;
-}
-
-export const GRVTBalanceSchema = z
-  .object({
-    currency: z.string(),
-    total: z.string(),
-    available: z.string(),
-    reserved: z.string(),
-    unrealized_pnl: z.string(),
-  })
-  .passthrough();
-
-/**
- * GRVT trade
+ * GRVT public trade (from `full/v1/trade` and the `v1.trade` stream).
  */
 export interface GRVTTrade {
-  trade_id: string;
-  instrument: string;
-  side: 'BUY' | 'SELL';
-  price: string;
+  event_time: string;
+  instrument?: string;
+  is_taker_buyer: boolean;
   size: string;
-  timestamp: number;
-  is_buyer_maker: boolean;
+  price: string;
+  mark_price?: string;
+  index_price?: string;
+  trade_id: string;
+  venue?: string;
+  is_rpi?: boolean;
 }
 
 export const GRVTTradeSchema = z
   .object({
-    trade_id: z.string(),
-    instrument: z.string(),
-    side: z.string(),
-    price: z.string(),
+    event_time: z.string(),
+    instrument: z.string().optional(),
+    is_taker_buyer: z.boolean(),
     size: z.string(),
-    timestamp: z.number(),
-    is_buyer_maker: z.boolean(),
+    price: z.string(),
+    mark_price: z.string().optional(),
+    index_price: z.string().optional(),
+    trade_id: z.string(),
+    venue: z.string().optional(),
+    is_rpi: z.boolean().optional(),
   })
   .passthrough();
 
+// =============================================================================
+// Ticker
+// =============================================================================
+
 /**
- * GRVT ticker
+ * GRVT ticker (from `full/v1/ticker` and the `v1.ticker.s` stream).
+ * All numeric fields are STRINGS on the wire.
  */
 export interface GRVTTicker {
-  instrument: string;
-  last_price: string;
-  best_bid: string;
-  best_ask: string;
-  volume_24h: string;
-  high_24h: string;
-  low_24h: string;
-  price_change_24h: string;
-  timestamp: number;
+  instrument?: string;
+  event_time?: string;
+  mark_price?: string;
+  index_price?: string;
+  last_price?: string;
+  mid_price?: string;
+  best_bid_price?: string;
+  best_ask_price?: string;
+  best_bid_size?: string;
+  best_ask_size?: string;
+  buy_volume_24h_q?: string;
+  sell_volume_24h_q?: string;
+  open_interest?: string;
+  funding_rate?: string;
+  next_funding_time?: string;
 }
 
 export const GRVTTickerSchema = z
   .object({
-    instrument: z.string(),
-    last_price: z.string(),
-    best_bid: z.string(),
-    best_ask: z.string(),
-    volume_24h: z.string(),
-    high_24h: z.string(),
-    low_24h: z.string(),
-    price_change_24h: z.string(),
-    timestamp: z.number(),
+    instrument: z.string().optional(),
+    event_time: z.string().optional(),
+    mark_price: z.string().optional(),
+    index_price: z.string().optional(),
+    last_price: z.string().optional(),
+    mid_price: z.string().optional(),
+    best_bid_price: z.string().optional(),
+    best_ask_price: z.string().optional(),
+    best_bid_size: z.string().optional(),
+    best_ask_size: z.string().optional(),
+    buy_volume_24h_q: z.string().optional(),
+    sell_volume_24h_q: z.string().optional(),
+    open_interest: z.string().optional(),
+    funding_rate: z.string().optional(),
+    next_funding_time: z.string().optional(),
   })
   .passthrough();
 
-/**
- * GRVT order request
- */
-export interface GRVTOrderRequest {
-  instrument: string;
-  order_type: 'MARKET' | 'LIMIT' | 'LIMIT_MAKER';
-  side: 'BUY' | 'SELL';
-  size: string;
-  price?: string;
-  time_in_force?: 'GTC' | 'IOC' | 'FOK' | 'POST_ONLY';
-  reduce_only?: boolean;
-  post_only?: boolean;
-  client_order_id?: string;
-}
+// =============================================================================
+// Funding
+// =============================================================================
 
 /**
- * GRVT cancel order request
+ * GRVT funding-rate entry (from `full/v1/funding`).
  */
-export interface GRVTCancelRequest {
-  order_id?: string;
-  client_order_id?: string;
+export interface GRVTFunding {
   instrument?: string;
+  funding_rate?: string;
+  funding_time?: string;
+  mark_price?: string;
+  index_price?: string;
+  funding_interval_hours?: number;
+}
+
+// =============================================================================
+// Order (account)
+// =============================================================================
+
+/**
+ * One leg of a GRVT order on the wire.
+ */
+export interface GRVTOrderLeg {
+  instrument: string;
+  size: string;
+  limit_price?: string;
+  is_buying_asset: boolean;
 }
 
 /**
- * GRVT WebSocket subscription
+ * GRVT order state (status + traded/book sizes, parallel-indexed to legs).
  */
-export interface GRVTSubscription {
-  method: 'subscribe' | 'unsubscribe';
-  params: {
-    channels: string[];
+export interface GRVTOrderState {
+  status?: string;
+  traded_size?: string[];
+  book_size?: string[];
+  avg_fill_price?: string[];
+  update_time?: string;
+}
+
+/**
+ * GRVT order metadata (client order id + create time).
+ */
+export interface GRVTOrderMetadata {
+  client_order_id?: string;
+  create_time?: string;
+}
+
+/**
+ * GRVT account order (from `create_order` result, `open_orders`, `order_history`).
+ */
+export interface GRVTOrder {
+  order_id?: string;
+  sub_account_id?: string;
+  is_market?: boolean;
+  time_in_force?: string;
+  post_only?: boolean;
+  reduce_only?: boolean;
+  legs?: GRVTOrderLeg[];
+  state?: GRVTOrderState;
+  metadata?: GRVTOrderMetadata;
+}
+
+// =============================================================================
+// Position / balance / fill
+// =============================================================================
+
+/**
+ * GRVT position (from `full/v1/positions`).
+ */
+export interface GRVTPosition {
+  instrument?: string;
+  size?: string;
+  notional?: string;
+  entry_price?: string;
+  mark_price?: string;
+  unrealized_pnl?: string;
+  realized_pnl?: string;
+  est_liquidation_price?: string;
+  leverage?: string;
+  event_time?: string;
+}
+
+/**
+ * GRVT spot balance (from `sub_account_summary.spot_balances`).
+ */
+export interface GRVTSpotBalance {
+  currency?: string;
+  balance?: string;
+  index_price?: string;
+}
+
+/**
+ * GRVT fill (user trade, from `full/v1/fill_history`). `fee` NEGATIVE = maker rebate.
+ */
+export interface GRVTFill {
+  trade_id?: string;
+  order_id?: string;
+  instrument?: string;
+  price?: string;
+  size?: string;
+  is_buyer?: boolean;
+  is_taker?: boolean;
+  fee?: string;
+  event_time?: string;
+}
+
+// =============================================================================
+// Auth
+// =============================================================================
+
+/**
+ * GRVT API-key login response body (`POST {edge}/auth/api_key/login`).
+ * The `gravity` session cookie + `X-Grvt-Account-Id` header arrive separately.
+ */
+export interface GRVTLoginResult {
+  sub_account_id?: string;
+  funding_account_address?: string;
+}
+
+/**
+ * Resolved GRVT session after login.
+ */
+export interface GRVTSession {
+  /** `gravity` cookie value (sent as `Cookie: gravity=...`). */
+  cookie: string;
+  /** Main account id (sent as `X-Grvt-Account-Id`). */
+  accountId: string;
+  /** Trading sub-account id (uint64 string; goes in every order/cancel body). */
+  subAccountId?: string;
+  /** Funding account address (EVM address of the funding account). */
+  fundingAccountAddress?: string;
+  /** Cookie expiry (ms epoch). */
+  expiresAt: number;
+}
+
+// =============================================================================
+// Request bodies (wire)
+// =============================================================================
+
+/**
+ * GRVT create-order wire body (under `{ order: ... }`).
+ */
+export interface GRVTCreateOrderBody {
+  sub_account_id: string;
+  is_market: boolean;
+  time_in_force: string;
+  post_only: boolean;
+  reduce_only: boolean;
+  legs: Array<{
+    instrument: string;
+    size: string;
+    limit_price: string;
+    is_buying_asset: boolean;
+  }>;
+  signature: {
+    r: string;
+    s: string;
+    v: number;
+    expiration: string;
+    nonce: number;
+    signer: string;
+  };
+  metadata: {
+    client_order_id: string;
   };
 }
 
 /**
- * GRVT WebSocket message
+ * GRVT cancel-order wire body.
  */
-export interface GRVTWsMessage {
-  channel: string;
-  data: unknown;
-  timestamp: number;
-}
-
-/**
- * GRVT order book update
- */
-export interface GRVTWsOrderBookUpdate {
-  instrument: string;
-  bids: Array<[string, string]>;
-  asks: Array<[string, string]>;
-  timestamp: number;
-  sequence: number;
-  is_snapshot: boolean;
-}
-
-/**
- * GRVT trade update
- */
-export interface GRVTWsTradeUpdate {
-  trades: GRVTTrade[];
-}
-
-/**
- * GRVT position update
- */
-export interface GRVTWsPositionUpdate {
-  positions: GRVTPosition[];
-}
-
-/**
- * GRVT order update
- */
-export interface GRVTWsOrderUpdate {
-  orders: GRVTOrder[];
-}
-
-/**
- * EIP-712 domain for GRVT
- */
-export interface GRVTEip712Domain {
-  name: string;
-  version: string;
-  chainId: number;
-  verifyingContract: string;
-}
-
-/**
- * GRVT order signature payload
- */
-export interface GRVTOrderSignPayload {
-  instrument: string;
-  order_type: string;
-  side: string;
-  size: string;
-  price: string;
-  time_in_force: string;
-  reduce_only: boolean;
-  post_only: boolean;
-  nonce: number;
-  expiry: number;
+export interface GRVTCancelOrderBody {
+  sub_account_id: string;
+  order_id?: string;
+  client_order_id?: string;
 }

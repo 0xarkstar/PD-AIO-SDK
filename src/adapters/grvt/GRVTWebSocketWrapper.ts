@@ -1,456 +1,198 @@
 /**
- * GRVT WebSocket Wrapper
+ * GRVT WebSocket wrapper (JSON-RPC).
  *
- * Wraps the @grvt/client WS class to provide AsyncGenerator-based
- * streaming interfaces for real-time market data and account updates.
+ * GRVT's WS is JSON-RPC over the `/ws` base path on the trades + market-data
+ * hosts. Subscriptions are sent as:
+ *   {"jsonrpc":"2.0","method":"subscribe",
+ *    "params":{"stream":"v1.book.s","selectors":["BTC_USDT_Perp@500-50"]},"id":1}
  *
- * Features:
- * - AsyncGenerator pattern for easy iteration
- * - Automatic reconnection via SDK
- * - Data normalization
- * - Type-safe subscriptions
+ * Public streams (market-data host): v1.{book.s,book.d,trade,ticker.s,mini.s}.
+ * Private trade-data streams (trades host): v1.{order,fill,position} — these need
+ * the `gravity` cookie + `X-Grvt-Account-Id` on connect (carried in the session).
+ *
+ * Feed frames carry `{ stream, feed, selector }`; the `feed` payload shape
+ * matches REST exactly, so it is normalized via the same `GRVTNormalizer`.
+ * Built on the SDK's typed `WebSocketClient` (auto-reconnect, Node/browser).
  */
 
-import { WS, EStream } from '@grvt/client/ws/index.js';
+import { WebSocketClient } from '../../websocket/WebSocketClient.js';
+import type { OrderBook, Trade, Ticker, Position, Order, Balance } from '../../types/common.js';
 import type {
-  IWSBookRequest,
-  IWSTradeRequest,
-  IWSTdgPositionRequest,
-  IWSTdgOrderRequest,
-} from '@grvt/client/ws/interfaces.js';
-import type { IOrderbookLevels, ITrade, IPositions, IOrder } from '@grvt/client/interfaces';
-import type { OrderBook, Trade, Position, Order, Balance, Ticker } from '../../types/common.js';
+  GRVTOrderBook,
+  GRVTTrade,
+  GRVTTicker,
+  GRVTPosition,
+  GRVTOrder,
+  GRVTSession,
+} from './types.js';
 import { GRVTNormalizer } from './GRVTNormalizer.js';
-import { GRVT_API_URLS } from './constants.js';
+import { GRVT_API_URLS, GRVT_WS_STREAMS, GRVT_BOOK_DEPTHS } from './constants.js';
 import { Logger } from '../../core/logger.js';
 
+/**
+ * GRVT WebSocket wrapper configuration.
+ */
 export interface GRVTWebSocketConfig {
+  /** Use testnet hosts. */
   testnet?: boolean;
-  subAccountId?: string;
+  /** Session (cookie + account id) required for private order/fill/position streams. */
+  session?: GRVTSession;
+  /** Connection timeout (ms). */
   timeout?: number;
 }
 
 /**
- * WebSocket wrapper for GRVT real-time data streams
+ * A GRVT WS feed frame after JSON parsing.
+ */
+interface GRVTWsFrame {
+  stream?: string;
+  feed?: Record<string, unknown>;
+  selector?: string;
+}
+
+const DEFAULT_BOOK_DEPTH = 50;
+const DEFAULT_TRADE_LIMIT = 50;
+
+/**
+ * AsyncGenerator-based GRVT WebSocket streaming wrapper.
  */
 export class GRVTWebSocketWrapper {
-  /** Maximum queue size for backpressure */
   private static readonly MAX_QUEUE_SIZE = 1000;
 
-  private readonly ws: WS;
-  private readonly normalizer: GRVTNormalizer;
-  private readonly subAccountId?: string;
+  private readonly normalizer = new GRVTNormalizer();
   private readonly logger = new Logger('GRVTWebSocket');
-  private isConnected = false;
-
-  /**
-   * Push to queue with bounded size (backpressure)
-   */
-  private boundedPush<T>(queue: T[], item: T, channel?: string): void {
-    if (queue.length >= GRVTWebSocketWrapper.MAX_QUEUE_SIZE) {
-      queue.shift(); // Drop oldest message
-      if (channel) {
-        this.logger.warn(`Queue overflow on ${channel}, dropping oldest message`);
-      }
-    }
-    queue.push(item);
-  }
+  private readonly publicClient: WebSocketClient;
+  private readonly tradeClient: WebSocketClient;
+  private readonly session?: GRVTSession;
+  private nextId = 1;
 
   constructor(config: GRVTWebSocketConfig = {}) {
     const urls = config.testnet ? GRVT_API_URLS.testnet : GRVT_API_URLS.mainnet;
-
-    this.normalizer = new GRVTNormalizer();
-    this.subAccountId = config.subAccountId;
-
-    // Initialize GRVT SDK WebSocket
-    this.ws = new WS({
-      url: urls.websocket,
-      timeout: config.timeout || 30000,
-      reconnectStrategy: (retries) => {
-        // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
-        const delay = Math.min(1000 * Math.pow(2, retries), 30000);
-        return delay;
-      },
+    this.session = config.session;
+    this.publicClient = new WebSocketClient({
+      url: urls.websocketMarketData,
+      onError: (error) => this.logger.error('Public WS error', error),
     });
-
-    // Setup connection event handlers
-    this.ws.onConnect(() => {
-      this.isConnected = true;
-    });
-
-    this.ws.onClose(() => {
-      this.isConnected = false;
-    });
-
-    this.ws.onError((error) => {
-      this.logger.error('WebSocket error', error instanceof Error ? error : undefined, { error });
+    this.tradeClient = new WebSocketClient({
+      url: urls.websocketTrades,
+      onError: (error) => this.logger.error('Trade WS error', error),
     });
   }
 
   /**
-   * Connect to WebSocket
+   * Connect the public market-data WebSocket.
    */
   async connect(): Promise<void> {
-    this.ws.connect();
-    await this.ws.ready(5000); // Wait up to 5s for connection
-    this.isConnected = true;
+    await this.publicClient.connect();
   }
 
   /**
-   * Disconnect from WebSocket
+   * Connect the private trade-data WebSocket (requires a session).
+   */
+  async connectPrivate(): Promise<void> {
+    if (!this.session) {
+      throw new Error('Session required for private GRVT WebSocket streams');
+    }
+    await this.tradeClient.connect();
+  }
+
+  /**
+   * Disconnect both WebSockets.
    */
   disconnect(): void {
-    this.ws.disconnect();
-    this.isConnected = false;
+    void this.publicClient.disconnect();
+    void this.tradeClient.disconnect();
   }
 
   /**
-   * Watch order book updates for a symbol
-   *
-   * @param symbol - Trading symbol in CCXT format (e.g., "BTC/USDT:USDT")
-   * @param depth - Order book depth (default: 50)
-   * @returns AsyncGenerator yielding OrderBook updates
-   *
-   * @example
-   * ```typescript
-   * for await (const orderBook of wrapper.watchOrderBook('BTC/USDT:USDT')) {
-   *   console.log('Bid:', orderBook.bids[0]);
-   *   console.log('Ask:', orderBook.asks[0]);
-   * }
-   * ```
+   * Whether the public WebSocket is connected.
    */
-  async *watchOrderBook(symbol: string, depth: number = 50): AsyncGenerator<OrderBook> {
+  get connected(): boolean {
+    return this.publicClient.isConnected();
+  }
+
+  // ==================== Public streams ====================
+
+  /**
+   * Watch FULL order-book snapshots for a symbol (`v1.book.s`).
+   */
+  async *watchOrderBook(symbol: string, depth: number = DEFAULT_BOOK_DEPTH): AsyncGenerator<OrderBook> {
     const instrument = this.normalizer.symbolFromCCXT(symbol);
-
-    // Queue to hold incoming order book updates
-    const queue: IOrderbookLevels[] = [];
-    let error: Error | null = null;
-    let subscriptionKey: string | null = null;
-    let resolver: ((value: IOrderbookLevels) => void) | null = null;
-    let rejecter: ((err: Error) => void) | null = null;
-
-    // Subscribe to order book stream
-    const request: IWSBookRequest = {
-      stream: EStream.RPI_BOOK_SNAP, // Use RPI (Retail Price Improvement) snapshot stream
-      params: {
-        instrument,
-        depth,
-      },
-      onData: (data) => {
-        if (resolver) {
-          resolver(data);
-          resolver = null;
-          rejecter = null;
-        } else {
-          this.boundedPush(queue, data, 'orderbook');
-        }
-      },
-      onError: (err) => {
-        error = err;
-        // Wake up any waiting resolver with error
-        if (rejecter) {
-          rejecter(err);
-          resolver = null;
-          rejecter = null;
-        }
-      },
-    };
-
-    try {
-      subscriptionKey = this.ws.subscribe(request);
-
-      // Yield order books as they arrive
-      while (true) {
-        // Check for errors
-        if (error) {
-          throw error;
-        }
-
-        let orderBookData: IOrderbookLevels;
-
-        // Event-driven: wait for data without busy polling
-        if (queue.length > 0) {
-          orderBookData = queue.shift()!;
-        } else {
-          orderBookData = await new Promise<IOrderbookLevels>((resolve, reject) => {
-            resolver = resolve;
-            rejecter = reject;
-          });
-        }
-
-        // Check for errors after awaiting
-        if (error) {
-          throw error;
-        }
-
-        const normalized = this.normalizer.normalizeOrderBook(orderBookData);
-        yield normalized;
-      }
-    } finally {
-      // Cleanup: unsubscribe when generator is closed
-      if (subscriptionKey) {
-        this.ws.unsubscribe(subscriptionKey);
-      }
-    }
+    const validDepth = (GRVT_BOOK_DEPTHS as readonly number[]).includes(depth) ? depth : DEFAULT_BOOK_DEPTH;
+    const selector = `${instrument}@500-${validDepth}`;
+    yield* this.stream<OrderBook>(this.publicClient, GRVT_WS_STREAMS.bookSnapshot, [selector], instrument, (feed) =>
+      this.normalizer.normalizeOrderBook(feed as unknown as GRVTOrderBook)
+    );
   }
 
   /**
-   * Watch public trades for a symbol
-   *
-   * @param symbol - Trading symbol in CCXT format
-   * @returns AsyncGenerator yielding Trade updates
-   *
-   * @example
-   * ```typescript
-   * for await (const trade of wrapper.watchTrades('BTC/USDT:USDT')) {
-   *   console.log('Trade:', trade.price, trade.amount, trade.side);
-   * }
-   * ```
+   * Watch public trades for a symbol (`v1.trade`).
    */
   async *watchTrades(symbol: string): AsyncGenerator<Trade> {
     const instrument = this.normalizer.symbolFromCCXT(symbol);
-
-    const queue: ITrade[] = [];
-    let error: Error | null = null;
-    let subscriptionKey: string | null = null;
-    let resolver: ((value: ITrade) => void) | null = null;
-    let rejecter: ((err: Error) => void) | null = null;
-
-    const request: IWSTradeRequest = {
-      stream: EStream.TRADE,
-      params: {
-        instrument,
-      },
-      onData: (data) => {
-        if (resolver) {
-          resolver(data);
-          resolver = null;
-          rejecter = null;
-        } else {
-          this.boundedPush(queue, data, 'trades');
-        }
-      },
-      onError: (err) => {
-        error = err;
-        if (rejecter) {
-          rejecter(err);
-          resolver = null;
-          rejecter = null;
-        }
-      },
-    };
-
-    try {
-      subscriptionKey = this.ws.subscribe(request);
-
-      while (true) {
-        if (error) throw error;
-
-        let tradeData: ITrade;
-
-        if (queue.length > 0) {
-          tradeData = queue.shift()!;
-        } else {
-          tradeData = await new Promise<ITrade>((resolve, reject) => {
-            resolver = resolve;
-            rejecter = reject;
-          });
-        }
-
-        if (error) throw error;
-
-        const normalized = this.normalizer.normalizeTrade(tradeData);
-        yield normalized;
-      }
-    } finally {
-      if (subscriptionKey) {
-        this.ws.unsubscribe(subscriptionKey);
-      }
-    }
+    const selector = `${instrument}@${DEFAULT_TRADE_LIMIT}`;
+    yield* this.stream<Trade>(this.publicClient, GRVT_WS_STREAMS.trade, [selector], instrument, (feed) =>
+      this.normalizer.normalizeTrade(feed as unknown as GRVTTrade)
+    );
   }
 
   /**
-   * Watch position updates for user account
-   *
-   * @param symbol - Optional symbol filter (watch all positions if not provided)
-   * @returns AsyncGenerator yielding Position updates
-   *
-   * @example
-   * ```typescript
-   * for await (const position of wrapper.watchPositions()) {
-   *   console.log('Position:', position.symbol, position.size, position.unrealizedPnl);
-   * }
-   * ```
+   * Watch ticker snapshots for a symbol (`v1.ticker.s`).
+   */
+  async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
+    const instrument = this.normalizer.symbolFromCCXT(symbol);
+    const selector = `${instrument}@500`;
+    yield* this.stream<Ticker>(this.publicClient, GRVT_WS_STREAMS.tickerSnapshot, [selector], instrument, (feed) =>
+      this.normalizer.normalizeTicker(feed as unknown as GRVTTicker)
+    );
+  }
+
+  // ==================== Private streams ====================
+
+  /**
+   * Watch position updates (`v1.position`; requires a session).
    */
   async *watchPositions(symbol?: string): AsyncGenerator<Position> {
-    if (!this.subAccountId) {
-      throw new Error('Sub-account ID required for watching positions');
-    }
-
+    this.requireSession();
+    await this.connectPrivate();
     const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : undefined;
-
-    const queue: IPositions[] = [];
-    let error: Error | null = null;
-    let subscriptionKey: string | null = null;
-    let resolver: ((value: IPositions) => void) | null = null;
-    let rejecter: ((err: Error) => void) | null = null;
-
-    const request: IWSTdgPositionRequest = {
-      stream: EStream.POSITION,
-      params: {
-        sub_account_id: this.subAccountId,
-        ...(instrument && { instrument }),
-      },
-      onData: (data) => {
-        if (resolver) {
-          resolver(data);
-          resolver = null;
-          rejecter = null;
-        } else {
-          this.boundedPush(queue, data, 'positions');
-        }
-      },
-      onError: (err) => {
-        error = err;
-        if (rejecter) {
-          rejecter(err);
-          resolver = null;
-          rejecter = null;
-        }
-      },
-    };
-
-    try {
-      subscriptionKey = this.ws.subscribe(request);
-
-      while (true) {
-        if (error) throw error;
-
-        let positionData: IPositions;
-
-        if (queue.length > 0) {
-          positionData = queue.shift()!;
-        } else {
-          positionData = await new Promise<IPositions>((resolve, reject) => {
-            resolver = resolve;
-            rejecter = reject;
-          });
-        }
-
-        if (error) throw error;
-
-        const normalized = this.normalizer.normalizePosition(positionData);
-        yield normalized;
-      }
-    } finally {
-      if (subscriptionKey) {
-        this.ws.unsubscribe(subscriptionKey);
-      }
-    }
+    const selector = this.privateSelector(instrument);
+    yield* this.stream<Position>(this.tradeClient, GRVT_WS_STREAMS.position, [selector], instrument, (feed) =>
+      this.normalizer.normalizePosition(feed as unknown as GRVTPosition)
+    );
   }
 
   /**
-   * Watch order updates for user account
-   *
-   * @param symbol - Optional symbol filter
-   * @returns AsyncGenerator yielding Order updates
-   *
-   * @example
-   * ```typescript
-   * for await (const order of wrapper.watchOrders()) {
-   *   console.log('Order:', order.id, order.status, order.filled);
-   * }
-   * ```
+   * Watch order updates (`v1.order`; requires a session).
    */
   async *watchOrders(symbol?: string): AsyncGenerator<Order> {
-    if (!this.subAccountId) {
-      throw new Error('Sub-account ID required for watching orders');
-    }
-
+    this.requireSession();
+    await this.connectPrivate();
     const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : undefined;
-
-    const queue: IOrder[] = [];
-    let error: Error | null = null;
-    let subscriptionKey: string | null = null;
-    let resolver: ((value: IOrder) => void) | null = null;
-    let rejecter: ((err: Error) => void) | null = null;
-
-    const request: IWSTdgOrderRequest = {
-      stream: EStream.ORDER,
-      params: {
-        sub_account_id: this.subAccountId,
-        ...(instrument && { instrument }),
-      },
-      onData: (data) => {
-        if (resolver) {
-          resolver(data);
-          resolver = null;
-          rejecter = null;
-        } else {
-          this.boundedPush(queue, data, 'orders');
-        }
-      },
-      onError: (err) => {
-        error = err;
-        if (rejecter) {
-          rejecter(err);
-          resolver = null;
-          rejecter = null;
-        }
-      },
-    };
-
-    try {
-      subscriptionKey = this.ws.subscribe(request);
-
-      while (true) {
-        if (error) throw error;
-
-        let orderData: IOrder;
-
-        if (queue.length > 0) {
-          orderData = queue.shift()!;
-        } else {
-          orderData = await new Promise<IOrder>((resolve, reject) => {
-            resolver = resolve;
-            rejecter = reject;
-          });
-        }
-
-        if (error) throw error;
-
-        const normalized = this.normalizer.normalizeOrder(orderData);
-        yield normalized;
-      }
-    } finally {
-      if (subscriptionKey) {
-        this.ws.unsubscribe(subscriptionKey);
-      }
-    }
+    const selector = this.privateSelector(instrument);
+    yield* this.stream<Order>(this.tradeClient, GRVT_WS_STREAMS.order, [selector], instrument, (feed) =>
+      this.normalizer.normalizeOrder(feed as unknown as GRVTOrder)
+    );
   }
 
   /**
-   * Watch balance updates for user account
-   *
-   * @returns AsyncGenerator yielding Balance array
-   *
-   * @example
-   * ```typescript
-   * for await (const balances of wrapper.watchBalance()) {
-   *   console.log('Balances:', balances);
-   * }
-   * ```
+   * Watch user fills (`v1.fill`; requires a session).
+   */
+  async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
+    this.requireSession();
+    await this.connectPrivate();
+    const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : undefined;
+    const selector = this.privateSelector(instrument);
+    yield* this.stream<Trade>(this.tradeClient, GRVT_WS_STREAMS.fill, [selector], instrument, (feed) =>
+      this.normalizer.normalizeFill(feed)
+    );
+  }
+
+  /**
+   * Watch balance updates (derived from the position stream; requires a session).
    */
   async *watchBalance(): AsyncGenerator<Balance[]> {
-    if (!this.subAccountId) {
-      throw new Error('Sub-account ID required for watching balance');
-    }
-
-    // GRVT WebSocket doesn't have a direct balance stream
-    // Balance updates come through position updates
-    // We'll wrap position stream and extract balance info
     for await (const position of this.watchPositions()) {
-      // Return balance from position info
       const balance: Balance = {
         currency: 'USDT',
         free: position.margin || 0,
@@ -462,204 +204,136 @@ export class GRVTWebSocketWrapper {
     }
   }
 
+  // ==================== Internals ====================
+
   /**
-   * Watch ticker updates for a symbol
-   *
-   * GRVT doesn't have a dedicated ticker stream, so we derive ticker
-   * from trade stream updates. Each trade update contains price info
-   * that can be used to construct ticker-like updates.
-   *
-   * @param symbol - Trading symbol in CCXT format (e.g., "BTC/USDT:USDT")
-   * @returns AsyncGenerator yielding Ticker updates
-   *
-   * @example
-   * ```typescript
-   * for await (const ticker of wrapper.watchTicker('BTC/USDT:USDT')) {
-   *   console.log('Price:', ticker.last, 'Volume:', ticker.quoteVolume);
-   * }
-   * ```
+   * Subscribe to one stream and yield normalized values until the generator is
+   * closed. Frames for other streams/instruments are ignored; un-normalizable
+   * frames are skipped (defensive).
    */
-  async *watchTicker(symbol: string): AsyncGenerator<Ticker> {
-    const instrument = this.normalizer.symbolFromCCXT(symbol);
-
-    const queue: ITrade[] = [];
+  private async *stream<T>(
+    client: WebSocketClient,
+    streamName: string,
+    selectors: string[],
+    instrument: string | undefined,
+    normalize: (feed: Record<string, unknown>) => T
+  ): AsyncGenerator<T> {
+    const queue: T[] = [];
     let error: Error | null = null;
-    let subscriptionKey: string | null = null;
-    let resolver: ((value: ITrade) => void) | null = null;
-    let rejecter: ((err: Error) => void) | null = null;
+    let resolver: ((value: T) => void) | null = null;
 
-    // Use trade stream to derive ticker updates
-    const request: IWSTradeRequest = {
-      stream: EStream.TRADE,
-      params: {
-        instrument,
-      },
-      onData: (data) => {
-        if (resolver) {
-          resolver(data);
-          resolver = null;
-          rejecter = null;
-        } else {
-          this.boundedPush(queue, data, 'ticker');
-        }
-      },
-      onError: (err) => {
-        error = err;
-        if (rejecter) {
-          rejecter(err);
-          resolver = null;
-          rejecter = null;
-        }
-      },
+    const onMessage = (raw: unknown): void => {
+      const frame = this.parseFrame(raw);
+      if (!frame || frame.stream !== streamName || !frame.feed) {
+        return;
+      }
+      if (instrument && typeof frame.feed.instrument === 'string' && frame.feed.instrument !== instrument) {
+        return;
+      }
+      let value: T;
+      try {
+        value = normalize(frame.feed);
+      } catch {
+        return;
+      }
+      if (resolver) {
+        resolver(value);
+        resolver = null;
+      } else {
+        this.boundedPush(queue, value, streamName);
+      }
+    };
+    const onError = (err: Error): void => {
+      error = err;
     };
 
+    client.on('message', onMessage);
+    client.on('error', onError);
+
     try {
-      subscriptionKey = this.ws.subscribe(request);
+      if (!client.isConnected()) {
+        await client.connect();
+      }
+      client.send(this.subscribeFrame(streamName, selectors));
 
       while (true) {
-        if (error) throw error;
-
-        let tradeData: ITrade;
-
+        if (error) {
+          throw error;
+        }
+        let value: T;
         if (queue.length > 0) {
-          tradeData = queue.shift()!;
+          value = queue.shift() as T;
         } else {
-          tradeData = await new Promise<ITrade>((resolve, reject) => {
+          value = await new Promise<T>((resolve) => {
             resolver = resolve;
-            rejecter = reject;
           });
         }
-
-        if (error) throw error;
-
-        // Convert trade to ticker-like update
-        // Note: GRVT doesn't have a dedicated ticker stream, so we derive from trades
-        // Some fields are set to 0 as they require aggregated 24h data
-        const lastPrice = parseFloat(tradeData.price || '0');
-        const lastSize = parseFloat(tradeData.size || '0');
-        const ticker: Ticker = {
-          symbol: this.normalizer.symbolToCCXT(instrument),
-          timestamp: typeof tradeData.event_time === 'number' ? tradeData.event_time : Date.now(),
-          last: lastPrice,
-          bid: 0, // Not available from trade stream
-          ask: 0, // Not available from trade stream
-          high: lastPrice, // Single trade, same as last
-          low: lastPrice, // Single trade, same as last
-          open: lastPrice, // Single trade, same as last
-          close: lastPrice,
-          change: 0, // Requires 24h aggregation
-          percentage: 0, // Requires 24h aggregation
-          baseVolume: lastSize,
-          quoteVolume: lastPrice * lastSize,
-          info: tradeData as unknown as Record<string, unknown>,
-        };
-
-        yield ticker;
+        if (error) {
+          throw error;
+        }
+        yield value;
       }
     } finally {
-      if (subscriptionKey) {
-        this.ws.unsubscribe(subscriptionKey);
-      }
+      client.off('message', onMessage);
+      client.off('error', onError);
     }
   }
 
   /**
-   * Watch user trades (fills) in real-time
-   *
-   * @param symbol - Optional symbol filter
-   * @returns AsyncGenerator yielding Trade updates
-   *
-   * @example
-   * ```typescript
-   * for await (const trade of wrapper.watchMyTrades()) {
-   *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
-   * }
-   * ```
+   * Build a JSON-RPC subscribe frame.
    */
-  async *watchMyTrades(symbol?: string): AsyncGenerator<Trade> {
-    if (!this.subAccountId) {
-      throw new Error('Sub-account ID required for watching fills');
-    }
-
-    const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : undefined;
-
-    const queue: any[] = [];
-    let error: Error | null = null;
-    let subscriptionKey: string | null = null;
-    let resolver: ((value: any) => void) | null = null;
-    let rejecter: ((err: Error) => void) | null = null;
-
-    const request = {
-      stream: EStream.FILL,
-      params: {
-        sub_account_id: this.subAccountId,
-        ...(instrument && { instrument }),
-      },
-      onData: (data: any) => {
-        if (resolver) {
-          resolver(data);
-          resolver = null;
-          rejecter = null;
-        } else {
-          this.boundedPush(queue, data, 'fills');
-        }
-      },
-      onError: (err: Error) => {
-        error = err;
-        if (rejecter) {
-          rejecter(err);
-          resolver = null;
-          rejecter = null;
-        }
-      },
-    };
-
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- @grvt/client does not export IWSFillRequest; request shape matches WS.subscribe() at runtime
-      subscriptionKey = this.ws.subscribe(request as any);
-
-      while (true) {
-        if (error) throw error;
-
-        let data: any;
-
-        if (queue.length > 0) {
-          data = queue.shift()!;
-        } else {
-          data = await new Promise<any>((resolve, reject) => {
-            resolver = resolve;
-            rejecter = reject;
-          });
-        }
-
-        if (error) throw error;
-
-        // Normalize fill to Trade
-        const trade: Trade = {
-          id: data.fill_id || data.id || String(Date.now()),
-          symbol: this.normalizer.symbolToCCXT(data.instrument || data.symbol),
-          orderId: data.order_id,
-          side: data.is_buyer ? 'buy' : 'sell',
-          price: parseFloat(data.price || '0'),
-          amount: parseFloat(data.filled || data.quantity || '0'),
-          cost: parseFloat(data.price || '0') * parseFloat(data.filled || data.quantity || '0'),
-          timestamp: data.event_time || Date.now(),
-          info: data,
-        };
-
-        yield trade;
-      }
-    } finally {
-      if (subscriptionKey) {
-        this.ws.unsubscribe(subscriptionKey);
-      }
-    }
+  private subscribeFrame(stream: string, selectors: string[]): string {
+    return JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'subscribe',
+      params: { stream, selectors },
+      id: this.nextId++,
+    });
   }
 
   /**
-   * Check if WebSocket is connected
+   * Parse a WS frame into `{ stream, feed }`, returning null on non-object input.
    */
-  get connected(): boolean {
-    return this.isConnected;
+  private parseFrame(raw: unknown): GRVTWsFrame | null {
+    let obj: unknown = raw;
+    if (typeof raw === 'string') {
+      try {
+        obj = JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+    if (!obj || typeof obj !== 'object') {
+      return null;
+    }
+    return obj as GRVTWsFrame;
+  }
+
+  /**
+   * The private selector: the sub-account id, optionally scoped to an instrument.
+   */
+  private privateSelector(instrument?: string): string {
+    const subAccountId = this.session?.subAccountId ?? '';
+    return instrument ? `${subAccountId}@${instrument}` : subAccountId;
+  }
+
+  /**
+   * Push with a bounded queue (drop oldest under backpressure).
+   */
+  private boundedPush<T>(queue: T[], item: T, channel: string): void {
+    if (queue.length >= GRVTWebSocketWrapper.MAX_QUEUE_SIZE) {
+      queue.shift();
+      this.logger.warn(`Queue overflow on ${channel}, dropping oldest message`);
+    }
+    queue.push(item);
+  }
+
+  /**
+   * @throws {Error} if no session is configured for a private stream.
+   */
+  private requireSession(): void {
+    if (!this.session) {
+      throw new Error('Session required for private GRVT WebSocket streams');
+    }
   }
 }

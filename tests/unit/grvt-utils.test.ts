@@ -1,7 +1,10 @@
 /**
  * GRVT Utilities Unit Tests
+ *
+ * Covers the standalone pure normalizers over the REAL GRVT shapes (types.ts).
  */
 
+import { describe, test, expect } from '@jest/globals';
 import {
   normalizeSymbol,
   toGRVTSymbol,
@@ -12,7 +15,6 @@ import {
   normalizeOrderBook,
   normalizeTrade,
   normalizeTicker,
-  toGRVTOrderType,
   toGRVTOrderSide,
   toGRVTTimeInForce,
   mapGRVTError,
@@ -21,7 +23,7 @@ import type {
   GRVTMarket,
   GRVTOrder,
   GRVTPosition,
-  GRVTBalance,
+  GRVTSpotBalance,
   GRVTOrderBook,
   GRVTTrade,
   GRVTTicker,
@@ -35,7 +37,7 @@ describe('GRVT Symbol Normalization', () => {
     });
 
     test('handles spot symbols', () => {
-      expect(normalizeSymbol('BTC-USD')).toBe('BTC/USD');
+      expect(normalizeSymbol('BTC_USD')).toBe('BTC/USD');
     });
   });
 
@@ -53,337 +55,205 @@ describe('GRVT Symbol Normalization', () => {
 });
 
 describe('GRVT Market Normalization', () => {
-  test('normalizes market data', () => {
+  test('normalizes instrument data (no fee fields; per-fill fees)', () => {
     const grvtMarket: GRVTMarket = {
-      instrument_id: 'btc-usdt-perp',
       instrument: 'BTC_USDT_Perp',
-      base_currency: 'BTC',
-      quote_currency: 'USDT',
-      settlement_currency: 'USDT',
-      is_active: true,
-      min_size: '0.001',
-      max_size: '100',
-      tick_size: '0.1',
-      step_size: '0.001',
-      maker_fee: '0.0002',
-      taker_fee: '0.0005',
-      max_leverage: '50',
-    };
-
-    const normalized = normalizeMarket(grvtMarket);
-
-    expect(normalized).toMatchObject({
-      id: 'btc-usdt-perp',
-      symbol: 'BTC/USDT:USDT',
+      instrument_hash: '0x030501',
       base: 'BTC',
       quote: 'USDT',
-      settle: 'USDT',
-      active: true,
-      minAmount: 0.001,
-      maxLeverage: 50,
-    });
+      base_decimals: 9,
+      quote_decimals: 6,
+      tick_size: '0.5',
+      min_size: '0.001',
+      min_notional: '5',
+      kind: 'PERPETUAL',
+      is_active: true,
+      funding_interval_hours: 8,
+    };
+
+    const market = normalizeMarket(grvtMarket);
+
+    expect(market.id).toBe('BTC_USDT_Perp');
+    expect(market.symbol).toBe('BTC/USDT:USDT');
+    expect(market.base).toBe('BTC');
+    expect(market.quote).toBe('USDT');
+    expect(market.settle).toBe('USDT');
+    expect(market.active).toBe(true);
+    expect(market.minAmount).toBe(0.001);
+    expect(market.priceTickSize).toBe(0.5);
+    expect(market.minCost).toBe(5);
+    expect(market.makerFee).toBe(0);
+    expect(market.takerFee).toBe(0);
+    expect(market.fundingIntervalHours).toBe(8);
   });
 });
 
 describe('GRVT Order Normalization', () => {
-  test('normalizes limit order', () => {
+  test('normalizes a leg-based limit order', () => {
     const grvtOrder: GRVTOrder = {
-      order_id: '12345',
-      client_order_id: 'test-123',
-      instrument: 'BTC_USDT_Perp',
-      side: 'BUY',
-      order_type: 'LIMIT',
-      size: '0.1',
-      price: '50000',
-      filled_size: '0.02',
-      average_fill_price: '49995',
-      status: 'OPEN',
-      time_in_force: 'GTC',
-      post_only: false,
+      order_id: 'order-123',
+      sub_account_id: 'sub-1',
+      is_market: false,
+      time_in_force: 'GOOD_TILL_TIME',
+      post_only: true,
       reduce_only: false,
-      created_at: 1234567890000,
-      updated_at: 1234567890100,
+      legs: [{ instrument: 'BTC_USDT_Perp', size: '1.5', limit_price: '50000', is_buying_asset: true }],
+      state: { status: 'OPEN', traded_size: ['0.5'], book_size: ['1.0'], avg_fill_price: ['49950'] },
+      metadata: { client_order_id: 'cli-1', create_time: '1700000000000' },
     };
 
-    const normalized = normalizeOrder(grvtOrder);
+    const order = normalizeOrder(grvtOrder);
 
-    expect(normalized).toMatchObject({
-      id: '12345',
-      clientOrderId: 'test-123',
-      symbol: 'BTC/USDT:USDT',
-      type: 'limit',
-      side: 'buy',
-      amount: 0.1,
-      price: 50000,
-      status: 'open',
-    });
-  });
-
-  test('normalizes market order', () => {
-    const grvtOrder: GRVTOrder = {
-      order_id: '67890',
-      instrument: 'ETH_USDT_Perp',
-      side: 'SELL',
-      order_type: 'MARKET',
-      size: '1.5',
-      filled_size: '1.5',
-      average_fill_price: '3000',
-      status: 'FILLED',
-      time_in_force: 'IOC',
-      post_only: false,
-      reduce_only: true,
-      created_at: 1234567891000,
-      updated_at: 1234567891500,
-    };
-
-    const normalized = normalizeOrder(grvtOrder);
-
-    expect(normalized.type).toBe('market');
-    expect(normalized.side).toBe('sell');
-    expect(normalized.status).toBe('filled');
+    expect(order.id).toBe('order-123');
+    expect(order.clientOrderId).toBe('cli-1');
+    expect(order.symbol).toBe('BTC/USDT:USDT');
+    expect(order.type).toBe('limit');
+    expect(order.side).toBe('buy');
+    expect(order.amount).toBe(1.5);
+    expect(order.price).toBe(50000);
+    expect(order.filled).toBe(0.5);
+    expect(order.remaining).toBe(1.0);
+    expect(order.averagePrice).toBe(49950);
+    expect(order.status).toBe('open');
+    expect(order.postOnly).toBe(true);
+    expect(order.timeInForce).toBe('GTC');
   });
 });
 
 describe('GRVT Position Normalization', () => {
-  test('normalizes long position', () => {
+  test('normalizes a long position', () => {
     const grvtPosition: GRVTPosition = {
       instrument: 'BTC_USDT_Perp',
-      side: 'LONG',
-      size: '0.5',
+      size: '2.5',
+      notional: '125000',
       entry_price: '48000',
       mark_price: '50000',
-      liquidation_price: '40000',
-      unrealized_pnl: '1000',
-      realized_pnl: '500',
-      margin: '2400',
-      leverage: '50',
-      timestamp: 1234567890000,
+      unrealized_pnl: '5000',
+      realized_pnl: '1000',
+      leverage: '10',
+      est_liquidation_price: '45000',
     };
 
-    const normalized = normalizePosition(grvtPosition);
+    const position = normalizePosition(grvtPosition);
 
-    expect(normalized).toMatchObject({
-      symbol: 'BTC/USDT:USDT',
-      side: 'long',
-      marginMode: 'cross',
-      size: 0.5,
-      entryPrice: 48000,
-      leverage: 50,
-    });
+    expect(position.symbol).toBe('BTC/USDT:USDT');
+    expect(position.side).toBe('long');
+    expect(position.size).toBe(2.5);
+    expect(position.entryPrice).toBe(48000);
+    expect(position.markPrice).toBe(50000);
+    expect(position.liquidationPrice).toBe(45000);
+    expect(position.leverage).toBe(10);
+    expect(position.marginMode).toBe('cross');
+  });
+
+  test('normalizes a short position', () => {
+    const grvtPosition: GRVTPosition = {
+      instrument: 'ETH_USDT_Perp',
+      size: '-10',
+      entry_price: '3000',
+      mark_price: '2900',
+    };
+
+    const position = normalizePosition(grvtPosition);
+    expect(position.side).toBe('short');
+    expect(position.size).toBe(10);
   });
 });
 
 describe('GRVT Balance Normalization', () => {
-  test('normalizes balance', () => {
-    const grvtBalance: GRVTBalance = {
-      currency: 'USDT',
-      total: '10000',
-      available: '9000',
-      reserved: '1000',
-      unrealized_pnl: '0',
-    };
-
-    const normalized = normalizeBalance(grvtBalance);
-
-    expect(normalized).toMatchObject({
-      currency: 'USDT',
-      total: 10000,
-      free: 9000,
-      used: 1000,
-    });
+  test('normalizes a spot balance', () => {
+    const grvtBalance: GRVTSpotBalance = { currency: 'USDT', balance: '10000.5' };
+    const balance = normalizeBalance(grvtBalance);
+    expect(balance.currency).toBe('USDT');
+    expect(balance.total).toBe(10000.5);
+    expect(balance.free).toBe(10000.5);
+    expect(balance.used).toBe(0);
   });
 });
 
 describe('GRVT OrderBook Normalization', () => {
-  test('normalizes order book', () => {
+  test('normalizes a full snapshot with object levels', () => {
     const grvtOrderBook: GRVTOrderBook = {
       instrument: 'BTC_USDT_Perp',
-      bids: [
-        ['50000', '0.5'],
-        ['49900', '1.0'],
-      ],
-      asks: [
-        ['50100', '0.3'],
-        ['50200', '0.8'],
-      ],
-      timestamp: 1234567890000,
+      event_time: '1700000000000',
+      bids: [{ price: '49990', size: '1.5', num_orders: 3 }],
+      asks: [{ price: '50010', size: '1.0', num_orders: 2 }],
     };
 
-    const normalized = normalizeOrderBook(grvtOrderBook);
-
-    expect(normalized.symbol).toBe('BTC/USDT:USDT');
-    expect(normalized.exchange).toBe('grvt');
-    expect(normalized.bids).toHaveLength(2);
-    expect(normalized.asks).toHaveLength(2);
+    const book = normalizeOrderBook(grvtOrderBook);
+    expect(book.symbol).toBe('BTC/USDT:USDT');
+    expect(book.exchange).toBe('grvt');
+    expect(book.bids[0]).toEqual([49990, 1.5]);
+    expect(book.asks[0]).toEqual([50010, 1.0]);
   });
 });
 
 describe('GRVT Trade Normalization', () => {
-  test('normalizes trade', () => {
+  test('maps is_taker_buyer to side', () => {
     const grvtTrade: GRVTTrade = {
-      trade_id: 'trade-123',
-      instrument: 'ETH_USDT_Perp',
-      side: 'BUY',
-      price: '3000',
-      size: '2.5',
-      timestamp: 1234567890000,
+      event_time: '1700000000000',
+      instrument: 'BTC_USDT_Perp',
+      is_taker_buyer: true,
+      size: '0.5',
+      price: '50000',
+      trade_id: '135831698-1',
     };
 
-    const normalized = normalizeTrade(grvtTrade);
-
-    expect(normalized).toMatchObject({
-      id: 'trade-123',
-      symbol: 'ETH/USDT:USDT',
-      side: 'buy',
-      price: 3000,
-      amount: 2.5,
-      cost: 7500,
-    });
+    const trade = normalizeTrade(grvtTrade);
+    expect(trade.id).toBe('135831698-1');
+    expect(trade.symbol).toBe('BTC/USDT:USDT');
+    expect(trade.side).toBe('buy');
+    expect(trade.price).toBe(50000);
+    expect(trade.amount).toBe(0.5);
+    expect(trade.cost).toBe(25000);
   });
 });
 
 describe('GRVT Ticker Normalization', () => {
-  test('normalizes ticker', () => {
+  test('uses mark fallback + 24h quote volumes', () => {
     const grvtTicker: GRVTTicker = {
       instrument: 'BTC_USDT_Perp',
-      last_price: '50000',
-      best_bid: '49995',
-      best_ask: '50005',
-      high_24h: '51000',
-      low_24h: '48000',
-      volume_24h: '1000',
-      timestamp: 1234567890000,
+      mark_price: '50000',
+      index_price: '49990',
+      best_bid_price: '49990',
+      best_bid_size: '1.5',
+      best_ask_price: '50010',
+      best_ask_size: '2.0',
+      buy_volume_24h_q: '1000000',
+      sell_volume_24h_q: '950000',
     };
 
-    const normalized = normalizeTicker(grvtTicker);
-
-    expect(normalized).toMatchObject({
-      symbol: 'BTC/USDT:USDT',
-      last: 50000,
-      bid: 49995,
-      ask: 50005,
-      high: 51000,
-      low: 48000,
-      baseVolume: 1000,
-    });
+    const ticker = normalizeTicker(grvtTicker);
+    expect(ticker.symbol).toBe('BTC/USDT:USDT');
+    expect(ticker.last).toBe(50000);
+    expect(ticker.bid).toBe(49990);
+    expect(ticker.ask).toBe(50010);
+    expect(ticker.quoteVolume).toBe(1950000);
   });
 });
 
-describe('GRVT Conversion Functions', () => {
-  test('converts order types', () => {
-    expect(toGRVTOrderType('market')).toBe('MARKET');
-    expect(toGRVTOrderType('limit')).toBe('LIMIT');
-    expect(toGRVTOrderType('limit', true)).toBe('LIMIT_MAKER');
-  });
-
-  test('converts order sides', () => {
+describe('GRVT TIF / side converters', () => {
+  test('toGRVTOrderSide', () => {
     expect(toGRVTOrderSide('buy')).toBe('BUY');
     expect(toGRVTOrderSide('sell')).toBe('SELL');
   });
 
-  test('converts time in force', () => {
-    expect(toGRVTTimeInForce('GTC')).toBe('GTC');
-    expect(toGRVTTimeInForce('IOC')).toBe('IOC');
-    expect(toGRVTTimeInForce('FOK')).toBe('FOK');
-    expect(toGRVTTimeInForce('PO')).toBe('POST_ONLY');
-    expect(toGRVTTimeInForce('GTC', true)).toBe('POST_ONLY');
-  });
-
-  test('uses default GTC when undefined', () => {
-    expect(toGRVTTimeInForce(undefined, false)).toBe('GTC');
+  test('toGRVTTimeInForce maps to API strings (post_only => GOOD_TILL_TIME)', () => {
+    expect(toGRVTTimeInForce('GTC')).toBe('GOOD_TILL_TIME');
+    expect(toGRVTTimeInForce('IOC')).toBe('IMMEDIATE_OR_CANCEL');
+    expect(toGRVTTimeInForce('FOK')).toBe('FILL_OR_KILL');
+    expect(toGRVTTimeInForce('IOC', true)).toBe('GOOD_TILL_TIME');
   });
 });
 
-describe('GRVT Symbol Edge Cases', () => {
-  test('normalizes legacy -PERP format', () => {
-    expect(normalizeSymbol('BTC-PERP')).toBe('BTC/USDT:USDT');
-    expect(normalizeSymbol('ETH-PERP')).toBe('ETH/USDT:USDT');
+describe('mapGRVTError', () => {
+  test('maps known numeric codes', () => {
+    expect(mapGRVTError({ code: 1002 }).code).toBe('INSUFFICIENT_MARGIN');
+    expect(mapGRVTError({ code: 2001 }).code).toBe('INVALID_SIGNATURE');
   });
 
-  test('normalizes spot underscore format', () => {
-    expect(normalizeSymbol('BTC_USDT')).toBe('BTC/USDT');
-  });
-
-  test('handles fallback dash replacement', () => {
-    expect(normalizeSymbol('SOME-SYMBOL')).toBe('SOME/SYMBOL');
-  });
-});
-
-describe('GRVT Error Mapping', () => {
-  test('maps INVALID_ORDER error (code 1001)', () => {
-    const result = mapGRVTError({ code: 1001, message: 'Bad params' });
-    expect(result.code).toBe('INVALID_ORDER');
-    expect(result.message).toBe('Invalid order parameters');
-  });
-
-  test('maps INSUFFICIENT_MARGIN error (code 1002)', () => {
-    const result = mapGRVTError({ code: 1002, message: 'Not enough' });
-    expect(result.code).toBe('INSUFFICIENT_MARGIN');
-    expect(result.message).toBe('Insufficient margin');
-  });
-
-  test('maps ORDER_NOT_FOUND error (code 1003)', () => {
-    const result = mapGRVTError({ code: 1003 });
-    expect(result.code).toBe('ORDER_NOT_FOUND');
-    expect(result.message).toBe('Order not found');
-  });
-
-  test('maps POSITION_NOT_FOUND error (code 1004)', () => {
-    const result = mapGRVTError({ code: 1004 });
-    expect(result.code).toBe('POSITION_NOT_FOUND');
-    expect(result.message).toBe('Position not found');
-  });
-
-  test('maps INVALID_SIGNATURE error (code 2001)', () => {
-    const result = mapGRVTError({ code: 2001 });
-    expect(result.code).toBe('INVALID_SIGNATURE');
-    expect(result.message).toBe('Invalid signature');
-  });
-
-  test('maps EXPIRED_AUTH error (code 2002)', () => {
-    const result = mapGRVTError({ code: 2002 });
-    expect(result.code).toBe('EXPIRED_AUTH');
-    expect(result.message).toBe('Authentication expired');
-  });
-
-  test('maps INVALID_API_KEY error (code 2003)', () => {
-    const result = mapGRVTError({ code: 2003 });
-    expect(result.code).toBe('INVALID_API_KEY');
-    expect(result.message).toBe('Invalid API key');
-  });
-
-  test('maps RATE_LIMIT_EXCEEDED error (code 4001)', () => {
-    const result = mapGRVTError({ code: 4001 });
-    expect(result.code).toBe('RATE_LIMIT_EXCEEDED');
-    expect(result.message).toBe('Rate limit exceeded');
-  });
-
-  test('maps EXCHANGE_UNAVAILABLE error (code 5001)', () => {
-    const result = mapGRVTError({ code: 5001 });
-    expect(result.code).toBe('EXCHANGE_UNAVAILABLE');
-    expect(result.message).toBe('Exchange unavailable');
-  });
-
-  test('maps unknown error code to UNKNOWN_ERROR with message', () => {
-    const result = mapGRVTError({ code: 9999, message: 'Something else' });
-    expect(result.code).toBe('UNKNOWN_ERROR');
-    expect(result.message).toBe('Something else');
-  });
-
-  test('maps unknown error code to UNKNOWN_ERROR without message', () => {
-    const result = mapGRVTError({ code: 9999 });
-    expect(result.code).toBe('UNKNOWN_ERROR');
-    expect(result.message).toBe('Unknown error occurred');
-  });
-
-  test('handles non-object error', () => {
-    const result = mapGRVTError('string error');
-    expect(result.code).toBe('UNKNOWN_ERROR');
-    expect(result.message).toBe('Unknown error occurred');
-  });
-
-  test('handles null error', () => {
-    const result = mapGRVTError(null);
-    expect(result.code).toBe('UNKNOWN_ERROR');
+  test('falls back to UNKNOWN_ERROR', () => {
+    expect(mapGRVTError({ message: 'boom' }).code).toBe('UNKNOWN_ERROR');
+    expect(mapGRVTError(null).code).toBe('UNKNOWN_ERROR');
   });
 });

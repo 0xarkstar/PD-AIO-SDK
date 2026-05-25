@@ -1,5 +1,9 @@
 /**
- * GRVT utility functions for data normalization
+ * GRVT utility functions for data normalization (pure, standalone).
+ *
+ * These mirror the `GRVTNormalizer` methods but as free functions over the REAL
+ * GRVT shapes in `types.ts`. Kept for the public adapter surface + ergonomic
+ * one-off conversions. GRVT numeric fields are STRINGS on the wire.
  */
 
 import type {
@@ -15,58 +19,53 @@ import type {
   OrderStatus,
   TimeInForce,
 } from '../../types/common.js';
-import { GRVT_ORDER_TYPES, GRVT_ORDER_SIDES, GRVT_TIME_IN_FORCE } from './constants.js';
+import {
+  GRVT_ORDER_SIDES,
+  GRVT_TIME_IN_FORCE,
+  GRVT_ORDER_STATUS,
+  GRVT_MAX_LEVERAGE,
+} from './constants.js';
 import type {
   GRVTMarket,
   GRVTOrder,
   GRVTPosition,
-  GRVTBalance,
+  GRVTSpotBalance,
   GRVTOrderBook,
   GRVTTrade,
   GRVTTicker,
 } from './types.js';
 
 /**
- * Normalize GRVT symbol to unified format
+ * Normalize a GRVT instrument string to a unified CCXT symbol.
  *
  * @example
  * normalizeSymbol('BTC_USDT_Perp') // 'BTC/USDT:USDT'
- * normalizeSymbol('ETH_USDT_Perp') // 'ETH/USDT:USDT'
  */
 export function normalizeSymbol(grvtSymbol: string): string {
-  // GRVT API format: BTC_USDT_Perp, ETH_USDT_Perp
   if (grvtSymbol.endsWith('_Perp')) {
     const parts = grvtSymbol.replace('_Perp', '').split('_');
     const base = parts[0];
     const quote = parts[1] || 'USDT';
     return `${base}/${quote}:${quote}`;
   }
-
-  // Handle legacy format: BTC-PERP, ETH-PERP
   if (grvtSymbol.endsWith('-PERP')) {
     const base = grvtSymbol.replace('-PERP', '');
     return `${base}/USDT:USDT`;
   }
-
-  // Handle spot: BTC_USDT
   if (grvtSymbol.includes('_')) {
     const [base, quote] = grvtSymbol.split('_');
     return `${base}/${quote || 'USDT'}`;
   }
-
-  // Fallback
-  return grvtSymbol.replace('-', '/');
+  return `${grvtSymbol}/USDT:USDT`;
 }
 
 /**
- * Convert unified symbol to GRVT format
+ * Convert a unified CCXT symbol to a GRVT instrument string.
  *
  * @example
  * toGRVTSymbol('BTC/USDT:USDT') // 'BTC_USDT_Perp'
- * toGRVTSymbol('ETH/USDT:USDT') // 'ETH_USDT_Perp'
  */
 export function toGRVTSymbol(symbol: string): string {
-  // Handle perpetual: BTC/USDT:USDT → BTC_USDT_Perp
   if (symbol.includes(':')) {
     const parts = symbol.split(':');
     const pair = parts[0] || '';
@@ -76,8 +75,6 @@ export function toGRVTSymbol(symbol: string): string {
     const quote = pairParts[1] || settle;
     return `${base}_${quote}_Perp`;
   }
-
-  // Handle spot: BTC/USDT → BTC_USDT
   const parts = symbol.split('/');
   const base = parts[0] || '';
   const quote = parts[1] || 'USDT';
@@ -85,272 +82,241 @@ export function toGRVTSymbol(symbol: string): string {
 }
 
 /**
- * Normalize GRVT market to unified format
+ * Parse a GRVT string number into a finite number (0 for empty/undefined).
+ */
+function num(value: string | undefined): number {
+  if (!value) return 0;
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * Count decimal places in a tick/step string.
+ */
+function countDecimals(value: string | undefined): number {
+  if (!value) return 0;
+  const parts = value.split('.');
+  return parts.length === 2 && parts[1] ? parts[1].length : 0;
+}
+
+/**
+ * Normalize a GRVT instrument into a unified Market (fees are per-fill on GRVT).
  */
 export function normalizeMarket(grvtMarket: GRVTMarket): Market {
-  const symbol = normalizeSymbol(grvtMarket.instrument);
-
+  const instrument = grvtMarket.instrument;
   return {
-    id: grvtMarket.instrument_id,
-    symbol,
-    base: grvtMarket.base_currency,
-    quote: grvtMarket.quote_currency,
-    settle: grvtMarket.settlement_currency,
-    active: grvtMarket.is_active,
-    minAmount: parseFloat(grvtMarket.min_size),
+    id: instrument,
+    symbol: normalizeSymbol(instrument),
+    base: grvtMarket.base,
+    quote: grvtMarket.quote,
+    settle: grvtMarket.quote,
+    active: grvtMarket.is_active ?? true,
+    minAmount: num(grvtMarket.min_size),
+    maxAmount: grvtMarket.max_size ? num(grvtMarket.max_size) : undefined,
+    minCost: grvtMarket.min_notional ? num(grvtMarket.min_notional) : undefined,
     pricePrecision: countDecimals(grvtMarket.tick_size),
-    amountPrecision: countDecimals(grvtMarket.step_size),
-    priceTickSize: parseFloat(grvtMarket.tick_size),
-    amountStepSize: parseFloat(grvtMarket.step_size),
-    makerFee: parseFloat(grvtMarket.maker_fee),
-    takerFee: parseFloat(grvtMarket.taker_fee),
-    maxLeverage: parseFloat(grvtMarket.max_leverage),
-    fundingIntervalHours: 8,
+    amountPrecision: countDecimals(grvtMarket.min_size),
+    priceTickSize: num(grvtMarket.tick_size),
+    amountStepSize: num(grvtMarket.min_size),
+    makerFee: 0,
+    takerFee: 0,
+    maxLeverage: GRVT_MAX_LEVERAGE,
+    fundingIntervalHours: grvtMarket.funding_interval_hours ?? 8,
+    info: grvtMarket as unknown as Record<string, unknown>,
   };
 }
 
 /**
- * Normalize GRVT order to unified format
+ * Normalize a GRVT account order (leg-based) into a unified Order.
  */
 export function normalizeOrder(grvtOrder: GRVTOrder): Order {
-  const symbol = normalizeSymbol(grvtOrder.instrument);
+  const leg = grvtOrder.legs?.[0];
+  const amount = num(leg?.size);
+  const traded = num(grvtOrder.state?.traded_size?.[0]);
+  const book = num(grvtOrder.state?.book_size?.[0]);
 
   return {
-    id: grvtOrder.order_id,
-    clientOrderId: grvtOrder.client_order_id,
-    symbol,
-    type: normalizeOrderType(grvtOrder.order_type),
-    side: normalizeOrderSide(grvtOrder.side),
-    amount: parseFloat(grvtOrder.size),
-    price: grvtOrder.price ? parseFloat(grvtOrder.price) : undefined,
-    filled: parseFloat(grvtOrder.filled_size),
-    remaining: parseFloat(grvtOrder.size) - parseFloat(grvtOrder.filled_size),
-    averagePrice: grvtOrder.average_fill_price
-      ? parseFloat(grvtOrder.average_fill_price)
+    id: grvtOrder.order_id || '',
+    clientOrderId: grvtOrder.metadata?.client_order_id,
+    symbol: normalizeSymbol(leg?.instrument || ''),
+    type: (grvtOrder.is_market ? 'market' : 'limit') as OrderType,
+    side: leg?.is_buying_asset ? 'buy' : 'sell',
+    amount,
+    price: leg?.limit_price ? num(leg.limit_price) : undefined,
+    filled: traded,
+    remaining: book,
+    averagePrice: grvtOrder.state?.avg_fill_price?.[0]
+      ? num(grvtOrder.state.avg_fill_price[0])
       : undefined,
-    status: normalizeOrderStatus(grvtOrder.status),
-    timeInForce: normalizeTimeInForce(grvtOrder.time_in_force),
-    postOnly: grvtOrder.post_only,
-    reduceOnly: grvtOrder.reduce_only,
-    timestamp: grvtOrder.created_at,
-    lastUpdateTimestamp: grvtOrder.updated_at,
+    status: normalizeOrderStatus(grvtOrder.state?.status || ''),
+    timeInForce: normalizeTimeInForce(grvtOrder.time_in_force || ''),
+    postOnly: grvtOrder.post_only || false,
+    reduceOnly: grvtOrder.reduce_only || false,
+    timestamp: grvtOrder.metadata?.create_time ? parseInt(grvtOrder.metadata.create_time, 10) : Date.now(),
+    lastUpdateTimestamp: grvtOrder.state?.update_time
+      ? parseInt(grvtOrder.state.update_time, 10)
+      : undefined,
     info: grvtOrder as unknown as Record<string, unknown>,
   };
 }
 
 /**
- * Normalize GRVT position to unified format
+ * Normalize a GRVT position into a unified Position.
  */
 export function normalizePosition(grvtPosition: GRVTPosition): Position {
-  const symbol = normalizeSymbol(grvtPosition.instrument);
-  const size = parseFloat(grvtPosition.size);
-  const side = grvtPosition.side === 'LONG' ? 'long' : 'short';
+  const size = num(grvtPosition.size);
+  const leverage = num(grvtPosition.leverage);
+  const notional = num(grvtPosition.notional);
+  const margin = leverage > 0 ? notional / leverage : 0;
 
   return {
-    symbol,
-    side,
+    symbol: normalizeSymbol(grvtPosition.instrument || ''),
+    side: size >= 0 ? 'long' : 'short',
     marginMode: 'cross',
     size: Math.abs(size),
-    entryPrice: parseFloat(grvtPosition.entry_price),
-    markPrice: parseFloat(grvtPosition.mark_price),
-    liquidationPrice: grvtPosition.liquidation_price
-      ? parseFloat(grvtPosition.liquidation_price)
-      : 0,
-    unrealizedPnl: parseFloat(grvtPosition.unrealized_pnl),
-    realizedPnl: parseFloat(grvtPosition.realized_pnl),
-    margin: parseFloat(grvtPosition.margin),
-    leverage: parseFloat(grvtPosition.leverage),
-    maintenanceMargin: parseFloat(grvtPosition.margin) * 0.005,
-    marginRatio: 0,
-    timestamp: grvtPosition.timestamp,
+    entryPrice: num(grvtPosition.entry_price),
+    markPrice: num(grvtPosition.mark_price),
+    liquidationPrice: grvtPosition.est_liquidation_price ? num(grvtPosition.est_liquidation_price) : 0,
+    unrealizedPnl: num(grvtPosition.unrealized_pnl),
+    realizedPnl: num(grvtPosition.realized_pnl),
+    margin,
+    leverage,
+    maintenanceMargin: margin * 0.5,
+    marginRatio: margin > 0 && notional > 0 ? (margin / notional) * 100 : 0,
+    timestamp: grvtPosition.event_time ? parseInt(grvtPosition.event_time, 10) : Date.now(),
     info: grvtPosition as unknown as Record<string, unknown>,
   };
 }
 
 /**
- * Normalize GRVT balance to unified format
+ * Normalize a GRVT spot balance into a unified Balance.
  */
-export function normalizeBalance(grvtBalance: GRVTBalance): Balance {
+export function normalizeBalance(grvtBalance: GRVTSpotBalance): Balance {
+  const total = num(grvtBalance.balance);
   return {
-    currency: grvtBalance.currency,
-    total: parseFloat(grvtBalance.total),
-    free: parseFloat(grvtBalance.available),
-    used: parseFloat(grvtBalance.reserved),
+    currency: grvtBalance.currency || '',
+    total,
+    free: total,
+    used: 0,
     info: grvtBalance as unknown as Record<string, unknown>,
   };
 }
 
 /**
- * Normalize GRVT order book to unified format
+ * Normalize a GRVT FULL order-book snapshot into a unified OrderBook.
  */
 export function normalizeOrderBook(grvtOrderBook: GRVTOrderBook): OrderBook {
   return {
-    symbol: normalizeSymbol(grvtOrderBook.instrument),
+    symbol: normalizeSymbol(grvtOrderBook.instrument || ''),
     exchange: 'grvt',
-    bids: grvtOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-    asks: grvtOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-    timestamp: grvtOrderBook.timestamp,
-    // nonce: grvtOrderBook.sequence,
+    bids: (grvtOrderBook.bids || []).map((lvl): [number, number] => [num(lvl.price), num(lvl.size)]),
+    asks: (grvtOrderBook.asks || []).map((lvl): [number, number] => [num(lvl.price), num(lvl.size)]),
+    timestamp: grvtOrderBook.event_time ? parseInt(grvtOrderBook.event_time, 10) : Date.now(),
   };
 }
 
 /**
- * Normalize GRVT trade to unified format
+ * Normalize a GRVT public trade into a unified Trade.
  */
 export function normalizeTrade(grvtTrade: GRVTTrade): Trade {
-  const price = parseFloat(grvtTrade.price);
-  const amount = parseFloat(grvtTrade.size);
-
+  const price = num(grvtTrade.price);
+  const amount = num(grvtTrade.size);
   return {
     id: grvtTrade.trade_id,
-    symbol: normalizeSymbol(grvtTrade.instrument),
-    side: normalizeOrderSide(grvtTrade.side),
+    symbol: normalizeSymbol(grvtTrade.instrument || ''),
+    side: grvtTrade.is_taker_buyer ? 'buy' : 'sell',
     price,
     amount,
     cost: price * amount,
-    timestamp: grvtTrade.timestamp,
+    timestamp: grvtTrade.event_time ? parseInt(grvtTrade.event_time, 10) : Date.now(),
     info: grvtTrade as unknown as Record<string, unknown>,
   };
 }
 
 /**
- * Normalize GRVT ticker to unified format
+ * Normalize a GRVT ticker into a unified Ticker.
  */
 export function normalizeTicker(grvtTicker: GRVTTicker): Ticker {
-  const last = parseFloat(grvtTicker.last_price);
-
+  const last = num(grvtTicker.last_price ?? grvtTicker.mark_price);
+  const buyVolume = num(grvtTicker.buy_volume_24h_q);
+  const sellVolume = num(grvtTicker.sell_volume_24h_q);
   return {
-    symbol: normalizeSymbol(grvtTicker.instrument),
+    symbol: normalizeSymbol(grvtTicker.instrument || ''),
     last,
     open: last,
     close: last,
-    bid: parseFloat(grvtTicker.best_bid),
-    ask: parseFloat(grvtTicker.best_ask),
-    high: parseFloat(grvtTicker.high_24h),
-    low: parseFloat(grvtTicker.low_24h),
+    bid: num(grvtTicker.best_bid_price),
+    bidVolume: num(grvtTicker.best_bid_size),
+    ask: num(grvtTicker.best_ask_price),
+    askVolume: num(grvtTicker.best_ask_size),
+    high: last,
+    low: last,
     change: 0,
     percentage: 0,
-    baseVolume: parseFloat(grvtTicker.volume_24h),
-    quoteVolume: 0,
-    timestamp: grvtTicker.timestamp,
+    baseVolume: 0,
+    quoteVolume: buyVolume + sellVolume,
+    timestamp: grvtTicker.event_time ? parseInt(grvtTicker.event_time, 10) : Date.now(),
     info: grvtTicker as unknown as Record<string, unknown>,
   };
 }
 
 /**
- * Normalize GRVT order type to unified format
- */
-function normalizeOrderType(grvtType: string): OrderType {
-  switch (grvtType) {
-    case 'MARKET':
-      return 'market';
-    case 'LIMIT':
-    case 'LIMIT_MAKER':
-      return 'limit';
-    default:
-      return 'limit';
-  }
-}
-
-/**
- * Normalize GRVT order side to unified format
- */
-function normalizeOrderSide(grvtSide: string): OrderSide {
-  return grvtSide === 'BUY' ? 'buy' : 'sell';
-}
-
-/**
- * Normalize GRVT order status to unified format
+ * Map a GRVT order status to the unified OrderStatus.
  */
 function normalizeOrderStatus(grvtStatus: string): OrderStatus {
-  const statusMap: Record<string, OrderStatus> = {
-    PENDING: 'open',
-    OPEN: 'open',
-    PARTIALLY_FILLED: 'partiallyFilled',
-    FILLED: 'filled',
-    CANCELLED: 'canceled',
-    REJECTED: 'rejected',
-  };
-
-  return statusMap[grvtStatus] ?? 'open';
+  const mapped = (GRVT_ORDER_STATUS as Record<string, OrderStatus>)[grvtStatus];
+  return mapped ?? 'open';
 }
 
 /**
- * Normalize GRVT time in force to unified format
+ * Map a GRVT API TIF string to the unified TimeInForce.
  */
 function normalizeTimeInForce(grvtTif: string): TimeInForce {
   switch (grvtTif) {
-    case 'GTC':
-      return 'GTC';
-    case 'IOC':
+    case 'IMMEDIATE_OR_CANCEL':
       return 'IOC';
-    case 'FOK':
+    case 'FILL_OR_KILL':
       return 'FOK';
-    case 'POST_ONLY':
-      return 'PO';
+    case 'GOOD_TILL_TIME':
     default:
       return 'GTC';
   }
 }
 
 /**
- * Convert unified order type to GRVT format
- */
-export function toGRVTOrderType(type: OrderType, postOnly?: boolean): string {
-  if (type === 'market') {
-    return GRVT_ORDER_TYPES.market;
-  }
-
-  if (postOnly) {
-    return GRVT_ORDER_TYPES.limitMaker;
-  }
-
-  return GRVT_ORDER_TYPES.limit;
-}
-
-/**
- * Convert unified order side to GRVT format
+ * Convert a unified order side to the GRVT wire side.
  */
 export function toGRVTOrderSide(side: OrderSide): string {
   return side === 'buy' ? GRVT_ORDER_SIDES.buy : GRVT_ORDER_SIDES.sell;
 }
 
 /**
- * Convert unified time in force to GRVT format
+ * Convert a unified TimeInForce (+ postOnly) to the GRVT API TIF string.
+ * Maker quotes (post_only) require GOOD_TILL_TIME.
  */
 export function toGRVTTimeInForce(tif?: TimeInForce, postOnly?: boolean): string {
   if (postOnly) {
-    return GRVT_TIME_IN_FORCE.POST_ONLY;
+    return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
   }
-
   switch (tif) {
     case 'IOC':
-      return GRVT_TIME_IN_FORCE.IOC;
+      return GRVT_TIME_IN_FORCE.IMMEDIATE_OR_CANCEL;
     case 'FOK':
-      return GRVT_TIME_IN_FORCE.FOK;
+      return GRVT_TIME_IN_FORCE.FILL_OR_KILL;
     case 'PO':
-      return GRVT_TIME_IN_FORCE.POST_ONLY;
+      return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
     case 'GTC':
     default:
-      return GRVT_TIME_IN_FORCE.GTC;
+      return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
   }
 }
 
 /**
- * Count decimal places in a string number
- */
-function countDecimals(value: string): number {
-  const parts = value.split('.');
-  return parts.length === 2 && parts[1] ? parts[1].length : 0;
-}
-
-/**
- * Map GRVT error to unified error code
+ * Map a GRVT API error code/message to a unified error descriptor.
  */
 export function mapGRVTError(error: unknown): { code: string; message: string } {
   if (typeof error === 'object' && error !== null) {
-    const err = error as { code?: number; message?: string };
-
+    const err = error as { code?: number | string; message?: string };
     switch (err.code) {
       case 1001:
         return { code: 'INVALID_ORDER', message: 'Invalid order parameters' };
@@ -371,12 +337,8 @@ export function mapGRVTError(error: unknown): { code: string; message: string } 
       case 5001:
         return { code: 'EXCHANGE_UNAVAILABLE', message: 'Exchange unavailable' };
       default:
-        return {
-          code: 'UNKNOWN_ERROR',
-          message: err.message ?? 'Unknown error occurred',
-        };
+        return { code: 'UNKNOWN_ERROR', message: err.message ?? 'Unknown error occurred' };
     }
   }
-
   return { code: 'UNKNOWN_ERROR', message: 'Unknown error occurred' };
 }

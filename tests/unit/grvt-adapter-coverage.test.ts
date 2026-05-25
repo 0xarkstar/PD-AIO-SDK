@@ -1,74 +1,95 @@
 /**
  * GRVTAdapter Coverage Tests
  *
- * Additional tests for GRVTAdapter methods to boost coverage:
- * - Market data (fetchMarkets, fetchTicker, fetchOrderBook, fetchTrades, fetchOHLCV, fetchFundingRate)
- * - Trading (createOrder, cancelOrder, cancelAllOrders)
- * - Account (fetchPositions, fetchBalance, fetchOpenOrders, fetchOrderHistory, fetchMyTrades)
- * - Helpers (mapOrderType, mapTimeInForce, setLeverage, disconnect, fetchFundingRateHistory)
+ * Exercises the rewritten adapter against the REAL GRVT contract: direct
+ * `GRVTSDKWrapper` methods (getInstruments/getTicker/getOrderBook/getTrades/
+ * getKline/getFunding/createOrder/...), cookie-session sub_account_id threading,
+ * and leg-based order signing (auth.signOrder). Internals are mocked — no network.
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { GRVTAdapter } from '../../src/adapters/grvt/GRVTAdapter.js';
 
-// Helper: create adapter with mocked internals
-function createTestAdapter(): GRVTAdapter {
-  const adapter = new GRVTAdapter({ testnet: true });
+const INSTRUMENTS = [
+  {
+    instrument: 'BTC_USDT_Perp',
+    instrument_hash: '0x030501',
+    base: 'BTC',
+    quote: 'USDT',
+    base_decimals: 9,
+    quote_decimals: 6,
+    tick_size: '0.5',
+    min_size: '0.001',
+    kind: 'PERPETUAL',
+    is_active: true,
+  },
+];
 
-  // Mock internal SDK
-  const mockSdk: any = {
-    getAllInstruments: jest.fn(async () => ({ result: [{ instrument: 'BTC_USDT_Perp' }] })),
-    getTicker: jest.fn(async () => ({ result: { instrument: 'BTC_USDT_Perp', last_price: '36000' } })),
-    getOrderBook: jest.fn(async () => ({ result: { bids: [], asks: [] } })),
-    getTradeHistory: jest.fn(async () => ({ result: [{ id: '1', price: '36000' }] })),
-    getCandlestick: jest.fn(async () => ({ result: [{ t: 1700000000000, o: '36000', h: '36500', l: '35800', c: '36200', v: '100' }] })),
-    mdgAxios: { post: jest.fn(async () => ({ data: { result: [{ open_time: '1700000000000000000', open: '36000', high: '36500', low: '35800', close: '36200', volume_b: '100' }] } })) },
-    getFunding: jest.fn(async () => ({ result: [{ funding_rate: '0.0001', funding_time: '1700000000000', mark_price: '36000' }] })),
-    createOrder: jest.fn(async () => ({ result: { order_id: '123', status: 'active' } })),
-    cancelOrder: jest.fn(async () => ({ result: { order_id: '123', status: 'canceled' } })),
-    cancelAllOrders: jest.fn(async () => ({ result: 5 })),
-    getOpenOrders: jest.fn(async () => ({ result: [{ order_id: '1' }] })),
-    getOrderHistory: jest.fn(async () => ({ result: [{ order_id: '1' }] })),
-    getFillHistory: jest.fn(async () => ({ result: [{ fill_id: '1' }] })),
-    getPositions: jest.fn(async () => ({ result: [{ instrument: 'BTC_USDT_Perp' }] })),
-    getSubAccountSummary: jest.fn(async () => ({ result: { spot_balances: [{ currency: 'USDT', total: '10000' }] } })),
-    setInitialLeverage: jest.fn(async () => ({ result: true })),
-    getSessionCookie: jest.fn(() => 'session-cookie'),
+function makeSdk(): Record<string, jest.Mock> {
+  return {
+    login: jest.fn(async () => ({ cookie: 'c', accountId: 'a', subAccountId: 'sub-1', expiresAt: Date.now() + 60000 })),
+    getInstruments: jest.fn(async () => INSTRUMENTS),
+    getTicker: jest.fn(async () => ({ instrument: 'BTC_USDT_Perp', last_price: '36000' })),
+    getOrderBook: jest.fn(async () => ({ instrument: 'BTC_USDT_Perp', event_time: '1700000000000', bids: [], asks: [] })),
+    getTrades: jest.fn(async () => [
+      { event_time: '1700000000000', instrument: 'BTC_USDT_Perp', is_taker_buyer: true, size: '1', price: '36000', trade_id: 't-1' },
+    ]),
+    getKline: jest.fn(async () => [
+      { open_time: '1700000000000000000', open: '36000', high: '36500', low: '35800', close: '36200', volume_b: '100' },
+    ]),
+    getFunding: jest.fn(async () => [{ instrument: 'BTC_USDT_Perp', funding_rate: '0.0001', funding_time: '1700000000000', mark_price: '36000' }]),
+    createOrder: jest.fn(async () => ({
+      order_id: '123',
+      legs: [{ instrument: 'BTC_USDT_Perp', size: '0.1', limit_price: '36000', is_buying_asset: true }],
+      state: { status: 'OPEN' },
+    })),
+    cancelOrder: jest.fn(async () => ({
+      order_id: '123',
+      legs: [{ instrument: 'BTC_USDT_Perp', size: '0.1', is_buying_asset: true }],
+      state: { status: 'CANCELLED' },
+    })),
+    cancelAllOrders: jest.fn(async () => ({ num_cancelled: 5 })),
+    getOpenOrders: jest.fn(async () => [{ order_id: '1', legs: [{ instrument: 'BTC_USDT_Perp', size: '1', is_buying_asset: true }], state: { status: 'OPEN' } }]),
+    getOrderHistory: jest.fn(async () => [{ order_id: '1', legs: [{ instrument: 'BTC_USDT_Perp', size: '1', is_buying_asset: true }], state: { status: 'FILLED' } }]),
+    getFillHistory: jest.fn(async () => [{ trade_id: 'f-1', order_id: '1', instrument: 'BTC_USDT_Perp', price: '36000', size: '1', is_buyer: true }]),
+    getPositions: jest.fn(async () => [{ instrument: 'BTC_USDT_Perp', size: '0.1', entry_price: '35000', mark_price: '36000' }]),
+    getSubAccountSummary: jest.fn(async () => ({ spot_balances: [{ currency: 'USDT', balance: '10000' }] })),
+    getSubAccountId: jest.fn(() => 'sub-1'),
     clearSession: jest.fn(),
   };
+}
 
-  const mockAuth: any = {
+function makeAuth(): Record<string, jest.Mock> {
+  return {
     hasCredentials: jest.fn(() => true),
     verify: jest.fn(async () => true),
     requireAuth: jest.fn(),
     getAddress: jest.fn(() => '0xabc'),
-    getNextNonce: jest.fn(() => 1),
-    createSignature: jest.fn(async () => '0xsig'),
-    setSessionCookie: jest.fn(),
-    clearSessionCookie: jest.fn(),
+    getSession: jest.fn(() => ({ cookie: 'c', accountId: 'a', subAccountId: 'sub-1', expiresAt: Date.now() + 60000 })),
+    setSession: jest.fn(),
+    clearSession: jest.fn(),
+    signOrder: jest.fn(async () => ({
+      signer: '0xabc',
+      r: '0x' + 'a'.repeat(64),
+      s: '0x' + 'b'.repeat(64),
+      v: 27,
+      expiration: '1900000000000000000',
+      nonce: 12345,
+      chainId: 326,
+    })),
   };
+}
 
-  const mockNormalizer: any = {
-    symbolFromCCXT: jest.fn((s: string) => s.replace('/USDT:USDT', '_USDT_Perp')),
-    symbolToCCXT: jest.fn((s: string) => s.replace('_USDT_Perp', '/USDT:USDT')),
-    normalizeMarkets: jest.fn((data: any) => data.map((d: any) => ({ symbol: 'BTC/USDT:USDT', active: true, info: d }))),
-    normalizeTicker: jest.fn((data: any) => ({ symbol: 'BTC/USDT:USDT', last: 36000, info: data })),
-    normalizeOrderBook: jest.fn((data: any) => ({ symbol: 'BTC/USDT:USDT', bids: [], asks: [], timestamp: Date.now() })),
-    normalizeTrades: jest.fn((data: any) => data.map((d: any) => ({ id: d.id, price: 36000 }))),
-    normalizeOrder: jest.fn((data: any) => ({ id: data.order_id || '1', symbol: 'BTC/USDT:USDT', status: data.status || 'open' })),
-    normalizeOrders: jest.fn((data: any) => data.map((d: any) => ({ id: d.order_id, symbol: 'BTC/USDT:USDT' }))),
-    normalizeFills: jest.fn((data: any) => data.map((d: any) => ({ id: d.fill_id, symbol: 'BTC/USDT:USDT' }))),
-    normalizePositions: jest.fn((data: any) => data.map((d: any) => ({ symbol: 'BTC/USDT:USDT', size: 0.1 }))),
-    normalizeBalances: jest.fn((data: any) => data.map((d: any) => ({ currency: d.currency, total: parseFloat(d.total) }))),
-  };
-
-  // Inject mocks
-  (adapter as any).sdk = mockSdk;
-  (adapter as any).auth = mockAuth;
-  (adapter as any).normalizer = mockNormalizer;
+function createTestAdapter(config: Record<string, unknown> = {}): GRVTAdapter {
+  const adapter = new GRVTAdapter({ testnet: true, apiKey: 'k', ...config });
+  (adapter as any).sdk = makeSdk();
+  (adapter as any).auth = makeAuth();
   (adapter as any).rateLimiter = { acquire: jest.fn(async () => {}) };
   (adapter as any)._isReady = true;
-
+  // Seed instrument meta cache so createOrder does not need a markets fetch.
+  (adapter as any).instrumentMeta = new Map([
+    ['BTC_USDT_Perp', { instrumentHash: '0x030501', baseDecimals: 9 }],
+  ]);
   return adapter;
 }
 
@@ -79,517 +100,268 @@ describe('GRVTAdapter Coverage', () => {
     adapter = createTestAdapter();
   });
 
-  // =========================================================================
-  // Market Data
-  // =========================================================================
   describe('fetchMarkets', () => {
-    it('should fetch and normalize markets', async () => {
-      const result = await adapter.fetchMarkets();
+    it('fetches + normalizes markets and caches instrument meta', async () => {
+      const fresh = new GRVTAdapter({ testnet: true });
+      (fresh as any).sdk = makeSdk();
+      (fresh as any).auth = makeAuth();
+      (fresh as any).rateLimiter = { acquire: jest.fn(async () => {}) };
+      const result = await fresh.fetchMarkets();
       expect(result).toHaveLength(1);
+      expect((fresh as any).instrumentMeta.get('BTC_USDT_Perp')).toEqual({
+        instrumentHash: '0x030501',
+        baseDecimals: 9,
+      });
     });
 
-    it('should filter by active param', async () => {
+    it('filters by active param', async () => {
       const result = await adapter.fetchMarkets({ active: true });
       expect(result).toHaveLength(1);
     });
 
-    it('should throw on null result', async () => {
-      (adapter as any).sdk.getAllInstruments.mockResolvedValue({ result: null });
+    it('throws on null result', async () => {
+      (adapter as any).sdk.getInstruments.mockResolvedValue(null);
       await expect(adapter.fetchMarkets()).rejects.toThrow('Invalid API response');
     });
   });
 
   describe('fetchTicker', () => {
-    it('should fetch and normalize ticker', async () => {
+    it('fetches + normalizes ticker', async () => {
       const result = await adapter.fetchTicker('BTC/USDT:USDT');
       expect(result.symbol).toBe('BTC/USDT:USDT');
     });
 
-    it('should throw on null result', async () => {
-      (adapter as any).sdk.getTicker.mockResolvedValue({ result: null });
+    it('throws on null result', async () => {
+      (adapter as any).sdk.getTicker.mockResolvedValue(null);
       await expect(adapter.fetchTicker('BTC/USDT:USDT')).rejects.toThrow('Invalid API response');
     });
   });
 
   describe('fetchOrderBook', () => {
-    it('should fetch with default depth', async () => {
+    it('uses default depth 50', async () => {
       await adapter.fetchOrderBook('BTC/USDT:USDT');
       expect((adapter as any).sdk.getOrderBook).toHaveBeenCalledWith('BTC_USDT_Perp', 50);
     });
 
-    it('should use small depth for limit <= 10', async () => {
+    it('snaps limit <= 10 to depth 10', async () => {
       await adapter.fetchOrderBook('BTC/USDT:USDT', { limit: 5 });
       expect((adapter as any).sdk.getOrderBook).toHaveBeenCalledWith('BTC_USDT_Perp', 10);
     });
 
-    it('should use 100 for limit > 50', async () => {
+    it('snaps limit > 50 to depth 100', async () => {
       await adapter.fetchOrderBook('BTC/USDT:USDT', { limit: 75 });
       expect((adapter as any).sdk.getOrderBook).toHaveBeenCalledWith('BTC_USDT_Perp', 100);
     });
   });
 
   describe('fetchTrades', () => {
-    it('should fetch and normalize trades', async () => {
+    it('fetches + normalizes trades', async () => {
       const result = await adapter.fetchTrades('BTC/USDT:USDT');
       expect(result).toHaveLength(1);
+      expect(result[0]!.side).toBe('buy');
     });
 
-    it('should pass limit param', async () => {
-      await adapter.fetchTrades('BTC/USDT:USDT', { limit: 50 });
-      expect((adapter as any).sdk.getTradeHistory).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 50 })
-      );
+    it('passes the limit', async () => {
+      await adapter.fetchTrades('BTC/USDT:USDT', { limit: 25 });
+      expect((adapter as any).sdk.getTrades).toHaveBeenCalledWith('BTC_USDT_Perp', 25);
     });
   });
 
   describe('fetchOHLCV', () => {
-    it('should fetch OHLCV data via direct kline POST', async () => {
+    it('fetches via getKline with the mapped interval', async () => {
       const result = await adapter.fetchOHLCV('BTC/USDT:USDT', '1h');
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveLength(6);
-      expect((adapter as any).sdk.mdgAxios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/full/v1/kline'),
-        expect.objectContaining({
-          interval: 'CI_1_H',
-          type: 'TRADE',
-        })
+      expect((adapter as any).sdk.getKline).toHaveBeenCalledWith(
+        expect.objectContaining({ interval: 'CI_1_H', type: 'TRADE' })
       );
     });
 
-    it('should return empty for null result', async () => {
-      (adapter as any).sdk.mdgAxios.post.mockResolvedValue({ data: { result: null } });
-      const result = await adapter.fetchOHLCV('BTC/USDT:USDT');
-      expect(result).toEqual([]);
+    it('returns empty for null result', async () => {
+      (adapter as any).sdk.getKline.mockResolvedValue(null);
+      expect(await adapter.fetchOHLCV('BTC/USDT:USDT')).toEqual([]);
     });
 
-    it('should handle different timeframes', async () => {
-      await adapter.fetchOHLCV('BTC/USDT:USDT', '1m');
-      await adapter.fetchOHLCV('BTC/USDT:USDT', '4h');
-      await adapter.fetchOHLCV('BTC/USDT:USDT', '1d');
-      expect((adapter as any).sdk.mdgAxios.post).toHaveBeenCalledTimes(3);
+    it('rejects monthly (1M)', async () => {
+      await expect(adapter.fetchOHLCV('BTC/USDT:USDT', '1M')).rejects.toThrow(/does not support monthly/);
     });
 
-    it('should reject monthly (1M) timeframe as unsupported', async () => {
-      await expect(adapter.fetchOHLCV('BTC/USDT:USDT', '1M')).rejects.toThrow(
-        /does not support monthly/
-      );
-    });
-
-    it('should use since and until params as nanoseconds', async () => {
+    it('converts since/until to nanoseconds', async () => {
       await adapter.fetchOHLCV('BTC/USDT:USDT', '1h', { since: 1700000000000, until: 1700100000000, limit: 100 });
-      expect((adapter as any).sdk.mdgAxios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/full/v1/kline'),
-        expect.objectContaining({
-          start_time: '1700000000000000000',
-          end_time: '1700100000000000000',
-          limit: 100,
-        })
+      expect((adapter as any).sdk.getKline).toHaveBeenCalledWith(
+        expect.objectContaining({ start_time: '1700000000000000000', end_time: '1700100000000000000', limit: 100 })
       );
     });
   });
 
   describe('fetchFundingRate', () => {
-    it('should fetch funding rate', async () => {
+    it('fetches funding rate', async () => {
       const result = await adapter.fetchFundingRate('BTC/USDT:USDT');
       expect(result.symbol).toBe('BTC/USDT:USDT');
       expect(result.fundingRate).toBe(0.0001);
     });
 
-    it('should throw on empty result', async () => {
-      (adapter as any).sdk.getFunding.mockResolvedValue({ result: [] });
-      await expect(adapter.fetchFundingRate('BTC/USDT:USDT')).rejects.toThrow('Invalid API response');
-    });
-
-    it('should throw on null result', async () => {
-      (adapter as any).sdk.getFunding.mockResolvedValue({ result: null });
-      await expect(adapter.fetchFundingRate('BTC/USDT:USDT')).rejects.toThrow('Invalid API response');
+    it('throws on empty result', async () => {
+      (adapter as any).sdk.getFunding.mockResolvedValue([]);
+      await expect(adapter.fetchFundingRate('BTC/USDT:USDT')).rejects.toThrow('No funding data');
     });
   });
 
-  // =========================================================================
-  // Trading
-  // =========================================================================
   describe('createOrder', () => {
-    it('should create order with signature', async () => {
+    it('signs (leg-based) and sends the wire body with sub_account_id + signature + client_order_id', async () => {
       const result = await adapter.createOrder({
         symbol: 'BTC/USDT:USDT',
         type: 'limit',
         side: 'buy',
         amount: 0.1,
         price: 36000,
+        postOnly: true,
       });
       expect(result.id).toBe('123');
-      expect((adapter as any).auth.createSignature).toHaveBeenCalled();
+      expect((adapter as any).auth.signOrder).toHaveBeenCalled();
+
+      const body = ((adapter as any).sdk.createOrder.mock.calls[0][0]) as Record<string, any>;
+      expect(body.sub_account_id).toBe('sub-1');
+      expect(body.is_market).toBe(false);
+      expect(body.post_only).toBe(true);
+      expect(body.time_in_force).toBe('GOOD_TILL_TIME');
+      expect(body.legs[0]).toMatchObject({ instrument: 'BTC_USDT_Perp', size: '0.1', is_buying_asset: true });
+      expect(body.signature).toMatchObject({ v: 27, nonce: 12345, signer: '0xabc' });
+      // client_order_id is a random integer in [2^63, 2^64-1]
+      const coid = BigInt(body.metadata.client_order_id);
+      expect(coid).toBeGreaterThanOrEqual(1n << 63n);
+      expect(coid).toBeLessThan(1n << 64n);
     });
 
-    it('should set session cookie from response', async () => {
-      await adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 36000,
-      });
-      expect((adapter as any).auth.setSessionCookie).toHaveBeenCalledWith('session-cookie');
+    it('builds the maker quote TIF (post_only => GOOD_TILL_TIME sign enum)', async () => {
+      await adapter.createOrder({ symbol: 'BTC/USDT:USDT', type: 'limit', side: 'sell', amount: 0.1, price: 36000, postOnly: true });
+      const signArg = ((adapter as any).auth.signOrder.mock.calls[0][0]) as Record<string, any>;
+      expect(signArg.timeInForce).toBe('GOOD_TILL_TIME');
+      expect(signArg.isMarket).toBe(false);
+      expect(signArg.postOnly).toBe(true);
+      expect(signArg.legs[0]).toMatchObject({ instrumentHash: '0x030501', baseDecimals: 9, isBuyingAsset: false });
     });
 
-    it('should throw on null result', async () => {
-      (adapter as any).sdk.createOrder.mockResolvedValue({ result: null });
-      await expect(adapter.createOrder({
-        symbol: 'BTC/USDT:USDT',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 36000,
-      })).rejects.toThrow('Invalid API response');
+    it('throws on null result', async () => {
+      (adapter as any).sdk.createOrder.mockResolvedValue(null);
+      await expect(
+        adapter.createOrder({ symbol: 'BTC/USDT:USDT', type: 'limit', side: 'buy', amount: 0.1, price: 36000 })
+      ).rejects.toThrow('Invalid API response');
     });
   });
 
-  describe('cancelOrder', () => {
-    it('should cancel order', async () => {
+  describe('cancelOrder / cancelAllOrders', () => {
+    it('cancels an order by id with sub_account_id', async () => {
       const result = await adapter.cancelOrder('123');
       expect(result.id).toBe('123');
+      expect((adapter as any).sdk.cancelOrder).toHaveBeenCalledWith({ sub_account_id: 'sub-1', order_id: '123' });
     });
 
-    it('should throw on null result', async () => {
-      (adapter as any).sdk.cancelOrder.mockResolvedValue({ result: null });
-      await expect(adapter.cancelOrder('123')).rejects.toThrow('Invalid API response');
-    });
-  });
-
-  describe('cancelAllOrders', () => {
-    it('should cancel all orders without symbol', async () => {
+    it('cancels all orders for the sub-account', async () => {
       const result = await adapter.cancelAllOrders();
       expect(result).toEqual([]);
-    });
-
-    it('should pass instrument for specific symbol', async () => {
-      await adapter.cancelAllOrders('BTC/USDT:USDT');
-      expect((adapter as any).sdk.cancelAllOrders).toHaveBeenCalledWith(
-        expect.objectContaining({ instrument: 'BTC_USDT_Perp' })
-      );
+      expect((adapter as any).sdk.cancelAllOrders).toHaveBeenCalledWith('sub-1');
     });
   });
 
-  // =========================================================================
-  // Account
-  // =========================================================================
-  describe('fetchPositions', () => {
-    it('should fetch positions', async () => {
-      const result = await adapter.fetchPositions();
-      expect(result).toHaveLength(1);
+  describe('account', () => {
+    it('fetches positions and filters by symbol', async () => {
+      expect(await adapter.fetchPositions()).toHaveLength(1);
+      expect(await adapter.fetchPositions(['BTC/USDT:USDT'])).toHaveLength(1);
+      expect(await adapter.fetchPositions(['SOL/USDT:USDT'])).toHaveLength(0);
     });
 
-    it('should filter by symbols', async () => {
-      const result = await adapter.fetchPositions(['BTC/USDT:USDT']);
-      expect(result).toHaveLength(1);
+    it('fetches balances and handles empty spot_balances', async () => {
+      expect(await adapter.fetchBalance()).toHaveLength(1);
+      (adapter as any).sdk.getSubAccountSummary.mockResolvedValue({ spot_balances: [] });
+      expect(await adapter.fetchBalance()).toHaveLength(0);
     });
 
-    it('should filter out non-matching symbols', async () => {
-      const result = await adapter.fetchPositions(['SOL/USDT:USDT']);
-      expect(result).toHaveLength(0);
-    });
-  });
-
-  describe('fetchBalance', () => {
-    it('should fetch balances', async () => {
-      const result = await adapter.fetchBalance();
-      expect(result).toHaveLength(1);
-    });
-
-    it('should handle empty spot_balances', async () => {
-      (adapter as any).sdk.getSubAccountSummary.mockResolvedValue({ result: { spot_balances: [] } });
-      const result = await adapter.fetchBalance();
-      expect(result).toHaveLength(0);
+    it('fetches open orders, history, my trades with sub_account_id', async () => {
+      expect(await adapter.fetchOpenOrders('BTC/USDT:USDT')).toHaveLength(1);
+      expect((adapter as any).sdk.getOpenOrders).toHaveBeenCalledWith('sub-1', 'BTC_USDT_Perp');
+      expect(await adapter.fetchOrderHistory(undefined, undefined, 50)).toHaveLength(1);
+      expect((adapter as any).sdk.getOrderHistory).toHaveBeenCalledWith('sub-1', undefined, 50);
+      expect(await adapter.fetchMyTrades()).toHaveLength(1);
     });
   });
 
-  describe('fetchOpenOrders', () => {
-    it('should fetch open orders', async () => {
-      const result = await adapter.fetchOpenOrders();
-      expect(result).toHaveLength(1);
-    });
-
-    it('should pass symbol filter', async () => {
-      await adapter.fetchOpenOrders('BTC/USDT:USDT');
-      expect((adapter as any).sdk.getOpenOrders).toHaveBeenCalledWith(
-        expect.objectContaining({ instrument: 'BTC_USDT_Perp' })
-      );
-    });
-  });
-
-  describe('fetchOrderHistory', () => {
-    it('should fetch order history', async () => {
-      const result = await adapter.fetchOrderHistory();
-      expect(result).toHaveLength(1);
-    });
-
-    it('should pass limit', async () => {
-      await adapter.fetchOrderHistory(undefined, undefined, 50);
-      expect((adapter as any).sdk.getOrderHistory).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 50 })
-      );
-    });
-  });
-
-  describe('fetchMyTrades', () => {
-    it('should fetch user trades', async () => {
-      const result = await adapter.fetchMyTrades();
-      expect(result).toHaveLength(1);
-    });
-  });
-
-  // =========================================================================
-  // Helpers
-  // =========================================================================
-  describe('fetchFundingRateHistory', () => {
-    it('should throw NOT_SUPPORTED', async () => {
+  describe('helpers', () => {
+    it('fetchFundingRateHistory throws NOT_SUPPORTED', async () => {
       await expect(adapter.fetchFundingRateHistory('BTC/USDT:USDT')).rejects.toThrow('does not provide');
     });
-  });
 
-  describe('setLeverage', () => {
-    it('should call SDK setInitialLeverage', async () => {
-      await adapter.setLeverage('BTC/USDT:USDT', 10);
-      expect((adapter as any).sdk.setInitialLeverage).toHaveBeenCalledWith(
-        expect.objectContaining({ instrument: 'BTC_USDT_Perp', leverage: '10' })
-      );
+    it('setLeverage is not supported on GRVT (cross-margin)', async () => {
+      await expect(adapter.setLeverage('BTC/USDT:USDT', 10)).rejects.toThrow(/not supported/i);
     });
-  });
 
-  describe('symbolToExchange', () => {
-    it('should convert unified to GRVT format', () => {
+    it('symbol conversions', () => {
       expect(adapter.symbolToExchange('BTC/USDT:USDT')).toBe('BTC_USDT_Perp');
-    });
-  });
-
-  describe('symbolFromExchange', () => {
-    it('should convert GRVT to unified format', () => {
       expect(adapter.symbolFromExchange('BTC_USDT_Perp')).toBe('BTC/USDT:USDT');
     });
-  });
 
-  describe('disconnect', () => {
-    it('should clear session and auth', async () => {
+    it('disconnect clears auth + sdk sessions', async () => {
       await adapter.disconnect();
-      expect((adapter as any).auth.clearSessionCookie).toHaveBeenCalled();
+      expect((adapter as any).auth.clearSession).toHaveBeenCalled();
       expect((adapter as any).sdk.clearSession).toHaveBeenCalled();
       expect((adapter as any)._isReady).toBe(false);
     });
   });
 
   describe('initialize', () => {
-    it('should verify credentials', async () => {
-      const freshAdapter = createTestAdapter();
-      (freshAdapter as any)._isReady = false;
-      await freshAdapter.initialize();
-      expect((freshAdapter as any).auth.verify).toHaveBeenCalled();
+    it('verifies credentials and logs in', async () => {
+      const fresh = createTestAdapter();
+      (fresh as any)._isReady = false;
+      await fresh.initialize();
+      expect((fresh as any).auth.verify).toHaveBeenCalled();
+      expect((fresh as any).sdk.login).toHaveBeenCalled();
+      expect((fresh as any).auth.setSession).toHaveBeenCalled();
     });
 
-    it('should throw on invalid credentials', async () => {
-      const freshAdapter = createTestAdapter();
-      (freshAdapter as any)._isReady = false;
-      (freshAdapter as any).auth.verify.mockResolvedValue(false);
-      await expect(freshAdapter.initialize()).rejects.toThrow('verify GRVT credentials');
+    it('throws on invalid credentials', async () => {
+      const fresh = createTestAdapter();
+      (fresh as any)._isReady = false;
+      (fresh as any).auth.verify.mockResolvedValue(false);
+      await expect(fresh.initialize()).rejects.toThrow('verify GRVT credentials');
     });
 
-    it('should skip verification when no credentials', async () => {
-      const freshAdapter = createTestAdapter();
-      (freshAdapter as any)._isReady = false;
-      (freshAdapter as any).auth.hasCredentials.mockReturnValue(false);
-      await freshAdapter.initialize();
-      expect((freshAdapter as any).auth.verify).not.toHaveBeenCalled();
+    it('skips login when no credentials', async () => {
+      const fresh = createTestAdapter();
+      (fresh as any)._isReady = false;
+      (fresh as any).auth.hasCredentials.mockReturnValue(false);
+      await fresh.initialize();
+      expect((fresh as any).auth.verify).not.toHaveBeenCalled();
+      expect((fresh as any).sdk.login).not.toHaveBeenCalled();
     });
   });
 
-  // =========================================================================
-  // Builder Code
-  // =========================================================================
-  describe('builder code', () => {
-    it('should store builderCode from config', () => {
-      const a = new GRVTAdapter({ builderCode: 'GRVT_BUILDER_1' });
-      expect((a as any).builderCode).toBe('GRVT_BUILDER_1');
-    });
-
-    it('should default builderCodeEnabled to true', () => {
-      const a = new GRVTAdapter({ builderCode: 'GRVT_BUILDER_1' });
+  describe('builder code (signing input, not a wire field)', () => {
+    it('stores builderCode + defaults builderCodeEnabled to true', () => {
+      const a = new GRVTAdapter({ builderCode: '0xbuilder', builderFee: '0.001' });
+      expect((a as any).builderCode).toBe('0xbuilder');
       expect((a as any).builderCodeEnabled).toBe(true);
     });
 
-    it('should respect builderCodeEnabled=false', () => {
-      const a = new GRVTAdapter({ builderCode: 'GRVT_BUILDER_1', builderCodeEnabled: false });
-      expect((a as any).builderCodeEnabled).toBe(false);
+    it('passes builder + builderFee into the signing input when enabled', async () => {
+      const a = createTestAdapter({ builderCode: '0xbuilder', builderFee: '0.001' });
+      await a.createOrder({ symbol: 'BTC/USDT:USDT', type: 'limit', side: 'buy', amount: 0.1, price: 36000 });
+      const signArg = ((a as any).auth.signOrder.mock.calls[0][0]) as Record<string, any>;
+      expect(signArg.builder).toBe('0xbuilder');
+      expect(signArg.builderFee).toBe('0.001');
     });
 
-    it('should add builder_id to order when builderCode is set', async () => {
-      const a = new GRVTAdapter({ builderCode: 'GRVT_BUILDER_1' });
-      // Inject mocks
-      const mockSdk: any = {
-        createOrder: jest.fn(async (req: any) => ({ result: { order_id: '456', status: 'active' } })),
-        getSessionCookie: jest.fn(() => null),
-      };
-      const mockAuth: any = {
-        hasCredentials: jest.fn(() => true),
-        requireAuth: jest.fn(),
-        getAddress: jest.fn(() => '0xabc'),
-        getNextNonce: jest.fn(() => 1),
-        createSignature: jest.fn(async () => '0xsig'),
-        setSessionCookie: jest.fn(),
-      };
-      const mockNormalizer: any = {
-        symbolFromCCXT: jest.fn((s: string) => s.replace('/USDT:USDT', '_USDT_Perp')),
-        normalizeOrder: jest.fn((data: any) => ({ id: data.order_id, status: data.status })),
-      };
-      (a as any).sdk = mockSdk;
-      (a as any).auth = mockAuth;
-      (a as any).normalizer = mockNormalizer;
-      (a as any).rateLimiter = { acquire: jest.fn(async () => {}) };
-      (a as any)._isReady = true;
-
-      await a.createOrder({
-        symbol: 'BTC/USDT:USDT',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 36000,
-      });
-
-      const orderArg = mockSdk.createOrder.mock.calls[0][0];
-      expect(orderArg.builder_id).toBe('GRVT_BUILDER_1');
+    it('omits builder when builderCodeEnabled=false', async () => {
+      const a = createTestAdapter({ builderCode: '0xbuilder', builderFee: '0.001', builderCodeEnabled: false });
+      await a.createOrder({ symbol: 'BTC/USDT:USDT', type: 'limit', side: 'buy', amount: 0.1, price: 36000 });
+      const signArg = ((a as any).auth.signOrder.mock.calls[0][0]) as Record<string, any>;
+      expect(signArg.builder).toBeUndefined();
     });
 
-    it('should NOT add builder_id when builderCode is not set', async () => {
-      const a = createTestAdapter();
-
-      await a.createOrder({
-        symbol: 'BTC/USDT:USDT',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 36000,
-      });
-
-      const orderArg = (a as any).sdk.createOrder.mock.calls[0][0];
-      expect(orderArg.builder_id).toBeUndefined();
-    });
-
-    it('should NOT add builder_id when builderCodeEnabled=false', async () => {
-      const a = new GRVTAdapter({ builderCode: 'GRVT_BUILDER_1', builderCodeEnabled: false });
-      const mockSdk: any = {
-        createOrder: jest.fn(async () => ({ result: { order_id: '789', status: 'active' } })),
-        getSessionCookie: jest.fn(() => null),
-      };
-      const mockAuth: any = {
-        hasCredentials: jest.fn(() => true),
-        requireAuth: jest.fn(),
-        getAddress: jest.fn(() => '0xabc'),
-        getNextNonce: jest.fn(() => 1),
-        createSignature: jest.fn(async () => '0xsig'),
-        setSessionCookie: jest.fn(),
-      };
-      const mockNormalizer: any = {
-        symbolFromCCXT: jest.fn((s: string) => s.replace('/USDT:USDT', '_USDT_Perp')),
-        normalizeOrder: jest.fn((data: any) => ({ id: data.order_id, status: data.status })),
-      };
-      (a as any).sdk = mockSdk;
-      (a as any).auth = mockAuth;
-      (a as any).normalizer = mockNormalizer;
-      (a as any).rateLimiter = { acquire: jest.fn(async () => {}) };
-      (a as any)._isReady = true;
-
-      await a.createOrder({
-        symbol: 'BTC/USDT:USDT',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 36000,
-      });
-
-      const orderArg = mockSdk.createOrder.mock.calls[0][0];
-      expect(orderArg.builder_id).toBeUndefined();
-    });
-
-    it('should allow per-order builderCode override', async () => {
-      const a = new GRVTAdapter({ builderCode: 'ADAPTER_BUILDER' });
-      const mockSdk: any = {
-        createOrder: jest.fn(async () => ({ result: { order_id: '101', status: 'active' } })),
-        getSessionCookie: jest.fn(() => null),
-      };
-      const mockAuth: any = {
-        hasCredentials: jest.fn(() => true),
-        requireAuth: jest.fn(),
-        getAddress: jest.fn(() => '0xabc'),
-        getNextNonce: jest.fn(() => 1),
-        createSignature: jest.fn(async () => '0xsig'),
-        setSessionCookie: jest.fn(),
-      };
-      const mockNormalizer: any = {
-        symbolFromCCXT: jest.fn((s: string) => s.replace('/USDT:USDT', '_USDT_Perp')),
-        normalizeOrder: jest.fn((data: any) => ({ id: data.order_id, status: data.status })),
-      };
-      (a as any).sdk = mockSdk;
-      (a as any).auth = mockAuth;
-      (a as any).normalizer = mockNormalizer;
-      (a as any).rateLimiter = { acquire: jest.fn(async () => {}) };
-      (a as any)._isReady = true;
-
-      await a.createOrder({
-        symbol: 'BTC/USDT:USDT',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 36000,
-        builderCode: 'ORDER_BUILDER',
-      });
-
-      const orderArg = mockSdk.createOrder.mock.calls[0][0];
-      expect(orderArg.builder_id).toBe('ORDER_BUILDER');
-    });
-
-    it('should use adapter builderCode when per-order is not set', async () => {
-      const a = new GRVTAdapter({ builderCode: 'ADAPTER_BUILDER' });
-      const mockSdk: any = {
-        createOrder: jest.fn(async () => ({ result: { order_id: '102', status: 'active' } })),
-        getSessionCookie: jest.fn(() => null),
-      };
-      const mockAuth: any = {
-        hasCredentials: jest.fn(() => true),
-        requireAuth: jest.fn(),
-        getAddress: jest.fn(() => '0xabc'),
-        getNextNonce: jest.fn(() => 1),
-        createSignature: jest.fn(async () => '0xsig'),
-        setSessionCookie: jest.fn(),
-      };
-      const mockNormalizer: any = {
-        symbolFromCCXT: jest.fn((s: string) => s.replace('/USDT:USDT', '_USDT_Perp')),
-        normalizeOrder: jest.fn((data: any) => ({ id: data.order_id, status: data.status })),
-      };
-      (a as any).sdk = mockSdk;
-      (a as any).auth = mockAuth;
-      (a as any).normalizer = mockNormalizer;
-      (a as any).rateLimiter = { acquire: jest.fn(async () => {}) };
-      (a as any)._isReady = true;
-
-      await a.createOrder({
-        symbol: 'BTC/USDT:USDT',
-        type: 'limit',
-        side: 'buy',
-        amount: 0.1,
-        price: 36000,
-      });
-
-      const orderArg = mockSdk.createOrder.mock.calls[0][0];
-      expect(orderArg.builder_id).toBe('ADAPTER_BUILDER');
-    });
-
-    it('should default builderCodeEnabled to true when not specified', () => {
-      const a = new GRVTAdapter({});
-      expect((a as any).builderCodeEnabled).toBe(true);
-    });
-
-    it('should not have builderCode when not configured', () => {
-      const a = new GRVTAdapter({});
-      expect((a as any).builderCode).toBeUndefined();
+    it('allows a per-order builderCode override', async () => {
+      const a = createTestAdapter({ builderCode: '0xadapter', builderFee: '0.001' });
+      await a.createOrder({ symbol: 'BTC/USDT:USDT', type: 'limit', side: 'buy', amount: 0.1, price: 36000, builderCode: '0xorder' });
+      const signArg = ((a as any).auth.signOrder.mock.calls[0][0]) as Record<string, any>;
+      expect(signArg.builder).toBe('0xorder');
     });
   });
 });

@@ -1,8 +1,11 @@
 /**
- * GRVT API Contract Specification
+ * GRVT API Contract Specification.
  *
- * Defines the expected API contract for GRVT exchange endpoints.
- * GRVT uses official @grvt/client SDK with MDG and TDG gateways.
+ * Ground-truthed 2026-05-26 against the REAL GRVT API. GRVT splits its API
+ * across three hosts; the public market-data endpoints (POST `full/v1/*`,
+ * `{ result }` envelope) live on the market-data host used as `baseUrl` here.
+ * Authed endpoints are described for completeness but are skipped by the
+ * contract validator (`skipAuthEndpoints: true`).
  */
 
 import { z } from 'zod';
@@ -10,328 +13,206 @@ import type { APISpecification } from '../types.js';
 import { GRVT_API_URLS } from '../../../src/adapters/grvt/constants.js';
 
 /**
- * GRVT Instrument Schema (Market)
+ * GRVT instrument (market) schema — instrument_hash + base_decimals, no fees.
  */
-const GRVTInstrumentSchema = z.object({
-  instrument: z.string(),
-  instrument_hash: z.string(),
-  base: z.string(),
-  quote: z.string(),
-  kind: z.enum(['PERPETUAL', 'FUTURE', 'CALL', 'PUT']),
-  venue: z.string(),
-  settlement_period: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']).optional(),
-  base_decimals: z.number(),
-  quote_decimals: z.number(),
-  tick_size: z.string(),
-  min_size: z.string(),
-  max_size: z.string().optional(),
-  is_active: z.boolean(),
-});
+const GRVTInstrumentSchema = z
+  .object({
+    instrument: z.string(),
+    instrument_hash: z.string(),
+    base: z.string(),
+    quote: z.string(),
+    base_decimals: z.number(),
+    quote_decimals: z.number(),
+    tick_size: z.string(),
+    min_size: z.string(),
+    min_notional: z.string().optional(),
+    kind: z.string(),
+    is_active: z.boolean().optional(),
+  })
+  .passthrough();
 
 /**
- * GRVT Ticker Schema
+ * GRVT ticker schema (all numeric fields are strings; 24h quote volumes).
  */
-const GRVTTickerSchema = z.object({
-  instrument: z.string(),
-  mark_price: z.string().optional(),
-  index_price: z.string().optional(),
-  last_price: z.string().optional(),
-  mid_price: z.string().optional(),
-  best_bid_price: z.string().optional(),
-  best_ask_price: z.string().optional(),
-  best_bid_size: z.string().optional(),
-  best_ask_size: z.string().optional(),
-  open_interest: z.string().optional(),
-  funding_rate: z.string().optional(),
-  next_funding_time: z.number().optional(),
-  volume_24h: z.string().optional(),
-  high_24h: z.string().optional(),
-  low_24h: z.string().optional(),
-  timestamp: z.number(),
-});
+const GRVTTickerSchema = z
+  .object({
+    instrument: z.string().optional(),
+    mark_price: z.string().optional(),
+    index_price: z.string().optional(),
+    last_price: z.string().optional(),
+    mid_price: z.string().optional(),
+    best_bid_price: z.string().optional(),
+    best_ask_price: z.string().optional(),
+    best_bid_size: z.string().optional(),
+    best_ask_size: z.string().optional(),
+    buy_volume_24h_q: z.string().optional(),
+    sell_volume_24h_q: z.string().optional(),
+    open_interest: z.string().optional(),
+    funding_rate: z.string().optional(),
+    next_funding_time: z.string().optional(),
+  })
+  .passthrough();
 
 /**
- * GRVT Order Book Schema
+ * GRVT order book schema — FULL snapshot, `{ price, size, num_orders }` levels.
  */
-const GRVTOrderBookSchema = z.object({
-  instrument: z.string(),
-  bids: z.array(
-    z.array(z.string()) // [price, size]
-  ),
-  asks: z.array(
-    z.array(z.string()) // [price, size]
-  ),
-  timestamp: z.number(),
-  checksum: z.number().optional(),
-});
+const GRVTOrderBookSchema = z
+  .object({
+    event_time: z.string(),
+    bids: z.array(z.object({ price: z.string(), size: z.string(), num_orders: z.number().optional() }).passthrough()),
+    asks: z.array(z.object({ price: z.string(), size: z.string(), num_orders: z.number().optional() }).passthrough()),
+  })
+  .passthrough();
 
 /**
- * GRVT Trade Schema
+ * GRVT trade schema — `is_taker_buyer`, string `trade_id`, `event_time`.
  */
-const GRVTTradeSchema = z.object({
-  trade_id: z.string(),
-  instrument: z.string(),
-  is_buyer_maker: z.boolean(),
-  price: z.string(),
-  size: z.string(),
-  created_at: z.number(),
-});
+const GRVTTradeSchema = z
+  .object({
+    event_time: z.string(),
+    is_taker_buyer: z.boolean(),
+    price: z.string(),
+    size: z.string(),
+    trade_id: z.string(),
+  })
+  .passthrough();
 
 /**
- * GRVT Position Schema
+ * GRVT funding schema.
  */
-const GRVTPositionSchema = z.object({
-  sub_account_id: z.string(),
-  instrument: z.string(),
-  size: z.string(),
-  notional: z.string().optional(),
-  entry_price: z.string().optional(),
-  mark_price: z.string().optional(),
-  unrealized_pnl: z.string().optional(),
-  realized_pnl: z.string().optional(),
-  liquidation_price: z.string().optional(),
-  leverage: z.string().optional(),
-  margin_type: z.enum(['CROSS', 'ISOLATED']).optional(),
-});
+const GRVTFundingSchema = z
+  .object({
+    instrument: z.string().optional(),
+    funding_rate: z.string(),
+    mark_price: z.string().optional(),
+    index_price: z.string().optional(),
+  })
+  .passthrough();
 
 /**
- * GRVT Funding Rate Schema
- */
-const GRVTFundingSchema = z.object({
-  instrument: z.string(),
-  funding_rate: z.string(),
-  mark_price: z.string().optional(),
-  index_price: z.string().optional(),
-  next_funding_time: z.number(),
-  timestamp: z.number(),
-});
-
-/**
- * GRVT Balance Schema
- */
-const GRVTBalanceSchema = z.object({
-  sub_account_id: z.string(),
-  currency: z.string(),
-  total: z.string(),
-  available: z.string(),
-  reserved: z.string().optional(),
-});
-
-/**
- * GRVT Order Schema
- */
-const GRVTOrderSchema = z.object({
-  order_id: z.string(),
-  sub_account_id: z.string(),
-  client_order_id: z.string().optional(),
-  instrument: z.string(),
-  side: z.enum(['BUY', 'SELL']),
-  type: z.enum(['LIMIT', 'MARKET']),
-  time_in_force: z.enum(['GTC', 'IOC', 'FOK']),
-  price: z.string().optional(),
-  size: z.string(),
-  filled_size: z.string().optional(),
-  average_fill_price: z.string().optional(),
-  status: z.enum(['OPEN', 'FILLED', 'PARTIALLY_FILLED', 'CANCELLED', 'REJECTED']),
-  created_at: z.number(),
-  updated_at: z.number().optional(),
-});
-
-/**
- * GRVT Order Response Schema
- */
-const GRVTOrderResponseSchema = z.object({
-  result: z.object({
-    order_id: z.string(),
-    client_order_id: z.string().optional(),
-    status: z.string(),
-  }),
-});
-
-/**
- * GRVT API Specification
+ * GRVT API Specification (public market-data host).
  */
 export const grvtSpec: APISpecification = {
   exchange: 'grvt',
-  baseUrl: GRVT_API_URLS.mainnet.rest,
-  version: '1.0.0',
-  lastUpdated: '2026-01-08',
+  baseUrl: GRVT_API_URLS.mainnet.marketData,
+  version: '2.0.0',
+  lastUpdated: '2026-05-26',
   endpoints: [
-    // Market Data Gateway (MDG) Endpoints
     {
       id: 'grvt.fetchMarkets',
-      path: '/full/v1/all_instruments',
+      path: '/full/v1/instruments',
       method: 'POST',
       requiresAuth: false,
-      requestSchema: z.object({}),
-      responseSchema: z.object({
-        result: z.array(GRVTInstrumentSchema),
-      }),
+      requestSchema: z.object({ kind: z.array(z.string()).optional(), is_active: z.boolean().optional() }),
+      responseSchema: z.object({ result: z.array(GRVTInstrumentSchema) }),
       rateLimit: 1,
       expectedResponseTime: 500,
-      description: 'Fetch all available markets',
+      description: 'Fetch all active perpetual instruments',
     },
     {
       id: 'grvt.fetchTicker',
       path: '/full/v1/ticker',
       method: 'POST',
       requiresAuth: false,
-      requestSchema: z.object({
-        instrument: z.string().optional(),
-      }),
-      responseSchema: z.object({
-        result: GRVTTickerSchema,
-      }),
+      requestSchema: z.object({ instrument: z.string() }),
+      responseSchema: z.object({ result: GRVTTickerSchema }),
       rateLimit: 1,
       expectedResponseTime: 300,
-      description: 'Fetch ticker for a specific symbol',
+      description: 'Fetch ticker for an instrument',
     },
     {
       id: 'grvt.fetchOrderBook',
-      path: '/full/v1/order_book',
+      path: '/full/v1/book',
       method: 'POST',
       requiresAuth: false,
-      requestSchema: z.object({
-        instrument: z.string(),
-        depth: z.number().optional(),
-      }),
-      responseSchema: z.object({
-        result: GRVTOrderBookSchema,
-      }),
+      requestSchema: z.object({ instrument: z.string(), depth: z.number().optional() }),
+      responseSchema: z.object({ result: GRVTOrderBookSchema }),
       rateLimit: 2,
       expectedResponseTime: 400,
-      description: 'Fetch order book for a specific symbol',
+      description: 'Fetch a full order-book snapshot',
     },
     {
       id: 'grvt.fetchTrades',
-      path: '/full/v1/trades_history',
+      path: '/full/v1/trade',
       method: 'POST',
       requiresAuth: false,
-      requestSchema: z.object({
-        instrument: z.string().optional(),
-        limit: z.number().optional(),
-      }),
-      responseSchema: z.object({
-        result: z.array(GRVTTradeSchema),
-      }),
+      requestSchema: z.object({ instrument: z.string(), limit: z.number().optional() }),
+      responseSchema: z.object({ result: z.array(GRVTTradeSchema) }),
       rateLimit: 2,
       expectedResponseTime: 400,
-      description: 'Fetch recent trades for a specific symbol',
+      description: 'Fetch recent public trades',
     },
     {
       id: 'grvt.fetchFundingRate',
       path: '/full/v1/funding',
       method: 'POST',
       requiresAuth: false,
-      requestSchema: z.object({
-        instrument: z.string().optional(),
-      }),
-      responseSchema: z.object({
-        result: GRVTFundingSchema,
-      }),
+      requestSchema: z.object({ instrument: z.string() }),
+      responseSchema: z.object({ result: z.union([GRVTFundingSchema, z.array(GRVTFundingSchema)]) }),
       rateLimit: 1,
       expectedResponseTime: 300,
-      description: 'Fetch funding rate for a specific symbol',
+      description: 'Fetch funding rate for an instrument',
     },
-
-    // Trading Data Gateway (TDG) Endpoints - Require Authentication
     {
-      id: 'grvt.fetchPositions',
-      path: '/trade/v1/positions',
+      // Authed (trades host); skipped by the validator (skipAuthEndpoints).
+      id: 'grvt.createOrder',
+      path: '/full/v1/create_order',
       method: 'POST',
       requiresAuth: true,
       requestSchema: z.object({
-        sub_account_id: z.string().optional(),
-      }),
-      responseSchema: z.object({
-        result: z.array(GRVTPositionSchema),
-      }),
-      rateLimit: 2,
-      expectedResponseTime: 500,
-      description: 'Fetch user positions',
-    },
-    {
-      id: 'grvt.fetchBalance',
-      path: '/trade/v1/account_summary',
-      method: 'POST',
-      requiresAuth: true,
-      requestSchema: z.object({
-        sub_account_id: z.string().optional(),
-      }),
-      responseSchema: z.object({
-        result: z.object({
-          balances: z.array(GRVTBalanceSchema),
+        order: z.object({
+          sub_account_id: z.string(),
+          is_market: z.boolean(),
+          time_in_force: z.string(),
+          post_only: z.boolean(),
+          reduce_only: z.boolean(),
+          legs: z.array(
+            z.object({
+              instrument: z.string(),
+              size: z.string(),
+              limit_price: z.string(),
+              is_buying_asset: z.boolean(),
+            })
+          ),
+          signature: z.object({
+            r: z.string(),
+            s: z.string(),
+            v: z.number(),
+            expiration: z.string(),
+            nonce: z.number(),
+            signer: z.string(),
+          }),
+          metadata: z.object({ client_order_id: z.string() }),
         }),
       }),
-      rateLimit: 2,
-      expectedResponseTime: 500,
-      description: 'Fetch account balance',
+      responseSchema: z.object({ result: z.object({ order_id: z.string().optional() }).passthrough() }),
+      rateLimit: 5,
+      expectedResponseTime: 800,
+      description: 'Create a signed order',
     },
     {
-      id: 'grvt.fetchOpenOrders',
-      path: '/trade/v1/open_orders',
-      method: 'POST',
-      requiresAuth: true,
-      requestSchema: z.object({
-        sub_account_id: z.string().optional(),
-        instrument: z.string().optional(),
-      }),
-      responseSchema: z.object({
-        result: z.array(GRVTOrderSchema),
-      }),
-      rateLimit: 2,
-      expectedResponseTime: 400,
-      description: 'Fetch open orders',
-    },
-    {
-      id: 'grvt.createOrder',
-      path: '/trade/v1/create_order',
+      id: 'grvt.cancelOrder',
+      path: '/full/v1/cancel_order',
       method: 'POST',
       requiresAuth: true,
       requestSchema: z.object({
         sub_account_id: z.string(),
-        instrument: z.string(),
-        side: z.enum(['BUY', 'SELL']),
-        type: z.enum(['LIMIT', 'MARKET']),
-        size: z.string(),
-        price: z.string().optional(),
-        time_in_force: z.enum(['GTC', 'IOC', 'FOK']).optional(),
-        client_order_id: z.string().optional(),
-        post_only: z.boolean().optional(),
-        reduce_only: z.boolean().optional(),
-      }),
-      responseSchema: GRVTOrderResponseSchema,
-      rateLimit: 5,
-      expectedResponseTime: 800,
-      description: 'Create new order',
-    },
-    {
-      id: 'grvt.cancelOrder',
-      path: '/trade/v1/cancel_order',
-      method: 'POST',
-      requiresAuth: true,
-      requestSchema: z.object({
         order_id: z.string().optional(),
         client_order_id: z.string().optional(),
       }),
-      responseSchema: z.object({
-        result: z.object({
-          order_id: z.string(),
-          status: z.string(),
-        }),
-      }),
+      responseSchema: z.object({ result: z.object({}).passthrough() }),
       rateLimit: 3,
       expectedResponseTime: 600,
-      description: 'Cancel order',
+      description: 'Cancel an order',
     },
   ],
 };
 
 /**
- * GRVT Testnet API Specification
+ * GRVT Testnet API Specification (testnet market-data host).
  */
 export const grvtTestnetSpec: APISpecification = {
   ...grvtSpec,
-  baseUrl: GRVT_API_URLS.testnet.rest,
+  baseUrl: GRVT_API_URLS.testnet.marketData,
   exchange: 'grvt-testnet',
 };
