@@ -92,6 +92,20 @@ export declare const KATANA_TIME_IN_FORCE: {
 };
 export declare const KATANA_TIME_IN_FORCE_REVERSE: Record<number, string>;
 /**
+ * Wire-body human strings for time-in-force (what POST /v1/orders sends).
+ *
+ * The EIP-712 struct uses uint8 values; the HTTP body uses these human strings.
+ * Spec: gtc=0, gtx=1 (post-only/maker), ioc=2, fok=3.
+ */
+export declare const KATANA_WIRE_TIME_IN_FORCE: Record<number, string>;
+/**
+ * Wire-body human strings for self-trade-prevention (what POST /v1/orders sends).
+ *
+ * The EIP-712 struct uses uint8 values; the HTTP body uses these human strings.
+ * Spec: dc=0, co=1, cn=2, cb=3.
+ */
+export declare const KATANA_WIRE_SELF_TRADE_PREVENTION: Record<number, string>;
+/**
  * Katana trigger type mapping
  */
 export declare const KATANA_TRIGGER_TYPES: {
@@ -113,24 +127,41 @@ export declare const KATANA_SELF_TRADE_PREVENTION: {
  */
 export declare const KATANA_ORDER_STATUS: Record<string, string>;
 /**
- * EIP-712 domain configuration for Katana
+ * EIP-712 domain configuration for Katana (IDEX-v1 perps).
+ *
+ * Aligned to the live-verified Katana spec:
+ * - `verifyingContract` equals the `exchangeContractAddress` returned by
+ *   GET /v1/exchange (LIVE-CONFIRMED).
+ * - `name`/`version`/`chainId` per the official API docs
+ *   (api-docs-v1-perps.katana.network).
+ *
+ * VERIFY-LIVE: the docs sidebar lists EIP-712 `version` "2.0.0", while some
+ * code samples show "1.0.0". The values below follow the sidebar. Confirm
+ * against SANDBOX (chainId 737373) before placing mainnet orders — a wrong
+ * `version` produces a different domain separator and the venue rejects the
+ * signature.
  */
 export declare const KATANA_EIP712_DOMAIN: {
     readonly mainnet: {
-        readonly name: "Katana";
-        readonly version: "1";
+        readonly name: "KatanaPerps";
+        readonly version: "2.0.0";
         readonly chainId: 747474;
-        readonly verifyingContract: "0x835Ba5b1B202773A94Daaa07168b26B22584637a";
+        readonly verifyingContract: "0x62230CeA619F734cc215bB8074bbF07bE4Eb633e";
     };
     readonly sandbox: {
-        readonly name: "Katana";
-        readonly version: "1";
+        readonly name: "KatanaPerps";
+        readonly version: "2.0.0-sandbox";
         readonly chainId: 737373;
-        readonly verifyingContract: "0x835Ba5b1B202773A94Daaa07168b26B22584637a";
+        readonly verifyingContract: "0x92d3072dDe1aD3e9B7895500F504aA5e664E71d3";
     };
 };
 /**
- * EIP-712 Order type definition for order signing
+ * EIP-712 Order type definition for order signing.
+ *
+ * Field order + types match the live Katana IDEX-v1 `Order` struct exactly
+ * (17 fields). `nonce` and `conditionalOrderId` are `uint128` — they MUST be
+ * passed to the signer as BigInt (or a decimal string of the BigInt), never as
+ * a UUID string or a JS `number` (a uint128 does not fit in a JS number).
  */
 export declare const KATANA_EIP712_ORDER_TYPE: {
     Order: {
@@ -139,16 +170,19 @@ export declare const KATANA_EIP712_ORDER_TYPE: {
     }[];
 };
 /**
- * EIP-712 Cancel order type definition
+ * EIP-712 Cancel-by-market type definition.
+ *
+ * Cancel-by-market signs `{ wallet, market }` under the corrected
+ * KatanaPerps/2.0.0 domain.
  */
 export declare const KATANA_EIP712_CANCEL_TYPE: {
-    Cancel: {
+    OrderCancellationByMarketSymbol: {
         name: string;
         type: string;
     }[];
 };
 /**
- * EIP-712 Withdraw type definition
+ * EIP-712 Withdraw type definition (KatanaPerps/2.0.0 domain).
  */
 export declare const KATANA_EIP712_WITHDRAW_TYPE: {
     Withdraw: {

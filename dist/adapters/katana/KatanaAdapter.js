@@ -17,7 +17,7 @@ import { RateLimiter } from '../../core/RateLimiter.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { HTTPClient } from '../../core/http/HTTPClient.js';
 import { KatanaAuth } from './KatanaAuth.js';
-import { KATANA_API_URLS, KATANA_RATE_LIMITS, KATANA_ENDPOINT_WEIGHTS, KATANA_TIMEFRAMES, } from './constants.js';
+import { KATANA_API_URLS, KATANA_RATE_LIMITS, KATANA_ENDPOINT_WEIGHTS, KATANA_TIMEFRAMES, KATANA_ORDER_TYPE_REVERSE, KATANA_ORDER_SIDE_REVERSE, KATANA_WIRE_TIME_IN_FORCE, KATANA_WIRE_SELF_TRADE_PREVENTION, KATANA_ZERO_DECIMAL, } from './constants.js';
 import { toKatanaSymbol, normalizeMarket, normalizeOrder, normalizePosition, normalizeBalance, normalizeOrderBook, normalizeTrade, normalizeFill, normalizeTicker, normalizeFundingRate, convertOrderRequest, formatDecimal, mapError, normalizeSymbol, } from './utils.js';
 /**
  * Katana Exchange Adapter
@@ -67,9 +67,7 @@ export class KatanaAdapter extends BaseAdapter {
     constructor(config = {}) {
         super(config);
         this.testnet = config.testnet ?? false;
-        this.baseUrl = this.testnet
-            ? KATANA_API_URLS.sandbox.rest
-            : KATANA_API_URLS.mainnet.rest;
+        this.baseUrl = this.testnet ? KATANA_API_URLS.sandbox.rest : KATANA_API_URLS.mainnet.rest;
         this.auth = new KatanaAuth(config);
         this.rateLimiter = new RateLimiter({
             maxTokens: KATANA_RATE_LIMITS.private.maxRequests,
@@ -201,9 +199,30 @@ export class KatanaAdapter extends BaseAdapter {
         await this.rateLimiter.acquire('createOrder');
         const walletAddress = this.auth.getAddress();
         const nonce = this.auth.generateNonce();
+        // The EIP-712 payload uses the uint128 nonce + struct field names; the wire
+        // body carries the original UUID nonce (for HMAC + replay freshness) and the
+        // uint128 fields serialized as decimal strings. Build them separately so the
+        // signed message and the HTTP body each have the correct field shapes.
         const payload = convertOrderRequest(request, walletAddress, nonce);
         const signature = await this.auth.signOrder(payload);
-        const body = { ...payload, signature };
+        // Wire body: human-readable field names + human-string enum values.
+        // The EIP-712 payload (signed above) uses struct field names (marketSymbol /
+        // orderType uint8 / orderSide uint8 / nonce uint128) — those differ from the
+        // HTTP body intentionally.
+        const limitPrice = payload.limitPrice !== KATANA_ZERO_DECIMAL ? payload.limitPrice : undefined;
+        const body = {
+            nonce,
+            wallet: payload.wallet,
+            market: payload.marketSymbol,
+            type: KATANA_ORDER_TYPE_REVERSE[payload.orderType] ?? 'limit',
+            side: KATANA_ORDER_SIDE_REVERSE[payload.orderSide] ?? 'buy',
+            quantity: payload.quantity,
+            ...(limitPrice != null && { price: limitPrice }),
+            timeInForce: KATANA_WIRE_TIME_IN_FORCE[payload.timeInForce] ?? 'gtc',
+            selfTradePrevention: KATANA_WIRE_SELF_TRADE_PREVENTION[payload.selfTradePrevention] ?? 'dc',
+            ...(payload.clientOrderId && { clientOrderId: payload.clientOrderId }),
+            signature,
+        };
         const raw = await this.privatePost('/orders', body);
         return normalizeOrder(raw);
     }
@@ -214,9 +233,10 @@ export class KatanaAdapter extends BaseAdapter {
         const walletAddress = this.auth.getAddress();
         const nonce = this.auth.generateNonce();
         const market = symbol ? toKatanaSymbol(symbol) : '';
-        const cancelPayload = { nonce, wallet: walletAddress, orderId, market };
-        const signature = await this.auth.signCancel(cancelPayload);
-        const body = { ...cancelPayload, signature };
+        // Cancel-by-market signs only { wallet, market }; the wire body additionally
+        // carries the UUID nonce, the orderId, and the signature.
+        const signature = await this.auth.signCancel({ wallet: walletAddress, market });
+        const body = { nonce, wallet: walletAddress, orderId, market, signature };
         const raw = await this.privateDelete('/orders', body);
         return normalizeOrder(raw);
     }
@@ -227,9 +247,8 @@ export class KatanaAdapter extends BaseAdapter {
         const walletAddress = this.auth.getAddress();
         const nonce = this.auth.generateNonce();
         const market = symbol ? toKatanaSymbol(symbol) : '';
-        const cancelPayload = { nonce, wallet: walletAddress, orderId: '', market };
-        const signature = await this.auth.signCancel(cancelPayload);
-        const body = { ...cancelPayload, signature };
+        const signature = await this.auth.signCancel({ wallet: walletAddress, market });
+        const body = { nonce, wallet: walletAddress, orderId: '', market, signature };
         const raw = await this.privateDelete('/orders', body);
         return (Array.isArray(raw) ? raw : []).map(normalizeOrder);
     }
@@ -329,8 +348,9 @@ export class KatanaAdapter extends BaseAdapter {
         this.auth.requireWallet();
         const walletAddress = this.auth.getAddress();
         const nonce = this.auth.generateNonce();
-        const payload = { nonce, wallet: walletAddress, orderId: '', market: '' };
-        const signature = await this.auth.signCancel(payload);
+        // Emergency close-all is an all-markets cancellation; sign { wallet, market }
+        // with an empty market to denote "all markets".
+        const signature = await this.auth.signCancel({ wallet: walletAddress, market: '' });
         await this.privateDelete(`/wallets/${walletAddress}`, {
             nonce,
             wallet: walletAddress,

@@ -77,6 +77,6 @@ export declare const HYPERLIQUID_WS_RECONNECT: {
     multiplier: number;
     jitter: number;
 };
-export declare const HYPERLIQUID_FUNDING_INTERVAL_HOURS = 8;
+export declare const HYPERLIQUID_FUNDING_INTERVAL_HOURS = 1;
 export declare const HYPERLIQUID_ERROR_MESSAGES: Record<string, string>;
 //# sourceMappingURL=constants.d.ts.map

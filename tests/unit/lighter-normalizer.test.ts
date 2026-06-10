@@ -91,7 +91,7 @@ describe('LighterNormalizer', () => {
       expect(market.makerFee).toBe(0.0002);
       expect(market.takerFee).toBe(0.0005);
       expect(market.maxLeverage).toBe(20);
-      expect(market.fundingIntervalHours).toBe(8);
+      expect(market.fundingIntervalHours).toBe(1);
     });
 
     it('should handle inactive market', () => {
@@ -480,7 +480,7 @@ describe('LighterNormalizer', () => {
       expect(fundingRate.nextFundingTimestamp).toBe(1700000000000);
       expect(fundingRate.markPrice).toBe(50000);
       expect(fundingRate.indexPrice).toBe(50000); // Uses mark price as fallback
-      expect(fundingRate.fundingIntervalHours).toBe(8);
+      expect(fundingRate.fundingIntervalHours).toBe(1);
     });
 
     it('should handle negative funding rate', () => {

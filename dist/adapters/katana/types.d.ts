@@ -531,26 +531,26 @@ export interface KatanaServerTime {
     serverTime: number;
 }
 /**
- * Katana order request payload for POST /v1/orders
+ * Katana order request payload for POST /v1/orders (HTTP wire body).
+ *
+ * This is DISTINCT from the EIP-712 typed-data struct (KatanaOrderSignPayload):
+ * - `nonce` is the UUID-v1 string (the uint128 masking is only for the signer).
+ * - `market` / `type` / `side` are human strings ("BTC-USD", "limit", "buy").
+ * - `timeInForce` / `selfTradePrevention` are human strings ("gtx", "dc").
+ * - `price` is the limit price (only present for limit orders).
+ * The EIP-712 `signature` over the typed struct is appended as `signature`.
  */
 export interface KatanaOrderRequest {
     nonce: string;
     wallet: string;
     market: string;
-    type: number;
-    side: number;
+    type: string;
+    side: string;
     quantity: string;
-    limitPrice: string;
-    triggerPrice: string;
-    triggerType: number;
-    callbackRate: string;
-    conditionalOrderId: number;
-    isReduceOnly: boolean;
-    timeInForce: number;
-    selfTradePrevention: number;
-    isLiquidationAcquisitionOnly: boolean;
-    delegatedPublicKey: string;
-    clientOrderId: string;
+    price?: string;
+    timeInForce: string;
+    selfTradePrevention: string;
+    clientOrderId?: string;
     signature: string;
 }
 /**
@@ -582,20 +582,27 @@ export interface KatanaWsMessage {
     data: unknown;
 }
 /**
- * EIP-712 order signing payload
+ * EIP-712 order signing payload (the typed-data `Order` message).
+ *
+ * Field names + types mirror KATANA_EIP712_ORDER_TYPE exactly — ethers requires
+ * the message keys to match the struct field names. `nonce` and
+ * `conditionalOrderId` are `uint128`, so they are carried as `bigint` (ethers
+ * accepts bigint / decimal-string for integer types). The UUID-string nonce
+ * used for the HTTP body and HMAC is a SEPARATE value (see
+ * `convertOrderRequest`); this struct holds the masked uint128 derived from it.
  */
 export interface KatanaOrderSignPayload {
-    nonce: string;
+    nonce: bigint;
     wallet: string;
-    market: string;
-    type: number;
-    side: number;
+    marketSymbol: string;
+    orderType: number;
+    orderSide: number;
     quantity: string;
     limitPrice: string;
     triggerPrice: string;
     triggerType: number;
     callbackRate: string;
-    conditionalOrderId: number;
+    conditionalOrderId: bigint;
     isReduceOnly: boolean;
     timeInForce: number;
     selfTradePrevention: number;
@@ -604,12 +611,11 @@ export interface KatanaOrderSignPayload {
     clientOrderId: string;
 }
 /**
- * EIP-712 cancel signing payload
+ * EIP-712 cancel-by-market signing payload (the `OrderCancellationByMarketSymbol`
+ * message). Signs `{ wallet, market }` only.
  */
 export interface KatanaCancelSignPayload {
-    nonce: string;
     wallet: string;
-    orderId: string;
     market: string;
 }
 //# sourceMappingURL=types.d.ts.map

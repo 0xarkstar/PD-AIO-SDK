@@ -131,7 +131,7 @@ describe('HyperliquidAdapter Integration Tests', () => {
       expect(fundingRate.symbol).toBe('BTC/USDT:USDT');
       expect(fundingRate.fundingRate).toBe(0.0001);
       expect(typeof fundingRate.markPrice).toBe('number');
-      expect(fundingRate.fundingIntervalHours).toBe(8);
+      expect(fundingRate.fundingIntervalHours).toBe(1);
     });
   });
 

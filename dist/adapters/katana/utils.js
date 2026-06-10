@@ -232,26 +232,43 @@ export function normalizeFundingRate(raw) {
         info: raw,
     };
 }
+// -- Nonce conversion --
+/** uint128 mask: keep only the low 128 bits. */
+const UINT128_MASK = (1n << 128n) - 1n;
+/**
+ * Convert a Katana UUID v1 nonce to its `uint128` representation for EIP-712.
+ *
+ * Katana's `nonce` typed-data field is `uint128`, not a string. The UUID's
+ * 32 hex digits are a 128-bit number; we mask to 128 bits defensively (a UUID
+ * is already 128 bits, so the mask is a no-op for well-formed input).
+ *
+ * @example nonceToUint128('00000000-0000-1000-8000-000000000000') // 79228162514264337597746442240n style value
+ */
+export function nonceToUint128(uuidNonce) {
+    return BigInt('0x' + uuidNonce.replace(/-/g, '')) & UINT128_MASK;
+}
 // -- Order conversion (unified → Katana) --
 /**
- * Convert unified OrderRequest to Katana EIP-712 sign payload
+ * Convert a unified OrderRequest to a Katana EIP-712 `Order` sign payload.
+ *
+ * The UUID `nonce` is converted to its `uint128` form for signing; the caller
+ * keeps the original UUID for the HTTP body + HMAC. `conditionalOrderId` is a
+ * `uint128` BigInt (0n by default).
  */
 export function convertOrderRequest(request, walletAddress, nonce) {
     const katanaMarket = toKatanaSymbol(request.symbol);
     return {
-        nonce,
+        nonce: nonceToUint128(nonce),
         wallet: walletAddress,
-        market: katanaMarket,
-        type: toKatanaOrderType(request.type, request.price),
-        side: KATANA_ORDER_SIDES[request.side] ?? 0,
+        marketSymbol: katanaMarket,
+        orderType: toKatanaOrderType(request.type, request.price),
+        orderSide: KATANA_ORDER_SIDES[request.side] ?? 0,
         quantity: formatDecimal(request.amount),
         limitPrice: request.price != null ? formatDecimal(request.price) : KATANA_ZERO_DECIMAL,
-        triggerPrice: request.stopPrice != null
-            ? formatDecimal(request.stopPrice)
-            : KATANA_ZERO_DECIMAL,
+        triggerPrice: request.stopPrice != null ? formatDecimal(request.stopPrice) : KATANA_ZERO_DECIMAL,
         triggerType: request.stopPrice != null ? KATANA_TRIGGER_TYPES.index : KATANA_TRIGGER_TYPES.none,
         callbackRate: KATANA_ZERO_DECIMAL,
-        conditionalOrderId: 0,
+        conditionalOrderId: 0n,
         isReduceOnly: request.reduceOnly ?? false,
         timeInForce: toKatanaTimeInForce(request.timeInForce, request.postOnly),
         selfTradePrevention: KATANA_SELF_TRADE_PREVENTION.decrementAndCancel,
@@ -272,7 +289,9 @@ function toKatanaOrderType(type, price) {
         case 'stopLimit':
             return KATANA_ORDER_TYPES.stopLimit;
         case 'takeProfit':
-            return price != null ? KATANA_ORDER_TYPES.takeProfitLimit : KATANA_ORDER_TYPES.takeProfitMarket;
+            return price != null
+                ? KATANA_ORDER_TYPES.takeProfitLimit
+                : KATANA_ORDER_TYPES.takeProfitMarket;
         default:
             return KATANA_ORDER_TYPES.limit;
     }

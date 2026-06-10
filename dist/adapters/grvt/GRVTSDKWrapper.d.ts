@@ -1,222 +1,152 @@
 /**
- * GRVT SDK Wrapper
+ * GRVT HTTP client.
  *
- * Thin wrapper around official @grvt/client SDK
- * Provides consistent error handling and session management
+ * Direct REST client for the REAL GRVT API (no `@grvt/client` SDK — that was
+ * built against a guessed shape). GRVT splits its API across three hosts:
+ *  - edge:        `POST /auth/api_key/login` -> `gravity` cookie + X-Grvt-Account-Id
+ *  - trades:      authed orders / account (`full/v1/create_order`, ...)
+ *  - market-data: public market data (`full/v1/{instruments,ticker,book,trade}`)
+ *
+ * All REST is POST with a JSON body; responses wrap the payload in `{ result }`.
+ * Authed requests carry `Cookie: gravity=<cookie>` + `X-Grvt-Account-Id: <id>`.
+ * This client owns the session (login, refresh-on-expiry) and delegates order
+ * signing to the adapter (which uses `signing.ts`); it does no signing itself.
  */
-import type { AxiosRequestConfig } from 'axios';
+import type { GRVTSession, GRVTCreateOrderBody, GRVTCancelOrderBody } from './types.js';
 /**
- * GRVT SDK Wrapper configuration
+ * GRVT HTTP client configuration.
  */
 export interface GRVTSDKWrapperConfig {
-    host: string;
+    /** Use testnet hosts (chainId 326). */
+    testnet?: boolean;
+    /** API key (created in the GRVT UI; required for authed calls). */
     apiKey?: string;
-    apiSecret?: string;
+    /** Per-request timeout (ms). */
     timeout?: number;
 }
 /**
- * Wrapper around official GRVT TypeScript SDK
- *
- * Responsibilities:
- * - Initialize MDG (Market Data Gateway) and TDG (Trading Data Gateway)
- * - Provide unified error handling
- * - Extract and manage session cookies
- * - Expose SDK methods with consistent interface
+ * Direct GRVT REST client + session manager.
  */
 export declare class GRVTSDKWrapper {
-    private mdg;
-    private tdg;
-    private sessionCookie?;
-    constructor(config: GRVTSDKWrapperConfig);
+    private readonly hosts;
+    private readonly apiKey?;
+    private readonly timeout;
+    private session?;
+    constructor(config?: GRVTSDKWrapperConfig);
     /**
-     * Get axios instance from MDG for direct access if needed
+     * Log in with the API key, capturing the `gravity` session cookie, the
+     * `X-Grvt-Account-Id` header, and the body `{ sub_account_id,
+     * funding_account_address }`. Returns the resolved session.
+     *
+     * @throws {Error} if no API key is configured or the login fails.
      */
-    get mdgAxios(): import("axios").AxiosInstance;
+    login(): Promise<GRVTSession>;
     /**
-     * Get axios instance from TDG for direct access if needed
+     * The current session, if logged in.
      */
-    get tdgAxios(): import("axios").AxiosInstance;
+    getSession(): GRVTSession | undefined;
     /**
-     * Get single instrument details
+     * The trading sub-account id from the current session (if any).
      */
-    getInstrument(instrumentId: string, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiGetInstrumentResponse>;
+    getSubAccountId(): string | undefined;
     /**
-     * Get filtered instruments
+     * Manually set the session (e.g. restored from elsewhere).
      */
-    getInstruments(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiGetFilteredInstrumentsResponse>;
+    setSession(session: GRVTSession): void;
     /**
-     * Get all instruments
+     * Clear the current session.
      */
-    getAllInstruments(config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiGetAllInstrumentsResponse>;
+    clearSession(): void;
     /**
-     * Get mini ticker (lightweight)
-     */
-    getMiniTicker(instrumentId?: string, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiMiniTickerResponse>;
-    /**
-     * Get full ticker
-     */
-    getTicker(instrumentId?: string, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiTickerResponse>;
-    /**
-     * Get order book
-     */
-    getOrderBook(instrumentId: string, depth?: number, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiOrderbookLevelsResponse>;
-    /**
-     * Get latest trade for instrument
-     */
-    getTrade(instrumentId: string, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiTradeResponse>;
-    /**
-     * Get trade history
-     */
-    getTradeHistory(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiTradeHistoryResponse>;
-    /**
-     * Get settlement price
-     */
-    getSettlement(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiSettlementPriceResponse>;
-    /**
-     * Get funding rate
-     */
-    getFunding(instrumentId?: string, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiFundingRateResponse>;
-    /**
-     * Get candlestick data
-     */
-    getCandlestick(params: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiCandlestickResponse>;
-    /**
-     * Get margin rules
-     */
-    getMarginRules(config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiGetMarginRulesResponse>;
-    /**
-     * Create new order
-     */
-    createOrder(order: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiCreateOrderResponse>;
-    /**
-     * Create bulk orders
-     */
-    createBulkOrders(orders: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiCreateBulkOrdersResponse>;
-    /**
-     * Cancel single order
-     */
-    cancelOrder(params: {
-        order_id?: string;
-        client_order_id?: string;
-    }, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiCancelOrderResponse>;
-    /**
-     * Cancel all orders
-     */
-    cancelAllOrders(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiCancelAllOrdersResponse>;
-    /**
-     * Get single order
-     */
-    getOrder(params: {
-        order_id?: string;
-        client_order_id?: string;
-    }, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiGetOrderResponse>;
-    /**
-     * Get open orders
-     */
-    getOpenOrders(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiOpenOrdersResponse>;
-    /**
-     * Get order history (CRITICAL: fixes unimplemented method)
-     */
-    getOrderHistory(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiOrderHistoryResponse>;
-    /**
-     * Get order group
-     */
-    getOrderGroup(params: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiGetOrderGroupResponse>;
-    /**
-     * Replace orders (TP/SL)
-     */
-    replaceOrders(params: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiReplaceOrdersResponse>;
-    /**
-     * Pre-order check
-     */
-    preOrderCheck(order: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiPreOrderCheckResponse>;
-    /**
-     * Get price protection bands
-     */
-    getPriceProtectionBands(config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiGetPriceProtectionBandsResponse>;
-    /**
-     * Get positions
-     */
-    getPositions(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiPositionsResponse>;
-    /**
-     * Get sub-account summary (balance)
-     */
-    getSubAccountSummary(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiSubAccountSummaryResponse>;
-    /**
-     * Get sub-account history
-     */
-    getSubAccountHistory(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiSubAccountHistoryResponse>;
-    /**
-     * Get fill history (my trades) (CRITICAL: fixes unimplemented method)
-     */
-    getFillHistory(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiFillHistoryResponse>;
-    /**
-     * Get aggregated account summary
-     */
-    getAggregatedAccountSummary(config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiAggregatedAccountSummaryResponse>;
-    /**
-     * Get funding account summary
-     */
-    getFundingAccountSummary(config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiFundingAccountSummaryResponse>;
-    /**
-     * Get funding payment history
-     */
-    getFundingPaymentHistory(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiFundingPaymentHistoryResponse>;
-    /**
-     * Pre-deposit check
-     */
-    preDepositCheck(params: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiPreDepositCheckResponse>;
-    /**
-     * Get deposit history
-     */
-    getDepositHistory(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiDepositHistoryResponse>;
-    /**
-     * Transfer funds
-     */
-    transfer(params: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiTransferResponse>;
-    /**
-     * Get transfer history
-     */
-    getTransferHistory(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiTransferHistoryResponse>;
-    /**
-     * Request withdrawal
-     */
-    withdrawal(params: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IAckResponse>;
-    /**
-     * Get withdrawal history
-     */
-    getWithdrawalHistory(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiWithdrawalHistoryResponse>;
-    /**
-     * Get all initial leverage
-     */
-    getAllInitialLeverage(params?: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiGetAllInitialLeverageResponse>;
-    /**
-     * Set initial leverage
-     */
-    setInitialLeverage(params: any, config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiSetInitialLeverageResponse>;
-    /**
-     * Get margin tiers
-     */
-    getMarginTiers(config?: AxiosRequestConfig): Promise<import("@grvt/client/interfaces").IApiGetMarginTiersResponse>;
-    /**
-     * Extract session cookie from axios response
-     */
-    private extractSessionCookieFromResponse;
-    /**
-     * Get current session cookie
-     */
-    getSessionCookie(): string | undefined;
-    /**
-     * Set session cookie manually
-     */
-    setSessionCookie(cookie: string): void;
-    /**
-     * Check if we have a valid session
+     * Whether a session is present.
      */
     hasSession(): boolean;
     /**
-     * Clear session cookie
+     * Whether the client is configured with an API key (can authenticate).
      */
-    clearSession(): void;
+    hasCredentials(): boolean;
+    /**
+     * Fetch active perpetual instruments (`full/v1/instruments`).
+     */
+    getInstruments(): Promise<unknown>;
+    /**
+     * Fetch a full ticker for one instrument (`full/v1/ticker`).
+     */
+    getTicker(instrument: string): Promise<unknown>;
+    /**
+     * Fetch a FULL order-book snapshot (`full/v1/book`). Depth ∈ {10,50,100,500}.
+     */
+    getOrderBook(instrument: string, depth: number): Promise<unknown>;
+    /**
+     * Fetch recent public trades (`full/v1/trade`).
+     */
+    getTrades(instrument: string, limit: number): Promise<unknown>;
+    /**
+     * Fetch funding-rate entries (`full/v1/funding`).
+     */
+    getFunding(instrument: string): Promise<unknown>;
+    /**
+     * Fetch candlesticks (`full/v1/kline`).
+     */
+    getKline(body: Record<string, unknown>): Promise<unknown>;
+    /**
+     * Submit a signed order (`full/v1/create_order`). The caller builds + signs
+     * the body via `signing.ts`; this method just POSTs it under `{ order }`.
+     */
+    createOrder(order: GRVTCreateOrderBody): Promise<unknown>;
+    /**
+     * Cancel a single order by `order_id` or `client_order_id`.
+     */
+    cancelOrder(body: GRVTCancelOrderBody): Promise<unknown>;
+    /**
+     * Cancel all open orders for the sub-account.
+     */
+    cancelAllOrders(subAccountId: string): Promise<unknown>;
+    /**
+     * Fetch open orders for the sub-account.
+     */
+    getOpenOrders(subAccountId: string, instrument?: string): Promise<unknown>;
+    /**
+     * Fetch historical orders for the sub-account.
+     */
+    getOrderHistory(subAccountId: string, instrument?: string, limit?: number): Promise<unknown>;
+    /**
+     * Fetch user fills (`full/v1/fill_history`).
+     */
+    getFillHistory(subAccountId: string, instrument?: string, limit?: number): Promise<unknown>;
+    /**
+     * Fetch open positions for the sub-account.
+     */
+    getPositions(subAccountId: string): Promise<unknown>;
+    /**
+     * Fetch the sub-account summary (balances).
+     */
+    getSubAccountSummary(subAccountId: string): Promise<unknown>;
+    /**
+     * POST a public request and unwrap the `{ result }` envelope.
+     */
+    private postUnwrapped;
+    /**
+     * POST an authenticated request (cookie + account id), refreshing the session
+     * first if it is missing or near expiry. Unwraps the `{ result }` envelope.
+     */
+    private postAuthed;
+    /**
+     * Ensure a live session exists, logging in (or refreshing) when needed.
+     */
+    private ensureSession;
+    /**
+     * Raw POST helper using the global `fetch` (Node 18+/browser), with a timeout.
+     */
+    private rawPost;
+    /**
+     * Read a response body, throw on non-2xx, and unwrap the `{ result }` envelope.
+     */
+    private handleJson;
+    /**
+     * Extract the `gravity` cookie value from a Set-Cookie header (single value;
+     * `fetch` collapses multiple Set-Cookie headers into one comma-joined string).
+     */
+    private parseGravityCookie;
 }
 //# sourceMappingURL=GRVTSDKWrapper.d.ts.map

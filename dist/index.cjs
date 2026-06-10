@@ -7953,7 +7953,7 @@ var init_constants = __esm({
       multiplier: 2,
       jitter: 0.1
     };
-    HYPERLIQUID_FUNDING_INTERVAL_HOURS = 8;
+    HYPERLIQUID_FUNDING_INTERVAL_HOURS = 1;
     HYPERLIQUID_ERROR_MESSAGES = {
       "insufficient margin": "INSUFFICIENT_MARGIN",
       "invalid signature": "INVALID_SIGNATURE",
@@ -8931,11 +8931,10 @@ function parseFundingRates(response, symbol, markPrice, limit) {
     symbol,
     fundingRate: parseFloat(rate.fundingRate),
     fundingTimestamp: rate.time,
-    nextFundingTimestamp: rate.time + 8 * 3600 * 1e3,
-    // 8 hours
+    nextFundingTimestamp: rate.time + HYPERLIQUID_FUNDING_INTERVAL_HOURS * 3600 * 1e3,
     markPrice,
     indexPrice: markPrice,
-    fundingIntervalHours: 8
+    fundingIntervalHours: HYPERLIQUID_FUNDING_INTERVAL_HOURS
   }));
   fundingRates.sort((a, b) => b.fundingTimestamp - a.fundingTimestamp);
   if (limit) {
@@ -8948,17 +8947,17 @@ function buildCurrentFundingRate(latest, symbol, markPrice) {
     symbol,
     fundingRate: parseFloat(latest.fundingRate),
     fundingTimestamp: latest.time,
-    nextFundingTimestamp: latest.time + 8 * 3600 * 1e3,
-    // 8 hours
+    nextFundingTimestamp: latest.time + HYPERLIQUID_FUNDING_INTERVAL_HOURS * 3600 * 1e3,
     markPrice,
     indexPrice: markPrice,
-    fundingIntervalHours: 8
+    fundingIntervalHours: HYPERLIQUID_FUNDING_INTERVAL_HOURS
   };
 }
 var INTERVAL_MAP, DURATION_MAP;
 var init_HyperliquidMarketData = __esm({
   "src/adapters/hyperliquid/HyperliquidMarketData.ts"() {
     "use strict";
+    init_constants();
     INTERVAL_MAP = {
       "1m": "1m",
       "3m": "3m",
@@ -10829,7 +10828,9 @@ var init_LighterNormalizer = __esm({
           makerFee,
           takerFee,
           maxLeverage: validated.default_initial_margin_fraction ? Math.floor(1e4 / validated.default_initial_margin_fraction) : 20,
-          fundingIntervalHours: 8,
+          // Lighter settles funding hourly (live check 2026-06-11: /api/v1/fundings
+          // entries are spaced exactly 3600s apart)
+          fundingIntervalHours: 1,
           info: validated
         };
       }
@@ -10966,7 +10967,7 @@ var init_LighterNormalizer = __esm({
       normalizeFundingRate(lighterFundingRate) {
         const validated = LighterFundingRateSchema.parse(lighterFundingRate);
         const markPrice = validated.markPrice ?? 0;
-        const nextFundingTime = validated.nextFundingTime ?? Date.now() + 8 * 3600 * 1e3;
+        const nextFundingTime = validated.nextFundingTime ?? Date.now() + 1 * 3600 * 1e3;
         return {
           symbol: this.normalizeSymbol(validated.symbol),
           fundingRate: validated.fundingRate,
@@ -10975,7 +10976,7 @@ var init_LighterNormalizer = __esm({
           markPrice,
           indexPrice: markPrice,
           // Not provided by Lighter, use mark price as fallback
-          fundingIntervalHours: 8,
+          fundingIntervalHours: 1,
           info: lighterFundingRate
         };
       }
@@ -13443,355 +13444,204 @@ var init_lighter = __esm({
   }
 });
 
-// src/adapters/grvt/GRVTSDKWrapper.ts
-var import_client, GRVTSDKWrapper;
-var init_GRVTSDKWrapper = __esm({
-  "src/adapters/grvt/GRVTSDKWrapper.ts"() {
-    "use strict";
-    import_client = require("@grvt/client");
-    GRVTSDKWrapper = class {
-      mdg;
-      tdg;
-      sessionCookie;
-      constructor(config) {
-        const sdkConfig = {
-          host: config.host
-        };
-        this.mdg = new import_client.MDG(sdkConfig);
-        this.tdg = new import_client.TDG(sdkConfig);
-      }
-      /**
-       * Get axios instance from MDG for direct access if needed
-       */
-      get mdgAxios() {
-        return this.mdg.axios;
-      }
-      /**
-       * Get axios instance from TDG for direct access if needed
-       */
-      get tdgAxios() {
-        return this.tdg.axios;
-      }
-      // ==================== Market Data Methods ====================
-      /**
-       * Get single instrument details
-       */
-      async getInstrument(instrumentId, config) {
-        return this.mdg.instrument({ instrument: instrumentId }, config);
-      }
-      /**
-       * Get filtered instruments
-       */
-      async getInstruments(params, config) {
-        return this.mdg.instruments(params || {}, config);
-      }
-      /**
-       * Get all instruments
-       */
-      async getAllInstruments(config) {
-        return this.mdg.allInstruments({}, config);
-      }
-      /**
-       * Get mini ticker (lightweight)
-       */
-      async getMiniTicker(instrumentId, config) {
-        return this.mdg.miniTicker({ instrument: instrumentId }, config);
-      }
-      /**
-       * Get full ticker
-       */
-      async getTicker(instrumentId, config) {
-        return this.mdg.ticker({ instrument: instrumentId }, config);
-      }
-      /**
-       * Get order book
-       */
-      async getOrderBook(instrumentId, depth, config) {
-        return this.mdg.orderBook({ instrument: instrumentId, depth }, config);
-      }
-      /**
-       * Get latest trade for instrument
-       */
-      async getTrade(instrumentId, config) {
-        return this.mdg.trade({ instrument: instrumentId }, config);
-      }
-      /**
-       * Get trade history
-       */
-      async getTradeHistory(params, config) {
-        return this.mdg.tradesHistory(params || {}, config);
-      }
-      /**
-       * Get settlement price
-       */
-      async getSettlement(params, config) {
-        return this.mdg.settlement(params || {}, config);
-      }
-      /**
-       * Get funding rate
-       */
-      async getFunding(instrumentId, config) {
-        return this.mdg.funding({ instrument: instrumentId }, config);
-      }
-      /**
-       * Get candlestick data
-       */
-      async getCandlestick(params, config) {
-        return this.mdg.candlestick(params, config);
-      }
-      /**
-       * Get margin rules
-       */
-      async getMarginRules(config) {
-        return this.mdg.marginRules({}, config);
-      }
-      // ==================== Trading Methods ====================
-      /**
-       * Create new order
-       */
-      async createOrder(order, config) {
-        const response = await this.tdg.createOrder(order, config);
-        this.extractSessionCookieFromResponse(response);
-        return response;
-      }
-      /**
-       * Create bulk orders
-       */
-      async createBulkOrders(orders, config) {
-        const response = await this.tdg.createBulkOrders(orders, config);
-        this.extractSessionCookieFromResponse(response);
-        return response;
-      }
-      /**
-       * Cancel single order
-       */
-      async cancelOrder(params, config) {
-        const response = await this.tdg.cancelOrder(params, config);
-        this.extractSessionCookieFromResponse(response);
-        return response;
-      }
-      /**
-       * Cancel all orders
-       */
-      async cancelAllOrders(params, config) {
-        const response = await this.tdg.cancelAllOrders(params || {}, config);
-        this.extractSessionCookieFromResponse(response);
-        return response;
-      }
-      /**
-       * Get single order
-       */
-      async getOrder(params, config) {
-        return this.tdg.order(params, config);
-      }
-      /**
-       * Get open orders
-       */
-      async getOpenOrders(params, config) {
-        return this.tdg.openOrders(params || {}, config);
-      }
-      /**
-       * Get order history (CRITICAL: fixes unimplemented method)
-       */
-      async getOrderHistory(params, config) {
-        return this.tdg.orderHistory(params || {}, config);
-      }
-      /**
-       * Get order group
-       */
-      async getOrderGroup(params, config) {
-        return this.tdg.orderGroup(params, config);
-      }
-      /**
-       * Replace orders (TP/SL)
-       */
-      async replaceOrders(params, config) {
-        const response = await this.tdg.replaceOrders(params, config);
-        this.extractSessionCookieFromResponse(response);
-        return response;
-      }
-      /**
-       * Pre-order check
-       */
-      async preOrderCheck(order, config) {
-        return this.tdg.preOrderCheck(order, config);
-      }
-      /**
-       * Get price protection bands
-       */
-      async getPriceProtectionBands(config) {
-        return this.tdg.getPriceProtectionBands(config);
-      }
-      // ==================== Account Methods ====================
-      /**
-       * Get positions
-       */
-      async getPositions(params, config) {
-        return this.tdg.positions(params || {}, config);
-      }
-      /**
-       * Get sub-account summary (balance)
-       */
-      async getSubAccountSummary(params, config) {
-        return this.tdg.subAccountSummary(params || {}, config);
-      }
-      /**
-       * Get sub-account history
-       */
-      async getSubAccountHistory(params, config) {
-        return this.tdg.subAccountHistory(params || {}, config);
-      }
-      /**
-       * Get fill history (my trades) (CRITICAL: fixes unimplemented method)
-       */
-      async getFillHistory(params, config) {
-        return this.tdg.fillHistory(params || {}, config);
-      }
-      /**
-       * Get aggregated account summary
-       */
-      async getAggregatedAccountSummary(config) {
-        return this.tdg.aggregatedAccountSummary(config);
-      }
-      /**
-       * Get funding account summary
-       */
-      async getFundingAccountSummary(config) {
-        return this.tdg.fundingAccountSummary(config);
-      }
-      /**
-       * Get funding payment history
-       */
-      async getFundingPaymentHistory(params, config) {
-        return this.tdg.fundingPaymentHistory(params || {}, config);
-      }
-      // ==================== Transfer Methods ====================
-      /**
-       * Pre-deposit check
-       */
-      async preDepositCheck(params, config) {
-        return this.tdg.preDepositCheck(params, config);
-      }
-      /**
-       * Get deposit history
-       */
-      async getDepositHistory(params, config) {
-        return this.tdg.depositHistory(params || {}, config);
-      }
-      /**
-       * Transfer funds
-       */
-      async transfer(params, config) {
-        const response = await this.tdg.transfer(params, config);
-        this.extractSessionCookieFromResponse(response);
-        return response;
-      }
-      /**
-       * Get transfer history
-       */
-      async getTransferHistory(params, config) {
-        return this.tdg.transferHistory(params || {}, config);
-      }
-      /**
-       * Request withdrawal
-       */
-      async withdrawal(params, config) {
-        const response = await this.tdg.withdrawal(params, config);
-        this.extractSessionCookieFromResponse(response);
-        return response;
-      }
-      /**
-       * Get withdrawal history
-       */
-      async getWithdrawalHistory(params, config) {
-        return this.tdg.withdrawalHistory(params || {}, config);
-      }
-      // ==================== Leverage Methods ====================
-      /**
-       * Get all initial leverage
-       */
-      async getAllInitialLeverage(params, config) {
-        return this.tdg.getAllInitialLeverage(params || {}, config);
-      }
-      /**
-       * Set initial leverage
-       */
-      async setInitialLeverage(params, config) {
-        const response = await this.tdg.setInitialLeverage(params, config);
-        this.extractSessionCookieFromResponse(response);
-        return response;
-      }
-      /**
-       * Get margin tiers
-       */
-      async getMarginTiers(config) {
-        return this.tdg.getMarginTiers(config);
-      }
-      // ==================== Session Management ====================
-      /**
-       * Extract session cookie from axios response
-       */
-      extractSessionCookieFromResponse(response) {
-        if (!response || typeof response !== "object") return;
-        const resp = response;
-        const config = resp.config;
-        const headers = resp.headers || config?.headers;
-        if (!headers) return;
-        const setCookie = headers["set-cookie"] || headers["Set-Cookie"];
-        if (!setCookie) return;
-        const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
-        const sessionCookie = cookies.find(
-          (cookie) => cookie.toLowerCase().includes("session")
-        );
-        if (sessionCookie) {
-          const cookieValue = sessionCookie.split(";")[0];
-          this.sessionCookie = cookieValue;
-        }
-      }
-      /**
-       * Get current session cookie
-       */
-      getSessionCookie() {
-        return this.sessionCookie;
-      }
-      /**
-       * Set session cookie manually
-       */
-      setSessionCookie(cookie) {
-        this.sessionCookie = cookie;
-      }
-      /**
-       * Check if we have a valid session
-       */
-      hasSession() {
-        return !!this.sessionCookie;
-      }
-      /**
-       * Clear session cookie
-       */
-      clearSession() {
-        this.sessionCookie = void 0;
-      }
+// src/adapters/grvt/signing.ts
+function scaleDecimal(value, decimals) {
+  if (!DECIMAL_RE.test(value)) {
+    throw new Error(`Invalid decimal string for scaling: ${JSON.stringify(value)}`);
+  }
+  const negative = value.startsWith("-");
+  const unsigned = negative ? value.slice(1) : value;
+  const [whole, fraction = ""] = unsigned.split(".");
+  const paddedFraction = (fraction + "0".repeat(decimals)).slice(0, decimals);
+  const magnitude = BigInt((whole === "" ? "0" : whole) + paddedFraction);
+  return negative ? -magnitude : magnitude;
+}
+function generateNonce() {
+  return Math.floor(Math.random() * 1e9);
+}
+function generateExpiration(hoursFromNow = 24) {
+  const expirationMs = Date.now() + hoursFromNow * 60 * 60 * 1e3;
+  return (BigInt(expirationMs) * 1000000n).toString();
+}
+function encodeLegs(legs) {
+  return legs.map((leg) => ({
+    assetID: (0, import_ethers3.getBigInt)(leg.instrumentHash),
+    contractSize: scaleDecimal(leg.size, leg.baseDecimals),
+    limitPrice: scaleDecimal(leg.limitPrice, GRVT_PRICE_DECIMALS),
+    isBuyingContract: leg.isBuyingAsset
+  }));
+}
+function hasBuilder(input) {
+  return input.builder !== void 0 && input.builder !== "" && input.builder !== "0" && input.builder.toLowerCase() !== ZERO_ADDRESS;
+}
+function buildOrderTypedData(input) {
+  const nonce = input.nonce ?? generateNonce();
+  const expiration = input.expiration ?? generateExpiration();
+  const legs = encodeLegs(input.legs);
+  const domain = {
+    name: GRVT_EIP712_DOMAIN_NAME,
+    version: GRVT_EIP712_DOMAIN_VERSION,
+    chainId: input.chainId
+  };
+  const base = {
+    subAccountID: (0, import_ethers3.getBigInt)(input.subAccountId),
+    isMarket: input.isMarket,
+    timeInForce: GRVT_SIGN_TIME_IN_FORCE[input.timeInForce],
+    postOnly: input.postOnly,
+    reduceOnly: input.reduceOnly,
+    legs
+  };
+  if (hasBuilder(input)) {
+    if (input.builderFee === void 0) {
+      throw new Error("builderFee is required when builder is set");
+    }
+    const message2 = {
+      ...base,
+      builder: input.builder,
+      builderFee: Number(scaleDecimal(input.builderFee, GRVT_BUILDER_FEE_DECIMALS)),
+      nonce,
+      expiration
     };
+    return {
+      domain,
+      types: GRVT_EIP712_ORDER_WITH_BUILDER_FEE_TYPES,
+      message: message2,
+      primaryType: "OrderWithBuilderFee",
+      nonce,
+      expiration
+    };
+  }
+  const message = { ...base, nonce, expiration };
+  return {
+    domain,
+    types: GRVT_EIP712_ORDER_TYPES,
+    message,
+    primaryType: "Order",
+    nonce,
+    expiration
+  };
+}
+async function signOrder(wallet, input) {
+  const { domain, types, message, nonce, expiration } = buildOrderTypedData(input);
+  const flatSignature = await wallet.signTypedData(domain, types, message);
+  const { r, s, v } = import_ethers3.Signature.from(flatSignature);
+  return {
+    signer: wallet.address,
+    r,
+    s,
+    v,
+    expiration,
+    nonce,
+    chainId: input.chainId
+  };
+}
+var import_ethers3, GRVT_EIP712_DOMAIN_NAME, GRVT_EIP712_DOMAIN_VERSION, GRVT_CHAIN_IDS, GRVT_PRICE_DECIMALS, GRVT_BUILDER_FEE_DECIMALS, GRVT_SIGN_TIME_IN_FORCE, GRVT_EIP712_ORDER_TYPES, GRVT_EIP712_ORDER_WITH_BUILDER_FEE_TYPES, ZERO_ADDRESS, DECIMAL_RE;
+var init_signing = __esm({
+  "src/adapters/grvt/signing.ts"() {
+    "use strict";
+    import_ethers3 = require("ethers");
+    GRVT_EIP712_DOMAIN_NAME = "GRVT Exchange";
+    GRVT_EIP712_DOMAIN_VERSION = "0";
+    GRVT_CHAIN_IDS = {
+      mainnet: 325,
+      testnet: 326
+    };
+    GRVT_PRICE_DECIMALS = 9;
+    GRVT_BUILDER_FEE_DECIMALS = 4;
+    GRVT_SIGN_TIME_IN_FORCE = {
+      GOOD_TILL_TIME: 1,
+      ALL_OR_NONE: 2,
+      IMMEDIATE_OR_CANCEL: 3,
+      FILL_OR_KILL: 4
+    };
+    GRVT_EIP712_ORDER_TYPES = {
+      Order: [
+        { name: "subAccountID", type: "uint64" },
+        { name: "isMarket", type: "bool" },
+        { name: "timeInForce", type: "uint8" },
+        { name: "postOnly", type: "bool" },
+        { name: "reduceOnly", type: "bool" },
+        { name: "legs", type: "OrderLeg[]" },
+        { name: "nonce", type: "uint32" },
+        { name: "expiration", type: "int64" }
+      ],
+      OrderLeg: [
+        { name: "assetID", type: "uint256" },
+        { name: "contractSize", type: "uint64" },
+        { name: "limitPrice", type: "uint64" },
+        { name: "isBuyingContract", type: "bool" }
+      ]
+    };
+    GRVT_EIP712_ORDER_WITH_BUILDER_FEE_TYPES = {
+      OrderWithBuilderFee: [
+        { name: "subAccountID", type: "uint64" },
+        { name: "isMarket", type: "bool" },
+        { name: "timeInForce", type: "uint8" },
+        { name: "postOnly", type: "bool" },
+        { name: "reduceOnly", type: "bool" },
+        { name: "legs", type: "OrderLeg[]" },
+        { name: "builder", type: "address" },
+        { name: "builderFee", type: "uint32" },
+        { name: "nonce", type: "uint32" },
+        { name: "expiration", type: "int64" }
+      ],
+      OrderLeg: [
+        { name: "assetID", type: "uint256" },
+        { name: "contractSize", type: "uint64" },
+        { name: "limitPrice", type: "uint64" },
+        { name: "isBuyingContract", type: "bool" }
+      ]
+    };
+    ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+    DECIMAL_RE = /^-?\d+(\.\d+)?$/;
   }
 });
 
 // src/adapters/grvt/constants.ts
-var GRVT_API_URLS, GRVT_RATE_LIMITS, GRVT_ENDPOINT_WEIGHTS, GRVT_ORDER_TYPES, GRVT_ORDER_SIDES, GRVT_TIME_IN_FORCE, GRVT_ORDER_STATUS, GRVT_WS_CHANNELS, GRVT_EIP712_DOMAIN, GRVT_EIP712_ORDER_TYPE, GRVT_PRECISION, GRVT_SESSION_DURATION, GRVT_MAX_LEVERAGE, GRVT_MAINTENANCE_MARGIN_RATE;
+var GRVT_API_URLS, GRVT_ENDPOINTS, GRVT_RATE_LIMITS, GRVT_ENDPOINT_WEIGHTS, GRVT_ORDER_SIDES, GRVT_TIME_IN_FORCE, GRVT_UNIFIED_TIF_TO_API, GRVT_ORDER_STATUS, GRVT_WS_STREAMS, GRVT_BOOK_DEPTHS, GRVT_PERPETUAL_KIND, GRVT_PRECISION, GRVT_SESSION_DURATION, GRVT_SESSION_REFRESH_BUFFER_MS, GRVT_MAX_LEVERAGE;
 var init_constants3 = __esm({
   "src/adapters/grvt/constants.ts"() {
     "use strict";
+    init_signing();
     GRVT_API_URLS = {
       mainnet: {
+        edge: "https://edge.grvt.io",
+        trades: "https://trades.grvt.io",
+        marketData: "https://market-data.grvt.io",
         rest: "https://market-data.grvt.io",
-        trading: "https://edge.grvt.io",
+        websocketTrades: "wss://trades.grvt.io/ws",
+        websocketMarketData: "wss://market-data.grvt.io/ws",
         websocket: "wss://market-data.grvt.io/ws"
       },
       testnet: {
+        edge: "https://edge.testnet.grvt.io",
+        trades: "https://trades.testnet.grvt.io",
+        marketData: "https://market-data.testnet.grvt.io",
         rest: "https://market-data.testnet.grvt.io",
-        trading: "https://edge.testnet.grvt.io",
+        websocketTrades: "wss://trades.testnet.grvt.io/ws",
+        websocketMarketData: "wss://market-data.testnet.grvt.io/ws",
         websocket: "wss://market-data.testnet.grvt.io/ws"
       }
+    };
+    GRVT_ENDPOINTS = {
+      // Auth (edge host)
+      login: "/auth/api_key/login",
+      // Market data (market-data host)
+      instruments: "full/v1/instruments",
+      ticker: "full/v1/ticker",
+      book: "full/v1/book",
+      trade: "full/v1/trade",
+      funding: "full/v1/funding",
+      kline: "full/v1/kline",
+      // Trade data (trades host)
+      createOrder: "full/v1/create_order",
+      cancelOrder: "full/v1/cancel_order",
+      cancelAllOrders: "full/v1/cancel_all_orders",
+      openOrders: "full/v1/open_orders",
+      orderHistory: "full/v1/order_history",
+      fillHistory: "full/v1/fill_history",
+      positions: "full/v1/positions",
+      accountSummary: "full/v1/sub_account_summary"
     };
     GRVT_RATE_LIMITS = {
       rest: {
@@ -13822,68 +13672,351 @@ var init_constants3 = __esm({
       fetchMyTrades: 3,
       fetchDeposits: 2,
       fetchWithdrawals: 2,
-      transfer: 5
-    };
-    GRVT_ORDER_TYPES = {
-      market: "MARKET",
-      limit: "LIMIT",
-      limitMaker: "LIMIT_MAKER"
+      transfer: 5,
+      login: 1
     };
     GRVT_ORDER_SIDES = {
       buy: "BUY",
       sell: "SELL"
     };
     GRVT_TIME_IN_FORCE = {
-      GTC: "GTC",
-      IOC: "IOC",
-      FOK: "FOK",
-      POST_ONLY: "POST_ONLY"
+      GOOD_TILL_TIME: "GOOD_TILL_TIME",
+      ALL_OR_NONE: "ALL_OR_NONE",
+      IMMEDIATE_OR_CANCEL: "IMMEDIATE_OR_CANCEL",
+      FILL_OR_KILL: "FILL_OR_KILL"
+    };
+    GRVT_UNIFIED_TIF_TO_API = {
+      GTC: "GOOD_TILL_TIME",
+      IOC: "IMMEDIATE_OR_CANCEL",
+      FOK: "FILL_OR_KILL",
+      PO: "GOOD_TILL_TIME"
     };
     GRVT_ORDER_STATUS = {
-      PENDING: "pending",
+      PENDING: "open",
       OPEN: "open",
       PARTIALLY_FILLED: "partiallyFilled",
       FILLED: "filled",
       CANCELLED: "canceled",
+      CANCELED: "canceled",
       REJECTED: "rejected"
     };
-    GRVT_WS_CHANNELS = {
-      orderbook: "orderbook",
-      trades: "trades",
-      ticker: "ticker",
-      positions: "positions",
-      orders: "orders",
-      balance: "balance"
+    GRVT_WS_STREAMS = {
+      bookSnapshot: "v1.book.s",
+      bookDelta: "v1.book.d",
+      trade: "v1.trade",
+      tickerSnapshot: "v1.ticker.s",
+      mini: "v1.mini.s",
+      order: "v1.order",
+      fill: "v1.fill",
+      position: "v1.position"
     };
-    GRVT_EIP712_DOMAIN = {
-      name: "GRVT",
-      version: "1",
-      chainId: 325,
-      // GRVT mainnet (ZKsync-based L2)
-      verifyingContract: "0x0000000000000000000000000000000000000000"
-      // Placeholder
-    };
-    GRVT_EIP712_ORDER_TYPE = {
-      Order: [
-        { name: "instrument", type: "string" },
-        { name: "orderType", type: "string" },
-        { name: "side", type: "string" },
-        { name: "size", type: "string" },
-        { name: "price", type: "string" },
-        { name: "timeInForce", type: "string" },
-        { name: "reduceOnly", type: "bool" },
-        { name: "postOnly", type: "bool" },
-        { name: "nonce", type: "uint256" },
-        { name: "expiry", type: "uint256" }
-      ]
-    };
+    GRVT_BOOK_DEPTHS = [10, 50, 100, 500];
+    GRVT_PERPETUAL_KIND = "PERPETUAL";
     GRVT_PRECISION = {
       amount: 8,
       price: 8
     };
-    GRVT_SESSION_DURATION = 36e5;
+    GRVT_SESSION_DURATION = 24 * 60 * 60 * 1e3;
+    GRVT_SESSION_REFRESH_BUFFER_MS = 5e3;
     GRVT_MAX_LEVERAGE = 100;
-    GRVT_MAINTENANCE_MARGIN_RATE = 5e-3;
+  }
+});
+
+// src/adapters/grvt/GRVTSDKWrapper.ts
+var DEFAULT_TIMEOUT_MS, GRVTSDKWrapper;
+var init_GRVTSDKWrapper = __esm({
+  "src/adapters/grvt/GRVTSDKWrapper.ts"() {
+    "use strict";
+    init_constants3();
+    DEFAULT_TIMEOUT_MS = 3e4;
+    GRVTSDKWrapper = class {
+      hosts;
+      apiKey;
+      timeout;
+      session;
+      constructor(config = {}) {
+        const urls = config.testnet ? GRVT_API_URLS.testnet : GRVT_API_URLS.mainnet;
+        this.hosts = {
+          edge: urls.edge,
+          trades: urls.trades,
+          marketData: urls.marketData
+        };
+        this.apiKey = config.apiKey;
+        this.timeout = config.timeout ?? DEFAULT_TIMEOUT_MS;
+      }
+      // ==================== Session ====================
+      /**
+       * Log in with the API key, capturing the `gravity` session cookie, the
+       * `X-Grvt-Account-Id` header, and the body `{ sub_account_id,
+       * funding_account_address }`. Returns the resolved session.
+       *
+       * @throws {Error} if no API key is configured or the login fails.
+       */
+      async login() {
+        if (!this.apiKey) {
+          throw new Error("GRVT login requires an apiKey");
+        }
+        const response = await this.rawPost(
+          `${this.hosts.edge}${GRVT_ENDPOINTS.login}`,
+          { api_key: this.apiKey },
+          {}
+        );
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error(`GRVT login failed (${response.status} ${response.statusText}): ${body}`);
+        }
+        const cookie = this.parseGravityCookie(response.headers.get("set-cookie"));
+        if (!cookie) {
+          throw new Error("GRVT login response did not include a gravity session cookie");
+        }
+        const accountId = response.headers.get("x-grvt-account-id") ?? "";
+        const bodyText = await response.text();
+        const parsed = bodyText ? JSON.parse(bodyText) : {};
+        const result = parsed && typeof parsed === "object" && "result" in parsed && parsed.result ? parsed.result : parsed;
+        const session = {
+          cookie,
+          accountId,
+          subAccountId: result.sub_account_id,
+          fundingAccountAddress: result.funding_account_address,
+          expiresAt: Date.now() + GRVT_SESSION_DURATION
+        };
+        this.session = session;
+        return session;
+      }
+      /**
+       * The current session, if logged in.
+       */
+      getSession() {
+        return this.session;
+      }
+      /**
+       * The trading sub-account id from the current session (if any).
+       */
+      getSubAccountId() {
+        return this.session?.subAccountId;
+      }
+      /**
+       * Manually set the session (e.g. restored from elsewhere).
+       */
+      setSession(session) {
+        this.session = session;
+      }
+      /**
+       * Clear the current session.
+       */
+      clearSession() {
+        this.session = void 0;
+      }
+      /**
+       * Whether a session is present.
+       */
+      hasSession() {
+        return this.session !== void 0;
+      }
+      /**
+       * Whether the client is configured with an API key (can authenticate).
+       */
+      hasCredentials() {
+        return !!this.apiKey;
+      }
+      // ==================== Market Data (public, market-data host) ====================
+      /**
+       * Fetch active perpetual instruments (`full/v1/instruments`).
+       */
+      async getInstruments() {
+        return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.instruments, {
+          kind: ["PERPETUAL"],
+          is_active: true
+        });
+      }
+      /**
+       * Fetch a full ticker for one instrument (`full/v1/ticker`).
+       */
+      async getTicker(instrument) {
+        return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.ticker, { instrument });
+      }
+      /**
+       * Fetch a FULL order-book snapshot (`full/v1/book`). Depth ∈ {10,50,100,500}.
+       */
+      async getOrderBook(instrument, depth) {
+        return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.book, { instrument, depth });
+      }
+      /**
+       * Fetch recent public trades (`full/v1/trade`).
+       */
+      async getTrades(instrument, limit) {
+        return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.trade, { instrument, limit });
+      }
+      /**
+       * Fetch funding-rate entries (`full/v1/funding`).
+       */
+      async getFunding(instrument) {
+        return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.funding, { instrument });
+      }
+      /**
+       * Fetch candlesticks (`full/v1/kline`).
+       */
+      async getKline(body) {
+        return this.postUnwrapped(this.hosts.marketData, GRVT_ENDPOINTS.kline, body);
+      }
+      // ==================== Trading (authed, trades host) ====================
+      /**
+       * Submit a signed order (`full/v1/create_order`). The caller builds + signs
+       * the body via `signing.ts`; this method just POSTs it under `{ order }`.
+       */
+      async createOrder(order) {
+        return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.createOrder, { order });
+      }
+      /**
+       * Cancel a single order by `order_id` or `client_order_id`.
+       */
+      async cancelOrder(body) {
+        return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.cancelOrder, {
+          ...body
+        });
+      }
+      /**
+       * Cancel all open orders for the sub-account.
+       */
+      async cancelAllOrders(subAccountId) {
+        return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.cancelAllOrders, {
+          sub_account_id: subAccountId
+        });
+      }
+      /**
+       * Fetch open orders for the sub-account.
+       */
+      async getOpenOrders(subAccountId, instrument) {
+        const body = { sub_account_id: subAccountId };
+        if (instrument) body.instrument = instrument;
+        return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.openOrders, body);
+      }
+      /**
+       * Fetch historical orders for the sub-account.
+       */
+      async getOrderHistory(subAccountId, instrument, limit) {
+        const body = { sub_account_id: subAccountId };
+        if (instrument) body.instrument = instrument;
+        if (limit !== void 0) body.limit = limit;
+        return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.orderHistory, body);
+      }
+      /**
+       * Fetch user fills (`full/v1/fill_history`).
+       */
+      async getFillHistory(subAccountId, instrument, limit) {
+        const body = { sub_account_id: subAccountId };
+        if (instrument) body.instrument = instrument;
+        if (limit !== void 0) body.limit = limit;
+        return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.fillHistory, body);
+      }
+      /**
+       * Fetch open positions for the sub-account.
+       */
+      async getPositions(subAccountId) {
+        return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.positions, {
+          sub_account_id: subAccountId
+        });
+      }
+      /**
+       * Fetch the sub-account summary (balances).
+       */
+      async getSubAccountSummary(subAccountId) {
+        return this.postAuthed(this.hosts.trades, GRVT_ENDPOINTS.accountSummary, {
+          sub_account_id: subAccountId
+        });
+      }
+      // ==================== Internals ====================
+      /**
+       * POST a public request and unwrap the `{ result }` envelope.
+       */
+      async postUnwrapped(host, path, body) {
+        const response = await this.rawPost(`${host}/${path}`, body, {});
+        return this.handleJson(response);
+      }
+      /**
+       * POST an authenticated request (cookie + account id), refreshing the session
+       * first if it is missing or near expiry. Unwraps the `{ result }` envelope.
+       */
+      async postAuthed(host, path, body) {
+        await this.ensureSession();
+        const session = this.session;
+        if (!session) {
+          throw new Error("GRVT authenticated request requires a session (login failed)");
+        }
+        const headers = {
+          Cookie: `gravity=${session.cookie}`,
+          "X-Grvt-Account-Id": session.accountId
+        };
+        const response = await this.rawPost(`${host}/${path}`, body, headers);
+        return this.handleJson(response);
+      }
+      /**
+       * Ensure a live session exists, logging in (or refreshing) when needed.
+       */
+      async ensureSession() {
+        const now = Date.now();
+        const stale = !this.session || this.session.expiresAt - now < 5e3;
+        if (stale) {
+          await this.login();
+        }
+      }
+      /**
+       * Raw POST helper using the global `fetch` (Node 18+/browser), with a timeout.
+       */
+      async rawPost(url, body, extraHeaders) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), this.timeout);
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...extraHeaders
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal
+          });
+          return response;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      /**
+       * Read a response body, throw on non-2xx, and unwrap the `{ result }` envelope.
+       */
+      async handleJson(response) {
+        const text = await response.text();
+        let parsed;
+        try {
+          parsed = text ? JSON.parse(text) : void 0;
+        } catch {
+          parsed = void 0;
+        }
+        if (!response.ok) {
+          const error = new Error(
+            `GRVT request failed (${response.status} ${response.statusText})`
+          );
+          error.status = response.status;
+          error.response = { status: response.status, data: parsed };
+          throw error;
+        }
+        if (parsed && typeof parsed === "object" && "result" in parsed) {
+          return parsed.result;
+        }
+        return parsed;
+      }
+      /**
+       * Extract the `gravity` cookie value from a Set-Cookie header (single value;
+       * `fetch` collapses multiple Set-Cookie headers into one comma-joined string).
+       */
+      parseGravityCookie(setCookie) {
+        if (!setCookie) {
+          return void 0;
+        }
+        const match = setCookie.match(/gravity=([^;,\s]+)/i);
+        return match ? match[1] : void 0;
+      }
+    };
   }
 });
 
@@ -13893,75 +14026,69 @@ var init_GRVTAuth = __esm({
   "src/adapters/grvt/GRVTAuth.ts"() {
     "use strict";
     init_constants3();
+    init_signing();
     GRVTAuth = class {
       apiKey;
       wallet;
       testnet;
-      sessionCookie;
-      nonce = 0;
+      session;
       constructor(config) {
         this.apiKey = config.apiKey;
         this.wallet = config.wallet;
         this.testnet = config.testnet ?? false;
       }
       /**
-       * Check if authentication credentials are available
+       * Whether auth credentials are available (an API key is required to log in).
        */
       hasCredentials() {
-        return !!(this.apiKey || this.wallet);
+        return !!this.apiKey;
       }
       /**
-       * Require authentication for private methods
-       * @throws {Error} if no credentials are configured
+       * Whether a signing wallet is available (required to place orders).
+       */
+      hasWallet() {
+        return !!this.wallet;
+      }
+      /**
+       * Require authentication for private methods.
+       * @throws {Error} if no API key is configured.
        */
       requireAuth() {
         if (!this.hasCredentials()) {
-          throw new Error("Authentication required. Provide apiKey or wallet in config.");
+          throw new Error("Authentication required. Provide apiKey in config.");
         }
       }
       /**
-       * Sign a request with authentication headers
+       * The EIP-712 chain id for the configured environment (326 testnet / 325 mainnet).
+       */
+      get chainId() {
+        return this.testnet ? GRVT_CHAIN_IDS.testnet : GRVT_CHAIN_IDS.mainnet;
+      }
+      /**
+       * Attach cookie-session auth headers to a request (IAuthStrategy contract).
        */
       async sign(request) {
-        const headers = {
-          "Content-Type": "application/json"
-        };
-        if (this.apiKey) {
-          headers["X-API-KEY"] = this.apiKey;
-        }
-        if (this.sessionCookie && this.isSessionValid()) {
-          headers["Cookie"] = `session=${this.sessionCookie.token}`;
-        }
-        if (this.requiresSignature(request.method, request.path)) {
-          const signature = await this.signRequest(request);
-          headers["X-Signature"] = signature;
-          headers["X-Timestamp"] = Date.now().toString();
-          if (this.wallet) {
-            headers["X-Address"] = this.wallet.address;
-          }
-        }
         return {
           ...request,
-          headers
+          headers: this.getHeaders()
         };
       }
       /**
-       * Get authentication headers
+       * Get the cookie-session auth headers. Includes `Cookie: gravity=...` +
+       * `X-Grvt-Account-Id` when a live session is present.
        */
       getHeaders() {
         const headers = {
           "Content-Type": "application/json"
         };
-        if (this.apiKey) {
-          headers["X-API-KEY"] = this.apiKey;
-        }
-        if (this.sessionCookie && this.isSessionValid()) {
-          headers["Cookie"] = `session=${this.sessionCookie.token}`;
+        if (this.session && this.isSessionValid()) {
+          headers["Cookie"] = `gravity=${this.session.cookie}`;
+          headers["X-Grvt-Account-Id"] = this.session.accountId;
         }
         return headers;
       }
       /**
-       * Verify authentication credentials
+       * Verify credentials are usable (non-empty API key or a connected wallet).
        */
       async verify() {
         try {
@@ -13978,150 +14105,65 @@ var init_GRVTAuth = __esm({
         }
       }
       /**
-       * Get current session cookie
+       * Store the resolved session (called by the adapter after login).
        */
-      getSessionCookie() {
-        if (this.sessionCookie && this.isSessionValid()) {
-          return this.sessionCookie.token;
-        }
-        return void 0;
+      setSession(session) {
+        this.session = session;
       }
       /**
-       * Set session cookie from authentication response
+       * The current session, if any.
        */
-      setSessionCookie(token, expiresIn) {
-        const duration = expiresIn ?? GRVT_SESSION_DURATION;
-        this.sessionCookie = {
-          token,
-          expiresAt: Date.now() + duration
-        };
+      getSession() {
+        return this.session;
       }
       /**
-       * Clear session cookie
+       * Clear the current session.
        */
-      clearSessionCookie() {
-        this.sessionCookie = void 0;
+      clearSession() {
+        this.session = void 0;
       }
       /**
-       * Check if current session is valid
+       * Whether the current session is present and not within the 5s refresh buffer.
        */
       isSessionValid() {
-        if (!this.sessionCookie) {
+        if (!this.session) {
           return false;
         }
-        return Date.now() < this.sessionCookie.expiresAt - 6e4;
+        return Date.now() < this.session.expiresAt - 5e3;
       }
       /**
-       * Check if request requires signature
-       */
-      requiresSignature(_method, path) {
-        const tradingPaths = [
-          "/orders",
-          "/orders/batch",
-          "/orders/cancel",
-          "/positions",
-          "/transfer",
-          "/withdraw"
-        ];
-        return tradingPaths.some((tradingPath) => path.includes(tradingPath));
-      }
-      /**
-       * Sign request data with wallet
-       */
-      async signRequest(request) {
-        if (!this.wallet) {
-          throw new Error("Wallet required for signing requests");
-        }
-        const timestamp = Date.now();
-        const message = this.createSignatureMessage(request, timestamp);
-        const signature = await this.wallet.signMessage(message);
-        return signature;
-      }
-      /**
-       * Create message for signing
-       */
-      createSignatureMessage(request, timestamp) {
-        const method = request.method.toUpperCase();
-        const path = request.path;
-        const body = request.body ? JSON.stringify(request.body) : "";
-        return `${method}${path}${timestamp}${body}`;
-      }
-      /**
-       * Sign order using EIP-712
-       */
-      async signOrder(payload) {
-        if (!this.wallet) {
-          throw new Error("Wallet required for signing orders");
-        }
-        const domain = {
-          ...GRVT_EIP712_DOMAIN,
-          chainId: this.testnet ? 326822723 : 325
-          // GRVT testnet (dev) / mainnet (ZKsync-based L2)
-        };
-        const types = GRVT_EIP712_ORDER_TYPE;
-        const value = {
-          instrument: payload.instrument,
-          orderType: payload.order_type,
-          side: payload.side,
-          size: payload.size,
-          price: payload.price,
-          timeInForce: payload.time_in_force,
-          reduceOnly: payload.reduce_only,
-          postOnly: payload.post_only,
-          nonce: payload.nonce,
-          expiry: payload.expiry
-        };
-        const signature = await this.wallet.signTypedData(domain, types, value);
-        return signature;
-      }
-      /**
-       * Get next nonce for order signing
-       */
-      getNextNonce() {
-        return ++this.nonce;
-      }
-      /**
-       * Reset nonce (useful after session refresh)
-       */
-      resetNonce() {
-        this.nonce = 0;
-      }
-      /**
-       * Get wallet address
+       * The signing wallet address, if a wallet is configured.
        */
       getAddress() {
         return this.wallet?.address;
       }
       /**
-       * Convert ethers signature to GRVT ISignature format
+       * Generate a GRVT order nonce (uint32-safe random; delegates to signing.ts).
        */
-      parseSignature(signature) {
-        const sig = signature.startsWith("0x") ? signature.slice(2) : signature;
-        if (sig.length !== 130) {
-          throw new Error(`Invalid signature length: ${sig.length}, expected 130`);
-        }
-        const r = "0x" + sig.slice(0, 64);
-        const s = "0x" + sig.slice(64, 128);
-        const v = parseInt(sig.slice(128, 130), 16);
-        return { r, s, v };
+      generateNonce() {
+        return generateNonce();
       }
       /**
-       * Create ISignature object for API requests
+       * Generate an order expiration in unix nanoseconds (delegates to signing.ts).
+       * @param hoursFromNow hours until expiry (default 24, must stay <= 30 days).
        */
-      async createSignature(payload) {
+      generateExpiration(hoursFromNow) {
+        return generateExpiration(hoursFromNow);
+      }
+      /**
+       * Sign a GRVT order via the proven leg-based EIP-712 path in `signing.ts`.
+       * Fills in the configured chain id when the caller omits it.
+       *
+       * @throws {Error} if no signing wallet is configured.
+       */
+      async signOrder(input) {
         if (!this.wallet) {
-          throw new Error("Wallet required for creating signatures");
+          throw new Error("Wallet required for signing orders");
         }
-        const signature = await this.signOrder(payload);
-        const { r, s, v } = this.parseSignature(signature);
-        return {
-          signer: this.wallet.address,
-          r,
-          s,
-          v,
-          expiration: payload.expiry.toString(),
-          nonce: payload.nonce
-        };
+        return signOrder(this.wallet, {
+          ...input,
+          chainId: input.chainId ?? this.chainId
+        });
       }
     };
   }
@@ -14139,17 +14181,11 @@ var init_GRVTNormalizer = __esm({
       // Symbol Conversion
       // ===========================================================================
       /**
-       * Convert GRVT symbol to CCXT format
-       *
-       * @param grvtSymbol - GRVT symbol (e.g., "BTC-PERP", "ETH-PERP")
-       * @returns CCXT formatted symbol (e.g., "BTC/USDT:USDT")
+       * Convert a GRVT instrument to a unified CCXT symbol.
        *
        * @example
-       * ```typescript
-       * normalizer.symbolToCCXT('BTC-PERP');  // "BTC/USDT:USDT"
-       * normalizer.symbolToCCXT('ETH-PERP');  // "ETH/USDT:USDT"
-       * normalizer.symbolToCCXT('BTC-SPOT');  // "BTC/USDT"
-       * ```
+       * symbolToCCXT('BTC_USDT_Perp') // 'BTC/USDT:USDT'
+       * symbolToCCXT('BTC_USDT')      // 'BTC/USDT'
        */
       symbolToCCXT(grvtSymbol) {
         if (grvtSymbol.endsWith("_Perp")) {
@@ -14169,17 +14205,11 @@ var init_GRVTNormalizer = __esm({
         return `${grvtSymbol}/USDT:USDT`;
       }
       /**
-       * Convert CCXT symbol to GRVT format
-       *
-       * @param ccxtSymbol - CCXT formatted symbol (e.g., "BTC/USDT:USDT")
-       * @returns GRVT symbol (e.g., "BTC_USDT_Perp")
+       * Convert a unified CCXT symbol to a GRVT instrument.
        *
        * @example
-       * ```typescript
-       * normalizer.symbolFromCCXT('BTC/USDT:USDT'); // "BTC_USDT_Perp"
-       * normalizer.symbolFromCCXT('ETH/USDT:USDT'); // "ETH_USDT_Perp"
-       * normalizer.symbolFromCCXT('BTC/USDT');      // "BTC_USDT"
-       * ```
+       * symbolFromCCXT('BTC/USDT:USDT') // 'BTC_USDT_Perp'
+       * symbolFromCCXT('BTC/USDT')      // 'BTC_USDT'
        */
       symbolFromCCXT(ccxtSymbol) {
         if (ccxtSymbol.includes(":")) {
@@ -14197,86 +14227,81 @@ var init_GRVTNormalizer = __esm({
         return `${base}_${quote}`;
       }
       // ===========================================================================
-      // Precision-Safe Numeric Conversions
+      // Numeric helpers
       // ===========================================================================
       /**
-       * Convert string to number with validation
+       * Convert a GRVT string number to a finite number.
        *
-       * @param value - String value to convert
-       * @param decimals - Number of decimal places (default: 8)
-       * @returns Number
-       *
-       * @throws {PerpDEXError} If value is not a valid number
+       * @throws {PerpDEXError} if the value is not a valid number.
        */
-      toNumberSafe(value, decimals = GRVT_PRECISION.price) {
+      toNumberSafe(value) {
         if (!value || value === "0") {
           return 0;
         }
-        const num = parseFloat(value);
-        if (!Number.isFinite(num)) {
+        const num2 = parseFloat(value);
+        if (!Number.isFinite(num2)) {
           throw new PerpDEXError(`Invalid number conversion: ${value}`, "INVALID_NUMBER", "grvt");
         }
-        return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
+        return num2;
       }
       /**
-       * Convert number to string with precision
-       *
-       * @param value - Number to convert
-       * @param decimals - Number of decimal places
-       * @returns String representation
+       * Count decimal places in a tick/step string (e.g. '0.5' -> 1, '0.001' -> 3).
        */
+      countDecimals(value) {
+        if (!value) {
+          return GRVT_PRECISION.price;
+        }
+        const parts = value.split(".");
+        return parts.length === 2 && parts[1] ? parts[1].length : 0;
+      }
       // ===========================================================================
-      // Market Normalization
+      // Market
       // ===========================================================================
       /**
-       * Normalize GRVT market to unified format
-       *
-       * @param grvtMarket - GRVT market data from SDK
-       * @returns Unified market
+       * Normalize a GRVT instrument into a unified Market. Fees are per-fill on
+       * GRVT, so maker/taker are 0 here.
        */
       normalizeMarket(grvtMarket) {
+        const instrument = grvtMarket.instrument || "";
         return {
-          id: grvtMarket.instrument || "",
-          symbol: this.symbolToCCXT(grvtMarket.instrument || ""),
+          id: instrument,
+          symbol: this.symbolToCCXT(instrument),
           base: grvtMarket.base || "",
           quote: grvtMarket.quote || "",
           settle: grvtMarket.quote || "",
-          // GRVT settles in quote currency
-          active: true,
-          // SDK doesn't provide is_active, assume true
-          minAmount: this.toNumberSafe(grvtMarket.min_size || "0"),
-          maxAmount: this.toNumberSafe(grvtMarket.max_position_size || "0"),
-          minCost: void 0,
-          pricePrecision: GRVT_PRECISION.price,
-          amountPrecision: GRVT_PRECISION.amount,
-          priceTickSize: this.toNumberSafe(grvtMarket.tick_size || "0"),
-          amountStepSize: this.toNumberSafe(grvtMarket.min_size || "0"),
+          active: grvtMarket.is_active ?? true,
+          minAmount: this.toNumberSafe(grvtMarket.min_size),
+          maxAmount: grvtMarket.max_size ? this.toNumberSafe(grvtMarket.max_size) : void 0,
+          minCost: grvtMarket.min_notional ? this.toNumberSafe(grvtMarket.min_notional) : void 0,
+          pricePrecision: this.countDecimals(grvtMarket.tick_size),
+          amountPrecision: this.countDecimals(grvtMarket.min_size),
+          priceTickSize: this.toNumberSafe(grvtMarket.tick_size),
+          amountStepSize: this.toNumberSafe(grvtMarket.min_size),
           makerFee: 0,
-          // SDK doesn't provide fees directly
+          // GRVT fees are per-fill, not per-instrument
           takerFee: 0,
-          maxLeverage: 100,
-          // GRVT supports up to 100x
-          fundingIntervalHours: grvtMarket.funding_interval_hours || 8,
+          maxLeverage: GRVT_MAX_LEVERAGE,
+          fundingIntervalHours: grvtMarket.funding_interval_hours ?? 8,
           info: grvtMarket
         };
       }
       /**
-       * Batch normalize markets
+       * Batch-normalize markets.
        */
       normalizeMarkets(grvtMarkets) {
         return grvtMarkets.map((m) => this.normalizeMarket(m));
       }
       // ===========================================================================
-      // Order Normalization
+      // Order
       // ===========================================================================
       /**
-       * Normalize GRVT order to unified format
+       * Normalize a GRVT account order (leg-based) into a unified Order.
        */
       normalizeOrder(grvtOrder) {
         const leg = grvtOrder.legs?.[0];
-        const amount = this.toNumberSafe(leg?.size || "0");
-        const traded = this.toNumberSafe(grvtOrder.state?.traded_size?.[0] || "0");
-        const book = this.toNumberSafe(grvtOrder.state?.book_size?.[0] || "0");
+        const amount = this.toNumberSafe(leg?.size);
+        const traded = this.toNumberSafe(grvtOrder.state?.traded_size?.[0]);
+        const book = this.toNumberSafe(grvtOrder.state?.book_size?.[0]);
         return {
           id: grvtOrder.order_id || "",
           clientOrderId: grvtOrder.metadata?.client_order_id,
@@ -14285,119 +14310,111 @@ var init_GRVTNormalizer = __esm({
           side: leg?.is_buying_asset ? "buy" : "sell",
           amount,
           price: leg?.limit_price ? this.toNumberSafe(leg.limit_price) : void 0,
-          status: this.mapSDKOrderStatus(grvtOrder.state?.status || ""),
+          status: this.mapOrderStatus(grvtOrder.state?.status || ""),
           filled: traded,
           remaining: book,
           averagePrice: grvtOrder.state?.avg_fill_price?.[0] ? this.toNumberSafe(grvtOrder.state.avg_fill_price[0]) : void 0,
-          timeInForce: this.mapSDKTimeInForce(grvtOrder.time_in_force || ""),
+          timeInForce: this.mapTimeInForce(grvtOrder.time_in_force || ""),
           reduceOnly: grvtOrder.reduce_only || false,
           postOnly: grvtOrder.post_only || false,
-          timestamp: grvtOrder.metadata?.create_time ? parseInt(grvtOrder.metadata.create_time) : Date.now(),
-          lastUpdateTimestamp: grvtOrder.state?.update_time ? parseInt(grvtOrder.state.update_time) : void 0,
+          timestamp: grvtOrder.metadata?.create_time ? parseInt(grvtOrder.metadata.create_time, 10) : Date.now(),
+          lastUpdateTimestamp: grvtOrder.state?.update_time ? parseInt(grvtOrder.state.update_time, 10) : void 0,
           info: grvtOrder
         };
       }
       /**
-       * Map SDK order status to unified format
-       */
-      mapSDKOrderStatus(status) {
-        const statusMap = {
-          PENDING: "open",
-          OPEN: "open",
-          PARTIALLY_FILLED: "partiallyFilled",
-          FILLED: "filled",
-          CANCELLED: "canceled",
-          REJECTED: "rejected"
-        };
-        return statusMap[status] || "open";
-      }
-      /**
-       * Map SDK time in force to unified format
-       */
-      mapSDKTimeInForce(tif) {
-        const tifMap = {
-          GOOD_TIL_CANCEL: "GTC",
-          IMMEDIATE_OR_CANCEL: "IOC",
-          FILL_OR_KILL: "FOK"
-        };
-        return tifMap[tif] || "GTC";
-      }
-      /**
-       * Batch normalize orders
+       * Batch-normalize orders.
        */
       normalizeOrders(grvtOrders) {
         return grvtOrders.map((o) => this.normalizeOrder(o));
       }
+      /**
+       * Map a GRVT order status to the unified OrderStatus.
+       */
+      mapOrderStatus(status) {
+        const mapped = GRVT_ORDER_STATUS[status];
+        return mapped ?? "open";
+      }
+      /**
+       * Map a GRVT API TIF string to the unified TimeInForce.
+       */
+      mapTimeInForce(tif) {
+        const map = {
+          GOOD_TILL_TIME: "GTC",
+          IMMEDIATE_OR_CANCEL: "IOC",
+          FILL_OR_KILL: "FOK"
+        };
+        return map[tif] ?? "GTC";
+      }
       // ===========================================================================
-      // Position Normalization
+      // Position
       // ===========================================================================
       /**
-       * Normalize GRVT position to unified format
+       * Normalize a GRVT position into a unified Position.
        */
       normalizePosition(grvtPosition) {
-        const size = this.toNumberSafe(grvtPosition.size || "0");
-        const entryPrice = this.toNumberSafe(grvtPosition.entry_price || "0");
-        const markPrice = this.toNumberSafe(grvtPosition.mark_price || "0");
-        const leverage = this.toNumberSafe(grvtPosition.leverage || "1", 2);
-        const notional = this.toNumberSafe(grvtPosition.notional || "0");
+        const size = this.toNumberSafe(grvtPosition.size);
+        const entryPrice = this.toNumberSafe(grvtPosition.entry_price);
+        const markPrice = this.toNumberSafe(grvtPosition.mark_price);
+        const leverage = this.toNumberSafe(grvtPosition.leverage);
+        const notional = this.toNumberSafe(grvtPosition.notional);
         const margin = leverage > 0 ? notional / leverage : 0;
         return {
           symbol: this.symbolToCCXT(grvtPosition.instrument || ""),
-          side: size > 0 ? "long" : "short",
+          side: size >= 0 ? "long" : "short",
           size: Math.abs(size),
           entryPrice,
           markPrice,
           liquidationPrice: grvtPosition.est_liquidation_price ? this.toNumberSafe(grvtPosition.est_liquidation_price) : 0,
-          unrealizedPnl: this.toNumberSafe(grvtPosition.unrealized_pnl || "0"),
-          realizedPnl: this.toNumberSafe(grvtPosition.realized_pnl || "0"),
+          unrealizedPnl: this.toNumberSafe(grvtPosition.unrealized_pnl),
+          realizedPnl: this.toNumberSafe(grvtPosition.realized_pnl),
           leverage,
           marginMode: "cross",
           margin,
           maintenanceMargin: margin * 0.5,
-          // Estimate
-          marginRatio: margin > 0 ? margin / notional * 100 : 0,
-          timestamp: grvtPosition.event_time ? parseInt(grvtPosition.event_time) : Date.now(),
+          marginRatio: margin > 0 && notional > 0 ? margin / notional * 100 : 0,
+          timestamp: grvtPosition.event_time ? parseInt(grvtPosition.event_time, 10) : Date.now(),
           info: grvtPosition
         };
       }
       /**
-       * Batch normalize positions
+       * Batch-normalize positions.
        */
       normalizePositions(grvtPositions) {
         return grvtPositions.map((p) => this.normalizePosition(p));
       }
       // ===========================================================================
-      // Balance Normalization
+      // Balance
       // ===========================================================================
       /**
-       * Normalize GRVT balance to unified format
+       * Normalize a GRVT spot balance into a unified Balance.
        */
       normalizeBalance(grvtBalance) {
-        const total = this.toNumberSafe(grvtBalance.balance || "0");
+        const total = this.toNumberSafe(grvtBalance.balance);
         return {
           currency: grvtBalance.currency || "",
           free: total,
-          // SDK doesn't separate free/used for spot balances
           used: 0,
           total,
           info: grvtBalance
         };
       }
       /**
-       * Batch normalize balances
+       * Batch-normalize balances.
        */
       normalizeBalances(grvtBalances) {
         return grvtBalances.map((b) => this.normalizeBalance(b));
       }
       // ===========================================================================
-      // Trade Normalization
+      // Trade / fill
       // ===========================================================================
       /**
-       * Normalize GRVT trade to unified format (public trades)
+       * Normalize a GRVT public trade into a unified Trade.
+       * `is_taker_buyer` true => the aggressor bought (side = 'buy').
        */
       normalizeTrade(grvtTrade) {
-        const price = this.toNumberSafe(grvtTrade.price || "0");
-        const amount = this.toNumberSafe(grvtTrade.size || "0");
+        const price = this.toNumberSafe(grvtTrade.price);
+        const amount = this.toNumberSafe(grvtTrade.size);
         return {
           id: grvtTrade.trade_id || "",
           orderId: void 0,
@@ -14406,23 +14423,23 @@ var init_GRVTNormalizer = __esm({
           price,
           amount,
           cost: price * amount,
-          timestamp: grvtTrade.event_time ? parseInt(grvtTrade.event_time) : Date.now(),
+          timestamp: grvtTrade.event_time ? parseInt(grvtTrade.event_time, 10) : Date.now(),
           info: grvtTrade
         };
       }
       /**
-       * Batch normalize trades
+       * Batch-normalize public trades.
        */
       normalizeTrades(grvtTrades) {
         return grvtTrades.map((t) => this.normalizeTrade(t));
       }
       /**
-       * Normalize GRVT fill to unified trade format (user fills)
+       * Normalize a GRVT user fill into a unified Trade (with fee).
        */
       normalizeFill(grvtFill) {
-        const price = this.toNumberSafe(grvtFill.price || "0");
-        const amount = this.toNumberSafe(grvtFill.size || "0");
-        return {
+        const price = this.toNumberSafe(grvtFill.price);
+        const amount = this.toNumberSafe(grvtFill.size);
+        const trade = {
           id: grvtFill.trade_id || "",
           orderId: grvtFill.order_id,
           symbol: this.symbolToCCXT(grvtFill.instrument || ""),
@@ -14430,104 +14447,102 @@ var init_GRVTNormalizer = __esm({
           price,
           amount,
           cost: price * amount,
-          timestamp: grvtFill.event_time ? parseInt(grvtFill.event_time) : Date.now(),
+          timestamp: grvtFill.event_time ? parseInt(grvtFill.event_time, 10) : Date.now(),
           info: grvtFill
         };
+        if (grvtFill.fee !== void 0) {
+          trade.fee = { cost: this.toNumberSafe(grvtFill.fee), currency: "USDT" };
+        }
+        return trade;
       }
       /**
-       * Batch normalize fills
+       * Batch-normalize fills.
        */
       normalizeFills(grvtFills) {
         return grvtFills.map((f) => this.normalizeFill(f));
       }
       // ===========================================================================
-      // Ticker Normalization
+      // Ticker
       // ===========================================================================
       /**
-       * Normalize GRVT ticker to unified format
+       * Normalize a GRVT ticker into a unified Ticker. GRVT has no 24h high/low/open,
+       * so those default to the last/mark price; baseVolume uses the 24h quote
+       * volumes (buy + sell).
        */
       normalizeTicker(grvtTicker) {
-        const last = this.toNumberSafe(grvtTicker.last_price || "0");
-        const high = this.toNumberSafe(grvtTicker.high_price || "0");
-        const low = this.toNumberSafe(grvtTicker.low_price || "0");
-        const open = this.toNumberSafe(grvtTicker.open_price || "0");
-        const change = last - open;
-        const buyVolumeB = this.toNumberSafe(grvtTicker.buy_volume_24h_b || "0");
-        const sellVolumeB = this.toNumberSafe(grvtTicker.sell_volume_24h_b || "0");
+        const last = this.toNumberSafe(grvtTicker.last_price ?? grvtTicker.mark_price);
+        const buyVolume = this.toNumberSafe(grvtTicker.buy_volume_24h_q);
+        const sellVolume = this.toNumberSafe(grvtTicker.sell_volume_24h_q);
         return {
           symbol: this.symbolToCCXT(grvtTicker.instrument || ""),
           last,
-          bid: this.toNumberSafe(grvtTicker.best_bid_price || "0"),
-          bidVolume: this.toNumberSafe(grvtTicker.best_bid_size || "0"),
-          ask: this.toNumberSafe(grvtTicker.best_ask_price || "0"),
-          askVolume: this.toNumberSafe(grvtTicker.best_ask_size || "0"),
-          high,
-          low,
-          open,
+          bid: this.toNumberSafe(grvtTicker.best_bid_price),
+          bidVolume: this.toNumberSafe(grvtTicker.best_bid_size),
+          ask: this.toNumberSafe(grvtTicker.best_ask_price),
+          askVolume: this.toNumberSafe(grvtTicker.best_ask_size),
+          high: last,
+          low: last,
+          open: last,
           close: last,
-          change,
-          percentage: open > 0 ? change / open * 100 : 0,
-          baseVolume: buyVolumeB + sellVolumeB,
-          quoteVolume: 0,
-          timestamp: grvtTicker.event_time ? parseInt(grvtTicker.event_time) : Date.now(),
-          info: {
-            ...grvtTicker,
-            _bidAskSource: "orderbook"
-          }
+          change: 0,
+          percentage: 0,
+          baseVolume: 0,
+          quoteVolume: buyVolume + sellVolume,
+          timestamp: grvtTicker.event_time ? parseInt(grvtTicker.event_time, 10) : Date.now(),
+          info: grvtTicker
         };
       }
       /**
-       * Batch normalize tickers
+       * Batch-normalize tickers.
        */
       normalizeTickers(grvtTickers) {
         return grvtTickers.map((t) => this.normalizeTicker(t));
       }
       // ===========================================================================
-      // Order Book Normalization
+      // Order book
       // ===========================================================================
       /**
-       * Normalize GRVT order book to unified format
+       * Normalize a GRVT FULL order-book snapshot into a unified OrderBook.
        */
       normalizeOrderBook(grvtOrderBook) {
         return {
           symbol: this.symbolToCCXT(grvtOrderBook.instrument || ""),
-          timestamp: grvtOrderBook.event_time ? parseInt(grvtOrderBook.event_time) : Date.now(),
-          bids: (grvtOrderBook.bids || []).map((level) => [
-            this.toNumberSafe(level.price || "0"),
-            this.toNumberSafe(level.size || "0")
-          ]),
-          asks: (grvtOrderBook.asks || []).map((level) => [
-            this.toNumberSafe(level.price || "0"),
-            this.toNumberSafe(level.size || "0")
-          ]),
+          timestamp: grvtOrderBook.event_time ? parseInt(grvtOrderBook.event_time, 10) : Date.now(),
+          bids: (grvtOrderBook.bids || []).map(
+            (level) => [this.toNumberSafe(level.price), this.toNumberSafe(level.size)]
+          ),
+          asks: (grvtOrderBook.asks || []).map(
+            (level) => [this.toNumberSafe(level.price), this.toNumberSafe(level.size)]
+          ),
           sequenceId: void 0,
-          // SDK doesn't provide sequence
           checksum: void 0,
           exchange: "grvt"
         };
       }
       // ===========================================================================
-      // Funding Rate Normalization
+      // Funding
       // ===========================================================================
       /**
-       * Normalize GRVT funding rate to unified format
+       * Normalize a GRVT funding entry into a unified FundingRate.
        */
       normalizeFundingRate(grvtFunding) {
-        const fundingTimestamp = grvtFunding.funding_time ? parseInt(grvtFunding.funding_time) : Date.now();
+        const fundingTimestamp = grvtFunding.funding_time ? parseInt(grvtFunding.funding_time, 10) : Date.now();
         const fundingIntervalHours = grvtFunding.funding_interval_hours ?? 8;
         const nextFundingTimestamp = fundingTimestamp + fundingIntervalHours * 60 * 60 * 1e3;
-        const markPrice = this.toNumberSafe(grvtFunding.mark_price || "0");
         return {
           symbol: this.symbolToCCXT(grvtFunding.instrument || ""),
-          fundingRate: this.toNumberSafe(grvtFunding.funding_rate || "0"),
+          fundingRate: this.toNumberSafe(grvtFunding.funding_rate),
           fundingTimestamp,
           nextFundingTimestamp,
-          markPrice,
-          indexPrice: 0,
+          markPrice: this.toNumberSafe(grvtFunding.mark_price),
+          indexPrice: this.toNumberSafe(grvtFunding.index_price),
           fundingIntervalHours,
           info: grvtFunding
         };
       }
+      // ===========================================================================
+      // Symbol aliases (framework compatibility)
+      // ===========================================================================
       normalizeSymbol(exchangeSymbol) {
         return this.symbolToCCXT(exchangeSymbol);
       }
@@ -14750,367 +14765,161 @@ var init_GRVTErrorMapper = __esm({
 });
 
 // src/adapters/grvt/GRVTWebSocketWrapper.ts
-var import_ws, GRVTWebSocketWrapper;
+var DEFAULT_BOOK_DEPTH, DEFAULT_TRADE_LIMIT, GRVTWebSocketWrapper;
 var init_GRVTWebSocketWrapper = __esm({
   "src/adapters/grvt/GRVTWebSocketWrapper.ts"() {
     "use strict";
-    import_ws = require("@grvt/client/ws/index.js");
+    init_WebSocketClient();
     init_GRVTNormalizer();
     init_constants3();
     init_logger();
+    DEFAULT_BOOK_DEPTH = 50;
+    DEFAULT_TRADE_LIMIT = 50;
     GRVTWebSocketWrapper = class _GRVTWebSocketWrapper {
-      /** Maximum queue size for backpressure */
       static MAX_QUEUE_SIZE = 1e3;
-      ws;
-      normalizer;
-      subAccountId;
+      normalizer = new GRVTNormalizer();
       logger = new Logger("GRVTWebSocket");
-      isConnected = false;
-      /**
-       * Push to queue with bounded size (backpressure)
-       */
-      boundedPush(queue, item, channel) {
-        if (queue.length >= _GRVTWebSocketWrapper.MAX_QUEUE_SIZE) {
-          queue.shift();
-          if (channel) {
-            this.logger.warn(`Queue overflow on ${channel}, dropping oldest message`);
-          }
-        }
-        queue.push(item);
-      }
+      publicClient;
+      tradeClient;
+      session;
+      nextId = 1;
       constructor(config = {}) {
         const urls = config.testnet ? GRVT_API_URLS.testnet : GRVT_API_URLS.mainnet;
-        this.normalizer = new GRVTNormalizer();
-        this.subAccountId = config.subAccountId;
-        this.ws = new import_ws.WS({
-          url: urls.websocket,
-          timeout: config.timeout || 3e4,
-          reconnectStrategy: (retries) => {
-            const delay = Math.min(1e3 * Math.pow(2, retries), 3e4);
-            return delay;
-          }
+        this.session = config.session;
+        this.publicClient = new WebSocketClient({
+          url: urls.websocketMarketData,
+          onError: (error) => this.logger.error("Public WS error", error)
         });
-        this.ws.onConnect(() => {
-          this.isConnected = true;
-        });
-        this.ws.onClose(() => {
-          this.isConnected = false;
-        });
-        this.ws.onError((error) => {
-          this.logger.error("WebSocket error", error instanceof Error ? error : void 0, { error });
+        this.tradeClient = new WebSocketClient({
+          url: urls.websocketTrades,
+          onError: (error) => this.logger.error("Trade WS error", error)
         });
       }
       /**
-       * Connect to WebSocket
+       * Connect the public market-data WebSocket.
        */
       async connect() {
-        this.ws.connect();
-        await this.ws.ready(5e3);
-        this.isConnected = true;
+        await this.publicClient.connect();
       }
       /**
-       * Disconnect from WebSocket
+       * Connect the private trade-data WebSocket (requires a session).
+       */
+      async connectPrivate() {
+        if (!this.session) {
+          throw new Error("Session required for private GRVT WebSocket streams");
+        }
+        await this.tradeClient.connect();
+      }
+      /**
+       * Disconnect both WebSockets.
        */
       disconnect() {
-        this.ws.disconnect();
-        this.isConnected = false;
+        void this.publicClient.disconnect();
+        void this.tradeClient.disconnect();
       }
       /**
-       * Watch order book updates for a symbol
-       *
-       * @param symbol - Trading symbol in CCXT format (e.g., "BTC/USDT:USDT")
-       * @param depth - Order book depth (default: 50)
-       * @returns AsyncGenerator yielding OrderBook updates
-       *
-       * @example
-       * ```typescript
-       * for await (const orderBook of wrapper.watchOrderBook('BTC/USDT:USDT')) {
-       *   console.log('Bid:', orderBook.bids[0]);
-       *   console.log('Ask:', orderBook.asks[0]);
-       * }
-       * ```
+       * Whether the public WebSocket is connected.
        */
-      async *watchOrderBook(symbol, depth = 50) {
+      get connected() {
+        return this.publicClient.isConnected();
+      }
+      // ==================== Public streams ====================
+      /**
+       * Watch FULL order-book snapshots for a symbol (`v1.book.s`).
+       */
+      async *watchOrderBook(symbol, depth = DEFAULT_BOOK_DEPTH) {
         const instrument = this.normalizer.symbolFromCCXT(symbol);
-        const queue = [];
-        let error = null;
-        let subscriptionKey = null;
-        let resolver = null;
-        let rejecter = null;
-        const request = {
-          stream: import_ws.EStream.RPI_BOOK_SNAP,
-          // Use RPI (Retail Price Improvement) snapshot stream
-          params: {
-            instrument,
-            depth
-          },
-          onData: (data) => {
-            if (resolver) {
-              resolver(data);
-              resolver = null;
-              rejecter = null;
-            } else {
-              this.boundedPush(queue, data, "orderbook");
-            }
-          },
-          onError: (err2) => {
-            error = err2;
-            if (rejecter) {
-              rejecter(err2);
-              resolver = null;
-              rejecter = null;
-            }
-          }
-        };
-        try {
-          subscriptionKey = this.ws.subscribe(request);
-          while (true) {
-            if (error) {
-              throw error;
-            }
-            let orderBookData;
-            if (queue.length > 0) {
-              orderBookData = queue.shift();
-            } else {
-              orderBookData = await new Promise((resolve, reject) => {
-                resolver = resolve;
-                rejecter = reject;
-              });
-            }
-            if (error) {
-              throw error;
-            }
-            const normalized = this.normalizer.normalizeOrderBook(orderBookData);
-            yield normalized;
-          }
-        } finally {
-          if (subscriptionKey) {
-            this.ws.unsubscribe(subscriptionKey);
-          }
-        }
+        const validDepth = GRVT_BOOK_DEPTHS.includes(depth) ? depth : DEFAULT_BOOK_DEPTH;
+        const selector = `${instrument}@500-${validDepth}`;
+        yield* this.stream(
+          this.publicClient,
+          GRVT_WS_STREAMS.bookSnapshot,
+          [selector],
+          instrument,
+          (feed) => this.normalizer.normalizeOrderBook(feed)
+        );
       }
       /**
-       * Watch public trades for a symbol
-       *
-       * @param symbol - Trading symbol in CCXT format
-       * @returns AsyncGenerator yielding Trade updates
-       *
-       * @example
-       * ```typescript
-       * for await (const trade of wrapper.watchTrades('BTC/USDT:USDT')) {
-       *   console.log('Trade:', trade.price, trade.amount, trade.side);
-       * }
-       * ```
+       * Watch public trades for a symbol (`v1.trade`).
        */
       async *watchTrades(symbol) {
         const instrument = this.normalizer.symbolFromCCXT(symbol);
-        const queue = [];
-        let error = null;
-        let subscriptionKey = null;
-        let resolver = null;
-        let rejecter = null;
-        const request = {
-          stream: import_ws.EStream.TRADE,
-          params: {
-            instrument
-          },
-          onData: (data) => {
-            if (resolver) {
-              resolver(data);
-              resolver = null;
-              rejecter = null;
-            } else {
-              this.boundedPush(queue, data, "trades");
-            }
-          },
-          onError: (err2) => {
-            error = err2;
-            if (rejecter) {
-              rejecter(err2);
-              resolver = null;
-              rejecter = null;
-            }
-          }
-        };
-        try {
-          subscriptionKey = this.ws.subscribe(request);
-          while (true) {
-            if (error) throw error;
-            let tradeData;
-            if (queue.length > 0) {
-              tradeData = queue.shift();
-            } else {
-              tradeData = await new Promise((resolve, reject) => {
-                resolver = resolve;
-                rejecter = reject;
-              });
-            }
-            if (error) throw error;
-            const normalized = this.normalizer.normalizeTrade(tradeData);
-            yield normalized;
-          }
-        } finally {
-          if (subscriptionKey) {
-            this.ws.unsubscribe(subscriptionKey);
-          }
-        }
+        const selector = `${instrument}@${DEFAULT_TRADE_LIMIT}`;
+        yield* this.stream(
+          this.publicClient,
+          GRVT_WS_STREAMS.trade,
+          [selector],
+          instrument,
+          (feed) => this.normalizer.normalizeTrade(feed)
+        );
       }
       /**
-       * Watch position updates for user account
-       *
-       * @param symbol - Optional symbol filter (watch all positions if not provided)
-       * @returns AsyncGenerator yielding Position updates
-       *
-       * @example
-       * ```typescript
-       * for await (const position of wrapper.watchPositions()) {
-       *   console.log('Position:', position.symbol, position.size, position.unrealizedPnl);
-       * }
-       * ```
+       * Watch ticker snapshots for a symbol (`v1.ticker.s`).
+       */
+      async *watchTicker(symbol) {
+        const instrument = this.normalizer.symbolFromCCXT(symbol);
+        const selector = `${instrument}@500`;
+        yield* this.stream(
+          this.publicClient,
+          GRVT_WS_STREAMS.tickerSnapshot,
+          [selector],
+          instrument,
+          (feed) => this.normalizer.normalizeTicker(feed)
+        );
+      }
+      // ==================== Private streams ====================
+      /**
+       * Watch position updates (`v1.position`; requires a session).
        */
       async *watchPositions(symbol) {
-        if (!this.subAccountId) {
-          throw new Error("Sub-account ID required for watching positions");
-        }
+        this.requireSession();
+        await this.connectPrivate();
         const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : void 0;
-        const queue = [];
-        let error = null;
-        let subscriptionKey = null;
-        let resolver = null;
-        let rejecter = null;
-        const request = {
-          stream: import_ws.EStream.POSITION,
-          params: {
-            sub_account_id: this.subAccountId,
-            ...instrument && { instrument }
-          },
-          onData: (data) => {
-            if (resolver) {
-              resolver(data);
-              resolver = null;
-              rejecter = null;
-            } else {
-              this.boundedPush(queue, data, "positions");
-            }
-          },
-          onError: (err2) => {
-            error = err2;
-            if (rejecter) {
-              rejecter(err2);
-              resolver = null;
-              rejecter = null;
-            }
-          }
-        };
-        try {
-          subscriptionKey = this.ws.subscribe(request);
-          while (true) {
-            if (error) throw error;
-            let positionData;
-            if (queue.length > 0) {
-              positionData = queue.shift();
-            } else {
-              positionData = await new Promise((resolve, reject) => {
-                resolver = resolve;
-                rejecter = reject;
-              });
-            }
-            if (error) throw error;
-            const normalized = this.normalizer.normalizePosition(positionData);
-            yield normalized;
-          }
-        } finally {
-          if (subscriptionKey) {
-            this.ws.unsubscribe(subscriptionKey);
-          }
-        }
+        const selector = this.privateSelector(instrument);
+        yield* this.stream(
+          this.tradeClient,
+          GRVT_WS_STREAMS.position,
+          [selector],
+          instrument,
+          (feed) => this.normalizer.normalizePosition(feed)
+        );
       }
       /**
-       * Watch order updates for user account
-       *
-       * @param symbol - Optional symbol filter
-       * @returns AsyncGenerator yielding Order updates
-       *
-       * @example
-       * ```typescript
-       * for await (const order of wrapper.watchOrders()) {
-       *   console.log('Order:', order.id, order.status, order.filled);
-       * }
-       * ```
+       * Watch order updates (`v1.order`; requires a session).
        */
       async *watchOrders(symbol) {
-        if (!this.subAccountId) {
-          throw new Error("Sub-account ID required for watching orders");
-        }
+        this.requireSession();
+        await this.connectPrivate();
         const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : void 0;
-        const queue = [];
-        let error = null;
-        let subscriptionKey = null;
-        let resolver = null;
-        let rejecter = null;
-        const request = {
-          stream: import_ws.EStream.ORDER,
-          params: {
-            sub_account_id: this.subAccountId,
-            ...instrument && { instrument }
-          },
-          onData: (data) => {
-            if (resolver) {
-              resolver(data);
-              resolver = null;
-              rejecter = null;
-            } else {
-              this.boundedPush(queue, data, "orders");
-            }
-          },
-          onError: (err2) => {
-            error = err2;
-            if (rejecter) {
-              rejecter(err2);
-              resolver = null;
-              rejecter = null;
-            }
-          }
-        };
-        try {
-          subscriptionKey = this.ws.subscribe(request);
-          while (true) {
-            if (error) throw error;
-            let orderData;
-            if (queue.length > 0) {
-              orderData = queue.shift();
-            } else {
-              orderData = await new Promise((resolve, reject) => {
-                resolver = resolve;
-                rejecter = reject;
-              });
-            }
-            if (error) throw error;
-            const normalized = this.normalizer.normalizeOrder(orderData);
-            yield normalized;
-          }
-        } finally {
-          if (subscriptionKey) {
-            this.ws.unsubscribe(subscriptionKey);
-          }
-        }
+        const selector = this.privateSelector(instrument);
+        yield* this.stream(
+          this.tradeClient,
+          GRVT_WS_STREAMS.order,
+          [selector],
+          instrument,
+          (feed) => this.normalizer.normalizeOrder(feed)
+        );
       }
       /**
-       * Watch balance updates for user account
-       *
-       * @returns AsyncGenerator yielding Balance array
-       *
-       * @example
-       * ```typescript
-       * for await (const balances of wrapper.watchBalance()) {
-       *   console.log('Balances:', balances);
-       * }
-       * ```
+       * Watch user fills (`v1.fill`; requires a session).
+       */
+      async *watchMyTrades(symbol) {
+        this.requireSession();
+        await this.connectPrivate();
+        const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : void 0;
+        const selector = this.privateSelector(instrument);
+        yield* this.stream(
+          this.tradeClient,
+          GRVT_WS_STREAMS.fill,
+          [selector],
+          instrument,
+          (feed) => this.normalizer.normalizeFill(feed)
+        );
+      }
+      /**
+       * Watch balance updates (derived from the position stream; requires a session).
        */
       async *watchBalance() {
-        if (!this.subAccountId) {
-          throw new Error("Sub-account ID required for watching balance");
-        }
         for await (const position of this.watchPositions()) {
           const balance = {
             currency: "USDT",
@@ -15122,185 +14931,121 @@ var init_GRVTWebSocketWrapper = __esm({
           yield [balance];
         }
       }
+      // ==================== Internals ====================
       /**
-       * Watch ticker updates for a symbol
-       *
-       * GRVT doesn't have a dedicated ticker stream, so we derive ticker
-       * from trade stream updates. Each trade update contains price info
-       * that can be used to construct ticker-like updates.
-       *
-       * @param symbol - Trading symbol in CCXT format (e.g., "BTC/USDT:USDT")
-       * @returns AsyncGenerator yielding Ticker updates
-       *
-       * @example
-       * ```typescript
-       * for await (const ticker of wrapper.watchTicker('BTC/USDT:USDT')) {
-       *   console.log('Price:', ticker.last, 'Volume:', ticker.quoteVolume);
-       * }
-       * ```
+       * Subscribe to one stream and yield normalized values until the generator is
+       * closed. Frames for other streams/instruments are ignored; un-normalizable
+       * frames are skipped (defensive).
        */
-      async *watchTicker(symbol) {
-        const instrument = this.normalizer.symbolFromCCXT(symbol);
+      async *stream(client, streamName, selectors, instrument, normalize2) {
         const queue = [];
         let error = null;
-        let subscriptionKey = null;
         let resolver = null;
-        let rejecter = null;
-        const request = {
-          stream: import_ws.EStream.TRADE,
-          params: {
-            instrument
-          },
-          onData: (data) => {
-            if (resolver) {
-              resolver(data);
-              resolver = null;
-              rejecter = null;
-            } else {
-              this.boundedPush(queue, data, "ticker");
-            }
-          },
-          onError: (err2) => {
-            error = err2;
-            if (rejecter) {
-              rejecter(err2);
-              resolver = null;
-              rejecter = null;
-            }
+        const onMessage = (raw) => {
+          const frame = this.parseFrame(raw);
+          if (!frame || frame.stream !== streamName || !frame.feed) {
+            return;
+          }
+          if (instrument && typeof frame.feed.instrument === "string" && frame.feed.instrument !== instrument) {
+            return;
+          }
+          let value;
+          try {
+            value = normalize2(frame.feed);
+          } catch {
+            return;
+          }
+          if (resolver) {
+            resolver(value);
+            resolver = null;
+          } else {
+            this.boundedPush(queue, value, streamName);
           }
         };
+        const onError = (err2) => {
+          error = err2;
+        };
+        client.on("message", onMessage);
+        client.on("error", onError);
         try {
-          subscriptionKey = this.ws.subscribe(request);
+          if (!client.isConnected()) {
+            await client.connect();
+          }
+          client.send(this.subscribeFrame(streamName, selectors));
           while (true) {
-            if (error) throw error;
-            let tradeData;
+            if (error) {
+              throw error;
+            }
+            let value;
             if (queue.length > 0) {
-              tradeData = queue.shift();
+              value = queue.shift();
             } else {
-              tradeData = await new Promise((resolve, reject) => {
+              value = await new Promise((resolve) => {
                 resolver = resolve;
-                rejecter = reject;
               });
             }
-            if (error) throw error;
-            const lastPrice = parseFloat(tradeData.price || "0");
-            const lastSize = parseFloat(tradeData.size || "0");
-            const ticker = {
-              symbol: this.normalizer.symbolToCCXT(instrument),
-              timestamp: typeof tradeData.event_time === "number" ? tradeData.event_time : Date.now(),
-              last: lastPrice,
-              bid: 0,
-              // Not available from trade stream
-              ask: 0,
-              // Not available from trade stream
-              high: lastPrice,
-              // Single trade, same as last
-              low: lastPrice,
-              // Single trade, same as last
-              open: lastPrice,
-              // Single trade, same as last
-              close: lastPrice,
-              change: 0,
-              // Requires 24h aggregation
-              percentage: 0,
-              // Requires 24h aggregation
-              baseVolume: lastSize,
-              quoteVolume: lastPrice * lastSize,
-              info: tradeData
-            };
-            yield ticker;
+            if (error) {
+              throw error;
+            }
+            yield value;
           }
         } finally {
-          if (subscriptionKey) {
-            this.ws.unsubscribe(subscriptionKey);
-          }
+          client.off("message", onMessage);
+          client.off("error", onError);
         }
       }
       /**
-       * Watch user trades (fills) in real-time
-       *
-       * @param symbol - Optional symbol filter
-       * @returns AsyncGenerator yielding Trade updates
-       *
-       * @example
-       * ```typescript
-       * for await (const trade of wrapper.watchMyTrades()) {
-       *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
-       * }
-       * ```
+       * Build a JSON-RPC subscribe frame.
        */
-      async *watchMyTrades(symbol) {
-        if (!this.subAccountId) {
-          throw new Error("Sub-account ID required for watching fills");
-        }
-        const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : void 0;
-        const queue = [];
-        let error = null;
-        let subscriptionKey = null;
-        let resolver = null;
-        let rejecter = null;
-        const request = {
-          stream: import_ws.EStream.FILL,
-          params: {
-            sub_account_id: this.subAccountId,
-            ...instrument && { instrument }
-          },
-          onData: (data) => {
-            if (resolver) {
-              resolver(data);
-              resolver = null;
-              rejecter = null;
-            } else {
-              this.boundedPush(queue, data, "fills");
-            }
-          },
-          onError: (err2) => {
-            error = err2;
-            if (rejecter) {
-              rejecter(err2);
-              resolver = null;
-              rejecter = null;
-            }
-          }
-        };
-        try {
-          subscriptionKey = this.ws.subscribe(request);
-          while (true) {
-            if (error) throw error;
-            let data;
-            if (queue.length > 0) {
-              data = queue.shift();
-            } else {
-              data = await new Promise((resolve, reject) => {
-                resolver = resolve;
-                rejecter = reject;
-              });
-            }
-            if (error) throw error;
-            const trade = {
-              id: data.fill_id || data.id || String(Date.now()),
-              symbol: this.normalizer.symbolToCCXT(data.instrument || data.symbol),
-              orderId: data.order_id,
-              side: data.is_buyer ? "buy" : "sell",
-              price: parseFloat(data.price || "0"),
-              amount: parseFloat(data.filled || data.quantity || "0"),
-              cost: parseFloat(data.price || "0") * parseFloat(data.filled || data.quantity || "0"),
-              timestamp: data.event_time || Date.now(),
-              info: data
-            };
-            yield trade;
-          }
-        } finally {
-          if (subscriptionKey) {
-            this.ws.unsubscribe(subscriptionKey);
-          }
-        }
+      subscribeFrame(stream, selectors) {
+        return JSON.stringify({
+          jsonrpc: "2.0",
+          method: "subscribe",
+          params: { stream, selectors },
+          id: this.nextId++
+        });
       }
       /**
-       * Check if WebSocket is connected
+       * Parse a WS frame into `{ stream, feed }`, returning null on non-object input.
        */
-      get connected() {
-        return this.isConnected;
+      parseFrame(raw) {
+        let obj = raw;
+        if (typeof raw === "string") {
+          try {
+            obj = JSON.parse(raw);
+          } catch {
+            return null;
+          }
+        }
+        if (!obj || typeof obj !== "object") {
+          return null;
+        }
+        return obj;
+      }
+      /**
+       * The private selector: the sub-account id, optionally scoped to an instrument.
+       */
+      privateSelector(instrument) {
+        const subAccountId = this.session?.subAccountId ?? "";
+        return instrument ? `${subAccountId}@${instrument}` : subAccountId;
+      }
+      /**
+       * Push with a bounded queue (drop oldest under backpressure).
+       */
+      boundedPush(queue, item, channel) {
+        if (queue.length >= _GRVTWebSocketWrapper.MAX_QUEUE_SIZE) {
+          queue.shift();
+          this.logger.warn(`Queue overflow on ${channel}, dropping oldest message`);
+        }
+        queue.push(item);
+      }
+      /**
+       * @throws {Error} if no session is configured for a private stream.
+       */
+      requireSession() {
+        if (!this.session) {
+          throw new Error("Session required for private GRVT WebSocket streams");
+        }
       }
     };
   }
@@ -15331,13 +15076,10 @@ var init_GRVTAdapter = __esm({
         fetchOHLCV: true,
         fetchFundingRate: true,
         fetchFundingRateHistory: false,
-        // GRVT doesn't provide historical funding rates
         fetchPositions: true,
         fetchBalance: true,
         fetchOrderHistory: true,
-        // NOW IMPLEMENTED via SDK
         fetchMyTrades: true,
-        // NOW IMPLEMENTED via SDK
         createOrder: true,
         createBatchOrders: true,
         cancelOrder: true,
@@ -15351,7 +15093,7 @@ var init_GRVTAdapter = __esm({
         watchMyTrades: true,
         cancelBatchOrders: false,
         editOrder: false,
-        fetchOpenOrders: false,
+        fetchOpenOrders: true,
         setLeverage: false,
         setMarginMode: false
       };
@@ -15362,15 +15104,17 @@ var init_GRVTAdapter = __esm({
       rateLimiter;
       testnet;
       builderCode;
+      builderFee;
       builderCodeEnabled;
+      /** instrument -> { instrument_hash, base_decimals }, cached from fetchMarkets. */
+      instrumentMeta = /* @__PURE__ */ new Map();
       constructor(config = {}) {
         super(config);
         this.testnet = config.testnet ?? false;
-        const urls = this.testnet ? GRVT_API_URLS.testnet : GRVT_API_URLS.mainnet;
         this.auth = new GRVTAuth(config);
         this.normalizer = new GRVTNormalizer();
         this.sdk = new GRVTSDKWrapper({
-          host: urls.rest,
+          testnet: this.testnet,
           apiKey: config.apiKey,
           timeout: config.timeout
         });
@@ -15381,6 +15125,7 @@ var init_GRVTAdapter = __esm({
           weights: GRVT_ENDPOINT_WEIGHTS
         });
         this.builderCode = config.builderCode;
+        this.builderFee = config.builderFee;
         this.builderCodeEnabled = config.builderCodeEnabled ?? true;
       }
       async initialize() {
@@ -15393,18 +15138,28 @@ var init_GRVTAdapter = __esm({
               "grvt"
             );
           }
+          const session = await this.sdk.login();
+          this.auth.setSession(session);
         }
         this._isReady = true;
       }
-      // ==================== Market Data Methods ====================
+      // ==================== Market Data ====================
       async fetchMarkets(params) {
         await this.rateLimiter.acquire("fetchMarkets");
         try {
-          const response = await this.sdk.getAllInstruments();
-          if (!response.result) {
+          const result = await this.sdk.getInstruments();
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          let markets = this.normalizer.normalizeMarkets(response.result);
+          for (const m of result) {
+            if (m.instrument && m.instrument_hash) {
+              this.instrumentMeta.set(m.instrument, {
+                instrumentHash: m.instrument_hash,
+                baseDecimals: m.base_decimals
+              });
+            }
+          }
+          let markets = this.normalizer.normalizeMarkets(result);
           if (params?.active !== void 0) {
             markets = markets.filter((m) => m.active === params.active);
           }
@@ -15417,11 +15172,11 @@ var init_GRVTAdapter = __esm({
         await this.rateLimiter.acquire("fetchTicker");
         try {
           const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-          const response = await this.sdk.getTicker(grvtSymbol);
-          if (!response.result) {
+          const result = await this.sdk.getTicker(grvtSymbol);
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          return this.normalizer.normalizeTicker(response.result);
+          return this.normalizer.normalizeTicker(result);
         } catch (error) {
           throw mapAxiosError(error);
         }
@@ -15430,13 +15185,12 @@ var init_GRVTAdapter = __esm({
         await this.rateLimiter.acquire("fetchOrderBook");
         try {
           const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-          const requestedLimit = params?.limit || 50;
-          const depth = requestedLimit <= 10 ? 10 : requestedLimit <= 50 ? 50 : 100;
-          const response = await this.sdk.getOrderBook(grvtSymbol, depth);
-          if (!response.result) {
+          const depth = this.resolveDepth(params?.limit);
+          const result = await this.sdk.getOrderBook(grvtSymbol, depth);
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          return this.normalizer.normalizeOrderBook(response.result);
+          return this.normalizer.normalizeOrderBook(result);
         } catch (error) {
           throw mapAxiosError(error);
         }
@@ -15445,26 +15199,15 @@ var init_GRVTAdapter = __esm({
         await this.rateLimiter.acquire("fetchTrades");
         try {
           const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-          const response = await this.sdk.getTradeHistory({
-            instrument: grvtSymbol,
-            limit: params?.limit || 100
-          });
-          if (!response.result) {
+          const result = await this.sdk.getTrades(grvtSymbol, params?.limit ?? 100);
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          return this.normalizer.normalizeTrades(response.result);
+          return this.normalizer.normalizeTrades(result);
         } catch (error) {
           throw mapAxiosError(error);
         }
       }
-      /**
-       * Fetch OHLCV (candlestick) data
-       *
-       * @param symbol - Symbol in unified format (e.g., "BTC/USDT:USDT")
-       * @param timeframe - Candlestick timeframe
-       * @param params - Optional parameters (since, until, limit)
-       * @returns Array of OHLCV tuples [timestamp, open, high, low, close, volume]
-       */
       async fetchOHLCV(symbol, timeframe = "1h", params) {
         await this.rateLimiter.acquire("fetchOHLCV");
         try {
@@ -15494,13 +15237,11 @@ var init_GRVTAdapter = __esm({
           };
           const interval = intervalMap[timeframe] || "CI_1_H";
           const now = Date.now();
-          const defaultDuration = this.getDefaultDuration(timeframe);
-          const startTime = params?.since ?? now - defaultDuration;
+          const startTime = params?.since ?? now - this.getDefaultDuration(timeframe);
           const endTime = params?.until ?? now;
           const startTimeNs = (BigInt(startTime) * 1000000n).toString();
           const endTimeNs = (BigInt(endTime) * 1000000n).toString();
-          const restUrl = this.testnet ? GRVT_API_URLS.testnet.rest : GRVT_API_URLS.mainnet.rest;
-          const response = await this.sdk.mdgAxios.post(`${restUrl}/full/v1/kline`, {
+          const result = await this.sdk.getKline({
             instrument: grvtSymbol,
             interval,
             type: "TRADE",
@@ -15508,7 +15249,6 @@ var init_GRVTAdapter = __esm({
             end_time: endTimeNs,
             limit: params?.limit ?? 100
           });
-          const result = response.data?.result;
           if (!result || !Array.isArray(result)) {
             return [];
           }
@@ -15526,122 +15266,107 @@ var init_GRVTAdapter = __esm({
           throw mapAxiosError(error);
         }
       }
-      /**
-       * Get default duration based on timeframe for initial data fetch
-       */
       getDefaultDuration(timeframe) {
+        const day = 24 * 60 * 60 * 1e3;
         const durationMap = {
-          "1m": 24 * 60 * 60 * 1e3,
-          // 24 hours
-          "3m": 3 * 24 * 60 * 60 * 1e3,
-          // 3 days
-          "5m": 5 * 24 * 60 * 60 * 1e3,
-          // 5 days
-          "15m": 7 * 24 * 60 * 60 * 1e3,
-          // 7 days
-          "30m": 14 * 24 * 60 * 60 * 1e3,
-          // 14 days
-          "1h": 30 * 24 * 60 * 60 * 1e3,
-          // 30 days
-          "2h": 60 * 24 * 60 * 60 * 1e3,
-          // 60 days
-          "4h": 90 * 24 * 60 * 60 * 1e3,
-          // 90 days
-          "6h": 120 * 24 * 60 * 60 * 1e3,
-          // 120 days
-          "8h": 180 * 24 * 60 * 60 * 1e3,
-          // 180 days
-          "12h": 365 * 24 * 60 * 60 * 1e3,
-          // 1 year
-          "1d": 365 * 24 * 60 * 60 * 1e3,
-          // 1 year
-          "3d": 2 * 365 * 24 * 60 * 60 * 1e3,
-          // 2 years
-          "1w": 3 * 365 * 24 * 60 * 60 * 1e3,
-          // 3 years
-          "1M": 5 * 365 * 24 * 60 * 60 * 1e3
-          // 5 years
+          "1m": day,
+          "3m": 3 * day,
+          "5m": 5 * day,
+          "15m": 7 * day,
+          "30m": 14 * day,
+          "1h": 30 * day,
+          "2h": 60 * day,
+          "4h": 90 * day,
+          "6h": 120 * day,
+          "8h": 180 * day,
+          "12h": 365 * day,
+          "1d": 365 * day,
+          "3d": 2 * 365 * day,
+          "1w": 3 * 365 * day,
+          "1M": 5 * 365 * day
         };
-        return durationMap[timeframe] || 30 * 24 * 60 * 60 * 1e3;
+        return durationMap[timeframe] || 30 * day;
       }
       async _fetchFundingRate(symbol) {
         await this.rateLimiter.acquire("fetchFundingRate");
         try {
           const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-          const response = await this.sdk.getFunding(grvtSymbol);
-          if (!response.result || response.result.length === 0) {
+          const result = await this.sdk.getFunding(grvtSymbol);
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          const funding = response.result[0];
-          if (!funding) {
+          const entry = Array.isArray(result) ? result[0] : result;
+          if (!entry) {
             throw new PerpDEXError("No funding data available", "NO_FUNDING_DATA", "grvt");
           }
-          const fundingTimestamp = funding.funding_time ? parseInt(funding.funding_time) : Date.now();
-          const fundingIntervalHours = funding.funding_interval_hours ?? 8;
-          const nextFundingTimestamp = fundingTimestamp + fundingIntervalHours * 60 * 60 * 1e3;
-          return {
-            symbol,
-            fundingRate: parseFloat(funding.funding_rate ?? "0"),
-            fundingTimestamp,
-            nextFundingTimestamp,
-            markPrice: parseFloat(funding.mark_price ?? "0"),
-            indexPrice: 0,
-            // Not provided in funding API
-            fundingIntervalHours,
-            info: funding
-          };
+          return this.normalizer.normalizeFundingRate(entry);
         } catch (error) {
           throw mapAxiosError(error);
         }
       }
-      // ==================== Trading Methods ====================
+      // ==================== Trading ====================
       async createOrder(request) {
         const validatedRequest = this.validateOrder(request);
         this.auth.requireAuth();
         await this.rateLimiter.acquire("createOrder");
         try {
           const grvtSymbol = this.normalizer.symbolFromCCXT(validatedRequest.symbol);
-          const orderRequest = {
-            instrument: grvtSymbol,
-            order_type: this.mapOrderType(validatedRequest.type),
-            side: validatedRequest.side === "buy" ? "BUY" : "SELL",
-            size: validatedRequest.amount.toString(),
-            price: validatedRequest.price?.toString() || "0",
-            time_in_force: this.mapTimeInForce(validatedRequest.timeInForce),
-            reduce_only: validatedRequest.reduceOnly || false,
-            post_only: validatedRequest.postOnly || false,
-            client_order_id: validatedRequest.clientOrderId
-          };
+          const meta = await this.getInstrumentMeta(grvtSymbol);
+          const subAccountId = this.requireSubAccountId();
+          const isMarket = validatedRequest.type === "market";
+          const postOnly = validatedRequest.postOnly ?? false;
+          const reduceOnly = validatedRequest.reduceOnly ?? false;
+          const timeInForce = this.resolveSignTimeInForce(validatedRequest.timeInForce, isMarket, postOnly);
           const builderCode = this.builderCodeEnabled ? request.builderCode ?? this.builderCode : void 0;
-          if (builderCode) {
-            orderRequest.builder_id = builderCode;
-          }
-          if (this.auth.getAddress()) {
-            const payload = {
-              instrument: grvtSymbol,
-              order_type: orderRequest.order_type,
-              side: orderRequest.side,
-              size: orderRequest.size,
-              price: orderRequest.price,
-              time_in_force: orderRequest.time_in_force,
-              reduce_only: orderRequest.reduce_only,
-              post_only: orderRequest.post_only,
-              nonce: this.auth.getNextNonce(),
-              expiry: Date.now() + 6e4
-              // 1 minute
-            };
-            const signature = await this.auth.createSignature(payload);
-            orderRequest.signature = signature;
-          }
-          const response = await this.sdk.createOrder(orderRequest);
-          if (!response.result) {
+          const signature = await this.auth.signOrder({
+            subAccountId,
+            isMarket,
+            timeInForce,
+            postOnly,
+            reduceOnly,
+            legs: [
+              {
+                instrumentHash: meta.instrumentHash,
+                baseDecimals: meta.baseDecimals,
+                size: validatedRequest.amount.toString(),
+                limitPrice: (validatedRequest.price ?? 0).toString(),
+                isBuyingAsset: validatedRequest.side === "buy"
+              }
+            ],
+            builder: builderCode,
+            builderFee: builderCode ? this.builderFee : void 0
+          });
+          const body = {
+            sub_account_id: subAccountId,
+            is_market: isMarket,
+            time_in_force: GRVT_UNIFIED_TIF_TO_API[validatedRequest.timeInForce ?? (postOnly ? "PO" : "GTC")],
+            post_only: postOnly,
+            reduce_only: reduceOnly,
+            legs: [
+              {
+                instrument: grvtSymbol,
+                size: validatedRequest.amount.toString(),
+                limit_price: (validatedRequest.price ?? 0).toString(),
+                is_buying_asset: validatedRequest.side === "buy"
+              }
+            ],
+            signature: {
+              r: signature.r,
+              s: signature.s,
+              v: signature.v,
+              expiration: signature.expiration,
+              nonce: signature.nonce,
+              signer: signature.signer
+            },
+            metadata: {
+              client_order_id: validatedRequest.clientOrderId ?? this.generateClientOrderId()
+            }
+          };
+          const result = await this.sdk.createOrder(body);
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          const sessionCookie = this.sdk.getSessionCookie();
-          if (sessionCookie) {
-            this.auth.setSessionCookie(sessionCookie);
-          }
-          return this.normalizer.normalizeOrder(response.result);
+          return this.normalizer.normalizeOrder(result);
         } catch (error) {
           throw mapAxiosError(error);
         }
@@ -15650,24 +15375,25 @@ var init_GRVTAdapter = __esm({
         this.auth.requireAuth();
         await this.rateLimiter.acquire("cancelOrder");
         try {
-          const response = await this.sdk.cancelOrder({ order_id: orderId });
-          if (!response.result) {
+          const subAccountId = this.requireSubAccountId();
+          const result = await this.sdk.cancelOrder({
+            sub_account_id: subAccountId,
+            order_id: orderId
+          });
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          return this.normalizer.normalizeOrder(response.result);
+          return this.normalizer.normalizeOrder(result);
         } catch (error) {
           throw mapAxiosError(error);
         }
       }
-      async cancelAllOrders(symbol) {
+      async cancelAllOrders(_symbol) {
         this.auth.requireAuth();
         await this.rateLimiter.acquire("cancelAllOrders");
         try {
-          const params = {};
-          if (symbol) {
-            params.instrument = this.normalizer.symbolFromCCXT(symbol);
-          }
-          await this.sdk.cancelAllOrders(params);
+          const subAccountId = this.requireSubAccountId();
+          await this.sdk.cancelAllOrders(subAccountId);
           return [];
         } catch (error) {
           throw mapAxiosError(error);
@@ -15677,69 +15403,58 @@ var init_GRVTAdapter = __esm({
         this.auth.requireAuth();
         await this.rateLimiter.acquire("fetchOpenOrders");
         try {
-          const params = {};
-          if (symbol) {
-            params.instrument = this.normalizer.symbolFromCCXT(symbol);
-          }
-          const response = await this.sdk.getOpenOrders(params);
-          if (!response.result) {
+          const subAccountId = this.requireSubAccountId();
+          const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : void 0;
+          const result = await this.sdk.getOpenOrders(subAccountId, instrument);
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          return this.normalizer.normalizeOrders(response.result);
+          return this.normalizer.normalizeOrders(result);
         } catch (error) {
           throw mapAxiosError(error);
         }
       }
-      /**
-       * Fetch order history - NOW IMPLEMENTED via SDK!
-       */
       async fetchOrderHistory(symbol, _since, limit) {
         this.auth.requireAuth();
         await this.rateLimiter.acquire("fetchClosedOrders");
         try {
-          const params = { limit: limit || 100 };
-          if (symbol) {
-            params.instrument = this.normalizer.symbolFromCCXT(symbol);
-          }
-          const response = await this.sdk.getOrderHistory(params);
-          if (!response.result) {
+          const subAccountId = this.requireSubAccountId();
+          const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : void 0;
+          const result = await this.sdk.getOrderHistory(subAccountId, instrument, limit ?? 100);
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          return this.normalizer.normalizeOrders(response.result);
+          return this.normalizer.normalizeOrders(result);
         } catch (error) {
           throw mapAxiosError(error);
         }
       }
-      /**
-       * Fetch user trade history - NOW IMPLEMENTED via SDK!
-       */
       async fetchMyTrades(symbol, _since, limit) {
         this.auth.requireAuth();
         await this.rateLimiter.acquire("fetchMyTrades");
         try {
-          const params = { limit: limit || 100 };
-          if (symbol) {
-            params.instrument = this.normalizer.symbolFromCCXT(symbol);
-          }
-          const response = await this.sdk.getFillHistory(params);
-          if (!response.result) {
+          const subAccountId = this.requireSubAccountId();
+          const instrument = symbol ? this.normalizer.symbolFromCCXT(symbol) : void 0;
+          const result = await this.sdk.getFillHistory(subAccountId, instrument, limit ?? 100);
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          return this.normalizer.normalizeFills(response.result);
+          return this.normalizer.normalizeFills(result);
         } catch (error) {
           throw mapAxiosError(error);
         }
       }
-      // ==================== Account Methods ====================
+      // ==================== Account ====================
       async fetchPositions(symbols) {
         this.auth.requireAuth();
         await this.rateLimiter.acquire("fetchPositions");
         try {
-          const response = await this.sdk.getPositions();
-          if (!response.result) {
+          const subAccountId = this.requireSubAccountId();
+          const result = await this.sdk.getPositions(subAccountId);
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          let positions = this.normalizer.normalizePositions(response.result);
+          let positions = this.normalizer.normalizePositions(result);
           if (symbols && symbols.length > 0) {
             positions = positions.filter((p) => symbols.includes(p.symbol));
           }
@@ -15752,36 +15467,93 @@ var init_GRVTAdapter = __esm({
         this.auth.requireAuth();
         await this.rateLimiter.acquire("fetchBalance");
         try {
-          const response = await this.sdk.getSubAccountSummary();
-          if (!response.result) {
+          const subAccountId = this.requireSubAccountId();
+          const result = await this.sdk.getSubAccountSummary(subAccountId);
+          if (!result) {
             throw new PerpDEXError("Invalid API response", "INVALID_RESPONSE", "grvt");
           }
-          const balances = response.result.spot_balances || [];
-          return this.normalizer.normalizeBalances(balances);
+          return this.normalizer.normalizeBalances(result.spot_balances ?? []);
         } catch (error) {
           throw mapAxiosError(error);
         }
       }
-      // ==================== Helper Methods ====================
-      mapOrderType(type) {
-        const typeMap = {
-          market: "MARKET",
-          limit: "LIMIT",
-          limitMaker: "LIMIT_MAKER"
-        };
-        return typeMap[type] || "LIMIT";
+      // ==================== Helpers ====================
+      /**
+       * Resolve a requested book depth to the nearest valid GRVT depth.
+       */
+      resolveDepth(limit) {
+        const requested = limit ?? 50;
+        for (const depth of GRVT_BOOK_DEPTHS) {
+          if (requested <= depth) {
+            return depth;
+          }
+        }
+        return 500;
       }
-      mapTimeInForce(tif) {
-        if (!tif) return "GTC";
-        const tifMap = {
-          GTC: "GTC",
-          IOC: "IOC",
-          FOK: "FOK",
-          PO: "POST_ONLY"
-        };
-        return tifMap[tif] || "GTC";
+      /**
+       * Map the unified TIF + market/post-only intent to the SIGN-enum TIF key.
+       * Maker quotes (post_only, non-market) use GOOD_TILL_TIME.
+       */
+      resolveSignTimeInForce(tif, isMarket, postOnly) {
+        if (postOnly && !isMarket) {
+          return "GOOD_TILL_TIME";
+        }
+        switch (tif) {
+          case "IOC":
+            return "IMMEDIATE_OR_CANCEL";
+          case "FOK":
+            return "FILL_OR_KILL";
+          case "GTC":
+          case "PO":
+          default:
+            return isMarket ? "IMMEDIATE_OR_CANCEL" : "GOOD_TILL_TIME";
+        }
       }
-      // ==================== Required BaseAdapter Methods ====================
+      /**
+       * Get cached instrument meta (hash + base_decimals), fetching markets if the
+       * cache is cold.
+       *
+       * @throws {PerpDEXError} if the instrument is unknown after fetching markets.
+       */
+      async getInstrumentMeta(grvtSymbol) {
+        if (!this.instrumentMeta.has(grvtSymbol)) {
+          await this.fetchMarkets();
+        }
+        const meta = this.instrumentMeta.get(grvtSymbol);
+        if (!meta) {
+          throw new PerpDEXError(
+            `Unknown GRVT instrument: ${grvtSymbol}`,
+            "UNKNOWN_INSTRUMENT",
+            "grvt"
+          );
+        }
+        return meta;
+      }
+      /**
+       * The trading sub-account id from the active session.
+       *
+       * @throws {PerpDEXError} if no session/sub-account id is available.
+       */
+      requireSubAccountId() {
+        const subAccountId = this.sdk.getSubAccountId() ?? this.auth.getSession()?.subAccountId;
+        if (!subAccountId) {
+          throw new PerpDEXError(
+            "No GRVT sub-account id; call initialize() to log in first",
+            "NO_SUB_ACCOUNT",
+            "grvt"
+          );
+        }
+        return subAccountId;
+      }
+      /**
+       * Generate a GRVT client_order_id: a random integer in [2^63, 2^64-1].
+       */
+      generateClientOrderId() {
+        const min = 1n << 63n;
+        const span = (1n << 64n) - min;
+        const randomBits = BigInt(Math.floor(Math.random() * 4294967295)) << 32n | BigInt(Math.floor(Math.random() * 4294967295));
+        return (min + randomBits % span).toString();
+      }
       async fetchFundingRateHistory(_symbol, _since, _limit) {
         throw new PerpDEXError(
           "GRVT does not provide funding rate history via API",
@@ -15789,17 +15561,12 @@ var init_GRVTAdapter = __esm({
           "grvt"
         );
       }
-      async _setLeverage(symbol, leverage) {
-        await this.rateLimiter.acquire("modifyOrder");
-        try {
-          const grvtSymbol = this.normalizer.symbolFromCCXT(symbol);
-          await this.sdk.setInitialLeverage({
-            instrument: grvtSymbol,
-            leverage: leverage.toString()
-          });
-        } catch (error) {
-          throw mapAxiosError(error);
-        }
+      async _setLeverage(_symbol, _leverage) {
+        throw new NotSupportedError(
+          "GRVT uses cross-margin; setLeverage is not supported",
+          "NOT_SUPPORTED",
+          "grvt"
+        );
       }
       symbolToExchange(symbol) {
         return this.normalizer.symbolFromCCXT(symbol);
@@ -15807,158 +15574,56 @@ var init_GRVTAdapter = __esm({
       symbolFromExchange(exchangeSymbol) {
         return this.normalizer.symbolToCCXT(exchangeSymbol);
       }
-      // ==================== WebSocket Methods ====================
-      /**
-       * Initialize WebSocket connection if not already initialized
-       */
+      // ==================== WebSocket ====================
       async ensureWebSocket() {
         if (!this.ws) {
-          const subAccountId = this.config.subAccountId;
           this.ws = new GRVTWebSocketWrapper({
             testnet: this.testnet,
-            subAccountId,
+            session: this.auth.getSession(),
             timeout: this.config.timeout
           });
           await this.ws.connect();
         }
         return this.ws;
       }
-      /**
-       * Watch order book updates in real-time
-       *
-       * @param symbol - Trading symbol (e.g., "BTC/USDT:USDT")
-       * @param limit - Order book depth (default: 50)
-       * @returns AsyncGenerator yielding OrderBook updates
-       *
-       * @example
-       * ```typescript
-       * for await (const orderBook of adapter.watchOrderBook('BTC/USDT:USDT')) {
-       *   console.log('Best bid:', orderBook.bids[0]);
-       *   console.log('Best ask:', orderBook.asks[0]);
-       * }
-       * ```
-       */
       async *watchOrderBook(symbol, limit) {
         const ws = await this.ensureWebSocket();
-        const depth = limit || 50;
-        yield* ws.watchOrderBook(symbol, depth);
+        yield* ws.watchOrderBook(symbol, limit ?? 50);
       }
-      /**
-       * Watch public trades in real-time
-       *
-       * @param symbol - Trading symbol
-       * @returns AsyncGenerator yielding Trade updates
-       *
-       * @example
-       * ```typescript
-       * for await (const trade of adapter.watchTrades('BTC/USDT:USDT')) {
-       *   console.log('Trade:', trade.price, trade.amount, trade.side);
-       * }
-       * ```
-       */
       async *watchTrades(symbol) {
         const ws = await this.ensureWebSocket();
         yield* ws.watchTrades(symbol);
       }
-      /**
-       * Watch position updates in real-time
-       *
-       * @returns AsyncGenerator yielding Position array updates
-       *
-       * @example
-       * ```typescript
-       * for await (const positions of adapter.watchPositions()) {
-       *   for (const position of positions) {
-       *     console.log('Position:', position.symbol, position.size, position.unrealizedPnl);
-       *   }
-       * }
-       * ```
-       */
+      async *watchTicker(symbol) {
+        const ws = await this.ensureWebSocket();
+        yield* ws.watchTicker(symbol);
+      }
       async *watchPositions() {
         const ws = await this.ensureWebSocket();
         for await (const position of ws.watchPositions()) {
           yield [position];
         }
       }
-      /**
-       * Watch order updates in real-time
-       *
-       * @returns AsyncGenerator yielding Order array updates
-       *
-       * @example
-       * ```typescript
-       * for await (const orders of adapter.watchOrders()) {
-       *   for (const order of orders) {
-       *     console.log('Order update:', order.id, order.status, order.filled);
-       *   }
-       * }
-       * ```
-       */
       async *watchOrders() {
         const ws = await this.ensureWebSocket();
         for await (const order of ws.watchOrders()) {
           yield [order];
         }
       }
-      /**
-       * Watch ticker updates in real-time
-       *
-       * @param symbol - Trading symbol (e.g., "BTC/USDT:USDT")
-       * @returns AsyncGenerator yielding Ticker updates
-       *
-       * @example
-       * ```typescript
-       * for await (const ticker of adapter.watchTicker('BTC/USDT:USDT')) {
-       *   console.log('Price:', ticker.last);
-       * }
-       * ```
-       */
-      async *watchTicker(symbol) {
-        const ws = await this.ensureWebSocket();
-        yield* ws.watchTicker(symbol);
-      }
-      /**
-       * Watch balance updates in real-time
-       *
-       * @returns AsyncGenerator yielding Balance array
-       *
-       * @example
-       * ```typescript
-       * for await (const balances of adapter.watchBalance()) {
-       *   console.log('Balance update:', balances);
-       * }
-       * ```
-       */
       async *watchBalance() {
         const ws = await this.ensureWebSocket();
         yield* ws.watchBalance();
       }
-      /**
-       * Watch user trades (fills) in real-time
-       *
-       * @param symbol - Optional symbol filter
-       * @returns AsyncGenerator yielding Trade updates
-       *
-       * @example
-       * ```typescript
-       * for await (const trade of adapter.watchMyTrades()) {
-       *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
-       * }
-       * ```
-       */
       async *watchMyTrades(symbol) {
         const ws = await this.ensureWebSocket();
         yield* ws.watchMyTrades(symbol);
       }
-      /**
-       * Close WebSocket connection
-       */
       async disconnect() {
         if (this.ws) {
           this.ws.disconnect();
           this.ws = void 0;
         }
-        this.auth.clearSessionCookie();
+        this.auth.clearSession();
         this.sdk.clearSession();
         this._isReady = false;
       }
@@ -15967,95 +15632,65 @@ var init_GRVTAdapter = __esm({
 });
 
 // src/adapters/grvt/types.ts
-var GRVTMarketSchema, GRVTOrderBookSchema, GRVTOrderSchema, GRVTPositionSchema, GRVTBalanceSchema, GRVTTradeSchema, GRVTTickerSchema;
+var GRVTMarketSchema, GRVTOrderBookLevelSchema, GRVTOrderBookSchema, GRVTTradeSchema, GRVTTickerSchema;
 var init_types5 = __esm({
   "src/adapters/grvt/types.ts"() {
     "use strict";
     init_zod();
     GRVTMarketSchema = external_exports.object({
-      instrument_id: external_exports.string(),
       instrument: external_exports.string(),
-      base_currency: external_exports.string(),
-      quote_currency: external_exports.string(),
-      settlement_currency: external_exports.string(),
-      instrument_type: external_exports.string(),
-      is_active: external_exports.boolean(),
-      maker_fee: external_exports.string(),
-      taker_fee: external_exports.string(),
-      max_leverage: external_exports.string(),
-      min_size: external_exports.string(),
-      max_size: external_exports.string(),
+      instrument_hash: external_exports.string(),
+      base: external_exports.string(),
+      quote: external_exports.string(),
+      base_decimals: external_exports.number().int(),
+      quote_decimals: external_exports.number().int(),
       tick_size: external_exports.string(),
-      step_size: external_exports.string(),
-      mark_price: external_exports.string(),
-      index_price: external_exports.string(),
-      funding_rate: external_exports.string().optional(),
-      next_funding_time: external_exports.number().optional(),
-      open_interest: external_exports.string().optional()
+      min_size: external_exports.string(),
+      min_notional: external_exports.string().optional(),
+      max_size: external_exports.string().optional(),
+      funding_interval_hours: external_exports.number().optional(),
+      kind: external_exports.string(),
+      is_active: external_exports.boolean().optional()
     }).passthrough();
-    GRVTOrderBookSchema = external_exports.object({
-      instrument: external_exports.string(),
-      bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
-      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
-      timestamp: external_exports.number(),
-      sequence: external_exports.number()
-    }).passthrough();
-    GRVTOrderSchema = external_exports.object({
-      order_id: external_exports.string(),
-      client_order_id: external_exports.string().optional(),
-      instrument: external_exports.string(),
-      order_type: external_exports.string(),
-      side: external_exports.string(),
-      size: external_exports.string(),
-      price: external_exports.string().optional(),
-      time_in_force: external_exports.string(),
-      reduce_only: external_exports.boolean(),
-      post_only: external_exports.boolean(),
-      status: external_exports.string(),
-      filled_size: external_exports.string(),
-      average_fill_price: external_exports.string().optional(),
-      created_at: external_exports.number(),
-      updated_at: external_exports.number()
-    }).passthrough();
-    GRVTPositionSchema = external_exports.object({
-      instrument: external_exports.string(),
-      side: external_exports.string(),
-      size: external_exports.string(),
-      entry_price: external_exports.string(),
-      mark_price: external_exports.string(),
-      liquidation_price: external_exports.string().optional(),
-      unrealized_pnl: external_exports.string(),
-      realized_pnl: external_exports.string(),
-      margin: external_exports.string(),
-      leverage: external_exports.string(),
-      timestamp: external_exports.number()
-    }).passthrough();
-    GRVTBalanceSchema = external_exports.object({
-      currency: external_exports.string(),
-      total: external_exports.string(),
-      available: external_exports.string(),
-      reserved: external_exports.string(),
-      unrealized_pnl: external_exports.string()
-    }).passthrough();
-    GRVTTradeSchema = external_exports.object({
-      trade_id: external_exports.string(),
-      instrument: external_exports.string(),
-      side: external_exports.string(),
+    GRVTOrderBookLevelSchema = external_exports.object({
       price: external_exports.string(),
       size: external_exports.string(),
-      timestamp: external_exports.number(),
-      is_buyer_maker: external_exports.boolean()
+      num_orders: external_exports.number().optional()
+    }).passthrough();
+    GRVTOrderBookSchema = external_exports.object({
+      instrument: external_exports.string().optional(),
+      event_time: external_exports.string(),
+      bids: external_exports.array(GRVTOrderBookLevelSchema),
+      asks: external_exports.array(GRVTOrderBookLevelSchema)
+    }).passthrough();
+    GRVTTradeSchema = external_exports.object({
+      event_time: external_exports.string(),
+      instrument: external_exports.string().optional(),
+      is_taker_buyer: external_exports.boolean(),
+      size: external_exports.string(),
+      price: external_exports.string(),
+      mark_price: external_exports.string().optional(),
+      index_price: external_exports.string().optional(),
+      trade_id: external_exports.string(),
+      venue: external_exports.string().optional(),
+      is_rpi: external_exports.boolean().optional()
     }).passthrough();
     GRVTTickerSchema = external_exports.object({
-      instrument: external_exports.string(),
-      last_price: external_exports.string(),
-      best_bid: external_exports.string(),
-      best_ask: external_exports.string(),
-      volume_24h: external_exports.string(),
-      high_24h: external_exports.string(),
-      low_24h: external_exports.string(),
-      price_change_24h: external_exports.string(),
-      timestamp: external_exports.number()
+      instrument: external_exports.string().optional(),
+      event_time: external_exports.string().optional(),
+      mark_price: external_exports.string().optional(),
+      index_price: external_exports.string().optional(),
+      last_price: external_exports.string().optional(),
+      mid_price: external_exports.string().optional(),
+      best_bid_price: external_exports.string().optional(),
+      best_ask_price: external_exports.string().optional(),
+      best_bid_size: external_exports.string().optional(),
+      best_ask_size: external_exports.string().optional(),
+      buy_volume_24h_q: external_exports.string().optional(),
+      sell_volume_24h_q: external_exports.string().optional(),
+      open_interest: external_exports.string().optional(),
+      funding_rate: external_exports.string().optional(),
+      next_funding_time: external_exports.string().optional()
     }).passthrough();
   }
 });
@@ -16076,7 +15711,7 @@ function normalizeSymbol(grvtSymbol) {
     const [base, quote] = grvtSymbol.split("_");
     return `${base}/${quote || "USDT"}`;
   }
-  return grvtSymbol.replace("-", "/");
+  return `${grvtSymbol}/USDT:USDT`;
 }
 function toGRVTSymbol(symbol) {
   if (symbol.includes(":")) {
@@ -16093,192 +15728,176 @@ function toGRVTSymbol(symbol) {
   const quote = parts[1] || "USDT";
   return `${base}_${quote}`;
 }
+function num(value) {
+  if (!value) return 0;
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+function countDecimals(value) {
+  if (!value) return 0;
+  const parts = value.split(".");
+  return parts.length === 2 && parts[1] ? parts[1].length : 0;
+}
 function normalizeMarket(grvtMarket) {
-  const symbol = normalizeSymbol(grvtMarket.instrument);
+  const instrument = grvtMarket.instrument;
   return {
-    id: grvtMarket.instrument_id,
-    symbol,
-    base: grvtMarket.base_currency,
-    quote: grvtMarket.quote_currency,
-    settle: grvtMarket.settlement_currency,
-    active: grvtMarket.is_active,
-    minAmount: parseFloat(grvtMarket.min_size),
+    id: instrument,
+    symbol: normalizeSymbol(instrument),
+    base: grvtMarket.base,
+    quote: grvtMarket.quote,
+    settle: grvtMarket.quote,
+    active: grvtMarket.is_active ?? true,
+    minAmount: num(grvtMarket.min_size),
+    maxAmount: grvtMarket.max_size ? num(grvtMarket.max_size) : void 0,
+    minCost: grvtMarket.min_notional ? num(grvtMarket.min_notional) : void 0,
     pricePrecision: countDecimals(grvtMarket.tick_size),
-    amountPrecision: countDecimals(grvtMarket.step_size),
-    priceTickSize: parseFloat(grvtMarket.tick_size),
-    amountStepSize: parseFloat(grvtMarket.step_size),
-    makerFee: parseFloat(grvtMarket.maker_fee),
-    takerFee: parseFloat(grvtMarket.taker_fee),
-    maxLeverage: parseFloat(grvtMarket.max_leverage),
-    fundingIntervalHours: 8
+    amountPrecision: countDecimals(grvtMarket.min_size),
+    priceTickSize: num(grvtMarket.tick_size),
+    amountStepSize: num(grvtMarket.min_size),
+    makerFee: 0,
+    takerFee: 0,
+    maxLeverage: GRVT_MAX_LEVERAGE,
+    fundingIntervalHours: grvtMarket.funding_interval_hours ?? 8,
+    info: grvtMarket
   };
 }
 function normalizeOrder(grvtOrder) {
-  const symbol = normalizeSymbol(grvtOrder.instrument);
+  const leg = grvtOrder.legs?.[0];
+  const amount = num(leg?.size);
+  const traded = num(grvtOrder.state?.traded_size?.[0]);
+  const book = num(grvtOrder.state?.book_size?.[0]);
   return {
-    id: grvtOrder.order_id,
-    clientOrderId: grvtOrder.client_order_id,
-    symbol,
-    type: normalizeOrderType(grvtOrder.order_type),
-    side: normalizeOrderSide(grvtOrder.side),
-    amount: parseFloat(grvtOrder.size),
-    price: grvtOrder.price ? parseFloat(grvtOrder.price) : void 0,
-    filled: parseFloat(grvtOrder.filled_size),
-    remaining: parseFloat(grvtOrder.size) - parseFloat(grvtOrder.filled_size),
-    averagePrice: grvtOrder.average_fill_price ? parseFloat(grvtOrder.average_fill_price) : void 0,
-    status: normalizeOrderStatus(grvtOrder.status),
-    timeInForce: normalizeTimeInForce(grvtOrder.time_in_force),
-    postOnly: grvtOrder.post_only,
-    reduceOnly: grvtOrder.reduce_only,
-    timestamp: grvtOrder.created_at,
-    lastUpdateTimestamp: grvtOrder.updated_at,
+    id: grvtOrder.order_id || "",
+    clientOrderId: grvtOrder.metadata?.client_order_id,
+    symbol: normalizeSymbol(leg?.instrument || ""),
+    type: grvtOrder.is_market ? "market" : "limit",
+    side: leg?.is_buying_asset ? "buy" : "sell",
+    amount,
+    price: leg?.limit_price ? num(leg.limit_price) : void 0,
+    filled: traded,
+    remaining: book,
+    averagePrice: grvtOrder.state?.avg_fill_price?.[0] ? num(grvtOrder.state.avg_fill_price[0]) : void 0,
+    status: normalizeOrderStatus(grvtOrder.state?.status || ""),
+    timeInForce: normalizeTimeInForce(grvtOrder.time_in_force || ""),
+    postOnly: grvtOrder.post_only || false,
+    reduceOnly: grvtOrder.reduce_only || false,
+    timestamp: grvtOrder.metadata?.create_time ? parseInt(grvtOrder.metadata.create_time, 10) : Date.now(),
+    lastUpdateTimestamp: grvtOrder.state?.update_time ? parseInt(grvtOrder.state.update_time, 10) : void 0,
     info: grvtOrder
   };
 }
 function normalizePosition(grvtPosition) {
-  const symbol = normalizeSymbol(grvtPosition.instrument);
-  const size = parseFloat(grvtPosition.size);
-  const side = grvtPosition.side === "LONG" ? "long" : "short";
+  const size = num(grvtPosition.size);
+  const leverage = num(grvtPosition.leverage);
+  const notional = num(grvtPosition.notional);
+  const margin = leverage > 0 ? notional / leverage : 0;
   return {
-    symbol,
-    side,
+    symbol: normalizeSymbol(grvtPosition.instrument || ""),
+    side: size >= 0 ? "long" : "short",
     marginMode: "cross",
     size: Math.abs(size),
-    entryPrice: parseFloat(grvtPosition.entry_price),
-    markPrice: parseFloat(grvtPosition.mark_price),
-    liquidationPrice: grvtPosition.liquidation_price ? parseFloat(grvtPosition.liquidation_price) : 0,
-    unrealizedPnl: parseFloat(grvtPosition.unrealized_pnl),
-    realizedPnl: parseFloat(grvtPosition.realized_pnl),
-    margin: parseFloat(grvtPosition.margin),
-    leverage: parseFloat(grvtPosition.leverage),
-    maintenanceMargin: parseFloat(grvtPosition.margin) * 5e-3,
-    marginRatio: 0,
-    timestamp: grvtPosition.timestamp,
+    entryPrice: num(grvtPosition.entry_price),
+    markPrice: num(grvtPosition.mark_price),
+    liquidationPrice: grvtPosition.est_liquidation_price ? num(grvtPosition.est_liquidation_price) : 0,
+    unrealizedPnl: num(grvtPosition.unrealized_pnl),
+    realizedPnl: num(grvtPosition.realized_pnl),
+    margin,
+    leverage,
+    maintenanceMargin: margin * 0.5,
+    marginRatio: margin > 0 && notional > 0 ? margin / notional * 100 : 0,
+    timestamp: grvtPosition.event_time ? parseInt(grvtPosition.event_time, 10) : Date.now(),
     info: grvtPosition
   };
 }
 function normalizeBalance(grvtBalance) {
+  const total = num(grvtBalance.balance);
   return {
-    currency: grvtBalance.currency,
-    total: parseFloat(grvtBalance.total),
-    free: parseFloat(grvtBalance.available),
-    used: parseFloat(grvtBalance.reserved),
+    currency: grvtBalance.currency || "",
+    total,
+    free: total,
+    used: 0,
     info: grvtBalance
   };
 }
 function normalizeOrderBook(grvtOrderBook) {
   return {
-    symbol: normalizeSymbol(grvtOrderBook.instrument),
+    symbol: normalizeSymbol(grvtOrderBook.instrument || ""),
     exchange: "grvt",
-    bids: grvtOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-    asks: grvtOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-    timestamp: grvtOrderBook.timestamp
-    // nonce: grvtOrderBook.sequence,
+    bids: (grvtOrderBook.bids || []).map((lvl) => [num(lvl.price), num(lvl.size)]),
+    asks: (grvtOrderBook.asks || []).map((lvl) => [num(lvl.price), num(lvl.size)]),
+    timestamp: grvtOrderBook.event_time ? parseInt(grvtOrderBook.event_time, 10) : Date.now()
   };
 }
 function normalizeTrade(grvtTrade) {
-  const price = parseFloat(grvtTrade.price);
-  const amount = parseFloat(grvtTrade.size);
+  const price = num(grvtTrade.price);
+  const amount = num(grvtTrade.size);
   return {
     id: grvtTrade.trade_id,
-    symbol: normalizeSymbol(grvtTrade.instrument),
-    side: normalizeOrderSide(grvtTrade.side),
+    symbol: normalizeSymbol(grvtTrade.instrument || ""),
+    side: grvtTrade.is_taker_buyer ? "buy" : "sell",
     price,
     amount,
     cost: price * amount,
-    timestamp: grvtTrade.timestamp,
+    timestamp: grvtTrade.event_time ? parseInt(grvtTrade.event_time, 10) : Date.now(),
     info: grvtTrade
   };
 }
 function normalizeTicker(grvtTicker) {
-  const last = parseFloat(grvtTicker.last_price);
+  const last = num(grvtTicker.last_price ?? grvtTicker.mark_price);
+  const buyVolume = num(grvtTicker.buy_volume_24h_q);
+  const sellVolume = num(grvtTicker.sell_volume_24h_q);
   return {
-    symbol: normalizeSymbol(grvtTicker.instrument),
+    symbol: normalizeSymbol(grvtTicker.instrument || ""),
     last,
     open: last,
     close: last,
-    bid: parseFloat(grvtTicker.best_bid),
-    ask: parseFloat(grvtTicker.best_ask),
-    high: parseFloat(grvtTicker.high_24h),
-    low: parseFloat(grvtTicker.low_24h),
+    bid: num(grvtTicker.best_bid_price),
+    bidVolume: num(grvtTicker.best_bid_size),
+    ask: num(grvtTicker.best_ask_price),
+    askVolume: num(grvtTicker.best_ask_size),
+    high: last,
+    low: last,
     change: 0,
     percentage: 0,
-    baseVolume: parseFloat(grvtTicker.volume_24h),
-    quoteVolume: 0,
-    timestamp: grvtTicker.timestamp,
+    baseVolume: 0,
+    quoteVolume: buyVolume + sellVolume,
+    timestamp: grvtTicker.event_time ? parseInt(grvtTicker.event_time, 10) : Date.now(),
     info: grvtTicker
   };
 }
-function normalizeOrderType(grvtType) {
-  switch (grvtType) {
-    case "MARKET":
-      return "market";
-    case "LIMIT":
-    case "LIMIT_MAKER":
-      return "limit";
-    default:
-      return "limit";
-  }
-}
-function normalizeOrderSide(grvtSide) {
-  return grvtSide === "BUY" ? "buy" : "sell";
-}
 function normalizeOrderStatus(grvtStatus) {
-  const statusMap = {
-    PENDING: "open",
-    OPEN: "open",
-    PARTIALLY_FILLED: "partiallyFilled",
-    FILLED: "filled",
-    CANCELLED: "canceled",
-    REJECTED: "rejected"
-  };
-  return statusMap[grvtStatus] ?? "open";
+  const mapped = GRVT_ORDER_STATUS[grvtStatus];
+  return mapped ?? "open";
 }
 function normalizeTimeInForce(grvtTif) {
   switch (grvtTif) {
-    case "GTC":
-      return "GTC";
-    case "IOC":
+    case "IMMEDIATE_OR_CANCEL":
       return "IOC";
-    case "FOK":
+    case "FILL_OR_KILL":
       return "FOK";
-    case "POST_ONLY":
-      return "PO";
+    case "GOOD_TILL_TIME":
     default:
       return "GTC";
   }
-}
-function toGRVTOrderType(type, postOnly) {
-  if (type === "market") {
-    return GRVT_ORDER_TYPES.market;
-  }
-  if (postOnly) {
-    return GRVT_ORDER_TYPES.limitMaker;
-  }
-  return GRVT_ORDER_TYPES.limit;
 }
 function toGRVTOrderSide(side) {
   return side === "buy" ? GRVT_ORDER_SIDES.buy : GRVT_ORDER_SIDES.sell;
 }
 function toGRVTTimeInForce(tif, postOnly) {
   if (postOnly) {
-    return GRVT_TIME_IN_FORCE.POST_ONLY;
+    return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
   }
   switch (tif) {
     case "IOC":
-      return GRVT_TIME_IN_FORCE.IOC;
+      return GRVT_TIME_IN_FORCE.IMMEDIATE_OR_CANCEL;
     case "FOK":
-      return GRVT_TIME_IN_FORCE.FOK;
+      return GRVT_TIME_IN_FORCE.FILL_OR_KILL;
     case "PO":
-      return GRVT_TIME_IN_FORCE.POST_ONLY;
+      return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
     case "GTC":
     default:
-      return GRVT_TIME_IN_FORCE.GTC;
+      return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
   }
-}
-function countDecimals(value) {
-  const parts = value.split(".");
-  return parts.length === 2 && parts[1] ? parts[1].length : 0;
 }
 function mapGRVTError2(error) {
   if (typeof error === "object" && error !== null) {
@@ -16303,10 +15922,7 @@ function mapGRVTError2(error) {
       case 5001:
         return { code: "EXCHANGE_UNAVAILABLE", message: "Exchange unavailable" };
       default:
-        return {
-          code: "UNKNOWN_ERROR",
-          message: err2.message ?? "Unknown error occurred"
-        };
+        return { code: "UNKNOWN_ERROR", message: err2.message ?? "Unknown error occurred" };
     }
   }
   return { code: "UNKNOWN_ERROR", message: "Unknown error occurred" };
@@ -16323,28 +15939,35 @@ var grvt_exports = {};
 __export(grvt_exports, {
   GRVTAdapter: () => GRVTAdapter,
   GRVTAuth: () => GRVTAuth,
-  GRVTBalanceSchema: () => GRVTBalanceSchema,
   GRVTMarketSchema: () => GRVTMarketSchema,
   GRVTNormalizer: () => GRVTNormalizer,
+  GRVTOrderBookLevelSchema: () => GRVTOrderBookLevelSchema,
   GRVTOrderBookSchema: () => GRVTOrderBookSchema,
-  GRVTOrderSchema: () => GRVTOrderSchema,
-  GRVTPositionSchema: () => GRVTPositionSchema,
   GRVTTickerSchema: () => GRVTTickerSchema,
   GRVTTradeSchema: () => GRVTTradeSchema,
   GRVT_API_URLS: () => GRVT_API_URLS,
-  GRVT_EIP712_DOMAIN: () => GRVT_EIP712_DOMAIN,
-  GRVT_EIP712_ORDER_TYPE: () => GRVT_EIP712_ORDER_TYPE,
+  GRVT_BOOK_DEPTHS: () => GRVT_BOOK_DEPTHS,
+  GRVT_BUILDER_FEE_DECIMALS: () => GRVT_BUILDER_FEE_DECIMALS,
+  GRVT_CHAIN_IDS: () => GRVT_CHAIN_IDS,
+  GRVT_EIP712_DOMAIN_NAME: () => GRVT_EIP712_DOMAIN_NAME,
+  GRVT_EIP712_DOMAIN_VERSION: () => GRVT_EIP712_DOMAIN_VERSION,
+  GRVT_EIP712_ORDER_TYPES: () => GRVT_EIP712_ORDER_TYPES,
+  GRVT_EIP712_ORDER_WITH_BUILDER_FEE_TYPES: () => GRVT_EIP712_ORDER_WITH_BUILDER_FEE_TYPES,
+  GRVT_ENDPOINTS: () => GRVT_ENDPOINTS,
   GRVT_ENDPOINT_WEIGHTS: () => GRVT_ENDPOINT_WEIGHTS,
-  GRVT_MAINTENANCE_MARGIN_RATE: () => GRVT_MAINTENANCE_MARGIN_RATE,
   GRVT_MAX_LEVERAGE: () => GRVT_MAX_LEVERAGE,
   GRVT_ORDER_SIDES: () => GRVT_ORDER_SIDES,
   GRVT_ORDER_STATUS: () => GRVT_ORDER_STATUS,
-  GRVT_ORDER_TYPES: () => GRVT_ORDER_TYPES,
+  GRVT_PERPETUAL_KIND: () => GRVT_PERPETUAL_KIND,
   GRVT_PRECISION: () => GRVT_PRECISION,
+  GRVT_PRICE_DECIMALS: () => GRVT_PRICE_DECIMALS,
   GRVT_RATE_LIMITS: () => GRVT_RATE_LIMITS,
   GRVT_SESSION_DURATION: () => GRVT_SESSION_DURATION,
+  GRVT_SESSION_REFRESH_BUFFER_MS: () => GRVT_SESSION_REFRESH_BUFFER_MS,
+  GRVT_SIGN_TIME_IN_FORCE: () => GRVT_SIGN_TIME_IN_FORCE,
   GRVT_TIME_IN_FORCE: () => GRVT_TIME_IN_FORCE,
-  GRVT_WS_CHANNELS: () => GRVT_WS_CHANNELS,
+  GRVT_UNIFIED_TIF_TO_API: () => GRVT_UNIFIED_TIF_TO_API,
+  GRVT_WS_STREAMS: () => GRVT_WS_STREAMS,
   mapGRVTError: () => mapGRVTError2,
   normalizeBalance: () => normalizeBalance,
   normalizeMarket: () => normalizeMarket,
@@ -16355,7 +15978,6 @@ __export(grvt_exports, {
   normalizeTicker: () => normalizeTicker,
   normalizeTrade: () => normalizeTrade,
   toGRVTOrderSide: () => toGRVTOrderSide,
-  toGRVTOrderType: () => toGRVTOrderType,
   toGRVTSymbol: () => toGRVTSymbol,
   toGRVTTimeInForce: () => toGRVTTimeInForce
 });
@@ -21027,10 +20649,10 @@ var init_ed25519 = __esm({
       return r >= 0n ? r : b + r;
     };
     modN = (a) => M(a, N);
-    invert = (num, md) => {
-      if (num === 0n || md <= 0n)
-        err("no inverse n=" + num + " mod=" + md);
-      let a = M(num, md), b = md, x = 0n, y = 1n, u = 1n, v = 0n;
+    invert = (num2, md) => {
+      if (num2 === 0n || md <= 0n)
+        err("no inverse n=" + num2 + " mod=" + md);
+      let a = M(num2, md), b = md, x = 0n, y = 1n, u = 1n, v = 0n;
       while (a !== 0n) {
         const q = b / a, r = b % a;
         const m = x - u * q, n = y - v * q;
@@ -21248,7 +20870,7 @@ var init_ed25519 = __esm({
     I = new Point(0n, 1n, 1n, 0n);
     Point.BASE = G;
     Point.ZERO = I;
-    numTo32bLE = (num) => hexToBytes2(padh(assertRange(num, 0n, B256), L2)).reverse();
+    numTo32bLE = (num2) => hexToBytes2(padh(assertRange(num2, 0n, B256), L2)).reverse();
     bytesToNumLE = (b) => big("0x" + bytesToHex2(u8fr(abytes(b)).reverse()));
     pow2 = (x, power) => {
       let r = x;
@@ -22484,11 +22106,11 @@ var init_types9 = __esm({
 });
 
 // src/adapters/nado/NadoAuth.ts
-var import_ethers3, EIP712_ORDER_TYPES, EIP712_CANCELLATION_TYPES, EIP712_STREAM_AUTH_TYPES, NadoAuth;
+var import_ethers4, EIP712_ORDER_TYPES, EIP712_CANCELLATION_TYPES, EIP712_STREAM_AUTH_TYPES, NadoAuth;
 var init_NadoAuth = __esm({
   "src/adapters/nado/NadoAuth.ts"() {
     "use strict";
-    import_ethers3 = require("ethers");
+    import_ethers4 = require("ethers");
     init_constants7();
     init_errors();
     EIP712_ORDER_TYPES = {
@@ -22783,7 +22405,7 @@ var init_NadoAuth = __esm({
         if (productId < 0 || !Number.isInteger(productId)) {
           throw new PerpDEXError(`Invalid product ID: ${productId}`, "INVALID_PRODUCT_ID", "nado");
         }
-        return import_ethers3.ethers.zeroPadValue(import_ethers3.ethers.toBeHex(productId), 20);
+        return import_ethers4.ethers.zeroPadValue(import_ethers4.ethers.toBeHex(productId), 20);
       }
     };
   }
@@ -23171,11 +22793,11 @@ var init_NadoAPIClient = __esm({
 });
 
 // src/adapters/nado/NadoNormalizer.ts
-var import_ethers4, NadoNormalizer;
+var import_ethers5, NadoNormalizer;
 var init_NadoNormalizer = __esm({
   "src/adapters/nado/NadoNormalizer.ts"() {
     "use strict";
-    import_ethers4 = require("ethers");
+    import_ethers5 = require("ethers");
     init_types9();
     init_constants7();
     init_errors();
@@ -23244,7 +22866,7 @@ var init_NadoNormalizer = __esm({
        */
       fromX18Safe(value) {
         try {
-          const formatted = import_ethers4.ethers.formatUnits(value, 18);
+          const formatted = import_ethers5.ethers.formatUnits(value, 18);
           const parsed = parseFloat(formatted);
           if (!Number.isFinite(parsed)) {
             throw new PerpDEXError(
@@ -23818,11 +23440,11 @@ var init_subscriptions = __esm({
 });
 
 // src/adapters/nado/NadoAdapter.ts
-var import_ethers5, NadoAdapter;
+var import_ethers6, NadoAdapter;
 var init_NadoAdapter = __esm({
   "src/adapters/nado/NadoAdapter.ts"() {
     "use strict";
-    import_ethers5 = require("ethers");
+    import_ethers6 = require("ethers");
     init_errors();
     init_RateLimiter();
     init_websocket();
@@ -23910,7 +23532,7 @@ var init_NadoAdapter = __esm({
           exchange: "nado"
         });
         if (config.wallet || config.privateKey) {
-          const wallet = config.wallet || new import_ethers5.Wallet(config.privateKey);
+          const wallet = config.wallet || new import_ethers6.Wallet(config.privateKey);
           this.auth = new NadoAuth(wallet, this.chainId);
         }
         this.apiClient = new NadoAPIClient({
@@ -24136,8 +23758,8 @@ var init_NadoAdapter = __esm({
           throw new PerpDEXError("Contracts info not loaded", "NO_CONTRACTS", this.id);
         }
         const mapping = this.getProductMapping(request.symbol);
-        const priceX18 = import_ethers5.ethers.parseUnits((request.price || 0).toString(), 18).toString();
-        const amount = import_ethers5.ethers.parseUnits(request.amount.toString(), 18).toString();
+        const priceX18 = import_ethers6.ethers.parseUnits((request.price || 0).toString(), 18).toString();
+        const amount = import_ethers6.ethers.parseUnits(request.amount.toString(), 18).toString();
         const expiration = Math.floor(Date.now() / 1e3) + 86400;
         const nonce = auth.getNextNonce();
         const orderData = {
@@ -31169,8 +30791,8 @@ var require_base64_js = __commonJS({
       }
       return arr;
     }
-    function tripletToBase64(num) {
-      return lookup[num >> 18 & 63] + lookup[num >> 12 & 63] + lookup[num >> 6 & 63] + lookup[num & 63];
+    function tripletToBase64(num2) {
+      return lookup[num2 >> 18 & 63] + lookup[num2 >> 12 & 63] + lookup[num2 >> 6 & 63] + lookup[num2 & 63];
     }
     function encodeChunk(uint8, start, end) {
       var tmp;
@@ -31528,18 +31150,18 @@ function convertRadix2(data, from, to, padding2) {
   return res;
 }
 // @__NO_SIDE_EFFECTS__
-function radix(num) {
-  anumber(num);
+function radix(num2) {
+  anumber(num2);
   const _256 = 2 ** 8;
   return {
     encode: (bytes2) => {
       if (!isBytes2(bytes2))
         throw new TypeError("radix.encode input should be Uint8Array");
-      return convertRadix(Array.from(bytes2), _256, num);
+      return convertRadix(Array.from(bytes2), _256, num2);
     },
     decode: (digits) => {
       anumArr("radix.decode", digits);
-      return Uint8Array.from(convertRadix(digits, num, _256));
+      return Uint8Array.from(convertRadix(digits, num2, _256));
     }
   };
 }
@@ -33551,18 +33173,18 @@ var require_lib = __commonJS({
       return res;
     }
     // @__NO_SIDE_EFFECTS__
-    function radix3(num) {
-      anumber2(num);
+    function radix3(num2) {
+      anumber2(num2);
       const _256 = 2 ** 8;
       return {
         encode: (bytes2) => {
           if (!isBytes3(bytes2))
             throw new Error("radix.encode input should be Uint8Array");
-          return convertRadix3(Array.from(bytes2), _256, num);
+          return convertRadix3(Array.from(bytes2), _256, num2);
         },
         decode: (digits) => {
           anumArr2("radix.decode", digits);
-          return Uint8Array.from(convertRadix3(digits, num, _256));
+          return Uint8Array.from(convertRadix3(digits, num2, _256));
         }
       };
     }
@@ -36115,8 +35737,8 @@ var require_utils2 = __commonJS({
       }
       return value;
     }
-    function numberToHexUnpadded(num) {
-      const hex2 = num.toString(16);
+    function numberToHexUnpadded(num2) {
+      const hex2 = num2.toString(16);
       return hex2.length & 1 ? "0" + hex2 : hex2;
     }
     function hexToNumber(hex2) {
@@ -36355,8 +35977,8 @@ var require_modular = __commonJS({
       const result = a % b;
       return result >= _0n ? result : b + result;
     }
-    function pow(num, power, modulo) {
-      return FpPow(Field(modulo), num, power);
+    function pow(num2, power, modulo) {
+      return FpPow(Field(modulo), num2, power);
     }
     function pow22(x, power, modulo) {
       let res = x;
@@ -36486,7 +36108,7 @@ var require_modular = __commonJS({
         return sqrt9mod16(P2);
       return tonelliShanks(P2);
     }
-    var isNegativeLE = (num, modulo) => (mod(num, modulo) & _1n) === _1n;
+    var isNegativeLE = (num2, modulo) => (mod(num2, modulo) & _1n) === _1n;
     exports2.isNegativeLE = isNegativeLE;
     var FIELD_FIELDS = [
       "create",
@@ -36521,15 +36143,15 @@ var require_modular = __commonJS({
       (0, utils_ts_1._validateObject)(field, opts);
       return field;
     }
-    function FpPow(Fp, num, power) {
+    function FpPow(Fp, num2, power) {
       if (power < _0n)
         throw new Error("invalid exponent, negatives unsupported");
       if (power === _0n)
         return Fp.ONE;
       if (power === _1n)
-        return num;
+        return num2;
       let p = Fp.ONE;
-      let d = num;
+      let d = num2;
       while (power > _0n) {
         if (power & _1n)
           p = Fp.mul(p, d);
@@ -36540,18 +36162,18 @@ var require_modular = __commonJS({
     }
     function FpInvertBatch(Fp, nums, passZero = false) {
       const inverted = new Array(nums.length).fill(passZero ? Fp.ZERO : void 0);
-      const multipliedAcc = nums.reduce((acc, num, i) => {
-        if (Fp.is0(num))
+      const multipliedAcc = nums.reduce((acc, num2, i) => {
+        if (Fp.is0(num2))
           return acc;
         inverted[i] = acc;
-        return Fp.mul(acc, num);
+        return Fp.mul(acc, num2);
       }, Fp.ONE);
       const invertedAcc = Fp.inv(multipliedAcc);
-      nums.reduceRight((acc, num, i) => {
-        if (Fp.is0(num))
+      nums.reduceRight((acc, num2, i) => {
+        if (Fp.is0(num2))
           return acc;
         inverted[i] = Fp.mul(acc, inverted[i]);
-        return Fp.mul(acc, num);
+        return Fp.mul(acc, num2);
       }, invertedAcc);
       return inverted;
     }
@@ -36618,36 +36240,36 @@ var require_modular = __commonJS({
         ZERO: _0n,
         ONE: _1n,
         allowedLengths,
-        create: (num) => mod(num, ORDER),
-        isValid: (num) => {
-          if (typeof num !== "bigint")
-            throw new Error("invalid field element: expected bigint, got " + typeof num);
-          return _0n <= num && num < ORDER;
+        create: (num2) => mod(num2, ORDER),
+        isValid: (num2) => {
+          if (typeof num2 !== "bigint")
+            throw new Error("invalid field element: expected bigint, got " + typeof num2);
+          return _0n <= num2 && num2 < ORDER;
         },
-        is0: (num) => num === _0n,
+        is0: (num2) => num2 === _0n,
         // is valid and invertible
-        isValidNot0: (num) => !f.is0(num) && f.isValid(num),
-        isOdd: (num) => (num & _1n) === _1n,
-        neg: (num) => mod(-num, ORDER),
+        isValidNot0: (num2) => !f.is0(num2) && f.isValid(num2),
+        isOdd: (num2) => (num2 & _1n) === _1n,
+        neg: (num2) => mod(-num2, ORDER),
         eql: (lhs, rhs) => lhs === rhs,
-        sqr: (num) => mod(num * num, ORDER),
+        sqr: (num2) => mod(num2 * num2, ORDER),
         add: (lhs, rhs) => mod(lhs + rhs, ORDER),
         sub: (lhs, rhs) => mod(lhs - rhs, ORDER),
         mul: (lhs, rhs) => mod(lhs * rhs, ORDER),
-        pow: (num, power) => FpPow(f, num, power),
+        pow: (num2, power) => FpPow(f, num2, power),
         div: (lhs, rhs) => mod(lhs * invert2(rhs, ORDER), ORDER),
         // Same as above, but doesn't normalize
-        sqrN: (num) => num * num,
+        sqrN: (num2) => num2 * num2,
         addN: (lhs, rhs) => lhs + rhs,
         subN: (lhs, rhs) => lhs - rhs,
         mulN: (lhs, rhs) => lhs * rhs,
-        inv: (num) => invert2(num, ORDER),
+        inv: (num2) => invert2(num2, ORDER),
         sqrt: _sqrt || ((n) => {
           if (!sqrtP)
             sqrtP = FpSqrt(ORDER);
           return sqrtP(f, n);
         }),
-        toBytes: (num) => isLE ? (0, utils_ts_1.numberToBytesLE)(num, BYTES) : (0, utils_ts_1.numberToBytesBE)(num, BYTES),
+        toBytes: (num2) => isLE ? (0, utils_ts_1.numberToBytesLE)(num2, BYTES) : (0, utils_ts_1.numberToBytesBE)(num2, BYTES),
         fromBytes: (bytes2, skipValidation = true) => {
           if (allowedLengths) {
             if (!allowedLengths.includes(bytes2.length) || bytes2.length > BYTES) {
@@ -36694,8 +36316,8 @@ var require_modular = __commonJS({
       const minLen = nLength(groupOrder).nByteLength + 8;
       if (minLen < 24 || hashLen < minLen || hashLen > 1024)
         throw new Error("hashToPrivateScalar: expected " + minLen + "-1024 bytes of input, got " + hashLen);
-      const num = isLE ? (0, utils_ts_1.bytesToNumberLE)(hash3) : (0, utils_ts_1.bytesToNumberBE)(hash3);
-      return mod(num, groupOrder - _1n) + _1n;
+      const num2 = isLE ? (0, utils_ts_1.bytesToNumberLE)(hash3) : (0, utils_ts_1.bytesToNumberBE)(hash3);
+      return mod(num2, groupOrder - _1n) + _1n;
     }
     function getFieldBytesLength(fieldOrder) {
       if (typeof fieldOrder !== "bigint")
@@ -36713,8 +36335,8 @@ var require_modular = __commonJS({
       const minLen = getMinHashLength(fieldOrder);
       if (len < 16 || len < minLen || len > 1024)
         throw new Error("expected " + minLen + "-1024 bytes of input, got " + len);
-      const num = isLE ? (0, utils_ts_1.bytesToNumberLE)(key) : (0, utils_ts_1.bytesToNumberBE)(key);
-      const reduced = mod(num, fieldOrder - _1n) + _1n;
+      const num2 = isLE ? (0, utils_ts_1.bytesToNumberLE)(key) : (0, utils_ts_1.bytesToNumberBE)(key);
+      const reduced = mod(num2, fieldOrder - _1n) + _1n;
       return isLE ? (0, utils_ts_1.numberToBytesLE)(reduced, fieldLen) : (0, utils_ts_1.numberToBytesBE)(reduced, fieldLen);
     }
   }
@@ -37761,8 +37383,8 @@ var require_hash_to_curve = __commonJS({
     function createHasher(Point2, mapToCurve, defaults) {
       if (typeof mapToCurve !== "function")
         throw new Error("mapToCurve() must be defined");
-      function map(num) {
-        return Point2.fromAffine(mapToCurve(num));
+      function map(num2) {
+        return Point2.fromAffine(mapToCurve(num2));
       }
       function clear(initial) {
         const P2 = initial.clearCofactor();
@@ -38993,7 +38615,7 @@ var require_weierstrass = __commonJS({
     var utils_ts_1 = require_utils2();
     var curve_ts_1 = require_curve();
     var modular_ts_1 = require_modular();
-    var divNearest = (num, den) => (num + (num >= 0 ? den : -den) / _2n) / den;
+    var divNearest = (num2, den) => (num2 + (num2 >= 0 ? den : -den) / _2n) / den;
     function _splitEndoScalar(k, basis, n) {
       const [[a1, b1], [a2, b2]] = basis;
       const c1 = divNearest(b2 * k, n);
@@ -39094,11 +38716,11 @@ var require_weierstrass = __commonJS({
       // - add zero byte if exists
       // - if next byte doesn't have a flag, leading zero is not allowed (minimal encoding)
       _int: {
-        encode(num) {
+        encode(num2) {
           const { Err: E } = exports2.DER;
-          if (num < _0n)
+          if (num2 < _0n)
             throw new E("integer: negative integers are not allowed");
-          let hex2 = (0, utils_ts_1.numberToHexUnpadded)(num);
+          let hex2 = (0, utils_ts_1.numberToHexUnpadded)(num2);
           if (Number.parseInt(hex2[0], 16) & 8)
             hex2 = "00" + hex2;
           if (hex2.length & 1)
@@ -39141,20 +38763,20 @@ var require_weierstrass = __commonJS({
     var _4n = BigInt(4);
     function _normFnElement(Fn, key) {
       const { BYTES: expected } = Fn;
-      let num;
+      let num2;
       if (typeof key === "bigint") {
-        num = key;
+        num2 = key;
       } else {
         let bytes2 = (0, utils_ts_1.ensureBytes)("private key", key);
         try {
-          num = Fn.fromBytes(bytes2);
+          num2 = Fn.fromBytes(bytes2);
         } catch (error) {
           throw new Error(`invalid private key: expected ui8a of size ${expected}, got ${typeof key}`);
         }
       }
-      if (!Fn.isValidNot0(num))
+      if (!Fn.isValidNot0(num2))
         throw new Error("invalid private key: out of range [1..N-1]");
-      return num;
+      return num2;
     }
     function weierstrassN(params, extraOpts = {}) {
       const validated = (0, curve_ts_1._createCurveFields)("weierstrass", params, extraOpts);
@@ -39809,10 +39431,10 @@ var require_weierstrass = __commonJS({
         const HALF = CURVE_ORDER >> _1n;
         return number > HALF;
       }
-      function validateRS(title, num) {
-        if (!Fn.isValidNot0(num))
+      function validateRS(title, num2) {
+        if (!Fn.isValidNot0(num2))
           throw new Error(`invalid signature ${title}: out of range 1..Point.Fn.ORDER`);
-        return num;
+        return num2;
       }
       function validateSigLength(bytes2, format) {
         validateSigFormat(format);
@@ -39820,7 +39442,7 @@ var require_weierstrass = __commonJS({
         const sizer = format === "compact" ? size : format === "recovered" ? size + 1 : void 0;
         return (0, utils_ts_1._abytes2)(bytes2, sizer, `${format} signature`);
       }
-      class Signature {
+      class Signature2 {
         constructor(r, s, recovery) {
           this.r = validateRS("r", r);
           this.s = validateRS("s", s);
@@ -39833,7 +39455,7 @@ var require_weierstrass = __commonJS({
           let recid;
           if (format === "der") {
             const { r: r2, s: s2 } = exports2.DER.toSig((0, utils_ts_1._abytes2)(bytes2));
-            return new Signature(r2, s2);
+            return new Signature2(r2, s2);
           }
           if (format === "recovered") {
             recid = bytes2[0];
@@ -39843,13 +39465,13 @@ var require_weierstrass = __commonJS({
           const L3 = Fn.BYTES;
           const r = bytes2.subarray(0, L3);
           const s = bytes2.subarray(L3, L3 * 2);
-          return new Signature(Fn.fromBytes(r), Fn.fromBytes(s), recid);
+          return new Signature2(Fn.fromBytes(r), Fn.fromBytes(s), recid);
         }
         static fromHex(hex2, format) {
           return this.fromBytes((0, utils_ts_1.hexToBytes)(hex2), format);
         }
         addRecoveryBit(recovery) {
-          return new Signature(this.r, this.s, recovery);
+          return new Signature2(this.r, this.s, recovery);
         }
         recoverPublicKey(messageHash) {
           const FIELD_ORDER = Fp.ORDER;
@@ -39898,13 +39520,13 @@ var require_weierstrass = __commonJS({
         assertValidity() {
         }
         static fromCompact(hex2) {
-          return Signature.fromBytes((0, utils_ts_1.ensureBytes)("sig", hex2), "compact");
+          return Signature2.fromBytes((0, utils_ts_1.ensureBytes)("sig", hex2), "compact");
         }
         static fromDER(hex2) {
-          return Signature.fromBytes((0, utils_ts_1.ensureBytes)("sig", hex2), "der");
+          return Signature2.fromBytes((0, utils_ts_1.ensureBytes)("sig", hex2), "der");
         }
         normalizeS() {
-          return this.hasHighS() ? new Signature(this.r, Fn.neg(this.s), this.recovery) : this;
+          return this.hasHighS() ? new Signature2(this.r, Fn.neg(this.s), this.recovery) : this;
         }
         toDERRawBytes() {
           return this.toBytes("der");
@@ -39922,17 +39544,17 @@ var require_weierstrass = __commonJS({
       const bits2int = ecdsaOpts.bits2int || function bits2int_def(bytes2) {
         if (bytes2.length > 8192)
           throw new Error("input is too large");
-        const num = (0, utils_ts_1.bytesToNumberBE)(bytes2);
+        const num2 = (0, utils_ts_1.bytesToNumberBE)(bytes2);
         const delta = bytes2.length * 8 - fnBits;
-        return delta > 0 ? num >> BigInt(delta) : num;
+        return delta > 0 ? num2 >> BigInt(delta) : num2;
       };
       const bits2int_modN = ecdsaOpts.bits2int_modN || function bits2int_modN_def(bytes2) {
         return Fn.create(bits2int(bytes2));
       };
       const ORDER_MASK = (0, utils_ts_1.bitMask)(fnBits);
-      function int2octets(num) {
-        (0, utils_ts_1.aInRange)("num < 2^" + fnBits, num, _0n, ORDER_MASK);
-        return Fn.toBytes(num);
+      function int2octets(num2) {
+        (0, utils_ts_1.aInRange)("num < 2^" + fnBits, num2, _0n, ORDER_MASK);
+        return Fn.toBytes(num2);
       }
       function validateMsgAndHash(message, prehash) {
         (0, utils_ts_1._abytes2)(message, void 0, "message");
@@ -39970,7 +39592,7 @@ var require_weierstrass = __commonJS({
             normS = Fn.neg(s);
             recovery ^= 1;
           }
-          return new Signature(r, normS, recovery);
+          return new Signature2(r, normS, recovery);
         }
         return { seed, k2sig };
       }
@@ -39988,17 +39610,17 @@ var require_weierstrass = __commonJS({
         if (!isHex && !isObj)
           throw new Error("invalid signature, expected Uint8Array, hex string or Signature instance");
         if (isObj) {
-          sig = new Signature(sg.r, sg.s);
+          sig = new Signature2(sg.r, sg.s);
         } else if (isHex) {
           try {
-            sig = Signature.fromBytes((0, utils_ts_1.ensureBytes)("sig", sg), "der");
+            sig = Signature2.fromBytes((0, utils_ts_1.ensureBytes)("sig", sg), "der");
           } catch (derError) {
             if (!(derError instanceof exports2.DER.Err))
               throw derError;
           }
           if (!sig) {
             try {
-              sig = Signature.fromBytes((0, utils_ts_1.ensureBytes)("sig", sg), "compact");
+              sig = Signature2.fromBytes((0, utils_ts_1.ensureBytes)("sig", sg), "compact");
             } catch (error) {
               return false;
             }
@@ -40014,7 +39636,7 @@ var require_weierstrass = __commonJS({
         message = validateMsgAndHash((0, utils_ts_1.ensureBytes)("message", message), prehash);
         if ("strict" in opts)
           throw new Error("options.strict was renamed to lowS");
-        const sig = format === void 0 ? tryParsingSig(signature) : Signature.fromBytes((0, utils_ts_1.ensureBytes)("sig", signature), format);
+        const sig = format === void 0 ? tryParsingSig(signature) : Signature2.fromBytes((0, utils_ts_1.ensureBytes)("sig", signature), format);
         if (sig === false)
           return false;
         try {
@@ -40038,7 +39660,7 @@ var require_weierstrass = __commonJS({
       function recoverPublicKey(signature, message, opts = {}) {
         const { prehash } = validateSigOpts(opts, defaultSigOpts);
         message = validateMsgAndHash(message, prehash);
-        return Signature.fromBytes(signature, "recovered").recoverPublicKey(message).toBytes();
+        return Signature2.fromBytes(signature, "recovered").recoverPublicKey(message).toBytes();
       }
       return Object.freeze({
         keygen: keygen2,
@@ -40050,7 +39672,7 @@ var require_weierstrass = __commonJS({
         sign: sign2,
         verify: verify2,
         recoverPublicKey,
-        Signature,
+        Signature: Signature2,
         hash: hash3
       });
     }
@@ -40109,8 +39731,8 @@ var require_weierstrass = __commonJS({
     }
     function _weierstrass_new_output_to_legacy(c, Point2) {
       const { Fp, Fn } = Point2;
-      function isWithinCurveOrder(num) {
-        return (0, utils_ts_1.inRange)(num, _1n, Fn.ORDER);
+      function isWithinCurveOrder(num2) {
+        return (0, utils_ts_1.inRange)(num2, _1n, Fn.ORDER);
       }
       const weierstrassEquation = _legacyHelperEquat(Fp, c.a, c.b);
       return Object.assign({}, {
@@ -40245,9 +39867,9 @@ var require_secp256k1 = __commonJS({
       p.assertValidity();
       return p;
     }
-    var num = utils_ts_1.bytesToNumberBE;
+    var num2 = utils_ts_1.bytesToNumberBE;
     function challenge(...args) {
-      return Pointk1.Fn.create(num(taggedHash("BIP0340/challenge", ...args)));
+      return Pointk1.Fn.create(num2(taggedHash("BIP0340/challenge", ...args)));
     }
     function schnorrGetPublicKey(secretKey) {
       return schnorrGetExtPubKey(secretKey).bytes;
@@ -40257,7 +39879,7 @@ var require_secp256k1 = __commonJS({
       const m = (0, utils_ts_1.ensureBytes)("message", message);
       const { bytes: px, scalar: d } = schnorrGetExtPubKey(secretKey);
       const a = (0, utils_ts_1.ensureBytes)("auxRand", auxRand, 32);
-      const t = Fn.toBytes(d ^ num(taggedHash("BIP0340/aux", a)));
+      const t = Fn.toBytes(d ^ num2(taggedHash("BIP0340/aux", a)));
       const rand = taggedHash("BIP0340/nonce", t, px, m);
       const { bytes: rx, scalar: k } = schnorrGetExtPubKey(rand);
       const e = challenge(rx, px, m);
@@ -40274,11 +39896,11 @@ var require_secp256k1 = __commonJS({
       const m = (0, utils_ts_1.ensureBytes)("message", message);
       const pub = (0, utils_ts_1.ensureBytes)("publicKey", publicKey, 32);
       try {
-        const P2 = lift_x(num(pub));
-        const r = num(sig.subarray(0, 32));
+        const P2 = lift_x(num2(pub));
+        const r = num2(sig.subarray(0, 32));
         if (!(0, utils_ts_1.inRange)(r, _1n, secp256k1_CURVE.p))
           return false;
-        const s = num(sig.subarray(32, 64));
+        const s = num2(sig.subarray(32, 64));
         if (!(0, utils_ts_1.inRange)(s, _1n, secp256k1_CURVE.n))
           return false;
         const e = challenge(Fn.toBytes(r), pointToBytes(P2), m);
@@ -41189,8 +40811,8 @@ var require_integers = __commonJS({
         if (this.data > BigInt(Number.MAX_SAFE_INTEGER)) {
           throw new Error("number can only safely store up to 53 bits");
         }
-        const num = Number(this.data);
-        return num;
+        const num2 = Number(this.data);
+        return num2;
       }
     };
     exports2.Uint64 = Uint64;
@@ -41671,11 +41293,11 @@ var require_utils4 = __commonJS({
     }
     function u64Lengths(dataLength, aadLength, isLE) {
       abool(isLE);
-      const num = new Uint8Array(16);
-      const view = createView(num);
+      const num2 = new Uint8Array(16);
+      const view = createView(num2);
       setBigUint64(view, 0, BigInt(aadLength), isLE);
       setBigUint64(view, 8, BigInt(dataLength), isLE);
-      return num;
+      return num2;
     }
     function isAligned32(bytes2) {
       return bytes2.byteOffset % 4 === 0;
@@ -42282,10 +41904,10 @@ var require_chacha = __commonJS({
       if (AAD)
         updatePadded(h2, AAD);
       updatePadded(h2, data);
-      const num = (0, utils_ts_1.u64Lengths)(data.length, AAD ? AAD.length : 0, true);
-      h2.update(num);
+      const num2 = (0, utils_ts_1.u64Lengths)(data.length, AAD ? AAD.length : 0, true);
+      h2.update(num2);
       const res = h2.digest();
-      (0, utils_ts_1.clean)(authKey, num);
+      (0, utils_ts_1.clean)(authKey, num2);
       return res;
     }
     var _poly1305_aead = (xorStream) => (key, nonce, AAD) => {
@@ -47342,10 +46964,10 @@ function isLiquidatable(side, entryPrice, currentPrice, collateralUsd, sizeUsd, 
   }
 }
 function parseOnChainValue(value, decimals) {
-  const num = typeof value === "string" ? BigInt(value) : BigInt(Math.floor(value));
+  const num2 = typeof value === "string" ? BigInt(value) : BigInt(Math.floor(value));
   const divisor = BigInt(10 ** decimals);
-  const intPart = num / divisor;
-  const fracPart = num % divisor;
+  const intPart = num2 / divisor;
+  const fracPart = num2 % divisor;
   return Number(intPart) + Number(fracPart) / Number(divisor);
 }
 function formatOnChainValue(value, decimals) {
@@ -50111,8 +49733,8 @@ var init_DriftClientWrapper = __esm({
         }
         try {
           const driftSdk = await import("@drift-labs/sdk");
-          const { DriftClient, Wallet: Wallet6, BulkAccountLoader, getMarketsAndOraclesForSubscription } = driftSdk;
-          const wallet = new Wallet6(this.config.keypair);
+          const { DriftClient, Wallet: Wallet7, BulkAccountLoader, getMarketsAndOraclesForSubscription } = driftSdk;
+          const wallet = new Wallet7(this.config.keypair);
           const { perpMarketIndexes, spotMarketIndexes, oracleInfos } = getMarketsAndOraclesForSubscription(this.config.isDevnet ? "devnet" : "mainnet-beta");
           const bulkAccountLoader = new BulkAccountLoader(
             this.config.connection,
@@ -52203,7 +51825,7 @@ var init_GmxNormalizer = __esm({
 
 // src/adapters/gmx/GmxAuth.ts
 function isValidEthereumAddress(address) {
-  return import_ethers6.ethers.isAddress(address);
+  return import_ethers7.ethers.isAddress(address);
 }
 function isValidEthereumPrivateKey(key) {
   try {
@@ -52211,17 +51833,17 @@ function isValidEthereumPrivateKey(key) {
     if (!/^[0-9a-fA-F]{64}$/.test(cleanKey)) {
       return false;
     }
-    new import_ethers6.ethers.Wallet(key);
+    new import_ethers7.ethers.Wallet(key);
     return true;
   } catch {
     return false;
   }
 }
-var import_ethers6, GmxAuth;
+var import_ethers7, GmxAuth;
 var init_GmxAuth = __esm({
   "src/adapters/gmx/GmxAuth.ts"() {
     "use strict";
-    import_ethers6 = require("ethers");
+    import_ethers7 = require("ethers");
     init_constants13();
     init_errors();
     GmxAuth = class {
@@ -52233,12 +51855,12 @@ var init_GmxAuth = __esm({
       constructor(config) {
         this.chain = config.chain;
         this.rpcEndpoint = config.rpcEndpoint || GMX_API_URLS[config.chain].rpc;
-        this.provider = new import_ethers6.ethers.JsonRpcProvider(this.rpcEndpoint);
+        this.provider = new import_ethers7.ethers.JsonRpcProvider(this.rpcEndpoint);
         if (config.wallet) {
           this.wallet = config.wallet.connect(this.provider);
           this.walletAddress = config.wallet.address;
         } else if (config.privateKey) {
-          this.wallet = new import_ethers6.ethers.Wallet(config.privateKey, this.provider);
+          this.wallet = new import_ethers7.ethers.Wallet(config.privateKey, this.provider);
           this.walletAddress = this.wallet.address;
         } else if (config.walletAddress) {
           this.walletAddress = config.walletAddress;
@@ -52375,7 +51997,7 @@ var init_GmxAuth = __esm({
           throw new AuthenticationError("Wallet address required", "MISSING_CREDENTIALS", "gmx");
         }
         const erc20Abi = ["function balanceOf(address owner) view returns (uint256)"];
-        const contract = new import_ethers6.ethers.Contract(tokenAddress, erc20Abi, this.provider);
+        const contract = new import_ethers7.ethers.Contract(tokenAddress, erc20Abi, this.provider);
         return contract.balanceOf(this.walletAddress);
       }
       /**
@@ -52386,7 +52008,7 @@ var init_GmxAuth = __esm({
           throw new AuthenticationError("Wallet address required", "MISSING_CREDENTIALS", "gmx");
         }
         const erc20Abi = ["function allowance(address owner, address spender) view returns (uint256)"];
-        const contract = new import_ethers6.ethers.Contract(tokenAddress, erc20Abi, this.provider);
+        const contract = new import_ethers7.ethers.Contract(tokenAddress, erc20Abi, this.provider);
         return contract.allowance(this.walletAddress, spenderAddress);
       }
       /**
@@ -52397,7 +52019,7 @@ var init_GmxAuth = __esm({
           throw new AuthenticationError("Wallet required for approval", "MISSING_CREDENTIALS", "gmx");
         }
         const erc20Abi = ["function approve(address spender, uint256 amount) returns (bool)"];
-        const contract = new import_ethers6.ethers.Contract(tokenAddress, erc20Abi, this.wallet);
+        const contract = new import_ethers7.ethers.Contract(tokenAddress, erc20Abi, this.wallet);
         return contract.approve(spenderAddress, amount);
       }
     };
@@ -52405,11 +52027,11 @@ var init_GmxAuth = __esm({
 });
 
 // src/adapters/gmx/GmxContracts.ts
-var import_ethers7, EXCHANGE_ROUTER_ABI, READER_ABI, DATA_STORE_ABI, ORDER_VAULT_ABI, GmxContracts;
+var import_ethers8, EXCHANGE_ROUTER_ABI, READER_ABI, DATA_STORE_ABI, ORDER_VAULT_ABI, GmxContracts;
 var init_GmxContracts = __esm({
   "src/adapters/gmx/GmxContracts.ts"() {
     "use strict";
-    import_ethers7 = require("ethers");
+    import_ethers8 = require("ethers");
     init_constants13();
     init_errors();
     EXCHANGE_ROUTER_ABI = [
@@ -52469,7 +52091,7 @@ var init_GmxContracts = __esm({
        */
       getExchangeRouter() {
         if (!this.exchangeRouter) {
-          this.exchangeRouter = new import_ethers7.ethers.Contract(
+          this.exchangeRouter = new import_ethers8.ethers.Contract(
             this.addresses.exchangeRouter,
             EXCHANGE_ROUTER_ABI,
             this.signer || this.provider
@@ -52482,7 +52104,7 @@ var init_GmxContracts = __esm({
        */
       getReader() {
         if (!this.reader) {
-          this.reader = new import_ethers7.ethers.Contract(this.addresses.reader, READER_ABI, this.provider);
+          this.reader = new import_ethers8.ethers.Contract(this.addresses.reader, READER_ABI, this.provider);
         }
         return this.reader;
       }
@@ -52491,7 +52113,7 @@ var init_GmxContracts = __esm({
        */
       getDataStore() {
         if (!this.dataStore) {
-          this.dataStore = new import_ethers7.ethers.Contract(this.addresses.dataStore, DATA_STORE_ABI, this.provider);
+          this.dataStore = new import_ethers8.ethers.Contract(this.addresses.dataStore, DATA_STORE_ABI, this.provider);
         }
         return this.dataStore;
       }
@@ -52500,7 +52122,7 @@ var init_GmxContracts = __esm({
        */
       getOrderVault() {
         if (!this.orderVault) {
-          this.orderVault = new import_ethers7.ethers.Contract(
+          this.orderVault = new import_ethers8.ethers.Contract(
             this.addresses.orderVault,
             ORDER_VAULT_ABI,
             this.signer || this.provider
@@ -52541,7 +52163,7 @@ var init_GmxContracts = __esm({
           decreasePositionSwapType: this.encodeDecreaseSwapType(params.decreasePositionSwapType),
           isLong: params.isLong,
           shouldUnwrapNativeToken: params.shouldUnwrapNativeToken,
-          referralCode: params.referralCode || import_ethers7.ethers.ZeroHash
+          referralCode: params.referralCode || import_ethers8.ethers.ZeroHash
         };
         return exchangeRouter.createOrder(orderParams, {
           value: executionFee
@@ -52627,8 +52249,8 @@ var init_GmxContracts = __esm({
        * Calculate position key
        */
       getPositionKey(account, market, collateralToken, isLong) {
-        return import_ethers7.ethers.keccak256(
-          import_ethers7.ethers.solidityPacked(
+        return import_ethers8.ethers.keccak256(
+          import_ethers8.ethers.solidityPacked(
             ["address", "address", "address", "bool"],
             [account, market, collateralToken, isLong]
           )
@@ -52662,25 +52284,25 @@ var init_GmxContracts = __esm({
        */
       encodeOrderType(orderType) {
         const orderTypes = {
-          0: import_ethers7.ethers.encodeBytes32String("MarketIncrease"),
-          1: import_ethers7.ethers.encodeBytes32String("MarketDecrease"),
-          2: import_ethers7.ethers.encodeBytes32String("LimitIncrease"),
-          3: import_ethers7.ethers.encodeBytes32String("LimitDecrease"),
-          4: import_ethers7.ethers.encodeBytes32String("StopLossDecrease"),
-          5: import_ethers7.ethers.encodeBytes32String("Liquidation")
+          0: import_ethers8.ethers.encodeBytes32String("MarketIncrease"),
+          1: import_ethers8.ethers.encodeBytes32String("MarketDecrease"),
+          2: import_ethers8.ethers.encodeBytes32String("LimitIncrease"),
+          3: import_ethers8.ethers.encodeBytes32String("LimitDecrease"),
+          4: import_ethers8.ethers.encodeBytes32String("StopLossDecrease"),
+          5: import_ethers8.ethers.encodeBytes32String("Liquidation")
         };
-        return orderTypes[orderType] || import_ethers7.ethers.encodeBytes32String("MarketIncrease");
+        return orderTypes[orderType] || import_ethers8.ethers.encodeBytes32String("MarketIncrease");
       }
       /**
        * Encode decrease position swap type
        */
       encodeDecreaseSwapType(swapType) {
         const swapTypes = {
-          0: import_ethers7.ethers.encodeBytes32String("NoSwap"),
-          1: import_ethers7.ethers.encodeBytes32String("SwapPnlTokenToCollateralToken"),
-          2: import_ethers7.ethers.encodeBytes32String("SwapCollateralTokenToPnlToken")
+          0: import_ethers8.ethers.encodeBytes32String("NoSwap"),
+          1: import_ethers8.ethers.encodeBytes32String("SwapPnlTokenToCollateralToken"),
+          2: import_ethers8.ethers.encodeBytes32String("SwapCollateralTokenToPnlToken")
         };
-        return swapTypes[swapType] || import_ethers7.ethers.encodeBytes32String("NoSwap");
+        return swapTypes[swapType] || import_ethers8.ethers.encodeBytes32String("NoSwap");
       }
       /**
        * Get contract addresses
@@ -53087,11 +52709,11 @@ var init_GmxSubgraph = __esm({
 });
 
 // src/adapters/gmx/GmxOrderBuilder.ts
-var import_ethers8, GmxOrderBuilder;
+var import_ethers9, GmxOrderBuilder;
 var init_GmxOrderBuilder = __esm({
   "src/adapters/gmx/GmxOrderBuilder.ts"() {
     "use strict";
-    import_ethers8 = require("ethers");
+    import_ethers9 = require("ethers");
     init_errors();
     init_constants13();
     GmxOrderBuilder = class {
@@ -53144,8 +52766,8 @@ var init_GmxOrderBuilder = __esm({
         const triggerPrice = this.calculateTriggerPrice(request, isLong);
         return {
           receiver: walletAddress,
-          callbackContract: import_ethers8.ethers.ZeroAddress,
-          uiFeeReceiver: import_ethers8.ethers.ZeroAddress,
+          callbackContract: import_ethers9.ethers.ZeroAddress,
+          uiFeeReceiver: import_ethers9.ethers.ZeroAddress,
           market: marketConfig.marketAddress,
           initialCollateralToken: collateralToken,
           swapPath: [],
@@ -53162,7 +52784,7 @@ var init_GmxOrderBuilder = __esm({
           decreasePositionSwapType: GMX_DECREASE_POSITION_SWAP_TYPES.NO_SWAP,
           isLong,
           shouldUnwrapNativeToken: false,
-          referralCode: this.config.referralCode ? import_ethers8.ethers.encodeBytes32String(this.config.referralCode) : import_ethers8.ethers.ZeroHash
+          referralCode: this.config.referralCode ? import_ethers9.ethers.encodeBytes32String(this.config.referralCode) : import_ethers9.ethers.ZeroHash
         };
       }
       /**
@@ -53187,8 +52809,8 @@ var init_GmxOrderBuilder = __esm({
         );
         return {
           receiver: walletAddress,
-          callbackContract: import_ethers8.ethers.ZeroAddress,
-          uiFeeReceiver: import_ethers8.ethers.ZeroAddress,
+          callbackContract: import_ethers9.ethers.ZeroAddress,
+          uiFeeReceiver: import_ethers9.ethers.ZeroAddress,
           market: marketConfig.marketAddress,
           initialCollateralToken: marketConfig.shortToken,
           swapPath: [],
@@ -53205,7 +52827,7 @@ var init_GmxOrderBuilder = __esm({
           decreasePositionSwapType: GMX_DECREASE_POSITION_SWAP_TYPES.NO_SWAP,
           isLong,
           shouldUnwrapNativeToken: false,
-          referralCode: import_ethers8.ethers.ZeroHash
+          referralCode: import_ethers9.ethers.ZeroHash
         };
       }
       // ==========================================================================
@@ -53225,9 +52847,9 @@ var init_GmxOrderBuilder = __esm({
        */
       async getMinExecutionFee() {
         const minFees = {
-          arbitrum: import_ethers8.ethers.parseEther("0.0003"),
+          arbitrum: import_ethers9.ethers.parseEther("0.0003"),
           // ~$0.50
-          avalanche: import_ethers8.ethers.parseEther("0.01")
+          avalanche: import_ethers9.ethers.parseEther("0.01")
           // ~$0.30
         };
         const minFee = minFees[this.chain];
@@ -56754,9 +56376,9 @@ var init_OstiumContracts = __esm({
         return new JsonRpcProvider(this.rpcUrl);
       }
       async getSigner() {
-        const { Wallet: Wallet6 } = await import("ethers");
+        const { Wallet: Wallet7 } = await import("ethers");
         const provider = await this.getProvider();
-        return new Wallet6(this.privateKey, provider);
+        return new Wallet7(this.privateKey, provider);
       }
       async getTradingContract() {
         const { Contract } = await import("ethers");
@@ -56823,8 +56445,8 @@ var init_OstiumContracts = __esm({
         return String(balance);
       }
       getTraderAddress() {
-        const { Wallet: Wallet6 } = require("ethers");
-        return new Wallet6(this.privateKey).address;
+        const { Wallet: Wallet7 } = require("ethers");
+        return new Wallet7(this.privateKey).address;
       }
     };
   }
@@ -58355,11 +57977,11 @@ var init_error_codes12 = __esm({
 });
 
 // src/adapters/reya/ReyaAdapter.ts
-var import_ethers9, ReyaAdapter;
+var import_ethers10, ReyaAdapter;
 var init_ReyaAdapter = __esm({
   "src/adapters/reya/ReyaAdapter.ts"() {
     "use strict";
-    import_ethers9 = require("ethers");
+    import_ethers10 = require("ethers");
     init_errors();
     init_BaseAdapter();
     init_HTTPClient();
@@ -58418,7 +58040,7 @@ var init_ReyaAdapter = __esm({
         this.accountId = config.accountId ?? 0;
         this.exchangeId = config.exchangeId ?? REYA_EXCHANGE_ID;
         if (config.privateKey) {
-          const wallet = new import_ethers9.Wallet(config.privateKey);
+          const wallet = new import_ethers10.Wallet(config.privateKey);
           this.auth = new ReyaAuth(wallet);
         }
         this.normalizer = new ReyaNormalizer();
@@ -59458,11 +59080,11 @@ var init_error_codes13 = __esm({
 });
 
 // src/adapters/ethereal/EtherealAdapter.ts
-var import_ethers10, EtherealAdapter;
+var import_ethers11, EtherealAdapter;
 var init_EtherealAdapter = __esm({
   "src/adapters/ethereal/EtherealAdapter.ts"() {
     "use strict";
-    import_ethers10 = require("ethers");
+    import_ethers11 = require("ethers");
     init_errors();
     init_BaseAdapter();
     init_HTTPClient();
@@ -59524,7 +59146,7 @@ var init_EtherealAdapter = __esm({
         this.baseUrl = config.apiUrl ?? urls.rest;
         this.accountId = config.accountId ?? "";
         if (config.privateKey) {
-          const wallet = new import_ethers10.Wallet(config.privateKey);
+          const wallet = new import_ethers11.Wallet(config.privateKey);
           this.auth = new EtherealAuth(wallet);
         }
         this.normalizer = new EtherealNormalizer();
@@ -60025,17 +59647,17 @@ var init_constants19 = __esm({
 });
 
 // src/adapters/avantis/AvantisAuth.ts
-var import_ethers11, AvantisAuth;
+var import_ethers12, AvantisAuth;
 var init_AvantisAuth = __esm({
   "src/adapters/avantis/AvantisAuth.ts"() {
     "use strict";
-    import_ethers11 = require("ethers");
+    import_ethers12 = require("ethers");
     AvantisAuth = class {
       wallet;
       provider;
       constructor(privateKey, rpcUrl) {
-        this.provider = new import_ethers11.ethers.JsonRpcProvider(rpcUrl);
-        this.wallet = new import_ethers11.ethers.Wallet(privateKey, this.provider);
+        this.provider = new import_ethers12.ethers.JsonRpcProvider(rpcUrl);
+        this.wallet = new import_ethers12.ethers.Wallet(privateKey, this.provider);
       }
       /**
        * Sign a request (no-op for on-chain DEX, signing happens at tx level)
@@ -60473,11 +60095,11 @@ function getContractFn(contract, method) {
   const fn = contract.getFunction(method);
   return fn;
 }
-var import_ethers12, AvantisAdapter;
+var import_ethers13, AvantisAdapter;
 var init_AvantisAdapter = __esm({
   "src/adapters/avantis/AvantisAdapter.ts"() {
     "use strict";
-    import_ethers12 = require("ethers");
+    import_ethers13 = require("ethers");
     init_errors();
     init_BaseAdapter();
     init_RateLimiter();
@@ -60540,7 +60162,7 @@ var init_AvantisAdapter = __esm({
           this.auth = new AvantisAuth(config.privateKey, rpcUrl);
           this.provider = this.auth.getProvider();
         } else {
-          this.provider = new import_ethers12.ethers.JsonRpcProvider(rpcUrl);
+          this.provider = new import_ethers13.ethers.JsonRpcProvider(rpcUrl);
         }
         this.normalizer = new AvantisNormalizer();
         this.rateLimiter = new RateLimiter({
@@ -60554,27 +60176,27 @@ var init_AvantisAdapter = __esm({
           return;
         }
         const signerOrProvider = this.auth ? this.auth.getWallet() : this.provider;
-        this.tradingContract = new import_ethers12.ethers.Contract(
+        this.tradingContract = new import_ethers13.ethers.Contract(
           this.contracts.trading,
           AVANTIS_TRADING_ABI,
           signerOrProvider
         );
-        this.storageContract = new import_ethers12.ethers.Contract(
+        this.storageContract = new import_ethers13.ethers.Contract(
           this.contracts.storage,
           AVANTIS_STORAGE_ABI,
           signerOrProvider
         );
-        this.pairInfoContract = new import_ethers12.ethers.Contract(
+        this.pairInfoContract = new import_ethers13.ethers.Contract(
           this.contracts.pairInfo,
           AVANTIS_PAIR_INFO_ABI,
           signerOrProvider
         );
-        this.pythContract = new import_ethers12.ethers.Contract(
+        this.pythContract = new import_ethers13.ethers.Contract(
           this.contracts.pythOracle,
           AVANTIS_PYTH_ABI,
           signerOrProvider
         );
-        this.usdcContract = new import_ethers12.ethers.Contract(
+        this.usdcContract = new import_ethers13.ethers.Contract(
           this.contracts.usdc,
           AVANTIS_ERC20_ABI,
           signerOrProvider
@@ -61082,7 +60704,7 @@ var init_dist_node = __esm({
 });
 
 // src/adapters/katana/constants.ts
-var KATANA_API_URLS, KATANA_RATE_LIMITS, KATANA_ENDPOINT_WEIGHTS, KATANA_ORDER_TYPES, KATANA_ORDER_TYPE_REVERSE, KATANA_ORDER_SIDES, KATANA_ORDER_SIDE_REVERSE, KATANA_TIME_IN_FORCE, KATANA_TIME_IN_FORCE_REVERSE, KATANA_TRIGGER_TYPES, KATANA_SELF_TRADE_PREVENTION, KATANA_ORDER_STATUS, KATANA_EIP712_DOMAIN, KATANA_EIP712_ORDER_TYPE, KATANA_EIP712_CANCEL_TYPE, KATANA_EIP712_WITHDRAW_TYPE, KATANA_PRECISION, KATANA_AUTH_HEADERS, KATANA_FUNDING_INTERVAL_HOURS, KATANA_NONCE_WINDOW_MS, KATANA_DEFAULT_FEES, KATANA_WS_CONFIG, KATANA_WS_CHANNELS, KATANA_TIMEFRAMES, KATANA_NULL_ADDRESS, KATANA_ZERO_DECIMAL;
+var KATANA_API_URLS, KATANA_RATE_LIMITS, KATANA_ENDPOINT_WEIGHTS, KATANA_ORDER_TYPES, KATANA_ORDER_TYPE_REVERSE, KATANA_ORDER_SIDES, KATANA_ORDER_SIDE_REVERSE, KATANA_TIME_IN_FORCE, KATANA_TIME_IN_FORCE_REVERSE, KATANA_WIRE_TIME_IN_FORCE, KATANA_WIRE_SELF_TRADE_PREVENTION, KATANA_TRIGGER_TYPES, KATANA_SELF_TRADE_PREVENTION, KATANA_ORDER_STATUS, KATANA_EIP712_DOMAIN, KATANA_EIP712_ORDER_TYPE, KATANA_EIP712_CANCEL_TYPE, KATANA_EIP712_WITHDRAW_TYPE, KATANA_PRECISION, KATANA_AUTH_HEADERS, KATANA_FUNDING_INTERVAL_HOURS, KATANA_NONCE_WINDOW_MS, KATANA_DEFAULT_FEES, KATANA_WS_CONFIG, KATANA_WS_CHANNELS, KATANA_TIMEFRAMES, KATANA_NULL_ADDRESS, KATANA_ZERO_DECIMAL;
 var init_constants20 = __esm({
   "src/adapters/katana/constants.ts"() {
     "use strict";
@@ -61161,6 +60783,18 @@ var init_constants20 = __esm({
       2: "IOC",
       3: "FOK"
     };
+    KATANA_WIRE_TIME_IN_FORCE = {
+      0: "gtc",
+      1: "gtx",
+      2: "ioc",
+      3: "fok"
+    };
+    KATANA_WIRE_SELF_TRADE_PREVENTION = {
+      0: "dc",
+      1: "co",
+      2: "cn",
+      3: "cb"
+    };
     KATANA_TRIGGER_TYPES = {
       none: 0,
       index: 1,
@@ -61183,26 +60817,26 @@ var init_constants20 = __esm({
     };
     KATANA_EIP712_DOMAIN = {
       mainnet: {
-        name: "Katana",
-        version: "1",
+        name: "KatanaPerps",
+        version: "2.0.0",
         chainId: 747474,
-        verifyingContract: "0x835Ba5b1B202773A94Daaa07168b26B22584637a"
+        verifyingContract: "0x62230CeA619F734cc215bB8074bbF07bE4Eb633e"
       },
       sandbox: {
-        name: "Katana",
-        version: "1",
+        name: "KatanaPerps",
+        version: "2.0.0-sandbox",
         chainId: 737373,
-        // Bokuto testnet
-        verifyingContract: "0x835Ba5b1B202773A94Daaa07168b26B22584637a"
+        // Bokuto / sandbox testnet
+        verifyingContract: "0x92d3072dDe1aD3e9B7895500F504aA5e664E71d3"
       }
     };
     KATANA_EIP712_ORDER_TYPE = {
       Order: [
-        { name: "nonce", type: "string" },
+        { name: "nonce", type: "uint128" },
         { name: "wallet", type: "address" },
-        { name: "market", type: "string" },
-        { name: "type", type: "uint8" },
-        { name: "side", type: "uint8" },
+        { name: "marketSymbol", type: "string" },
+        { name: "orderType", type: "uint8" },
+        { name: "orderSide", type: "uint8" },
         { name: "quantity", type: "string" },
         { name: "limitPrice", type: "string" },
         { name: "triggerPrice", type: "string" },
@@ -61218,16 +60852,14 @@ var init_constants20 = __esm({
       ]
     };
     KATANA_EIP712_CANCEL_TYPE = {
-      Cancel: [
-        { name: "nonce", type: "string" },
+      OrderCancellationByMarketSymbol: [
         { name: "wallet", type: "address" },
-        { name: "orderId", type: "string" },
         { name: "market", type: "string" }
       ]
     };
     KATANA_EIP712_WITHDRAW_TYPE = {
       Withdraw: [
-        { name: "nonce", type: "string" },
+        { name: "nonce", type: "uint128" },
         { name: "wallet", type: "address" },
         { name: "quantity", type: "string" }
       ]
@@ -61396,22 +61028,15 @@ var init_KatanaAuth = __esm({
             params = Object.fromEntries(sortedEntries);
             payload = new URLSearchParams(sortedEntries.map(([k, v]) => [k, v])).toString();
           } else {
-            const mergedBody = { ...body ?? {} };
+            const mergedBody = {
+              ...body ?? {}
+            };
             if (mergedBody["nonce"] === void 0) mergedBody["nonce"] = this.generateNonce();
             body = mergedBody;
             payload = JSON.stringify(mergedBody);
           }
           const signature = await createHmacSha256(this.apiSecret, payload);
           headers[KATANA_AUTH_HEADERS.hmacSignature] = signature;
-          if (process.env.KATANA_DEBUG === "1") {
-            console.error("[katana-debug]", {
-              method,
-              path: request.path,
-              payload,
-              signature,
-              apiKey: this.apiKey?.slice(0, 8) + "\u2026"
-            });
-          }
         }
         return {
           ...request,
@@ -61443,11 +61068,7 @@ var init_KatanaAuth = __esm({
       async signOrder(payload) {
         this.requireWallet();
         const domain = this.testnet ? KATANA_EIP712_DOMAIN.sandbox : KATANA_EIP712_DOMAIN.mainnet;
-        const signature = await this.wallet.signTypedData(
-          domain,
-          KATANA_EIP712_ORDER_TYPE,
-          payload
-        );
+        const signature = await this.wallet.signTypedData(domain, KATANA_EIP712_ORDER_TYPE, payload);
         return signature;
       }
       /**
@@ -61456,11 +61077,7 @@ var init_KatanaAuth = __esm({
       async signCancel(payload) {
         this.requireWallet();
         const domain = this.testnet ? KATANA_EIP712_DOMAIN.sandbox : KATANA_EIP712_DOMAIN.mainnet;
-        const signature = await this.wallet.signTypedData(
-          domain,
-          KATANA_EIP712_CANCEL_TYPE,
-          payload
-        );
+        const signature = await this.wallet.signTypedData(domain, KATANA_EIP712_CANCEL_TYPE, payload);
         return signature;
       }
       /**
@@ -61531,8 +61148,8 @@ function normalizeOrder2(raw) {
     id: raw.orderId,
     clientOrderId: raw.clientOrderId || void 0,
     symbol,
-    type: normalizeOrderType2(raw.type),
-    side: normalizeOrderSide2(raw.side),
+    type: normalizeOrderType(raw.type),
+    side: normalizeOrderSide(raw.side),
     amount: quantity,
     price: raw.limitPrice !== KATANA_ZERO_DECIMAL ? parseDecimal(raw.limitPrice) : void 0,
     filled: filledQty,
@@ -61652,20 +61269,23 @@ function normalizeFundingRate(raw) {
     info: raw
   };
 }
+function nonceToUint128(uuidNonce) {
+  return BigInt("0x" + uuidNonce.replace(/-/g, "")) & UINT128_MASK;
+}
 function convertOrderRequest5(request, walletAddress, nonce) {
   const katanaMarket = toKatanaSymbol(request.symbol);
   return {
-    nonce,
+    nonce: nonceToUint128(nonce),
     wallet: walletAddress,
-    market: katanaMarket,
-    type: toKatanaOrderType(request.type, request.price),
-    side: KATANA_ORDER_SIDES[request.side] ?? 0,
+    marketSymbol: katanaMarket,
+    orderType: toKatanaOrderType(request.type, request.price),
+    orderSide: KATANA_ORDER_SIDES[request.side] ?? 0,
     quantity: formatDecimal(request.amount),
     limitPrice: request.price != null ? formatDecimal(request.price) : KATANA_ZERO_DECIMAL,
     triggerPrice: request.stopPrice != null ? formatDecimal(request.stopPrice) : KATANA_ZERO_DECIMAL,
     triggerType: request.stopPrice != null ? KATANA_TRIGGER_TYPES.index : KATANA_TRIGGER_TYPES.none,
     callbackRate: KATANA_ZERO_DECIMAL,
-    conditionalOrderId: 0,
+    conditionalOrderId: 0n,
     isReduceOnly: request.reduceOnly ?? false,
     timeInForce: toKatanaTimeInForce(request.timeInForce, request.postOnly),
     selfTradePrevention: KATANA_SELF_TRADE_PREVENTION.decrementAndCancel,
@@ -61704,11 +61324,11 @@ function toKatanaTimeInForce(tif, postOnly) {
       return KATANA_TIME_IN_FORCE.GTC;
   }
 }
-function normalizeOrderType2(katanaType) {
+function normalizeOrderType(katanaType) {
   const mapped = KATANA_ORDER_TYPE_REVERSE[katanaType];
   return mapped ?? "limit";
 }
-function normalizeOrderSide2(katanaSide) {
+function normalizeOrderSide(katanaSide) {
   return katanaSide === 0 ? "buy" : "sell";
 }
 function normalizeOrderStatus2(katanaState) {
@@ -61744,11 +61364,13 @@ function mapError8(error) {
   }
   return new PerpDEXError(message, err2.code ?? "UNKNOWN", "katana", error);
 }
+var UINT128_MASK;
 var init_utils17 = __esm({
   "src/adapters/katana/utils.ts"() {
     "use strict";
     init_constants20();
     init_errors();
+    UINT128_MASK = (1n << 128n) - 1n;
   }
 });
 
@@ -61939,8 +61561,24 @@ var init_KatanaAdapter = __esm({
         const nonce = this.auth.generateNonce();
         const payload = convertOrderRequest5(request, walletAddress, nonce);
         const signature = await this.auth.signOrder(payload);
-        const body = { ...payload, signature };
-        const raw = await this.privatePost("/orders", body);
+        const limitPrice = payload.limitPrice !== KATANA_ZERO_DECIMAL ? payload.limitPrice : void 0;
+        const body = {
+          nonce,
+          wallet: payload.wallet,
+          market: payload.marketSymbol,
+          type: KATANA_ORDER_TYPE_REVERSE[payload.orderType] ?? "limit",
+          side: KATANA_ORDER_SIDE_REVERSE[payload.orderSide] ?? "buy",
+          quantity: payload.quantity,
+          ...limitPrice != null && { price: limitPrice },
+          timeInForce: KATANA_WIRE_TIME_IN_FORCE[payload.timeInForce] ?? "gtc",
+          selfTradePrevention: KATANA_WIRE_SELF_TRADE_PREVENTION[payload.selfTradePrevention] ?? "dc",
+          ...payload.clientOrderId && { clientOrderId: payload.clientOrderId },
+          signature
+        };
+        const raw = await this.privatePost(
+          "/orders",
+          body
+        );
         return normalizeOrder2(raw);
       }
       async cancelOrder(orderId, symbol) {
@@ -61950,9 +61588,8 @@ var init_KatanaAdapter = __esm({
         const walletAddress = this.auth.getAddress();
         const nonce = this.auth.generateNonce();
         const market = symbol ? toKatanaSymbol(symbol) : "";
-        const cancelPayload = { nonce, wallet: walletAddress, orderId, market };
-        const signature = await this.auth.signCancel(cancelPayload);
-        const body = { ...cancelPayload, signature };
+        const signature = await this.auth.signCancel({ wallet: walletAddress, market });
+        const body = { nonce, wallet: walletAddress, orderId, market, signature };
         const raw = await this.privateDelete("/orders", body);
         return normalizeOrder2(raw);
       }
@@ -61963,9 +61600,8 @@ var init_KatanaAdapter = __esm({
         const walletAddress = this.auth.getAddress();
         const nonce = this.auth.generateNonce();
         const market = symbol ? toKatanaSymbol(symbol) : "";
-        const cancelPayload = { nonce, wallet: walletAddress, orderId: "", market };
-        const signature = await this.auth.signCancel(cancelPayload);
-        const body = { ...cancelPayload, signature };
+        const signature = await this.auth.signCancel({ wallet: walletAddress, market });
+        const body = { nonce, wallet: walletAddress, orderId: "", market, signature };
         const raw = await this.privateDelete("/orders", body);
         return (Array.isArray(raw) ? raw : []).map(normalizeOrder2);
       }
@@ -62023,10 +61659,16 @@ var init_KatanaAdapter = __esm({
       async fetchBalance() {
         this.auth.requireAuth();
         await this.rateLimiter.acquire("fetchBalance");
+        const walletAddress = this.auth.getAddress();
         const raw = await this.privateGet("/wallets", {
-          wallet: this.auth.getAddress()
+          wallet: walletAddress
         });
-        return [normalizeBalance2(raw)];
+        const list = Array.isArray(raw) ? raw : [raw];
+        if (list.length === 0) return [];
+        const matching = walletAddress && list.length > 1 ? list.find(
+          (w) => w.wallet?.toLowerCase() === walletAddress.toLowerCase()
+        ) ?? list[0] : list[0];
+        return [normalizeBalance2(matching)];
       }
       async _setLeverage(symbol, leverage) {
         this.auth.requireAuth();
@@ -62051,8 +61693,7 @@ var init_KatanaAdapter = __esm({
         this.auth.requireWallet();
         const walletAddress = this.auth.getAddress();
         const nonce = this.auth.generateNonce();
-        const payload = { nonce, wallet: walletAddress, orderId: "", market: "" };
-        const signature = await this.auth.signCancel(payload);
+        const signature = await this.auth.signCancel({ wallet: walletAddress, market: "" });
         await this.privateDelete(`/wallets/${walletAddress}`, {
           nonce,
           wallet: walletAddress,
@@ -62273,6 +61914,8 @@ __export(katana_exports, {
   KATANA_TIME_IN_FORCE: () => KATANA_TIME_IN_FORCE,
   KATANA_TIME_IN_FORCE_REVERSE: () => KATANA_TIME_IN_FORCE_REVERSE,
   KATANA_TRIGGER_TYPES: () => KATANA_TRIGGER_TYPES,
+  KATANA_WIRE_SELF_TRADE_PREVENTION: () => KATANA_WIRE_SELF_TRADE_PREVENTION,
+  KATANA_WIRE_TIME_IN_FORCE: () => KATANA_WIRE_TIME_IN_FORCE,
   KATANA_WS_CHANNELS: () => KATANA_WS_CHANNELS,
   KATANA_WS_CONFIG: () => KATANA_WS_CONFIG,
   KATANA_ZERO_DECIMAL: () => KATANA_ZERO_DECIMAL,
@@ -62291,6 +61934,7 @@ __export(katana_exports, {
   convertOrderRequest: () => convertOrderRequest5,
   formatDecimal: () => formatDecimal,
   mapError: () => mapError8,
+  nonceToUint128: () => nonceToUint128,
   normalizeBalance: () => normalizeBalance2,
   normalizeFill: () => normalizeFill,
   normalizeFundingRate: () => normalizeFundingRate,

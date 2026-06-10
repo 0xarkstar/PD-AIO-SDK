@@ -59,7 +59,9 @@ export class LighterNormalizer {
             maxLeverage: validated.default_initial_margin_fraction
                 ? Math.floor(10000 / validated.default_initial_margin_fraction)
                 : 20,
-            fundingIntervalHours: 8,
+            // Lighter settles funding hourly (live check 2026-06-11: /api/v1/fundings
+            // entries are spaced exactly 3600s apart)
+            fundingIntervalHours: 1,
             info: validated,
         };
     }
@@ -194,7 +196,9 @@ export class LighterNormalizer {
     normalizeFundingRate(lighterFundingRate) {
         const validated = LighterFundingRateSchema.parse(lighterFundingRate);
         const markPrice = validated.markPrice ?? 0;
-        const nextFundingTime = validated.nextFundingTime ?? Date.now() + 8 * 3600 * 1000;
+        // Lighter settles funding hourly (live check 2026-06-11: /api/v1/fundings
+        // entries are spaced exactly 3600s apart)
+        const nextFundingTime = validated.nextFundingTime ?? Date.now() + 1 * 3600 * 1000;
         return {
             symbol: this.normalizeSymbol(validated.symbol),
             fundingRate: validated.fundingRate,
@@ -202,7 +206,7 @@ export class LighterNormalizer {
             nextFundingTimestamp: nextFundingTime,
             markPrice,
             indexPrice: markPrice, // Not provided by Lighter, use mark price as fallback
-            fundingIntervalHours: 8,
+            fundingIntervalHours: 1,
             info: lighterFundingRate,
         };
     }

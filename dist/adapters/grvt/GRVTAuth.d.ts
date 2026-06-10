@@ -1,112 +1,113 @@
 /**
- * GRVT authentication strategy
+ * GRVT authentication strategy (cookie-session).
+ *
+ * Ground-truthed 2026-05-26. GRVT does NOT use per-request HMAC/message signing.
+ * Authentication is a cookie session:
+ *   1. `POST {edge}/auth/api_key/login {api_key}` -> `Set-Cookie: gravity=...`
+ *      + header `X-Grvt-Account-Id` + body `{ sub_account_id, funding_account_address }`.
+ *   2. Authed requests send `Cookie: gravity=...` + `X-Grvt-Account-Id: <id>`.
+ *   3. Refresh when <5s remain to cookie expiry.
+ *
+ * Order signing is EIP-712 (leg-based) and is DELEGATED to `signing.ts`
+ * (`signOrder`) — this class never re-implements EIP-712. The session itself is
+ * owned by `GRVTSDKWrapper` (which performs the login HTTP); this class exposes
+ * the wallet + a thin `IAuthStrategy` surface the adapter framework depends on.
  */
 import type { Wallet } from 'ethers';
 import type { IAuthStrategy, AuthenticatedRequest, RequestParams } from '../../types/adapter.js';
-import type { GRVTOrderSignPayload } from './types.js';
+import type { GrvtSignOrderInput, GrvtSignature } from './signing.js';
+import type { GRVTSession } from './types.js';
 /**
- * GRVT authentication configuration
+ * GRVT authentication configuration.
  */
 export interface GRVTAuthConfig {
+    /** API key (created in the GRVT UI; required for the cookie-session login). */
     apiKey?: string;
+    /** EVM wallet used to sign orders (the sub-account signer). */
     wallet?: Wallet;
+    /** Use testnet (chainId 326). */
     testnet?: boolean;
 }
 /**
- * GRVT authentication strategy implementation
+ * GRVT cookie-session auth strategy.
  *
- * Uses API key + session cookie + EIP-712 signatures
+ * Implements {@link IAuthStrategy} (`sign` / `getHeaders`) so the adapter
+ * framework can plug it in; the internals are cookie-session, not message
+ * signing. The session is set by the adapter after `GRVTSDKWrapper.login()`.
  */
 export declare class GRVTAuth implements IAuthStrategy {
     private readonly apiKey?;
     private readonly wallet?;
     private readonly testnet;
-    private sessionCookie?;
-    private nonce;
+    private session?;
     constructor(config: GRVTAuthConfig);
     /**
-     * Check if authentication credentials are available
+     * Whether auth credentials are available (an API key is required to log in).
      */
     hasCredentials(): boolean;
     /**
-     * Require authentication for private methods
-     * @throws {Error} if no credentials are configured
+     * Whether a signing wallet is available (required to place orders).
+     */
+    hasWallet(): boolean;
+    /**
+     * Require authentication for private methods.
+     * @throws {Error} if no API key is configured.
      */
     requireAuth(): void;
     /**
-     * Sign a request with authentication headers
+     * The EIP-712 chain id for the configured environment (326 testnet / 325 mainnet).
+     */
+    get chainId(): number;
+    /**
+     * Attach cookie-session auth headers to a request (IAuthStrategy contract).
      */
     sign(request: RequestParams): Promise<AuthenticatedRequest>;
     /**
-     * Get authentication headers
+     * Get the cookie-session auth headers. Includes `Cookie: gravity=...` +
+     * `X-Grvt-Account-Id` when a live session is present.
      */
     getHeaders(): Record<string, string>;
     /**
-     * Verify authentication credentials
+     * Verify credentials are usable (non-empty API key or a connected wallet).
      */
     verify(): Promise<boolean>;
     /**
-     * Get current session cookie
+     * Store the resolved session (called by the adapter after login).
      */
-    getSessionCookie(): string | undefined;
+    setSession(session: GRVTSession): void;
     /**
-     * Set session cookie from authentication response
+     * The current session, if any.
      */
-    setSessionCookie(token: string, expiresIn?: number): void;
+    getSession(): GRVTSession | undefined;
     /**
-     * Clear session cookie
+     * Clear the current session.
      */
-    clearSessionCookie(): void;
+    clearSession(): void;
     /**
-     * Check if current session is valid
+     * Whether the current session is present and not within the 5s refresh buffer.
      */
     private isSessionValid;
     /**
-     * Check if request requires signature
-     */
-    private requiresSignature;
-    /**
-     * Sign request data with wallet
-     */
-    private signRequest;
-    /**
-     * Create message for signing
-     */
-    private createSignatureMessage;
-    /**
-     * Sign order using EIP-712
-     */
-    signOrder(payload: GRVTOrderSignPayload): Promise<string>;
-    /**
-     * Get next nonce for order signing
-     */
-    getNextNonce(): number;
-    /**
-     * Reset nonce (useful after session refresh)
-     */
-    resetNonce(): void;
-    /**
-     * Get wallet address
+     * The signing wallet address, if a wallet is configured.
      */
     getAddress(): string | undefined;
     /**
-     * Convert ethers signature to GRVT ISignature format
+     * Generate a GRVT order nonce (uint32-safe random; delegates to signing.ts).
      */
-    parseSignature(signature: string): {
-        r: string;
-        s: string;
-        v: number;
-    };
+    generateNonce(): number;
     /**
-     * Create ISignature object for API requests
+     * Generate an order expiration in unix nanoseconds (delegates to signing.ts).
+     * @param hoursFromNow hours until expiry (default 24, must stay <= 30 days).
      */
-    createSignature(payload: GRVTOrderSignPayload): Promise<{
-        signer: string;
-        r: string;
-        s: string;
-        v: number;
-        expiration: string;
-        nonce: number;
-    }>;
+    generateExpiration(hoursFromNow?: number): string;
+    /**
+     * Sign a GRVT order via the proven leg-based EIP-712 path in `signing.ts`.
+     * Fills in the configured chain id when the caller omits it.
+     *
+     * @throws {Error} if no signing wallet is configured.
+     */
+    signOrder(input: Omit<GrvtSignOrderInput, 'chainId'> & {
+        chainId?: number;
+    }): Promise<GrvtSignature>;
 }
 //# sourceMappingURL=GRVTAuth.d.ts.map

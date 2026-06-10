@@ -229,7 +229,7 @@ describe('Market Normalization', () => {
       active: true,
       amountPrecision: 3,
       maxLeverage: 50,
-      fundingIntervalHours: 8,
+      fundingIntervalHours: 1,
     });
   });
 });

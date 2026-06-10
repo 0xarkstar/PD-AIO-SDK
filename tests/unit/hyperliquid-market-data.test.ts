@@ -196,13 +196,13 @@ describe('HyperliquidMarketData', () => {
       expect(typeof rate.fundingRate).toBe('number');
       expect(rate.markPrice).toBe(36000);
       expect(rate.indexPrice).toBe(36000);
-      expect(rate.fundingIntervalHours).toBe(8);
+      expect(rate.fundingIntervalHours).toBe(1);
     });
 
-    it('should calculate nextFundingTimestamp as +8 hours', () => {
+    it('should calculate nextFundingTimestamp as +1 hour (hourly funding)', () => {
       const result = parseFundingRates(mockResponse, 'BTC/USDT:USDT', 36000);
       const rate = result[0];
-      expect(rate.nextFundingTimestamp).toBe(rate.fundingTimestamp + 8 * 3600 * 1000);
+      expect(rate.nextFundingTimestamp).toBe(rate.fundingTimestamp + 1 * 3600 * 1000);
     });
 
     it('should sort by timestamp descending (newest first)', () => {
@@ -242,10 +242,10 @@ describe('HyperliquidMarketData', () => {
       expect(result.symbol).toBe('BTC/USDT:USDT');
       expect(result.fundingRate).toBe(0.0001);
       expect(result.fundingTimestamp).toBe(1700000000000);
-      expect(result.nextFundingTimestamp).toBe(1700000000000 + 8 * 3600 * 1000);
+      expect(result.nextFundingTimestamp).toBe(1700000000000 + 1 * 3600 * 1000);
       expect(result.markPrice).toBe(36000);
       expect(result.indexPrice).toBe(36000);
-      expect(result.fundingIntervalHours).toBe(8);
+      expect(result.fundingIntervalHours).toBe(1);
     });
 
     it('should handle zero funding rate', () => {

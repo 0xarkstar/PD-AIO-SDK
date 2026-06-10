@@ -1,104 +1,82 @@
 /**
- * GRVT-specific type definitions
+ * GRVT-specific type definitions.
+ *
+ * Ground-truthed 2026-05-26 against the official GRVT api-docs + live API and
+ * the working zo-mm-sim market-data parsers. These mirror the REAL GRVT REST
+ * response shapes (all numeric fields are STRINGS on the wire):
+ *  - instruments carry `instrument_hash` + `base_decimals` (used for signing),
+ *    `kind: 'PERPETUAL'`, and NO per-instrument fee fields (fees are per-fill).
+ *  - books are FULL snapshots with `{ price, size, num_orders }` levels + `event_time`.
+ *  - trades carry `is_taker_buyer` (true => BUY aggressor) and a string `trade_id`.
+ *  - tickers carry mark/index/last/mid + best bid/ask + 24h volume fields.
+ *
+ * Order EIP-712 signing input/output live in `signing.ts`
+ * (`GrvtSignOrderInput` / `GrvtSignature`) — they are NOT redefined here.
  */
 import { z } from 'zod';
 export const GRVTMarketSchema = z
     .object({
-    instrument_id: z.string(),
     instrument: z.string(),
-    base_currency: z.string(),
-    quote_currency: z.string(),
-    settlement_currency: z.string(),
-    instrument_type: z.string(),
-    is_active: z.boolean(),
-    maker_fee: z.string(),
-    taker_fee: z.string(),
-    max_leverage: z.string(),
-    min_size: z.string(),
-    max_size: z.string(),
+    instrument_hash: z.string(),
+    base: z.string(),
+    quote: z.string(),
+    base_decimals: z.number().int(),
+    quote_decimals: z.number().int(),
     tick_size: z.string(),
-    step_size: z.string(),
-    mark_price: z.string(),
-    index_price: z.string(),
-    funding_rate: z.string().optional(),
-    next_funding_time: z.number().optional(),
-    open_interest: z.string().optional(),
+    min_size: z.string(),
+    min_notional: z.string().optional(),
+    max_size: z.string().optional(),
+    funding_interval_hours: z.number().optional(),
+    kind: z.string(),
+    is_active: z.boolean().optional(),
+})
+    .passthrough();
+export const GRVTOrderBookLevelSchema = z
+    .object({
+    price: z.string(),
+    size: z.string(),
+    num_orders: z.number().optional(),
 })
     .passthrough();
 export const GRVTOrderBookSchema = z
     .object({
-    instrument: z.string(),
-    bids: z.array(z.tuple([z.string(), z.string()])),
-    asks: z.array(z.tuple([z.string(), z.string()])),
-    timestamp: z.number(),
-    sequence: z.number(),
-})
-    .passthrough();
-export const GRVTOrderSchema = z
-    .object({
-    order_id: z.string(),
-    client_order_id: z.string().optional(),
-    instrument: z.string(),
-    order_type: z.string(),
-    side: z.string(),
-    size: z.string(),
-    price: z.string().optional(),
-    time_in_force: z.string(),
-    reduce_only: z.boolean(),
-    post_only: z.boolean(),
-    status: z.string(),
-    filled_size: z.string(),
-    average_fill_price: z.string().optional(),
-    created_at: z.number(),
-    updated_at: z.number(),
-})
-    .passthrough();
-export const GRVTPositionSchema = z
-    .object({
-    instrument: z.string(),
-    side: z.string(),
-    size: z.string(),
-    entry_price: z.string(),
-    mark_price: z.string(),
-    liquidation_price: z.string().optional(),
-    unrealized_pnl: z.string(),
-    realized_pnl: z.string(),
-    margin: z.string(),
-    leverage: z.string(),
-    timestamp: z.number(),
-})
-    .passthrough();
-export const GRVTBalanceSchema = z
-    .object({
-    currency: z.string(),
-    total: z.string(),
-    available: z.string(),
-    reserved: z.string(),
-    unrealized_pnl: z.string(),
+    instrument: z.string().optional(),
+    event_time: z.string(),
+    bids: z.array(GRVTOrderBookLevelSchema),
+    asks: z.array(GRVTOrderBookLevelSchema),
 })
     .passthrough();
 export const GRVTTradeSchema = z
     .object({
-    trade_id: z.string(),
-    instrument: z.string(),
-    side: z.string(),
-    price: z.string(),
+    event_time: z.string(),
+    instrument: z.string().optional(),
+    is_taker_buyer: z.boolean(),
     size: z.string(),
-    timestamp: z.number(),
-    is_buyer_maker: z.boolean(),
+    price: z.string(),
+    mark_price: z.string().optional(),
+    index_price: z.string().optional(),
+    trade_id: z.string(),
+    venue: z.string().optional(),
+    is_rpi: z.boolean().optional(),
 })
     .passthrough();
 export const GRVTTickerSchema = z
     .object({
-    instrument: z.string(),
-    last_price: z.string(),
-    best_bid: z.string(),
-    best_ask: z.string(),
-    volume_24h: z.string(),
-    high_24h: z.string(),
-    low_24h: z.string(),
-    price_change_24h: z.string(),
-    timestamp: z.number(),
+    instrument: z.string().optional(),
+    event_time: z.string().optional(),
+    mark_price: z.string().optional(),
+    index_price: z.string().optional(),
+    last_price: z.string().optional(),
+    mid_price: z.string().optional(),
+    best_bid_price: z.string().optional(),
+    best_ask_price: z.string().optional(),
+    best_bid_size: z.string().optional(),
+    best_ask_size: z.string().optional(),
+    buy_volume_24h_q: z.string().optional(),
+    sell_volume_24h_q: z.string().optional(),
+    open_interest: z.string().optional(),
+    funding_rate: z.string().optional(),
+    next_funding_time: z.string().optional(),
 })
     .passthrough();
 //# sourceMappingURL=types.js.map

@@ -1,160 +1,124 @@
 /**
- * GRVT Data Normalizer
+ * GRVT Data Normalizer.
  *
- * Transforms GRVT API responses to unified SDK format with precision safety,
- * batch processing optimization, and comprehensive validation.
+ * Transforms REAL GRVT API response shapes (see `types.ts`) into the SDK's
+ * unified types. GRVT numeric fields are STRINGS on the wire; all conversions
+ * go through `toNumberSafe`. Fees are per-fill (not per-instrument), so markets
+ * carry 0 maker/taker fees here.
  *
- * @see https://docs.grvt.io
+ * @see https://api-docs.grvt.io/
  */
-import type { IInstrumentDisplay, IOrder, IPositions, ISpotBalance, IFill, ITicker, IOrderbookLevels, ITrade } from '@grvt/client/interfaces';
 import type { Market, Order, Position, Balance, Trade, Ticker, OrderBook, FundingRate } from '../../types/common.js';
+import type { GRVTMarket, GRVTOrder, GRVTPosition, GRVTSpotBalance, GRVTFill, GRVTTicker, GRVTOrderBook, GRVTTrade, GRVTFunding } from './types.js';
 /**
- * GRVT Data Normalizer
+ * GRVT Data Normalizer.
  *
- * Provides data transformation between GRVT and unified formats with:
- * - Precision-safe numeric conversions
- * - Batch processing optimization
- * - Runtime validation with Zod
- * - Symbol format conversions
- *
- * @example
- * ```typescript
- * const normalizer = new GRVTNormalizer();
- *
- * // Single entity
- * const market = normalizer.normalizeMarket(grvtMarket);
- *
- * // Batch processing
- * const orders = normalizer.normalizeOrders(grvtOrders);
- * ```
+ * Symbol convention: GRVT instruments are strings like `BTC_USDT_Perp`;
+ * unified symbols are CCXT-style `BTC/USDT:USDT`.
  */
 export declare class GRVTNormalizer {
     /**
-     * Convert GRVT symbol to CCXT format
-     *
-     * @param grvtSymbol - GRVT symbol (e.g., "BTC-PERP", "ETH-PERP")
-     * @returns CCXT formatted symbol (e.g., "BTC/USDT:USDT")
+     * Convert a GRVT instrument to a unified CCXT symbol.
      *
      * @example
-     * ```typescript
-     * normalizer.symbolToCCXT('BTC-PERP');  // "BTC/USDT:USDT"
-     * normalizer.symbolToCCXT('ETH-PERP');  // "ETH/USDT:USDT"
-     * normalizer.symbolToCCXT('BTC-SPOT');  // "BTC/USDT"
-     * ```
+     * symbolToCCXT('BTC_USDT_Perp') // 'BTC/USDT:USDT'
+     * symbolToCCXT('BTC_USDT')      // 'BTC/USDT'
      */
     symbolToCCXT(grvtSymbol: string): string;
     /**
-     * Convert CCXT symbol to GRVT format
-     *
-     * @param ccxtSymbol - CCXT formatted symbol (e.g., "BTC/USDT:USDT")
-     * @returns GRVT symbol (e.g., "BTC_USDT_Perp")
+     * Convert a unified CCXT symbol to a GRVT instrument.
      *
      * @example
-     * ```typescript
-     * normalizer.symbolFromCCXT('BTC/USDT:USDT'); // "BTC_USDT_Perp"
-     * normalizer.symbolFromCCXT('ETH/USDT:USDT'); // "ETH_USDT_Perp"
-     * normalizer.symbolFromCCXT('BTC/USDT');      // "BTC_USDT"
-     * ```
+     * symbolFromCCXT('BTC/USDT:USDT') // 'BTC_USDT_Perp'
+     * symbolFromCCXT('BTC/USDT')      // 'BTC_USDT'
      */
     symbolFromCCXT(ccxtSymbol: string): string;
     /**
-     * Convert string to number with validation
+     * Convert a GRVT string number to a finite number.
      *
-     * @param value - String value to convert
-     * @param decimals - Number of decimal places (default: 8)
-     * @returns Number
-     *
-     * @throws {PerpDEXError} If value is not a valid number
+     * @throws {PerpDEXError} if the value is not a valid number.
      */
     private toNumberSafe;
     /**
-     * Convert number to string with precision
-     *
-     * @param value - Number to convert
-     * @param decimals - Number of decimal places
-     * @returns String representation
+     * Count decimal places in a tick/step string (e.g. '0.5' -> 1, '0.001' -> 3).
      */
+    private countDecimals;
     /**
-     * Normalize GRVT market to unified format
-     *
-     * @param grvtMarket - GRVT market data from SDK
-     * @returns Unified market
+     * Normalize a GRVT instrument into a unified Market. Fees are per-fill on
+     * GRVT, so maker/taker are 0 here.
      */
-    normalizeMarket(grvtMarket: IInstrumentDisplay): Market;
+    normalizeMarket(grvtMarket: GRVTMarket): Market;
     /**
-     * Batch normalize markets
+     * Batch-normalize markets.
      */
-    normalizeMarkets(grvtMarkets: IInstrumentDisplay[]): Market[];
+    normalizeMarkets(grvtMarkets: GRVTMarket[]): Market[];
     /**
-     * Normalize GRVT order to unified format
+     * Normalize a GRVT account order (leg-based) into a unified Order.
      */
-    normalizeOrder(grvtOrder: IOrder): Order;
+    normalizeOrder(grvtOrder: GRVTOrder): Order;
     /**
-     * Map SDK order status to unified format
+     * Batch-normalize orders.
      */
-    private mapSDKOrderStatus;
+    normalizeOrders(grvtOrders: GRVTOrder[]): Order[];
     /**
-     * Map SDK time in force to unified format
+     * Map a GRVT order status to the unified OrderStatus.
      */
-    private mapSDKTimeInForce;
+    private mapOrderStatus;
     /**
-     * Batch normalize orders
+     * Map a GRVT API TIF string to the unified TimeInForce.
      */
-    normalizeOrders(grvtOrders: IOrder[]): Order[];
+    private mapTimeInForce;
     /**
-     * Normalize GRVT position to unified format
+     * Normalize a GRVT position into a unified Position.
      */
-    normalizePosition(grvtPosition: IPositions): Position;
+    normalizePosition(grvtPosition: GRVTPosition): Position;
     /**
-     * Batch normalize positions
+     * Batch-normalize positions.
      */
-    normalizePositions(grvtPositions: IPositions[]): Position[];
+    normalizePositions(grvtPositions: GRVTPosition[]): Position[];
     /**
-     * Normalize GRVT balance to unified format
+     * Normalize a GRVT spot balance into a unified Balance.
      */
-    normalizeBalance(grvtBalance: ISpotBalance): Balance;
+    normalizeBalance(grvtBalance: GRVTSpotBalance): Balance;
     /**
-     * Batch normalize balances
+     * Batch-normalize balances.
      */
-    normalizeBalances(grvtBalances: ISpotBalance[]): Balance[];
+    normalizeBalances(grvtBalances: GRVTSpotBalance[]): Balance[];
     /**
-     * Normalize GRVT trade to unified format (public trades)
+     * Normalize a GRVT public trade into a unified Trade.
+     * `is_taker_buyer` true => the aggressor bought (side = 'buy').
      */
-    normalizeTrade(grvtTrade: ITrade): Trade;
+    normalizeTrade(grvtTrade: GRVTTrade): Trade;
     /**
-     * Batch normalize trades
+     * Batch-normalize public trades.
      */
-    normalizeTrades(grvtTrades: ITrade[]): Trade[];
+    normalizeTrades(grvtTrades: GRVTTrade[]): Trade[];
     /**
-     * Normalize GRVT fill to unified trade format (user fills)
+     * Normalize a GRVT user fill into a unified Trade (with fee).
      */
-    normalizeFill(grvtFill: IFill): Trade;
+    normalizeFill(grvtFill: GRVTFill): Trade;
     /**
-     * Batch normalize fills
+     * Batch-normalize fills.
      */
-    normalizeFills(grvtFills: IFill[]): Trade[];
+    normalizeFills(grvtFills: GRVTFill[]): Trade[];
     /**
-     * Normalize GRVT ticker to unified format
+     * Normalize a GRVT ticker into a unified Ticker. GRVT has no 24h high/low/open,
+     * so those default to the last/mark price; baseVolume uses the 24h quote
+     * volumes (buy + sell).
      */
-    normalizeTicker(grvtTicker: ITicker): Ticker;
+    normalizeTicker(grvtTicker: GRVTTicker): Ticker;
     /**
-     * Batch normalize tickers
+     * Batch-normalize tickers.
      */
-    normalizeTickers(grvtTickers: ITicker[]): Ticker[];
+    normalizeTickers(grvtTickers: GRVTTicker[]): Ticker[];
     /**
-     * Normalize GRVT order book to unified format
+     * Normalize a GRVT FULL order-book snapshot into a unified OrderBook.
      */
-    normalizeOrderBook(grvtOrderBook: IOrderbookLevels): OrderBook;
+    normalizeOrderBook(grvtOrderBook: GRVTOrderBook): OrderBook;
     /**
-     * Normalize GRVT funding rate to unified format
+     * Normalize a GRVT funding entry into a unified FundingRate.
      */
-    normalizeFundingRate(grvtFunding: {
-        instrument?: string;
-        funding_rate?: string;
-        funding_time?: string;
-        mark_price?: string;
-        funding_interval_hours?: number;
-    }): FundingRate;
+    normalizeFundingRate(grvtFunding: GRVTFunding): FundingRate;
     normalizeSymbol(exchangeSymbol: string): string;
     toExchangeSymbol(symbol: string): string;
 }

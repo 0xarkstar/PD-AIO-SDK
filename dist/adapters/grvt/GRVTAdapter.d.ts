@@ -1,15 +1,14 @@
 /**
- * GRVT Exchange Adapter - Refactored with SDK Integration
+ * GRVT Exchange Adapter.
  *
- * High-performance hybrid DEX with sub-millisecond latency
+ * High-performance hybrid perp DEX (ZKsync hyperchain). This adapter talks to
+ * the REAL GRVT API directly (cookie-session auth + POST `full/v1/*` + leg-based
+ * EIP-712 order signing delegated to `signing.ts`). It builds + sends correctly
+ * signed orders; it does NOT run any auto-execution/trading loop.
  *
- * Features:
- * - Official @grvt/client SDK integration
- * - REST API for trading and market data
- * - WebSocket for real-time updates
- * - API key + session cookie authentication
- * - EIP-712 signatures for orders
- * - Up to 100x leverage
+ * Auth: `GRVTSDKWrapper.login()` exchanges the API key for a `gravity` session
+ * cookie + `X-Grvt-Account-Id` + `sub_account_id`; that sub-account id and the
+ * cached instrument meta (instrument_hash + base_decimals) feed `createOrder`.
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type { Market, OHLCV, OHLCVParams, OHLCVTimeframe, Order, Position, Balance, OrderBook, Trade, Ticker, FundingRate, OrderRequest, MarketParams, OrderBookParams, TradeParams } from '../../types/common.js';
@@ -17,15 +16,17 @@ import type { FeatureMap, IExchangeAdapter } from '../../types/adapter.js';
 import { RateLimiter } from '../../core/RateLimiter.js';
 import { type GRVTAuthConfig } from './GRVTAuth.js';
 /**
- * GRVT adapter configuration
+ * GRVT adapter configuration.
  */
 export interface GRVTConfig extends GRVTAuthConfig {
     testnet?: boolean;
     timeout?: number;
     debug?: boolean;
-    /** Builder code for fee attribution */
+    /** Builder address for fee attribution (enables OrderWithBuilderFee signing). */
     builderCode?: string;
-    /** Enable/disable builder code (default: true when builderCode is set) */
+    /** Builder fee (human units) when a builder address is set. */
+    builderFee?: string;
+    /** Enable/disable builder code (default: true when builderCode is set). */
     builderCodeEnabled?: boolean;
 }
 /**
@@ -33,7 +34,7 @@ export interface GRVTConfig extends GRVTAuthConfig {
  */
 export type GRVTAdapterConfig = GRVTConfig;
 /**
- * GRVT Exchange Adapter
+ * GRVT Exchange Adapter.
  */
 export declare class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     readonly id = "grvt";
@@ -46,155 +47,65 @@ export declare class GRVTAdapter extends BaseAdapter implements IExchangeAdapter
     protected readonly rateLimiter: RateLimiter;
     private readonly testnet;
     private readonly builderCode?;
+    private readonly builderFee?;
     private readonly builderCodeEnabled;
+    /** instrument -> { instrument_hash, base_decimals }, cached from fetchMarkets. */
+    private instrumentMeta;
     constructor(config?: GRVTAdapterConfig);
     initialize(): Promise<void>;
     fetchMarkets(params?: MarketParams): Promise<Market[]>;
     _fetchTicker(symbol: string): Promise<Ticker>;
     _fetchOrderBook(symbol: string, params?: OrderBookParams): Promise<OrderBook>;
     _fetchTrades(symbol: string, params?: TradeParams): Promise<Trade[]>;
-    /**
-     * Fetch OHLCV (candlestick) data
-     *
-     * @param symbol - Symbol in unified format (e.g., "BTC/USDT:USDT")
-     * @param timeframe - Candlestick timeframe
-     * @param params - Optional parameters (since, until, limit)
-     * @returns Array of OHLCV tuples [timestamp, open, high, low, close, volume]
-     */
     fetchOHLCV(symbol: string, timeframe?: OHLCVTimeframe, params?: OHLCVParams): Promise<OHLCV[]>;
-    /**
-     * Get default duration based on timeframe for initial data fetch
-     */
     private getDefaultDuration;
     _fetchFundingRate(symbol: string): Promise<FundingRate>;
     createOrder(request: OrderRequest): Promise<Order>;
     cancelOrder(orderId: string, _symbol?: string): Promise<Order>;
-    cancelAllOrders(symbol?: string): Promise<Order[]>;
+    cancelAllOrders(_symbol?: string): Promise<Order[]>;
     fetchOpenOrders(symbol?: string): Promise<Order[]>;
-    /**
-     * Fetch order history - NOW IMPLEMENTED via SDK!
-     */
     fetchOrderHistory(symbol?: string, _since?: number, limit?: number): Promise<Order[]>;
-    /**
-     * Fetch user trade history - NOW IMPLEMENTED via SDK!
-     */
     fetchMyTrades(symbol?: string, _since?: number, limit?: number): Promise<Trade[]>;
     fetchPositions(symbols?: string[]): Promise<Position[]>;
     fetchBalance(): Promise<Balance[]>;
-    private mapOrderType;
-    private mapTimeInForce;
+    /**
+     * Resolve a requested book depth to the nearest valid GRVT depth.
+     */
+    private resolveDepth;
+    /**
+     * Map the unified TIF + market/post-only intent to the SIGN-enum TIF key.
+     * Maker quotes (post_only, non-market) use GOOD_TILL_TIME.
+     */
+    private resolveSignTimeInForce;
+    /**
+     * Get cached instrument meta (hash + base_decimals), fetching markets if the
+     * cache is cold.
+     *
+     * @throws {PerpDEXError} if the instrument is unknown after fetching markets.
+     */
+    private getInstrumentMeta;
+    /**
+     * The trading sub-account id from the active session.
+     *
+     * @throws {PerpDEXError} if no session/sub-account id is available.
+     */
+    private requireSubAccountId;
+    /**
+     * Generate a GRVT client_order_id: a random integer in [2^63, 2^64-1].
+     */
+    private generateClientOrderId;
     fetchFundingRateHistory(_symbol: string, _since?: number, _limit?: number): Promise<FundingRate[]>;
-    _setLeverage(symbol: string, leverage: number): Promise<void>;
+    _setLeverage(_symbol: string, _leverage: number): Promise<void>;
     symbolToExchange(symbol: string): string;
     symbolFromExchange(exchangeSymbol: string): string;
-    /**
-     * Initialize WebSocket connection if not already initialized
-     */
     private ensureWebSocket;
-    /**
-     * Watch order book updates in real-time
-     *
-     * @param symbol - Trading symbol (e.g., "BTC/USDT:USDT")
-     * @param limit - Order book depth (default: 50)
-     * @returns AsyncGenerator yielding OrderBook updates
-     *
-     * @example
-     * ```typescript
-     * for await (const orderBook of adapter.watchOrderBook('BTC/USDT:USDT')) {
-     *   console.log('Best bid:', orderBook.bids[0]);
-     *   console.log('Best ask:', orderBook.asks[0]);
-     * }
-     * ```
-     */
     watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook>;
-    /**
-     * Watch public trades in real-time
-     *
-     * @param symbol - Trading symbol
-     * @returns AsyncGenerator yielding Trade updates
-     *
-     * @example
-     * ```typescript
-     * for await (const trade of adapter.watchTrades('BTC/USDT:USDT')) {
-     *   console.log('Trade:', trade.price, trade.amount, trade.side);
-     * }
-     * ```
-     */
     watchTrades(symbol: string): AsyncGenerator<Trade>;
-    /**
-     * Watch position updates in real-time
-     *
-     * @returns AsyncGenerator yielding Position array updates
-     *
-     * @example
-     * ```typescript
-     * for await (const positions of adapter.watchPositions()) {
-     *   for (const position of positions) {
-     *     console.log('Position:', position.symbol, position.size, position.unrealizedPnl);
-     *   }
-     * }
-     * ```
-     */
-    watchPositions(): AsyncGenerator<Position[]>;
-    /**
-     * Watch order updates in real-time
-     *
-     * @returns AsyncGenerator yielding Order array updates
-     *
-     * @example
-     * ```typescript
-     * for await (const orders of adapter.watchOrders()) {
-     *   for (const order of orders) {
-     *     console.log('Order update:', order.id, order.status, order.filled);
-     *   }
-     * }
-     * ```
-     */
-    watchOrders(): AsyncGenerator<Order[]>;
-    /**
-     * Watch ticker updates in real-time
-     *
-     * @param symbol - Trading symbol (e.g., "BTC/USDT:USDT")
-     * @returns AsyncGenerator yielding Ticker updates
-     *
-     * @example
-     * ```typescript
-     * for await (const ticker of adapter.watchTicker('BTC/USDT:USDT')) {
-     *   console.log('Price:', ticker.last);
-     * }
-     * ```
-     */
     watchTicker(symbol: string): AsyncGenerator<Ticker>;
-    /**
-     * Watch balance updates in real-time
-     *
-     * @returns AsyncGenerator yielding Balance array
-     *
-     * @example
-     * ```typescript
-     * for await (const balances of adapter.watchBalance()) {
-     *   console.log('Balance update:', balances);
-     * }
-     * ```
-     */
+    watchPositions(): AsyncGenerator<Position[]>;
+    watchOrders(): AsyncGenerator<Order[]>;
     watchBalance(): AsyncGenerator<Balance[]>;
-    /**
-     * Watch user trades (fills) in real-time
-     *
-     * @param symbol - Optional symbol filter
-     * @returns AsyncGenerator yielding Trade updates
-     *
-     * @example
-     * ```typescript
-     * for await (const trade of adapter.watchMyTrades()) {
-     *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
-     * }
-     * ```
-     */
     watchMyTrades(symbol?: string): AsyncGenerator<Trade>;
-    /**
-     * Close WebSocket connection
-     */
     disconnect(): Promise<void>;
 }
 //# sourceMappingURL=GRVTAdapter.d.ts.map

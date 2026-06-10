@@ -393,7 +393,7 @@ describe('LighterAdapter Integration Tests', () => {
         expect(mockFetch).toHaveBeenCalledTimes(2); // fetchMarkets + funding-rates
         expect(fundingRate.symbol).toBe('BTC/USDC:USDC');
         expect(fundingRate.fundingRate).toBe(0.0001);
-        expect(fundingRate.fundingIntervalHours).toBe(8);
+        expect(fundingRate.fundingIntervalHours).toBe(1);
       });
     });
   });

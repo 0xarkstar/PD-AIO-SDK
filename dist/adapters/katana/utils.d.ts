@@ -69,7 +69,21 @@ export declare function normalizeTicker(raw: KatanaTicker): Ticker;
  */
 export declare function normalizeFundingRate(raw: KatanaFundingRate): FundingRate;
 /**
- * Convert unified OrderRequest to Katana EIP-712 sign payload
+ * Convert a Katana UUID v1 nonce to its `uint128` representation for EIP-712.
+ *
+ * Katana's `nonce` typed-data field is `uint128`, not a string. The UUID's
+ * 32 hex digits are a 128-bit number; we mask to 128 bits defensively (a UUID
+ * is already 128 bits, so the mask is a no-op for well-formed input).
+ *
+ * @example nonceToUint128('00000000-0000-1000-8000-000000000000') // 79228162514264337597746442240n style value
+ */
+export declare function nonceToUint128(uuidNonce: string): bigint;
+/**
+ * Convert a unified OrderRequest to a Katana EIP-712 `Order` sign payload.
+ *
+ * The UUID `nonce` is converted to its `uint128` form for signing; the caller
+ * keeps the original UUID for the HTTP body + HMAC. `conditionalOrderId` is a
+ * `uint128` BigInt (0n by default).
  */
 export declare function convertOrderRequest(request: OrderRequest, walletAddress: string, nonce: string): KatanaOrderSignPayload;
 /**

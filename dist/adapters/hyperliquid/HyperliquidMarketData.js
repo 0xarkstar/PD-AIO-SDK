@@ -4,6 +4,7 @@
  * Extracted from HyperliquidAdapter to reduce file size.
  * Contains OHLCV fetching and funding rate logic.
  */
+import { HYPERLIQUID_FUNDING_INTERVAL_HOURS } from './constants.js';
 /** Interval mapping from unified timeframes to Hyperliquid intervals */
 const INTERVAL_MAP = {
     '1m': '1m',
@@ -93,10 +94,10 @@ export function parseFundingRates(response, symbol, markPrice, limit) {
         symbol,
         fundingRate: parseFloat(rate.fundingRate),
         fundingTimestamp: rate.time,
-        nextFundingTimestamp: rate.time + 8 * 3600 * 1000, // 8 hours
+        nextFundingTimestamp: rate.time + HYPERLIQUID_FUNDING_INTERVAL_HOURS * 3600 * 1000,
         markPrice,
         indexPrice: markPrice,
-        fundingIntervalHours: 8,
+        fundingIntervalHours: HYPERLIQUID_FUNDING_INTERVAL_HOURS,
     }));
     // Sort by timestamp descending (newest first)
     fundingRates.sort((a, b) => b.fundingTimestamp - a.fundingTimestamp);
@@ -114,10 +115,10 @@ export function buildCurrentFundingRate(latest, symbol, markPrice) {
         symbol,
         fundingRate: parseFloat(latest.fundingRate),
         fundingTimestamp: latest.time,
-        nextFundingTimestamp: latest.time + 8 * 3600 * 1000, // 8 hours
+        nextFundingTimestamp: latest.time + HYPERLIQUID_FUNDING_INTERVAL_HOURS * 3600 * 1000,
         markPrice,
         indexPrice: markPrice,
-        fundingIntervalHours: 8,
+        fundingIntervalHours: HYPERLIQUID_FUNDING_INTERVAL_HOURS,
     };
 }
 //# sourceMappingURL=HyperliquidMarketData.js.map

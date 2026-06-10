@@ -1,151 +1,113 @@
 /**
- * GRVT WebSocket Wrapper
+ * GRVT WebSocket wrapper (JSON-RPC).
  *
- * Wraps the @grvt/client WS class to provide AsyncGenerator-based
- * streaming interfaces for real-time market data and account updates.
+ * GRVT's WS is JSON-RPC over the `/ws` base path on the trades + market-data
+ * hosts. Subscriptions are sent as:
+ *   {"jsonrpc":"2.0","method":"subscribe",
+ *    "params":{"stream":"v1.book.s","selectors":["BTC_USDT_Perp@500-50"]},"id":1}
  *
- * Features:
- * - AsyncGenerator pattern for easy iteration
- * - Automatic reconnection via SDK
- * - Data normalization
- * - Type-safe subscriptions
+ * Public streams (market-data host): v1.{book.s,book.d,trade,ticker.s,mini.s}.
+ * Private trade-data streams (trades host): v1.{order,fill,position} — these need
+ * the `gravity` cookie + `X-Grvt-Account-Id` on connect (carried in the session).
+ *
+ * Feed frames carry `{ stream, feed, selector }`; the `feed` payload shape
+ * matches REST exactly, so it is normalized via the same `GRVTNormalizer`.
+ * Built on the SDK's typed `WebSocketClient` (auto-reconnect, Node/browser).
  */
-import type { OrderBook, Trade, Position, Order, Balance, Ticker } from '../../types/common.js';
+import type { OrderBook, Trade, Ticker, Position, Order, Balance } from '../../types/common.js';
+import type { GRVTSession } from './types.js';
+/**
+ * GRVT WebSocket wrapper configuration.
+ */
 export interface GRVTWebSocketConfig {
+    /** Use testnet hosts. */
     testnet?: boolean;
-    subAccountId?: string;
+    /** Session (cookie + account id) required for private order/fill/position streams. */
+    session?: GRVTSession;
+    /** Connection timeout (ms). */
     timeout?: number;
 }
 /**
- * WebSocket wrapper for GRVT real-time data streams
+ * AsyncGenerator-based GRVT WebSocket streaming wrapper.
  */
 export declare class GRVTWebSocketWrapper {
-    /** Maximum queue size for backpressure */
     private static readonly MAX_QUEUE_SIZE;
-    private readonly ws;
     private readonly normalizer;
-    private readonly subAccountId?;
     private readonly logger;
-    private isConnected;
-    /**
-     * Push to queue with bounded size (backpressure)
-     */
-    private boundedPush;
+    private readonly publicClient;
+    private readonly tradeClient;
+    private readonly session?;
+    private nextId;
     constructor(config?: GRVTWebSocketConfig);
     /**
-     * Connect to WebSocket
+     * Connect the public market-data WebSocket.
      */
     connect(): Promise<void>;
     /**
-     * Disconnect from WebSocket
+     * Connect the private trade-data WebSocket (requires a session).
+     */
+    connectPrivate(): Promise<void>;
+    /**
+     * Disconnect both WebSockets.
      */
     disconnect(): void;
     /**
-     * Watch order book updates for a symbol
-     *
-     * @param symbol - Trading symbol in CCXT format (e.g., "BTC/USDT:USDT")
-     * @param depth - Order book depth (default: 50)
-     * @returns AsyncGenerator yielding OrderBook updates
-     *
-     * @example
-     * ```typescript
-     * for await (const orderBook of wrapper.watchOrderBook('BTC/USDT:USDT')) {
-     *   console.log('Bid:', orderBook.bids[0]);
-     *   console.log('Ask:', orderBook.asks[0]);
-     * }
-     * ```
+     * Whether the public WebSocket is connected.
+     */
+    get connected(): boolean;
+    /**
+     * Watch FULL order-book snapshots for a symbol (`v1.book.s`).
      */
     watchOrderBook(symbol: string, depth?: number): AsyncGenerator<OrderBook>;
     /**
-     * Watch public trades for a symbol
-     *
-     * @param symbol - Trading symbol in CCXT format
-     * @returns AsyncGenerator yielding Trade updates
-     *
-     * @example
-     * ```typescript
-     * for await (const trade of wrapper.watchTrades('BTC/USDT:USDT')) {
-     *   console.log('Trade:', trade.price, trade.amount, trade.side);
-     * }
-     * ```
+     * Watch public trades for a symbol (`v1.trade`).
      */
     watchTrades(symbol: string): AsyncGenerator<Trade>;
     /**
-     * Watch position updates for user account
-     *
-     * @param symbol - Optional symbol filter (watch all positions if not provided)
-     * @returns AsyncGenerator yielding Position updates
-     *
-     * @example
-     * ```typescript
-     * for await (const position of wrapper.watchPositions()) {
-     *   console.log('Position:', position.symbol, position.size, position.unrealizedPnl);
-     * }
-     * ```
-     */
-    watchPositions(symbol?: string): AsyncGenerator<Position>;
-    /**
-     * Watch order updates for user account
-     *
-     * @param symbol - Optional symbol filter
-     * @returns AsyncGenerator yielding Order updates
-     *
-     * @example
-     * ```typescript
-     * for await (const order of wrapper.watchOrders()) {
-     *   console.log('Order:', order.id, order.status, order.filled);
-     * }
-     * ```
-     */
-    watchOrders(symbol?: string): AsyncGenerator<Order>;
-    /**
-     * Watch balance updates for user account
-     *
-     * @returns AsyncGenerator yielding Balance array
-     *
-     * @example
-     * ```typescript
-     * for await (const balances of wrapper.watchBalance()) {
-     *   console.log('Balances:', balances);
-     * }
-     * ```
-     */
-    watchBalance(): AsyncGenerator<Balance[]>;
-    /**
-     * Watch ticker updates for a symbol
-     *
-     * GRVT doesn't have a dedicated ticker stream, so we derive ticker
-     * from trade stream updates. Each trade update contains price info
-     * that can be used to construct ticker-like updates.
-     *
-     * @param symbol - Trading symbol in CCXT format (e.g., "BTC/USDT:USDT")
-     * @returns AsyncGenerator yielding Ticker updates
-     *
-     * @example
-     * ```typescript
-     * for await (const ticker of wrapper.watchTicker('BTC/USDT:USDT')) {
-     *   console.log('Price:', ticker.last, 'Volume:', ticker.quoteVolume);
-     * }
-     * ```
+     * Watch ticker snapshots for a symbol (`v1.ticker.s`).
      */
     watchTicker(symbol: string): AsyncGenerator<Ticker>;
     /**
-     * Watch user trades (fills) in real-time
-     *
-     * @param symbol - Optional symbol filter
-     * @returns AsyncGenerator yielding Trade updates
-     *
-     * @example
-     * ```typescript
-     * for await (const trade of wrapper.watchMyTrades()) {
-     *   console.log('Fill:', trade.symbol, trade.side, trade.amount, '@', trade.price);
-     * }
-     * ```
+     * Watch position updates (`v1.position`; requires a session).
+     */
+    watchPositions(symbol?: string): AsyncGenerator<Position>;
+    /**
+     * Watch order updates (`v1.order`; requires a session).
+     */
+    watchOrders(symbol?: string): AsyncGenerator<Order>;
+    /**
+     * Watch user fills (`v1.fill`; requires a session).
      */
     watchMyTrades(symbol?: string): AsyncGenerator<Trade>;
     /**
-     * Check if WebSocket is connected
+     * Watch balance updates (derived from the position stream; requires a session).
      */
-    get connected(): boolean;
+    watchBalance(): AsyncGenerator<Balance[]>;
+    /**
+     * Subscribe to one stream and yield normalized values until the generator is
+     * closed. Frames for other streams/instruments are ignored; un-normalizable
+     * frames are skipped (defensive).
+     */
+    private stream;
+    /**
+     * Build a JSON-RPC subscribe frame.
+     */
+    private subscribeFrame;
+    /**
+     * Parse a WS frame into `{ stream, feed }`, returning null on non-object input.
+     */
+    private parseFrame;
+    /**
+     * The private selector: the sub-account id, optionally scoped to an instrument.
+     */
+    private privateSelector;
+    /**
+     * Push with a bounded queue (drop oldest under backpressure).
+     */
+    private boundedPush;
+    /**
+     * @throws {Error} if no session is configured for a private stream.
+     */
+    private requireSession;
 }
 //# sourceMappingURL=GRVTWebSocketWrapper.d.ts.map

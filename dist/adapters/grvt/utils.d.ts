@@ -1,66 +1,65 @@
 /**
- * GRVT utility functions for data normalization
+ * GRVT utility functions for data normalization (pure, standalone).
+ *
+ * These mirror the `GRVTNormalizer` methods but as free functions over the REAL
+ * GRVT shapes in `types.ts`. Kept for the public adapter surface + ergonomic
+ * one-off conversions. GRVT numeric fields are STRINGS on the wire.
  */
-import type { Market, Order, Position, Balance, OrderBook, Trade, Ticker, OrderSide, OrderType, TimeInForce } from '../../types/common.js';
-import type { GRVTMarket, GRVTOrder, GRVTPosition, GRVTBalance, GRVTOrderBook, GRVTTrade, GRVTTicker } from './types.js';
+import type { Market, Order, Position, Balance, OrderBook, Trade, Ticker, OrderSide, TimeInForce } from '../../types/common.js';
+import type { GRVTMarket, GRVTOrder, GRVTPosition, GRVTSpotBalance, GRVTOrderBook, GRVTTrade, GRVTTicker } from './types.js';
 /**
- * Normalize GRVT symbol to unified format
+ * Normalize a GRVT instrument string to a unified CCXT symbol.
  *
  * @example
  * normalizeSymbol('BTC_USDT_Perp') // 'BTC/USDT:USDT'
- * normalizeSymbol('ETH_USDT_Perp') // 'ETH/USDT:USDT'
  */
 export declare function normalizeSymbol(grvtSymbol: string): string;
 /**
- * Convert unified symbol to GRVT format
+ * Convert a unified CCXT symbol to a GRVT instrument string.
  *
  * @example
  * toGRVTSymbol('BTC/USDT:USDT') // 'BTC_USDT_Perp'
- * toGRVTSymbol('ETH/USDT:USDT') // 'ETH_USDT_Perp'
  */
 export declare function toGRVTSymbol(symbol: string): string;
 /**
- * Normalize GRVT market to unified format
+ * Normalize a GRVT instrument into a unified Market (fees are per-fill on GRVT).
  */
 export declare function normalizeMarket(grvtMarket: GRVTMarket): Market;
 /**
- * Normalize GRVT order to unified format
+ * Normalize a GRVT account order (leg-based) into a unified Order.
  */
 export declare function normalizeOrder(grvtOrder: GRVTOrder): Order;
 /**
- * Normalize GRVT position to unified format
+ * Normalize a GRVT position into a unified Position.
  */
 export declare function normalizePosition(grvtPosition: GRVTPosition): Position;
 /**
- * Normalize GRVT balance to unified format
+ * Normalize a GRVT spot balance into a unified Balance.
  */
-export declare function normalizeBalance(grvtBalance: GRVTBalance): Balance;
+export declare function normalizeBalance(grvtBalance: GRVTSpotBalance): Balance;
 /**
- * Normalize GRVT order book to unified format
+ * Normalize a GRVT FULL order-book snapshot into a unified OrderBook.
  */
 export declare function normalizeOrderBook(grvtOrderBook: GRVTOrderBook): OrderBook;
 /**
- * Normalize GRVT trade to unified format
+ * Normalize a GRVT public trade into a unified Trade.
  */
 export declare function normalizeTrade(grvtTrade: GRVTTrade): Trade;
 /**
- * Normalize GRVT ticker to unified format
+ * Normalize a GRVT ticker into a unified Ticker.
  */
 export declare function normalizeTicker(grvtTicker: GRVTTicker): Ticker;
 /**
- * Convert unified order type to GRVT format
- */
-export declare function toGRVTOrderType(type: OrderType, postOnly?: boolean): string;
-/**
- * Convert unified order side to GRVT format
+ * Convert a unified order side to the GRVT wire side.
  */
 export declare function toGRVTOrderSide(side: OrderSide): string;
 /**
- * Convert unified time in force to GRVT format
+ * Convert a unified TimeInForce (+ postOnly) to the GRVT API TIF string.
+ * Maker quotes (post_only) require GOOD_TILL_TIME.
  */
 export declare function toGRVTTimeInForce(tif?: TimeInForce, postOnly?: boolean): string;
 /**
- * Map GRVT error to unified error code
+ * Map a GRVT API error code/message to a unified error descriptor.
  */
 export declare function mapGRVTError(error: unknown): {
     code: string;

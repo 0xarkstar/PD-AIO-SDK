@@ -115,7 +115,10 @@ export const HYPERLIQUID_WS_RECONNECT = {
 // =============================================================================
 // Funding Rate
 // =============================================================================
-export const HYPERLIQUID_FUNDING_INTERVAL_HOURS = 8;
+// Hyperliquid settles funding EVERY HOUR and its raw funding field is the hourly
+// rate (live check 2026-06-11: HL BTC funding ~2.5e-6/h vs Binance ~4e-5/8h).
+// The normalizer passes the rate through unconverted, so this must be 1, not 8.
+export const HYPERLIQUID_FUNDING_INTERVAL_HOURS = 1;
 // =============================================================================
 // Error Messages
 // =============================================================================

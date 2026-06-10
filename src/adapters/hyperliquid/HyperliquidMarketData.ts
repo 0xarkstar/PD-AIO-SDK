@@ -6,6 +6,7 @@
  */
 
 import type { FundingRate, OHLCV, OHLCVParams, OHLCVTimeframe } from '../../types/index.js';
+import { HYPERLIQUID_FUNDING_INTERVAL_HOURS } from './constants.js';
 
 /** OHLCV candle response from Hyperliquid */
 export interface HyperliquidCandle {
@@ -130,10 +131,10 @@ export function parseFundingRates(
     symbol,
     fundingRate: parseFloat(rate.fundingRate),
     fundingTimestamp: rate.time,
-    nextFundingTimestamp: rate.time + 8 * 3600 * 1000, // 8 hours
+    nextFundingTimestamp: rate.time + HYPERLIQUID_FUNDING_INTERVAL_HOURS * 3600 * 1000,
     markPrice,
     indexPrice: markPrice,
-    fundingIntervalHours: 8,
+    fundingIntervalHours: HYPERLIQUID_FUNDING_INTERVAL_HOURS,
   }));
 
   // Sort by timestamp descending (newest first)
@@ -159,9 +160,9 @@ export function buildCurrentFundingRate(
     symbol,
     fundingRate: parseFloat(latest.fundingRate),
     fundingTimestamp: latest.time,
-    nextFundingTimestamp: latest.time + 8 * 3600 * 1000, // 8 hours
+    nextFundingTimestamp: latest.time + HYPERLIQUID_FUNDING_INTERVAL_HOURS * 3600 * 1000,
     markPrice,
     indexPrice: markPrice,
-    fundingIntervalHours: 8,
+    fundingIntervalHours: HYPERLIQUID_FUNDING_INTERVAL_HOURS,
   };
 }
