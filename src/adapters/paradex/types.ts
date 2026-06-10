@@ -152,23 +152,79 @@ export const ParadexBalanceSchema = z
   .passthrough();
 
 /**
- * Paradex order book response
+ * Paradex REST order book response
+ *
+ * Live shape (GET /v1/orderbook/{market}?depth=N, capture 2026-06-11):
+ * `{market, seq_no, last_updated_at, bids, asks}` with [price, size] string
+ * tuples. There is NO `timestamp` and NO `sequence` field — the old schema
+ * required them and threw ZodError on every real response.
  */
 export interface ParadexOrderBook {
   market: string;
+  seq_no: number;
+  /** Epoch ms */
+  last_updated_at: number;
   bids: [string, string][];
   asks: [string, string][];
-  timestamp: number;
-  sequence: number;
 }
 
 export const ParadexOrderBookSchema = z
   .object({
     market: z.string(),
+    seq_no: z.number(),
+    last_updated_at: z.number(),
     bids: z.array(z.tuple([z.string(), z.string()])),
     asks: z.array(z.tuple([z.string(), z.string()])),
-    timestamp: z.number(),
-    sequence: z.number(),
+  })
+  .passthrough();
+
+/**
+ * Paradex WS order book level (side-tagged object — NOT a tuple)
+ *
+ * The WS payload shape differs from REST: levels live in `inserts` as
+ * `{side, price, size}` objects (capture 2026-06-11).
+ */
+export interface ParadexWSOrderBookLevel {
+  side: 'BUY' | 'SELL';
+  price: string;
+  size: string;
+}
+
+export const ParadexWSOrderBookLevelSchema = z
+  .object({
+    side: z.enum(['BUY', 'SELL']),
+    price: z.string(),
+    size: z.string(),
+  })
+  .passthrough();
+
+/**
+ * Paradex WS order book notification data
+ *
+ * For the `order_book.{market}.snapshot@15@100ms` channel, `update_type` is
+ * always `'s'`, the full 15+15 book is in `inserts`, and `updates`/`deletes`
+ * are always empty. `'d'` frames belong to the deferred `.deltas` channel.
+ */
+export interface ParadexWSOrderBook {
+  seq_no: number;
+  market: string;
+  /** Epoch ms */
+  last_updated_at: number;
+  update_type: 's' | 'd';
+  inserts: ParadexWSOrderBookLevel[];
+  updates: ParadexWSOrderBookLevel[];
+  deletes: ParadexWSOrderBookLevel[];
+}
+
+export const ParadexWSOrderBookSchema = z
+  .object({
+    seq_no: z.number(),
+    market: z.string(),
+    last_updated_at: z.number(),
+    update_type: z.enum(['s', 'd']),
+    inserts: z.array(ParadexWSOrderBookLevelSchema),
+    updates: z.array(ParadexWSOrderBookLevelSchema),
+    deletes: z.array(ParadexWSOrderBookLevelSchema),
   })
   .passthrough();
 

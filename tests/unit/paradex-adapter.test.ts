@@ -85,7 +85,15 @@ describe('ParadexAdapter', () => {
       expect(adapter.has.fetchFundingRateHistory).toBe(true);
       expect(adapter.has.createOrder).toBe(true);
       expect(adapter.has.cancelOrder).toBe(true);
-      expect(adapter.has.watchMyTrades).toBe(true);
+      // watchOrderBook is fixture-backed vs the 2026-06-11 live capture
+      expect(adapter.has.watchOrderBook).toBe(true);
+      // Remaining WS decoders unverified post-framing-fix — flags must not over-claim
+      expect(adapter.has.watchTrades).toBe(false);
+      expect(adapter.has.watchTicker).toBe(false);
+      expect(adapter.has.watchPositions).toBe(false);
+      expect(adapter.has.watchOrders).toBe(false);
+      expect(adapter.has.watchBalance).toBe(false);
+      expect(adapter.has.watchMyTrades).toBe(false);
     });
   });
 
@@ -195,9 +203,13 @@ describe('ParadexAdapter', () => {
   });
 
   describe('fetchOrderBook', () => {
+    // Real REST shape: {market, seq_no, last_updated_at, bids, asks} — see
+    // tests/fixtures/paradex/rest_orderbook_btc_depth15.json (live 2026-06-11)
     test('fetches order book', async () => {
       const mockOrderBook = {
         market: 'BTC-USD-PERP',
+        seq_no: 12345,
+        last_updated_at: Date.now(),
         bids: [
           ['50000.00', '1.5'],
           ['49999.00', '2.0'],
@@ -206,8 +218,6 @@ describe('ParadexAdapter', () => {
           ['50001.00', '1.0'],
           ['50002.00', '3.0'],
         ],
-        timestamp: Date.now(),
-        sequence: 12345,
       };
 
       mockClient.get.mockResolvedValue(mockOrderBook);
@@ -217,15 +227,16 @@ describe('ParadexAdapter', () => {
       expect(orderBook).toBeDefined();
       expect(orderBook.bids).toBeDefined();
       expect(orderBook.asks).toBeDefined();
+      expect(orderBook.sequenceId).toBe(12345);
     });
 
     test('fetches order book with limit', async () => {
       const mockOrderBook = {
         market: 'BTC-USD-PERP',
+        seq_no: 12346,
+        last_updated_at: Date.now(),
         bids: [['50000.00', '1.5']],
         asks: [['50001.00', '1.0']],
-        timestamp: Date.now(),
-        sequence: 12346,
       };
 
       mockClient.get.mockResolvedValue(mockOrderBook);

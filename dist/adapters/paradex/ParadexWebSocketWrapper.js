@@ -12,6 +12,7 @@
  *
  * @see https://docs.paradex.trade/websocket
  */
+import { paradexOrderBookSnapshotChannel } from './constants.js';
 import { ParadexNormalizer } from './ParadexNormalizer.js';
 import { PerpDEXError } from '../../types/errors.js';
 import { Logger } from '../../core/logger.js';
@@ -120,13 +121,20 @@ export class ParadexWebSocketWrapper {
     /**
      * Watch order book updates for a symbol
      *
+     * Subscribes to `order_book.{market}.snapshot@15@100ms`: each notification
+     * is a full self-contained 15+15 snapshot (`update_type: "s"`), throttled
+     * ~100ms (typically 2-4/s, gaps up to ~2s on a quiet book). Every yield is
+     * a complete book — consumers self-diff. The incremental
+     * `order_book.{market}.deltas` channel is DELTAS DEFERRED.
+     *
      * @param symbol - Trading symbol in CCXT format (e.g., "BTC/USD:USD")
-     * @param depth - Order book depth (default: 50)
-     * @returns AsyncGenerator yielding OrderBook updates
+     * @param _depth - Ignored: depth is baked into the channel name and fixed
+     *   at 15, the only live-verified variant (capture 2026-06-11)
+     * @returns AsyncGenerator yielding full OrderBook snapshots
      */
-    async *watchOrderBook(symbol, depth = 50) {
+    async *watchOrderBook(symbol, _depth = 15) {
         const market = this.normalizer.symbolFromCCXT(symbol);
-        const channel = `orderbook.${market}`;
+        const channel = paradexOrderBookSnapshotChannel(market);
         const queue = [];
         const error = null;
         let resolver = null;
@@ -140,8 +148,8 @@ export class ParadexWebSocketWrapper {
             }
         };
         try {
-            // Subscribe
-            await this.subscribe(channel, { market, depth }, callback);
+            // Subscribe (no extra params — depth is baked into the channel name)
+            await this.subscribe(channel, {}, callback);
             // Yield order books as they arrive
             while (true) {
                 if (error)
@@ -157,14 +165,9 @@ export class ParadexWebSocketWrapper {
                 }
                 if (error)
                     throw error;
-                const normalized = this.normalizer.normalizeOrderBook({
-                    market: data.market || market,
-                    bids: data.bids || [],
-                    asks: data.asks || [],
-                    timestamp: data.timestamp || Date.now(),
-                    sequence: data.sequence || 0,
-                });
-                yield normalized;
+                // WS data = {seq_no, market, last_updated_at, update_type:"s",
+                // inserts:[{side,price,size}...], updates:[], deletes:[]}
+                yield this.normalizer.normalizeWSOrderBook(data);
             }
         }
         finally {
@@ -524,8 +527,10 @@ export class ParadexWebSocketWrapper {
         this.subscriptions.get(channel).add(callback);
         // Store subscription params for reconnection
         this.subscriptionParams.set(channel, params);
-        // Send subscription request
+        // Send subscription request (strict JSON-RPC 2.0 — the jsonrpc field is
+        // mandatory; extra params are tolerated by the server per live capture)
         const request = {
+            jsonrpc: '2.0',
             method: 'subscribe',
             params: {
                 channel,
@@ -548,6 +553,7 @@ export class ParadexWebSocketWrapper {
                 this.subscriptionParams.delete(channel);
                 if (this.ws && this.isConnected) {
                     this.ws.send(JSON.stringify({
+                        jsonrpc: '2.0',
                         method: 'unsubscribe',
                         params: { channel },
                         id: ++this.subscriptionId,
@@ -557,25 +563,31 @@ export class ParadexWebSocketWrapper {
         }
     }
     /**
-     * Handle incoming WebSocket message
+     * Handle incoming WebSocket message (strict JSON-RPC 2.0 envelope)
+     *
+     * Data notifications nest channel/data under `params`. Subscribe acks
+     * (`result`) are logged only — NEVER gate data on the ack: a notification
+     * can arrive BEFORE the ack (observed live: frame 0 = data, frame 1 = ack).
      */
     handleMessage(rawData) {
         try {
             const message = JSON.parse(rawData);
-            // Handle errors
+            // Handle errors ({code:number, message, data?})
             if (message.error) {
                 this.logger.error('WebSocket error', undefined, { error: message.error });
                 return;
             }
-            // Handle subscription confirmations
-            if (message.type === 'subscribed') {
+            // Subscribe ack: {jsonrpc, id, result:{channel}} — informational only
+            if (message.result !== undefined) {
+                this.logger.debug('Subscription acknowledged', { result: message.result });
                 return;
             }
-            // Dispatch to subscribers
-            if (message.channel && message.data) {
-                const subscribers = this.subscriptions.get(message.channel);
+            // Data notification: {jsonrpc, method:"subscription", params:{channel, data}}
+            if (message.method === 'subscription' && message.params?.channel) {
+                const subscribers = this.subscriptions.get(message.params.channel);
                 if (subscribers) {
-                    subscribers.forEach((callback) => callback(message.data));
+                    const data = message.params.data;
+                    subscribers.forEach((callback) => callback(data));
                 }
             }
         }
@@ -601,6 +613,7 @@ export class ParadexWebSocketWrapper {
             for (const [channel] of this.subscriptions) {
                 const params = this.subscriptionParams.get(channel) || {};
                 this.ws.send(JSON.stringify({
+                    jsonrpc: '2.0',
                     method: 'subscribe',
                     params: { channel, ...params },
                     id: ++this.subscriptionId,

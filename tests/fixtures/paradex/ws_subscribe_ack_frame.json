@@ -1,0 +1,10 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "channel": "order_book.BTC-USD-PERP.snapshot@15@100ms"
+  },
+  "usIn": 1781122629888815,
+  "usDiff": 211,
+  "usOut": 1781122629889026
+}

@@ -7,7 +7,7 @@
  * @see https://docs.paradex.trade
  */
 import type { Market, Order, Position, Balance, OrderBook, Trade, Ticker, FundingRate, OrderSide, OrderType, TimeInForce } from '../../types/common.js';
-import type { ParadexMarket, ParadexAPIMarket, ParadexOrder, ParadexPosition, ParadexBalance, ParadexOrderBook, ParadexTrade, ParadexTicker, ParadexFundingRate } from './types.js';
+import type { ParadexMarket, ParadexAPIMarket, ParadexOrder, ParadexPosition, ParadexBalance, ParadexOrderBook, ParadexWSOrderBook, ParadexTrade, ParadexTicker, ParadexFundingRate } from './types.js';
 /**
  * Paradex Data Normalizer
  *
@@ -123,9 +123,21 @@ export declare class ParadexNormalizer {
      */
     normalizeBalances(paradexBalances: ParadexBalance[]): Balance[];
     /**
-     * Normalize Paradex order book to unified format
+     * Normalize Paradex REST order book to unified format
+     *
+     * REST levels are [price, size] string tuples; `last_updated_at` (epoch ms)
+     * maps to `timestamp` and `seq_no` to `sequenceId` (live shape 2026-06-11).
      */
     normalizeOrderBook(paradexOrderBook: ParadexOrderBook): OrderBook;
+    /**
+     * Normalize Paradex WS order book snapshot to unified format
+     *
+     * WS levels are side-tagged objects `{side, price, size}` under `inserts`
+     * (NOT tuples, NOT {bids, asks}) — a different decoder than REST. Only
+     * `update_type: 's'` (full snapshot) is supported; the `.deltas` channel
+     * (`update_type: 'd'`) is DELTAS DEFERRED.
+     */
+    normalizeWSOrderBook(raw: ParadexWSOrderBook): OrderBook;
     /**
      * Normalize Paradex trade to unified format
      */

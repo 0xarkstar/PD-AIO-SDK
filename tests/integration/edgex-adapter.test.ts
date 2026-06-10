@@ -106,9 +106,10 @@ describe('EdgeXAdapter Integration Tests', () => {
       expect(adapter.has.cancelOrder).toBe(true);
       expect(adapter.has.cancelAllOrders).toBe(true);
       expect(adapter.has.setLeverage).toBe(true);
-      expect(adapter.has.watchOrderBook).toBe(true);
-      expect(adapter.has.watchTrades).toBe(true);
-      expect(adapter.has.watchTicker).toBe(true);
+      // WS layer unbuilt — watch* methods throw NOT_IMPLEMENTED
+      expect(adapter.has.watchOrderBook).toBe(false);
+      expect(adapter.has.watchTrades).toBe(false);
+      expect(adapter.has.watchTicker).toBe(false);
     });
 
     test('allows initialization without starkPrivateKey for public API access', async () => {

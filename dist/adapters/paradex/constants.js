@@ -7,11 +7,13 @@
 export const PARADEX_API_URLS = {
     mainnet: {
         rest: 'https://api.prod.paradex.trade/v1',
-        websocket: 'wss://ws.prod.paradex.trade/v1',
+        // Live-verified 2026-06-11: the former 'wss://ws.prod.paradex.trade/v1' is NXDOMAIN
+        websocket: 'wss://ws.api.prod.paradex.trade/v1',
     },
     testnet: {
         rest: 'https://api.testnet.paradex.trade/v1',
-        websocket: 'wss://ws.testnet.paradex.trade/v1',
+        // unverified — no testnet capture; fixed by analogy with the mainnet ws.api host
+        websocket: 'wss://ws.api.testnet.paradex.trade/v1',
     },
 };
 /**
@@ -87,15 +89,32 @@ export const PARADEX_ORDER_STATUS = {
 };
 /**
  * Paradex WebSocket channels
+ *
+ * Live-verified 2026-06-11: the order book channel prefix is `order_book`
+ * (the former `orderbook.{market}` was rejected with -32600 "invalid channel").
  */
 export const PARADEX_WS_CHANNELS = {
-    orderbook: 'orderbook',
+    orderBookSnapshot: 'order_book',
     trades: 'trades',
     ticker: 'ticker',
     positions: 'positions',
     orders: 'orders',
     balance: 'balance',
 };
+/**
+ * Build the order-book snapshot channel name for a Paradex market.
+ *
+ * Emits full self-contained 15+15 snapshots (`update_type: "s"`, throttled
+ * ~100ms). Depth is baked into the channel name and fixed at 15 — the only
+ * live-verified variant (capture 2026-06-11). The contiguous-seq_no
+ * `order_book.{market}.deltas` channel is DELTAS DEFERRED.
+ *
+ * @param market - Paradex market (e.g., "BTC-USD-PERP")
+ * @returns Channel name (e.g., "order_book.BTC-USD-PERP.snapshot@15@100ms")
+ */
+export function paradexOrderBookSnapshotChannel(market) {
+    return `${PARADEX_WS_CHANNELS.orderBookSnapshot}.${market}.snapshot@15@100ms`;
+}
 /**
  * StarkNet domain for signing
  */

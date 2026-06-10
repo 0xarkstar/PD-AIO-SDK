@@ -64,10 +64,28 @@ export const ParadexBalanceSchema = z
 export const ParadexOrderBookSchema = z
     .object({
     market: z.string(),
+    seq_no: z.number(),
+    last_updated_at: z.number(),
     bids: z.array(z.tuple([z.string(), z.string()])),
     asks: z.array(z.tuple([z.string(), z.string()])),
-    timestamp: z.number(),
-    sequence: z.number(),
+})
+    .passthrough();
+export const ParadexWSOrderBookLevelSchema = z
+    .object({
+    side: z.enum(['BUY', 'SELL']),
+    price: z.string(),
+    size: z.string(),
+})
+    .passthrough();
+export const ParadexWSOrderBookSchema = z
+    .object({
+    seq_no: z.number(),
+    market: z.string(),
+    last_updated_at: z.number(),
+    update_type: z.enum(['s', 'd']),
+    inserts: z.array(ParadexWSOrderBookLevelSchema),
+    updates: z.array(ParadexWSOrderBookLevelSchema),
+    deletes: z.array(ParadexWSOrderBookLevelSchema),
 })
     .passthrough();
 export const ParadexTradeSchema = z

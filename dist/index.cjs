@@ -15994,18 +15994,23 @@ var init_grvt = __esm({
 });
 
 // src/adapters/paradex/constants.ts
-var PARADEX_API_URLS, PARADEX_RATE_LIMITS, PARADEX_ENDPOINT_WEIGHTS, PARADEX_ORDER_TYPES, PARADEX_ORDER_SIDES, PARADEX_TIME_IN_FORCE, PARADEX_JWT_EXPIRY_BUFFER;
+function paradexOrderBookSnapshotChannel(market) {
+  return `${PARADEX_WS_CHANNELS.orderBookSnapshot}.${market}.snapshot@15@100ms`;
+}
+var PARADEX_API_URLS, PARADEX_RATE_LIMITS, PARADEX_ENDPOINT_WEIGHTS, PARADEX_ORDER_TYPES, PARADEX_ORDER_SIDES, PARADEX_TIME_IN_FORCE, PARADEX_WS_CHANNELS, PARADEX_JWT_EXPIRY_BUFFER;
 var init_constants4 = __esm({
   "src/adapters/paradex/constants.ts"() {
     "use strict";
     PARADEX_API_URLS = {
       mainnet: {
         rest: "https://api.prod.paradex.trade/v1",
-        websocket: "wss://ws.prod.paradex.trade/v1"
+        // Live-verified 2026-06-11: the former 'wss://ws.prod.paradex.trade/v1' is NXDOMAIN
+        websocket: "wss://ws.api.prod.paradex.trade/v1"
       },
       testnet: {
         rest: "https://api.testnet.paradex.trade/v1",
-        websocket: "wss://ws.testnet.paradex.trade/v1"
+        // unverified — no testnet capture; fixed by analogy with the mainnet ws.api host
+        websocket: "wss://ws.api.testnet.paradex.trade/v1"
       }
     };
     PARADEX_RATE_LIMITS = {
@@ -16054,6 +16059,14 @@ var init_constants4 = __esm({
       IOC: "IOC",
       FOK: "FOK",
       POST_ONLY: "POST_ONLY"
+    };
+    PARADEX_WS_CHANNELS = {
+      orderBookSnapshot: "order_book",
+      trades: "trades",
+      ticker: "ticker",
+      positions: "positions",
+      orders: "orders",
+      balance: "balance"
     };
     PARADEX_JWT_EXPIRY_BUFFER = 60;
   }
@@ -16690,7 +16703,7 @@ var init_ParadexHTTPClient = __esm({
 });
 
 // src/adapters/paradex/types.ts
-var ParadexMarketSchema, ParadexOrderSchema, ParadexPositionSchema, ParadexBalanceSchema, ParadexOrderBookSchema, ParadexTradeSchema, ParadexTickerSchema, ParadexFundingRateSchema, ParadexAPIMarketSchema;
+var ParadexMarketSchema, ParadexOrderSchema, ParadexPositionSchema, ParadexBalanceSchema, ParadexOrderBookSchema, ParadexWSOrderBookLevelSchema, ParadexWSOrderBookSchema, ParadexTradeSchema, ParadexTickerSchema, ParadexFundingRateSchema, ParadexAPIMarketSchema;
 var init_types6 = __esm({
   "src/adapters/paradex/types.ts"() {
     "use strict";
@@ -16748,10 +16761,24 @@ var init_types6 = __esm({
     }).passthrough();
     ParadexOrderBookSchema = external_exports.object({
       market: external_exports.string(),
+      seq_no: external_exports.number(),
+      last_updated_at: external_exports.number(),
       bids: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
-      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()])),
-      timestamp: external_exports.number(),
-      sequence: external_exports.number()
+      asks: external_exports.array(external_exports.tuple([external_exports.string(), external_exports.string()]))
+    }).passthrough();
+    ParadexWSOrderBookLevelSchema = external_exports.object({
+      side: external_exports.enum(["BUY", "SELL"]),
+      price: external_exports.string(),
+      size: external_exports.string()
+    }).passthrough();
+    ParadexWSOrderBookSchema = external_exports.object({
+      seq_no: external_exports.number(),
+      market: external_exports.string(),
+      last_updated_at: external_exports.number(),
+      update_type: external_exports.enum(["s", "d"]),
+      inserts: external_exports.array(ParadexWSOrderBookLevelSchema),
+      updates: external_exports.array(ParadexWSOrderBookLevelSchema),
+      deletes: external_exports.array(ParadexWSOrderBookLevelSchema)
     }).passthrough();
     ParadexTradeSchema = external_exports.object({
       id: external_exports.string(),
@@ -17096,7 +17123,10 @@ var init_ParadexNormalizer = __esm({
       // Order Book Normalization
       // ===========================================================================
       /**
-       * Normalize Paradex order book to unified format
+       * Normalize Paradex REST order book to unified format
+       *
+       * REST levels are [price, size] string tuples; `last_updated_at` (epoch ms)
+       * maps to `timestamp` and `seq_no` to `sequenceId` (live shape 2026-06-11).
        */
       normalizeOrderBook(paradexOrderBook) {
         const validated = ParadexOrderBookSchema.parse(paradexOrderBook);
@@ -17105,7 +17135,34 @@ var init_ParadexNormalizer = __esm({
           exchange: "paradex",
           bids: validated.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
           asks: validated.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-          timestamp: validated.timestamp
+          timestamp: validated.last_updated_at,
+          sequenceId: validated.seq_no
+        };
+      }
+      /**
+       * Normalize Paradex WS order book snapshot to unified format
+       *
+       * WS levels are side-tagged objects `{side, price, size}` under `inserts`
+       * (NOT tuples, NOT {bids, asks}) — a different decoder than REST. Only
+       * `update_type: 's'` (full snapshot) is supported; the `.deltas` channel
+       * (`update_type: 'd'`) is DELTAS DEFERRED.
+       */
+      normalizeWSOrderBook(raw) {
+        const validated = ParadexWSOrderBookSchema.parse(raw);
+        if (validated.update_type !== "s") {
+          throw new Error(
+            `Paradex WS order book update_type '${validated.update_type}' not supported \u2014 only snapshot frames (DELTAS DEFERRED)`
+          );
+        }
+        const bids = validated.inserts.filter((level) => level.side === "BUY").map((level) => [parseFloat(level.price), parseFloat(level.size)]).sort((a, b) => b[0] - a[0]);
+        const asks = validated.inserts.filter((level) => level.side === "SELL").map((level) => [parseFloat(level.price), parseFloat(level.size)]).sort((a, b) => a[0] - b[0]);
+        return {
+          symbol: this.symbolToCCXT(validated.market),
+          exchange: "paradex",
+          bids,
+          asks,
+          timestamp: validated.last_updated_at,
+          sequenceId: validated.seq_no
         };
       }
       // ===========================================================================
@@ -17567,6 +17624,7 @@ var ParadexWebSocketWrapper;
 var init_ParadexWebSocketWrapper = __esm({
   "src/adapters/paradex/ParadexWebSocketWrapper.ts"() {
     "use strict";
+    init_constants4();
     init_ParadexNormalizer();
     init_errors();
     init_logger();
@@ -17659,13 +17717,20 @@ var init_ParadexWebSocketWrapper = __esm({
       /**
        * Watch order book updates for a symbol
        *
+       * Subscribes to `order_book.{market}.snapshot@15@100ms`: each notification
+       * is a full self-contained 15+15 snapshot (`update_type: "s"`), throttled
+       * ~100ms (typically 2-4/s, gaps up to ~2s on a quiet book). Every yield is
+       * a complete book — consumers self-diff. The incremental
+       * `order_book.{market}.deltas` channel is DELTAS DEFERRED.
+       *
        * @param symbol - Trading symbol in CCXT format (e.g., "BTC/USD:USD")
-       * @param depth - Order book depth (default: 50)
-       * @returns AsyncGenerator yielding OrderBook updates
+       * @param _depth - Ignored: depth is baked into the channel name and fixed
+       *   at 15, the only live-verified variant (capture 2026-06-11)
+       * @returns AsyncGenerator yielding full OrderBook snapshots
        */
-      async *watchOrderBook(symbol, depth = 50) {
+      async *watchOrderBook(symbol, _depth = 15) {
         const market = this.normalizer.symbolFromCCXT(symbol);
-        const channel = `orderbook.${market}`;
+        const channel = paradexOrderBookSnapshotChannel(market);
         const queue = [];
         const error = null;
         let resolver = null;
@@ -17678,7 +17743,7 @@ var init_ParadexWebSocketWrapper = __esm({
           }
         };
         try {
-          await this.subscribe(channel, { market, depth }, callback);
+          await this.subscribe(channel, {}, callback);
           while (true) {
             if (error) throw error;
             let data;
@@ -17690,14 +17755,7 @@ var init_ParadexWebSocketWrapper = __esm({
               });
             }
             if (error) throw error;
-            const normalized = this.normalizer.normalizeOrderBook({
-              market: data.market || market,
-              bids: data.bids || [],
-              asks: data.asks || [],
-              timestamp: data.timestamp || Date.now(),
-              sequence: data.sequence || 0
-            });
-            yield normalized;
+            yield this.normalizer.normalizeWSOrderBook(data);
           }
         } finally {
           this.unsubscribe(channel, callback);
@@ -18036,6 +18094,7 @@ var init_ParadexWebSocketWrapper = __esm({
         this.subscriptions.get(channel).add(callback);
         this.subscriptionParams.set(channel, params);
         const request = {
+          jsonrpc: "2.0",
           method: "subscribe",
           params: {
             channel,
@@ -18058,6 +18117,7 @@ var init_ParadexWebSocketWrapper = __esm({
             if (this.ws && this.isConnected) {
               this.ws.send(
                 JSON.stringify({
+                  jsonrpc: "2.0",
                   method: "unsubscribe",
                   params: { channel },
                   id: ++this.subscriptionId
@@ -18068,7 +18128,11 @@ var init_ParadexWebSocketWrapper = __esm({
         }
       }
       /**
-       * Handle incoming WebSocket message
+       * Handle incoming WebSocket message (strict JSON-RPC 2.0 envelope)
+       *
+       * Data notifications nest channel/data under `params`. Subscribe acks
+       * (`result`) are logged only — NEVER gate data on the ack: a notification
+       * can arrive BEFORE the ack (observed live: frame 0 = data, frame 1 = ack).
        */
       handleMessage(rawData) {
         try {
@@ -18077,13 +18141,15 @@ var init_ParadexWebSocketWrapper = __esm({
             this.logger.error("WebSocket error", void 0, { error: message.error });
             return;
           }
-          if (message.type === "subscribed") {
+          if (message.result !== void 0) {
+            this.logger.debug("Subscription acknowledged", { result: message.result });
             return;
           }
-          if (message.channel && message.data) {
-            const subscribers = this.subscriptions.get(message.channel);
+          if (message.method === "subscription" && message.params?.channel) {
+            const subscribers = this.subscriptions.get(message.params.channel);
             if (subscribers) {
-              subscribers.forEach((callback) => callback(message.data));
+              const data = message.params.data;
+              subscribers.forEach((callback) => callback(data));
             }
           }
         } catch (error) {
@@ -18108,6 +18174,7 @@ var init_ParadexWebSocketWrapper = __esm({
             const params = this.subscriptionParams.get(channel) || {};
             this.ws.send(
               JSON.stringify({
+                jsonrpc: "2.0",
                 method: "subscribe",
                 params: { channel, ...params },
                 id: ++this.subscriptionId
@@ -18163,12 +18230,19 @@ var init_ParadexAdapter = __esm({
         cancelAllOrders: true,
         setLeverage: true,
         watchOrderBook: true,
-        watchTrades: true,
-        watchTicker: true,
-        watchPositions: true,
-        watchOrders: true,
-        watchBalance: true,
-        watchMyTrades: true,
+        // fixture-backed vs live capture 2026-06-11 (order_book.{m}.snapshot@15@100ms)
+        watchTrades: false,
+        // WS trades framing fixed but decoder unverified — deferred
+        watchTicker: false,
+        // unverified post-framing-fix
+        watchPositions: false,
+        // unverified post-framing-fix
+        watchOrders: false,
+        // unverified post-framing-fix
+        watchBalance: false,
+        // unverified post-framing-fix
+        watchMyTrades: false,
+        // unverified post-framing-fix
         fetchOHLCV: false,
         editOrder: false,
         fetchOpenOrders: false,
@@ -19536,12 +19610,18 @@ var init_EdgeXAdapter = __esm({
         cancelOrder: true,
         cancelAllOrders: true,
         setLeverage: true,
-        watchOrderBook: true,
-        watchTrades: true,
-        watchTicker: true,
-        watchPositions: true,
-        watchOrders: true,
-        watchBalance: true,
+        watchOrderBook: false,
+        // WS layer unbuilt — methods throw NOT_IMPLEMENTED
+        watchTrades: false,
+        // WS layer unbuilt — methods throw NOT_IMPLEMENTED
+        watchTicker: false,
+        // WS layer unbuilt — methods throw NOT_IMPLEMENTED
+        watchPositions: false,
+        // WS layer unbuilt — methods throw NOT_IMPLEMENTED
+        watchOrders: false,
+        // WS layer unbuilt — methods throw NOT_IMPLEMENTED
+        watchBalance: false,
+        // WS layer unbuilt — methods throw NOT_IMPLEMENTED
         fetchOHLCV: false,
         cancelBatchOrders: false,
         setMarginMode: false

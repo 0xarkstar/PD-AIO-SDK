@@ -563,9 +563,13 @@ describe('ParadexNormalizer', () => {
   });
 
   describe('OrderBook Normalization', () => {
+    // Real REST shape: {market, seq_no, last_updated_at, bids, asks}
+    // (live-verified 2026-06-11; the API has no timestamp/sequence fields)
     it('should normalize order book', () => {
       const paradexOrderBook: ParadexOrderBook = {
         market: 'BTC-USD-PERP',
+        seq_no: 12345,
+        last_updated_at: 1234567890000,
         bids: [
           ['49990', '1.5'],
           ['49980', '2.0'],
@@ -574,8 +578,6 @@ describe('ParadexNormalizer', () => {
           ['50010', '1.0'],
           ['50020', '1.5'],
         ],
-        timestamp: 1234567890000,
-        sequence: 12345,
       };
 
       const orderBook = normalizer.normalizeOrderBook(paradexOrderBook);
@@ -589,15 +591,16 @@ describe('ParadexNormalizer', () => {
       expect(orderBook.asks[1]).toEqual([50020, 1.5]);
       expect(orderBook.exchange).toBe('paradex');
       expect(orderBook.timestamp).toBe(1234567890000);
+      expect(orderBook.sequenceId).toBe(12345);
     });
 
     it('should handle empty order book', () => {
       const paradexOrderBook: ParadexOrderBook = {
         market: 'ETH-USD-PERP',
+        seq_no: 0,
+        last_updated_at: 1234567890000,
         bids: [],
         asks: [],
-        timestamp: 1234567890000,
-        sequence: 0,
       };
 
       const orderBook = normalizer.normalizeOrderBook(paradexOrderBook);

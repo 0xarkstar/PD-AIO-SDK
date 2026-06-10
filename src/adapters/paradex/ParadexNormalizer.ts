@@ -29,6 +29,7 @@ import type {
   ParadexPosition,
   ParadexBalance,
   ParadexOrderBook,
+  ParadexWSOrderBook,
   ParadexTrade,
   ParadexTicker,
   ParadexFundingRate,
@@ -39,6 +40,7 @@ import {
   ParadexPositionSchema,
   ParadexBalanceSchema,
   ParadexOrderBookSchema,
+  ParadexWSOrderBookSchema,
   ParadexTradeSchema,
   ParadexTickerSchema,
   ParadexFundingRateSchema,
@@ -385,7 +387,10 @@ export class ParadexNormalizer {
   // ===========================================================================
 
   /**
-   * Normalize Paradex order book to unified format
+   * Normalize Paradex REST order book to unified format
+   *
+   * REST levels are [price, size] string tuples; `last_updated_at` (epoch ms)
+   * maps to `timestamp` and `seq_no` to `sequenceId` (live shape 2026-06-11).
    */
   normalizeOrderBook(paradexOrderBook: ParadexOrderBook): OrderBook {
     const validated = ParadexOrderBookSchema.parse(paradexOrderBook);
@@ -394,7 +399,47 @@ export class ParadexNormalizer {
       exchange: 'paradex',
       bids: validated.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
       asks: validated.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-      timestamp: validated.timestamp,
+      timestamp: validated.last_updated_at,
+      sequenceId: validated.seq_no,
+    };
+  }
+
+  /**
+   * Normalize Paradex WS order book snapshot to unified format
+   *
+   * WS levels are side-tagged objects `{side, price, size}` under `inserts`
+   * (NOT tuples, NOT {bids, asks}) — a different decoder than REST. Only
+   * `update_type: 's'` (full snapshot) is supported; the `.deltas` channel
+   * (`update_type: 'd'`) is DELTAS DEFERRED.
+   */
+  normalizeWSOrderBook(raw: ParadexWSOrderBook): OrderBook {
+    const validated = ParadexWSOrderBookSchema.parse(raw);
+
+    if (validated.update_type !== 's') {
+      throw new Error(
+        `Paradex WS order book update_type '${validated.update_type}' not supported — ` +
+          'only snapshot frames (DELTAS DEFERRED)'
+      );
+    }
+
+    // Capture shows BUY levels grouped first, but cross-side ordering is not
+    // guaranteed — sort defensively (bids DESC, asks ASC).
+    const bids = validated.inserts
+      .filter((level) => level.side === 'BUY')
+      .map((level): [number, number] => [parseFloat(level.price), parseFloat(level.size)])
+      .sort((a, b) => b[0] - a[0]);
+    const asks = validated.inserts
+      .filter((level) => level.side === 'SELL')
+      .map((level): [number, number] => [parseFloat(level.price), parseFloat(level.size)])
+      .sort((a, b) => a[0] - b[0]);
+
+    return {
+      symbol: this.symbolToCCXT(validated.market),
+      exchange: 'paradex',
+      bids,
+      asks,
+      timestamp: validated.last_updated_at,
+      sequenceId: validated.seq_no,
     };
   }
 

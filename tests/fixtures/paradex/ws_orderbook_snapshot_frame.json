@@ -1,0 +1,167 @@
+{
+  "jsonrpc": "2.0",
+  "method": "subscription",
+  "params": {
+    "channel": "order_book.BTC-USD-PERP.snapshot@15@100ms",
+    "data": {
+      "seq_no": 7510711798,
+      "market": "BTC-USD-PERP",
+      "last_updated_at": 1781122628860,
+      "update_type": "s",
+      "inserts": [
+        {
+          "side": "BUY",
+          "price": "61706.7",
+          "size": "0.01484"
+        },
+        {
+          "side": "BUY",
+          "price": "61706.6",
+          "size": "0.10241"
+        },
+        {
+          "side": "BUY",
+          "price": "61704.2",
+          "size": "0.02265"
+        },
+        {
+          "side": "BUY",
+          "price": "61703.5",
+          "size": "0.10241"
+        },
+        {
+          "side": "BUY",
+          "price": "61699.6",
+          "size": "0.00318"
+        },
+        {
+          "side": "BUY",
+          "price": "61698.9",
+          "size": "0.11378"
+        },
+        {
+          "side": "BUY",
+          "price": "61697.4",
+          "size": "0.00488"
+        },
+        {
+          "side": "BUY",
+          "price": "61695.6",
+          "size": "0.02265"
+        },
+        {
+          "side": "BUY",
+          "price": "61693.3",
+          "size": "0.03816"
+        },
+        {
+          "side": "BUY",
+          "price": "61690.2",
+          "size": "0.02265"
+        },
+        {
+          "side": "BUY",
+          "price": "61680.5",
+          "size": "0.01499"
+        },
+        {
+          "side": "BUY",
+          "price": "61680.3",
+          "size": "0.02265"
+        },
+        {
+          "side": "BUY",
+          "price": "61674.2",
+          "size": "0.02265"
+        },
+        {
+          "side": "BUY",
+          "price": "61664.3",
+          "size": "0.02265"
+        },
+        {
+          "side": "BUY",
+          "price": "61654.4",
+          "size": "0.02265"
+        },
+        {
+          "side": "SELL",
+          "price": "61726.5",
+          "size": "0.02265"
+        },
+        {
+          "side": "SELL",
+          "price": "61731.5",
+          "size": "0.02265"
+        },
+        {
+          "side": "SELL",
+          "price": "61736.5",
+          "size": "0.02265"
+        },
+        {
+          "side": "SELL",
+          "price": "61741.6",
+          "size": "0.03816"
+        },
+        {
+          "side": "SELL",
+          "price": "61742",
+          "size": "0.02265"
+        },
+        {
+          "side": "SELL",
+          "price": "61743.2",
+          "size": "0.00932"
+        },
+        {
+          "side": "SELL",
+          "price": "61746.5",
+          "size": "0.11379"
+        },
+        {
+          "side": "SELL",
+          "price": "61747",
+          "size": "0.02265"
+        },
+        {
+          "side": "SELL",
+          "price": "61749.3",
+          "size": "0.00488"
+        },
+        {
+          "side": "SELL",
+          "price": "61751.9",
+          "size": "0.10241"
+        },
+        {
+          "side": "SELL",
+          "price": "61752",
+          "size": "0.02265"
+        },
+        {
+          "side": "SELL",
+          "price": "61753.7",
+          "size": "0.10242"
+        },
+        {
+          "side": "SELL",
+          "price": "61754",
+          "size": "0.00318"
+        },
+        {
+          "side": "SELL",
+          "price": "61757",
+          "size": "0.02265"
+        },
+        {
+          "side": "SELL",
+          "price": "61762.1",
+          "size": "0.02265"
+        }
+      ],
+      "updates": [],
+      "deletes": []
+    }
+  }
+}

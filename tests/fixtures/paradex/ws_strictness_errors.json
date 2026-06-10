@@ -1,0 +1,35 @@
+[
+  {
+    "jsonrpc": "2.0",
+    "id": 10,
+    "error": {
+      "code": -32600,
+      "message": "invalid request object"
+    },
+    "usIn": 1781122782129508,
+    "usDiff": 17,
+    "usOut": 1781122782129525
+  },
+  {
+    "jsonrpc": "2.0",
+    "id": 11,
+    "error": {
+      "code": -32600,
+      "message": "invalid subscribe request",
+      "data": "invalid channel"
+    },
+    "usIn": 1781122782131441,
+    "usDiff": 109,
+    "usOut": 1781122782131550
+  },
+  {
+    "jsonrpc": "2.0",
+    "id": 12,
+    "result": {
+      "channel": "bbo.BTC-USD-PERP"
+    },
+    "usIn": 1781122782131572,
+    "usDiff": 47,
+    "usOut": 1781122782131619
+  }
+]

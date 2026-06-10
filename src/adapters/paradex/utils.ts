@@ -177,7 +177,8 @@ export function normalizeOrderBook(paradexOrderBook: ParadexOrderBook): OrderBoo
     exchange: 'paradex',
     bids: paradexOrderBook.bids.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
     asks: paradexOrderBook.asks.map(([price, size]) => [parseFloat(price), parseFloat(size)]),
-    timestamp: paradexOrderBook.timestamp,
+    timestamp: paradexOrderBook.last_updated_at,
+    sequenceId: paradexOrderBook.seq_no,
   };
 }
 

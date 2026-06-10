@@ -36,12 +36,12 @@ export class EdgeXAdapter extends BaseAdapter {
         cancelOrder: true,
         cancelAllOrders: true,
         setLeverage: true,
-        watchOrderBook: true,
-        watchTrades: true,
-        watchTicker: true,
-        watchPositions: true,
-        watchOrders: true,
-        watchBalance: true,
+        watchOrderBook: false, // WS layer unbuilt — methods throw NOT_IMPLEMENTED
+        watchTrades: false, // WS layer unbuilt — methods throw NOT_IMPLEMENTED
+        watchTicker: false, // WS layer unbuilt — methods throw NOT_IMPLEMENTED
+        watchPositions: false, // WS layer unbuilt — methods throw NOT_IMPLEMENTED
+        watchOrders: false, // WS layer unbuilt — methods throw NOT_IMPLEMENTED
+        watchBalance: false, // WS layer unbuilt — methods throw NOT_IMPLEMENTED
         fetchOHLCV: false,
         cancelBatchOrders: false,
         setMarginMode: false,

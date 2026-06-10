@@ -190,9 +190,13 @@ describe('ParadexAdapter - Integration Tests', () => {
     });
 
     describe('fetchOrderBook()', () => {
+      // Real REST shape: {market, seq_no, last_updated_at, bids, asks} — see
+      // tests/fixtures/paradex/rest_orderbook_btc_depth15.json (live 2026-06-11)
       it('should fetch order book with default depth', async () => {
         const mockResponse = {
           market: 'BTC-USD-PERP',
+          seq_no: 12345,
+          last_updated_at: 1234567890000,
           bids: [
             ['49990.00', '1.5'],
             ['49980.00', '2.0'],
@@ -201,8 +205,6 @@ describe('ParadexAdapter - Integration Tests', () => {
             ['50010.00', '1.2'],
             ['50020.00', '1.8'],
           ],
-          timestamp: 1234567890000,
-          sequence: 12345,
         };
 
         mockHttpClient.get.mockResolvedValue(mockResponse);
@@ -215,15 +217,17 @@ describe('ParadexAdapter - Integration Tests', () => {
         expect(orderBook.bids[0]).toEqual([49990, 1.5]);
         expect(orderBook.asks).toHaveLength(2);
         expect(orderBook.asks[0]).toEqual([50010, 1.2]);
+        expect(orderBook.timestamp).toBe(1234567890000);
+        expect(orderBook.sequenceId).toBe(12345);
       });
 
       it('should fetch order book with custom depth', async () => {
         const mockResponse = {
           market: 'BTC-USD-PERP',
+          seq_no: 12345,
+          last_updated_at: 1234567890000,
           bids: [['49990.00', '1.5']],
           asks: [['50010.00', '1.2']],
-          timestamp: 1234567890000,
-          sequence: 12345,
         };
 
         mockHttpClient.get.mockResolvedValue(mockResponse);

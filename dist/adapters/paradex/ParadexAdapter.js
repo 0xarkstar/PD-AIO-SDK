@@ -41,13 +41,13 @@ export class ParadexAdapter extends BaseAdapter {
         cancelOrder: true,
         cancelAllOrders: true,
         setLeverage: true,
-        watchOrderBook: true,
-        watchTrades: true,
-        watchTicker: true,
-        watchPositions: true,
-        watchOrders: true,
-        watchBalance: true,
-        watchMyTrades: true,
+        watchOrderBook: true, // fixture-backed vs live capture 2026-06-11 (order_book.{m}.snapshot@15@100ms)
+        watchTrades: false, // WS trades framing fixed but decoder unverified — deferred
+        watchTicker: false, // unverified post-framing-fix
+        watchPositions: false, // unverified post-framing-fix
+        watchOrders: false, // unverified post-framing-fix
+        watchBalance: false, // unverified post-framing-fix
+        watchMyTrades: false, // unverified post-framing-fix
         fetchOHLCV: false,
         editOrder: false,
         fetchOpenOrders: false,

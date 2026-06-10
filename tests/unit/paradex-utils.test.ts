@@ -220,9 +220,13 @@ describe('Paradex Balance Normalization', () => {
 });
 
 describe('Paradex OrderBook Normalization', () => {
+  // Real REST shape: {market, seq_no, last_updated_at, bids, asks}
+  // (live-verified 2026-06-11; the API has no timestamp/sequence fields)
   test('normalizes order book', () => {
     const paradexOrderBook: ParadexOrderBook = {
       market: 'BTC-USD-PERP',
+      seq_no: 12345,
+      last_updated_at: 1234567890000,
       bids: [
         ['50000', '0.5'],
         ['49900', '1.0'],
@@ -231,8 +235,6 @@ describe('Paradex OrderBook Normalization', () => {
         ['50100', '0.3'],
         ['50200', '0.8'],
       ],
-      timestamp: 1234567890000,
-      sequence: 12345,
     };
 
     const normalized = normalizeOrderBook(paradexOrderBook);
@@ -243,6 +245,8 @@ describe('Paradex OrderBook Normalization', () => {
     expect(normalized.asks).toHaveLength(2);
     expect(normalized.bids[0]).toEqual([50000, 0.5]);
     expect(normalized.asks[0]).toEqual([50100, 0.3]);
+    expect(normalized.timestamp).toBe(1234567890000);
+    expect(normalized.sequenceId).toBe(12345);
   });
 });
 

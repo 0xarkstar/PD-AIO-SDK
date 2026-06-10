@@ -76,11 +76,18 @@ export declare class ParadexWebSocketWrapper {
     /**
      * Watch order book updates for a symbol
      *
+     * Subscribes to `order_book.{market}.snapshot@15@100ms`: each notification
+     * is a full self-contained 15+15 snapshot (`update_type: "s"`), throttled
+     * ~100ms (typically 2-4/s, gaps up to ~2s on a quiet book). Every yield is
+     * a complete book — consumers self-diff. The incremental
+     * `order_book.{market}.deltas` channel is DELTAS DEFERRED.
+     *
      * @param symbol - Trading symbol in CCXT format (e.g., "BTC/USD:USD")
-     * @param depth - Order book depth (default: 50)
-     * @returns AsyncGenerator yielding OrderBook updates
+     * @param _depth - Ignored: depth is baked into the channel name and fixed
+     *   at 15, the only live-verified variant (capture 2026-06-11)
+     * @returns AsyncGenerator yielding full OrderBook snapshots
      */
-    watchOrderBook(symbol: string, depth?: number): AsyncGenerator<OrderBook>;
+    watchOrderBook(symbol: string, _depth?: number): AsyncGenerator<OrderBook>;
     /**
      * Watch public trades for a symbol
      *
@@ -131,7 +138,11 @@ export declare class ParadexWebSocketWrapper {
      */
     private unsubscribe;
     /**
-     * Handle incoming WebSocket message
+     * Handle incoming WebSocket message (strict JSON-RPC 2.0 envelope)
+     *
+     * Data notifications nest channel/data under `params`. Subscribe acks
+     * (`result`) are logged only — NEVER gate data on the ack: a notification
+     * can arrive BEFORE the ack (observed live: frame 0 = data, frame 1 = ack).
      */
     private handleMessage;
     /**

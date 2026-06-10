@@ -12,6 +12,8 @@ export type {
   ParadexPosition,
   ParadexBalance,
   ParadexOrderBook,
+  ParadexWSOrderBook,
+  ParadexWSOrderBookLevel,
   ParadexTrade,
   ParadexTicker,
   ParadexFundingRate,

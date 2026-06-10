@@ -58,6 +58,14 @@ describe('EdgeXAdapter', () => {
       expect(adapter.has.fetchFundingRate).toBe(true);
       expect(adapter.has.createOrder).toBe(true);
       expect(adapter.has.cancelOrder).toBe(true);
+      // WS layer unbuilt — watch* methods throw NOT_IMPLEMENTED, so the
+      // capability flags must not claim them
+      expect(adapter.has.watchOrderBook).toBe(false);
+      expect(adapter.has.watchTrades).toBe(false);
+      expect(adapter.has.watchTicker).toBe(false);
+      expect(adapter.has.watchPositions).toBe(false);
+      expect(adapter.has.watchOrders).toBe(false);
+      expect(adapter.has.watchBalance).toBe(false);
     });
   });
 
