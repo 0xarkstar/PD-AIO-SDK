@@ -97,9 +97,10 @@ describe('GRVT WebSocket Wrapper', () => {
 
     ctx.publicClient.emit('message', {
       stream: 'v1.book.s',
+      sequence_number: '464151',
       feed: {
         instrument: 'BTC_USDT_Perp',
-        event_time: '1700000000000',
+        event_time: '1700000000000000000', // ns on the wire
         bids: [{ price: '50000', size: '1.5', num_orders: 3 }],
         asks: [{ price: '50010', size: '1.0', num_orders: 2 }],
       },
@@ -107,6 +108,8 @@ describe('GRVT WebSocket Wrapper', () => {
 
     const { value } = await next;
     expect(value.symbol).toBe('BTC/USDT:USDT');
+    expect(value.timestamp).toBe(1700000000000); // ns -> ms
+    expect(value.sequenceId).toBe(464151); // from frame sequence_number
     expect(value.bids[0]).toEqual([50000, 1.5]);
     expect(value.asks[0]).toEqual([50010, 1.0]);
 
@@ -125,7 +128,7 @@ describe('GRVT WebSocket Wrapper', () => {
     ctx.publicClient.emit('message', {
       stream: 'v1.trade',
       feed: {
-        event_time: '1700000000000',
+        event_time: '1700000000000000000', // ns on the wire
         instrument: 'BTC_USDT_Perp',
         is_taker_buyer: true,
         size: '0.5',
@@ -138,6 +141,7 @@ describe('GRVT WebSocket Wrapper', () => {
     expect(value.id).toBe('t-1');
     expect(value.side).toBe('buy');
     expect(value.price).toBe(50000);
+    expect(value.timestamp).toBe(1700000000000); // ns -> ms
 
     await iterator.return?.(undefined);
   });
@@ -150,17 +154,17 @@ describe('GRVT WebSocket Wrapper', () => {
     // wrong stream and wrong instrument: neither resolves the pending next()
     ctx.publicClient.emit('message', {
       stream: 'v1.book.s',
-      feed: { instrument: 'BTC_USDT_Perp', event_time: '1', bids: [], asks: [] },
+      feed: { instrument: 'BTC_USDT_Perp', event_time: '1700000000001000000', bids: [], asks: [] },
     });
     ctx.publicClient.emit('message', {
       stream: 'v1.trade',
-      feed: { event_time: '1', instrument: 'ETH_USDT_Perp', is_taker_buyer: true, size: '1', price: '1', trade_id: 'x' },
+      feed: { event_time: '1700000000001000000', instrument: 'ETH_USDT_Perp', is_taker_buyer: true, size: '1', price: '1', trade_id: 'x' },
     });
 
     // matching frame
     ctx.publicClient.emit('message', {
       stream: 'v1.trade',
-      feed: { event_time: '2', instrument: 'BTC_USDT_Perp', is_taker_buyer: false, size: '2', price: '49000', trade_id: 't-2' },
+      feed: { event_time: '1700000000002000000', instrument: 'BTC_USDT_Perp', is_taker_buyer: false, size: '2', price: '49000', trade_id: 't-2' },
     });
 
     const { value } = await next;

@@ -196,6 +196,13 @@ export const GRVTTickerSchema = z
 
 /**
  * GRVT funding-rate entry (from `full/v1/funding`).
+ *
+ * The endpoint returns `{result: [...]}` — an ARRAY (history, newest first).
+ * Live-verified 2026-06-11 (fixture rest-funding-BTC_USDT_Perp-raw.json):
+ * entries carry NO `index_price` and NO `next_funding_time` — the schema MUST
+ * NOT require them (paradex phantom-field precedent: a required phantom field
+ * ZodErrors every call). `funding_rate` is PERCENT-per-interval on the wire
+ * (`"0.01"` = 0.01%/8h = 1e-4 fraction); `funding_time` is a ns string.
  */
 export interface GRVTFunding {
   instrument?: string;
@@ -203,8 +210,22 @@ export interface GRVTFunding {
   funding_time?: string;
   mark_price?: string;
   index_price?: string;
+  funding_rate_8_h_avg?: string;
   funding_interval_hours?: number;
 }
+
+export const GRVTFundingSchema = z
+  .object({
+    instrument: z.string().optional(),
+    funding_rate: z.string().optional(),
+    funding_time: z.string().optional(),
+    mark_price: z.string().optional(),
+    // NOT on the wire (kept optional for defensive parsing only):
+    index_price: z.string().optional(),
+    funding_rate_8_h_avg: z.string().optional(),
+    funding_interval_hours: z.number().optional(),
+  })
+  .passthrough();
 
 // =============================================================================
 // Order (account)

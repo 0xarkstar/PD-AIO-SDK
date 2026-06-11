@@ -228,4 +228,60 @@ export function parseTimestamp(timestamp) {
     // Convert to milliseconds if API returns seconds
     return timestamp > 10000000000 ? timestamp : timestamp * 1000;
 }
+/**
+ * Stateful WS order book for one Extended stream (live protocol 2026-06-11)
+ *
+ * The orderbooks stream has NO snapshot-only full-depth channel: the first
+ * frame per connection is a full SNAPSHOT, every subsequent frame a DELTA
+ * that is NOT self-contained. This class maintains the book so a FULL
+ * unified snapshot can be emitted per frame.
+ *
+ * - SNAPSHOT (incl. depth=1 BBO frames, d:"1") fully REPLACES the book —
+ *   this is also what makes reconnect rebuilds work (fresh connection ⇒
+ *   fresh SNAPSHOT, seq resets to 1).
+ * - DELTA apply rule: level qty := parseFloat(c) (the new ABSOLUTE qty);
+ *   DELETE the level when c == "0". `q` (signed change) is informational.
+ */
+export class ExtendedOrderBookState {
+    // Keys are NUMERIC prices: the live wire mixes string representations of
+    // the same price ("61979.0" in the SNAPSHOT vs "61979" in DELTAs,
+    // "61975.000000" elsewhere) — string keys would split one level in two.
+    bids = new Map();
+    asks = new Map();
+    apply(frame) {
+        if (frame.type === 'SNAPSHOT') {
+            this.bids.clear();
+            this.asks.clear();
+            for (const level of frame.data.b) {
+                this.bids.set(safeParseFloat(level.p), safeParseFloat(level.q));
+            }
+            for (const level of frame.data.a) {
+                this.asks.set(safeParseFloat(level.p), safeParseFloat(level.q));
+            }
+            return;
+        }
+        applyDeltaLevels(this.bids, frame.data.b);
+        applyDeltaLevels(this.asks, frame.data.a);
+    }
+    /** Full maintained book as unified levels: bids DESC, asks ASC */
+    sides() {
+        const toLevels = (side) => Array.from(side.entries(), ([price, qty]) => [price, qty]);
+        return {
+            bids: toLevels(this.bids).sort((a, b) => b[0] - a[0]),
+            asks: toLevels(this.asks).sort((a, b) => a[0] - b[0]),
+        };
+    }
+}
+function applyDeltaLevels(side, levels) {
+    for (const level of levels) {
+        const price = safeParseFloat(level.p);
+        const qty = safeParseFloat(level.c);
+        if (qty === 0) {
+            side.delete(price);
+        }
+        else {
+            side.set(price, qty);
+        }
+    }
+}
 //# sourceMappingURL=utils.js.map

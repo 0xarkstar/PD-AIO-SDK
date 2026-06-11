@@ -10,7 +10,17 @@
  * - **Trading**: createOrder, cancelOrder, cancelAllOrders, createBatchOrders, cancelBatchOrders
  * - **Account**: fetchPositions, fetchBalance, fetchOrderHistory, fetchMyTrades, fetchUserFees
  * - **Leverage**: setLeverage (up to 100x), setMarginMode (cross/isolated)
- * - **WebSocket**: watchOrderBook, watchTrades, watchTicker, watchPositions, watchOrders, watchBalance, watchFundingRate
+ * - **WebSocket** (live per-stream protocol, capture 2026-06-11):
+ *   watchOrderBook, watchTrades — public keyless streams
+ *   (`{base}/orderbooks/{market}`, `{base}/publicTrades/{market}`; the HTTP
+ *   upgrade IS the subscription)
+ *
+ * ### NOT Implemented (has=false, BaseAdapter NOT_SUPPORTED throwers) ❌
+ * - **WebSocket**: watchTicker, watchPositions, watchOrders, watchBalance,
+ *   watchFundingRate — the previous all-true flags described a fictional
+ *   multiplexed protocol on a dead host (NXDOMAIN). The venue funding stream
+ *   exists but is explicitly out of scope for this repair; private/account
+ *   streams were never verified.
  *
  * ### Example Usage
  * ```typescript
@@ -26,14 +36,9 @@
  * const markets = await adapter.fetchMarkets();
  * const order = await adapter.createOrder({ ... });
  *
- * // WebSocket streaming
+ * // WebSocket streaming (public, keyless)
  * for await (const orderbook of adapter.watchOrderBook('BTC/USD:USD')) {
  *   console.log('Order book update:', orderbook);
- * }
- *
- * // Private WebSocket (requires API key)
- * for await (const positions of adapter.watchPositions()) {
- *   console.log('Position update:', positions);
  * }
  * ```
  */
@@ -78,13 +83,18 @@ export class ExtendedAdapter extends BaseAdapter {
         setMarginMode: true,
         fetchDeposits: false,
         fetchWithdrawals: false,
+        // WS flags are TRUTHFUL (live-verified 2026-06-11): the venue exposes
+        // public per-stream WS for orderbooks + publicTrades only. The other
+        // five were lies against a fictional protocol on a dead host — flipped
+        // false (edgex precedent c41a3e1). Funding stream exists at the venue
+        // but is out of scope for this repair.
         watchOrderBook: true,
         watchTrades: true,
-        watchTicker: true,
-        watchPositions: true,
-        watchOrders: true,
-        watchBalance: true,
-        watchFundingRate: true,
+        watchTicker: false,
+        watchPositions: false,
+        watchOrders: false,
+        watchBalance: false,
+        watchFundingRate: false,
     };
     apiUrl;
     wsUrl;
@@ -633,81 +643,47 @@ export class ExtendedAdapter extends BaseAdapter {
         throw new PerpDEXError('fetchRateLimitStatus not supported', 'NOT_SUPPORTED', this.id);
     }
     // ==================== WebSocket Methods ====================
+    //
+    // Only the public orderbooks + publicTrades streams exist (live protocol
+    // 2026-06-11). watchTicker/watchPositions/watchOrders/watchBalance/
+    // watchFundingRate intentionally have NO overrides here: their has-flags
+    // are false and they fall through to the BaseAdapter NOT_SUPPORTED
+    // throwers.
     /**
-     * Ensure WebSocket is connected and return the wrapper
+     * Ensure the WebSocket wrapper exists and return it
+     *
+     * Passes the STREAM BASE (`{base}` = EXTENDED_API_URLS.*.websocket); the
+     * wrapper composes the per-stream URL `{base}/{stream}/{market}` and the
+     * HTTP upgrade itself is the subscription — there is no upfront connect,
+     * no auth frame and no JSON heartbeat on this venue.
      */
-    async ensureWebSocketConnected() {
+    ensureWebSocketConnected() {
         if (!this.wsWrapper) {
             this.wsWrapper = new ExtendedWebSocketWrapper({
                 wsUrl: this.wsUrl,
-                apiKey: this.apiKey,
                 reconnect: true,
-                pingInterval: EXTENDED_WS_CONFIG.pingInterval,
                 maxReconnectAttempts: EXTENDED_WS_CONFIG.reconnectAttempts,
             });
-        }
-        if (!this.wsWrapper.connected) {
-            await this.wsWrapper.connect();
         }
         return this.wsWrapper;
     }
     /**
-     * Watch real-time order book updates
+     * Watch real-time order book updates (public, keyless)
+     *
+     * Full unified book per frame (SNAPSHOT seed + DELTA apply); `limit` is
+     * served by slicing the maintained book.
      */
     async *watchOrderBook(symbol, limit) {
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchOrderBook(symbol, limit);
+        yield* this.ensureWebSocketConnected().watchOrderBook(symbol, limit);
     }
     /**
-     * Watch real-time trade updates
+     * Watch real-time trade updates (public, keyless)
+     *
+     * The first frame per connection (historical backfill) is skipped;
+     * LIQUIDATION/DELEVERAGE flow is kept, tagged via `info.tT`.
      */
     async *watchTrades(symbol) {
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchTrades(symbol);
-    }
-    /**
-     * Watch real-time ticker updates
-     */
-    async *watchTicker(symbol) {
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchTicker(symbol);
-    }
-    /**
-     * Watch real-time position updates (requires API key)
-     */
-    async *watchPositions() {
-        if (!this.apiKey) {
-            throw new PerpDEXError('API key required for watching positions', 'AUTHENTICATION_ERROR', this.id);
-        }
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchPositions();
-    }
-    /**
-     * Watch real-time order updates (requires API key)
-     */
-    async *watchOrders() {
-        if (!this.apiKey) {
-            throw new PerpDEXError('API key required for watching orders', 'AUTHENTICATION_ERROR', this.id);
-        }
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchOrders();
-    }
-    /**
-     * Watch real-time balance updates (requires API key)
-     */
-    async *watchBalance() {
-        if (!this.apiKey) {
-            throw new PerpDEXError('API key required for watching balance', 'AUTHENTICATION_ERROR', this.id);
-        }
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchBalance();
-    }
-    /**
-     * Watch real-time funding rate updates
-     */
-    async *watchFundingRate(symbol) {
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchFundingRate(symbol);
+        yield* this.ensureWebSocketConnected().watchTrades(symbol);
     }
     // ==================== Private Helper Methods ====================
     /**

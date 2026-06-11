@@ -116,7 +116,7 @@ describe('GRVTAdapter Integration Tests', () => {
     it('fetches + normalizes the order book', async () => {
       const book: GRVTOrderBook = {
         instrument: 'BTC_USDT_Perp',
-        event_time: '1234567890000',
+        event_time: '1234567890000000000', // ns on the wire
         bids: [{ price: '50000', size: '1.5', num_orders: 3 }],
         asks: [{ price: '50010', size: '1.0', num_orders: 2 }],
       };
@@ -130,8 +130,8 @@ describe('GRVTAdapter Integration Tests', () => {
 
     it('fetches + normalizes public trades', async () => {
       const trades: GRVTTrade[] = [
-        { event_time: '1', instrument: 'BTC_USDT_Perp', is_taker_buyer: true, size: '0.5', price: '50000', trade_id: 't-1' },
-        { event_time: '2', instrument: 'BTC_USDT_Perp', is_taker_buyer: false, size: '1', price: '49995', trade_id: 't-2' },
+        { event_time: '1234567890001000000', instrument: 'BTC_USDT_Perp', is_taker_buyer: true, size: '0.5', price: '50000', trade_id: 't-1' },
+        { event_time: '1234567890002000000', instrument: 'BTC_USDT_Perp', is_taker_buyer: false, size: '1', price: '49995', trade_id: 't-2' },
       ];
       sdk.getTrades.mockResolvedValue(trades as never);
 

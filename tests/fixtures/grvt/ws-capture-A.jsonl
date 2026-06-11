@@ -1,0 +1,5 @@
+{"dir":"sent","ts":1781147779099,"raw":"{\"jsonrpc\":\"2.0\",\"method\":\"subscribe\",\"params\":{\"stream\":\"v1.book.s\",\"selectors\":[\"BTC_USDT_Perp@500-10\"]},\"id\":1}"}
+{"dir":"sent","ts":1781147779100,"raw":"{\"jsonrpc\":\"2.0\",\"method\":\"subscribe\",\"params\":{\"stream\":\"v1.trade\",\"selectors\":[\"BTC_USDT_Perp@50\"]},\"id\":2}"}
+{"dir":"recv","ts":1781147779351,"raw":"{\"code\":1003,\"message\":\"Request could not be processed due to malformed syntax\",\"status\":400}"}
+{"dir":"recv","ts":1781147779351,"raw":"{\"code\":1003,\"message\":\"Request could not be processed due to malformed syntax\",\"status\":400}"}
+{"dir":"close","ts":1781147784680,"raw":"1005 "}

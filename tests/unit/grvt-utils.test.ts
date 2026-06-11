@@ -99,12 +99,13 @@ describe('GRVT Order Normalization', () => {
       reduce_only: false,
       legs: [{ instrument: 'BTC_USDT_Perp', size: '1.5', limit_price: '50000', is_buying_asset: true }],
       state: { status: 'OPEN', traded_size: ['0.5'], book_size: ['1.0'], avg_fill_price: ['49950'] },
-      metadata: { client_order_id: 'cli-1', create_time: '1700000000000' },
+      metadata: { client_order_id: 'cli-1', create_time: '1700000000000000000' }, // ns on the wire
     };
 
     const order = normalizeOrder(grvtOrder);
 
     expect(order.id).toBe('order-123');
+    expect(order.timestamp).toBe(1700000000000); // ns -> ms
     expect(order.clientOrderId).toBe('cli-1');
     expect(order.symbol).toBe('BTC/USDT:USDT');
     expect(order.type).toBe('limit');
@@ -175,7 +176,7 @@ describe('GRVT OrderBook Normalization', () => {
   test('normalizes a full snapshot with object levels', () => {
     const grvtOrderBook: GRVTOrderBook = {
       instrument: 'BTC_USDT_Perp',
-      event_time: '1700000000000',
+      event_time: '1700000000000000000', // ns on the wire
       bids: [{ price: '49990', size: '1.5', num_orders: 3 }],
       asks: [{ price: '50010', size: '1.0', num_orders: 2 }],
     };
@@ -183,6 +184,7 @@ describe('GRVT OrderBook Normalization', () => {
     const book = normalizeOrderBook(grvtOrderBook);
     expect(book.symbol).toBe('BTC/USDT:USDT');
     expect(book.exchange).toBe('grvt');
+    expect(book.timestamp).toBe(1700000000000); // ns -> ms
     expect(book.bids[0]).toEqual([49990, 1.5]);
     expect(book.asks[0]).toEqual([50010, 1.0]);
   });
@@ -191,7 +193,7 @@ describe('GRVT OrderBook Normalization', () => {
 describe('GRVT Trade Normalization', () => {
   test('maps is_taker_buyer to side', () => {
     const grvtTrade: GRVTTrade = {
-      event_time: '1700000000000',
+      event_time: '1700000000000000000', // ns on the wire
       instrument: 'BTC_USDT_Perp',
       is_taker_buyer: true,
       size: '0.5',
@@ -201,6 +203,7 @@ describe('GRVT Trade Normalization', () => {
 
     const trade = normalizeTrade(grvtTrade);
     expect(trade.id).toBe('135831698-1');
+    expect(trade.timestamp).toBe(1700000000000); // ns -> ms
     expect(trade.symbol).toBe('BTC/USDT:USDT');
     expect(trade.side).toBe('buy');
     expect(trade.price).toBe(50000);

@@ -16,8 +16,15 @@ export { GRVT_CHAIN_IDS, GRVT_EIP712_DOMAIN_NAME, GRVT_EIP712_DOMAIN_VERSION, GR
  * GRVT API hosts (three per environment).
  *
  * Testnet swaps the `.` host segment for `.testnet.` (e.g. `edge.testnet.grvt.io`).
- * WebSocket lives on the trades + market-data hosts under the `/ws` base path
- * (the JSON-RPC `stream` name selects book/trade/ticker, NOT a URL suffix).
+ * WebSocket lives on the trades + market-data hosts under the `/ws/full` base
+ * path (the JSON-RPC `stream` name selects book/trade/ticker, NOT a URL suffix).
+ *
+ * GRVT exposes THREE WS endpoints per host, each with its OWN subscribe
+ * envelope: `/ws/full` (JSON-RPC — what this SDK speaks), `/ws` (LEGACY
+ * `{request_id,stream,feed,...}` envelope) and `/ws/lite` (abbreviated keys).
+ * Sending the SDK's JSON-RPC frame to the legacy `/ws` path answers
+ * `{"code":1003,"message":"...malformed syntax","status":400}` — live-proven
+ * 2026-06-11 (fixtures tests/fixtures/grvt/ws-capture-{A,B}.jsonl).
  *
  * `rest` aliases `marketData` for the BaseAdapter URL plumbing that expects a
  * single REST host; authed calls always target `trades`.
@@ -30,18 +37,18 @@ export declare const GRVT_API_URLS: {
         readonly trades: "https://trades.grvt.io";
         readonly marketData: "https://market-data.grvt.io";
         readonly rest: "https://market-data.grvt.io";
-        readonly websocketTrades: "wss://trades.grvt.io/ws";
-        readonly websocketMarketData: "wss://market-data.grvt.io/ws";
-        readonly websocket: "wss://market-data.grvt.io/ws";
+        readonly websocketTrades: "wss://trades.grvt.io/ws/full";
+        readonly websocketMarketData: "wss://market-data.grvt.io/ws/full";
+        readonly websocket: "wss://market-data.grvt.io/ws/full";
     };
     readonly testnet: {
         readonly edge: "https://edge.testnet.grvt.io";
         readonly trades: "https://trades.testnet.grvt.io";
         readonly marketData: "https://market-data.testnet.grvt.io";
         readonly rest: "https://market-data.testnet.grvt.io";
-        readonly websocketTrades: "wss://trades.testnet.grvt.io/ws";
-        readonly websocketMarketData: "wss://market-data.testnet.grvt.io/ws";
-        readonly websocket: "wss://market-data.testnet.grvt.io/ws";
+        readonly websocketTrades: "wss://trades.testnet.grvt.io/ws/full";
+        readonly websocketMarketData: "wss://market-data.testnet.grvt.io/ws/full";
+        readonly websocket: "wss://market-data.testnet.grvt.io/ws/full";
     };
 };
 /**

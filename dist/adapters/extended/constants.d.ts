@@ -5,16 +5,22 @@
  */
 /**
  * API URLs for Extended mainnet and testnet
+ *
+ * `websocket` is the per-stream WS BASE (live-verified 2026-06-11). Stream
+ * URLs are composed as `{websocket}/{stream}/{market}` (e.g.
+ * `{websocket}/orderbooks/BTC-USD`) and the HTTP upgrade itself IS the
+ * subscription — no subscribe frames exist. The previous
+ * `wss://ws.starknet.extended.exchange` host was fictional (NXDOMAIN).
  */
 export declare const EXTENDED_API_URLS: {
     readonly mainnet: {
         readonly rest: "https://api.starknet.extended.exchange";
-        readonly websocket: "wss://ws.starknet.extended.exchange";
+        readonly websocket: "wss://api.starknet.extended.exchange/stream.extended.exchange/v1";
         readonly starknet: "https://starknet-mainnet.public.blastapi.io";
     };
     readonly testnet: {
         readonly rest: "https://api.starknet.sepolia.extended.exchange";
-        readonly websocket: "wss://ws.starknet.sepolia.extended.exchange";
+        readonly websocket: "wss://starknet.sepolia.extended.exchange/stream.extended.exchange/v1";
         readonly starknet: "https://starknet-sepolia.public.blastapi.io";
     };
 };
@@ -85,25 +91,27 @@ export declare const EXTENDED_ENDPOINT_WEIGHTS: {
 };
 /**
  * WebSocket configuration
+ *
+ * No JSON heartbeat exists on the wire: the SERVER sends WS protocol-level
+ * PINGs (~1s) and the runtime auto-PONGs, so the old pingInterval/pongTimeout
+ * (a fictional JSON ping) were dropped.
  */
 export declare const EXTENDED_WS_CONFIG: {
     readonly reconnectDelay: 1000;
     readonly maxReconnectDelay: 60000;
     readonly reconnectAttempts: 10;
-    readonly pingInterval: 30000;
-    readonly pongTimeout: 10000;
 };
 /**
- * WebSocket channels
+ * WebSocket per-stream path segments (live-verified 2026-06-11)
+ *
+ * These are URL path segments, not channel names: the stream URL
+ * `{base}/{segment}/{market}` IS the subscription. Only the public
+ * orderbooks + publicTrades streams are implemented; the venue funding
+ * stream exists but is out of scope for this repair.
  */
 export declare const EXTENDED_WS_CHANNELS: {
-    readonly ORDERBOOK: "orderbook";
-    readonly TRADES: "trades";
-    readonly TICKER: "ticker";
-    readonly ORDERS: "orders";
-    readonly POSITIONS: "positions";
-    readonly BALANCE: "balance";
-    readonly FUNDING: "funding";
+    readonly ORDERBOOKS: "orderbooks";
+    readonly PUBLIC_TRADES: "publicTrades";
 };
 /**
  * Order types supported by Extended

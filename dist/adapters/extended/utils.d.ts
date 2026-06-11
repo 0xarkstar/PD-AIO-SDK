@@ -3,8 +3,8 @@
  *
  * Helper functions for Extended adapter
  */
-import type { OrderRequest } from '../../types/common.js';
-import type { ExtendedOrderRequest } from './types.js';
+import type { OrderRequest, PriceLevel } from '../../types/common.js';
+import type { ExtendedOrderRequest, ExtendedWSOrderBookFrame } from './types.js';
 import { PerpDEXError } from '../../types/errors.js';
 /**
  * Convert unified order request to Extended format
@@ -82,4 +82,28 @@ export declare function formatTimestamp(timestamp: number): number;
  * Parse timestamp from Extended API format
  */
 export declare function parseTimestamp(timestamp: number): number;
+/**
+ * Stateful WS order book for one Extended stream (live protocol 2026-06-11)
+ *
+ * The orderbooks stream has NO snapshot-only full-depth channel: the first
+ * frame per connection is a full SNAPSHOT, every subsequent frame a DELTA
+ * that is NOT self-contained. This class maintains the book so a FULL
+ * unified snapshot can be emitted per frame.
+ *
+ * - SNAPSHOT (incl. depth=1 BBO frames, d:"1") fully REPLACES the book —
+ *   this is also what makes reconnect rebuilds work (fresh connection ⇒
+ *   fresh SNAPSHOT, seq resets to 1).
+ * - DELTA apply rule: level qty := parseFloat(c) (the new ABSOLUTE qty);
+ *   DELETE the level when c == "0". `q` (signed change) is informational.
+ */
+export declare class ExtendedOrderBookState {
+    private readonly bids;
+    private readonly asks;
+    apply(frame: ExtendedWSOrderBookFrame): void;
+    /** Full maintained book as unified levels: bids DESC, asks ASC */
+    sides(): {
+        bids: PriceLevel[];
+        asks: PriceLevel[];
+    };
+}
 //# sourceMappingURL=utils.d.ts.map

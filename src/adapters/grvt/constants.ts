@@ -27,8 +27,15 @@ export {
  * GRVT API hosts (three per environment).
  *
  * Testnet swaps the `.` host segment for `.testnet.` (e.g. `edge.testnet.grvt.io`).
- * WebSocket lives on the trades + market-data hosts under the `/ws` base path
- * (the JSON-RPC `stream` name selects book/trade/ticker, NOT a URL suffix).
+ * WebSocket lives on the trades + market-data hosts under the `/ws/full` base
+ * path (the JSON-RPC `stream` name selects book/trade/ticker, NOT a URL suffix).
+ *
+ * GRVT exposes THREE WS endpoints per host, each with its OWN subscribe
+ * envelope: `/ws/full` (JSON-RPC — what this SDK speaks), `/ws` (LEGACY
+ * `{request_id,stream,feed,...}` envelope) and `/ws/lite` (abbreviated keys).
+ * Sending the SDK's JSON-RPC frame to the legacy `/ws` path answers
+ * `{"code":1003,"message":"...malformed syntax","status":400}` — live-proven
+ * 2026-06-11 (fixtures tests/fixtures/grvt/ws-capture-{A,B}.jsonl).
  *
  * `rest` aliases `marketData` for the BaseAdapter URL plumbing that expects a
  * single REST host; authed calls always target `trades`.
@@ -41,18 +48,18 @@ export const GRVT_API_URLS = {
     trades: 'https://trades.grvt.io',
     marketData: 'https://market-data.grvt.io',
     rest: 'https://market-data.grvt.io',
-    websocketTrades: 'wss://trades.grvt.io/ws',
-    websocketMarketData: 'wss://market-data.grvt.io/ws',
-    websocket: 'wss://market-data.grvt.io/ws',
+    websocketTrades: 'wss://trades.grvt.io/ws/full',
+    websocketMarketData: 'wss://market-data.grvt.io/ws/full',
+    websocket: 'wss://market-data.grvt.io/ws/full',
   },
   testnet: {
     edge: 'https://edge.testnet.grvt.io',
     trades: 'https://trades.testnet.grvt.io',
     marketData: 'https://market-data.testnet.grvt.io',
     rest: 'https://market-data.testnet.grvt.io',
-    websocketTrades: 'wss://trades.testnet.grvt.io/ws',
-    websocketMarketData: 'wss://market-data.testnet.grvt.io/ws',
-    websocket: 'wss://market-data.testnet.grvt.io/ws',
+    websocketTrades: 'wss://trades.testnet.grvt.io/ws/full',
+    websocketMarketData: 'wss://market-data.testnet.grvt.io/ws/full',
+    websocket: 'wss://market-data.testnet.grvt.io/ws/full',
   },
 } as const;
 

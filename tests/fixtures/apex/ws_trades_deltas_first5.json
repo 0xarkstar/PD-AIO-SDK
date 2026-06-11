@@ -1,0 +1,87 @@
+[
+  {
+    "topic": "recentlyTrade.H.BTCUSDT",
+    "type": "delta",
+    "data": [
+      {
+        "T": 1781147751171,
+        "s": "BTCUSDT",
+        "S": "Buy",
+        "v": "0.145",
+        "p": "62029.1",
+        "L": "ZeroPlusTick",
+        "i": "3d207cc0-d05b-5b9f-8a16-3ae1d133fb07"
+      }
+    ],
+    "cs": 58831364742,
+    "ts": 1781147751278264
+  },
+  {
+    "topic": "recentlyTrade.H.BTCUSDT",
+    "type": "delta",
+    "data": [
+      {
+        "T": 1781147752032,
+        "s": "BTCUSDT",
+        "S": "Sell",
+        "v": "0.145",
+        "p": "62028.6",
+        "L": "MinusTick",
+        "i": "e4764da9-47a8-5346-863e-06a26d5a8cad"
+      }
+    ],
+    "cs": 58831365848,
+    "ts": 1781147752079022
+  },
+  {
+    "topic": "recentlyTrade.H.BTCUSDT",
+    "type": "delta",
+    "data": [
+      {
+        "T": 1781147752921,
+        "s": "BTCUSDT",
+        "S": "Buy",
+        "v": "0.145",
+        "p": "62029.1",
+        "L": "PlusTick",
+        "i": "cbee841f-7a60-5aaa-8f2f-7bdb94a2eb5b"
+      }
+    ],
+    "cs": 58831366739,
+    "ts": 1781147752978117
+  },
+  {
+    "topic": "recentlyTrade.H.BTCUSDT",
+    "type": "delta",
+    "data": [
+      {
+        "T": 1781147754201,
+        "s": "BTCUSDT",
+        "S": "Sell",
+        "v": "0.126",
+        "p": "62028.6",
+        "L": "MinusTick",
+        "i": "12dfae0f-e745-5553-ba04-f6a29c4863d3"
+      }
+    ],
+    "cs": 58831367521,
+    "ts": 1781147754278132
+  },
+  {
+    "topic": "recentlyTrade.H.BTCUSDT",
+    "type": "delta",
+    "data": [
+      {
+        "T": 1781147754268,
+        "s": "BTCUSDT",
+        "S": "Buy",
+        "v": "0.164",
+        "p": "62029.1",
+        "L": "PlusTick",
+        "i": "69f557e3-3643-5228-a4d0-b5718f91f62a"
+      }
+    ],
+    "cs": 58831367836,
+    "ts": 1781147754378264
+  }
+]

@@ -1,8 +1,11 @@
 /**
  * GRVT WebSocket wrapper (JSON-RPC).
  *
- * GRVT's WS is JSON-RPC over the `/ws` base path on the trades + market-data
- * hosts. Subscriptions are sent as:
+ * GRVT's JSON-RPC WS lives on the `/ws/full` base path on the trades +
+ * market-data hosts (the legacy `/ws` path expects a DIFFERENT envelope and
+ * rejects this frame with `{"code":1003,...,"status":400}` — live-proven
+ * 2026-06-11, fixtures tests/fixtures/grvt/ws-capture-{A,B}.jsonl).
+ * Subscriptions are sent as:
  *   {"jsonrpc":"2.0","method":"subscribe",
  *    "params":{"stream":"v1.book.s","selectors":["BTC_USDT_Perp@500-50"]},"id":1}
  *
@@ -10,8 +13,11 @@
  * Private trade-data streams (trades host): v1.{order,fill,position} — these need
  * the `gravity` cookie + `X-Grvt-Account-Id` on connect (carried in the session).
  *
- * Feed frames carry `{ stream, feed, selector }`; the `feed` payload shape
- * matches REST exactly, so it is normalized via the same `GRVTNormalizer`.
+ * Feed frames carry `{ stream, feed, selector, sequence_number }`; the `feed`
+ * payload shape matches REST exactly, so it is normalized via the same
+ * `GRVTNormalizer`. Error frames (legacy `{code,message,status}` and JSON-RPC
+ * `{error:{code,message}}`) are SURFACED to the stream consumer — silently
+ * dropping them produced an unrecoverable silent hang.
  * Built on the SDK's typed `WebSocketClient` (auto-reconnect, Node/browser).
  */
 
@@ -42,12 +48,21 @@ export interface GRVTWebSocketConfig {
 }
 
 /**
- * A GRVT WS feed frame after JSON parsing.
+ * A GRVT WS frame after JSON parsing: a feed frame ({stream, feed, selector,
+ * sequence_number}), a JSON-RPC ack/error, or a legacy error frame.
  */
 interface GRVTWsFrame {
   stream?: string;
   feed?: Record<string, unknown>;
   selector?: string;
+  /** Stream sequence; initial-subscription replay arrives with '0'. */
+  sequence_number?: string;
+  /** JSON-RPC error member ({error:{code,message}}). */
+  error?: { code?: number; message?: string };
+  /** Legacy error frame fields ({code,message,status} — e.g. code 1003). */
+  code?: number;
+  message?: string;
+  status?: number;
 }
 
 const DEFAULT_BOOK_DEPTH = 50;
@@ -69,12 +84,20 @@ export class GRVTWebSocketWrapper {
   constructor(config: GRVTWebSocketConfig = {}) {
     const urls = config.testnet ? GRVT_API_URLS.testnet : GRVT_API_URLS.mainnet;
     this.session = config.session;
+    // GRVT /ws/full is JSON-RPC: the generic JSON {"type":"ping"} heartbeat is
+    // NOT protocol and the server rejects it with error 1107 ("JSON RPC version
+    // must be 2.0"), which the error-surfacing below would (correctly) deliver
+    // to every stream consumer ~30s after connect — live-proven 2026-06-11.
+    // Keepalive relies on feed traffic + auto-reconnect (standx/apex precedent).
+    const heartbeat = { enabled: false, interval: 30000, timeout: 5000 } as const;
     this.publicClient = new WebSocketClient({
       url: urls.websocketMarketData,
+      heartbeat,
       onError: (error) => this.logger.error('Public WS error', error),
     });
     this.tradeClient = new WebSocketClient({
       url: urls.websocketTrades,
+      heartbeat,
       onError: (error) => this.logger.error('Trade WS error', error),
     });
   }
@@ -120,8 +143,12 @@ export class GRVTWebSocketWrapper {
     const instrument = this.normalizer.symbolFromCCXT(symbol);
     const validDepth = (GRVT_BOOK_DEPTHS as readonly number[]).includes(depth) ? depth : DEFAULT_BOOK_DEPTH;
     const selector = `${instrument}@500-${validDepth}`;
-    yield* this.stream<OrderBook>(this.publicClient, GRVT_WS_STREAMS.bookSnapshot, [selector], instrument, (feed) =>
-      this.normalizer.normalizeOrderBook(feed as unknown as GRVTOrderBook)
+    yield* this.stream<OrderBook>(
+      this.publicClient,
+      GRVT_WS_STREAMS.bookSnapshot,
+      [selector],
+      instrument,
+      (feed, frame) => this.normalizer.normalizeOrderBook(feed as unknown as GRVTOrderBook, frame.sequence_number)
     );
   }
 
@@ -209,22 +236,43 @@ export class GRVTWebSocketWrapper {
   /**
    * Subscribe to one stream and yield normalized values until the generator is
    * closed. Frames for other streams/instruments are ignored; un-normalizable
-   * frames are skipped (defensive).
+   * frames are skipped (defensive). Venue error frames are SURFACED as thrown
+   * errors (silently dropping them produced an unrecoverable silent hang —
+   * the legacy `/ws` path's `{"code":1003,...}` rejection, capture A).
    */
   private async *stream<T>(
     client: WebSocketClient,
     streamName: string,
     selectors: string[],
     instrument: string | undefined,
-    normalize: (feed: Record<string, unknown>) => T
+    normalize: (feed: Record<string, unknown>, frame: GRVTWsFrame) => T
   ): AsyncGenerator<T> {
     const queue: T[] = [];
     let error: Error | null = null;
     let resolver: ((value: T) => void) | null = null;
+    let rejecter: ((err: Error) => void) | null = null;
+
+    const fail = (err: Error): void => {
+      error = err;
+      if (rejecter) {
+        const reject = rejecter;
+        rejecter = null;
+        resolver = null;
+        reject(err);
+      }
+    };
 
     const onMessage = (raw: unknown): void => {
       const frame = this.parseFrame(raw);
-      if (!frame || frame.stream !== streamName || !frame.feed) {
+      if (!frame) {
+        return;
+      }
+      const frameError = this.extractErrorFrame(frame);
+      if (frameError) {
+        fail(frameError);
+        return;
+      }
+      if (frame.stream !== streamName || !frame.feed) {
         return;
       }
       if (instrument && typeof frame.feed.instrument === 'string' && frame.feed.instrument !== instrument) {
@@ -232,19 +280,21 @@ export class GRVTWebSocketWrapper {
       }
       let value: T;
       try {
-        value = normalize(frame.feed);
+        value = normalize(frame.feed, frame);
       } catch {
         return;
       }
       if (resolver) {
-        resolver(value);
+        const resolve = resolver;
         resolver = null;
+        rejecter = null;
+        resolve(value);
       } else {
         this.boundedPush(queue, value, streamName);
       }
     };
     const onError = (err: Error): void => {
-      error = err;
+      fail(err);
     };
 
     client.on('message', onMessage);
@@ -264,8 +314,9 @@ export class GRVTWebSocketWrapper {
         if (queue.length > 0) {
           value = queue.shift() as T;
         } else {
-          value = await new Promise<T>((resolve) => {
+          value = await new Promise<T>((resolve, reject) => {
             resolver = resolve;
+            rejecter = reject;
           });
         }
         if (error) {
@@ -277,6 +328,24 @@ export class GRVTWebSocketWrapper {
       client.off('message', onMessage);
       client.off('error', onError);
     }
+  }
+
+  /**
+   * Detect a venue error frame and convert it to an Error (null otherwise).
+   *
+   * Two live shapes: legacy `{code,message,status}` (e.g. code 1003 from the
+   * `/ws` envelope mismatch) and JSON-RPC `{error:{code,message}}`. Subscribe
+   * ACKs (`{jsonrpc,result,id,method}`) and feed frames match neither.
+   */
+  private extractErrorFrame(frame: GRVTWsFrame): Error | null {
+    if (frame.error && typeof frame.error === 'object') {
+      return new Error(`GRVT WS subscribe error ${frame.error.code ?? ''}: ${frame.error.message ?? 'unknown'}`);
+    }
+    if (frame.stream === undefined && typeof frame.code === 'number' && typeof frame.message === 'string') {
+      const status = frame.status !== undefined ? ` (status ${frame.status})` : '';
+      return new Error(`GRVT WS error ${frame.code}: ${frame.message}${status}`);
+    }
+    return null;
   }
 
   /**

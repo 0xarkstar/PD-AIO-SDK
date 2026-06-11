@@ -321,6 +321,13 @@ export declare const GRVTTickerSchema: z.ZodObject<{
 }, z.ZodTypeAny, "passthrough">>;
 /**
  * GRVT funding-rate entry (from `full/v1/funding`).
+ *
+ * The endpoint returns `{result: [...]}` — an ARRAY (history, newest first).
+ * Live-verified 2026-06-11 (fixture rest-funding-BTC_USDT_Perp-raw.json):
+ * entries carry NO `index_price` and NO `next_funding_time` — the schema MUST
+ * NOT require them (paradex phantom-field precedent: a required phantom field
+ * ZodErrors every call). `funding_rate` is PERCENT-per-interval on the wire
+ * (`"0.01"` = 0.01%/8h = 1e-4 fraction); `funding_time` is a ns string.
  */
 export interface GRVTFunding {
     instrument?: string;
@@ -328,8 +335,34 @@ export interface GRVTFunding {
     funding_time?: string;
     mark_price?: string;
     index_price?: string;
+    funding_rate_8_h_avg?: string;
     funding_interval_hours?: number;
 }
+export declare const GRVTFundingSchema: z.ZodObject<{
+    instrument: z.ZodOptional<z.ZodString>;
+    funding_rate: z.ZodOptional<z.ZodString>;
+    funding_time: z.ZodOptional<z.ZodString>;
+    mark_price: z.ZodOptional<z.ZodString>;
+    index_price: z.ZodOptional<z.ZodString>;
+    funding_rate_8_h_avg: z.ZodOptional<z.ZodString>;
+    funding_interval_hours: z.ZodOptional<z.ZodNumber>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    instrument: z.ZodOptional<z.ZodString>;
+    funding_rate: z.ZodOptional<z.ZodString>;
+    funding_time: z.ZodOptional<z.ZodString>;
+    mark_price: z.ZodOptional<z.ZodString>;
+    index_price: z.ZodOptional<z.ZodString>;
+    funding_rate_8_h_avg: z.ZodOptional<z.ZodString>;
+    funding_interval_hours: z.ZodOptional<z.ZodNumber>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    instrument: z.ZodOptional<z.ZodString>;
+    funding_rate: z.ZodOptional<z.ZodString>;
+    funding_time: z.ZodOptional<z.ZodString>;
+    mark_price: z.ZodOptional<z.ZodString>;
+    index_price: z.ZodOptional<z.ZodString>;
+    funding_rate_8_h_avg: z.ZodOptional<z.ZodString>;
+    funding_interval_hours: z.ZodOptional<z.ZodNumber>;
+}, z.ZodTypeAny, "passthrough">>;
 /**
  * One leg of a GRVT order on the wire.
  */

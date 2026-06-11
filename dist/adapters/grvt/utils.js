@@ -60,6 +60,18 @@ function num(value) {
     return Number.isFinite(parsed) ? parsed : 0;
 }
 /**
+ * Convert a GRVT unix NANOSECOND timestamp string to epoch milliseconds.
+ *
+ * GRVT timestamps are ns strings EVERYWHERE on the wire (19 digits — e.g.
+ * book/trade/ticker `event_time`, ticker `next_funding_time`, funding
+ * `funding_time`, order `create_time`/`update_time`). 19-digit ns exceeds
+ * `Number.MAX_SAFE_INTEGER`, so this string-slices the last 6 digits (exact)
+ * instead of `parseInt(s)/1e6` (lossy float). Live-verified 2026-06-11.
+ */
+export function nsToMs(value) {
+    return Number(value.slice(0, -6));
+}
+/**
  * Count decimal places in a tick/step string.
  */
 function countDecimals(value) {
@@ -119,9 +131,9 @@ export function normalizeOrder(grvtOrder) {
         timeInForce: normalizeTimeInForce(grvtOrder.time_in_force || ''),
         postOnly: grvtOrder.post_only || false,
         reduceOnly: grvtOrder.reduce_only || false,
-        timestamp: grvtOrder.metadata?.create_time ? parseInt(grvtOrder.metadata.create_time, 10) : Date.now(),
+        timestamp: grvtOrder.metadata?.create_time ? nsToMs(grvtOrder.metadata.create_time) : Date.now(),
         lastUpdateTimestamp: grvtOrder.state?.update_time
-            ? parseInt(grvtOrder.state.update_time, 10)
+            ? nsToMs(grvtOrder.state.update_time)
             : undefined,
         info: grvtOrder,
     };
@@ -148,7 +160,7 @@ export function normalizePosition(grvtPosition) {
         leverage,
         maintenanceMargin: margin * 0.5,
         marginRatio: margin > 0 && notional > 0 ? (margin / notional) * 100 : 0,
-        timestamp: grvtPosition.event_time ? parseInt(grvtPosition.event_time, 10) : Date.now(),
+        timestamp: grvtPosition.event_time ? nsToMs(grvtPosition.event_time) : Date.now(),
         info: grvtPosition,
     };
 }
@@ -174,7 +186,7 @@ export function normalizeOrderBook(grvtOrderBook) {
         exchange: 'grvt',
         bids: (grvtOrderBook.bids || []).map((lvl) => [num(lvl.price), num(lvl.size)]),
         asks: (grvtOrderBook.asks || []).map((lvl) => [num(lvl.price), num(lvl.size)]),
-        timestamp: grvtOrderBook.event_time ? parseInt(grvtOrderBook.event_time, 10) : Date.now(),
+        timestamp: grvtOrderBook.event_time ? nsToMs(grvtOrderBook.event_time) : Date.now(),
     };
 }
 /**
@@ -190,7 +202,7 @@ export function normalizeTrade(grvtTrade) {
         price,
         amount,
         cost: price * amount,
-        timestamp: grvtTrade.event_time ? parseInt(grvtTrade.event_time, 10) : Date.now(),
+        timestamp: grvtTrade.event_time ? nsToMs(grvtTrade.event_time) : Date.now(),
         info: grvtTrade,
     };
 }
@@ -216,7 +228,7 @@ export function normalizeTicker(grvtTicker) {
         percentage: 0,
         baseVolume: 0,
         quoteVolume: buyVolume + sellVolume,
-        timestamp: grvtTicker.event_time ? parseInt(grvtTicker.event_time, 10) : Date.now(),
+        timestamp: grvtTicker.event_time ? nsToMs(grvtTicker.event_time) : Date.now(),
         info: grvtTicker,
     };
 }

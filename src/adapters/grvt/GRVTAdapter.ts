@@ -9,6 +9,15 @@
  * Auth: `GRVTSDKWrapper.login()` exchanges the API key for a `gravity` session
  * cookie + `X-Grvt-Account-Id` + `sub_account_id`; that sub-account id and the
  * cached instrument meta (instrument_hash + base_decimals) feed `createOrder`.
+ *
+ * WS verification status (2026-06-11 `/ws/full` repair, truthful-flags rule):
+ * - PUBLIC watch* (`watchOrderBook`/`watchTrades`/`watchTicker`) are
+ *   live-verified on `wss://market-data.grvt.io/ws/full` (fixtures
+ *   tests/fixtures/grvt/ws-capture-B.jsonl) — `has` true.
+ * - PRIVATE watch* (`watchPositions`/`watchOrders`/`watchBalance`/
+ *   `watchMyTrades`) are implemented (JSON-RPC on the trades host) but NOT
+ *   live-verifiable without an API key (`wss://trades.grvt.io/ws/full` per
+ *   docs trading_streams.md, unverified keyless) — `has` false until proven.
  */
 
 import { BaseAdapter } from '../base/BaseAdapter.js';
@@ -113,10 +122,12 @@ export class GRVTAdapter extends BaseAdapter implements IExchangeAdapter {
     watchOrderBook: true,
     watchTrades: true,
     watchTicker: true,
-    watchPositions: true,
-    watchOrders: true,
-    watchBalance: true,
-    watchMyTrades: true,
+    // Private streams: implemented but NOT live-verifiable keyless (see file
+    // header) — kept false per the truthful-flags rule until proven.
+    watchPositions: false,
+    watchOrders: false,
+    watchBalance: false,
+    watchMyTrades: false,
     cancelBatchOrders: false,
     editOrder: false,
     fetchOpenOrders: true,

@@ -5,16 +5,22 @@
  */
 /**
  * API URLs for Extended mainnet and testnet
+ *
+ * `websocket` is the per-stream WS BASE (live-verified 2026-06-11). Stream
+ * URLs are composed as `{websocket}/{stream}/{market}` (e.g.
+ * `{websocket}/orderbooks/BTC-USD`) and the HTTP upgrade itself IS the
+ * subscription — no subscribe frames exist. The previous
+ * `wss://ws.starknet.extended.exchange` host was fictional (NXDOMAIN).
  */
 export const EXTENDED_API_URLS = {
     mainnet: {
         rest: 'https://api.starknet.extended.exchange',
-        websocket: 'wss://ws.starknet.extended.exchange',
+        websocket: 'wss://api.starknet.extended.exchange/stream.extended.exchange/v1',
         starknet: 'https://starknet-mainnet.public.blastapi.io',
     },
     testnet: {
         rest: 'https://api.starknet.sepolia.extended.exchange',
-        websocket: 'wss://ws.starknet.sepolia.extended.exchange',
+        websocket: 'wss://starknet.sepolia.extended.exchange/stream.extended.exchange/v1',
         starknet: 'https://starknet-sepolia.public.blastapi.io',
     },
 };
@@ -91,25 +97,27 @@ export const EXTENDED_ENDPOINT_WEIGHTS = {
 };
 /**
  * WebSocket configuration
+ *
+ * No JSON heartbeat exists on the wire: the SERVER sends WS protocol-level
+ * PINGs (~1s) and the runtime auto-PONGs, so the old pingInterval/pongTimeout
+ * (a fictional JSON ping) were dropped.
  */
 export const EXTENDED_WS_CONFIG = {
     reconnectDelay: 1000,
     maxReconnectDelay: 60000,
     reconnectAttempts: 10,
-    pingInterval: 30000,
-    pongTimeout: 10000,
 };
 /**
- * WebSocket channels
+ * WebSocket per-stream path segments (live-verified 2026-06-11)
+ *
+ * These are URL path segments, not channel names: the stream URL
+ * `{base}/{segment}/{market}` IS the subscription. Only the public
+ * orderbooks + publicTrades streams are implemented; the venue funding
+ * stream exists but is out of scope for this repair.
  */
 export const EXTENDED_WS_CHANNELS = {
-    ORDERBOOK: 'orderbook',
-    TRADES: 'trades',
-    TICKER: 'ticker',
-    ORDERS: 'orders',
-    POSITIONS: 'positions',
-    BALANCE: 'balance',
-    FUNDING: 'funding',
+    ORDERBOOKS: 'orderbooks',
+    PUBLIC_TRADES: 'publicTrades',
 };
 /**
  * Order types supported by Extended

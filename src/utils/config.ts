@@ -52,6 +52,12 @@ const EXCHANGE_ENV_REQUIREMENTS: Record<SupportedExchange, string[]> = {
   // Aster (BNB Chain, Binance-style HMAC)
   aster: ['ASTER_API_KEY', 'ASTER_API_SECRET'],
 
+  // ApeX Omni (PUBLIC-MARKET-DATA-FIRST — keyless; trading not implemented)
+  apex: [],
+
+  // StandX (PUBLIC-MARKET-DATA-FIRST — keyless; trading not implemented)
+  standx: [],
+
   // Pacifica (Solana, Ed25519)
   pacifica: ['PACIFICA_API_KEY', 'PACIFICA_API_SECRET'],
 
@@ -192,6 +198,8 @@ export function getConfigErrorMessage(exchange: SupportedExchange, missingVars: 
     drift: 'Provide your Solana wallet address for Drift Protocol (add private key for trading)',
     gmx: 'Set GMX_CHAIN to arbitrum or avalanche (add GMX_WALLET_ADDRESS for position data)',
     aster: 'Register at asterdex.com and create API key + secret (HMAC-SHA256)',
+    apex: 'No credentials needed — apex adapter is public-market-data only',
+    standx: 'No credentials needed — standx adapter is public-market-data only',
     pacifica: 'Register at pacifica.fi and create Ed25519 API credentials',
     ostium: 'Export your MetaMask private key for Arbitrum trading on Ostium',
     reya: 'Export your wallet private key for Reya Network trading',

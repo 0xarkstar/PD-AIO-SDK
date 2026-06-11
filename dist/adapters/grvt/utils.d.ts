@@ -22,6 +22,16 @@ export declare function normalizeSymbol(grvtSymbol: string): string;
  */
 export declare function toGRVTSymbol(symbol: string): string;
 /**
+ * Convert a GRVT unix NANOSECOND timestamp string to epoch milliseconds.
+ *
+ * GRVT timestamps are ns strings EVERYWHERE on the wire (19 digits — e.g.
+ * book/trade/ticker `event_time`, ticker `next_funding_time`, funding
+ * `funding_time`, order `create_time`/`update_time`). 19-digit ns exceeds
+ * `Number.MAX_SAFE_INTEGER`, so this string-slices the last 6 digits (exact)
+ * instead of `parseInt(s)/1e6` (lossy float). Live-verified 2026-06-11.
+ */
+export declare function nsToMs(value: string): number;
+/**
  * Normalize a GRVT instrument into a unified Market (fees are per-fill on GRVT).
  */
 export declare function normalizeMarket(grvtMarket: GRVTMarket): Market;

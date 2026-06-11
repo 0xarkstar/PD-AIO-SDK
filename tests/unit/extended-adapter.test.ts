@@ -67,14 +67,20 @@ describe('ExtendedAdapter', () => {
       expect(adapter.has.setMarginMode).toBe(true);
     });
 
-    it('should have WebSocket features marked true', () => {
+    it('should have TRUTHFUL WebSocket flags (live streams: orderbooks + publicTrades only)', () => {
+      // Live-verified 2026-06-11: the venue exposes per-stream public WS for
+      // orderbooks and publicTrades. The old all-true flags described a
+      // fictional protocol on a dead host (NXDOMAIN).
       expect(adapter.has.watchOrderBook).toBe(true);
       expect(adapter.has.watchTrades).toBe(true);
-      expect(adapter.has.watchTicker).toBe(true);
-      expect(adapter.has.watchPositions).toBe(true);
-      expect(adapter.has.watchOrders).toBe(true);
-      expect(adapter.has.watchBalance).toBe(true);
-      expect(adapter.has.watchFundingRate).toBe(true);
+      // Not implemented against the real protocol — flipped false (edgex
+      // precedent c41a3e1). The venue funding stream exists but is out of
+      // scope for this repair.
+      expect(adapter.has.watchTicker).toBe(false);
+      expect(adapter.has.watchPositions).toBe(false);
+      expect(adapter.has.watchOrders).toBe(false);
+      expect(adapter.has.watchBalance).toBe(false);
+      expect(adapter.has.watchFundingRate).toBe(false);
     });
 
     it('should have unsupported features marked false', () => {
@@ -224,71 +230,49 @@ describe('ExtendedAdapter', () => {
   });
 
   describe('WebSocket methods', () => {
-    describe('without API key', () => {
-      let adapter: ExtendedAdapter;
+    let adapter: ExtendedAdapter;
 
-      beforeEach(() => {
-        adapter = new ExtendedAdapter();
-      });
-
-      it('watchOrderBook should create generator', () => {
-        const generator = adapter.watchOrderBook('BTC/USD:USD');
-        expect(generator).toBeDefined();
-        expect(typeof generator[Symbol.asyncIterator]).toBe('function');
-      });
-
-      it('watchTrades should create generator', () => {
-        const generator = adapter.watchTrades('BTC/USD:USD');
-        expect(generator).toBeDefined();
-      });
-
-      it('watchTicker should create generator', () => {
-        const generator = adapter.watchTicker('BTC/USD:USD');
-        expect(generator).toBeDefined();
-      });
-
-      it('watchPositions should throw authentication error without API key', async () => {
-        const generator = adapter.watchPositions();
-        await expect(generator.next()).rejects.toThrow('API key required');
-      });
-
-      it('watchOrders should throw authentication error without API key', async () => {
-        const generator = adapter.watchOrders();
-        await expect(generator.next()).rejects.toThrow('API key required');
-      });
-
-      it('watchBalance should throw authentication error without API key', async () => {
-        const generator = adapter.watchBalance();
-        await expect(generator.next()).rejects.toThrow('API key required');
-      });
-
-      it('watchFundingRate should create generator', () => {
-        const generator = adapter.watchFundingRate('BTC/USD:USD');
-        expect(generator).toBeDefined();
-      });
+    beforeEach(() => {
+      adapter = new ExtendedAdapter();
     });
 
-    describe('with API key', () => {
-      let adapter: ExtendedAdapter;
+    it('watchOrderBook should create generator (public, keyless)', () => {
+      const generator = adapter.watchOrderBook('BTC/USD:USD');
+      expect(generator).toBeDefined();
+      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+    });
 
-      beforeEach(() => {
-        adapter = new ExtendedAdapter({ apiKey: 'test-key' });
-      });
+    it('watchTrades should create generator (public, keyless)', () => {
+      const generator = adapter.watchTrades('BTC/USD:USD');
+      expect(generator).toBeDefined();
+      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+    });
 
-      it('watchPositions should create generator', () => {
-        const generator = adapter.watchPositions();
-        expect(generator).toBeDefined();
-      });
+    // The following streams do not exist in the repaired (real) protocol
+    // scope — they fall through to the BaseAdapter NOT_SUPPORTED throwers.
 
-      it('watchOrders should create generator', () => {
-        const generator = adapter.watchOrders();
-        expect(generator).toBeDefined();
-      });
+    it('watchTicker should throw not supported', async () => {
+      await expect(adapter.watchTicker('BTC/USD:USD').next()).rejects.toThrow(
+        /does not support/i
+      );
+    });
 
-      it('watchBalance should create generator', () => {
-        const generator = adapter.watchBalance();
-        expect(generator).toBeDefined();
-      });
+    it('watchPositions should throw not supported', async () => {
+      await expect(adapter.watchPositions().next()).rejects.toThrow(/does not support/i);
+    });
+
+    it('watchOrders should throw not supported', async () => {
+      await expect(adapter.watchOrders().next()).rejects.toThrow(/does not support/i);
+    });
+
+    it('watchBalance should throw not supported', async () => {
+      await expect(adapter.watchBalance().next()).rejects.toThrow(/does not support/i);
+    });
+
+    it('watchFundingRate should throw not supported', async () => {
+      await expect(adapter.watchFundingRate('BTC/USD:USD').next()).rejects.toThrow(
+        /does not support/i
+      );
     });
   });
 });

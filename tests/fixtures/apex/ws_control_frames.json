@@ -1,0 +1,31 @@
+[
+  {
+    "success": true,
+    "ret_msg": "",
+    "conn_id": "33f199c3-d15f-484f-aa83-ccb3acd31ca7",
+    "request": {
+      "op": "subscribe",
+      "args": [
+        "orderBook200.H.BTCUSDT",
+        "recentlyTrade.H.BTCUSDT"
+      ]
+    }
+  },
+  {
+    "op": "ping",
+    "args": [
+      "1781147754346"
+    ]
+  },
+  {
+    "success": true,
+    "ret_msg": "pong",
+    "conn_id": "33f199c3-d15f-484f-aa83-ccb3acd31ca7",
+    "request": {
+      "op": "ping",
+      "args": [
+        "1781147766276"
+      ]
+    }
+  }
+]

@@ -20,6 +20,8 @@ export {
 } from './specs/remaining-exchanges.spec.js';
 export { dydxSpec, dydxTestnetSpec } from './specs/dydx.spec.js';
 export { asterSpec, asterTestnetSpec } from './specs/aster.spec.js';
+export { apexSpec, apexTestnetSpec } from './specs/apex.spec.js';
+export { standxSpec } from './specs/standx.spec.js';
 export { pacificaSpec, pacificaTestnetSpec } from './specs/pacifica.spec.js';
 export { extendedSpec, extendedTestnetSpec } from './specs/extended.spec.js';
 export { variationalSpec, variationalTestnetSpec } from './specs/variational.spec.js';

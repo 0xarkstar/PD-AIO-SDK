@@ -705,11 +705,11 @@ var require_eventemitter3 = __commonJS({
       if (--emitter._eventsCount === 0) emitter._events = new Events();
       else delete emitter._events[evt];
     }
-    function EventEmitter6() {
+    function EventEmitter8() {
       this._events = new Events();
       this._eventsCount = 0;
     }
-    EventEmitter6.prototype.eventNames = function eventNames() {
+    EventEmitter8.prototype.eventNames = function eventNames() {
       var names = [], events, name;
       if (this._eventsCount === 0) return names;
       for (name in events = this._events) {
@@ -720,7 +720,7 @@ var require_eventemitter3 = __commonJS({
       }
       return names;
     };
-    EventEmitter6.prototype.listeners = function listeners(event) {
+    EventEmitter8.prototype.listeners = function listeners(event) {
       var evt = prefix ? prefix + event : event, handlers = this._events[evt];
       if (!handlers) return [];
       if (handlers.fn) return [handlers.fn];
@@ -729,13 +729,13 @@ var require_eventemitter3 = __commonJS({
       }
       return ee;
     };
-    EventEmitter6.prototype.listenerCount = function listenerCount(event) {
+    EventEmitter8.prototype.listenerCount = function listenerCount(event) {
       var evt = prefix ? prefix + event : event, listeners = this._events[evt];
       if (!listeners) return 0;
       if (listeners.fn) return 1;
       return listeners.length;
     };
-    EventEmitter6.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
+    EventEmitter8.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
       var evt = prefix ? prefix + event : event;
       if (!this._events[evt]) return false;
       var listeners = this._events[evt], len = arguments.length, args, i;
@@ -786,13 +786,13 @@ var require_eventemitter3 = __commonJS({
       }
       return true;
     };
-    EventEmitter6.prototype.on = function on(event, fn, context) {
+    EventEmitter8.prototype.on = function on(event, fn, context) {
       return addListener(this, event, fn, context, false);
     };
-    EventEmitter6.prototype.once = function once(event, fn, context) {
+    EventEmitter8.prototype.once = function once(event, fn, context) {
       return addListener(this, event, fn, context, true);
     };
-    EventEmitter6.prototype.removeListener = function removeListener(event, fn, context, once) {
+    EventEmitter8.prototype.removeListener = function removeListener(event, fn, context, once) {
       var evt = prefix ? prefix + event : event;
       if (!this._events[evt]) return this;
       if (!fn) {
@@ -815,7 +815,7 @@ var require_eventemitter3 = __commonJS({
       }
       return this;
     };
-    EventEmitter6.prototype.removeAllListeners = function removeAllListeners(event) {
+    EventEmitter8.prototype.removeAllListeners = function removeAllListeners(event) {
       var evt;
       if (event) {
         evt = prefix ? prefix + event : event;
@@ -826,12 +826,12 @@ var require_eventemitter3 = __commonJS({
       }
       return this;
     };
-    EventEmitter6.prototype.off = EventEmitter6.prototype.removeListener;
-    EventEmitter6.prototype.addListener = EventEmitter6.prototype.on;
-    EventEmitter6.prefixed = prefix;
-    EventEmitter6.EventEmitter = EventEmitter6;
+    EventEmitter8.prototype.off = EventEmitter8.prototype.removeListener;
+    EventEmitter8.prototype.addListener = EventEmitter8.prototype.on;
+    EventEmitter8.prefixed = prefix;
+    EventEmitter8.EventEmitter = EventEmitter8;
     if ("undefined" !== typeof module2) {
-      module2.exports = EventEmitter6;
+      module2.exports = EventEmitter8;
     }
   }
 });
@@ -13609,18 +13609,18 @@ var init_constants3 = __esm({
         trades: "https://trades.grvt.io",
         marketData: "https://market-data.grvt.io",
         rest: "https://market-data.grvt.io",
-        websocketTrades: "wss://trades.grvt.io/ws",
-        websocketMarketData: "wss://market-data.grvt.io/ws",
-        websocket: "wss://market-data.grvt.io/ws"
+        websocketTrades: "wss://trades.grvt.io/ws/full",
+        websocketMarketData: "wss://market-data.grvt.io/ws/full",
+        websocket: "wss://market-data.grvt.io/ws/full"
       },
       testnet: {
         edge: "https://edge.testnet.grvt.io",
         trades: "https://trades.testnet.grvt.io",
         marketData: "https://market-data.testnet.grvt.io",
         rest: "https://market-data.testnet.grvt.io",
-        websocketTrades: "wss://trades.testnet.grvt.io/ws",
-        websocketMarketData: "wss://market-data.testnet.grvt.io/ws",
-        websocket: "wss://market-data.testnet.grvt.io/ws"
+        websocketTrades: "wss://trades.testnet.grvt.io/ws/full",
+        websocketMarketData: "wss://market-data.testnet.grvt.io/ws/full",
+        websocket: "wss://market-data.testnet.grvt.io/ws/full"
       }
     };
     GRVT_ENDPOINTS = {
@@ -14169,6 +14169,248 @@ var init_GRVTAuth = __esm({
   }
 });
 
+// src/adapters/grvt/utils.ts
+function normalizeSymbol(grvtSymbol) {
+  if (grvtSymbol.endsWith("_Perp")) {
+    const parts = grvtSymbol.replace("_Perp", "").split("_");
+    const base = parts[0];
+    const quote = parts[1] || "USDT";
+    return `${base}/${quote}:${quote}`;
+  }
+  if (grvtSymbol.endsWith("-PERP")) {
+    const base = grvtSymbol.replace("-PERP", "");
+    return `${base}/USDT:USDT`;
+  }
+  if (grvtSymbol.includes("_")) {
+    const [base, quote] = grvtSymbol.split("_");
+    return `${base}/${quote || "USDT"}`;
+  }
+  return `${grvtSymbol}/USDT:USDT`;
+}
+function toGRVTSymbol(symbol) {
+  if (symbol.includes(":")) {
+    const parts2 = symbol.split(":");
+    const pair = parts2[0] || "";
+    const settle = parts2[1] || "USDT";
+    const pairParts = pair.split("/");
+    const base2 = pairParts[0] || "";
+    const quote2 = pairParts[1] || settle;
+    return `${base2}_${quote2}_Perp`;
+  }
+  const parts = symbol.split("/");
+  const base = parts[0] || "";
+  const quote = parts[1] || "USDT";
+  return `${base}_${quote}`;
+}
+function num(value) {
+  if (!value) return 0;
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+function nsToMs(value) {
+  return Number(value.slice(0, -6));
+}
+function countDecimals(value) {
+  if (!value) return 0;
+  const parts = value.split(".");
+  return parts.length === 2 && parts[1] ? parts[1].length : 0;
+}
+function normalizeMarket(grvtMarket) {
+  const instrument = grvtMarket.instrument;
+  return {
+    id: instrument,
+    symbol: normalizeSymbol(instrument),
+    base: grvtMarket.base,
+    quote: grvtMarket.quote,
+    settle: grvtMarket.quote,
+    active: grvtMarket.is_active ?? true,
+    minAmount: num(grvtMarket.min_size),
+    maxAmount: grvtMarket.max_size ? num(grvtMarket.max_size) : void 0,
+    minCost: grvtMarket.min_notional ? num(grvtMarket.min_notional) : void 0,
+    pricePrecision: countDecimals(grvtMarket.tick_size),
+    amountPrecision: countDecimals(grvtMarket.min_size),
+    priceTickSize: num(grvtMarket.tick_size),
+    amountStepSize: num(grvtMarket.min_size),
+    makerFee: 0,
+    takerFee: 0,
+    maxLeverage: GRVT_MAX_LEVERAGE,
+    fundingIntervalHours: grvtMarket.funding_interval_hours ?? 8,
+    info: grvtMarket
+  };
+}
+function normalizeOrder(grvtOrder) {
+  const leg = grvtOrder.legs?.[0];
+  const amount = num(leg?.size);
+  const traded = num(grvtOrder.state?.traded_size?.[0]);
+  const book = num(grvtOrder.state?.book_size?.[0]);
+  return {
+    id: grvtOrder.order_id || "",
+    clientOrderId: grvtOrder.metadata?.client_order_id,
+    symbol: normalizeSymbol(leg?.instrument || ""),
+    type: grvtOrder.is_market ? "market" : "limit",
+    side: leg?.is_buying_asset ? "buy" : "sell",
+    amount,
+    price: leg?.limit_price ? num(leg.limit_price) : void 0,
+    filled: traded,
+    remaining: book,
+    averagePrice: grvtOrder.state?.avg_fill_price?.[0] ? num(grvtOrder.state.avg_fill_price[0]) : void 0,
+    status: normalizeOrderStatus(grvtOrder.state?.status || ""),
+    timeInForce: normalizeTimeInForce(grvtOrder.time_in_force || ""),
+    postOnly: grvtOrder.post_only || false,
+    reduceOnly: grvtOrder.reduce_only || false,
+    timestamp: grvtOrder.metadata?.create_time ? nsToMs(grvtOrder.metadata.create_time) : Date.now(),
+    lastUpdateTimestamp: grvtOrder.state?.update_time ? nsToMs(grvtOrder.state.update_time) : void 0,
+    info: grvtOrder
+  };
+}
+function normalizePosition(grvtPosition) {
+  const size = num(grvtPosition.size);
+  const leverage = num(grvtPosition.leverage);
+  const notional = num(grvtPosition.notional);
+  const margin = leverage > 0 ? notional / leverage : 0;
+  return {
+    symbol: normalizeSymbol(grvtPosition.instrument || ""),
+    side: size >= 0 ? "long" : "short",
+    marginMode: "cross",
+    size: Math.abs(size),
+    entryPrice: num(grvtPosition.entry_price),
+    markPrice: num(grvtPosition.mark_price),
+    liquidationPrice: grvtPosition.est_liquidation_price ? num(grvtPosition.est_liquidation_price) : 0,
+    unrealizedPnl: num(grvtPosition.unrealized_pnl),
+    realizedPnl: num(grvtPosition.realized_pnl),
+    margin,
+    leverage,
+    maintenanceMargin: margin * 0.5,
+    marginRatio: margin > 0 && notional > 0 ? margin / notional * 100 : 0,
+    timestamp: grvtPosition.event_time ? nsToMs(grvtPosition.event_time) : Date.now(),
+    info: grvtPosition
+  };
+}
+function normalizeBalance(grvtBalance) {
+  const total = num(grvtBalance.balance);
+  return {
+    currency: grvtBalance.currency || "",
+    total,
+    free: total,
+    used: 0,
+    info: grvtBalance
+  };
+}
+function normalizeOrderBook(grvtOrderBook) {
+  return {
+    symbol: normalizeSymbol(grvtOrderBook.instrument || ""),
+    exchange: "grvt",
+    bids: (grvtOrderBook.bids || []).map((lvl) => [num(lvl.price), num(lvl.size)]),
+    asks: (grvtOrderBook.asks || []).map((lvl) => [num(lvl.price), num(lvl.size)]),
+    timestamp: grvtOrderBook.event_time ? nsToMs(grvtOrderBook.event_time) : Date.now()
+  };
+}
+function normalizeTrade(grvtTrade) {
+  const price = num(grvtTrade.price);
+  const amount = num(grvtTrade.size);
+  return {
+    id: grvtTrade.trade_id,
+    symbol: normalizeSymbol(grvtTrade.instrument || ""),
+    side: grvtTrade.is_taker_buyer ? "buy" : "sell",
+    price,
+    amount,
+    cost: price * amount,
+    timestamp: grvtTrade.event_time ? nsToMs(grvtTrade.event_time) : Date.now(),
+    info: grvtTrade
+  };
+}
+function normalizeTicker(grvtTicker) {
+  const last = num(grvtTicker.last_price ?? grvtTicker.mark_price);
+  const buyVolume = num(grvtTicker.buy_volume_24h_q);
+  const sellVolume = num(grvtTicker.sell_volume_24h_q);
+  return {
+    symbol: normalizeSymbol(grvtTicker.instrument || ""),
+    last,
+    open: last,
+    close: last,
+    bid: num(grvtTicker.best_bid_price),
+    bidVolume: num(grvtTicker.best_bid_size),
+    ask: num(grvtTicker.best_ask_price),
+    askVolume: num(grvtTicker.best_ask_size),
+    high: last,
+    low: last,
+    change: 0,
+    percentage: 0,
+    baseVolume: 0,
+    quoteVolume: buyVolume + sellVolume,
+    timestamp: grvtTicker.event_time ? nsToMs(grvtTicker.event_time) : Date.now(),
+    info: grvtTicker
+  };
+}
+function normalizeOrderStatus(grvtStatus) {
+  const mapped = GRVT_ORDER_STATUS[grvtStatus];
+  return mapped ?? "open";
+}
+function normalizeTimeInForce(grvtTif) {
+  switch (grvtTif) {
+    case "IMMEDIATE_OR_CANCEL":
+      return "IOC";
+    case "FILL_OR_KILL":
+      return "FOK";
+    case "GOOD_TILL_TIME":
+    default:
+      return "GTC";
+  }
+}
+function toGRVTOrderSide(side) {
+  return side === "buy" ? GRVT_ORDER_SIDES.buy : GRVT_ORDER_SIDES.sell;
+}
+function toGRVTTimeInForce(tif, postOnly) {
+  if (postOnly) {
+    return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
+  }
+  switch (tif) {
+    case "IOC":
+      return GRVT_TIME_IN_FORCE.IMMEDIATE_OR_CANCEL;
+    case "FOK":
+      return GRVT_TIME_IN_FORCE.FILL_OR_KILL;
+    case "PO":
+      return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
+    case "GTC":
+    default:
+      return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
+  }
+}
+function mapGRVTError(error) {
+  if (typeof error === "object" && error !== null) {
+    const err2 = error;
+    switch (err2.code) {
+      case 1001:
+        return { code: "INVALID_ORDER", message: "Invalid order parameters" };
+      case 1002:
+        return { code: "INSUFFICIENT_MARGIN", message: "Insufficient margin" };
+      case 1003:
+        return { code: "ORDER_NOT_FOUND", message: "Order not found" };
+      case 1004:
+        return { code: "POSITION_NOT_FOUND", message: "Position not found" };
+      case 2001:
+        return { code: "INVALID_SIGNATURE", message: "Invalid signature" };
+      case 2002:
+        return { code: "EXPIRED_AUTH", message: "Authentication expired" };
+      case 2003:
+        return { code: "INVALID_API_KEY", message: "Invalid API key" };
+      case 4001:
+        return { code: "RATE_LIMIT_EXCEEDED", message: "Rate limit exceeded" };
+      case 5001:
+        return { code: "EXCHANGE_UNAVAILABLE", message: "Exchange unavailable" };
+      default:
+        return { code: "UNKNOWN_ERROR", message: err2.message ?? "Unknown error occurred" };
+    }
+  }
+  return { code: "UNKNOWN_ERROR", message: "Unknown error occurred" };
+}
+var init_utils3 = __esm({
+  "src/adapters/grvt/utils.ts"() {
+    "use strict";
+    init_constants3();
+  }
+});
+
 // src/adapters/grvt/GRVTNormalizer.ts
 var GRVTNormalizer;
 var init_GRVTNormalizer = __esm({
@@ -14176,6 +14418,7 @@ var init_GRVTNormalizer = __esm({
     "use strict";
     init_constants3();
     init_errors();
+    init_utils3();
     GRVTNormalizer = class {
       // ===========================================================================
       // Symbol Conversion
@@ -14317,8 +14560,8 @@ var init_GRVTNormalizer = __esm({
           timeInForce: this.mapTimeInForce(grvtOrder.time_in_force || ""),
           reduceOnly: grvtOrder.reduce_only || false,
           postOnly: grvtOrder.post_only || false,
-          timestamp: grvtOrder.metadata?.create_time ? parseInt(grvtOrder.metadata.create_time, 10) : Date.now(),
-          lastUpdateTimestamp: grvtOrder.state?.update_time ? parseInt(grvtOrder.state.update_time, 10) : void 0,
+          timestamp: grvtOrder.metadata?.create_time ? nsToMs(grvtOrder.metadata.create_time) : Date.now(),
+          lastUpdateTimestamp: grvtOrder.state?.update_time ? nsToMs(grvtOrder.state.update_time) : void 0,
           info: grvtOrder
         };
       }
@@ -14373,7 +14616,7 @@ var init_GRVTNormalizer = __esm({
           margin,
           maintenanceMargin: margin * 0.5,
           marginRatio: margin > 0 && notional > 0 ? margin / notional * 100 : 0,
-          timestamp: grvtPosition.event_time ? parseInt(grvtPosition.event_time, 10) : Date.now(),
+          timestamp: grvtPosition.event_time ? nsToMs(grvtPosition.event_time) : Date.now(),
           info: grvtPosition
         };
       }
@@ -14423,7 +14666,7 @@ var init_GRVTNormalizer = __esm({
           price,
           amount,
           cost: price * amount,
-          timestamp: grvtTrade.event_time ? parseInt(grvtTrade.event_time, 10) : Date.now(),
+          timestamp: grvtTrade.event_time ? nsToMs(grvtTrade.event_time) : Date.now(),
           info: grvtTrade
         };
       }
@@ -14447,7 +14690,7 @@ var init_GRVTNormalizer = __esm({
           price,
           amount,
           cost: price * amount,
-          timestamp: grvtFill.event_time ? parseInt(grvtFill.event_time, 10) : Date.now(),
+          timestamp: grvtFill.event_time ? nsToMs(grvtFill.event_time) : Date.now(),
           info: grvtFill
         };
         if (grvtFill.fee !== void 0) {
@@ -14488,7 +14731,7 @@ var init_GRVTNormalizer = __esm({
           percentage: 0,
           baseVolume: 0,
           quoteVolume: buyVolume + sellVolume,
-          timestamp: grvtTicker.event_time ? parseInt(grvtTicker.event_time, 10) : Date.now(),
+          timestamp: grvtTicker.event_time ? nsToMs(grvtTicker.event_time) : Date.now(),
           info: grvtTicker
         };
       }
@@ -14503,18 +14746,23 @@ var init_GRVTNormalizer = __esm({
       // ===========================================================================
       /**
        * Normalize a GRVT FULL order-book snapshot into a unified OrderBook.
+       *
+       * `sequenceNumber` is the WS frame `sequence_number` (REST has none, so it
+       * stays undefined there). NOTE: initial-subscription replay frames on
+       * `v1.book.s` arrive with `sequence_number "0"` — consumers must tolerate
+       * the burst and must NOT build book-delta logic on it.
        */
-      normalizeOrderBook(grvtOrderBook) {
+      normalizeOrderBook(grvtOrderBook, sequenceNumber) {
         return {
           symbol: this.symbolToCCXT(grvtOrderBook.instrument || ""),
-          timestamp: grvtOrderBook.event_time ? parseInt(grvtOrderBook.event_time, 10) : Date.now(),
+          timestamp: grvtOrderBook.event_time ? nsToMs(grvtOrderBook.event_time) : Date.now(),
           bids: (grvtOrderBook.bids || []).map(
             (level) => [this.toNumberSafe(level.price), this.toNumberSafe(level.size)]
           ),
           asks: (grvtOrderBook.asks || []).map(
             (level) => [this.toNumberSafe(level.price), this.toNumberSafe(level.size)]
           ),
-          sequenceId: void 0,
+          sequenceId: sequenceNumber !== void 0 ? Number(sequenceNumber) : void 0,
           checksum: void 0,
           exchange: "grvt"
         };
@@ -14524,14 +14772,20 @@ var init_GRVTNormalizer = __esm({
       // ===========================================================================
       /**
        * Normalize a GRVT funding entry into a unified FundingRate.
+       *
+       * Wire `funding_rate` is PERCENT-per-interval (`"0.01"` = 0.01%/8h = 1e-4
+       * fraction) — divided by 100. `funding_time` is a ns string. Entries carry
+       * NO `index_price`/`next_funding_time` (indexPrice falls back to 0;
+       * nextFundingTimestamp is derived as funding_time + interval, which matches
+       * the venue-authoritative ticker `next_funding_time` — live cross-checked).
        */
       normalizeFundingRate(grvtFunding) {
-        const fundingTimestamp = grvtFunding.funding_time ? parseInt(grvtFunding.funding_time, 10) : Date.now();
+        const fundingTimestamp = grvtFunding.funding_time ? nsToMs(grvtFunding.funding_time) : Date.now();
         const fundingIntervalHours = grvtFunding.funding_interval_hours ?? 8;
         const nextFundingTimestamp = fundingTimestamp + fundingIntervalHours * 60 * 60 * 1e3;
         return {
           symbol: this.symbolToCCXT(grvtFunding.instrument || ""),
-          fundingRate: this.toNumberSafe(grvtFunding.funding_rate),
+          fundingRate: this.toNumberSafe(grvtFunding.funding_rate) / 100,
           fundingTimestamp,
           nextFundingTimestamp,
           markPrice: this.toNumberSafe(grvtFunding.mark_price),
@@ -14573,7 +14827,7 @@ function isServerError(errorCode) {
 function isNetworkError(errorCode) {
   return includesValue(Object.values(GRVT_NETWORK_ERRORS), errorCode);
 }
-function mapGRVTError(errorCode, message, originalError) {
+function mapGRVTError2(errorCode, message, originalError) {
   const code = errorCode.toString();
   if (code === GRVT_CLIENT_ERRORS.INVALID_SIGNATURE || code === GRVT_CLIENT_ERRORS.INVALID_API_KEY) {
     return new InvalidSignatureError(message, code, "grvt", originalError);
@@ -14617,7 +14871,7 @@ function extractGRVTError(response) {
 function mapHttpError(status, statusText, responseData) {
   if (responseData && responseData.error) {
     const { code, message } = extractGRVTError(responseData);
-    return mapGRVTError(code, message, responseData);
+    return mapGRVTError2(code, message, responseData);
   }
   if (status === 401) {
     return new InvalidSignatureError(`Unauthorized: ${statusText}`, "UNAUTHORIZED", "grvt");
@@ -14786,12 +15040,15 @@ var init_GRVTWebSocketWrapper = __esm({
       constructor(config = {}) {
         const urls = config.testnet ? GRVT_API_URLS.testnet : GRVT_API_URLS.mainnet;
         this.session = config.session;
+        const heartbeat = { enabled: false, interval: 3e4, timeout: 5e3 };
         this.publicClient = new WebSocketClient({
           url: urls.websocketMarketData,
+          heartbeat,
           onError: (error) => this.logger.error("Public WS error", error)
         });
         this.tradeClient = new WebSocketClient({
           url: urls.websocketTrades,
+          heartbeat,
           onError: (error) => this.logger.error("Trade WS error", error)
         });
       }
@@ -14836,7 +15093,7 @@ var init_GRVTWebSocketWrapper = __esm({
           GRVT_WS_STREAMS.bookSnapshot,
           [selector],
           instrument,
-          (feed) => this.normalizer.normalizeOrderBook(feed)
+          (feed, frame) => this.normalizer.normalizeOrderBook(feed, frame.sequence_number)
         );
       }
       /**
@@ -14935,15 +15192,35 @@ var init_GRVTWebSocketWrapper = __esm({
       /**
        * Subscribe to one stream and yield normalized values until the generator is
        * closed. Frames for other streams/instruments are ignored; un-normalizable
-       * frames are skipped (defensive).
+       * frames are skipped (defensive). Venue error frames are SURFACED as thrown
+       * errors (silently dropping them produced an unrecoverable silent hang —
+       * the legacy `/ws` path's `{"code":1003,...}` rejection, capture A).
        */
       async *stream(client, streamName, selectors, instrument, normalize2) {
         const queue = [];
         let error = null;
         let resolver = null;
+        let rejecter = null;
+        const fail = (err2) => {
+          error = err2;
+          if (rejecter) {
+            const reject = rejecter;
+            rejecter = null;
+            resolver = null;
+            reject(err2);
+          }
+        };
         const onMessage = (raw) => {
           const frame = this.parseFrame(raw);
-          if (!frame || frame.stream !== streamName || !frame.feed) {
+          if (!frame) {
+            return;
+          }
+          const frameError = this.extractErrorFrame(frame);
+          if (frameError) {
+            fail(frameError);
+            return;
+          }
+          if (frame.stream !== streamName || !frame.feed) {
             return;
           }
           if (instrument && typeof frame.feed.instrument === "string" && frame.feed.instrument !== instrument) {
@@ -14951,19 +15228,21 @@ var init_GRVTWebSocketWrapper = __esm({
           }
           let value;
           try {
-            value = normalize2(frame.feed);
+            value = normalize2(frame.feed, frame);
           } catch {
             return;
           }
           if (resolver) {
-            resolver(value);
+            const resolve = resolver;
             resolver = null;
+            rejecter = null;
+            resolve(value);
           } else {
             this.boundedPush(queue, value, streamName);
           }
         };
         const onError = (err2) => {
-          error = err2;
+          fail(err2);
         };
         client.on("message", onMessage);
         client.on("error", onError);
@@ -14980,8 +15259,9 @@ var init_GRVTWebSocketWrapper = __esm({
             if (queue.length > 0) {
               value = queue.shift();
             } else {
-              value = await new Promise((resolve) => {
+              value = await new Promise((resolve, reject) => {
                 resolver = resolve;
+                rejecter = reject;
               });
             }
             if (error) {
@@ -14993,6 +15273,23 @@ var init_GRVTWebSocketWrapper = __esm({
           client.off("message", onMessage);
           client.off("error", onError);
         }
+      }
+      /**
+       * Detect a venue error frame and convert it to an Error (null otherwise).
+       *
+       * Two live shapes: legacy `{code,message,status}` (e.g. code 1003 from the
+       * `/ws` envelope mismatch) and JSON-RPC `{error:{code,message}}`. Subscribe
+       * ACKs (`{jsonrpc,result,id,method}`) and feed frames match neither.
+       */
+      extractErrorFrame(frame) {
+        if (frame.error && typeof frame.error === "object") {
+          return new Error(`GRVT WS subscribe error ${frame.error.code ?? ""}: ${frame.error.message ?? "unknown"}`);
+        }
+        if (frame.stream === void 0 && typeof frame.code === "number" && typeof frame.message === "string") {
+          const status = frame.status !== void 0 ? ` (status ${frame.status})` : "";
+          return new Error(`GRVT WS error ${frame.code}: ${frame.message}${status}`);
+        }
+        return null;
       }
       /**
        * Build a JSON-RPC subscribe frame.
@@ -15087,10 +15384,12 @@ var init_GRVTAdapter = __esm({
         watchOrderBook: true,
         watchTrades: true,
         watchTicker: true,
-        watchPositions: true,
-        watchOrders: true,
-        watchBalance: true,
-        watchMyTrades: true,
+        // Private streams: implemented but NOT live-verifiable keyless (see file
+        // header) — kept false per the truthful-flags rule until proven.
+        watchPositions: false,
+        watchOrders: false,
+        watchBalance: false,
+        watchMyTrades: false,
         cancelBatchOrders: false,
         editOrder: false,
         fetchOpenOrders: true,
@@ -15632,7 +15931,7 @@ var init_GRVTAdapter = __esm({
 });
 
 // src/adapters/grvt/types.ts
-var GRVTMarketSchema, GRVTOrderBookLevelSchema, GRVTOrderBookSchema, GRVTTradeSchema, GRVTTickerSchema;
+var GRVTMarketSchema, GRVTOrderBookLevelSchema, GRVTOrderBookSchema, GRVTTradeSchema, GRVTTickerSchema, GRVTFundingSchema;
 var init_types5 = __esm({
   "src/adapters/grvt/types.ts"() {
     "use strict";
@@ -15692,245 +15991,16 @@ var init_types5 = __esm({
       funding_rate: external_exports.string().optional(),
       next_funding_time: external_exports.string().optional()
     }).passthrough();
-  }
-});
-
-// src/adapters/grvt/utils.ts
-function normalizeSymbol(grvtSymbol) {
-  if (grvtSymbol.endsWith("_Perp")) {
-    const parts = grvtSymbol.replace("_Perp", "").split("_");
-    const base = parts[0];
-    const quote = parts[1] || "USDT";
-    return `${base}/${quote}:${quote}`;
-  }
-  if (grvtSymbol.endsWith("-PERP")) {
-    const base = grvtSymbol.replace("-PERP", "");
-    return `${base}/USDT:USDT`;
-  }
-  if (grvtSymbol.includes("_")) {
-    const [base, quote] = grvtSymbol.split("_");
-    return `${base}/${quote || "USDT"}`;
-  }
-  return `${grvtSymbol}/USDT:USDT`;
-}
-function toGRVTSymbol(symbol) {
-  if (symbol.includes(":")) {
-    const parts2 = symbol.split(":");
-    const pair = parts2[0] || "";
-    const settle = parts2[1] || "USDT";
-    const pairParts = pair.split("/");
-    const base2 = pairParts[0] || "";
-    const quote2 = pairParts[1] || settle;
-    return `${base2}_${quote2}_Perp`;
-  }
-  const parts = symbol.split("/");
-  const base = parts[0] || "";
-  const quote = parts[1] || "USDT";
-  return `${base}_${quote}`;
-}
-function num(value) {
-  if (!value) return 0;
-  const parsed = parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-function countDecimals(value) {
-  if (!value) return 0;
-  const parts = value.split(".");
-  return parts.length === 2 && parts[1] ? parts[1].length : 0;
-}
-function normalizeMarket(grvtMarket) {
-  const instrument = grvtMarket.instrument;
-  return {
-    id: instrument,
-    symbol: normalizeSymbol(instrument),
-    base: grvtMarket.base,
-    quote: grvtMarket.quote,
-    settle: grvtMarket.quote,
-    active: grvtMarket.is_active ?? true,
-    minAmount: num(grvtMarket.min_size),
-    maxAmount: grvtMarket.max_size ? num(grvtMarket.max_size) : void 0,
-    minCost: grvtMarket.min_notional ? num(grvtMarket.min_notional) : void 0,
-    pricePrecision: countDecimals(grvtMarket.tick_size),
-    amountPrecision: countDecimals(grvtMarket.min_size),
-    priceTickSize: num(grvtMarket.tick_size),
-    amountStepSize: num(grvtMarket.min_size),
-    makerFee: 0,
-    takerFee: 0,
-    maxLeverage: GRVT_MAX_LEVERAGE,
-    fundingIntervalHours: grvtMarket.funding_interval_hours ?? 8,
-    info: grvtMarket
-  };
-}
-function normalizeOrder(grvtOrder) {
-  const leg = grvtOrder.legs?.[0];
-  const amount = num(leg?.size);
-  const traded = num(grvtOrder.state?.traded_size?.[0]);
-  const book = num(grvtOrder.state?.book_size?.[0]);
-  return {
-    id: grvtOrder.order_id || "",
-    clientOrderId: grvtOrder.metadata?.client_order_id,
-    symbol: normalizeSymbol(leg?.instrument || ""),
-    type: grvtOrder.is_market ? "market" : "limit",
-    side: leg?.is_buying_asset ? "buy" : "sell",
-    amount,
-    price: leg?.limit_price ? num(leg.limit_price) : void 0,
-    filled: traded,
-    remaining: book,
-    averagePrice: grvtOrder.state?.avg_fill_price?.[0] ? num(grvtOrder.state.avg_fill_price[0]) : void 0,
-    status: normalizeOrderStatus(grvtOrder.state?.status || ""),
-    timeInForce: normalizeTimeInForce(grvtOrder.time_in_force || ""),
-    postOnly: grvtOrder.post_only || false,
-    reduceOnly: grvtOrder.reduce_only || false,
-    timestamp: grvtOrder.metadata?.create_time ? parseInt(grvtOrder.metadata.create_time, 10) : Date.now(),
-    lastUpdateTimestamp: grvtOrder.state?.update_time ? parseInt(grvtOrder.state.update_time, 10) : void 0,
-    info: grvtOrder
-  };
-}
-function normalizePosition(grvtPosition) {
-  const size = num(grvtPosition.size);
-  const leverage = num(grvtPosition.leverage);
-  const notional = num(grvtPosition.notional);
-  const margin = leverage > 0 ? notional / leverage : 0;
-  return {
-    symbol: normalizeSymbol(grvtPosition.instrument || ""),
-    side: size >= 0 ? "long" : "short",
-    marginMode: "cross",
-    size: Math.abs(size),
-    entryPrice: num(grvtPosition.entry_price),
-    markPrice: num(grvtPosition.mark_price),
-    liquidationPrice: grvtPosition.est_liquidation_price ? num(grvtPosition.est_liquidation_price) : 0,
-    unrealizedPnl: num(grvtPosition.unrealized_pnl),
-    realizedPnl: num(grvtPosition.realized_pnl),
-    margin,
-    leverage,
-    maintenanceMargin: margin * 0.5,
-    marginRatio: margin > 0 && notional > 0 ? margin / notional * 100 : 0,
-    timestamp: grvtPosition.event_time ? parseInt(grvtPosition.event_time, 10) : Date.now(),
-    info: grvtPosition
-  };
-}
-function normalizeBalance(grvtBalance) {
-  const total = num(grvtBalance.balance);
-  return {
-    currency: grvtBalance.currency || "",
-    total,
-    free: total,
-    used: 0,
-    info: grvtBalance
-  };
-}
-function normalizeOrderBook(grvtOrderBook) {
-  return {
-    symbol: normalizeSymbol(grvtOrderBook.instrument || ""),
-    exchange: "grvt",
-    bids: (grvtOrderBook.bids || []).map((lvl) => [num(lvl.price), num(lvl.size)]),
-    asks: (grvtOrderBook.asks || []).map((lvl) => [num(lvl.price), num(lvl.size)]),
-    timestamp: grvtOrderBook.event_time ? parseInt(grvtOrderBook.event_time, 10) : Date.now()
-  };
-}
-function normalizeTrade(grvtTrade) {
-  const price = num(grvtTrade.price);
-  const amount = num(grvtTrade.size);
-  return {
-    id: grvtTrade.trade_id,
-    symbol: normalizeSymbol(grvtTrade.instrument || ""),
-    side: grvtTrade.is_taker_buyer ? "buy" : "sell",
-    price,
-    amount,
-    cost: price * amount,
-    timestamp: grvtTrade.event_time ? parseInt(grvtTrade.event_time, 10) : Date.now(),
-    info: grvtTrade
-  };
-}
-function normalizeTicker(grvtTicker) {
-  const last = num(grvtTicker.last_price ?? grvtTicker.mark_price);
-  const buyVolume = num(grvtTicker.buy_volume_24h_q);
-  const sellVolume = num(grvtTicker.sell_volume_24h_q);
-  return {
-    symbol: normalizeSymbol(grvtTicker.instrument || ""),
-    last,
-    open: last,
-    close: last,
-    bid: num(grvtTicker.best_bid_price),
-    bidVolume: num(grvtTicker.best_bid_size),
-    ask: num(grvtTicker.best_ask_price),
-    askVolume: num(grvtTicker.best_ask_size),
-    high: last,
-    low: last,
-    change: 0,
-    percentage: 0,
-    baseVolume: 0,
-    quoteVolume: buyVolume + sellVolume,
-    timestamp: grvtTicker.event_time ? parseInt(grvtTicker.event_time, 10) : Date.now(),
-    info: grvtTicker
-  };
-}
-function normalizeOrderStatus(grvtStatus) {
-  const mapped = GRVT_ORDER_STATUS[grvtStatus];
-  return mapped ?? "open";
-}
-function normalizeTimeInForce(grvtTif) {
-  switch (grvtTif) {
-    case "IMMEDIATE_OR_CANCEL":
-      return "IOC";
-    case "FILL_OR_KILL":
-      return "FOK";
-    case "GOOD_TILL_TIME":
-    default:
-      return "GTC";
-  }
-}
-function toGRVTOrderSide(side) {
-  return side === "buy" ? GRVT_ORDER_SIDES.buy : GRVT_ORDER_SIDES.sell;
-}
-function toGRVTTimeInForce(tif, postOnly) {
-  if (postOnly) {
-    return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
-  }
-  switch (tif) {
-    case "IOC":
-      return GRVT_TIME_IN_FORCE.IMMEDIATE_OR_CANCEL;
-    case "FOK":
-      return GRVT_TIME_IN_FORCE.FILL_OR_KILL;
-    case "PO":
-      return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
-    case "GTC":
-    default:
-      return GRVT_TIME_IN_FORCE.GOOD_TILL_TIME;
-  }
-}
-function mapGRVTError2(error) {
-  if (typeof error === "object" && error !== null) {
-    const err2 = error;
-    switch (err2.code) {
-      case 1001:
-        return { code: "INVALID_ORDER", message: "Invalid order parameters" };
-      case 1002:
-        return { code: "INSUFFICIENT_MARGIN", message: "Insufficient margin" };
-      case 1003:
-        return { code: "ORDER_NOT_FOUND", message: "Order not found" };
-      case 1004:
-        return { code: "POSITION_NOT_FOUND", message: "Position not found" };
-      case 2001:
-        return { code: "INVALID_SIGNATURE", message: "Invalid signature" };
-      case 2002:
-        return { code: "EXPIRED_AUTH", message: "Authentication expired" };
-      case 2003:
-        return { code: "INVALID_API_KEY", message: "Invalid API key" };
-      case 4001:
-        return { code: "RATE_LIMIT_EXCEEDED", message: "Rate limit exceeded" };
-      case 5001:
-        return { code: "EXCHANGE_UNAVAILABLE", message: "Exchange unavailable" };
-      default:
-        return { code: "UNKNOWN_ERROR", message: err2.message ?? "Unknown error occurred" };
-    }
-  }
-  return { code: "UNKNOWN_ERROR", message: "Unknown error occurred" };
-}
-var init_utils3 = __esm({
-  "src/adapters/grvt/utils.ts"() {
-    "use strict";
-    init_constants3();
+    GRVTFundingSchema = external_exports.object({
+      instrument: external_exports.string().optional(),
+      funding_rate: external_exports.string().optional(),
+      funding_time: external_exports.string().optional(),
+      mark_price: external_exports.string().optional(),
+      // NOT on the wire (kept optional for defensive parsing only):
+      index_price: external_exports.string().optional(),
+      funding_rate_8_h_avg: external_exports.string().optional(),
+      funding_interval_hours: external_exports.number().optional()
+    }).passthrough();
   }
 });
 
@@ -15939,6 +16009,7 @@ var grvt_exports = {};
 __export(grvt_exports, {
   GRVTAdapter: () => GRVTAdapter,
   GRVTAuth: () => GRVTAuth,
+  GRVTFundingSchema: () => GRVTFundingSchema,
   GRVTMarketSchema: () => GRVTMarketSchema,
   GRVTNormalizer: () => GRVTNormalizer,
   GRVTOrderBookLevelSchema: () => GRVTOrderBookLevelSchema,
@@ -15968,7 +16039,7 @@ __export(grvt_exports, {
   GRVT_TIME_IN_FORCE: () => GRVT_TIME_IN_FORCE,
   GRVT_UNIFIED_TIF_TO_API: () => GRVT_UNIFIED_TIF_TO_API,
   GRVT_WS_STREAMS: () => GRVT_WS_STREAMS,
-  mapGRVTError: () => mapGRVTError2,
+  mapGRVTError: () => mapGRVTError,
   normalizeBalance: () => normalizeBalance,
   normalizeMarket: () => normalizeMarket,
   normalizeOrder: () => normalizeOrder,
@@ -15977,6 +16048,7 @@ __export(grvt_exports, {
   normalizeSymbol: () => normalizeSymbol,
   normalizeTicker: () => normalizeTicker,
   normalizeTrade: () => normalizeTrade,
+  nsToMs: () => nsToMs,
   toGRVTOrderSide: () => toGRVTOrderSide,
   toGRVTSymbol: () => toGRVTSymbol,
   toGRVTTimeInForce: () => toGRVTTimeInForce
@@ -25645,12 +25717,12 @@ var init_constants9 = __esm({
     EXTENDED_API_URLS = {
       mainnet: {
         rest: "https://api.starknet.extended.exchange",
-        websocket: "wss://ws.starknet.extended.exchange",
+        websocket: "wss://api.starknet.extended.exchange/stream.extended.exchange/v1",
         starknet: "https://starknet-mainnet.public.blastapi.io"
       },
       testnet: {
         rest: "https://api.starknet.sepolia.extended.exchange",
-        websocket: "wss://ws.starknet.sepolia.extended.exchange",
+        websocket: "wss://starknet.sepolia.extended.exchange/stream.extended.exchange/v1",
         starknet: "https://starknet-sepolia.public.blastapi.io"
       }
     };
@@ -25722,18 +25794,11 @@ var init_constants9 = __esm({
     EXTENDED_WS_CONFIG = {
       reconnectDelay: 1e3,
       maxReconnectDelay: 6e4,
-      reconnectAttempts: 10,
-      pingInterval: 3e4,
-      pongTimeout: 1e4
+      reconnectAttempts: 10
     };
     EXTENDED_WS_CHANNELS = {
-      ORDERBOOK: "orderbook",
-      TRADES: "trades",
-      TICKER: "ticker",
-      ORDERS: "orders",
-      POSITIONS: "positions",
-      BALANCE: "balance",
-      FUNDING: "funding"
+      ORDERBOOKS: "orderbooks",
+      PUBLIC_TRADES: "publicTrades"
     };
     EXTENDED_ORDER_TYPES = ["market", "limit", "stop", "stop_limit"];
     EXTENDED_ORDER_SIDES = ["buy", "sell"];
@@ -25776,7 +25841,11 @@ var init_constants9 = __esm({
 });
 
 // src/adapters/extended/types.ts
-var ExtendedMarketApiFormatSchema, ExtendedFundingRateSchema, ExtendedMarketSchema, ExtendedTickerSchema, ExtendedOrderBookSchema, ExtendedTradeSchema, ExtendedOrderSchema, ExtendedPositionSchema, ExtendedBalanceSchema;
+function parseExtendedWSTradesFrame(rawText) {
+  const quoted = rawText.replace(/"i"\s*:\s*(\d+)/g, '"i":"$1"');
+  return ExtendedWSTradesSchema.parse(JSON.parse(quoted));
+}
+var ExtendedMarketApiFormatSchema, ExtendedFundingRateSchema, ExtendedMarketSchema, ExtendedTickerSchema, ExtendedOrderBookSchema, ExtendedTradeSchema, ExtendedOrderSchema, ExtendedPositionSchema, ExtendedBalanceSchema, ExtendedWSSnapshotLevelSchema, ExtendedWSDeltaLevelSchema, ExtendedWSOrderBookSchema, ExtendedWSTradeSchema, ExtendedWSTradesSchema;
 var init_types11 = __esm({
   "src/adapters/extended/types.ts"() {
     "use strict";
@@ -25861,14 +25930,23 @@ var init_types11 = __esm({
       checksum: external_exports.string().optional()
     }).passthrough();
     ExtendedTradeSchema = external_exports.object({
-      id: external_exports.string(),
-      symbol: external_exports.string(),
+      // Legacy SDK shape
+      id: external_exports.string().optional(),
+      symbol: external_exports.string().optional(),
       price: external_exports.string().optional(),
       quantity: external_exports.string().optional(),
       side: external_exports.string().optional(),
       timestamp: external_exports.number().optional(),
       isMaker: external_exports.boolean().optional(),
-      tradeId: external_exports.string().optional()
+      tradeId: external_exports.string().optional(),
+      // Live API shape (REST + WS)
+      i: external_exports.union([external_exports.string(), external_exports.number()]).optional(),
+      m: external_exports.string().optional(),
+      S: external_exports.string().optional(),
+      tT: external_exports.string().optional(),
+      T: external_exports.number().optional(),
+      p: external_exports.string().optional(),
+      q: external_exports.string().optional()
     }).passthrough();
     ExtendedOrderSchema = external_exports.object({
       orderId: external_exports.string(),
@@ -25933,6 +26011,55 @@ var init_types11 = __esm({
       usedMargin: external_exports.string(),
       equity: external_exports.string().optional(),
       timestamp: external_exports.number().optional()
+    }).passthrough();
+    ExtendedWSSnapshotLevelSchema = external_exports.object({
+      q: external_exports.string(),
+      p: external_exports.string()
+    }).passthrough();
+    ExtendedWSDeltaLevelSchema = external_exports.object({
+      q: external_exports.string(),
+      p: external_exports.string(),
+      c: external_exports.string()
+    }).passthrough();
+    ExtendedWSOrderBookSchema = external_exports.discriminatedUnion("type", [
+      external_exports.object({
+        type: external_exports.literal("SNAPSHOT"),
+        data: external_exports.object({
+          t: external_exports.literal("SNAPSHOT"),
+          m: external_exports.string(),
+          b: external_exports.array(ExtendedWSSnapshotLevelSchema),
+          a: external_exports.array(ExtendedWSSnapshotLevelSchema),
+          d: external_exports.enum(["f", "1"])
+        }).passthrough(),
+        ts: external_exports.number(),
+        seq: external_exports.number()
+      }).passthrough(),
+      external_exports.object({
+        type: external_exports.literal("DELTA"),
+        data: external_exports.object({
+          t: external_exports.literal("DELTA"),
+          m: external_exports.string(),
+          b: external_exports.array(ExtendedWSDeltaLevelSchema),
+          a: external_exports.array(ExtendedWSDeltaLevelSchema),
+          d: external_exports.enum(["f", "1"])
+        }).passthrough(),
+        ts: external_exports.number(),
+        seq: external_exports.number()
+      }).passthrough()
+    ]);
+    ExtendedWSTradeSchema = external_exports.object({
+      i: external_exports.union([external_exports.string(), external_exports.number()]),
+      m: external_exports.string(),
+      S: external_exports.enum(["BUY", "SELL"]),
+      tT: external_exports.enum(["TRADE", "LIQUIDATION", "DELEVERAGE"]),
+      T: external_exports.number(),
+      p: external_exports.string(),
+      q: external_exports.string()
+    }).passthrough();
+    ExtendedWSTradesSchema = external_exports.object({
+      data: external_exports.array(ExtendedWSTradeSchema),
+      ts: external_exports.number(),
+      seq: external_exports.number()
     }).passthrough();
   }
 });
@@ -26176,12 +26303,54 @@ function isValidStarkNetAddress(address) {
   const hexPattern = /^0x[0-9a-fA-F]{4,64}$/;
   return hexPattern.test(address);
 }
+function applyDeltaLevels(side, levels) {
+  for (const level of levels) {
+    const price = safeParseFloat2(level.p);
+    const qty = safeParseFloat2(level.c);
+    if (qty === 0) {
+      side.delete(price);
+    } else {
+      side.set(price, qty);
+    }
+  }
+}
+var ExtendedOrderBookState;
 var init_utils7 = __esm({
   "src/adapters/extended/utils.ts"() {
     "use strict";
     init_errors();
     init_error_codes4();
     init_constants9();
+    ExtendedOrderBookState = class {
+      // Keys are NUMERIC prices: the live wire mixes string representations of
+      // the same price ("61979.0" in the SNAPSHOT vs "61979" in DELTAs,
+      // "61975.000000" elsewhere) — string keys would split one level in two.
+      bids = /* @__PURE__ */ new Map();
+      asks = /* @__PURE__ */ new Map();
+      apply(frame) {
+        if (frame.type === "SNAPSHOT") {
+          this.bids.clear();
+          this.asks.clear();
+          for (const level of frame.data.b) {
+            this.bids.set(safeParseFloat2(level.p), safeParseFloat2(level.q));
+          }
+          for (const level of frame.data.a) {
+            this.asks.set(safeParseFloat2(level.p), safeParseFloat2(level.q));
+          }
+          return;
+        }
+        applyDeltaLevels(this.bids, frame.data.b);
+        applyDeltaLevels(this.asks, frame.data.a);
+      }
+      /** Full maintained book as unified levels: bids DESC, asks ASC */
+      sides() {
+        const toLevels = (side) => Array.from(side.entries(), ([price, qty]) => [price, qty]);
+        return {
+          bids: toLevels(this.bids).sort((a, b) => b[0] - a[0]),
+          asks: toLevels(this.asks).sort((a, b) => a[0] - b[0])
+        };
+      }
+    };
   }
 });
 
@@ -26349,9 +26518,36 @@ var init_ExtendedNormalizer = __esm({
         };
       }
       /**
+       * Normalize an Extended WS order book frame into a FULL unified OrderBook
+       *
+       * WS decoder ≠ REST decoder (paradex precedent): the wire envelope is
+       * `{type:"SNAPSHOT"|"DELTA", data:{t,m,b,a,d}, ts, seq}` with object
+       * levels `{q,p[,c]}` — nothing like the REST `{market, bid, ask}` shape.
+       *
+       * DELTA frames are NOT self-contained, so the caller passes the maintained
+       * per-stream {@link ExtendedOrderBookState}; this method validates the raw
+       * frame, applies it (SNAPSHOT seed / DELTA via `c`) and emits the full
+       * book. `timestamp` = envelope `ts`, `sequenceId` = envelope `seq`
+       * (per-connection — resets to 1 on reconnect).
+       */
+      normalizeWSOrderBook(rawFrame, state) {
+        const frame = ExtendedWSOrderBookSchema.parse(rawFrame);
+        state.apply(frame);
+        const { bids, asks } = state.sides();
+        return {
+          exchange: "extended",
+          symbol: this.symbolToCCXT(frame.data.m),
+          bids,
+          asks,
+          timestamp: frame.ts,
+          sequenceId: frame.seq
+        };
+      }
+      /**
        * Normalize trade data
        *
-       * Handles both legacy SDK type and actual API response format:
+       * Handles both legacy SDK type and actual API response format (REST
+       * /trades and the WS publicTrades stream share the same field names):
        * - API returns: {i (id), m (market), S (side), tT (tradeType), T (timestamp), p (price), q (qty)}
        * - Legacy type: {id, symbol, side, price, quantity, timestamp}
        */
@@ -26871,400 +27067,118 @@ var ExtendedWebSocketWrapper;
 var init_ExtendedWebSocketWrapper = __esm({
   "src/adapters/extended/ExtendedWebSocketWrapper.ts"() {
     "use strict";
+    init_types11();
+    init_utils7();
     init_ExtendedNormalizer();
     init_constants9();
+    init_errors();
     init_logger();
     ExtendedWebSocketWrapper = class _ExtendedWebSocketWrapper {
-      ws;
-      wsUrl;
-      apiKey;
+      /** Maximum queue size for backpressure */
+      static MAX_QUEUE_SIZE = 1e3;
+      streamBase;
+      reconnect;
+      maxReconnectAttempts;
+      reconnectDelayMs;
       normalizer;
       logger;
-      isConnected = false;
-      isConnecting = false;
-      reconnectAttempts = 0;
-      maxReconnectAttempts;
-      reconnect;
-      pingInterval;
-      pingIntervalMs;
-      pongTimeout;
-      subscriptions = /* @__PURE__ */ new Map();
-      connectionPromise;
+      streams = /* @__PURE__ */ new Map();
       constructor(config) {
-        this.wsUrl = config.wsUrl;
-        this.apiKey = config.apiKey;
+        this.streamBase = config.wsUrl.replace(/\/+$/, "");
+        this.reconnect = config.reconnect ?? true;
+        this.maxReconnectAttempts = config.maxReconnectAttempts ?? EXTENDED_WS_CONFIG.reconnectAttempts;
+        this.reconnectDelayMs = config.reconnectDelayMs ?? EXTENDED_WS_CONFIG.reconnectDelay;
         this.normalizer = new ExtendedNormalizer();
         this.logger = new Logger("ExtendedWebSocketWrapper");
-        this.reconnect = config.reconnect ?? true;
-        this.pingIntervalMs = config.pingInterval ?? EXTENDED_WS_CONFIG.pingInterval;
-        this.maxReconnectAttempts = config.maxReconnectAttempts ?? EXTENDED_WS_CONFIG.reconnectAttempts;
-      }
-      /**
-       * Connect to WebSocket
-       */
-      async connect() {
-        if (this.isConnected) {
-          return;
-        }
-        if (this.isConnecting && this.connectionPromise) {
-          return this.connectionPromise;
-        }
-        this.isConnecting = true;
-        this.connectionPromise = new Promise((resolve, reject) => {
-          try {
-            this.ws = new WebSocket(this.wsUrl);
-            this.ws.onopen = () => {
-              this.isConnected = true;
-              this.isConnecting = false;
-              this.reconnectAttempts = 0;
-              this.logger.info("WebSocket connected");
-              this.startHeartbeat();
-              if (this.apiKey) {
-                this.authenticate();
-              }
-              this.resubscribeAll();
-              resolve();
-            };
-            this.ws.onmessage = (event) => {
-              this.handleMessage(event.data);
-            };
-            this.ws.onerror = (error) => {
-              this.logger.error(
-                "WebSocket error",
-                error instanceof Error ? error : new Error("WebSocket error")
-              );
-              if (this.isConnecting) {
-                this.isConnecting = false;
-                reject(new Error("WebSocket connection failed"));
-              }
-            };
-            this.ws.onclose = (event) => {
-              this.isConnected = false;
-              this.isConnecting = false;
-              this.stopHeartbeat();
-              this.logger.info("WebSocket closed", { code: event.code, reason: event.reason });
-              if (this.reconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
-                this.scheduleReconnect();
-              }
-            };
-          } catch (error) {
-            this.isConnecting = false;
-            reject(error instanceof Error ? error : new Error(String(error)));
-          }
-        });
-        return this.connectionPromise;
-      }
-      /**
-       * Disconnect from WebSocket
-       */
-      disconnect() {
-        if (this.reconnect) {
-          this.reconnectAttempts = this.maxReconnectAttempts;
-        }
-        this.stopHeartbeat();
-        if (this.ws) {
-          this.ws.close(1e3, "Client disconnect");
-          this.ws = void 0;
-        }
-        this.isConnected = false;
-        this.isConnecting = false;
-        this.subscriptions.clear();
-        this.logger.info("WebSocket disconnected");
       }
       /**
        * Watch order book updates
+       *
+       * Seeds from the connection SNAPSHOT, applies DELTAs via the `c` field and
+       * yields a FULL unified OrderBook per frame. `limit` slices the maintained
+       * book (never forwarded as `?depth` — depth=10/20 silently fail live).
        */
       async *watchOrderBook(symbol, limit) {
-        const channel = this.getChannelKey(EXTENDED_WS_CHANNELS.ORDERBOOK, symbol);
-        const exchangeSymbol = this.normalizer.symbolFromCCXT(symbol);
-        await this.subscribe(EXTENDED_WS_CHANNELS.ORDERBOOK, exchangeSymbol);
-        try {
-          for await (const message of this.createMessageIterator(channel)) {
-            if (message.channel === "orderbook" && message.symbol === exchangeSymbol) {
-              const orderbook = {
-                exchange: "extended",
-                symbol: this.normalizer.symbolToCCXT(message.symbol),
-                bids: message.bids.slice(0, limit).map(([price, amount]) => [parseFloat(price), parseFloat(amount)]),
-                asks: message.asks.slice(0, limit).map(([price, amount]) => [parseFloat(price), parseFloat(amount)]),
-                timestamp: message.timestamp,
-                sequenceId: message.sequence,
-                checksum: message.checksum
-              };
-              yield orderbook;
-            }
+        const market = this.normalizer.symbolFromCCXT(symbol);
+        for await (const payload of this.streamPayloads(EXTENDED_WS_CHANNELS.ORDERBOOKS, market)) {
+          const book = payload;
+          if (limit !== void 0 && limit > 0) {
+            yield {
+              ...book,
+              bids: book.bids.slice(0, limit),
+              asks: book.asks.slice(0, limit)
+            };
+          } else {
+            yield book;
           }
-        } finally {
-          await this.unsubscribe(EXTENDED_WS_CHANNELS.ORDERBOOK, exchangeSymbol);
         }
       }
       /**
-       * Watch trade updates
+       * Watch public trade updates
+       *
+       * The first frame per (re)connection (50-trade historical backfill) is
+       * skipped. LIQUIDATION/DELEVERAGE flow is kept, tagged via `info.tT`.
        */
       async *watchTrades(symbol) {
-        const channel = this.getChannelKey(EXTENDED_WS_CHANNELS.TRADES, symbol);
-        const exchangeSymbol = this.normalizer.symbolFromCCXT(symbol);
-        await this.subscribe(EXTENDED_WS_CHANNELS.TRADES, exchangeSymbol);
-        try {
-          for await (const message of this.createMessageIterator(channel)) {
-            if (message.channel === "trades" && message.symbol === exchangeSymbol) {
-              const price = parseFloat(message.price);
-              const amount = parseFloat(message.quantity);
-              const trade = {
-                id: message.id,
-                symbol: this.normalizer.symbolToCCXT(message.symbol),
-                side: message.side,
-                price,
-                amount,
-                cost: price * amount,
-                timestamp: message.timestamp
-              };
-              yield trade;
-            }
-          }
-        } finally {
-          await this.unsubscribe(EXTENDED_WS_CHANNELS.TRADES, exchangeSymbol);
+        const market = this.normalizer.symbolFromCCXT(symbol);
+        for await (const payload of this.streamPayloads(EXTENDED_WS_CHANNELS.PUBLIC_TRADES, market)) {
+          yield payload;
         }
       }
       /**
-       * Watch ticker updates
+       * Disconnect all per-stream sockets
        */
-      async *watchTicker(symbol) {
-        const channel = this.getChannelKey(EXTENDED_WS_CHANNELS.TICKER, symbol);
-        const exchangeSymbol = this.normalizer.symbolFromCCXT(symbol);
-        await this.subscribe(EXTENDED_WS_CHANNELS.TICKER, exchangeSymbol);
-        try {
-          for await (const message of this.createMessageIterator(channel)) {
-            if (message.channel === "ticker" && message.symbol === exchangeSymbol) {
-              const lastPrice = parseFloat(message.lastPrice);
-              const ticker = {
-                symbol: this.normalizer.symbolToCCXT(message.symbol),
-                timestamp: message.timestamp,
-                high: parseFloat(message.high24h),
-                low: parseFloat(message.low24h),
-                bid: parseFloat(message.bidPrice),
-                ask: parseFloat(message.askPrice),
-                last: lastPrice,
-                open: lastPrice,
-                // WebSocket may not provide open price
-                close: lastPrice,
-                baseVolume: parseFloat(message.volume24h),
-                quoteVolume: parseFloat(message.quoteVolume24h),
-                change: parseFloat(message.priceChange24h),
-                percentage: parseFloat(message.priceChangePercent24h)
-              };
-              yield ticker;
-            }
+      disconnect() {
+        for (const conn of this.streams.values()) {
+          conn.closedByClient = true;
+          conn.handlers.clear();
+          if (conn.ws) {
+            conn.ws.close(1e3, "Client disconnect");
+            conn.ws = void 0;
           }
-        } finally {
-          await this.unsubscribe(EXTENDED_WS_CHANNELS.TICKER, exchangeSymbol);
+          conn.isOpen = false;
         }
+        this.streams.clear();
+        this.logger.info("WebSocket disconnected (all streams)");
       }
       /**
-       * Watch position updates (requires authentication)
+       * Check if any stream socket is open
        */
-      async *watchPositions() {
-        if (!this.apiKey) {
-          throw new Error("API key required for watching positions");
-        }
-        const channel = EXTENDED_WS_CHANNELS.POSITIONS;
-        await this.subscribe(channel);
-        try {
-          for await (const message of this.createMessageIterator(channel)) {
-            if (message.channel === "positions") {
-              const positions = message.positions.map(
-                (pos) => this.normalizer.normalizePosition(pos)
-              );
-              yield positions;
-            }
+      get connected() {
+        for (const conn of this.streams.values()) {
+          if (conn.isOpen) {
+            return true;
           }
-        } finally {
-          await this.unsubscribe(channel);
         }
-      }
-      /**
-       * Watch order updates (requires authentication)
-       */
-      async *watchOrders() {
-        if (!this.apiKey) {
-          throw new Error("API key required for watching orders");
-        }
-        const channel = EXTENDED_WS_CHANNELS.ORDERS;
-        await this.subscribe(channel);
-        try {
-          for await (const message of this.createMessageIterator(channel)) {
-            if (message.channel === "orders") {
-              const orders = message.orders.map((ord) => this.normalizer.normalizeOrder(ord));
-              yield orders;
-            }
-          }
-        } finally {
-          await this.unsubscribe(channel);
-        }
-      }
-      /**
-       * Watch balance updates (requires authentication)
-       */
-      async *watchBalance() {
-        if (!this.apiKey) {
-          throw new Error("API key required for watching balance");
-        }
-        const channel = EXTENDED_WS_CHANNELS.BALANCE;
-        await this.subscribe(channel);
-        try {
-          for await (const message of this.createMessageIterator(channel)) {
-            if (message.channel === "balance") {
-              const balances = message.balances.map(
-                (bal) => this.normalizer.normalizeBalance(bal)
-              );
-              yield balances;
-            }
-          }
-        } finally {
-          await this.unsubscribe(channel);
-        }
-      }
-      /**
-       * Watch funding rate updates
-       */
-      async *watchFundingRate(symbol) {
-        const channel = this.getChannelKey(EXTENDED_WS_CHANNELS.FUNDING, symbol);
-        const exchangeSymbol = this.normalizer.symbolFromCCXT(symbol);
-        await this.subscribe(EXTENDED_WS_CHANNELS.FUNDING, exchangeSymbol);
-        try {
-          for await (const message of this.createMessageIterator(
-            channel
-          )) {
-            if (message.channel === "funding" && message.symbol === exchangeSymbol) {
-              const fundingRate = {
-                symbol: this.normalizer.symbolToCCXT(message.symbol),
-                fundingRate: parseFloat(message.fundingRate),
-                fundingTimestamp: message.fundingTime,
-                nextFundingTimestamp: message.nextFundingTime || 0,
-                markPrice: parseFloat(message.markPrice),
-                indexPrice: parseFloat(message.indexPrice),
-                fundingIntervalHours: 8
-              };
-              yield fundingRate;
-            }
-          }
-        } finally {
-          await this.unsubscribe(EXTENDED_WS_CHANNELS.FUNDING, exchangeSymbol);
-        }
+        return false;
       }
       // ==================== Private Methods ====================
       /**
-       * Subscribe to a channel
+       * Core consumer loop: opens (or joins) the per-stream socket and yields
+       * normalized payloads dispatched by {@link handleFrame}.
        */
-      async subscribe(channel, symbol) {
-        await this.ensureConnected();
-        const channelKey = this.getChannelKey(channel, symbol);
-        if (!this.subscriptions.has(channelKey)) {
-          this.subscriptions.set(channelKey, /* @__PURE__ */ new Set());
-        }
-        const message = {
-          action: "subscribe",
-          channel,
-          symbol
-        };
-        this.send(message);
-        this.logger.debug("Subscribed to channel", { channel, symbol });
-      }
-      /**
-       * Unsubscribe from a channel
-       */
-      async unsubscribe(channel, symbol) {
-        const channelKey = this.getChannelKey(channel, symbol);
-        if (this.subscriptions.has(channelKey)) {
-          this.subscriptions.delete(channelKey);
-          if (this.isConnected) {
-            const message = {
-              action: "unsubscribe",
-              channel,
-              symbol
-            };
-            this.send(message);
-          }
-          this.logger.debug("Unsubscribed from channel", { channel, symbol });
-        }
-      }
-      /**
-       * Authenticate the WebSocket connection
-       */
-      authenticate() {
-        if (!this.apiKey) return;
-        const authMessage = {
-          action: "auth",
-          apiKey: this.apiKey,
-          timestamp: Date.now()
-        };
-        this.send(authMessage);
-        this.logger.debug("Sent authentication message");
-      }
-      /**
-       * Handle incoming WebSocket messages
-       */
-      handleMessage(data) {
-        try {
-          const message = JSON.parse(data);
-          if (message.type === "pong" || message.event === "pong") {
-            this.handlePong();
-            return;
-          }
-          if (message.event === "subscribed" || message.event === "unsubscribed") {
-            this.logger.debug("Subscription event", { event: message.event, channel: message.channel });
-            return;
-          }
-          if (message.event === "authenticated") {
-            this.logger.info("WebSocket authenticated");
-            return;
-          }
-          if (message.error || message.event === "error") {
-            this.logger.error("WebSocket error message", new Error(message.error || message.message));
-            return;
-          }
-          const channel = message.channel;
-          const symbol = message.symbol;
-          const channelKey = this.getChannelKey(channel, symbol);
-          const handlers = this.subscriptions.get(channelKey);
-          if (handlers) {
-            handlers.forEach((handler) => handler(message));
-          }
-        } catch (error) {
-          this.logger.error(
-            "Failed to parse WebSocket message",
-            error instanceof Error ? error : new Error(String(error))
-          );
-        }
-      }
-      /**
-       * Create an async iterator for messages on a channel
-       */
-      /** Maximum queue size for backpressure */
-      static MAX_QUEUE_SIZE = 1e3;
-      async *createMessageIterator(channelKey) {
-        const messageQueue = [];
+      async *streamPayloads(stream, market) {
+        const key = this.getChannelKey(stream, market);
+        const conn = await this.openStream(stream, market);
+        const queue = [];
         let resolver = null;
-        let isActive = true;
-        const handler = (message) => {
+        const handler = (payload) => {
           if (resolver) {
-            resolver(message);
+            resolver(payload);
             resolver = null;
           } else {
-            if (messageQueue.length >= _ExtendedWebSocketWrapper.MAX_QUEUE_SIZE) {
-              messageQueue.shift();
-              this.logger.warn(`Queue overflow on channel ${channelKey}, dropping oldest message`);
+            if (queue.length >= _ExtendedWebSocketWrapper.MAX_QUEUE_SIZE) {
+              queue.shift();
+              this.logger.warn(`Queue overflow on stream ${key}, dropping oldest payload`);
             }
-            messageQueue.push(message);
+            queue.push(payload);
           }
         };
-        const handlers = this.subscriptions.get(channelKey);
-        if (handlers) {
-          handlers.add(handler);
-        }
+        conn.handlers.add(handler);
         try {
-          while (isActive && this.subscriptions.has(channelKey)) {
-            if (messageQueue.length > 0) {
-              yield messageQueue.shift();
+          while (this.streams.get(key) === conn) {
+            if (queue.length > 0) {
+              yield queue.shift();
             } else {
               yield await new Promise((resolve) => {
                 resolver = resolve;
@@ -27272,115 +27186,180 @@ var init_ExtendedWebSocketWrapper = __esm({
             }
           }
         } finally {
-          isActive = false;
-          if (handlers) {
-            handlers.delete(handler);
+          conn.handlers.delete(handler);
+          if (conn.handlers.size === 0) {
+            this.closeStream(key, conn);
           }
         }
       }
       /**
-       * Ensure WebSocket is connected
+       * Open (or reuse) the socket for a (stream, market) pair
        */
-      async ensureConnected() {
-        if (!this.isConnected) {
-          await this.connect();
+      async openStream(stream, market) {
+        const key = this.getChannelKey(stream, market);
+        const existing = this.streams.get(key);
+        if (existing) {
+          return existing;
         }
-      }
-      /**
-       * Send a message through WebSocket
-       */
-      send(message) {
-        if (this.ws && this.isConnected) {
-          this.ws.send(JSON.stringify(message));
+        const conn = {
+          url: `${this.streamBase}/${stream}/${market}`,
+          stream,
+          market,
+          isOpen: false,
+          handlers: /* @__PURE__ */ new Set(),
+          bookState: stream === EXTENDED_WS_CHANNELS.ORDERBOOKS ? new ExtendedOrderBookState() : void 0,
+          awaitingBackfill: stream === EXTENDED_WS_CHANNELS.PUBLIC_TRADES,
+          reconnectAttempts: 0,
+          closedByClient: false
+        };
+        this.streams.set(key, conn);
+        try {
+          await this.connectStream(key, conn);
+        } catch (error) {
+          this.streams.delete(key);
+          throw error;
         }
+        return conn;
       }
       /**
-       * Get channel key for subscription tracking
+       * Connect one per-stream socket. The URL IS the subscription: nothing is
+       * sent after the upgrade (no subscribe, no auth, no JSON ping).
        */
-      getChannelKey(channel, symbol) {
-        return symbol ? `${channel}:${symbol}` : channel;
-      }
-      /**
-       * Start heartbeat ping/pong
-       */
-      startHeartbeat() {
-        this.stopHeartbeat();
-        this.pingInterval = setInterval(() => {
-          if (this.isConnected) {
-            this.send({ type: "ping", timestamp: Date.now() });
-            this.pongTimeout = setTimeout(() => {
-              this.logger.warn("Pong timeout, reconnecting...");
-              this.ws?.close(4e3, "Pong timeout");
-            }, EXTENDED_WS_CONFIG.pongTimeout);
+      connectStream(key, conn) {
+        return new Promise((resolve, reject) => {
+          let settled = false;
+          try {
+            const ws = new WebSocket(conn.url);
+            conn.ws = ws;
+            ws.onopen = () => {
+              conn.isOpen = true;
+              conn.reconnectAttempts = 0;
+              conn.awaitingBackfill = conn.stream === EXTENDED_WS_CHANNELS.PUBLIC_TRADES;
+              this.logger.info("WebSocket stream connected", { url: conn.url });
+              settled = true;
+              resolve();
+            };
+            ws.onmessage = (event) => {
+              this.handleFrame(conn, String(event.data));
+            };
+            ws.onerror = (error) => {
+              this.logger.error(
+                "WebSocket stream error",
+                error instanceof Error ? error : new Error("WebSocket error"),
+                { url: conn.url }
+              );
+              if (!settled) {
+                settled = true;
+                reject(
+                  new PerpDEXError(
+                    `WebSocket connection failed: ${conn.url}`,
+                    "WS_CONNECTION_ERROR",
+                    "extended"
+                  )
+                );
+              }
+            };
+            ws.onclose = (event) => {
+              conn.isOpen = false;
+              this.logger.info("WebSocket stream closed", {
+                url: conn.url,
+                code: event.code,
+                reason: event.reason
+              });
+              if (conn.closedByClient || this.streams.get(key) !== conn) {
+                return;
+              }
+              if (this.reconnect && conn.reconnectAttempts < this.maxReconnectAttempts) {
+                this.scheduleReconnect(key, conn);
+              }
+            };
+          } catch (error) {
+            if (!settled) {
+              settled = true;
+              reject(error instanceof Error ? error : new Error(String(error)));
+            }
           }
-        }, this.pingIntervalMs);
+        });
       }
       /**
-       * Stop heartbeat
+       * Decode one raw frame and dispatch normalized payloads to consumers
        */
-      stopHeartbeat() {
-        if (this.pingInterval) {
-          clearInterval(this.pingInterval);
-          this.pingInterval = void 0;
-        }
-        if (this.pongTimeout) {
-          clearTimeout(this.pongTimeout);
-          this.pongTimeout = void 0;
+      handleFrame(conn, rawText) {
+        try {
+          if (conn.stream === EXTENDED_WS_CHANNELS.ORDERBOOKS) {
+            const book = this.normalizer.normalizeWSOrderBook(JSON.parse(rawText), conn.bookState);
+            conn.handlers.forEach((handler) => handler(book));
+            return;
+          }
+          const frame = parseExtendedWSTradesFrame(rawText);
+          if (conn.awaitingBackfill) {
+            conn.awaitingBackfill = false;
+            this.logger.debug("Skipped trades backfill frame", {
+              market: conn.market,
+              trades: frame.data.length
+            });
+            return;
+          }
+          for (const rawTrade of frame.data) {
+            const trade = this.normalizer.normalizeTrade(rawTrade);
+            conn.handlers.forEach((handler) => handler(trade));
+          }
+        } catch (error) {
+          this.logger.error(
+            "Failed to handle WebSocket frame",
+            error instanceof Error ? error : new Error(String(error)),
+            { url: conn.url }
+          );
         }
       }
       /**
-       * Handle pong response
+       * Reconnect = re-open the per-stream URL. There is nothing to replay: the
+       * URL is the subscription, the fresh SNAPSHOT rebuilds the book and the
+       * trades backfill gate re-arms (see onopen).
        */
-      handlePong() {
-        if (this.pongTimeout) {
-          clearTimeout(this.pongTimeout);
-          this.pongTimeout = void 0;
-        }
-      }
-      /**
-       * Schedule reconnection
-       */
-      scheduleReconnect() {
-        this.reconnectAttempts++;
+      scheduleReconnect(key, conn) {
+        conn.reconnectAttempts++;
         const delay = Math.min(
-          EXTENDED_WS_CONFIG.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
+          this.reconnectDelayMs * Math.pow(2, conn.reconnectAttempts - 1),
           EXTENDED_WS_CONFIG.maxReconnectDelay
         );
         this.logger.info(
-          `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+          `Reconnecting stream in ${delay}ms (attempt ${conn.reconnectAttempts}/${this.maxReconnectAttempts})`,
+          { url: conn.url }
         );
         setTimeout(() => {
-          this.connect().catch((error) => {
+          if (conn.closedByClient || this.streams.get(key) !== conn) {
+            return;
+          }
+          this.connectStream(key, conn).catch((error) => {
             this.logger.error(
               "Reconnection failed",
-              error instanceof Error ? error : new Error(String(error))
+              error instanceof Error ? error : new Error(String(error)),
+              { url: conn.url }
             );
           });
         }, delay);
       }
       /**
-       * Resubscribe to all channels after reconnection
+       * Close a stream socket once its last consumer is gone
        */
-      resubscribeAll() {
-        for (const channelKey of this.subscriptions.keys()) {
-          const parts = channelKey.split(":");
-          const channel = parts[0] ?? "";
-          const symbol = parts[1];
-          if (channel) {
-            const message = {
-              action: "subscribe",
-              channel,
-              symbol: symbol || void 0
-            };
-            this.send(message);
-          }
+      closeStream(key, conn) {
+        if (this.streams.get(key) === conn) {
+          this.streams.delete(key);
         }
+        conn.closedByClient = true;
+        if (conn.ws) {
+          conn.ws.close(1e3, "No consumers");
+          conn.ws = void 0;
+        }
+        conn.isOpen = false;
+        this.logger.debug("Stream closed (no consumers)", { url: conn.url });
       }
       /**
-       * Check if connected
+       * Get stream key for subscription tracking
        */
-      get connected() {
-        return this.isConnected;
+      getChannelKey(stream, market) {
+        return `${stream}/${market}`;
       }
     };
   }
@@ -27427,13 +27406,18 @@ var init_ExtendedAdapter = __esm({
         setMarginMode: true,
         fetchDeposits: false,
         fetchWithdrawals: false,
+        // WS flags are TRUTHFUL (live-verified 2026-06-11): the venue exposes
+        // public per-stream WS for orderbooks + publicTrades only. The other
+        // five were lies against a fictional protocol on a dead host — flipped
+        // false (edgex precedent c41a3e1). Funding stream exists at the venue
+        // but is out of scope for this repair.
         watchOrderBook: true,
         watchTrades: true,
-        watchTicker: true,
-        watchPositions: true,
-        watchOrders: true,
-        watchBalance: true,
-        watchFundingRate: true
+        watchTicker: false,
+        watchPositions: false,
+        watchOrders: false,
+        watchBalance: false,
+        watchFundingRate: false
       };
       apiUrl;
       wsUrl;
@@ -27994,93 +27978,47 @@ var init_ExtendedAdapter = __esm({
         throw new PerpDEXError("fetchRateLimitStatus not supported", "NOT_SUPPORTED", this.id);
       }
       // ==================== WebSocket Methods ====================
+      //
+      // Only the public orderbooks + publicTrades streams exist (live protocol
+      // 2026-06-11). watchTicker/watchPositions/watchOrders/watchBalance/
+      // watchFundingRate intentionally have NO overrides here: their has-flags
+      // are false and they fall through to the BaseAdapter NOT_SUPPORTED
+      // throwers.
       /**
-       * Ensure WebSocket is connected and return the wrapper
+       * Ensure the WebSocket wrapper exists and return it
+       *
+       * Passes the STREAM BASE (`{base}` = EXTENDED_API_URLS.*.websocket); the
+       * wrapper composes the per-stream URL `{base}/{stream}/{market}` and the
+       * HTTP upgrade itself is the subscription — there is no upfront connect,
+       * no auth frame and no JSON heartbeat on this venue.
        */
-      async ensureWebSocketConnected() {
+      ensureWebSocketConnected() {
         if (!this.wsWrapper) {
           this.wsWrapper = new ExtendedWebSocketWrapper({
             wsUrl: this.wsUrl,
-            apiKey: this.apiKey,
             reconnect: true,
-            pingInterval: EXTENDED_WS_CONFIG.pingInterval,
             maxReconnectAttempts: EXTENDED_WS_CONFIG.reconnectAttempts
           });
-        }
-        if (!this.wsWrapper.connected) {
-          await this.wsWrapper.connect();
         }
         return this.wsWrapper;
       }
       /**
-       * Watch real-time order book updates
+       * Watch real-time order book updates (public, keyless)
+       *
+       * Full unified book per frame (SNAPSHOT seed + DELTA apply); `limit` is
+       * served by slicing the maintained book.
        */
       async *watchOrderBook(symbol, limit) {
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchOrderBook(symbol, limit);
+        yield* this.ensureWebSocketConnected().watchOrderBook(symbol, limit);
       }
       /**
-       * Watch real-time trade updates
+       * Watch real-time trade updates (public, keyless)
+       *
+       * The first frame per connection (historical backfill) is skipped;
+       * LIQUIDATION/DELEVERAGE flow is kept, tagged via `info.tT`.
        */
       async *watchTrades(symbol) {
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchTrades(symbol);
-      }
-      /**
-       * Watch real-time ticker updates
-       */
-      async *watchTicker(symbol) {
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchTicker(symbol);
-      }
-      /**
-       * Watch real-time position updates (requires API key)
-       */
-      async *watchPositions() {
-        if (!this.apiKey) {
-          throw new PerpDEXError(
-            "API key required for watching positions",
-            "AUTHENTICATION_ERROR",
-            this.id
-          );
-        }
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchPositions();
-      }
-      /**
-       * Watch real-time order updates (requires API key)
-       */
-      async *watchOrders() {
-        if (!this.apiKey) {
-          throw new PerpDEXError(
-            "API key required for watching orders",
-            "AUTHENTICATION_ERROR",
-            this.id
-          );
-        }
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchOrders();
-      }
-      /**
-       * Watch real-time balance updates (requires API key)
-       */
-      async *watchBalance() {
-        if (!this.apiKey) {
-          throw new PerpDEXError(
-            "API key required for watching balance",
-            "AUTHENTICATION_ERROR",
-            this.id
-          );
-        }
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchBalance();
-      }
-      /**
-       * Watch real-time funding rate updates
-       */
-      async *watchFundingRate(symbol) {
-        const ws = await this.ensureWebSocketConnected();
-        yield* ws.watchFundingRate(symbol);
+        yield* this.ensureWebSocketConnected().watchTrades(symbol);
       }
       // ==================== Private Helper Methods ====================
       /**
@@ -28112,10 +28050,15 @@ __export(extended_exports, {
   EXTENDED_WS_CHANNELS: () => EXTENDED_WS_CHANNELS,
   EXTENDED_WS_CONFIG: () => EXTENDED_WS_CONFIG,
   ExtendedAdapter: () => ExtendedAdapter,
+  ExtendedOrderBookState: () => ExtendedOrderBookState,
   ExtendedStarkNetClient: () => ExtendedStarkNetClient,
+  ExtendedWSOrderBookSchema: () => ExtendedWSOrderBookSchema,
+  ExtendedWSTradeSchema: () => ExtendedWSTradeSchema,
+  ExtendedWSTradesSchema: () => ExtendedWSTradesSchema,
   ExtendedWebSocketWrapper: () => ExtendedWebSocketWrapper,
   mapExtendedError: () => mapExtendedError,
-  mapStarkNetError: () => mapStarkNetError
+  mapStarkNetError: () => mapStarkNetError,
+  parseExtendedWSTradesFrame: () => parseExtendedWSTradesFrame
 });
 var init_extended = __esm({
   "src/adapters/extended/index.ts"() {
@@ -28123,6 +28066,8 @@ var init_extended = __esm({
     init_ExtendedAdapter();
     init_ExtendedWebSocketWrapper();
     init_ExtendedStarkNetClient();
+    init_types11();
+    init_utils7();
     init_constants9();
     init_error_codes4();
   }
@@ -55307,9 +55252,2109 @@ var init_aster = __esm({
   }
 });
 
+// src/adapters/apex/constants.ts
+var APEX_API_URLS, APEX_RATE_LIMITS, APEX_ENDPOINT_WEIGHTS, APEX_KLINE_INTERVALS, APEX_FUNDING_INTERVAL_HOURS, APEX_WS_TOPICS, APEX_WS_CLIENT_PING_INTERVAL_MS, APEX_DEFAULT_MAKER_FEE, APEX_DEFAULT_TAKER_FEE;
+var init_constants15 = __esm({
+  "src/adapters/apex/constants.ts"() {
+    "use strict";
+    APEX_API_URLS = {
+      mainnet: {
+        rest: "https://omni.apex.exchange/api/v3",
+        websocket: "wss://quote.omni.apex.exchange/realtime_public"
+      },
+      testnet: {
+        rest: "https://testnet.omni.apex.exchange/api/v3",
+        // QA/testnet quote host per venue docs (mainnet host live-verified)
+        websocket: "wss://qa-quote.omni.apex.exchange/realtime_public"
+      }
+    };
+    APEX_RATE_LIMITS = {
+      rest: {
+        maxRequests: 600,
+        windowMs: 6e4
+      }
+    };
+    APEX_ENDPOINT_WEIGHTS = {
+      fetchMarkets: 10,
+      fetchTicker: 1,
+      fetchOrderBook: 5,
+      fetchTrades: 5,
+      fetchFundingRate: 1,
+      fetchFundingRateHistory: 1,
+      fetchOHLCV: 5
+    };
+    APEX_KLINE_INTERVALS = {
+      "1m": "1",
+      "5m": "5",
+      "15m": "15",
+      "30m": "30",
+      "1h": "60",
+      "2h": "120",
+      "4h": "240",
+      "6h": "360",
+      "12h": "720",
+      "1d": "D",
+      "1w": "W",
+      "1M": "M"
+    };
+    APEX_FUNDING_INTERVAL_HOURS = 1;
+    APEX_WS_TOPICS = {
+      /** orderBook{25|200}.{H}.{SYMBOL} — H = high frequency */
+      ORDERBOOK: (symbol, depth = 200) => `orderBook${depth}.H.${symbol}`,
+      /** recentlyTrade.H.{SYMBOL} */
+      TRADES: (symbol) => `recentlyTrade.H.${symbol}`,
+      /** instrumentInfo.H.{SYMBOL} — ticker, update-field-only semantics */
+      TICKER: (symbol) => `instrumentInfo.H.${symbol}`,
+      /** candle.{interval}.{SYMBOL} */
+      CANDLE: (interval, symbol) => `candle.${interval}.${symbol}`
+    };
+    APEX_WS_CLIENT_PING_INTERVAL_MS = 15e3;
+    APEX_DEFAULT_MAKER_FEE = 2e-4;
+    APEX_DEFAULT_TAKER_FEE = 5e-4;
+  }
+});
+
+// src/adapters/apex/utils.ts
+function toApexNoDashSymbol(unified) {
+  const parts = unified.split(/[/:]/);
+  return `${parts[0]}${parts[1]}`;
+}
+function toApexDashSymbol(unified) {
+  const parts = unified.split(/[/:]/);
+  return `${parts[0]}-${parts[1]}`;
+}
+function toUnifiedSymbol2(base, settle) {
+  return `${base}/${settle}:${settle}`;
+}
+function parsePrecision(size) {
+  if (!size || size === "0") return 0;
+  const decimal = size.split(".")[1];
+  if (!decimal) return 0;
+  return decimal.replace(/0+$/, "").length || 0;
+}
+var init_utils12 = __esm({
+  "src/adapters/apex/utils.ts"() {
+    "use strict";
+  }
+});
+
+// src/adapters/apex/types.ts
+var ApexErrorEnvelopeSchema, ApexPriceLevelSchema, ApexDepthDataSchema, ApexTradeSchema, ApexTickerSchema, ApexHistoryFundSchema, ApexHistoryFundingDataSchema, ApexKlineSchema, ApexKlinesDataSchema, ApexPerpetualContractSchema, ApexWSOrderBookFrameSchema, ApexWSTradeSchema, ApexWSTradesFrameSchema, ApexWSAckSchema;
+var init_types17 = __esm({
+  "src/adapters/apex/types.ts"() {
+    "use strict";
+    init_zod();
+    ApexErrorEnvelopeSchema = external_exports.object({
+      code: external_exports.number(),
+      msg: external_exports.string()
+    }).passthrough();
+    ApexPriceLevelSchema = external_exports.tuple([external_exports.string(), external_exports.string()]);
+    ApexDepthDataSchema = external_exports.object({
+      a: external_exports.array(ApexPriceLevelSchema),
+      b: external_exports.array(ApexPriceLevelSchema),
+      s: external_exports.string().min(1),
+      u: external_exports.number()
+    });
+    ApexTradeSchema = external_exports.object({
+      i: external_exports.string(),
+      p: external_exports.string(),
+      S: external_exports.enum(["Buy", "Sell"]),
+      v: external_exports.string(),
+      s: external_exports.string(),
+      T: external_exports.number()
+    }).passthrough();
+    ApexTickerSchema = external_exports.object({
+      symbol: external_exports.string(),
+      fundingRate: external_exports.string(),
+      predictedFundingRate: external_exports.string(),
+      nextFundingTime: external_exports.string(),
+      indexPrice: external_exports.string(),
+      markPrice: external_exports.string(),
+      openInterest: external_exports.string(),
+      lastPrice: external_exports.string(),
+      highPrice24h: external_exports.string(),
+      lowPrice24h: external_exports.string(),
+      price24hPcnt: external_exports.string(),
+      turnover24h: external_exports.string(),
+      volume24h: external_exports.string()
+    }).passthrough();
+    ApexHistoryFundSchema = external_exports.object({
+      symbol: external_exports.string(),
+      rate: external_exports.string(),
+      price: external_exports.string(),
+      fundingTime: external_exports.number(),
+      fundingTimestamp: external_exports.number()
+    }).passthrough();
+    ApexHistoryFundingDataSchema = external_exports.object({
+      historyFunds: external_exports.array(ApexHistoryFundSchema),
+      totalSize: external_exports.number()
+    }).passthrough();
+    ApexKlineSchema = external_exports.object({
+      s: external_exports.string(),
+      i: external_exports.string(),
+      t: external_exports.number(),
+      o: external_exports.string(),
+      h: external_exports.string(),
+      l: external_exports.string(),
+      c: external_exports.string(),
+      v: external_exports.string(),
+      tr: external_exports.string()
+    }).passthrough();
+    ApexKlinesDataSchema = external_exports.record(external_exports.array(ApexKlineSchema));
+    ApexPerpetualContractSchema = external_exports.object({
+      symbol: external_exports.string(),
+      crossSymbolName: external_exports.string(),
+      settleAssetId: external_exports.string(),
+      baseTokenId: external_exports.string(),
+      tickSize: external_exports.string(),
+      stepSize: external_exports.string(),
+      minOrderSize: external_exports.string(),
+      maxOrderSize: external_exports.string().optional(),
+      maxPositionSize: external_exports.string().optional(),
+      displayMaxLeverage: external_exports.string(),
+      enableTrade: external_exports.boolean(),
+      isPrelaunch: external_exports.boolean().optional(),
+      enableDisplay: external_exports.boolean().optional()
+    }).passthrough();
+    ApexWSOrderBookFrameSchema = external_exports.object({
+      topic: external_exports.string(),
+      type: external_exports.enum(["snapshot", "delta"]),
+      data: external_exports.object({
+        s: external_exports.string(),
+        b: external_exports.array(ApexPriceLevelSchema),
+        a: external_exports.array(ApexPriceLevelSchema),
+        u: external_exports.number()
+      }),
+      cs: external_exports.number().optional(),
+      ts: external_exports.number()
+    }).passthrough();
+    ApexWSTradeSchema = external_exports.object({
+      T: external_exports.number(),
+      s: external_exports.string(),
+      S: external_exports.enum(["Buy", "Sell"]),
+      v: external_exports.string(),
+      p: external_exports.string(),
+      L: external_exports.string(),
+      i: external_exports.string()
+    }).passthrough();
+    ApexWSTradesFrameSchema = external_exports.object({
+      topic: external_exports.string(),
+      type: external_exports.enum(["snapshot", "delta"]),
+      data: external_exports.array(ApexWSTradeSchema),
+      cs: external_exports.number().optional(),
+      ts: external_exports.number()
+    }).passthrough();
+    ApexWSAckSchema = external_exports.object({
+      success: external_exports.boolean(),
+      ret_msg: external_exports.string().optional(),
+      conn_id: external_exports.string().optional(),
+      request: external_exports.unknown().optional()
+    }).passthrough();
+  }
+});
+
+// src/adapters/apex/ApexNormalizer.ts
+var ApexNormalizer;
+var init_ApexNormalizer = __esm({
+  "src/adapters/apex/ApexNormalizer.ts"() {
+    "use strict";
+    init_errors();
+    init_constants15();
+    init_utils12();
+    init_types17();
+    ApexNormalizer = class {
+      /** WS frame ts is MICROSECONDS (16 digits) → epoch ms (13 digits) */
+      usToMs(microseconds) {
+        return Math.floor(microseconds / 1e3);
+      }
+      normalizeMarket(raw) {
+        const validated = ApexPerpetualContractSchema.parse(raw);
+        return {
+          // The DASH symbol is the canonical /symbols id; the NO-DASH twin
+          // (crossSymbolName) is kept in info for depth/trades/ticker/klines/WS.
+          id: validated.symbol,
+          symbol: toUnifiedSymbol2(validated.baseTokenId, validated.settleAssetId),
+          base: validated.baseTokenId,
+          quote: validated.settleAssetId,
+          settle: validated.settleAssetId,
+          active: validated.enableTrade === true && validated.isPrelaunch !== true,
+          minAmount: parseFloat(validated.minOrderSize),
+          maxAmount: validated.maxOrderSize ? parseFloat(validated.maxOrderSize) : void 0,
+          pricePrecision: parsePrecision(validated.tickSize),
+          amountPrecision: parsePrecision(validated.stepSize),
+          priceTickSize: parseFloat(validated.tickSize),
+          amountStepSize: parseFloat(validated.stepSize),
+          // Venue-documented defaults — fees are not in the /symbols payload
+          makerFee: APEX_DEFAULT_MAKER_FEE,
+          takerFee: APEX_DEFAULT_TAKER_FEE,
+          maxLeverage: parseFloat(validated.displayMaxLeverage),
+          fundingIntervalHours: APEX_FUNDING_INTERVAL_HOURS,
+          info: validated
+        };
+      }
+      /**
+       * REST /depth data {a,b,s,u}. The schema HARD-REJECTS the silent-empty
+       * {a:null,b:null,s:"",u:0} shape produced by a dash-symbol request.
+       * /depth carries no timestamp field — ms timestamp is synthesized locally.
+       */
+      normalizeOrderBook(raw, symbol) {
+        const validated = ApexDepthDataSchema.parse(raw);
+        const bids = validated.b.map(([p, s]) => [parseFloat(p), parseFloat(s)]).sort((a, b) => b[0] - a[0]);
+        const asks = validated.a.map(([p, s]) => [parseFloat(p), parseFloat(s)]).sort((a, b) => a[0] - b[0]);
+        return {
+          symbol,
+          timestamp: Date.now(),
+          bids,
+          asks,
+          sequenceId: validated.u,
+          exchange: "apex"
+        };
+      }
+      /** REST /trades entry {i:uuid,p,S,v,s,T:ms} */
+      normalizeTrade(raw, symbol) {
+        const validated = ApexTradeSchema.parse(raw);
+        const price = parseFloat(validated.p);
+        const amount = parseFloat(validated.v);
+        return {
+          id: validated.i,
+          symbol,
+          side: validated.S === "Buy" ? "buy" : "sell",
+          price,
+          amount,
+          cost: price * amount,
+          timestamp: validated.T,
+          info: validated
+        };
+      }
+      /** WS recentlyTrade entry {T:ms,s,S,v,p,L,i:uuid} — same units as REST */
+      normalizeWSTrade(raw, symbol) {
+        const validated = ApexWSTradeSchema.parse(raw);
+        const price = parseFloat(validated.p);
+        const amount = parseFloat(validated.v);
+        return {
+          id: validated.i,
+          symbol,
+          side: validated.S === "Buy" ? "buy" : "sell",
+          price,
+          amount,
+          cost: price * amount,
+          timestamp: validated.T,
+          info: validated
+        };
+      }
+      /**
+       * REST /ticker — caller unwraps the one-element data ARRAY first.
+       * No bid/ask in the payload (derived from last, tagged in info); no
+       * timestamp field (synthesized locally); price24hPcnt is a FRACTION.
+       */
+      normalizeTicker(raw, symbol) {
+        const validated = ApexTickerSchema.parse(raw);
+        const last = parseFloat(validated.lastPrice);
+        const pcnt = parseFloat(validated.price24hPcnt);
+        const open = pcnt !== -1 ? last / (1 + pcnt) : last;
+        return {
+          symbol,
+          last,
+          bid: last,
+          ask: last,
+          high: parseFloat(validated.highPrice24h),
+          low: parseFloat(validated.lowPrice24h),
+          open,
+          close: last,
+          change: last - open,
+          percentage: pcnt * 100,
+          baseVolume: parseFloat(validated.volume24h),
+          quoteVolume: parseFloat(validated.turnover24h),
+          timestamp: Date.now(),
+          info: {
+            ...validated,
+            _bidAskSource: "last_price",
+            _timestampSource: "local",
+            _openSource: "derived_from_price24hPcnt"
+          }
+        };
+      }
+      /**
+       * Current funding from the /ticker payload (venue-authoritative source:
+       * fundingRate + ISO nextFundingTime + mark/index prices).
+       * Rate is FRACTIONAL per HOURLY interval — passthrough, no conversion.
+       */
+      normalizeFundingRateFromTicker(raw, symbol) {
+        const validated = ApexTickerSchema.parse(raw);
+        const nextFundingTimestamp = Date.parse(validated.nextFundingTime);
+        if (Number.isNaN(nextFundingTimestamp)) {
+          throw new PerpDEXError(
+            `Invalid nextFundingTime: ${validated.nextFundingTime}`,
+            "INVALID_RESPONSE",
+            "apex"
+          );
+        }
+        return {
+          symbol,
+          fundingRate: parseFloat(validated.fundingRate),
+          // Hourly cadence: the current interval opened one interval before next
+          fundingTimestamp: nextFundingTimestamp - APEX_FUNDING_INTERVAL_HOURS * 36e5,
+          nextFundingTimestamp,
+          markPrice: parseFloat(validated.markPrice),
+          indexPrice: parseFloat(validated.indexPrice),
+          fundingIntervalHours: APEX_FUNDING_INTERVAL_HOURS,
+          info: validated
+        };
+      }
+      /**
+       * /history-funding entry {symbol,rate,price,fundingTime:ms,fundingTimestamp:ms}.
+       * No index price in the history payload — set to the settlement price with
+       * an info tag rather than fabricating a value.
+       */
+      normalizeFundingRateHistoryEntry(raw, symbol) {
+        const validated = ApexHistoryFundSchema.parse(raw);
+        const price = parseFloat(validated.price);
+        return {
+          symbol,
+          fundingRate: parseFloat(validated.rate),
+          fundingTimestamp: validated.fundingTime,
+          nextFundingTimestamp: validated.fundingTime + APEX_FUNDING_INTERVAL_HOURS * 36e5,
+          markPrice: price,
+          indexPrice: price,
+          fundingIntervalHours: APEX_FUNDING_INTERVAL_HOURS,
+          info: {
+            ...validated,
+            _indexPriceSource: "settlement_price"
+          }
+        };
+      }
+      /** /klines data is keyed BY SYMBOL — unwrap {"BTCUSDT":[...]} */
+      unwrapKlines(data, noDashSymbol) {
+        const klines = data?.[noDashSymbol];
+        if (!Array.isArray(klines)) {
+          throw new PerpDEXError(
+            `Klines response missing symbol key: ${noDashSymbol}`,
+            "INVALID_RESPONSE",
+            "apex"
+          );
+        }
+        return klines;
+      }
+      /** Kline {s,i,t:ms,o,h,l,c,v,tr} → unified [t,o,h,l,c,v] */
+      normalizeOHLCV(raw) {
+        const validated = ApexKlineSchema.parse(raw);
+        return [
+          validated.t,
+          parseFloat(validated.o),
+          parseFloat(validated.h),
+          parseFloat(validated.l),
+          parseFloat(validated.c),
+          parseFloat(validated.v)
+        ];
+      }
+    };
+  }
+});
+
+// src/adapters/apex/ApexWebSocketWrapper.ts
+var import_events5, MAX_QUEUE_SIZE3, MAX_SEEN_TRADE_IDS, ApexWebSocketWrapper;
+var init_ApexWebSocketWrapper = __esm({
+  "src/adapters/apex/ApexWebSocketWrapper.ts"() {
+    "use strict";
+    import_events5 = require("events");
+    init_WebSocketClient();
+    init_constants15();
+    init_types17();
+    MAX_QUEUE_SIZE3 = 1e3;
+    MAX_SEEN_TRADE_IDS = 2e3;
+    ApexWebSocketWrapper = class extends import_events5.EventEmitter {
+      wsUrl;
+      normalizer;
+      symbolToExchange;
+      client = null;
+      subscriptions = /* @__PURE__ */ new Map();
+      bookStates = /* @__PURE__ */ new Map();
+      seenTradeIds = /* @__PURE__ */ new Map();
+      pingInterval = null;
+      constructor(deps) {
+        super();
+        this.setMaxListeners(100);
+        this.wsUrl = deps.wsUrl;
+        this.normalizer = deps.normalizer;
+        this.symbolToExchange = deps.symbolToExchange;
+      }
+      /** Connect with the venue-required ?v=2&timestamp=<ms> query (idempotent) */
+      async connect() {
+        if (this.client) {
+          return;
+        }
+        const url = `${this.wsUrl}?v=2&timestamp=${Date.now()}`;
+        this.client = new WebSocketClient({
+          url,
+          reconnect: {
+            enabled: true,
+            maxAttempts: 10,
+            initialDelay: 500,
+            maxDelay: 3e4,
+            multiplier: 2,
+            jitter: 0.1
+          },
+          heartbeat: {
+            // The generic JSON {"type":"ping"} heartbeat is NOT the venue protocol;
+            // apex needs {op:"ping",args:["<ms>"]} — handled by our own interval.
+            enabled: false,
+            interval: APEX_WS_CLIENT_PING_INTERVAL_MS,
+            timeout: 5e3
+          },
+          onMessage: (data) => this.handleMessage(data),
+          onError: (error) => this.emit("error", error)
+        });
+        this.client.on("reconnected", () => {
+          this.resubscribeAll();
+        });
+        await this.client.connect();
+        this.startClientPing();
+      }
+      async disconnect() {
+        this.stopClientPing();
+        this.subscriptions.clear();
+        this.bookStates.clear();
+        this.seenTradeIds.clear();
+        if (this.client) {
+          await this.client.disconnect();
+          this.client = null;
+        }
+      }
+      isConnected() {
+        return this.client?.isConnected() ?? false;
+      }
+      // ===========================================================================
+      // Public streams
+      // ===========================================================================
+      /**
+       * Watch order book — maintains a stateful book from snapshot+delta frames
+       * and emits a FULL unified OrderBook per frame. `limit` is served by
+       * SLICING the maintained book (topic depth is 25 or 200).
+       */
+      async *watchOrderBook(symbol, limit) {
+        const exchangeSymbol = this.symbolToExchange(symbol);
+        const depth = limit !== void 0 && limit <= 25 ? 25 : 200;
+        const topic = APEX_WS_TOPICS.ORDERBOOK(exchangeSymbol, depth);
+        yield* this.watch(
+          topic,
+          (frame) => this.processOrderBookFrame(frame, topic, symbol, limit)
+        );
+      }
+      /**
+       * Watch trades — the first frame is a recent-history snapshot; all trades
+       * are deduped by uuid `i` across snapshot/delta overlap.
+       */
+      async *watchTrades(symbol) {
+        const exchangeSymbol = this.symbolToExchange(symbol);
+        const topic = APEX_WS_TOPICS.TRADES(exchangeSymbol);
+        yield* this.watch(topic, (frame) => this.processTradesFrame(frame, topic, symbol));
+      }
+      /**
+       * Watch ticker via instrumentInfo.H.{SYMBOL} — update-field-only semantics:
+       * the snapshot carries the full object, deltas only changed fields. State is
+       * merged per topic; a Ticker is emitted once enough fields accumulated.
+       */
+      async *watchTicker(symbol) {
+        const exchangeSymbol = this.symbolToExchange(symbol);
+        const topic = APEX_WS_TOPICS.TICKER(exchangeSymbol);
+        let merged = {};
+        yield* this.watch(topic, (frame) => {
+          const f = frame;
+          if (!f || typeof f !== "object" || !f.data) {
+            return [];
+          }
+          merged = { ...merged, ...f.data };
+          try {
+            const ticker = this.normalizer.normalizeTicker(merged, symbol);
+            return [
+              {
+                ...ticker,
+                timestamp: typeof f.ts === "number" ? this.normalizer.usToMs(f.ts) : ticker.timestamp
+              }
+            ];
+          } catch {
+            return [];
+          }
+        });
+      }
+      // ===========================================================================
+      // Frame processing
+      // ===========================================================================
+      processOrderBookFrame(frame, topic, symbol, limit) {
+        const parsed = ApexWSOrderBookFrameSchema.parse(frame);
+        let state = this.bookStates.get(topic);
+        if (parsed.type === "snapshot") {
+          state = { bids: /* @__PURE__ */ new Map(), asks: /* @__PURE__ */ new Map(), lastU: parsed.data.u };
+          for (const [p, q] of parsed.data.b) {
+            const qty = parseFloat(q);
+            if (qty > 0) state.bids.set(parseFloat(p), qty);
+          }
+          for (const [p, q] of parsed.data.a) {
+            const qty = parseFloat(q);
+            if (qty > 0) state.asks.set(parseFloat(p), qty);
+          }
+          this.bookStates.set(topic, state);
+        } else {
+          if (!state || state.lastU === null) {
+            return [];
+          }
+          if (parsed.data.u !== state.lastU + 1) {
+            this.bookStates.delete(topic);
+            this.resubscribeTopic(topic);
+            return [];
+          }
+          for (const [p, q] of parsed.data.b) {
+            const price = parseFloat(p);
+            if (q === "0") state.bids.delete(price);
+            else state.bids.set(price, parseFloat(q));
+          }
+          for (const [p, q] of parsed.data.a) {
+            const price = parseFloat(p);
+            if (q === "0") state.asks.delete(price);
+            else state.asks.set(price, parseFloat(q));
+          }
+          state.lastU = parsed.data.u;
+        }
+        let bids = Array.from(state.bids.entries()).sort((a, b) => b[0] - a[0]);
+        let asks = Array.from(state.asks.entries()).sort((a, b) => a[0] - b[0]);
+        if (limit !== void 0) {
+          bids = bids.slice(0, limit);
+          asks = asks.slice(0, limit);
+        }
+        return [
+          {
+            symbol,
+            timestamp: this.normalizer.usToMs(parsed.ts),
+            bids,
+            asks,
+            sequenceId: parsed.data.u,
+            exchange: "apex"
+          }
+        ];
+      }
+      processTradesFrame(frame, topic, symbol) {
+        const parsed = ApexWSTradesFrameSchema.parse(frame);
+        let seen = this.seenTradeIds.get(topic);
+        if (!seen) {
+          seen = /* @__PURE__ */ new Set();
+          this.seenTradeIds.set(topic, seen);
+        }
+        const trades = [];
+        for (const raw of parsed.data) {
+          if (seen.has(raw.i)) {
+            continue;
+          }
+          seen.add(raw.i);
+          while (seen.size > MAX_SEEN_TRADE_IDS) {
+            seen.delete(seen.values().next().value);
+          }
+          trades.push(this.normalizer.normalizeWSTrade(raw, symbol));
+        }
+        return trades;
+      }
+      // ===========================================================================
+      // Subscription machinery
+      // ===========================================================================
+      async *watch(topic, process2) {
+        const queue = [];
+        let resolveNext = null;
+        const subscription = {
+          topic,
+          handler: (frame) => {
+            let outputs;
+            try {
+              outputs = process2(frame);
+            } catch (error) {
+              this.emit(
+                "error",
+                new Error(`Failed to process ${topic} frame: ${String(error)}`)
+              );
+              return;
+            }
+            for (const output of outputs) {
+              if (resolveNext) {
+                resolveNext(output);
+                resolveNext = null;
+              } else {
+                if (queue.length >= MAX_QUEUE_SIZE3) {
+                  queue.shift();
+                }
+                queue.push(output);
+              }
+            }
+          },
+          active: true
+        };
+        this.subscriptions.set(topic, subscription);
+        this.sendSubscribe(topic);
+        try {
+          while (true) {
+            if (queue.length > 0) {
+              yield queue.shift();
+            } else {
+              yield await new Promise((resolve) => {
+                resolveNext = resolve;
+              });
+            }
+          }
+        } finally {
+          subscription.active = false;
+          this.subscriptions.delete(topic);
+          this.bookStates.delete(topic);
+          this.seenTradeIds.delete(topic);
+          this.sendUnsubscribe(topic);
+        }
+      }
+      sendSubscribe(topic) {
+        if (!this.client?.isConnected()) {
+          return;
+        }
+        this.client.send({ op: "subscribe", args: [topic] });
+      }
+      sendUnsubscribe(topic) {
+        if (!this.client?.isConnected()) {
+          return;
+        }
+        this.client.send({ op: "unsubscribe", args: [topic] });
+      }
+      /** u-gap resync: unsubscribe + subscribe → server replies with a fresh snapshot */
+      resubscribeTopic(topic) {
+        this.sendUnsubscribe(topic);
+        this.sendSubscribe(topic);
+      }
+      /** After a reconnect: books must rebuild from fresh snapshots */
+      resubscribeAll() {
+        this.bookStates.clear();
+        for (const topic of this.subscriptions.keys()) {
+          this.sendSubscribe(topic);
+        }
+      }
+      // ===========================================================================
+      // Message routing + heartbeat
+      // ===========================================================================
+      handleMessage(data) {
+        try {
+          const parsed = data;
+          if (!parsed || typeof parsed !== "object") {
+            return;
+          }
+          if (parsed.op === "ping") {
+            if (this.client?.isConnected()) {
+              this.client.send({ op: "pong" });
+            }
+            return;
+          }
+          if (typeof parsed.success === "boolean") {
+            if (parsed.success === false) {
+              this.emit("error", new Error(`Apex WS request failed: ${JSON.stringify(parsed)}`));
+            }
+            return;
+          }
+          if (typeof parsed.topic === "string") {
+            const subscription = this.subscriptions.get(parsed.topic);
+            if (subscription?.active) {
+              subscription.handler(parsed);
+            }
+          }
+        } catch (error) {
+          this.emit("error", new Error(`Failed to handle message: ${String(error)}`));
+        }
+      }
+      sendClientPing() {
+        if (!this.client?.isConnected()) {
+          return;
+        }
+        this.client.send({ op: "ping", args: [String(Date.now())] });
+      }
+      startClientPing() {
+        if (this.pingInterval) {
+          return;
+        }
+        this.pingInterval = setInterval(() => {
+          this.sendClientPing();
+        }, APEX_WS_CLIENT_PING_INTERVAL_MS);
+        this.pingInterval.unref?.();
+      }
+      stopClientPing() {
+        if (this.pingInterval) {
+          clearInterval(this.pingInterval);
+          this.pingInterval = null;
+        }
+      }
+    };
+  }
+});
+
+// src/adapters/apex/error-codes.ts
+function mapApexError(code, message) {
+  if (code === 3) {
+    return new BadRequestError(message, String(code), "apex");
+  }
+  return new PerpDEXError(message, String(code), "apex");
+}
+function mapApexHttpError(status, message) {
+  if (status === 403) {
+    return new RateLimitError(
+      `${message} (HTTP 403 = ApeX IP ban \u2014 back off, do not retry)`,
+      "IP_BANNED",
+      "apex"
+    );
+  }
+  return new PerpDEXError(message, `HTTP_${status}`, "apex");
+}
+var APEX_ERROR_CODES;
+var init_error_codes10 = __esm({
+  "src/adapters/apex/error-codes.ts"() {
+    "use strict";
+    init_errors();
+    APEX_ERROR_CODES = {
+      3: "INVALID_SYMBOL"
+      // live-verified
+    };
+  }
+});
+
+// src/adapters/apex/ApexAdapter.ts
+var NOT_IMPLEMENTED_SUFFIX, ApexAdapter;
+var init_ApexAdapter = __esm({
+  "src/adapters/apex/ApexAdapter.ts"() {
+    "use strict";
+    init_errors();
+    init_BaseAdapter();
+    init_HTTPClient();
+    init_RateLimiter();
+    init_constants15();
+    init_ApexNormalizer();
+    init_ApexWebSocketWrapper();
+    init_error_codes10();
+    init_utils12();
+    NOT_IMPLEMENTED_SUFFIX = "not implemented \u2014 apex adapter is PUBLIC-MARKET-DATA-FIRST (has-flag is false)";
+    ApexAdapter = class extends BaseAdapter {
+      id = "apex";
+      name = "ApeX Omni";
+      /**
+       * TRUTHFUL feature map. true = implemented against the live API and
+       * fixture-tested; false = NOT_IMPLEMENTED thrower (public-data-first scope).
+       */
+      has = {
+        // Public market data — implemented + fixture-tested
+        fetchMarkets: true,
+        fetchTicker: true,
+        fetchOrderBook: true,
+        fetchTrades: true,
+        fetchOHLCV: true,
+        fetchFundingRate: true,
+        fetchFundingRateHistory: true,
+        watchOrderBook: true,
+        watchTrades: true,
+        watchTicker: true,
+        // Trading/auth/account — OUT OF SCOPE (NOT_IMPLEMENTED throwers)
+        createOrder: false,
+        cancelOrder: false,
+        cancelAllOrders: false,
+        editOrder: false,
+        setMarginMode: false,
+        fetchPositions: false,
+        fetchBalance: false,
+        setLeverage: false,
+        fetchOpenOrders: false,
+        fetchOrderHistory: false,
+        fetchMyTrades: false,
+        watchOrders: false,
+        watchPositions: false,
+        watchBalance: false
+      };
+      baseUrl;
+      wsUrl;
+      httpClient;
+      rateLimiter;
+      normalizer;
+      wsHandler;
+      constructor(config = {}) {
+        super(config);
+        const urls = config.testnet ? APEX_API_URLS.testnet : APEX_API_URLS.mainnet;
+        this.baseUrl = config.apiUrl ?? urls.rest;
+        this.wsUrl = config.wsUrl ?? urls.websocket;
+        this.normalizer = new ApexNormalizer();
+        this.rateLimiter = new RateLimiter({
+          maxTokens: config.rateLimit?.maxRequests ?? APEX_RATE_LIMITS.rest.maxRequests,
+          windowMs: config.rateLimit?.windowMs ?? APEX_RATE_LIMITS.rest.windowMs,
+          refillRate: (config.rateLimit?.maxRequests ?? APEX_RATE_LIMITS.rest.maxRequests) / 60,
+          weights: APEX_ENDPOINT_WEIGHTS
+        });
+        this.httpClient = new HTTPClient({
+          baseUrl: this.baseUrl,
+          timeout: config.timeout ?? 3e4,
+          retry: {
+            maxAttempts: 3,
+            initialDelay: 1e3,
+            maxDelay: 1e4,
+            multiplier: 2
+          },
+          circuitBreaker: {
+            enabled: true,
+            failureThreshold: 5,
+            resetTimeout: 6e4
+          },
+          exchange: this.id
+        });
+      }
+      /**
+       * Prepares the WS wrapper WITHOUT opening a connection — the socket is
+       * opened lazily on the first watch* call (public REST needs no socket).
+       */
+      async initialize() {
+        this.wsHandler = new ApexWebSocketWrapper({
+          wsUrl: this.wsUrl,
+          normalizer: this.normalizer,
+          symbolToExchange: this.symbolToExchange.bind(this)
+        });
+        this._isReady = true;
+      }
+      async disconnect() {
+        if (this.wsHandler) {
+          await this.wsHandler.disconnect();
+        }
+        this._isReady = false;
+      }
+      // === Symbol conversion (required by BaseAdapter) ===
+      /** Primary exchange form = NO-DASH (depth/trades/ticker/klines/WS topics) */
+      symbolToExchange(symbol) {
+        return toApexNoDashSymbol(symbol);
+      }
+      symbolFromExchange(exchangeSymbol) {
+        if (exchangeSymbol.includes("-")) {
+          const [base, quote] = exchangeSymbol.split("-");
+          return toUnifiedSymbol2(base ?? exchangeSymbol, quote ?? "USDT");
+        }
+        const quoteAssets = ["USDT", "USDC"];
+        for (const quote of quoteAssets) {
+          if (exchangeSymbol.endsWith(quote)) {
+            return toUnifiedSymbol2(exchangeSymbol.slice(0, -quote.length), quote);
+          }
+        }
+        return exchangeSymbol;
+      }
+      // === HTTP helpers ===
+      async publicGet(path, feature, context) {
+        await this.rateLimiter.acquire(feature);
+        let response;
+        try {
+          response = await this.httpClient.get(path);
+        } catch (error) {
+          throw this.handleError(error);
+        }
+        return this.unwrapEnvelope(response, context);
+      }
+      /** Success {data,timeCost} / error {code,msg,timeCost} — both HTTP 200 */
+      unwrapEnvelope(response, context) {
+        if (response && typeof response === "object") {
+          const rec = response;
+          if (rec.data === void 0 && typeof rec.code === "number") {
+            throw mapApexError(rec.code, typeof rec.msg === "string" ? rec.msg : "Unknown apex error");
+          }
+          if (rec.data !== void 0) {
+            return rec.data;
+          }
+        }
+        throw new PerpDEXError(`Invalid ${context} response`, "INVALID_RESPONSE", "apex");
+      }
+      handleError(error) {
+        if (error instanceof PerpDEXError) return error;
+        if (error instanceof Error) {
+          const match = error.message.match(/"code"\s*:\s*(\d+)/);
+          if (match?.[1]) {
+            return mapApexError(parseInt(match[1], 10), error.message);
+          }
+        }
+        return new PerpDEXError(
+          error instanceof Error ? error.message : "Unknown error",
+          "UNKNOWN",
+          "apex"
+        );
+      }
+      // === Public Market Data ===
+      /**
+       * /v3/symbols → data.contractConfig.perpetualContract[] (the payload also
+       * carries spot/prediction/stock/prelaunch configs — perps only here),
+       * filtered by enableTrade && !isPrelaunch. The 731KB payload is cached.
+       */
+      async fetchMarkets(_params) {
+        if (this.marketCache && Date.now() < this.marketCacheExpiry) {
+          return this.marketCache;
+        }
+        const data = await this.publicGet("/symbols", "fetchMarkets", "symbols");
+        const perps = data?.contractConfig?.perpetualContract;
+        if (!Array.isArray(perps)) {
+          throw new PerpDEXError("Invalid symbols response", "INVALID_RESPONSE", "apex");
+        }
+        const markets = perps.filter((c) => c.enableTrade === true && c.isPrelaunch !== true).map((c) => this.normalizer.normalizeMarket(c));
+        this.marketCache = markets;
+        this.marketCacheExpiry = Date.now() + this.marketCacheTTL;
+        return markets;
+      }
+      /** /v3/ticker?symbol=<NO-DASH> — data is an ARRAY of one object */
+      async _fetchTicker(symbol) {
+        const apexSymbol = toApexNoDashSymbol(symbol);
+        const data = await this.publicGet(
+          `/ticker?symbol=${apexSymbol}`,
+          "fetchTicker",
+          "ticker"
+        );
+        if (!Array.isArray(data) || data.length === 0 || !data[0]) {
+          throw new PerpDEXError("Empty ticker response", "INVALID_RESPONSE", "apex");
+        }
+        return this.normalizer.normalizeTicker(data[0], symbol);
+      }
+      /** /v3/depth?symbol=<NO-DASH>&limit=N — null-book shape hard-rejected */
+      async _fetchOrderBook(symbol, params) {
+        const apexSymbol = toApexNoDashSymbol(symbol);
+        const limit = params?.limit ?? 100;
+        const data = await this.publicGet(
+          `/depth?symbol=${apexSymbol}&limit=${limit}`,
+          "fetchOrderBook",
+          "depth"
+        );
+        return this.normalizer.normalizeOrderBook(data, symbol);
+      }
+      /** /v3/trades?symbol=<NO-DASH>&limit=N */
+      async _fetchTrades(symbol, params) {
+        const apexSymbol = toApexNoDashSymbol(symbol);
+        const limit = params?.limit ?? 100;
+        const data = await this.publicGet(
+          `/trades?symbol=${apexSymbol}&limit=${limit}`,
+          "fetchTrades",
+          "trades"
+        );
+        if (!Array.isArray(data)) {
+          throw new PerpDEXError("Invalid trades response", "INVALID_RESPONSE", "apex");
+        }
+        return data.map((t) => this.normalizer.normalizeTrade(t, symbol));
+      }
+      /** Current funding via /v3/ticker (fundingRate + ISO nextFundingTime) */
+      async _fetchFundingRate(symbol) {
+        const apexSymbol = toApexNoDashSymbol(symbol);
+        const data = await this.publicGet(
+          `/ticker?symbol=${apexSymbol}`,
+          "fetchFundingRate",
+          "ticker"
+        );
+        if (!Array.isArray(data) || data.length === 0 || !data[0]) {
+          throw new PerpDEXError("Empty ticker response", "INVALID_RESPONSE", "apex");
+        }
+        return this.normalizer.normalizeFundingRateFromTicker(data[0], symbol);
+      }
+      /**
+       * /v3/history-funding?symbol=<DASH>&limit=N — the DASH form is REQUIRED
+       * (no-dash errors {code:3}). The venue API has no start param — `since`
+       * is filtered client-side.
+       */
+      async fetchFundingRateHistory(symbol, since, limit) {
+        const apexSymbol = toApexDashSymbol(symbol);
+        let path = `/history-funding?symbol=${apexSymbol}`;
+        if (limit) path += `&limit=${limit}`;
+        const data = await this.publicGet(
+          path,
+          "fetchFundingRateHistory",
+          "history-funding"
+        );
+        if (!Array.isArray(data?.historyFunds)) {
+          throw new PerpDEXError("Invalid history-funding response", "INVALID_RESPONSE", "apex");
+        }
+        return data.historyFunds.filter((f) => since === void 0 || f.fundingTime >= since).map((f) => this.normalizer.normalizeFundingRateHistoryEntry(f, symbol));
+      }
+      /** /v3/klines?symbol=<NO-DASH>&interval=<code> — start/end are SECONDS */
+      async fetchOHLCV(symbol, timeframe, params) {
+        const apexSymbol = toApexNoDashSymbol(symbol);
+        const interval = APEX_KLINE_INTERVALS[timeframe];
+        if (!interval) {
+          throw new PerpDEXError(
+            `Unsupported timeframe for apex: ${timeframe}`,
+            "INVALID_PARAM",
+            "apex"
+          );
+        }
+        let path = `/klines?symbol=${apexSymbol}&interval=${interval}`;
+        if (params?.limit) path += `&limit=${params.limit}`;
+        if (params?.since) path += `&start=${Math.floor(params.since / 1e3)}`;
+        if (params?.until) path += `&end=${Math.floor(params.until / 1e3)}`;
+        const data = await this.publicGet(path, "fetchOHLCV", "klines");
+        const klines = this.normalizer.unwrapKlines(data, apexSymbol);
+        return klines.map((k) => this.normalizer.normalizeOHLCV(k));
+      }
+      // === WebSocket Streams (lazy connect — opened on first watch*) ===
+      async ensureWebSocketConnected() {
+        this.ensureInitialized();
+        if (!this.wsHandler) {
+          throw new PerpDEXError("WebSocket handler not initialized", "NO_WEBSOCKET", "apex");
+        }
+        await this.wsHandler.connect();
+        return this.wsHandler;
+      }
+      async *watchOrderBook(symbol, limit) {
+        const ws = await this.ensureWebSocketConnected();
+        yield* ws.watchOrderBook(symbol, limit);
+      }
+      async *watchTrades(symbol) {
+        const ws = await this.ensureWebSocketConnected();
+        yield* ws.watchTrades(symbol);
+      }
+      async *watchTicker(symbol) {
+        const ws = await this.ensureWebSocketConnected();
+        yield* ws.watchTicker(symbol);
+      }
+      // ===========================================================================
+      // NOT IMPLEMENTED — PUBLIC-MARKET-DATA-FIRST scope (has-flags are false).
+      // BaseAdapter requires these abstract members; they throw rather than lie.
+      // ===========================================================================
+      async createOrder(_request) {
+        throw new PerpDEXError(`createOrder ${NOT_IMPLEMENTED_SUFFIX}`, "NOT_IMPLEMENTED", "apex");
+      }
+      async cancelOrder(_orderId, _symbol) {
+        throw new PerpDEXError(`cancelOrder ${NOT_IMPLEMENTED_SUFFIX}`, "NOT_IMPLEMENTED", "apex");
+      }
+      async cancelAllOrders(_symbol) {
+        throw new PerpDEXError(`cancelAllOrders ${NOT_IMPLEMENTED_SUFFIX}`, "NOT_IMPLEMENTED", "apex");
+      }
+      async fetchOrderHistory(_symbol, _since, _limit) {
+        throw new PerpDEXError(
+          `fetchOrderHistory ${NOT_IMPLEMENTED_SUFFIX}`,
+          "NOT_IMPLEMENTED",
+          "apex"
+        );
+      }
+      async fetchMyTrades(_symbol, _since, _limit) {
+        throw new PerpDEXError(`fetchMyTrades ${NOT_IMPLEMENTED_SUFFIX}`, "NOT_IMPLEMENTED", "apex");
+      }
+      async fetchPositions(_symbols) {
+        throw new PerpDEXError(`fetchPositions ${NOT_IMPLEMENTED_SUFFIX}`, "NOT_IMPLEMENTED", "apex");
+      }
+      async fetchBalance() {
+        throw new PerpDEXError(`fetchBalance ${NOT_IMPLEMENTED_SUFFIX}`, "NOT_IMPLEMENTED", "apex");
+      }
+      async _setLeverage(_symbol, _leverage) {
+        throw new PerpDEXError(`setLeverage ${NOT_IMPLEMENTED_SUFFIX}`, "NOT_IMPLEMENTED", "apex");
+      }
+    };
+  }
+});
+
+// src/adapters/apex/index.ts
+var apex_exports = {};
+__export(apex_exports, {
+  APEX_API_URLS: () => APEX_API_URLS,
+  APEX_ERROR_CODES: () => APEX_ERROR_CODES,
+  APEX_RATE_LIMITS: () => APEX_RATE_LIMITS,
+  APEX_WS_TOPICS: () => APEX_WS_TOPICS,
+  ApexAdapter: () => ApexAdapter,
+  ApexNormalizer: () => ApexNormalizer,
+  ApexWebSocketWrapper: () => ApexWebSocketWrapper,
+  mapApexError: () => mapApexError,
+  mapApexHttpError: () => mapApexHttpError
+});
+var init_apex = __esm({
+  "src/adapters/apex/index.ts"() {
+    "use strict";
+    init_ApexAdapter();
+    init_ApexNormalizer();
+    init_ApexWebSocketWrapper();
+    init_error_codes10();
+    init_constants15();
+  }
+});
+
+// src/adapters/standx/constants.ts
+var STANDX_API_URLS, STANDX_RATE_LIMITS, STANDX_KLINE_RESOLUTIONS, STANDX_TIMEFRAME_SECONDS, STANDX_FUNDING_INTERVAL_HOURS, STANDX_WS_CHANNELS, STANDX_WS_MAX_CONNECTION_MS;
+var init_constants16 = __esm({
+  "src/adapters/standx/constants.ts"() {
+    "use strict";
+    STANDX_API_URLS = {
+      mainnet: {
+        rest: "https://perps.standx.com",
+        websocket: "wss://perps.standx.com/ws-stream/v1"
+      }
+    };
+    STANDX_RATE_LIMITS = {
+      rest: {
+        maxRequests: 20,
+        windowMs: 1e3
+      }
+    };
+    STANDX_KLINE_RESOLUTIONS = {
+      "1m": "1",
+      "5m": "5",
+      "15m": "15",
+      "1h": "60",
+      "1d": "1D",
+      "1w": "1W",
+      "1M": "1M"
+    };
+    STANDX_TIMEFRAME_SECONDS = {
+      "1m": 60,
+      "5m": 300,
+      "15m": 900,
+      "1h": 3600,
+      "1d": 86400,
+      "1w": 604800,
+      "1M": 2592e3
+    };
+    STANDX_FUNDING_INTERVAL_HOURS = 1;
+    STANDX_WS_CHANNELS = {
+      DEPTH_BOOK: "depth_book",
+      PUBLIC_TRADE: "public_trade",
+      PRICE: "price"
+    };
+    STANDX_WS_MAX_CONNECTION_MS = 24 * 36e5;
+  }
+});
+
+// src/adapters/standx/utils.ts
+function toStandxSymbol(unified) {
+  const parts = unified.split(/[/:]/);
+  return `${parts[0]}-${parts[1]}`;
+}
+function toUnifiedSymbol3(venueSymbol) {
+  const [base, quote] = venueSymbol.split("-");
+  return `${base}/${quote}:${quote}`;
+}
+function isoToMs(iso) {
+  const trimmed = iso.replace(/(\.\d{3})\d+(Z|[+-]\d{2}:?\d{2})$/, "$1$2");
+  const ms = Date.parse(trimmed);
+  if (Number.isNaN(ms)) {
+    throw new PerpDEXError(`Unparseable timestamp: ${iso}`, "INVALID_RESPONSE", "standx");
+  }
+  return ms;
+}
+function decimalsToTickSize(decimals) {
+  return Number(`1e-${decimals}`);
+}
+var init_utils13 = __esm({
+  "src/adapters/standx/utils.ts"() {
+    "use strict";
+    init_errors();
+  }
+});
+
+// src/adapters/standx/types.ts
+var StandxErrorSchema, StandxPriceLevelSchema, StandxDepthBookSchema, StandxRestTradeSchema, StandxSymbolMarketSchema, StandxFundingEntrySchema, StandxSymbolInfoSchema, StandxMarketOverviewSchema, StandxKlineHistorySchema, StandxWSFrameSchema, StandxWSTradeSchema, StandxWSPriceSchema;
+var init_types18 = __esm({
+  "src/adapters/standx/types.ts"() {
+    "use strict";
+    init_zod();
+    StandxErrorSchema = external_exports.object({
+      code: external_exports.number(),
+      message: external_exports.string()
+    }).passthrough();
+    StandxPriceLevelSchema = external_exports.tuple([external_exports.string(), external_exports.string()]);
+    StandxDepthBookSchema = external_exports.object({
+      asks: external_exports.array(StandxPriceLevelSchema),
+      bids: external_exports.array(StandxPriceLevelSchema),
+      symbol: external_exports.string(),
+      time: external_exports.number().optional()
+    }).passthrough();
+    StandxRestTradeSchema = external_exports.object({
+      is_buyer_taker: external_exports.boolean(),
+      price: external_exports.string(),
+      qty: external_exports.string(),
+      quote_qty: external_exports.string(),
+      symbol: external_exports.string(),
+      time: external_exports.string()
+    }).passthrough();
+    StandxSymbolMarketSchema = external_exports.object({
+      ask1: external_exports.string(),
+      bid1: external_exports.string(),
+      base: external_exports.string(),
+      quote: external_exports.string(),
+      funding_rate: external_exports.string(),
+      high_price_24h: external_exports.number(),
+      low_price_24h: external_exports.number(),
+      open_price_24h: external_exports.number(),
+      price_change: external_exports.number(),
+      price_change_pct: external_exports.number(),
+      index_price: external_exports.string(),
+      last_price: external_exports.string(),
+      mark_price: external_exports.string(),
+      next_funding_time: external_exports.string(),
+      spread: external_exports.tuple([external_exports.string(), external_exports.string()]),
+      symbol: external_exports.string(),
+      time: external_exports.string(),
+      volume_24h: external_exports.number(),
+      volume_quote_24h: external_exports.number()
+    }).passthrough();
+    StandxFundingEntrySchema = external_exports.object({
+      funding_rate: external_exports.string(),
+      index_price: external_exports.string(),
+      mark_price: external_exports.string(),
+      symbol: external_exports.string(),
+      time: external_exports.string()
+    }).passthrough();
+    StandxSymbolInfoSchema = external_exports.object({
+      base_asset: external_exports.string(),
+      quote_asset: external_exports.string(),
+      maker_fee: external_exports.string(),
+      taker_fee: external_exports.string(),
+      max_leverage: external_exports.string(),
+      min_order_qty: external_exports.string(),
+      max_order_qty: external_exports.string(),
+      price_tick_decimals: external_exports.number(),
+      qty_tick_decimals: external_exports.number(),
+      status: external_exports.string(),
+      symbol: external_exports.string()
+    }).passthrough();
+    StandxMarketOverviewSchema = external_exports.object({
+      summary: external_exports.object({ symbol_count: external_exports.number() }).passthrough(),
+      symbols: external_exports.array(
+        external_exports.object({
+          base: external_exports.string(),
+          quote: external_exports.string(),
+          symbol: external_exports.string()
+        }).passthrough()
+      )
+    }).passthrough();
+    StandxKlineHistorySchema = external_exports.object({
+      s: external_exports.string(),
+      t: external_exports.array(external_exports.number()).optional(),
+      o: external_exports.array(external_exports.number()).optional(),
+      h: external_exports.array(external_exports.number()).optional(),
+      l: external_exports.array(external_exports.number()).optional(),
+      c: external_exports.array(external_exports.number()).optional(),
+      v: external_exports.array(external_exports.number()).optional(),
+      errmsg: external_exports.string().optional()
+    }).passthrough();
+    StandxWSFrameSchema = external_exports.object({
+      seq: external_exports.number(),
+      channel: external_exports.string(),
+      symbol: external_exports.string().optional(),
+      data: external_exports.unknown()
+    }).passthrough();
+    StandxWSTradeSchema = external_exports.object({
+      id: external_exports.number(),
+      price: external_exports.string(),
+      qty: external_exports.string(),
+      side: external_exports.enum(["buy", "sell"]),
+      symbol: external_exports.string(),
+      time: external_exports.number()
+    }).passthrough();
+    StandxWSPriceSchema = external_exports.object({
+      base: external_exports.string(),
+      quote: external_exports.string(),
+      index_price: external_exports.string(),
+      last_price: external_exports.string(),
+      mark_price: external_exports.string(),
+      mid_price: external_exports.string(),
+      spread: external_exports.tuple([external_exports.string(), external_exports.string()]),
+      symbol: external_exports.string(),
+      time: external_exports.string()
+    }).passthrough();
+  }
+});
+
+// src/adapters/standx/StandxNormalizer.ts
+var StandxNormalizer;
+var init_StandxNormalizer = __esm({
+  "src/adapters/standx/StandxNormalizer.ts"() {
+    "use strict";
+    init_errors();
+    init_constants16();
+    init_utils13();
+    init_types18();
+    StandxNormalizer = class {
+      /** query_symbol_info entry → unified Market */
+      normalizeMarket(raw) {
+        const validated = StandxSymbolInfoSchema.parse(raw);
+        const unified = toUnifiedSymbol3(validated.symbol);
+        const [base, quote] = unified.split(/[/:]/);
+        return {
+          id: validated.symbol,
+          symbol: unified,
+          base: validated.base_asset || base || "",
+          // Venue spelling is "-USD"; the actual margin/settlement asset is DUSD
+          // (validated.quote_asset, kept in info) — unified fields follow the
+          // venue symbol spelling so symbol === `${base}/${quote}:${settle}` holds.
+          quote: quote ?? "USD",
+          settle: quote ?? "USD",
+          active: validated.status === "trading",
+          minAmount: parseFloat(validated.min_order_qty),
+          maxAmount: parseFloat(validated.max_order_qty),
+          pricePrecision: validated.price_tick_decimals,
+          amountPrecision: validated.qty_tick_decimals,
+          priceTickSize: decimalsToTickSize(validated.price_tick_decimals),
+          amountStepSize: decimalsToTickSize(validated.qty_tick_decimals),
+          makerFee: parseFloat(validated.maker_fee),
+          takerFee: parseFloat(validated.taker_fee),
+          maxLeverage: parseFloat(validated.max_leverage),
+          fundingIntervalHours: STANDX_FUNDING_INTERVAL_HOURS,
+          info: validated
+        };
+      }
+      /**
+       * query_depth_book payload OR a WS depth_book frame `data` (one live-verified
+       * shape). Levels are UNSORTED by venue contract → sorted here. `time` is
+       * epoch ms (present on every live capture; synthesized if absent).
+       * For WS frames, pass the connection-global frame `seq` as sequenceId.
+       */
+      normalizeOrderBook(raw, symbol, sequenceId) {
+        const validated = StandxDepthBookSchema.parse(raw);
+        const bids = validated.bids.map(([p, q]) => [parseFloat(p), parseFloat(q)]).sort((a, b) => b[0] - a[0]);
+        const asks = validated.asks.map(([p, q]) => [parseFloat(p), parseFloat(q)]).sort((a, b) => a[0] - b[0]);
+        return {
+          symbol,
+          timestamp: validated.time ?? Date.now(),
+          bids,
+          asks,
+          sequenceId,
+          exchange: "standx"
+        };
+      }
+      /**
+       * query_recent_trades entry. The wire carries NO trade id — a deterministic
+       * one is synthesized from (time, price, qty, taker side) and tagged in info.
+       * Unified side = the TAKER side: is_buyer_taker true → buy.
+       */
+      normalizeRestTrade(raw, symbol) {
+        const validated = StandxRestTradeSchema.parse(raw);
+        const price = parseFloat(validated.price);
+        const amount = parseFloat(validated.qty);
+        const timestamp = isoToMs(validated.time);
+        const side = validated.is_buyer_taker ? "buy" : "sell";
+        return {
+          id: `${timestamp}-${validated.price}-${validated.qty}-${side}`,
+          symbol,
+          side,
+          price,
+          amount,
+          cost: price * amount,
+          timestamp,
+          info: {
+            ...validated,
+            _idSource: "synthesized"
+          }
+        };
+      }
+      /** WS public_trade frame data — side + epoch ms time + int id on the wire */
+      normalizeWSTrade(raw, symbol) {
+        const validated = StandxWSTradeSchema.parse(raw);
+        const price = parseFloat(validated.price);
+        const amount = parseFloat(validated.qty);
+        return {
+          id: String(validated.id),
+          symbol,
+          side: validated.side,
+          price,
+          amount,
+          cost: price * amount,
+          timestamp: validated.time,
+          info: validated
+        };
+      }
+      /**
+       * query_symbol_market → unified Ticker. Real bid/ask from bid1/ask1
+       * (strings); 24h stats are NUMBERS on the wire; price_change_pct is
+       * ALREADY percent units (1.076 = +1.076%) — passthrough.
+       */
+      normalizeTicker(raw, symbol) {
+        const validated = StandxSymbolMarketSchema.parse(raw);
+        const last = parseFloat(validated.last_price);
+        return {
+          symbol,
+          last,
+          bid: parseFloat(validated.bid1),
+          ask: parseFloat(validated.ask1),
+          high: validated.high_price_24h,
+          low: validated.low_price_24h,
+          open: validated.open_price_24h,
+          close: last,
+          change: validated.price_change,
+          percentage: validated.price_change_pct,
+          baseVolume: validated.volume_24h,
+          quoteVolume: validated.volume_quote_24h,
+          timestamp: isoToMs(validated.time),
+          info: validated
+        };
+      }
+      /**
+       * WS price channel → unified Ticker. The channel carries NO 24h stats —
+       * high/low/open/close fall back to last with change/percentage/volumes 0,
+       * explicitly TAGGED in info (never silently fabricated). bid/ask are real
+       * (spread tuple = [bid, ask]); `time` is NANOSECOND-precision ISO → ms.
+       */
+      normalizeWSTicker(raw, symbol) {
+        const validated = StandxWSPriceSchema.parse(raw);
+        const last = parseFloat(validated.last_price);
+        return {
+          symbol,
+          last,
+          bid: parseFloat(validated.spread[0]),
+          ask: parseFloat(validated.spread[1]),
+          high: last,
+          low: last,
+          open: last,
+          close: last,
+          change: 0,
+          percentage: 0,
+          baseVolume: 0,
+          quoteVolume: 0,
+          timestamp: isoToMs(validated.time),
+          info: {
+            ...validated,
+            _24hStatsSource: "unavailable_on_ws_price_channel"
+          }
+        };
+      }
+      /**
+       * Current funding from query_symbol_market (venue-authoritative:
+       * funding_rate + ISO next_funding_time + mark/index). FRACTIONAL hourly
+       * rate — passthrough, no conversion.
+       */
+      normalizeFundingRate(raw, symbol) {
+        const validated = StandxSymbolMarketSchema.parse(raw);
+        const nextFundingTimestamp = isoToMs(validated.next_funding_time);
+        return {
+          symbol,
+          fundingRate: parseFloat(validated.funding_rate),
+          // Hourly cadence: the current interval opened one interval before next
+          fundingTimestamp: nextFundingTimestamp - STANDX_FUNDING_INTERVAL_HOURS * 36e5,
+          nextFundingTimestamp,
+          markPrice: parseFloat(validated.mark_price),
+          indexPrice: parseFloat(validated.index_price),
+          fundingIntervalHours: STANDX_FUNDING_INTERVAL_HOURS,
+          info: validated
+        };
+      }
+      /** query_funding_rates entry — fractional hourly rate, ISO settlement time */
+      normalizeFundingRateHistoryEntry(raw, symbol) {
+        const validated = StandxFundingEntrySchema.parse(raw);
+        const fundingTimestamp = isoToMs(validated.time);
+        return {
+          symbol,
+          fundingRate: parseFloat(validated.funding_rate),
+          fundingTimestamp,
+          nextFundingTimestamp: fundingTimestamp + STANDX_FUNDING_INTERVAL_HOURS * 36e5,
+          markPrice: parseFloat(validated.mark_price),
+          indexPrice: parseFloat(validated.index_price),
+          fundingIntervalHours: STANDX_FUNDING_INTERVAL_HOURS,
+          info: validated
+        };
+      }
+      /**
+       * kline/history TradingView-UDF columns → unified OHLCV rows.
+       * s:"ok" → zip columns ([t*1000, o, h, l, c, v]); s:"no_data" → [];
+       * any other status → throw (UDF error payload).
+       */
+      normalizeOHLCV(raw) {
+        const validated = StandxKlineHistorySchema.parse(raw);
+        if (validated.s === "no_data") {
+          return [];
+        }
+        if (validated.s !== "ok") {
+          throw new PerpDEXError(
+            `Kline history error status: ${validated.s}${validated.errmsg ? ` (${validated.errmsg})` : ""}`,
+            "INVALID_RESPONSE",
+            "standx"
+          );
+        }
+        const { t, o, h: h2, l, c, v } = validated;
+        if (!t || !o || !h2 || !l || !c || !v) {
+          throw new PerpDEXError(
+            'Kline history s:"ok" but column arrays missing',
+            "INVALID_RESPONSE",
+            "standx"
+          );
+        }
+        return t.map(
+          (seconds, i) => [seconds * 1e3, o[i], h2[i], l[i], c[i], v[i]]
+        );
+      }
+    };
+  }
+});
+
+// src/adapters/standx/StandxWebSocketWrapper.ts
+var import_events6, MAX_QUEUE_SIZE4, StandxWebSocketWrapper;
+var init_StandxWebSocketWrapper = __esm({
+  "src/adapters/standx/StandxWebSocketWrapper.ts"() {
+    "use strict";
+    import_events6 = require("events");
+    init_WebSocketClient();
+    init_constants16();
+    init_types18();
+    MAX_QUEUE_SIZE4 = 1e3;
+    StandxWebSocketWrapper = class extends import_events6.EventEmitter {
+      wsUrl;
+      normalizer;
+      symbolToExchange;
+      client = null;
+      /** keyed by `${channel}:${exchangeSymbol}` */
+      subscriptions = /* @__PURE__ */ new Map();
+      constructor(deps) {
+        super();
+        this.setMaxListeners(100);
+        this.wsUrl = deps.wsUrl;
+        this.normalizer = deps.normalizer;
+        this.symbolToExchange = deps.symbolToExchange;
+      }
+      /** Connect to the plain stream URL (idempotent; no auth, no query params) */
+      async connect() {
+        if (this.client) {
+          return;
+        }
+        this.client = new WebSocketClient({
+          url: this.wsUrl,
+          reconnect: {
+            enabled: true,
+            maxAttempts: 10,
+            initialDelay: 500,
+            maxDelay: 3e4,
+            multiplier: 2,
+            jitter: 0.1
+          },
+          heartbeat: {
+            // The venue heartbeat is WS PROTOCOL-LEVEL ping (auto-ponged by the
+            // runtime) — there is NO JSON heartbeat; sending one is not protocol.
+            enabled: false,
+            interval: 3e4,
+            timeout: 5e3
+          },
+          onMessage: (data) => this.handleMessage(data),
+          onError: (error) => this.emit("error", error)
+        });
+        this.client.on("reconnected", () => {
+          this.resubscribeAll();
+        });
+        await this.client.connect();
+      }
+      async disconnect() {
+        this.subscriptions.clear();
+        if (this.client) {
+          await this.client.disconnect();
+          this.client = null;
+        }
+      }
+      isConnected() {
+        return this.client?.isConnected() ?? false;
+      }
+      // ===========================================================================
+      // Public streams
+      // ===========================================================================
+      /**
+       * Watch order book — depth_book is SNAPSHOT-ONLY: every frame is a full
+       * self-contained book, so each frame normalizes (sorted) and emits directly.
+       * `limit` is served by SLICING (the venue has no depth param).
+       */
+      async *watchOrderBook(symbol, limit) {
+        const exchangeSymbol = this.symbolToExchange(symbol);
+        yield* this.watch(STANDX_WS_CHANNELS.DEPTH_BOOK, exchangeSymbol, (frame) => {
+          const parsed = StandxWSFrameSchema.parse(frame);
+          const book = this.normalizer.normalizeOrderBook(
+            parsed.data,
+            symbol,
+            parsed.seq
+          );
+          if (limit !== void 0) {
+            return [{ ...book, bids: book.bids.slice(0, limit), asks: book.asks.slice(0, limit) }];
+          }
+          return [book];
+        });
+      }
+      /** Watch trades — ONE trade object per public_trade frame */
+      async *watchTrades(symbol) {
+        const exchangeSymbol = this.symbolToExchange(symbol);
+        yield* this.watch(STANDX_WS_CHANNELS.PUBLIC_TRADE, exchangeSymbol, (frame) => {
+          const parsed = StandxWSFrameSchema.parse(frame);
+          return [this.normalizer.normalizeWSTrade(parsed.data, symbol)];
+        });
+      }
+      /**
+       * Watch ticker via the price channel — compact snapshot with REAL bid/ask
+       * (spread tuple); 24h stats are not on this channel (tagged in info).
+       */
+      async *watchTicker(symbol) {
+        const exchangeSymbol = this.symbolToExchange(symbol);
+        yield* this.watch(STANDX_WS_CHANNELS.PRICE, exchangeSymbol, (frame) => {
+          const parsed = StandxWSFrameSchema.parse(frame);
+          return [this.normalizer.normalizeWSTicker(parsed.data, symbol)];
+        });
+      }
+      // ===========================================================================
+      // Subscription machinery
+      // ===========================================================================
+      async *watch(channel, exchangeSymbol, process2) {
+        const key = `${channel}:${exchangeSymbol}`;
+        const queue = [];
+        let resolveNext = null;
+        const subscription = {
+          channel,
+          exchangeSymbol,
+          handler: (frame) => {
+            let outputs;
+            try {
+              outputs = process2(frame);
+            } catch (error) {
+              this.emit("error", new Error(`Failed to process ${key} frame: ${String(error)}`));
+              return;
+            }
+            for (const output of outputs) {
+              if (resolveNext) {
+                resolveNext(output);
+                resolveNext = null;
+              } else {
+                if (queue.length >= MAX_QUEUE_SIZE4) {
+                  queue.shift();
+                }
+                queue.push(output);
+              }
+            }
+          },
+          active: true
+        };
+        this.subscriptions.set(key, subscription);
+        this.sendSubscribe(channel, exchangeSymbol);
+        try {
+          while (true) {
+            if (queue.length > 0) {
+              yield queue.shift();
+            } else {
+              yield await new Promise((resolve) => {
+                resolveNext = resolve;
+              });
+            }
+          }
+        } finally {
+          subscription.active = false;
+          this.subscriptions.delete(key);
+        }
+      }
+      sendSubscribe(channel, exchangeSymbol) {
+        if (!this.client?.isConnected()) {
+          return;
+        }
+        this.client.send({ subscribe: { channel, symbol: exchangeSymbol } });
+      }
+      /**
+       * After a reconnect: re-send all subscribes. depth_book is snapshot-only,
+       * so the first post-reconnect frame fully rebuilds every consumer's view.
+       */
+      resubscribeAll() {
+        for (const sub of this.subscriptions.values()) {
+          this.sendSubscribe(sub.channel, sub.exchangeSymbol);
+        }
+      }
+      // ===========================================================================
+      // Message routing
+      // ===========================================================================
+      handleMessage(data) {
+        try {
+          const parsed = data;
+          if (!parsed || typeof parsed !== "object") {
+            return;
+          }
+          if (typeof parsed.code === "number" && typeof parsed.channel !== "string") {
+            this.emit(
+              "error",
+              new Error(`StandX WS error frame: ${JSON.stringify(parsed)}`)
+            );
+            return;
+          }
+          if (typeof parsed.channel === "string") {
+            const key = `${parsed.channel}:${String(parsed.symbol ?? "")}`;
+            const subscription = this.subscriptions.get(key);
+            if (subscription?.active) {
+              subscription.handler(parsed);
+            }
+          }
+        } catch (error) {
+          this.emit("error", new Error(`Failed to handle message: ${String(error)}`));
+        }
+      }
+    };
+  }
+});
+
+// src/adapters/standx/error-codes.ts
+function mapStandxError(code, message) {
+  if (code === 429) {
+    return new RateLimitError(message, String(code), "standx");
+  }
+  if (code === 401 || code === 403) {
+    return new AuthenticationError(message, String(code), "standx");
+  }
+  if (code === 400) {
+    return new BadRequestError(message, String(code), "standx");
+  }
+  return new PerpDEXError(message, String(code), "standx");
+}
+function mapStandxHttpError(status, message) {
+  return mapStandxError(status, message);
+}
+var STANDX_ERROR_CODES;
+var init_error_codes11 = __esm({
+  "src/adapters/standx/error-codes.ts"() {
+    "use strict";
+    init_errors();
+    STANDX_ERROR_CODES = {
+      400: "BAD_REQUEST",
+      401: "UNAUTHORIZED",
+      // live-verified (missing jwt)
+      403: "FORBIDDEN",
+      404: "NOT_FOUND",
+      408: "PONG_TIMEOUT",
+      // WS: "disconnecting due to not receive Pong within 5 minute period"
+      429: "RATE_LIMIT_EXCEEDED",
+      500: "INTERNAL_SERVER_ERROR"
+    };
+  }
+});
+
+// src/adapters/standx/StandxAdapter.ts
+var NOT_IMPLEMENTED_SUFFIX2, DEFAULT_FUNDING_WINDOW_MS, DEFAULT_OHLCV_LIMIT, StandxAdapter;
+var init_StandxAdapter = __esm({
+  "src/adapters/standx/StandxAdapter.ts"() {
+    "use strict";
+    init_errors();
+    init_BaseAdapter();
+    init_HTTPClient();
+    init_RateLimiter();
+    init_constants16();
+    init_StandxNormalizer();
+    init_StandxWebSocketWrapper();
+    init_error_codes11();
+    init_utils13();
+    NOT_IMPLEMENTED_SUFFIX2 = "not implemented \u2014 standx adapter is PUBLIC-MARKET-DATA-FIRST (has-flag is false)";
+    DEFAULT_FUNDING_WINDOW_MS = 24 * 36e5;
+    DEFAULT_OHLCV_LIMIT = 200;
+    StandxAdapter = class extends BaseAdapter {
+      id = "standx";
+      name = "StandX";
+      /**
+       * TRUTHFUL feature map. true = implemented against the live API and
+       * fixture-tested; false = NOT_IMPLEMENTED thrower (public-data-first scope).
+       */
+      has = {
+        // Public market data — implemented + fixture-tested
+        fetchMarkets: true,
+        fetchTicker: true,
+        fetchOrderBook: true,
+        fetchTrades: true,
+        fetchOHLCV: true,
+        fetchFundingRate: true,
+        fetchFundingRateHistory: true,
+        watchOrderBook: true,
+        watchTrades: true,
+        watchTicker: true,
+        // Trading/auth/account — OUT OF SCOPE (NOT_IMPLEMENTED throwers)
+        createOrder: false,
+        cancelOrder: false,
+        cancelAllOrders: false,
+        editOrder: false,
+        setMarginMode: false,
+        fetchPositions: false,
+        fetchBalance: false,
+        setLeverage: false,
+        fetchOpenOrders: false,
+        fetchOrderHistory: false,
+        fetchMyTrades: false,
+        watchOrders: false,
+        watchPositions: false,
+        watchBalance: false
+      };
+      baseUrl;
+      wsUrl;
+      httpClient;
+      rateLimiter;
+      normalizer;
+      wsHandler;
+      constructor(config = {}) {
+        super(config);
+        this.baseUrl = config.apiUrl ?? STANDX_API_URLS.mainnet.rest;
+        this.wsUrl = config.wsUrl ?? STANDX_API_URLS.mainnet.websocket;
+        this.normalizer = new StandxNormalizer();
+        this.rateLimiter = new RateLimiter({
+          maxTokens: config.rateLimit?.maxRequests ?? STANDX_RATE_LIMITS.rest.maxRequests,
+          windowMs: config.rateLimit?.windowMs ?? STANDX_RATE_LIMITS.rest.windowMs,
+          refillRate: config.rateLimit?.maxRequests ?? STANDX_RATE_LIMITS.rest.maxRequests
+        });
+        this.httpClient = new HTTPClient({
+          baseUrl: this.baseUrl,
+          timeout: config.timeout ?? 3e4,
+          retry: {
+            maxAttempts: 3,
+            initialDelay: 1e3,
+            maxDelay: 1e4,
+            multiplier: 2
+          },
+          circuitBreaker: {
+            enabled: true,
+            failureThreshold: 5,
+            resetTimeout: 6e4
+          },
+          exchange: this.id
+        });
+      }
+      /**
+       * Prepares the WS wrapper WITHOUT opening a connection — the socket is
+       * opened lazily on the first watch* call (public REST needs no socket).
+       */
+      async initialize() {
+        this.wsHandler = new StandxWebSocketWrapper({
+          wsUrl: this.wsUrl,
+          normalizer: this.normalizer,
+          symbolToExchange: this.symbolToExchange.bind(this)
+        });
+        this._isReady = true;
+      }
+      async disconnect() {
+        if (this.wsHandler) {
+          await this.wsHandler.disconnect();
+        }
+        this._isReady = false;
+      }
+      // === Symbol conversion (required by BaseAdapter) ===
+      symbolToExchange(symbol) {
+        return toStandxSymbol(symbol);
+      }
+      symbolFromExchange(exchangeSymbol) {
+        return toUnifiedSymbol3(exchangeSymbol);
+      }
+      // === HTTP helpers ===
+      /** Bare-payload GET (no envelope). Defensively maps {code,message} bodies. */
+      async publicGet(path, feature) {
+        await this.rateLimiter.acquire(feature);
+        let response;
+        try {
+          response = await this.httpClient.get(path);
+        } catch (error) {
+          throw this.handleError(error);
+        }
+        if (response && typeof response === "object" && !Array.isArray(response)) {
+          const rec = response;
+          if (typeof rec.code === "number" && typeof rec.message === "string") {
+            throw mapStandxError(rec.code, rec.message);
+          }
+        }
+        return response;
+      }
+      handleError(error) {
+        if (error instanceof PerpDEXError) return error;
+        if (error instanceof Error) {
+          const match = error.message.match(/"code"\s*:\s*(\d+)/);
+          if (match?.[1]) {
+            return mapStandxError(parseInt(match[1], 10), error.message);
+          }
+        }
+        return new PerpDEXError(
+          error instanceof Error ? error.message : "Unknown error",
+          "UNKNOWN",
+          "standx"
+        );
+      }
+      // === Public Market Data ===
+      /**
+       * Markets = query_market_overview (symbol DISCOVERY — live 10 symbols,
+       * docs stale at 4) joined with query_symbol_info (no-param form returns
+       * ALL symbols' fees/ticks/leverage; keyless, live-verified). Cached.
+       */
+      async fetchMarkets(_params) {
+        if (this.marketCache && Date.now() < this.marketCacheExpiry) {
+          return this.marketCache;
+        }
+        const [overview, infos] = await Promise.all([
+          this.publicGet("/api/query_market_overview", "fetchMarkets"),
+          this.publicGet("/api/query_symbol_info", "fetchMarkets")
+        ]);
+        if (!Array.isArray(overview?.symbols) || !Array.isArray(infos)) {
+          throw new PerpDEXError("Invalid markets response", "INVALID_RESPONSE", "standx");
+        }
+        const infoBySymbol = new Map(infos.map((i) => [i.symbol, i]));
+        const markets = overview.symbols.map((s) => infoBySymbol.get(s.symbol)).filter((info) => info !== void 0).map((info) => this.normalizer.normalizeMarket(info));
+        this.marketCache = markets;
+        this.marketCacheExpiry = Date.now() + this.marketCacheTTL;
+        return markets;
+      }
+      /** query_symbol_market — full market snapshot (real bid1/ask1) */
+      async _fetchTicker(symbol) {
+        const venueSymbol = toStandxSymbol(symbol);
+        const data = await this.publicGet(
+          `/api/query_symbol_market?symbol=${venueSymbol}`,
+          "fetchTicker"
+        );
+        return this.normalizer.normalizeTicker(data, symbol);
+      }
+      /**
+       * query_depth_book — NO venue limit param; level ordering NOT guaranteed.
+       * The normalizer sorts; `limit` is sliced client-side afterwards.
+       */
+      async _fetchOrderBook(symbol, params) {
+        const venueSymbol = toStandxSymbol(symbol);
+        const data = await this.publicGet(
+          `/api/query_depth_book?symbol=${venueSymbol}`,
+          "fetchOrderBook"
+        );
+        const book = this.normalizer.normalizeOrderBook(data, symbol);
+        if (params?.limit !== void 0) {
+          return {
+            ...book,
+            bids: book.bids.slice(0, params.limit),
+            asks: book.asks.slice(0, params.limit)
+          };
+        }
+        return book;
+      }
+      /** query_recent_trades — venue has no limit param; sliced client-side */
+      async _fetchTrades(symbol, params) {
+        const venueSymbol = toStandxSymbol(symbol);
+        const data = await this.publicGet(
+          `/api/query_recent_trades?symbol=${venueSymbol}`,
+          "fetchTrades"
+        );
+        if (!Array.isArray(data)) {
+          throw new PerpDEXError("Invalid trades response", "INVALID_RESPONSE", "standx");
+        }
+        const trades = data.map((t) => this.normalizer.normalizeRestTrade(t, symbol));
+        return params?.limit !== void 0 ? trades.slice(0, params.limit) : trades;
+      }
+      /** Current funding via query_symbol_market (rate + ISO next_funding_time) */
+      async _fetchFundingRate(symbol) {
+        const venueSymbol = toStandxSymbol(symbol);
+        const data = await this.publicGet(
+          `/api/query_symbol_market?symbol=${venueSymbol}`,
+          "fetchFundingRate"
+        );
+        return this.normalizer.normalizeFundingRate(data, symbol);
+      }
+      /**
+       * query_funding_rates — start_time AND end_time (ms) are REQUIRED by the
+       * venue (omitting either is a 400), so both are always sent. The venue
+       * returns the window ascending; since/limit are applied client-side.
+       */
+      async fetchFundingRateHistory(symbol, since, limit) {
+        const venueSymbol = toStandxSymbol(symbol);
+        const endTime = Date.now();
+        const startTime = since ?? endTime - (limit !== void 0 ? limit * 36e5 : DEFAULT_FUNDING_WINDOW_MS);
+        const data = await this.publicGet(
+          `/api/query_funding_rates?symbol=${venueSymbol}&start_time=${startTime}&end_time=${endTime}`,
+          "fetchFundingRateHistory"
+        );
+        if (!Array.isArray(data)) {
+          throw new PerpDEXError("Invalid funding rates response", "INVALID_RESPONSE", "standx");
+        }
+        const history = data.map((entry) => this.normalizer.normalizeFundingRateHistoryEntry(entry, symbol)).filter((f) => since === void 0 || f.fundingTimestamp >= since);
+        return limit !== void 0 ? history.slice(0, limit) : history;
+      }
+      /** kline/history — TradingView-UDF; from/to are SECONDS; columns→rows */
+      async fetchOHLCV(symbol, timeframe, params) {
+        const venueSymbol = toStandxSymbol(symbol);
+        const resolution = STANDX_KLINE_RESOLUTIONS[timeframe];
+        const tfSeconds = STANDX_TIMEFRAME_SECONDS[timeframe];
+        if (!resolution || !tfSeconds) {
+          throw new PerpDEXError(
+            `Unsupported timeframe for standx: ${timeframe} (venue supports ${Object.keys(STANDX_KLINE_RESOLUTIONS).join(", ")})`,
+            "INVALID_PARAM",
+            "standx"
+          );
+        }
+        const limit = params?.limit ?? DEFAULT_OHLCV_LIMIT;
+        const to = Math.floor((params?.until ?? Date.now()) / 1e3);
+        const from = params?.since !== void 0 ? Math.floor(params.since / 1e3) : to - limit * tfSeconds;
+        const data = await this.publicGet(
+          `/api/kline/history?symbol=${venueSymbol}&resolution=${resolution}&from=${from}&to=${to}`,
+          "fetchOHLCV"
+        );
+        const ohlcv = this.normalizer.normalizeOHLCV(data);
+        return params?.limit !== void 0 ? ohlcv.slice(-params.limit) : ohlcv;
+      }
+      // === WebSocket Streams (lazy connect — opened on first watch*) ===
+      async ensureWebSocketConnected() {
+        this.ensureInitialized();
+        if (!this.wsHandler) {
+          throw new PerpDEXError("WebSocket handler not initialized", "NO_WEBSOCKET", "standx");
+        }
+        await this.wsHandler.connect();
+        return this.wsHandler;
+      }
+      async *watchOrderBook(symbol, limit) {
+        const ws = await this.ensureWebSocketConnected();
+        yield* ws.watchOrderBook(symbol, limit);
+      }
+      async *watchTrades(symbol) {
+        const ws = await this.ensureWebSocketConnected();
+        yield* ws.watchTrades(symbol);
+      }
+      async *watchTicker(symbol) {
+        const ws = await this.ensureWebSocketConnected();
+        yield* ws.watchTicker(symbol);
+      }
+      // ===========================================================================
+      // NOT IMPLEMENTED — PUBLIC-MARKET-DATA-FIRST scope (has-flags are false).
+      // BaseAdapter requires these abstract members; they throw rather than lie.
+      // StandX trading needs JWT wallet-signature auth + body signing (later phase).
+      // ===========================================================================
+      async createOrder(_request) {
+        throw new PerpDEXError(`createOrder ${NOT_IMPLEMENTED_SUFFIX2}`, "NOT_IMPLEMENTED", "standx");
+      }
+      async cancelOrder(_orderId, _symbol) {
+        throw new PerpDEXError(`cancelOrder ${NOT_IMPLEMENTED_SUFFIX2}`, "NOT_IMPLEMENTED", "standx");
+      }
+      async cancelAllOrders(_symbol) {
+        throw new PerpDEXError(
+          `cancelAllOrders ${NOT_IMPLEMENTED_SUFFIX2}`,
+          "NOT_IMPLEMENTED",
+          "standx"
+        );
+      }
+      async fetchOrderHistory(_symbol, _since, _limit) {
+        throw new PerpDEXError(
+          `fetchOrderHistory ${NOT_IMPLEMENTED_SUFFIX2}`,
+          "NOT_IMPLEMENTED",
+          "standx"
+        );
+      }
+      async fetchMyTrades(_symbol, _since, _limit) {
+        throw new PerpDEXError(`fetchMyTrades ${NOT_IMPLEMENTED_SUFFIX2}`, "NOT_IMPLEMENTED", "standx");
+      }
+      async fetchPositions(_symbols) {
+        throw new PerpDEXError(
+          `fetchPositions ${NOT_IMPLEMENTED_SUFFIX2}`,
+          "NOT_IMPLEMENTED",
+          "standx"
+        );
+      }
+      async fetchBalance() {
+        throw new PerpDEXError(`fetchBalance ${NOT_IMPLEMENTED_SUFFIX2}`, "NOT_IMPLEMENTED", "standx");
+      }
+      async _setLeverage(_symbol, _leverage) {
+        throw new PerpDEXError(`setLeverage ${NOT_IMPLEMENTED_SUFFIX2}`, "NOT_IMPLEMENTED", "standx");
+      }
+    };
+  }
+});
+
+// src/adapters/standx/index.ts
+var standx_exports = {};
+__export(standx_exports, {
+  STANDX_API_URLS: () => STANDX_API_URLS,
+  STANDX_ERROR_CODES: () => STANDX_ERROR_CODES,
+  STANDX_RATE_LIMITS: () => STANDX_RATE_LIMITS,
+  STANDX_WS_CHANNELS: () => STANDX_WS_CHANNELS,
+  StandxAdapter: () => StandxAdapter,
+  StandxNormalizer: () => StandxNormalizer,
+  StandxWebSocketWrapper: () => StandxWebSocketWrapper,
+  mapStandxError: () => mapStandxError,
+  mapStandxHttpError: () => mapStandxHttpError
+});
+var init_standx = __esm({
+  "src/adapters/standx/index.ts"() {
+    "use strict";
+    init_StandxAdapter();
+    init_StandxNormalizer();
+    init_StandxWebSocketWrapper();
+    init_error_codes11();
+    init_constants16();
+  }
+});
+
 // src/adapters/pacifica/constants.ts
 var PACIFICA_API_URLS, PACIFICA_RATE_LIMITS, PACIFICA_ENDPOINT_WEIGHTS, PACIFICA_ORDER_STATUS, PACIFICA_AUTH_WINDOW;
-var init_constants15 = __esm({
+var init_constants17 = __esm({
   "src/adapters/pacifica/constants.ts"() {
     "use strict";
     PACIFICA_API_URLS = {
@@ -55364,7 +57409,7 @@ var init_PacificaAuth = __esm({
     init_ed25519();
     init_buffer();
     init_errors();
-    init_constants15();
+    init_constants17();
     PacificaAuth = class {
       apiKey;
       apiSecret;
@@ -55418,7 +57463,7 @@ var init_PacificaAuth = __esm({
 
 // src/adapters/pacifica/types.ts
 var PacificaMarketSchema, PacificaTickerSchema, PacificaOrderBookLevelSchema, PacificaOrderBookSchema, PacificaTradeResponseSchema, PacificaFundingHistorySchema, PacificaOrderResponseSchema, PacificaPositionSchema, PacificaAccountInfoSchema;
-var init_types17 = __esm({
+var init_types19 = __esm({
   "src/adapters/pacifica/types.ts"() {
     "use strict";
     init_zod();
@@ -55520,7 +57565,7 @@ function toPacificaSymbol(unified) {
   const parts = unified.split(/[/:]/);
   return parts[0];
 }
-function toUnifiedSymbol2(pacificaSymbol) {
+function toUnifiedSymbol4(pacificaSymbol) {
   return `${pacificaSymbol}/USDC:USDC`;
 }
 function buildOrderBody(request, pacificaSymbol, builderCode) {
@@ -55551,7 +57596,7 @@ function buildOrderBody(request, pacificaSymbol, builderCode) {
   }
   return body;
 }
-var init_utils12 = __esm({
+var init_utils14 = __esm({
   "src/adapters/pacifica/utils.ts"() {
     "use strict";
   }
@@ -55562,9 +57607,9 @@ var PacificaNormalizer;
 var init_PacificaNormalizer = __esm({
   "src/adapters/pacifica/PacificaNormalizer.ts"() {
     "use strict";
-    init_constants15();
-    init_types17();
-    init_utils12();
+    init_constants17();
+    init_types19();
+    init_utils14();
     PacificaNormalizer = class {
       /**
        * Normalize /info market entry.
@@ -55572,7 +57617,7 @@ var init_PacificaNormalizer = __esm({
        */
       normalizeMarket(raw) {
         const validated = PacificaMarketSchema.parse(raw);
-        const symbol = toUnifiedSymbol2(validated.symbol);
+        const symbol = toUnifiedSymbol4(validated.symbol);
         const base = validated.symbol;
         return {
           id: validated.symbol,
@@ -55605,7 +57650,7 @@ var init_PacificaNormalizer = __esm({
         const change = mid - yesterday;
         const percentage = yesterday !== 0 ? change / yesterday * 100 : 0;
         return {
-          symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
+          symbol: symbol ?? toUnifiedSymbol4(validated.symbol),
           last: mid,
           bid: mid,
           ask: mid,
@@ -55693,7 +57738,7 @@ var init_PacificaNormalizer = __esm({
         );
         return {
           id: validated.order_id,
-          symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
+          symbol: symbol ?? toUnifiedSymbol4(validated.symbol),
           type: validated.type === "market" ? "market" : "limit",
           side: validated.side,
           amount,
@@ -55727,7 +57772,7 @@ var init_PacificaNormalizer = __esm({
         );
         const notional = size * markPrice;
         return {
-          symbol: symbol ?? toUnifiedSymbol2(validated.symbol),
+          symbol: symbol ?? toUnifiedSymbol4(validated.symbol),
           side: validated.side,
           size,
           entryPrice: parseFloat(
@@ -55773,7 +57818,7 @@ var init_PacificaNormalizer = __esm({
         return decimals.replace(/0+$/, "").length || 0;
       }
       normalizeSymbol(exchangeSymbol) {
-        return toUnifiedSymbol2(exchangeSymbol);
+        return toUnifiedSymbol4(exchangeSymbol);
       }
       toExchangeSymbol(symbol) {
         return toPacificaSymbol(symbol);
@@ -55815,7 +57860,7 @@ function mapPacificaError(code, message) {
   }
 }
 var PACIFICA_ERROR_CODES;
-var init_error_codes10 = __esm({
+var init_error_codes12 = __esm({
   "src/adapters/pacifica/error-codes.ts"() {
     "use strict";
     init_errors();
@@ -55850,11 +57895,11 @@ var init_PacificaAdapter = __esm({
     init_BaseAdapter();
     init_HTTPClient();
     init_RateLimiter();
-    init_constants15();
+    init_constants17();
     init_PacificaAuth();
     init_PacificaNormalizer();
-    init_utils12();
-    init_error_codes10();
+    init_utils14();
+    init_error_codes12();
     PacificaAdapter = class extends BaseAdapter {
       id = "pacifica";
       name = "Pacifica";
@@ -56127,7 +58172,7 @@ var init_PacificaAdapter = __esm({
         return toPacificaSymbol(symbol);
       }
       symbolFromExchange(exchangeSymbol) {
-        return toUnifiedSymbol2(exchangeSymbol);
+        return toUnifiedSymbol4(exchangeSymbol);
       }
     };
   }
@@ -56151,8 +58196,8 @@ var init_pacifica = __esm({
     init_PacificaAdapter();
     init_PacificaAuth();
     init_PacificaNormalizer();
-    init_error_codes10();
-    init_constants15();
+    init_error_codes12();
+    init_constants17();
   }
 });
 
@@ -56178,7 +58223,7 @@ function validateContractAddresses(contracts) {
   }
 }
 var OSTIUM_METADATA_URL, OSTIUM_SUBGRAPH_URL, OSTIUM_RPC_URLS, OSTIUM_CONTRACTS, PLACEHOLDER_ADDRESSES, OSTIUM_RATE_LIMITS, OSTIUM_ENDPOINT_WEIGHTS, OSTIUM_PAIRS, OSTIUM_TRADING_ABI, OSTIUM_STORAGE_ABI, OSTIUM_COLLATERAL_ABI, OSTIUM_COLLATERAL_DECIMALS, OSTIUM_PRICE_DECIMALS;
-var init_constants16 = __esm({
+var init_constants18 = __esm({
   "src/adapters/ostium/constants.ts"() {
     "use strict";
     OSTIUM_METADATA_URL = "https://metadata-backend.ostium.io";
@@ -56440,7 +58485,7 @@ var OstiumContracts;
 var init_OstiumContracts = __esm({
   "src/adapters/ostium/OstiumContracts.ts"() {
     "use strict";
-    init_constants16();
+    init_constants18();
     OstiumContracts = class {
       addresses;
       rpcUrl;
@@ -56537,7 +58582,7 @@ var OstiumSubgraph;
 var init_OstiumSubgraph = __esm({
   "src/adapters/ostium/OstiumSubgraph.ts"() {
     "use strict";
-    init_constants16();
+    init_constants18();
     init_errors();
     OstiumSubgraph = class {
       url;
@@ -56610,7 +58655,7 @@ var init_OstiumSubgraph = __esm({
 
 // src/adapters/ostium/types.ts
 var OstiumPairInfoSchema, OstiumPriceResponseSchema, OstiumOpenTradeSchema, OstiumSubgraphTradeSchema, OstiumSubgraphPositionSchema;
-var init_types18 = __esm({
+var init_types20 = __esm({
   "src/adapters/ostium/types.ts"() {
     "use strict";
     init_zod();
@@ -56687,7 +58732,7 @@ function toOstiumPairIndex(unified) {
   if (pair) return pair.pairIndex;
   throw new PerpDEXError(`Unknown Ostium pair: ${unified}`, "PAIR_NOT_FOUND", "ostium");
 }
-function toUnifiedSymbol3(pairIndex) {
+function toUnifiedSymbol5(pairIndex) {
   const pair = OSTIUM_PAIRS.find((p) => p.pairIndex === pairIndex);
   if (!pair) return `UNKNOWN-${pairIndex}/USD:USD`;
   return `${pair.from}/${pair.to}:${pair.to}`;
@@ -56708,10 +58753,10 @@ function formatPrice3(price) {
 function parsePrice(raw) {
   return parseInt(raw, 10) / 10 ** OSTIUM_PRICE_DECIMALS;
 }
-var init_utils13 = __esm({
+var init_utils15 = __esm({
   "src/adapters/ostium/utils.ts"() {
     "use strict";
-    init_constants16();
+    init_constants18();
     init_errors();
   }
 });
@@ -56722,8 +58767,8 @@ var init_OstiumNormalizer = __esm({
   "src/adapters/ostium/OstiumNormalizer.ts"() {
     "use strict";
     init_errors();
-    init_types18();
-    init_utils13();
+    init_types20();
+    init_utils15();
     OstiumNormalizer = class {
       normalizeMarket(pair) {
         const validated = OstiumPairInfoSchema.parse(pair);
@@ -56780,7 +58825,7 @@ var init_OstiumNormalizer = __esm({
         const amount = parseFloat(validated.size);
         return {
           id: validated.id,
-          symbol: toUnifiedSymbol3(parseInt(validated.pairIndex, 10)),
+          symbol: toUnifiedSymbol5(parseInt(validated.pairIndex, 10)),
           side: validated.buy ? "buy" : "sell",
           price,
           amount,
@@ -56799,7 +58844,7 @@ var init_OstiumNormalizer = __esm({
         const pnlMultiplier = validated.buy ? 1 : -1;
         const unrealizedPnl = notional * pnlMultiplier * ((markPrice - entryPrice) / entryPrice);
         return {
-          symbol: toUnifiedSymbol3(parseInt(validated.pairIndex, 10)),
+          symbol: toUnifiedSymbol5(parseInt(validated.pairIndex, 10)),
           side: validated.buy ? "long" : "short",
           size,
           entryPrice,
@@ -56833,7 +58878,7 @@ var init_OstiumNormalizer = __esm({
         const validated = OstiumOpenTradeSchema.parse(raw);
         return {
           id: `${validated.pairIndex}-${validated.index}`,
-          symbol: toUnifiedSymbol3(validated.pairIndex),
+          symbol: toUnifiedSymbol5(validated.pairIndex),
           type: "market",
           side: validated.buy ? "buy" : "sell",
           amount: parseCollateral(validated.positionSizeDai),
@@ -56863,7 +58908,7 @@ var init_OstiumNormalizer = __esm({
       }
       normalizeSymbol(exchangeSymbol) {
         const pairIndex = parseInt(exchangeSymbol, 10);
-        return toUnifiedSymbol3(pairIndex);
+        return toUnifiedSymbol5(pairIndex);
       }
       toExchangeSymbol(symbol) {
         return String(toOstiumPairIndex(symbol));
@@ -56925,7 +58970,7 @@ function mapOstiumError(error) {
   );
 }
 var OSTIUM_ERROR_PATTERNS;
-var init_error_codes11 = __esm({
+var init_error_codes13 = __esm({
   "src/adapters/ostium/error-codes.ts"() {
     "use strict";
     init_errors();
@@ -56959,13 +59004,13 @@ var init_OstiumAdapter = __esm({
     init_errors();
     init_BaseAdapter();
     init_RateLimiter();
-    init_constants16();
+    init_constants18();
     init_OstiumAuth();
     init_OstiumContracts();
     init_OstiumSubgraph();
     init_OstiumNormalizer();
-    init_utils13();
-    init_error_codes11();
+    init_utils15();
+    init_error_codes13();
     OstiumAdapter = class extends BaseAdapter {
       id = "ostium";
       name = "Ostium";
@@ -57137,7 +59182,7 @@ var init_OstiumAdapter = __esm({
           const result = await this.contracts.cancelOrder(pairIndex, index);
           return {
             id: orderId,
-            symbol: toUnifiedSymbol3(pairIndex),
+            symbol: toUnifiedSymbol5(pairIndex),
             type: "limit",
             side: "buy",
             amount: 0,
@@ -57234,8 +59279,8 @@ var init_ostium = __esm({
     init_OstiumContracts();
     init_OstiumSubgraph();
     init_OstiumNormalizer();
-    init_error_codes11();
-    init_constants16();
+    init_error_codes13();
+    init_constants18();
   }
 });
 
@@ -57269,7 +59314,7 @@ function reyaToUnified(exchangeSymbol) {
   return exchangeSymbol;
 }
 var REYA_MAINNET_API, REYA_TESTNET_API, REYA_MAINNET_WS, REYA_TESTNET_WS, REYA_CHAIN_ID, REYA_EIP712_DOMAIN, REYA_RATE_LIMIT, REYA_ORDER_TYPES, REYA_TIME_IN_FORCE, REYA_ORDER_STATUS, REYA_DEFAULT_PRECISION, REYA_WS_CHANNELS, REYA_WS_RECONNECT, REYA_FUNDING_INTERVAL_HOURS, REYA_EXCHANGE_ID;
-var init_constants17 = __esm({
+var init_constants19 = __esm({
   "src/adapters/reya/constants.ts"() {
     "use strict";
     REYA_MAINNET_API = "https://api.reya.xyz/v2";
@@ -57351,7 +59396,7 @@ var ReyaAuth;
 var init_ReyaAuth = __esm({
   "src/adapters/reya/ReyaAuth.ts"() {
     "use strict";
-    init_constants17();
+    init_constants19();
     ReyaAuth = class {
       constructor(wallet) {
         this.wallet = wallet;
@@ -57531,17 +59576,17 @@ function mapTimeframeToResolution(timeframe) {
   };
   return mapping[timeframe] ?? "1h";
 }
-var init_utils14 = __esm({
+var init_utils16 = __esm({
   "src/adapters/reya/utils.ts"() {
     "use strict";
-    init_constants17();
-    init_constants17();
+    init_constants19();
+    init_constants19();
   }
 });
 
 // src/adapters/reya/types.ts
 var ReyaMarketDefinitionSchema, ReyaMarketSummarySchema, ReyaPriceSchema, ReyaDepthLevelSchema, ReyaDepthSchema, ReyaPerpExecutionSchema, ReyaOrderSchema, ReyaPositionSchema, ReyaAccountBalanceSchema, ReyaAccountSchema, ReyaCandleHistoryDataSchema, ReyaCreateOrderResponseSchema, ReyaCancelOrderResponseSchema, ReyaMassCancelResponseSchema, ReyaPerpExecutionListSchema, ReyaAssetDefinitionSchema, ReyaFeeTierParametersSchema;
-var init_types19 = __esm({
+var init_types21 = __esm({
   "src/adapters/reya/types.ts"() {
     "use strict";
     init_zod();
@@ -57695,9 +59740,9 @@ var ReyaNormalizer;
 var init_ReyaNormalizer = __esm({
   "src/adapters/reya/ReyaNormalizer.ts"() {
     "use strict";
-    init_constants17();
-    init_utils14();
-    init_types19();
+    init_constants19();
+    init_utils16();
+    init_types21();
     ReyaNormalizer = class {
       // ===========================================================================
       // Symbol Conversion
@@ -58019,7 +60064,7 @@ function mapError5(error) {
   return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "reya", error);
 }
 var REYA_CLIENT_ERRORS, REYA_SERVER_ERRORS, REYA_RATE_LIMIT_ERROR, REYA_ERROR_MESSAGES;
-var init_error_codes12 = __esm({
+var init_error_codes14 = __esm({
   "src/adapters/reya/error-codes.ts"() {
     "use strict";
     init_type_guards();
@@ -58066,11 +60111,11 @@ var init_ReyaAdapter = __esm({
     init_BaseAdapter();
     init_HTTPClient();
     init_RateLimiter();
-    init_constants17();
+    init_constants19();
     init_ReyaAuth();
     init_ReyaNormalizer();
-    init_utils14();
-    init_error_codes12();
+    init_utils16();
+    init_error_codes14();
     ReyaAdapter = class extends BaseAdapter {
       id = "reya";
       name = "Reya";
@@ -58484,7 +60529,7 @@ var init_reya = __esm({
     init_ReyaAdapter();
     init_ReyaNormalizer();
     init_ReyaAuth();
-    init_constants17();
+    init_constants19();
   }
 });
 
@@ -58506,7 +60551,7 @@ function etherealToUnified(exchangeSymbol) {
   return `${base}/${quote}:${quote}`;
 }
 var ETHEREAL_API_URLS, ETHEREAL_CHAIN_ID, ETHEREAL_EIP712_DOMAIN, ETHEREAL_RATE_LIMITS, ETHEREAL_ENDPOINT_WEIGHTS, ETHEREAL_ORDER_TYPES, ETHEREAL_ORDER_SIDES, ETHEREAL_TIME_IN_FORCE, ETHEREAL_ORDER_STATUS, ETHEREAL_KLINE_INTERVALS, ETHEREAL_DEFAULT_PRECISION, ETHEREAL_FUNDING_INTERVAL_HOURS;
-var init_constants18 = __esm({
+var init_constants20 = __esm({
   "src/adapters/ethereal/constants.ts"() {
     "use strict";
     ETHEREAL_API_URLS = {
@@ -58599,7 +60644,7 @@ var EtherealAuth;
 var init_EtherealAuth = __esm({
   "src/adapters/ethereal/EtherealAuth.ts"() {
     "use strict";
-    init_constants18();
+    init_constants20();
     EtherealAuth = class {
       constructor(wallet) {
         this.wallet = wallet;
@@ -58696,7 +60741,7 @@ var init_EtherealAuth = __esm({
 
 // src/adapters/ethereal/types.ts
 var EtherealMarketInfoSchema, EtherealTickerSchema, EtherealOrderBookResponseSchema, EtherealTradeResponseSchema, EtherealOrderResponseSchema, EtherealPositionResponseSchema, EtherealBalanceResponseSchema, EtherealCandleResponseSchema, EtherealFundingRateResponseSchema;
-var init_types20 = __esm({
+var init_types22 = __esm({
   "src/adapters/ethereal/types.ts"() {
     "use strict";
     init_zod();
@@ -58797,9 +60842,9 @@ var EtherealNormalizer;
 var init_EtherealNormalizer = __esm({
   "src/adapters/ethereal/EtherealNormalizer.ts"() {
     "use strict";
-    init_constants18();
-    init_constants18();
-    init_types20();
+    init_constants20();
+    init_constants20();
+    init_types22();
     EtherealNormalizer = class {
       // ===========================================================================
       // Symbol Conversion
@@ -59064,10 +61109,10 @@ function buildOrderRequest2(request, accountId, signature, nonce) {
   }
   return orderReq;
 }
-var init_utils15 = __esm({
+var init_utils17 = __esm({
   "src/adapters/ethereal/utils.ts"() {
     "use strict";
-    init_constants18();
+    init_constants20();
   }
 });
 
@@ -59125,7 +61170,7 @@ function isRetryableError4(errorCode) {
   return includesValue(Object.values(ETHEREAL_SERVER_ERRORS), errorCode) || errorCode === ETHEREAL_RATE_LIMIT_ERROR;
 }
 var ETHEREAL_CLIENT_ERRORS, ETHEREAL_SERVER_ERRORS, ETHEREAL_RATE_LIMIT_ERROR, ETHEREAL_ERROR_MESSAGES;
-var init_error_codes13 = __esm({
+var init_error_codes15 = __esm({
   "src/adapters/ethereal/error-codes.ts"() {
     "use strict";
     init_type_guards();
@@ -59169,11 +61214,11 @@ var init_EtherealAdapter = __esm({
     init_BaseAdapter();
     init_HTTPClient();
     init_RateLimiter();
-    init_constants18();
+    init_constants20();
     init_EtherealAuth();
     init_EtherealNormalizer();
-    init_utils15();
-    init_error_codes13();
+    init_utils17();
+    init_error_codes15();
     EtherealAdapter = class extends BaseAdapter {
       id = "ethereal";
       name = "Ethereal";
@@ -59595,8 +61640,8 @@ var init_ethereal = __esm({
     init_EtherealAdapter();
     init_EtherealAuth();
     init_EtherealNormalizer();
-    init_constants18();
-    init_error_codes13();
+    init_constants20();
+    init_error_codes15();
   }
 });
 
@@ -59618,7 +61663,7 @@ function avantisToUnified(pairIndex) {
   return `${base}/USD:USD`;
 }
 var AVANTIS_CHAIN_ID_MAINNET, AVANTIS_CHAIN_ID_TESTNET, AVANTIS_RPC_MAINNET, AVANTIS_RPC_TESTNET, AVANTIS_API_URLS, AVANTIS_CONTRACTS_MAINNET, AVANTIS_CONTRACTS_TESTNET, PYTH_PRICE_FEED_IDS, AVANTIS_RATE_LIMIT, AVANTIS_ORDER_TYPES, AVANTIS_FUNDING_INTERVAL_HOURS, AVANTIS_DEFAULT_PRECISION, AVANTIS_PAIR_INDEX_MAP, AVANTIS_INDEX_TO_SYMBOL, AVANTIS_TRADING_ABI, AVANTIS_STORAGE_ABI, AVANTIS_PAIR_INFO_ABI, AVANTIS_PYTH_ABI, AVANTIS_ERC20_ABI;
-var init_constants19 = __esm({
+var init_constants21 = __esm({
   "src/adapters/avantis/constants.ts"() {
     "use strict";
     AVANTIS_CHAIN_ID_MAINNET = 8453;
@@ -59833,16 +61878,16 @@ function buildOrderParams2(request, traderAddress) {
     sl
   };
 }
-var init_utils16 = __esm({
+var init_utils18 = __esm({
   "src/adapters/avantis/utils.ts"() {
     "use strict";
-    init_constants19();
+    init_constants21();
   }
 });
 
 // src/adapters/avantis/types.ts
 var AvantisPairInfoSchema, AvantisOpenTradeSchema, AvantisOpenLimitOrderSchema, AvantisPythPriceSchema, AvantisFundingFeesSchema, AvantisOrderParamsSchema, AvantisBalanceSchema;
-var init_types21 = __esm({
+var init_types23 = __esm({
   "src/adapters/avantis/types.ts"() {
     "use strict";
     init_zod();
@@ -59916,9 +61961,9 @@ var AvantisNormalizer;
 var init_AvantisNormalizer = __esm({
   "src/adapters/avantis/AvantisNormalizer.ts"() {
     "use strict";
-    init_constants19();
-    init_utils16();
-    init_types21();
+    init_constants21();
+    init_utils18();
+    init_types23();
     AvantisNormalizer = class {
       // ===========================================================================
       // Symbol Conversion
@@ -60122,7 +62167,7 @@ function mapError7(error) {
   return new ExchangeUnavailableError("Unknown exchange error", "UNKNOWN_ERROR", "avantis", error);
 }
 var AVANTIS_REVERT_ERRORS, AVANTIS_TX_ERRORS, AVANTIS_ERROR_MESSAGES;
-var init_error_codes14 = __esm({
+var init_error_codes16 = __esm({
   "src/adapters/avantis/error-codes.ts"() {
     "use strict";
     init_type_guards();
@@ -60183,11 +62228,11 @@ var init_AvantisAdapter = __esm({
     init_errors();
     init_BaseAdapter();
     init_RateLimiter();
-    init_constants19();
+    init_constants21();
     init_AvantisAuth();
     init_AvantisNormalizer();
-    init_utils16();
-    init_error_codes14();
+    init_utils18();
+    init_error_codes16();
     AvantisAdapter = class extends BaseAdapter {
       id = "avantis";
       name = "Avantis";
@@ -60655,7 +62700,7 @@ var init_avantis = __esm({
     init_AvantisAdapter();
     init_AvantisNormalizer();
     init_AvantisAuth();
-    init_constants19();
+    init_constants21();
   }
 });
 
@@ -60785,7 +62830,7 @@ var init_dist_node = __esm({
 
 // src/adapters/katana/constants.ts
 var KATANA_API_URLS, KATANA_RATE_LIMITS, KATANA_ENDPOINT_WEIGHTS, KATANA_ORDER_TYPES, KATANA_ORDER_TYPE_REVERSE, KATANA_ORDER_SIDES, KATANA_ORDER_SIDE_REVERSE, KATANA_TIME_IN_FORCE, KATANA_TIME_IN_FORCE_REVERSE, KATANA_WIRE_TIME_IN_FORCE, KATANA_WIRE_SELF_TRADE_PREVENTION, KATANA_TRIGGER_TYPES, KATANA_SELF_TRADE_PREVENTION, KATANA_ORDER_STATUS, KATANA_EIP712_DOMAIN, KATANA_EIP712_ORDER_TYPE, KATANA_EIP712_CANCEL_TYPE, KATANA_EIP712_WITHDRAW_TYPE, KATANA_PRECISION, KATANA_AUTH_HEADERS, KATANA_FUNDING_INTERVAL_HOURS, KATANA_NONCE_WINDOW_MS, KATANA_DEFAULT_FEES, KATANA_WS_CONFIG, KATANA_WS_CHANNELS, KATANA_TIMEFRAMES, KATANA_NULL_ADDRESS, KATANA_ZERO_DECIMAL;
-var init_constants20 = __esm({
+var init_constants22 = __esm({
   "src/adapters/katana/constants.ts"() {
     "use strict";
     KATANA_API_URLS = {
@@ -61004,7 +63049,7 @@ var init_KatanaAuth = __esm({
     "use strict";
     init_dist_node();
     init_crypto();
-    init_constants20();
+    init_constants22();
     KatanaAuth = class {
       apiKey;
       apiSecret;
@@ -61445,10 +63490,10 @@ function mapError8(error) {
   return new PerpDEXError(message, err2.code ?? "UNKNOWN", "katana", error);
 }
 var UINT128_MASK;
-var init_utils17 = __esm({
+var init_utils19 = __esm({
   "src/adapters/katana/utils.ts"() {
     "use strict";
-    init_constants20();
+    init_constants22();
     init_errors();
     UINT128_MASK = (1n << 128n) - 1n;
   }
@@ -61464,8 +63509,8 @@ var init_KatanaAdapter = __esm({
     init_errors();
     init_HTTPClient();
     init_KatanaAuth();
-    init_constants20();
-    init_utils17();
+    init_constants22();
+    init_utils19();
     KatanaAdapter = class extends BaseAdapter {
       id = "katana";
       name = "Katana";
@@ -61842,7 +63887,7 @@ var init_KatanaAdapter = __esm({
 
 // src/adapters/katana/types.ts
 var KatanaMarketSchema, KatanaTickerSchema, KatanaOrderBookSchema, KatanaTradeSchema, KatanaCandleSchema, KatanaFundingRateSchema, KatanaOrderSchema, KatanaPositionSchema, KatanaWalletSchema, KatanaFillSchema;
-var init_types22 = __esm({
+var init_types24 = __esm({
   "src/adapters/katana/types.ts"() {
     "use strict";
     init_zod();
@@ -62033,15 +64078,17 @@ var init_katana = __esm({
     "use strict";
     init_KatanaAdapter();
     init_KatanaAuth();
-    init_types22();
-    init_constants20();
-    init_utils17();
+    init_types24();
+    init_constants22();
+    init_utils19();
   }
 });
 
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
+  ApexAdapter: () => ApexAdapter,
+  ApexNormalizer: () => ApexNormalizer,
   AsterAdapter: () => AsterAdapter,
   AsterAuth: () => AsterAuth,
   AsterNormalizer: () => AsterNormalizer,
@@ -62108,6 +64155,8 @@ __export(index_exports, {
   Resilient: () => Resilient,
   RetryStats: () => RetryStats,
   SlippageExceededError: () => SlippageExceededError,
+  StandxAdapter: () => StandxAdapter,
+  StandxNormalizer: () => StandxNormalizer,
   TIME_IN_FORCE: () => TIME_IN_FORCE,
   TickerSchema: () => TickerSchema,
   TradeSchema: () => TradeSchema,
@@ -62226,6 +64275,8 @@ var adapterLoaders = {
   drift: async () => (await Promise.resolve().then(() => (init_drift(), drift_exports))).DriftAdapter,
   gmx: async () => (await Promise.resolve().then(() => (init_gmx(), gmx_exports))).GmxAdapter,
   aster: async () => (await Promise.resolve().then(() => (init_aster(), aster_exports))).AsterAdapter,
+  apex: async () => (await Promise.resolve().then(() => (init_apex(), apex_exports))).ApexAdapter,
+  standx: async () => (await Promise.resolve().then(() => (init_standx(), standx_exports))).StandxAdapter,
   pacifica: async () => (await Promise.resolve().then(() => (init_pacifica(), pacifica_exports))).PacificaAdapter,
   ostium: async () => (await Promise.resolve().then(() => (init_ostium(), ostium_exports))).OstiumAdapter,
   reya: async () => (await Promise.resolve().then(() => (init_reya(), reya_exports))).ReyaAdapter,
@@ -63071,6 +65122,10 @@ var EXCHANGE_ENV_REQUIREMENTS = {
   // Chain selection; add GMX_WALLET_ADDRESS for positions
   // Aster (BNB Chain, Binance-style HMAC)
   aster: ["ASTER_API_KEY", "ASTER_API_SECRET"],
+  // ApeX Omni (PUBLIC-MARKET-DATA-FIRST — keyless; trading not implemented)
+  apex: [],
+  // StandX (PUBLIC-MARKET-DATA-FIRST — keyless; trading not implemented)
+  standx: [],
   // Pacifica (Solana, Ed25519)
   pacifica: ["PACIFICA_API_KEY", "PACIFICA_API_SECRET"],
   // Ostium (Arbitrum, EVM contracts)
@@ -63141,6 +65196,8 @@ function getConfigErrorMessage(exchange, missingVars) {
     drift: "Provide your Solana wallet address for Drift Protocol (add private key for trading)",
     gmx: "Set GMX_CHAIN to arbitrum or avalanche (add GMX_WALLET_ADDRESS for position data)",
     aster: "Register at asterdex.com and create API key + secret (HMAC-SHA256)",
+    apex: "No credentials needed \u2014 apex adapter is public-market-data only",
+    standx: "No credentials needed \u2014 standx adapter is public-market-data only",
     pacifica: "Register at pacifica.fi and create Ed25519 API credentials",
     ostium: "Export your MetaMask private key for Arbitrum trading on Ostium",
     reya: "Export your wallet private key for Reya Network trading",
@@ -63213,11 +65270,15 @@ init_gmx();
 init_variational();
 init_extended();
 init_aster();
+init_apex();
+init_standx();
 init_pacifica();
 init_ostium();
 var VERSION = "0.2.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  ApexAdapter,
+  ApexNormalizer,
   AsterAdapter,
   AsterAuth,
   AsterNormalizer,
@@ -63284,6 +65345,8 @@ var VERSION = "0.2.0";
   Resilient,
   RetryStats,
   SlippageExceededError,
+  StandxAdapter,
+  StandxNormalizer,
   TIME_IN_FORCE,
   TickerSchema,
   TradeSchema,

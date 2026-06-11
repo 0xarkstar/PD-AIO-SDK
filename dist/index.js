@@ -90,6 +90,10 @@ export { VariationalAdapter } from './adapters/variational/index.js';
 export { ExtendedAdapter } from './adapters/extended/index.js';
 // Aster (BNB Chain)
 export { AsterAdapter, AsterAuth, AsterNormalizer } from './adapters/aster/index.js';
+// ApeX Omni (PUBLIC-MARKET-DATA-FIRST — trading/auth not implemented)
+export { ApexAdapter, ApexNormalizer } from './adapters/apex/index.js';
+// StandX (PUBLIC-MARKET-DATA-FIRST — trading/auth not implemented)
+export { StandxAdapter, StandxNormalizer } from './adapters/standx/index.js';
 // Pacifica (Solana)
 export { PacificaAdapter, PacificaAuth, PacificaNormalizer } from './adapters/pacifica/index.js';
 // Ostium (Arbitrum, RWA)

@@ -79,4 +79,16 @@ export const GRVTTickerSchema = z
     next_funding_time: z.string().optional(),
 })
     .passthrough();
+export const GRVTFundingSchema = z
+    .object({
+    instrument: z.string().optional(),
+    funding_rate: z.string().optional(),
+    funding_time: z.string().optional(),
+    mark_price: z.string().optional(),
+    // NOT on the wire (kept optional for defensive parsing only):
+    index_price: z.string().optional(),
+    funding_rate_8_h_avg: z.string().optional(),
+    funding_interval_hours: z.number().optional(),
+})
+    .passthrough();
 //# sourceMappingURL=types.js.map

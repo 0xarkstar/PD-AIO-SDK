@@ -25,6 +25,7 @@ import type {
   ExtendedTrade,
   ExtendedTicker,
   ExtendedFundingRate,
+  ExtendedWSTrade,
 } from './types.js';
 import {
   ExtendedOrderSchema,
@@ -34,8 +35,9 @@ import {
   ExtendedOrderBookSchema,
   ExtendedTradeSchema,
   ExtendedFundingRateSchema,
+  ExtendedWSOrderBookSchema,
 } from './types.js';
-import { safeParseFloat } from './utils.js';
+import { safeParseFloat, ExtendedOrderBookState } from './utils.js';
 
 /**
  * Type guard: Check if market data is in API format
@@ -244,13 +246,42 @@ export class ExtendedNormalizer {
   }
 
   /**
+   * Normalize an Extended WS order book frame into a FULL unified OrderBook
+   *
+   * WS decoder ≠ REST decoder (paradex precedent): the wire envelope is
+   * `{type:"SNAPSHOT"|"DELTA", data:{t,m,b,a,d}, ts, seq}` with object
+   * levels `{q,p[,c]}` — nothing like the REST `{market, bid, ask}` shape.
+   *
+   * DELTA frames are NOT self-contained, so the caller passes the maintained
+   * per-stream {@link ExtendedOrderBookState}; this method validates the raw
+   * frame, applies it (SNAPSHOT seed / DELTA via `c`) and emits the full
+   * book. `timestamp` = envelope `ts`, `sequenceId` = envelope `seq`
+   * (per-connection — resets to 1 on reconnect).
+   */
+  normalizeWSOrderBook(rawFrame: unknown, state: ExtendedOrderBookState): OrderBook {
+    const frame = ExtendedWSOrderBookSchema.parse(rawFrame);
+    state.apply(frame);
+    const { bids, asks } = state.sides();
+
+    return {
+      exchange: 'extended',
+      symbol: this.symbolToCCXT(frame.data.m),
+      bids,
+      asks,
+      timestamp: frame.ts,
+      sequenceId: frame.seq,
+    };
+  }
+
+  /**
    * Normalize trade data
    *
-   * Handles both legacy SDK type and actual API response format:
+   * Handles both legacy SDK type and actual API response format (REST
+   * /trades and the WS publicTrades stream share the same field names):
    * - API returns: {i (id), m (market), S (side), tT (tradeType), T (timestamp), p (price), q (qty)}
    * - Legacy type: {id, symbol, side, price, quantity, timestamp}
    */
-  normalizeTrade(trade: ExtendedTrade): Trade {
+  normalizeTrade(trade: ExtendedTrade | ExtendedWSTrade): Trade {
     const validated = ExtendedTradeSchema.parse(trade);
     const raw = validated as unknown as Record<string, any>;
     const symbol = raw.symbol || raw.m || '';

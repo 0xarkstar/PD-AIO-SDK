@@ -870,15 +870,17 @@ describe('ExtendedAdapter Integration Tests', () => {
   // 7. WebSocket Features (7 tests)
   // ============================================================================
 
-  describe('WebSocket Features', () => {
-    test('has WebSocket capabilities enabled', () => {
+  describe('WebSocket Features (live per-stream protocol, capture 2026-06-11)', () => {
+    test('has TRUTHFUL WebSocket flags after the repair', () => {
+      // Real venue WS = per-stream URLs for orderbooks + publicTrades only.
       expect(adapter.has.watchOrderBook).toBe(true);
       expect(adapter.has.watchTrades).toBe(true);
-      expect(adapter.has.watchTicker).toBe(true);
-      expect(adapter.has.watchPositions).toBe(true);
-      expect(adapter.has.watchOrders).toBe(true);
-      expect(adapter.has.watchBalance).toBe(true);
-      expect(adapter.has.watchFundingRate).toBe(true);
+      // The old all-true flags described a fictional protocol on a dead host.
+      expect(adapter.has.watchTicker).toBe(false);
+      expect(adapter.has.watchPositions).toBe(false);
+      expect(adapter.has.watchOrders).toBe(false);
+      expect(adapter.has.watchBalance).toBe(false);
+      expect(adapter.has.watchFundingRate).toBe(false);
     });
 
     test('watchOrderBook returns async generator', () => {
@@ -893,34 +895,138 @@ describe('ExtendedAdapter Integration Tests', () => {
       expect(typeof generator[Symbol.asyncIterator]).toBe('function');
     });
 
-    test('watchTicker returns async generator', () => {
-      const generator = adapter.watchTicker('BTC/USD:USD');
-      expect(generator).toBeDefined();
-      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+    test('unsupported streams throw not supported', async () => {
+      await expect(adapter.watchTicker('BTC/USD:USD').next()).rejects.toThrow(
+        /does not support/i
+      );
+      await expect(adapter.watchPositions().next()).rejects.toThrow(/does not support/i);
+      await expect(adapter.watchOrders().next()).rejects.toThrow(/does not support/i);
+      await expect(adapter.watchBalance().next()).rejects.toThrow(/does not support/i);
+      await expect(adapter.watchFundingRate('BTC/USD:USD').next()).rejects.toThrow(
+        /does not support/i
+      );
     });
 
-    test('watchPositions returns async generator', () => {
-      const generator = adapter.watchPositions();
-      expect(generator).toBeDefined();
-      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
-    });
+    describe('fixture-driven streaming (byte-faithful capture)', () => {
+      const { readFileSync } = require('fs') as typeof import('fs');
+      const { join } = require('path') as typeof import('path');
+      const FIXTURE_DIR = join(process.cwd(), 'tests', 'fixtures', 'extended');
+      const snapshotRaw = readFileSync(join(FIXTURE_DIR, 'orderbook_frame_000.raw.json'), 'utf8');
+      const tradesBackfillRaw = readFileSync(
+        join(FIXTURE_DIR, 'trades_frame_000.raw.json'),
+        'utf8'
+      );
+      const tradesLive = readFileSync(
+        join(FIXTURE_DIR, 'trades_frames_001-020.raw.ndjson'),
+        'utf8'
+      )
+        .split('\n')
+        .filter((line: string) => line.trim().length > 0);
 
-    test('watchOrders returns async generator', () => {
-      const generator = adapter.watchOrders();
-      expect(generator).toBeDefined();
-      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
-    });
+      class MockWebSocket {
+        static instances: MockWebSocket[] = [];
+        readyState = 0;
+        readonly OPEN = 1;
+        readonly CLOSED = 3;
+        onopen: ((event: any) => void) | null = null;
+        onmessage: ((event: any) => void) | null = null;
+        onerror: ((event: any) => void) | null = null;
+        onclose: ((event: any) => void) | null = null;
+        sentFrames: string[] = [];
 
-    test('watchBalance returns async generator', () => {
-      const generator = adapter.watchBalance();
-      expect(generator).toBeDefined();
-      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
-    });
+        constructor(public url: string) {
+          MockWebSocket.instances.push(this);
+          setTimeout(() => {
+            this.readyState = this.OPEN;
+            this.onopen?.({});
+          }, 5);
+        }
 
-    test('watchFundingRate returns async generator', () => {
-      const generator = adapter.watchFundingRate('BTC/USD:USD');
-      expect(generator).toBeDefined();
-      expect(typeof generator[Symbol.asyncIterator]).toBe('function');
+        send(data: string): void {
+          this.sentFrames.push(data);
+        }
+
+        close(): void {
+          this.readyState = this.CLOSED;
+          this.onclose?.({ code: 1000, reason: '' });
+        }
+
+        simulateRaw(raw: string): void {
+          this.onmessage?.({ data: raw });
+        }
+      }
+
+      const originalWebSocket = global.WebSocket;
+
+      beforeEach(() => {
+        MockWebSocket.instances = [];
+        (global as any).WebSocket = jest.fn((url: string) => new MockWebSocket(url));
+      });
+
+      afterEach(async () => {
+        await adapter.disconnect();
+        global.WebSocket = originalWebSocket as any;
+      });
+
+      test('watchOrderBook streams a full unified book from the captured SNAPSHOT', async () => {
+        const generator = adapter.watchOrderBook('BTC/USD:USD');
+        const nextPromise = generator.next();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        expect(MockWebSocket.instances).toHaveLength(1);
+        const socket = MockWebSocket.instances[0]!;
+        // The adapter passes the STREAM BASE; the wrapper composes the
+        // per-stream URL — the HTTP upgrade IS the subscription.
+        expect(socket.url).toBe(
+          'wss://api.starknet.extended.exchange/stream.extended.exchange/v1/orderbooks/BTC-USD'
+        );
+
+        socket.simulateRaw(snapshotRaw);
+        const result = await Promise.race([
+          nextPromise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Test timeout')), 3000)
+          ),
+        ]);
+
+        expect(result.done).toBe(false);
+        expect(result.value.exchange).toBe('extended');
+        expect(result.value.symbol).toBe('BTC/USD:USD');
+        expect(result.value.bids).toHaveLength(2414);
+        expect(result.value.asks).toHaveLength(5010);
+        expect(result.value.sequenceId).toBe(1);
+        expect(socket.sentFrames).toHaveLength(0);
+
+        await generator.return(undefined as any);
+      });
+
+      test('watchTrades skips the backfill frame and yields live trades', async () => {
+        const generator = adapter.watchTrades('BTC/USD:USD');
+        const nextPromise = generator.next();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        const socket = MockWebSocket.instances[0]!;
+        expect(socket.url).toBe(
+          'wss://api.starknet.extended.exchange/stream.extended.exchange/v1/publicTrades/BTC-USD'
+        );
+
+        socket.simulateRaw(tradesBackfillRaw); // historical backfill — skipped
+        socket.simulateRaw(tradesLive[0]!);
+
+        const result = await Promise.race([
+          nextPromise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Test timeout')), 3000)
+          ),
+        ]);
+
+        expect(result.done).toBe(false);
+        expect(result.value.id).toBe('2064909243445678080'); // int64-exact
+        expect(result.value.side).toBe('sell');
+        expect(result.value.price).toBe(61993);
+
+        await generator.return(undefined as any);
+      });
     });
   });
 });

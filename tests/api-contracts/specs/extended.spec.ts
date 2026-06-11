@@ -3,6 +3,17 @@
  *
  * Defines the expected API contract for Extended exchange endpoints.
  * Extended is built on StarkNet.
+ *
+ * Shapes rewritten 2026-06-11 against the LIVE REST API (the previous
+ * schemas described a fictional legacy wire):
+ * - every response is wrapped in `{status: "OK", data: ...}` (errors:
+ *   `{status: "ERROR", error: {code, message}}`)
+ * - markets: `data: [{name, assetName, collateralAssetName, active, ...}]`
+ * - orderbook: `data: {market, bid: [{qty, price}], ask: [{qty, price}]}`
+ * - trades: `data: [{i, m, S, tT, T, p, q}]` — `i` is an int64 that EXCEEDS
+ *   Number.MAX_SAFE_INTEGER (JSON.parse loses precision; see
+ *   src/adapters/extended/types.ts parseExtendedWSTradesFrame)
+ * - funding: `data: [{m, f, T}]` (requires startTime/endTime params)
  */
 
 import { z } from 'zod';
@@ -10,91 +21,99 @@ import type { APISpecification } from '../types.js';
 import { EXTENDED_API_URLS, EXTENDED_ENDPOINTS } from '../../../src/adapters/extended/constants.js';
 
 // =============================================================================
-// Response Schemas
+// Response Schemas (live wire shapes, captured 2026-06-11)
 // =============================================================================
 
 /**
- * Extended Market Schema
+ * Success envelope: every Extended REST response is `{status, data}`
  */
-const ExtendedMarketSchema = z.object({
-  marketId: z.string(),
-  symbol: z.string(),
-  baseAsset: z.string(),
-  quoteAsset: z.string(),
-  settleAsset: z.string(),
-  isActive: z.boolean(),
-  minOrderQuantity: z.string(),
-  maxOrderQuantity: z.string(),
-  minPrice: z.string(),
-  maxPrice: z.string(),
-  quantityPrecision: z.number(),
-  pricePrecision: z.number(),
-  contractMultiplier: z.string(),
-  maxLeverage: z.string(),
-  fundingInterval: z.number(),
-  settlementPeriod: z.number().optional(),
-});
+function extendedEnvelope<T extends z.ZodTypeAny>(data: T) {
+  return z
+    .object({
+      status: z.string(),
+      data,
+    })
+    .passthrough();
+}
 
 /**
- * Extended Ticker Schema
+ * Extended Market Schema (`/api/v1/info/markets` entry)
  */
-const ExtendedTickerSchema = z.object({
-  symbol: z.string(),
-  lastPrice: z.string(),
-  bidPrice: z.string(),
-  askPrice: z.string(),
-  volume24h: z.string(),
-  quoteVolume24h: z.string(),
-  high24h: z.string(),
-  low24h: z.string(),
-  priceChange24h: z.string(),
-  priceChangePercent24h: z.string(),
-  openInterest: z.string().optional(),
-  indexPrice: z.string().optional(),
-  markPrice: z.string().optional(),
-  fundingRate: z.string().optional(),
-  nextFundingTime: z.number().optional(),
-  timestamp: z.number(),
-});
+const ExtendedMarketSchema = z
+  .object({
+    name: z.string(),
+    assetName: z.string(),
+    collateralAssetName: z.string(),
+    active: z.boolean(),
+    status: z.string().optional(),
+    assetPrecision: z.number().optional(),
+    collateralAssetPrecision: z.number().optional(),
+    marketStats: z.record(z.unknown()).optional(),
+    tradingConfig: z.record(z.unknown()).optional(),
+  })
+  .passthrough();
 
 /**
- * Extended Order Book Schema
+ * Extended Ticker Schema (`/api/v1/info/markets/{market}/stats` data)
  */
-const ExtendedOrderBookSchema = z.object({
-  symbol: z.string(),
-  bids: z.array(z.tuple([z.string(), z.string()])),
-  asks: z.array(z.tuple([z.string(), z.string()])),
-  timestamp: z.number(),
-  sequence: z.number().optional(),
-  checksum: z.string().optional(),
-});
+const ExtendedTickerStatsSchema = z
+  .object({
+    lastPrice: z.string(),
+    askPrice: z.string(),
+    bidPrice: z.string(),
+    markPrice: z.string(),
+    indexPrice: z.string(),
+    fundingRate: z.string(),
+    nextFundingRate: z.number(),
+    dailyHigh: z.string(),
+    dailyLow: z.string(),
+    dailyVolume: z.string(),
+    dailyVolumeBase: z.string(),
+    dailyPriceChange: z.string(),
+    dailyPriceChangePercentage: z.string(),
+    openInterest: z.string().optional(),
+    openInterestBase: z.string().optional(),
+  })
+  .passthrough();
 
 /**
- * Extended Trade Schema
+ * Extended Order Book Schema (`/api/v1/info/markets/{market}/orderbook` data)
+ * Levels are `{qty, price}` objects under `bid`/`ask` (NOT bids/asks tuples).
  */
-const ExtendedTradeSchema = z.object({
-  id: z.string(),
-  symbol: z.string(),
-  price: z.string(),
-  quantity: z.string(),
-  side: z.enum(['buy', 'sell']),
-  timestamp: z.number(),
-  isMaker: z.boolean().optional(),
-  tradeId: z.string().optional(),
-});
+const ExtendedOrderBookSchema = z
+  .object({
+    market: z.string(),
+    bid: z.array(z.object({ qty: z.string(), price: z.string() }).passthrough()),
+    ask: z.array(z.object({ qty: z.string(), price: z.string() }).passthrough()),
+  })
+  .passthrough();
 
 /**
- * Extended Funding Rate Schema
+ * Extended Trade Schema (`/api/v1/info/markets/{market}/trades` entry)
+ * Identical field names to the WS publicTrades stream.
  */
-const ExtendedFundingRateSchema = z.object({
-  symbol: z.string(),
-  fundingRate: z.string(),
-  fundingTime: z.number(),
-  nextFundingTime: z.number().optional(),
-  indexPrice: z.string(),
-  markPrice: z.string(),
-  premiumRate: z.string().optional(),
-});
+const ExtendedTradeSchema = z
+  .object({
+    i: z.number(), // int64 — precision-lossy via JSON.parse, see header note
+    m: z.string(),
+    S: z.enum(['BUY', 'SELL']),
+    tT: z.enum(['TRADE', 'LIQUIDATION', 'DELEVERAGE']),
+    T: z.number(),
+    p: z.string(),
+    q: z.string(),
+  })
+  .passthrough();
+
+/**
+ * Extended Funding Rate Schema (`/api/v1/info/{market}/funding` entry)
+ */
+const ExtendedFundingRateSchema = z
+  .object({
+    m: z.string(),
+    f: z.string(),
+    T: z.number(),
+  })
+  .passthrough();
 
 // =============================================================================
 // API Specification
@@ -107,24 +126,24 @@ export const extendedSpec: APISpecification = {
   exchange: 'extended',
   baseUrl: EXTENDED_API_URLS.mainnet.rest,
   version: '1.0.0',
-  lastUpdated: '2026-02-14',
+  lastUpdated: '2026-06-11',
   endpoints: [
     {
       id: 'extended.fetchMarkets',
       path: EXTENDED_ENDPOINTS.MARKETS,
       method: 'GET',
       requiresAuth: false,
-      responseSchema: z.array(ExtendedMarketSchema),
+      responseSchema: extendedEnvelope(z.array(ExtendedMarketSchema)),
       rateLimit: 1,
       expectedResponseTime: 500,
-      description: 'Fetch all markets',
+      description: 'Fetch all markets ({status, data:[...]} envelope)',
     },
     {
       id: 'extended.fetchTicker',
       path: EXTENDED_ENDPOINTS.TICKER_SYMBOL,
       method: 'GET',
       requiresAuth: false,
-      responseSchema: ExtendedTickerSchema,
+      responseSchema: extendedEnvelope(ExtendedTickerStatsSchema),
       rateLimit: 1,
       expectedResponseTime: 300,
       description: 'Fetch ticker stats for a market',
@@ -134,40 +153,31 @@ export const extendedSpec: APISpecification = {
       path: EXTENDED_ENDPOINTS.ORDERBOOK,
       method: 'GET',
       requiresAuth: false,
-      responseSchema: ExtendedOrderBookSchema,
+      responseSchema: extendedEnvelope(ExtendedOrderBookSchema),
       rateLimit: 2,
       expectedResponseTime: 400,
-      description: 'Fetch order book for a market',
+      description: 'Fetch order book ({market, bid:[{qty,price}], ask:[...]})',
     },
     {
       id: 'extended.fetchTrades',
       path: EXTENDED_ENDPOINTS.TRADES,
       method: 'GET',
       requiresAuth: false,
-      responseSchema: z.array(ExtendedTradeSchema),
+      responseSchema: extendedEnvelope(z.array(ExtendedTradeSchema)),
       rateLimit: 1,
       expectedResponseTime: 400,
-      description: 'Fetch recent trades for a market',
-    },
-    {
-      id: 'extended.fetchFundingRate',
-      path: EXTENDED_ENDPOINTS.FUNDING_RATE,
-      method: 'GET',
-      requiresAuth: false,
-      responseSchema: ExtendedFundingRateSchema,
-      rateLimit: 1,
-      expectedResponseTime: 400,
-      description: 'Fetch current funding rate for a market',
+      description: 'Fetch recent trades ({i,m,S,tT,T,p,q} entries)',
     },
     {
       id: 'extended.fetchFundingHistory',
-      path: EXTENDED_ENDPOINTS.FUNDING_HISTORY,
+      path: EXTENDED_ENDPOINTS.FUNDING_RATE,
       method: 'GET',
       requiresAuth: false,
-      responseSchema: z.array(ExtendedFundingRateSchema),
+      responseSchema: extendedEnvelope(z.array(ExtendedFundingRateSchema)),
       rateLimit: 1,
       expectedResponseTime: 500,
-      description: 'Fetch funding rate history for a market',
+      description:
+        'Fetch funding rate history ({m,f,T} entries; requires startTime param — newest first)',
     },
   ],
 };

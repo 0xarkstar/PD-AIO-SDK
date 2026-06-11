@@ -6,10 +6,20 @@
  * go through `toNumberSafe`. Fees are per-fill (not per-instrument), so markets
  * carry 0 maker/taker fees here.
  *
+ * Wire units (live-verified 2026-06-11, fixtures tests/fixtures/grvt/):
+ * - timestamps are unix NANOSECOND strings EVERYWHERE (19 digits) — converted
+ *   via the shared `nsToMs` (string-slice, exact; ns exceeds
+ *   Number.MAX_SAFE_INTEGER so `parseInt(s)/1e6` would be lossy);
+ * - `funding_rate` is PERCENT-per-interval (`"0.01"` = 0.01%/8h = 1e-4
+ *   fraction) — divided by 100 to the unified fractional rate.
+ * WS feeds carry the same `event_time` ns strings through this normalizer, so
+ * both REST and watch* paths are covered.
+ *
  * @see https://api-docs.grvt.io/
  */
 import { GRVT_ORDER_STATUS, GRVT_PRECISION, GRVT_MAX_LEVERAGE } from './constants.js';
 import { PerpDEXError } from '../../types/errors.js';
+import { nsToMs } from './utils.js';
 /**
  * GRVT Data Normalizer.
  *
@@ -160,10 +170,10 @@ export class GRVTNormalizer {
             reduceOnly: grvtOrder.reduce_only || false,
             postOnly: grvtOrder.post_only || false,
             timestamp: grvtOrder.metadata?.create_time
-                ? parseInt(grvtOrder.metadata.create_time, 10)
+                ? nsToMs(grvtOrder.metadata.create_time)
                 : Date.now(),
             lastUpdateTimestamp: grvtOrder.state?.update_time
-                ? parseInt(grvtOrder.state.update_time, 10)
+                ? nsToMs(grvtOrder.state.update_time)
                 : undefined,
             info: grvtOrder,
         };
@@ -221,7 +231,7 @@ export class GRVTNormalizer {
             margin,
             maintenanceMargin: margin * 0.5,
             marginRatio: margin > 0 && notional > 0 ? (margin / notional) * 100 : 0,
-            timestamp: grvtPosition.event_time ? parseInt(grvtPosition.event_time, 10) : Date.now(),
+            timestamp: grvtPosition.event_time ? nsToMs(grvtPosition.event_time) : Date.now(),
             info: grvtPosition,
         };
     }
@@ -271,7 +281,7 @@ export class GRVTNormalizer {
             price,
             amount,
             cost: price * amount,
-            timestamp: grvtTrade.event_time ? parseInt(grvtTrade.event_time, 10) : Date.now(),
+            timestamp: grvtTrade.event_time ? nsToMs(grvtTrade.event_time) : Date.now(),
             info: grvtTrade,
         };
     }
@@ -295,7 +305,7 @@ export class GRVTNormalizer {
             price,
             amount,
             cost: price * amount,
-            timestamp: grvtFill.event_time ? parseInt(grvtFill.event_time, 10) : Date.now(),
+            timestamp: grvtFill.event_time ? nsToMs(grvtFill.event_time) : Date.now(),
             info: grvtFill,
         };
         if (grvtFill.fee !== undefined) {
@@ -336,7 +346,7 @@ export class GRVTNormalizer {
             percentage: 0,
             baseVolume: 0,
             quoteVolume: buyVolume + sellVolume,
-            timestamp: grvtTicker.event_time ? parseInt(grvtTicker.event_time, 10) : Date.now(),
+            timestamp: grvtTicker.event_time ? nsToMs(grvtTicker.event_time) : Date.now(),
             info: grvtTicker,
         };
     }
@@ -351,14 +361,19 @@ export class GRVTNormalizer {
     // ===========================================================================
     /**
      * Normalize a GRVT FULL order-book snapshot into a unified OrderBook.
+     *
+     * `sequenceNumber` is the WS frame `sequence_number` (REST has none, so it
+     * stays undefined there). NOTE: initial-subscription replay frames on
+     * `v1.book.s` arrive with `sequence_number "0"` — consumers must tolerate
+     * the burst and must NOT build book-delta logic on it.
      */
-    normalizeOrderBook(grvtOrderBook) {
+    normalizeOrderBook(grvtOrderBook, sequenceNumber) {
         return {
             symbol: this.symbolToCCXT(grvtOrderBook.instrument || ''),
-            timestamp: grvtOrderBook.event_time ? parseInt(grvtOrderBook.event_time, 10) : Date.now(),
+            timestamp: grvtOrderBook.event_time ? nsToMs(grvtOrderBook.event_time) : Date.now(),
             bids: (grvtOrderBook.bids || []).map((level) => [this.toNumberSafe(level.price), this.toNumberSafe(level.size)]),
             asks: (grvtOrderBook.asks || []).map((level) => [this.toNumberSafe(level.price), this.toNumberSafe(level.size)]),
-            sequenceId: undefined,
+            sequenceId: sequenceNumber !== undefined ? Number(sequenceNumber) : undefined,
             checksum: undefined,
             exchange: 'grvt',
         };
@@ -368,16 +383,22 @@ export class GRVTNormalizer {
     // ===========================================================================
     /**
      * Normalize a GRVT funding entry into a unified FundingRate.
+     *
+     * Wire `funding_rate` is PERCENT-per-interval (`"0.01"` = 0.01%/8h = 1e-4
+     * fraction) — divided by 100. `funding_time` is a ns string. Entries carry
+     * NO `index_price`/`next_funding_time` (indexPrice falls back to 0;
+     * nextFundingTimestamp is derived as funding_time + interval, which matches
+     * the venue-authoritative ticker `next_funding_time` — live cross-checked).
      */
     normalizeFundingRate(grvtFunding) {
         const fundingTimestamp = grvtFunding.funding_time
-            ? parseInt(grvtFunding.funding_time, 10)
+            ? nsToMs(grvtFunding.funding_time)
             : Date.now();
         const fundingIntervalHours = grvtFunding.funding_interval_hours ?? 8;
         const nextFundingTimestamp = fundingTimestamp + fundingIntervalHours * 60 * 60 * 1000;
         return {
             symbol: this.symbolToCCXT(grvtFunding.instrument || ''),
-            fundingRate: this.toNumberSafe(grvtFunding.funding_rate),
+            fundingRate: this.toNumberSafe(grvtFunding.funding_rate) / 100,
             fundingTimestamp,
             nextFundingTimestamp,
             markPrice: this.toNumberSafe(grvtFunding.mark_price),

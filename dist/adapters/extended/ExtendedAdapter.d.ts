@@ -10,7 +10,17 @@
  * - **Trading**: createOrder, cancelOrder, cancelAllOrders, createBatchOrders, cancelBatchOrders
  * - **Account**: fetchPositions, fetchBalance, fetchOrderHistory, fetchMyTrades, fetchUserFees
  * - **Leverage**: setLeverage (up to 100x), setMarginMode (cross/isolated)
- * - **WebSocket**: watchOrderBook, watchTrades, watchTicker, watchPositions, watchOrders, watchBalance, watchFundingRate
+ * - **WebSocket** (live per-stream protocol, capture 2026-06-11):
+ *   watchOrderBook, watchTrades — public keyless streams
+ *   (`{base}/orderbooks/{market}`, `{base}/publicTrades/{market}`; the HTTP
+ *   upgrade IS the subscription)
+ *
+ * ### NOT Implemented (has=false, BaseAdapter NOT_SUPPORTED throwers) ❌
+ * - **WebSocket**: watchTicker, watchPositions, watchOrders, watchBalance,
+ *   watchFundingRate — the previous all-true flags described a fictional
+ *   multiplexed protocol on a dead host (NXDOMAIN). The venue funding stream
+ *   exists but is explicitly out of scope for this repair; private/account
+ *   streams were never verified.
  *
  * ### Example Usage
  * ```typescript
@@ -26,14 +36,9 @@
  * const markets = await adapter.fetchMarkets();
  * const order = await adapter.createOrder({ ... });
  *
- * // WebSocket streaming
+ * // WebSocket streaming (public, keyless)
  * for await (const orderbook of adapter.watchOrderBook('BTC/USD:USD')) {
  *   console.log('Order book update:', orderbook);
- * }
- *
- * // Private WebSocket (requires API key)
- * for await (const positions of adapter.watchPositions()) {
- *   console.log('Position update:', positions);
  * }
  * ```
  */
@@ -120,37 +125,28 @@ export declare class ExtendedAdapter extends BaseAdapter implements IExchangeAda
     fetchPortfolio(): Promise<Portfolio>;
     fetchRateLimitStatus(): Promise<RateLimitStatus>;
     /**
-     * Ensure WebSocket is connected and return the wrapper
+     * Ensure the WebSocket wrapper exists and return it
+     *
+     * Passes the STREAM BASE (`{base}` = EXTENDED_API_URLS.*.websocket); the
+     * wrapper composes the per-stream URL `{base}/{stream}/{market}` and the
+     * HTTP upgrade itself is the subscription — there is no upfront connect,
+     * no auth frame and no JSON heartbeat on this venue.
      */
     private ensureWebSocketConnected;
     /**
-     * Watch real-time order book updates
+     * Watch real-time order book updates (public, keyless)
+     *
+     * Full unified book per frame (SNAPSHOT seed + DELTA apply); `limit` is
+     * served by slicing the maintained book.
      */
     watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook>;
     /**
-     * Watch real-time trade updates
+     * Watch real-time trade updates (public, keyless)
+     *
+     * The first frame per connection (historical backfill) is skipped;
+     * LIQUIDATION/DELEVERAGE flow is kept, tagged via `info.tT`.
      */
     watchTrades(symbol: string): AsyncGenerator<Trade>;
-    /**
-     * Watch real-time ticker updates
-     */
-    watchTicker(symbol: string): AsyncGenerator<Ticker>;
-    /**
-     * Watch real-time position updates (requires API key)
-     */
-    watchPositions(): AsyncGenerator<Position[]>;
-    /**
-     * Watch real-time order updates (requires API key)
-     */
-    watchOrders(): AsyncGenerator<Order[]>;
-    /**
-     * Watch real-time balance updates (requires API key)
-     */
-    watchBalance(): AsyncGenerator<Balance[]>;
-    /**
-     * Watch real-time funding rate updates
-     */
-    watchFundingRate(symbol: string): AsyncGenerator<FundingRate>;
     /**
      * Build query string from parameters
      */

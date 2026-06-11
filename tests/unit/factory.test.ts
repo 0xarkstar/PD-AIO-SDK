@@ -97,6 +97,8 @@ describe('getSupportedExchanges', () => {
       'drift',
       'gmx',
       'aster',
+      'apex',
+      'standx',
       'pacifica',
       'ostium',
       'reya',
@@ -139,7 +141,7 @@ describe('getBuiltInExchanges', () => {
     expect(exchanges).toContain('edgex');
     expect(exchanges).toContain('backpack');
     expect(exchanges).toContain('nado');
-    expect(exchanges.length).toBe(20);
+    expect(exchanges.length).toBe(22);
   });
 });
 

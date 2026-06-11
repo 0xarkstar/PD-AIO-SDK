@@ -9,6 +9,15 @@
  * Auth: `GRVTSDKWrapper.login()` exchanges the API key for a `gravity` session
  * cookie + `X-Grvt-Account-Id` + `sub_account_id`; that sub-account id and the
  * cached instrument meta (instrument_hash + base_decimals) feed `createOrder`.
+ *
+ * WS verification status (2026-06-11 `/ws/full` repair, truthful-flags rule):
+ * - PUBLIC watch* (`watchOrderBook`/`watchTrades`/`watchTicker`) are
+ *   live-verified on `wss://market-data.grvt.io/ws/full` (fixtures
+ *   tests/fixtures/grvt/ws-capture-B.jsonl) — `has` true.
+ * - PRIVATE watch* (`watchPositions`/`watchOrders`/`watchBalance`/
+ *   `watchMyTrades`) are implemented (JSON-RPC on the trades host) but NOT
+ *   live-verifiable without an API key (`wss://trades.grvt.io/ws/full` per
+ *   docs trading_streams.md, unverified keyless) — `has` false until proven.
  */
 import { BaseAdapter } from '../base/BaseAdapter.js';
 import type { Market, OHLCV, OHLCVParams, OHLCVTimeframe, Order, Position, Balance, OrderBook, Trade, Ticker, FundingRate, OrderRequest, MarketParams, OrderBookParams, TradeParams } from '../../types/common.js';

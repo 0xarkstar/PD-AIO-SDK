@@ -23,6 +23,8 @@ import type { JupiterAdapterConfig } from './adapters/jupiter/index.js';
 import type { DriftConfig } from './adapters/drift/index.js';
 import type { GmxConfig } from './adapters/gmx/index.js';
 import type { AsterConfig } from './adapters/aster/index.js';
+import type { ApexConfig } from './adapters/apex/index.js';
+import type { StandxConfig } from './adapters/standx/index.js';
 import type { PacificaConfig } from './adapters/pacifica/index.js';
 import type { OstiumConfig } from './adapters/ostium/index.js';
 import type { ReyaConfig } from './adapters/reya/index.js';
@@ -45,6 +47,8 @@ export type SupportedExchange =
   | 'drift'
   | 'gmx'
   | 'aster'
+  | 'apex'
+  | 'standx'
   | 'pacifica'
   | 'ostium'
   | 'reya'
@@ -67,6 +71,8 @@ export type ExchangeConfigMap = {
   drift: DriftConfig;
   gmx: GmxConfig;
   aster: AsterConfig;
+  apex: ApexConfig;
+  standx: StandxConfig;
   pacifica: PacificaConfig;
   ostium: OstiumConfig;
   reya: ReyaConfig;
@@ -108,6 +114,9 @@ const adapterLoaders: Record<string, () => Promise<AdapterConstructor>> = {
   drift: async () => (await import('./adapters/drift/index.js')).DriftAdapter as AdapterConstructor,
   gmx: async () => (await import('./adapters/gmx/index.js')).GmxAdapter as AdapterConstructor,
   aster: async () => (await import('./adapters/aster/index.js')).AsterAdapter as AdapterConstructor,
+  apex: async () => (await import('./adapters/apex/index.js')).ApexAdapter as AdapterConstructor,
+  standx: async () =>
+    (await import('./adapters/standx/index.js')).StandxAdapter as AdapterConstructor,
   pacifica: async () =>
     (await import('./adapters/pacifica/index.js')).PacificaAdapter as AdapterConstructor,
   ostium: async () =>
@@ -307,6 +316,8 @@ export function getBuiltInExchanges(): SupportedExchange[] {
     'drift',
     'gmx',
     'aster',
+    'apex',
+    'standx',
     'pacifica',
     'ostium',
     'reya',

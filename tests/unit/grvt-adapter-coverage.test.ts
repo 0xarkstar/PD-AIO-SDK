@@ -30,14 +30,15 @@ function makeSdk(): Record<string, jest.Mock> {
     login: jest.fn(async () => ({ cookie: 'c', accountId: 'a', subAccountId: 'sub-1', expiresAt: Date.now() + 60000 })),
     getInstruments: jest.fn(async () => INSTRUMENTS),
     getTicker: jest.fn(async () => ({ instrument: 'BTC_USDT_Perp', last_price: '36000' })),
-    getOrderBook: jest.fn(async () => ({ instrument: 'BTC_USDT_Perp', event_time: '1700000000000', bids: [], asks: [] })),
+    getOrderBook: jest.fn(async () => ({ instrument: 'BTC_USDT_Perp', event_time: '1700000000000000000', bids: [], asks: [] })),
     getTrades: jest.fn(async () => [
-      { event_time: '1700000000000', instrument: 'BTC_USDT_Perp', is_taker_buyer: true, size: '1', price: '36000', trade_id: 't-1' },
+      { event_time: '1700000000000000000', instrument: 'BTC_USDT_Perp', is_taker_buyer: true, size: '1', price: '36000', trade_id: 't-1' },
     ]),
     getKline: jest.fn(async () => [
       { open_time: '1700000000000000000', open: '36000', high: '36500', low: '35800', close: '36200', volume_b: '100' },
     ]),
-    getFunding: jest.fn(async () => [{ instrument: 'BTC_USDT_Perp', funding_rate: '0.0001', funding_time: '1700000000000', mark_price: '36000' }]),
+    // Real wire: PERCENT rate ("0.01" = 1e-4 fraction), ns funding_time, no index_price.
+    getFunding: jest.fn(async () => [{ instrument: 'BTC_USDT_Perp', funding_rate: '0.01', funding_time: '1700000000000000000', mark_price: '36000' }]),
     createOrder: jest.fn(async () => ({
       order_id: '123',
       legs: [{ instrument: 'BTC_USDT_Perp', size: '0.1', limit_price: '36000', is_buying_asset: true }],
@@ -195,10 +196,11 @@ describe('GRVTAdapter Coverage', () => {
   });
 
   describe('fetchFundingRate', () => {
-    it('fetches funding rate', async () => {
+    it('fetches funding rate (percent wire -> fraction, ns -> ms)', async () => {
       const result = await adapter.fetchFundingRate('BTC/USDT:USDT');
       expect(result.symbol).toBe('BTC/USDT:USDT');
-      expect(result.fundingRate).toBe(0.0001);
+      expect(result.fundingRate).toBe(0.0001); // wire "0.01" percent / 100
+      expect(result.fundingTimestamp).toBe(1700000000000); // ns -> ms
     });
 
     it('throws on empty result', async () => {

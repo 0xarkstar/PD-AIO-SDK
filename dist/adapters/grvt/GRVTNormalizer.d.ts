@@ -6,6 +6,15 @@
  * go through `toNumberSafe`. Fees are per-fill (not per-instrument), so markets
  * carry 0 maker/taker fees here.
  *
+ * Wire units (live-verified 2026-06-11, fixtures tests/fixtures/grvt/):
+ * - timestamps are unix NANOSECOND strings EVERYWHERE (19 digits) — converted
+ *   via the shared `nsToMs` (string-slice, exact; ns exceeds
+ *   Number.MAX_SAFE_INTEGER so `parseInt(s)/1e6` would be lossy);
+ * - `funding_rate` is PERCENT-per-interval (`"0.01"` = 0.01%/8h = 1e-4
+ *   fraction) — divided by 100 to the unified fractional rate.
+ * WS feeds carry the same `event_time` ns strings through this normalizer, so
+ * both REST and watch* paths are covered.
+ *
  * @see https://api-docs.grvt.io/
  */
 import type { Market, Order, Position, Balance, Trade, Ticker, OrderBook, FundingRate } from '../../types/common.js';
@@ -113,10 +122,21 @@ export declare class GRVTNormalizer {
     normalizeTickers(grvtTickers: GRVTTicker[]): Ticker[];
     /**
      * Normalize a GRVT FULL order-book snapshot into a unified OrderBook.
+     *
+     * `sequenceNumber` is the WS frame `sequence_number` (REST has none, so it
+     * stays undefined there). NOTE: initial-subscription replay frames on
+     * `v1.book.s` arrive with `sequence_number "0"` — consumers must tolerate
+     * the burst and must NOT build book-delta logic on it.
      */
-    normalizeOrderBook(grvtOrderBook: GRVTOrderBook): OrderBook;
+    normalizeOrderBook(grvtOrderBook: GRVTOrderBook, sequenceNumber?: string): OrderBook;
     /**
      * Normalize a GRVT funding entry into a unified FundingRate.
+     *
+     * Wire `funding_rate` is PERCENT-per-interval (`"0.01"` = 0.01%/8h = 1e-4
+     * fraction) — divided by 100. `funding_time` is a ns string. Entries carry
+     * NO `index_price`/`next_funding_time` (indexPrice falls back to 0;
+     * nextFundingTimestamp is derived as funding_time + interval, which matches
+     * the venue-authoritative ticker `next_funding_time` — live cross-checked).
      */
     normalizeFundingRate(grvtFunding: GRVTFunding): FundingRate;
     normalizeSymbol(exchangeSymbol: string): string;

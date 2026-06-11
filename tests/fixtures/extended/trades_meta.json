@@ -1,0 +1,12 @@
+{
+  "url": "wss://api.starknet.extended.exchange/stream.extended.exchange/v1/publicTrades/BTC-USD",
+  "opened": true,
+  "captureMs": 16000,
+  "frameCount": 10,
+  "firstFrameBytes": 5393,
+  "meanInterFrameMs": 1669,
+  "minInterFrameMs": 1,
+  "maxInterFrameMs": 8322,
+  "firstRecvAt": 1781147694153,
+  "lastRecvAt": 1781147709172
+}

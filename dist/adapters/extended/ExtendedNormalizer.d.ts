@@ -5,7 +5,8 @@
  * Converts Extended-specific formats to unified SDK format
  */
 import type { Market, Order, Position, Balance, OrderBook, Trade, Ticker, FundingRate } from '../../types/common.js';
-import type { ExtendedMarketRaw, ExtendedOrder, ExtendedPosition, ExtendedBalance, ExtendedOrderBook, ExtendedTrade, ExtendedTicker, ExtendedFundingRate } from './types.js';
+import type { ExtendedMarketRaw, ExtendedOrder, ExtendedPosition, ExtendedBalance, ExtendedOrderBook, ExtendedTrade, ExtendedTicker, ExtendedFundingRate, ExtendedWSTrade } from './types.js';
+import { ExtendedOrderBookState } from './utils.js';
 export declare class ExtendedNormalizer {
     /**
      * Convert Extended symbol to unified CCXT format
@@ -44,13 +45,28 @@ export declare class ExtendedNormalizer {
      */
     normalizeOrderBook(orderbook: ExtendedOrderBook): OrderBook;
     /**
+     * Normalize an Extended WS order book frame into a FULL unified OrderBook
+     *
+     * WS decoder ≠ REST decoder (paradex precedent): the wire envelope is
+     * `{type:"SNAPSHOT"|"DELTA", data:{t,m,b,a,d}, ts, seq}` with object
+     * levels `{q,p[,c]}` — nothing like the REST `{market, bid, ask}` shape.
+     *
+     * DELTA frames are NOT self-contained, so the caller passes the maintained
+     * per-stream {@link ExtendedOrderBookState}; this method validates the raw
+     * frame, applies it (SNAPSHOT seed / DELTA via `c`) and emits the full
+     * book. `timestamp` = envelope `ts`, `sequenceId` = envelope `seq`
+     * (per-connection — resets to 1 on reconnect).
+     */
+    normalizeWSOrderBook(rawFrame: unknown, state: ExtendedOrderBookState): OrderBook;
+    /**
      * Normalize trade data
      *
-     * Handles both legacy SDK type and actual API response format:
+     * Handles both legacy SDK type and actual API response format (REST
+     * /trades and the WS publicTrades stream share the same field names):
      * - API returns: {i (id), m (market), S (side), tT (tradeType), T (timestamp), p (price), q (qty)}
      * - Legacy type: {id, symbol, side, price, quantity, timestamp}
      */
-    normalizeTrade(trade: ExtendedTrade): Trade;
+    normalizeTrade(trade: ExtendedTrade | ExtendedWSTrade): Trade;
     /**
      * Normalize funding rate data
      *

@@ -34,18 +34,22 @@ export type {
   ExtendedLeverageSettings,
   ExtendedStarkNetState,
   ExtendedStarkNetTransaction,
-  // WebSocket types
-  ExtendedWsOrderBookUpdate,
-  ExtendedWsTradeUpdate,
-  ExtendedWsTickerUpdate,
-  ExtendedWsPositionUpdate,
-  ExtendedWsOrderUpdate,
-  ExtendedWsBalanceUpdate,
-  ExtendedWsFundingRateUpdate,
-  ExtendedWsMessage,
-  ExtendedWsSubscription,
-  ExtendedWsAuth,
+  // WebSocket types (RAW wire envelopes, live-verified 2026-06-11)
+  ExtendedWSOrderBookFrame,
+  ExtendedWSTrade,
+  ExtendedWSTradesFrame,
 } from './types.js';
+
+// WebSocket wire schemas + int64-safe trades frame decoder
+export {
+  ExtendedWSOrderBookSchema,
+  ExtendedWSTradesSchema,
+  ExtendedWSTradeSchema,
+  parseExtendedWSTradesFrame,
+} from './types.js';
+
+// Stateful WS order book (SNAPSHOT seed + DELTA apply via `c`)
+export { ExtendedOrderBookState } from './utils.js';
 
 // Constants
 export {

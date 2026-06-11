@@ -1,418 +1,150 @@
 /**
- * Extended WebSocket Wrapper
+ * Extended WebSocket Wrapper — real per-stream protocol (live-verified
+ * 2026-06-11, capture in tests/fixtures/extended/)
  *
- * WebSocket client for Extended exchange real-time data streaming
- * Implements AsyncGenerator-based streaming for all watch* methods
+ * The venue model (the previous single-multiplexed-socket implementation
+ * with {action:'subscribe'} frames, JSON auth and a JSON ping/pong heartbeat
+ * was fictional — the host it targeted is NXDOMAIN):
+ *
+ * - ONE socket per (stream, market): `{base}/{stream}/{market}`, e.g.
+ *   `{base}/orderbooks/BTC-USD`, `{base}/publicTrades/BTC-USD`. The HTTP
+ *   upgrade IS the subscription — the client sends ZERO outbound frames.
+ * - Keepalive: the SERVER sends WS protocol-level PINGs (~1s) and the
+ *   runtime auto-PONGs. No JSON heartbeat exists, so none is implemented.
+ * - Orderbook: first frame per connection is a full SNAPSHOT, every
+ *   subsequent frame a DELTA applied via the `c` field (new ABSOLUTE qty,
+ *   c=="0" deletes). A FULL unified book is emitted per frame; client
+ *   `limit` is served by SLICING the maintained book — `?depth=10`/`20`
+ *   silently fail live and are never forwarded.
+ * - Trades: the first frame per (re)connection is a 50-trade HISTORICAL
+ *   backfill (timestamps predate connect) and is skipped. Non-TRADE flow
+ *   (LIQUIDATION/DELEVERAGE) is kept, tagged via `info.tT`.
+ * - Reconnect re-opens the per-stream URL; the fresh SNAPSHOT rebuilds the
+ *   book. `seq` is per-connection and is passed through as `sequenceId`
+ *   (it RESETS to 1 on reconnect — never persisted across connections).
+ *
+ * Scope: public orderbooks + publicTrades streams only (the venue funding
+ * stream exists but is out of scope for this repair).
  */
+import { parseExtendedWSTradesFrame } from './types.js';
+import { ExtendedOrderBookState } from './utils.js';
 import { ExtendedNormalizer } from './ExtendedNormalizer.js';
 import { EXTENDED_WS_CONFIG, EXTENDED_WS_CHANNELS } from './constants.js';
+import { PerpDEXError } from '../../types/errors.js';
 import { Logger } from '../../core/logger.js';
 /**
  * WebSocket wrapper for Extended exchange
- * Provides AsyncGenerator-based streaming for real-time data
+ * Provides AsyncGenerator-based streaming for real-time public market data
  */
 export class ExtendedWebSocketWrapper {
-    ws;
-    wsUrl;
-    apiKey;
+    /** Maximum queue size for backpressure */
+    static MAX_QUEUE_SIZE = 1000;
+    streamBase;
+    reconnect;
+    maxReconnectAttempts;
+    reconnectDelayMs;
     normalizer;
     logger;
-    isConnected = false;
-    isConnecting = false;
-    reconnectAttempts = 0;
-    maxReconnectAttempts;
-    reconnect;
-    pingInterval;
-    pingIntervalMs;
-    pongTimeout;
-    subscriptions = new Map();
-    connectionPromise;
+    streams = new Map();
     constructor(config) {
-        this.wsUrl = config.wsUrl;
-        this.apiKey = config.apiKey;
+        this.streamBase = config.wsUrl.replace(/\/+$/, '');
+        this.reconnect = config.reconnect ?? true;
+        this.maxReconnectAttempts = config.maxReconnectAttempts ?? EXTENDED_WS_CONFIG.reconnectAttempts;
+        this.reconnectDelayMs = config.reconnectDelayMs ?? EXTENDED_WS_CONFIG.reconnectDelay;
         this.normalizer = new ExtendedNormalizer();
         this.logger = new Logger('ExtendedWebSocketWrapper');
-        this.reconnect = config.reconnect ?? true;
-        this.pingIntervalMs = config.pingInterval ?? EXTENDED_WS_CONFIG.pingInterval;
-        this.maxReconnectAttempts = config.maxReconnectAttempts ?? EXTENDED_WS_CONFIG.reconnectAttempts;
-    }
-    /**
-     * Connect to WebSocket
-     */
-    async connect() {
-        if (this.isConnected) {
-            return;
-        }
-        if (this.isConnecting && this.connectionPromise) {
-            return this.connectionPromise;
-        }
-        this.isConnecting = true;
-        this.connectionPromise = new Promise((resolve, reject) => {
-            try {
-                this.ws = new WebSocket(this.wsUrl);
-                this.ws.onopen = () => {
-                    this.isConnected = true;
-                    this.isConnecting = false;
-                    this.reconnectAttempts = 0;
-                    this.logger.info('WebSocket connected');
-                    this.startHeartbeat();
-                    // Authenticate if API key provided
-                    if (this.apiKey) {
-                        this.authenticate();
-                    }
-                    // Resubscribe to existing channels
-                    this.resubscribeAll();
-                    resolve();
-                };
-                this.ws.onmessage = (event) => {
-                    this.handleMessage(event.data);
-                };
-                this.ws.onerror = (error) => {
-                    this.logger.error('WebSocket error', error instanceof Error ? error : new Error('WebSocket error'));
-                    if (this.isConnecting) {
-                        this.isConnecting = false;
-                        reject(new Error('WebSocket connection failed'));
-                    }
-                };
-                this.ws.onclose = (event) => {
-                    this.isConnected = false;
-                    this.isConnecting = false;
-                    this.stopHeartbeat();
-                    this.logger.info('WebSocket closed', { code: event.code, reason: event.reason });
-                    if (this.reconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
-                        this.scheduleReconnect();
-                    }
-                };
-            }
-            catch (error) {
-                this.isConnecting = false;
-                reject(error instanceof Error ? error : new Error(String(error)));
-            }
-        });
-        return this.connectionPromise;
-    }
-    /**
-     * Disconnect from WebSocket
-     */
-    disconnect() {
-        if (this.reconnect) {
-            this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnection
-        }
-        this.stopHeartbeat();
-        if (this.ws) {
-            this.ws.close(1000, 'Client disconnect');
-            this.ws = undefined;
-        }
-        this.isConnected = false;
-        this.isConnecting = false;
-        this.subscriptions.clear();
-        this.logger.info('WebSocket disconnected');
     }
     /**
      * Watch order book updates
+     *
+     * Seeds from the connection SNAPSHOT, applies DELTAs via the `c` field and
+     * yields a FULL unified OrderBook per frame. `limit` slices the maintained
+     * book (never forwarded as `?depth` — depth=10/20 silently fail live).
      */
     async *watchOrderBook(symbol, limit) {
-        const channel = this.getChannelKey(EXTENDED_WS_CHANNELS.ORDERBOOK, symbol);
-        const exchangeSymbol = this.normalizer.symbolFromCCXT(symbol);
-        await this.subscribe(EXTENDED_WS_CHANNELS.ORDERBOOK, exchangeSymbol);
-        try {
-            for await (const message of this.createMessageIterator(channel)) {
-                if (message.channel === 'orderbook' && message.symbol === exchangeSymbol) {
-                    const orderbook = {
-                        exchange: 'extended',
-                        symbol: this.normalizer.symbolToCCXT(message.symbol),
-                        bids: message.bids
-                            .slice(0, limit)
-                            .map(([price, amount]) => [parseFloat(price), parseFloat(amount)]),
-                        asks: message.asks
-                            .slice(0, limit)
-                            .map(([price, amount]) => [parseFloat(price), parseFloat(amount)]),
-                        timestamp: message.timestamp,
-                        sequenceId: message.sequence,
-                        checksum: message.checksum,
-                    };
-                    yield orderbook;
-                }
+        const market = this.normalizer.symbolFromCCXT(symbol);
+        for await (const payload of this.streamPayloads(EXTENDED_WS_CHANNELS.ORDERBOOKS, market)) {
+            const book = payload;
+            if (limit !== undefined && limit > 0) {
+                yield {
+                    ...book,
+                    bids: book.bids.slice(0, limit),
+                    asks: book.asks.slice(0, limit),
+                };
             }
-        }
-        finally {
-            await this.unsubscribe(EXTENDED_WS_CHANNELS.ORDERBOOK, exchangeSymbol);
+            else {
+                yield book;
+            }
         }
     }
     /**
-     * Watch trade updates
+     * Watch public trade updates
+     *
+     * The first frame per (re)connection (50-trade historical backfill) is
+     * skipped. LIQUIDATION/DELEVERAGE flow is kept, tagged via `info.tT`.
      */
     async *watchTrades(symbol) {
-        const channel = this.getChannelKey(EXTENDED_WS_CHANNELS.TRADES, symbol);
-        const exchangeSymbol = this.normalizer.symbolFromCCXT(symbol);
-        await this.subscribe(EXTENDED_WS_CHANNELS.TRADES, exchangeSymbol);
-        try {
-            for await (const message of this.createMessageIterator(channel)) {
-                if (message.channel === 'trades' && message.symbol === exchangeSymbol) {
-                    const price = parseFloat(message.price);
-                    const amount = parseFloat(message.quantity);
-                    const trade = {
-                        id: message.id,
-                        symbol: this.normalizer.symbolToCCXT(message.symbol),
-                        side: message.side,
-                        price,
-                        amount,
-                        cost: price * amount,
-                        timestamp: message.timestamp,
-                    };
-                    yield trade;
-                }
-            }
-        }
-        finally {
-            await this.unsubscribe(EXTENDED_WS_CHANNELS.TRADES, exchangeSymbol);
+        const market = this.normalizer.symbolFromCCXT(symbol);
+        for await (const payload of this.streamPayloads(EXTENDED_WS_CHANNELS.PUBLIC_TRADES, market)) {
+            yield payload;
         }
     }
     /**
-     * Watch ticker updates
+     * Disconnect all per-stream sockets
      */
-    async *watchTicker(symbol) {
-        const channel = this.getChannelKey(EXTENDED_WS_CHANNELS.TICKER, symbol);
-        const exchangeSymbol = this.normalizer.symbolFromCCXT(symbol);
-        await this.subscribe(EXTENDED_WS_CHANNELS.TICKER, exchangeSymbol);
-        try {
-            for await (const message of this.createMessageIterator(channel)) {
-                if (message.channel === 'ticker' && message.symbol === exchangeSymbol) {
-                    const lastPrice = parseFloat(message.lastPrice);
-                    const ticker = {
-                        symbol: this.normalizer.symbolToCCXT(message.symbol),
-                        timestamp: message.timestamp,
-                        high: parseFloat(message.high24h),
-                        low: parseFloat(message.low24h),
-                        bid: parseFloat(message.bidPrice),
-                        ask: parseFloat(message.askPrice),
-                        last: lastPrice,
-                        open: lastPrice, // WebSocket may not provide open price
-                        close: lastPrice,
-                        baseVolume: parseFloat(message.volume24h),
-                        quoteVolume: parseFloat(message.quoteVolume24h),
-                        change: parseFloat(message.priceChange24h),
-                        percentage: parseFloat(message.priceChangePercent24h),
-                    };
-                    yield ticker;
-                }
+    disconnect() {
+        for (const conn of this.streams.values()) {
+            conn.closedByClient = true;
+            conn.handlers.clear();
+            if (conn.ws) {
+                conn.ws.close(1000, 'Client disconnect');
+                conn.ws = undefined;
             }
+            conn.isOpen = false;
         }
-        finally {
-            await this.unsubscribe(EXTENDED_WS_CHANNELS.TICKER, exchangeSymbol);
-        }
+        this.streams.clear();
+        this.logger.info('WebSocket disconnected (all streams)');
     }
     /**
-     * Watch position updates (requires authentication)
+     * Check if any stream socket is open
      */
-    async *watchPositions() {
-        if (!this.apiKey) {
-            throw new Error('API key required for watching positions');
-        }
-        const channel = EXTENDED_WS_CHANNELS.POSITIONS;
-        await this.subscribe(channel);
-        try {
-            for await (const message of this.createMessageIterator(channel)) {
-                if (message.channel === 'positions') {
-                    const positions = message.positions.map((pos) => this.normalizer.normalizePosition(pos));
-                    yield positions;
-                }
+    get connected() {
+        for (const conn of this.streams.values()) {
+            if (conn.isOpen) {
+                return true;
             }
         }
-        finally {
-            await this.unsubscribe(channel);
-        }
-    }
-    /**
-     * Watch order updates (requires authentication)
-     */
-    async *watchOrders() {
-        if (!this.apiKey) {
-            throw new Error('API key required for watching orders');
-        }
-        const channel = EXTENDED_WS_CHANNELS.ORDERS;
-        await this.subscribe(channel);
-        try {
-            for await (const message of this.createMessageIterator(channel)) {
-                if (message.channel === 'orders') {
-                    const orders = message.orders.map((ord) => this.normalizer.normalizeOrder(ord));
-                    yield orders;
-                }
-            }
-        }
-        finally {
-            await this.unsubscribe(channel);
-        }
-    }
-    /**
-     * Watch balance updates (requires authentication)
-     */
-    async *watchBalance() {
-        if (!this.apiKey) {
-            throw new Error('API key required for watching balance');
-        }
-        const channel = EXTENDED_WS_CHANNELS.BALANCE;
-        await this.subscribe(channel);
-        try {
-            for await (const message of this.createMessageIterator(channel)) {
-                if (message.channel === 'balance') {
-                    const balances = message.balances.map((bal) => this.normalizer.normalizeBalance(bal));
-                    yield balances;
-                }
-            }
-        }
-        finally {
-            await this.unsubscribe(channel);
-        }
-    }
-    /**
-     * Watch funding rate updates
-     */
-    async *watchFundingRate(symbol) {
-        const channel = this.getChannelKey(EXTENDED_WS_CHANNELS.FUNDING, symbol);
-        const exchangeSymbol = this.normalizer.symbolFromCCXT(symbol);
-        await this.subscribe(EXTENDED_WS_CHANNELS.FUNDING, exchangeSymbol);
-        try {
-            for await (const message of this.createMessageIterator(channel)) {
-                if (message.channel === 'funding' && message.symbol === exchangeSymbol) {
-                    const fundingRate = {
-                        symbol: this.normalizer.symbolToCCXT(message.symbol),
-                        fundingRate: parseFloat(message.fundingRate),
-                        fundingTimestamp: message.fundingTime,
-                        nextFundingTimestamp: message.nextFundingTime || 0,
-                        markPrice: parseFloat(message.markPrice),
-                        indexPrice: parseFloat(message.indexPrice),
-                        fundingIntervalHours: 8,
-                    };
-                    yield fundingRate;
-                }
-            }
-        }
-        finally {
-            await this.unsubscribe(EXTENDED_WS_CHANNELS.FUNDING, exchangeSymbol);
-        }
+        return false;
     }
     // ==================== Private Methods ====================
     /**
-     * Subscribe to a channel
+     * Core consumer loop: opens (or joins) the per-stream socket and yields
+     * normalized payloads dispatched by {@link handleFrame}.
      */
-    async subscribe(channel, symbol) {
-        await this.ensureConnected();
-        const channelKey = this.getChannelKey(channel, symbol);
-        if (!this.subscriptions.has(channelKey)) {
-            this.subscriptions.set(channelKey, new Set());
-        }
-        const message = {
-            action: 'subscribe',
-            channel,
-            symbol,
-        };
-        this.send(message);
-        this.logger.debug('Subscribed to channel', { channel, symbol });
-    }
-    /**
-     * Unsubscribe from a channel
-     */
-    async unsubscribe(channel, symbol) {
-        const channelKey = this.getChannelKey(channel, symbol);
-        if (this.subscriptions.has(channelKey)) {
-            this.subscriptions.delete(channelKey);
-            if (this.isConnected) {
-                const message = {
-                    action: 'unsubscribe',
-                    channel,
-                    symbol,
-                };
-                this.send(message);
-            }
-            this.logger.debug('Unsubscribed from channel', { channel, symbol });
-        }
-    }
-    /**
-     * Authenticate the WebSocket connection
-     */
-    authenticate() {
-        if (!this.apiKey)
-            return;
-        const authMessage = {
-            action: 'auth',
-            apiKey: this.apiKey,
-            timestamp: Date.now(),
-        };
-        this.send(authMessage);
-        this.logger.debug('Sent authentication message');
-    }
-    /**
-     * Handle incoming WebSocket messages
-     */
-    handleMessage(data) {
-        try {
-            const message = JSON.parse(data);
-            // Handle pong response
-            if (message.type === 'pong' || message.event === 'pong') {
-                this.handlePong();
-                return;
-            }
-            // Handle subscription confirmations
-            if (message.event === 'subscribed' || message.event === 'unsubscribed') {
-                this.logger.debug('Subscription event', { event: message.event, channel: message.channel });
-                return;
-            }
-            // Handle authentication response
-            if (message.event === 'authenticated') {
-                this.logger.info('WebSocket authenticated');
-                return;
-            }
-            // Handle error messages
-            if (message.error || message.event === 'error') {
-                this.logger.error('WebSocket error message', new Error(message.error || message.message));
-                return;
-            }
-            // Dispatch to subscribers
-            const channel = message.channel;
-            const symbol = message.symbol;
-            const channelKey = this.getChannelKey(channel, symbol);
-            const handlers = this.subscriptions.get(channelKey);
-            if (handlers) {
-                handlers.forEach((handler) => handler(message));
-            }
-        }
-        catch (error) {
-            this.logger.error('Failed to parse WebSocket message', error instanceof Error ? error : new Error(String(error)));
-        }
-    }
-    /**
-     * Create an async iterator for messages on a channel
-     */
-    /** Maximum queue size for backpressure */
-    static MAX_QUEUE_SIZE = 1000;
-    async *createMessageIterator(channelKey) {
-        const messageQueue = [];
+    async *streamPayloads(stream, market) {
+        const key = this.getChannelKey(stream, market);
+        const conn = await this.openStream(stream, market);
+        const queue = [];
         let resolver = null;
-        let isActive = true;
-        const handler = (message) => {
+        const handler = (payload) => {
             if (resolver) {
-                resolver(message);
+                resolver(payload);
                 resolver = null;
             }
             else {
-                // Apply backpressure: drop oldest message if queue is full
-                if (messageQueue.length >= ExtendedWebSocketWrapper.MAX_QUEUE_SIZE) {
-                    messageQueue.shift();
-                    this.logger.warn(`Queue overflow on channel ${channelKey}, dropping oldest message`);
+                // Apply backpressure: drop oldest payload if queue is full
+                if (queue.length >= ExtendedWebSocketWrapper.MAX_QUEUE_SIZE) {
+                    queue.shift();
+                    this.logger.warn(`Queue overflow on stream ${key}, dropping oldest payload`);
                 }
-                messageQueue.push(message);
+                queue.push(payload);
             }
         };
-        // Register handler
-        const handlers = this.subscriptions.get(channelKey);
-        if (handlers) {
-            handlers.add(handler);
-        }
+        conn.handlers.add(handler);
         try {
-            while (isActive && this.subscriptions.has(channelKey)) {
-                if (messageQueue.length > 0) {
-                    yield messageQueue.shift();
+            while (this.streams.get(key) === conn) {
+                if (queue.length > 0) {
+                    yield queue.shift();
                 }
                 else {
                     yield await new Promise((resolve) => {
@@ -422,108 +154,166 @@ export class ExtendedWebSocketWrapper {
             }
         }
         finally {
-            isActive = false;
-            if (handlers) {
-                handlers.delete(handler);
+            conn.handlers.delete(handler);
+            if (conn.handlers.size === 0) {
+                this.closeStream(key, conn);
             }
         }
     }
     /**
-     * Ensure WebSocket is connected
+     * Open (or reuse) the socket for a (stream, market) pair
      */
-    async ensureConnected() {
-        if (!this.isConnected) {
-            await this.connect();
+    async openStream(stream, market) {
+        const key = this.getChannelKey(stream, market);
+        const existing = this.streams.get(key);
+        if (existing) {
+            return existing;
         }
-    }
-    /**
-     * Send a message through WebSocket
-     */
-    send(message) {
-        if (this.ws && this.isConnected) {
-            this.ws.send(JSON.stringify(message));
+        const conn = {
+            url: `${this.streamBase}/${stream}/${market}`,
+            stream,
+            market,
+            isOpen: false,
+            handlers: new Set(),
+            bookState: stream === EXTENDED_WS_CHANNELS.ORDERBOOKS ? new ExtendedOrderBookState() : undefined,
+            awaitingBackfill: stream === EXTENDED_WS_CHANNELS.PUBLIC_TRADES,
+            reconnectAttempts: 0,
+            closedByClient: false,
+        };
+        this.streams.set(key, conn);
+        try {
+            await this.connectStream(key, conn);
         }
+        catch (error) {
+            this.streams.delete(key);
+            throw error;
+        }
+        return conn;
     }
     /**
-     * Get channel key for subscription tracking
+     * Connect one per-stream socket. The URL IS the subscription: nothing is
+     * sent after the upgrade (no subscribe, no auth, no JSON ping).
      */
-    getChannelKey(channel, symbol) {
-        return symbol ? `${channel}:${symbol}` : channel;
-    }
-    /**
-     * Start heartbeat ping/pong
-     */
-    startHeartbeat() {
-        this.stopHeartbeat();
-        this.pingInterval = setInterval(() => {
-            if (this.isConnected) {
-                this.send({ type: 'ping', timestamp: Date.now() });
-                // Set pong timeout
-                this.pongTimeout = setTimeout(() => {
-                    this.logger.warn('Pong timeout, reconnecting...');
-                    this.ws?.close(4000, 'Pong timeout');
-                }, EXTENDED_WS_CONFIG.pongTimeout);
+    connectStream(key, conn) {
+        return new Promise((resolve, reject) => {
+            let settled = false;
+            try {
+                const ws = new WebSocket(conn.url);
+                conn.ws = ws;
+                ws.onopen = () => {
+                    conn.isOpen = true;
+                    conn.reconnectAttempts = 0;
+                    // New connection ⇒ the venue re-sends the trades backfill frame
+                    conn.awaitingBackfill = conn.stream === EXTENDED_WS_CHANNELS.PUBLIC_TRADES;
+                    this.logger.info('WebSocket stream connected', { url: conn.url });
+                    settled = true;
+                    resolve();
+                };
+                ws.onmessage = (event) => {
+                    this.handleFrame(conn, String(event.data));
+                };
+                ws.onerror = (error) => {
+                    this.logger.error('WebSocket stream error', error instanceof Error ? error : new Error('WebSocket error'), { url: conn.url });
+                    if (!settled) {
+                        settled = true;
+                        reject(new PerpDEXError(`WebSocket connection failed: ${conn.url}`, 'WS_CONNECTION_ERROR', 'extended'));
+                    }
+                };
+                ws.onclose = (event) => {
+                    conn.isOpen = false;
+                    this.logger.info('WebSocket stream closed', {
+                        url: conn.url,
+                        code: event.code,
+                        reason: event.reason,
+                    });
+                    if (conn.closedByClient || this.streams.get(key) !== conn) {
+                        return;
+                    }
+                    if (this.reconnect && conn.reconnectAttempts < this.maxReconnectAttempts) {
+                        this.scheduleReconnect(key, conn);
+                    }
+                };
             }
-        }, this.pingIntervalMs);
+            catch (error) {
+                if (!settled) {
+                    settled = true;
+                    reject(error instanceof Error ? error : new Error(String(error)));
+                }
+            }
+        });
     }
     /**
-     * Stop heartbeat
+     * Decode one raw frame and dispatch normalized payloads to consumers
      */
-    stopHeartbeat() {
-        if (this.pingInterval) {
-            clearInterval(this.pingInterval);
-            this.pingInterval = undefined;
+    handleFrame(conn, rawText) {
+        try {
+            if (conn.stream === EXTENDED_WS_CHANNELS.ORDERBOOKS) {
+                // Validate + apply (SNAPSHOT seed / DELTA via `c`) + emit FULL book
+                const book = this.normalizer.normalizeWSOrderBook(JSON.parse(rawText), conn.bookState);
+                conn.handlers.forEach((handler) => handler(book));
+                return;
+            }
+            // publicTrades — int64-safe decode (JSON.parse alone corrupts ids)
+            const frame = parseExtendedWSTradesFrame(rawText);
+            if (conn.awaitingBackfill) {
+                // First frame per (re)connection = 50-trade HISTORICAL backfill
+                // (timestamps predate connect) — consumers expect live flow only.
+                conn.awaitingBackfill = false;
+                this.logger.debug('Skipped trades backfill frame', {
+                    market: conn.market,
+                    trades: frame.data.length,
+                });
+                return;
+            }
+            for (const rawTrade of frame.data) {
+                // tT !== 'TRADE' (LIQUIDATION/DELEVERAGE) is kept — it is real
+                // liquidation flow, tagged via info.tT.
+                const trade = this.normalizer.normalizeTrade(rawTrade);
+                conn.handlers.forEach((handler) => handler(trade));
+            }
         }
-        if (this.pongTimeout) {
-            clearTimeout(this.pongTimeout);
-            this.pongTimeout = undefined;
+        catch (error) {
+            this.logger.error('Failed to handle WebSocket frame', error instanceof Error ? error : new Error(String(error)), { url: conn.url });
         }
     }
     /**
-     * Handle pong response
+     * Reconnect = re-open the per-stream URL. There is nothing to replay: the
+     * URL is the subscription, the fresh SNAPSHOT rebuilds the book and the
+     * trades backfill gate re-arms (see onopen).
      */
-    handlePong() {
-        if (this.pongTimeout) {
-            clearTimeout(this.pongTimeout);
-            this.pongTimeout = undefined;
-        }
-    }
-    /**
-     * Schedule reconnection
-     */
-    scheduleReconnect() {
-        this.reconnectAttempts++;
-        const delay = Math.min(EXTENDED_WS_CONFIG.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), EXTENDED_WS_CONFIG.maxReconnectDelay);
-        this.logger.info(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    scheduleReconnect(key, conn) {
+        conn.reconnectAttempts++;
+        const delay = Math.min(this.reconnectDelayMs * Math.pow(2, conn.reconnectAttempts - 1), EXTENDED_WS_CONFIG.maxReconnectDelay);
+        this.logger.info(`Reconnecting stream in ${delay}ms (attempt ${conn.reconnectAttempts}/${this.maxReconnectAttempts})`, { url: conn.url });
         setTimeout(() => {
-            this.connect().catch((error) => {
-                this.logger.error('Reconnection failed', error instanceof Error ? error : new Error(String(error)));
+            if (conn.closedByClient || this.streams.get(key) !== conn) {
+                return;
+            }
+            this.connectStream(key, conn).catch((error) => {
+                this.logger.error('Reconnection failed', error instanceof Error ? error : new Error(String(error)), { url: conn.url });
             });
         }, delay);
     }
     /**
-     * Resubscribe to all channels after reconnection
+     * Close a stream socket once its last consumer is gone
      */
-    resubscribeAll() {
-        for (const channelKey of this.subscriptions.keys()) {
-            const parts = channelKey.split(':');
-            const channel = parts[0] ?? '';
-            const symbol = parts[1];
-            if (channel) {
-                const message = {
-                    action: 'subscribe',
-                    channel,
-                    symbol: symbol || undefined,
-                };
-                this.send(message);
-            }
+    closeStream(key, conn) {
+        if (this.streams.get(key) === conn) {
+            this.streams.delete(key);
         }
+        conn.closedByClient = true;
+        if (conn.ws) {
+            conn.ws.close(1000, 'No consumers');
+            conn.ws = undefined;
+        }
+        conn.isOpen = false;
+        this.logger.debug('Stream closed (no consumers)', { url: conn.url });
     }
     /**
-     * Check if connected
+     * Get stream key for subscription tracking
      */
-    get connected() {
-        return this.isConnected;
+    getChannelKey(stream, market) {
+        return `${stream}/${market}`;
     }
 }
 //# sourceMappingURL=ExtendedWebSocketWrapper.js.map

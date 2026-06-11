@@ -1,8 +1,11 @@
 /**
  * GRVT WebSocket wrapper (JSON-RPC).
  *
- * GRVT's WS is JSON-RPC over the `/ws` base path on the trades + market-data
- * hosts. Subscriptions are sent as:
+ * GRVT's JSON-RPC WS lives on the `/ws/full` base path on the trades +
+ * market-data hosts (the legacy `/ws` path expects a DIFFERENT envelope and
+ * rejects this frame with `{"code":1003,...,"status":400}` — live-proven
+ * 2026-06-11, fixtures tests/fixtures/grvt/ws-capture-{A,B}.jsonl).
+ * Subscriptions are sent as:
  *   {"jsonrpc":"2.0","method":"subscribe",
  *    "params":{"stream":"v1.book.s","selectors":["BTC_USDT_Perp@500-50"]},"id":1}
  *
@@ -10,8 +13,11 @@
  * Private trade-data streams (trades host): v1.{order,fill,position} — these need
  * the `gravity` cookie + `X-Grvt-Account-Id` on connect (carried in the session).
  *
- * Feed frames carry `{ stream, feed, selector }`; the `feed` payload shape
- * matches REST exactly, so it is normalized via the same `GRVTNormalizer`.
+ * Feed frames carry `{ stream, feed, selector, sequence_number }`; the `feed`
+ * payload shape matches REST exactly, so it is normalized via the same
+ * `GRVTNormalizer`. Error frames (legacy `{code,message,status}` and JSON-RPC
+ * `{error:{code,message}}`) are SURFACED to the stream consumer — silently
+ * dropping them produced an unrecoverable silent hang.
  * Built on the SDK's typed `WebSocketClient` (auto-reconnect, Node/browser).
  */
 import type { OrderBook, Trade, Ticker, Position, Order, Balance } from '../../types/common.js';
@@ -86,9 +92,19 @@ export declare class GRVTWebSocketWrapper {
     /**
      * Subscribe to one stream and yield normalized values until the generator is
      * closed. Frames for other streams/instruments are ignored; un-normalizable
-     * frames are skipped (defensive).
+     * frames are skipped (defensive). Venue error frames are SURFACED as thrown
+     * errors (silently dropping them produced an unrecoverable silent hang —
+     * the legacy `/ws` path's `{"code":1003,...}` rejection, capture A).
      */
     private stream;
+    /**
+     * Detect a venue error frame and convert it to an Error (null otherwise).
+     *
+     * Two live shapes: legacy `{code,message,status}` (e.g. code 1003 from the
+     * `/ws` envelope mismatch) and JSON-RPC `{error:{code,message}}`. Subscribe
+     * ACKs (`{jsonrpc,result,id,method}`) and feed frames match neither.
+     */
+    private extractErrorFrame;
     /**
      * Build a JSON-RPC subscribe frame.
      */

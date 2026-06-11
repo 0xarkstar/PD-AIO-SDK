@@ -19,13 +19,15 @@ import type { JupiterAdapterConfig } from './adapters/jupiter/index.js';
 import type { DriftConfig } from './adapters/drift/index.js';
 import type { GmxConfig } from './adapters/gmx/index.js';
 import type { AsterConfig } from './adapters/aster/index.js';
+import type { ApexConfig } from './adapters/apex/index.js';
+import type { StandxConfig } from './adapters/standx/index.js';
 import type { PacificaConfig } from './adapters/pacifica/index.js';
 import type { OstiumConfig } from './adapters/ostium/index.js';
 import type { ReyaConfig } from './adapters/reya/index.js';
 import type { EtherealConfig } from './adapters/ethereal/index.js';
 import type { AvantisConfig } from './adapters/avantis/index.js';
 import type { KatanaConfig } from './adapters/katana/index.js';
-export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx' | 'aster' | 'pacifica' | 'ostium' | 'reya' | 'ethereal' | 'avantis' | 'katana';
+export type SupportedExchange = 'hyperliquid' | 'lighter' | 'grvt' | 'paradex' | 'edgex' | 'backpack' | 'nado' | 'variational' | 'extended' | 'dydx' | 'jupiter' | 'drift' | 'gmx' | 'aster' | 'apex' | 'standx' | 'pacifica' | 'ostium' | 'reya' | 'ethereal' | 'avantis' | 'katana';
 export type ExchangeConfigMap = {
     hyperliquid: HyperliquidConfig;
     lighter: LighterConfig;
@@ -41,6 +43,8 @@ export type ExchangeConfigMap = {
     drift: DriftConfig;
     gmx: GmxConfig;
     aster: AsterConfig;
+    apex: ApexConfig;
+    standx: StandxConfig;
     pacifica: PacificaConfig;
     ostium: OstiumConfig;
     reya: ReyaConfig;

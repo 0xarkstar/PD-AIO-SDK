@@ -124,14 +124,16 @@ describe('GRVTNormalizer', () => {
           traded_size: ['0.5'],
           book_size: ['1.0'],
           avg_fill_price: ['49950'],
-          update_time: '1234567890000',
+          update_time: '1234567890000000000', // ns on the wire
         },
-        metadata: { client_order_id: 'client-123', create_time: '1234567890000' },
+        metadata: { client_order_id: 'client-123', create_time: '1234567890000000000' },
       };
 
       const order = normalizer.normalizeOrder(grvtOrder);
 
       expect(order.id).toBe('order-123');
+      expect(order.timestamp).toBe(1234567890000); // ns -> ms
+      expect(order.lastUpdateTimestamp).toBe(1234567890000);
       expect(order.clientOrderId).toBe('client-123');
       expect(order.symbol).toBe('BTC/USDT:USDT');
       expect(order.type).toBe('limit');
@@ -195,10 +197,11 @@ describe('GRVTNormalizer', () => {
         realized_pnl: '1000',
         leverage: '10',
         est_liquidation_price: '45000',
-        event_time: '1234567890000',
+        event_time: '1234567890000000000', // ns on the wire
       };
 
       const position = normalizer.normalizePosition(grvtPosition);
+      expect(position.timestamp).toBe(1234567890000); // ns -> ms
       expect(position.symbol).toBe('BTC/USDT:USDT');
       expect(position.side).toBe('long');
       expect(position.size).toBe(2.5);
@@ -257,7 +260,7 @@ describe('GRVTNormalizer', () => {
   describe('Trade / Fill Normalization', () => {
     it('normalizes a public trade (is_taker_buyer => buy)', () => {
       const grvtTrade: GRVTTrade = {
-        event_time: '1234567890000',
+        event_time: '1234567890000000000', // ns on the wire
         instrument: 'BTC_USDT_Perp',
         is_taker_buyer: true,
         size: '0.5',
@@ -266,6 +269,7 @@ describe('GRVTNormalizer', () => {
       };
       const trade = normalizer.normalizeTrade(grvtTrade);
       expect(trade.id).toBe('trade-123');
+      expect(trade.timestamp).toBe(1234567890000); // ns -> ms
       expect(trade.symbol).toBe('BTC/USDT:USDT');
       expect(trade.side).toBe('buy');
       expect(trade.price).toBe(50000);
@@ -284,10 +288,11 @@ describe('GRVTNormalizer', () => {
         is_buyer: false,
         is_taker: true,
         fee: '-1.5',
-        event_time: '1234567890000',
+        event_time: '1234567890000000000', // ns on the wire
       };
       const trade = normalizer.normalizeFill(grvtFill);
       expect(trade.id).toBe('fill-456');
+      expect(trade.timestamp).toBe(1234567890000); // ns -> ms
       expect(trade.orderId).toBe('order-123');
       expect(trade.symbol).toBe('ETH/USDT:USDT');
       expect(trade.side).toBe('sell');
@@ -309,10 +314,11 @@ describe('GRVTNormalizer', () => {
         best_ask_size: '2.0',
         buy_volume_24h_q: '1000000',
         sell_volume_24h_q: '950000',
-        event_time: '1234567890000',
+        event_time: '1234567890000000000', // ns on the wire
       };
 
       const ticker = normalizer.normalizeTicker(grvtTicker);
+      expect(ticker.timestamp).toBe(1234567890000); // ns -> ms
       expect(ticker.symbol).toBe('BTC/USDT:USDT');
       expect(ticker.last).toBe(50000);
       expect(ticker.bid).toBe(49990);
@@ -335,7 +341,7 @@ describe('GRVTNormalizer', () => {
     it('normalizes a full snapshot with object levels', () => {
       const grvtOrderBook: GRVTOrderBook = {
         instrument: 'BTC_USDT_Perp',
-        event_time: '1234567890000',
+        event_time: '1234567890000000000', // ns on the wire
         bids: [
           { price: '49990', size: '1.5', num_orders: 3 },
           { price: '49980', size: '2.0', num_orders: 5 },
@@ -347,6 +353,8 @@ describe('GRVTNormalizer', () => {
       };
 
       const book = normalizer.normalizeOrderBook(grvtOrderBook);
+      expect(book.timestamp).toBe(1234567890000); // ns -> ms
+      expect(book.sequenceId).toBeUndefined(); // REST: no sequence_number
       expect(book.symbol).toBe('BTC/USDT:USDT');
       expect(book.exchange).toBe('grvt');
       expect(book.bids).toHaveLength(2);
@@ -358,30 +366,45 @@ describe('GRVTNormalizer', () => {
     it('handles an empty book', () => {
       const book = normalizer.normalizeOrderBook({
         instrument: 'ETH_USDT_Perp',
-        event_time: '1234567890000',
+        event_time: '1234567890000000000', // ns on the wire
         bids: [],
         asks: [],
       });
       expect(book.bids).toEqual([]);
       expect(book.asks).toEqual([]);
     });
+
+    it('populates sequenceId from a WS frame sequence_number (replay "0" tolerated)', () => {
+      const raw: GRVTOrderBook = {
+        instrument: 'BTC_USDT_Perp',
+        event_time: '1234567890000000000',
+        bids: [],
+        asks: [],
+      };
+      expect(normalizer.normalizeOrderBook(raw, '464151').sequenceId).toBe(464151);
+      expect(normalizer.normalizeOrderBook(raw, '0').sequenceId).toBe(0);
+    });
   });
 
   describe('Funding Normalization', () => {
-    it('normalizes a funding entry', () => {
+    it('normalizes a funding entry (percent wire rate -> fraction, ns -> ms)', () => {
+      // Real wire shape: PERCENT-per-interval rate, ns funding_time,
+      // NO index_price / next_funding_time (fixture-verified 2026-06-11).
       const funding: GRVTFunding = {
         instrument: 'BTC_USDT_Perp',
-        funding_rate: '0.0001',
-        funding_time: '1700000000000',
+        funding_rate: '0.01', // 0.01%/8h = 1e-4 fraction
+        funding_time: '1700000000000000000', // ns on the wire
         mark_price: '50000',
-        index_price: '49990',
+        funding_rate_8_h_avg: '0.01',
         funding_interval_hours: 8,
       };
       const result = normalizer.normalizeFundingRate(funding);
       expect(result.symbol).toBe('BTC/USDT:USDT');
       expect(result.fundingRate).toBe(0.0001);
+      expect(result.fundingTimestamp).toBe(1700000000000);
+      expect(result.nextFundingTimestamp).toBe(1700000000000 + 8 * 3600 * 1000);
       expect(result.markPrice).toBe(50000);
-      expect(result.indexPrice).toBe(49990);
+      expect(result.indexPrice).toBe(0); // not on the wire
       expect(result.fundingIntervalHours).toBe(8);
     });
   });

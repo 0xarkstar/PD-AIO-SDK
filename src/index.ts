@@ -339,6 +339,14 @@ export type { ExtendedConfig } from './adapters/extended/index.js';
 export { AsterAdapter, AsterAuth, AsterNormalizer } from './adapters/aster/index.js';
 export type { AsterConfig } from './adapters/aster/index.js';
 
+// ApeX Omni (PUBLIC-MARKET-DATA-FIRST — trading/auth not implemented)
+export { ApexAdapter, ApexNormalizer } from './adapters/apex/index.js';
+export type { ApexConfig } from './adapters/apex/index.js';
+
+// StandX (PUBLIC-MARKET-DATA-FIRST — trading/auth not implemented)
+export { StandxAdapter, StandxNormalizer } from './adapters/standx/index.js';
+export type { StandxConfig } from './adapters/standx/index.js';
+
 // Pacifica (Solana)
 export { PacificaAdapter, PacificaAuth, PacificaNormalizer } from './adapters/pacifica/index.js';
 export type { PacificaConfig } from './adapters/pacifica/index.js';

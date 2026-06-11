@@ -1,0 +1,12 @@
+{
+  "url": "wss://api.starknet.extended.exchange/stream.extended.exchange/v1/orderbooks/BTC-USD?depth=1",
+  "opened": true,
+  "captureMs": 6000,
+  "frameCount": 13,
+  "firstFrameBytes": 161,
+  "meanInterFrameMs": 118,
+  "minInterFrameMs": 7,
+  "maxInterFrameMs": 403,
+  "firstRecvAt": 1781147814031,
+  "lastRecvAt": 1781147815448
+}
