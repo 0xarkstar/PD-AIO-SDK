@@ -15,6 +15,21 @@ export interface WebSocketConfig {
     onStateChange?: (state: ConnectionState) => void;
     /** Error handler */
     onError?: (error: Error) => void;
+    /**
+     * Override raw-frame → WebSocketMessage parsing.
+     * Default: flat `{ type, channel, ... }` extraction.
+     * Optional — when absent the default parse path runs unchanged.
+     */
+    parseMessage?: (data: unknown) => WebSocketMessage;
+    /**
+     * Resolve the routing key(s) a parsed message belongs to. Return one key or
+     * many (a frame may fan out to multiple subscriptions, e.g. allMids → every
+     * ticker sub, or a batched trades frame). Return `undefined` for control frames
+     * that should not route to any subscription.
+     * Default: `[message.channel]` when a channel is present.
+     * Optional — when absent the default `channel === sub.channel` matcher runs.
+     */
+    resolveMessageKeys?: (message: WebSocketMessage) => string | string[] | undefined;
 }
 export interface ReconnectConfig {
     /** Enable auto-reconnection */

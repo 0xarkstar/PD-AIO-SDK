@@ -140,14 +140,18 @@ export class DydxAdapter extends BaseAdapter implements IExchangeAdapter {
     setMarginMode: false,
 
     // WebSocket
-    watchOrderBook: true,
-    watchTrades: true,
-    watchTicker: true,
-    watchPositions: true,
-    watchOrders: true,
-    watchBalance: true,
+    // HONEST_FALSE: a real public v4_orderbook WS exists, but the adapter ships
+    // no WS wrapper (all watch* are pure stubs). Flags are false so the matrix is
+    // truthful; the stub messages contain "not implemented" so downstream
+    // isNotImplementedError matches → clean REST fallback (no reconnect loop).
+    watchOrderBook: false,
+    watchTrades: false,
+    watchTicker: false,
+    watchPositions: false,
+    watchOrders: false,
+    watchBalance: false,
     watchFundingRate: false,
-    watchOHLCV: true,
+    watchOHLCV: false,
 
     // Advanced
     twapOrders: false,
@@ -742,11 +746,10 @@ export class DydxAdapter extends BaseAdapter implements IExchangeAdapter {
 
   async *watchOrderBook(_symbol: string, _limit?: number): AsyncGenerator<OrderBook> {
     this.ensureInitialized();
-
-    // WebSocket implementation would go here
-    // For now, we provide a polling fallback
+    // 'not implemented' substring lets downstream isNotImplementedError match
+    // and fall back to REST polling instead of looping on reconnect.
     throw new NotSupportedError(
-      'WebSocket streams require additional implementation. Use fetchOrderBook for polling.',
+      'dYdX v4 orderbook streaming is not implemented; use fetchOrderBook for REST polling.',
       'NOT_SUPPORTED',
       'dydx'
     );
@@ -756,7 +759,7 @@ export class DydxAdapter extends BaseAdapter implements IExchangeAdapter {
   async *watchTrades(_symbol: string): AsyncGenerator<Trade> {
     this.ensureInitialized();
     throw new NotSupportedError(
-      'WebSocket streams require additional implementation. Use fetchTrades for polling.',
+      'dYdX v4 trade streaming is not implemented; use fetchTrades for REST polling.',
       'NOT_SUPPORTED',
       'dydx'
     );
@@ -766,7 +769,7 @@ export class DydxAdapter extends BaseAdapter implements IExchangeAdapter {
   async *watchTicker(_symbol: string): AsyncGenerator<Ticker> {
     this.ensureInitialized();
     throw new NotSupportedError(
-      'WebSocket streams require additional implementation. Use fetchTicker for polling.',
+      'dYdX v4 ticker streaming is not implemented; use fetchTicker for REST polling.',
       'NOT_SUPPORTED',
       'dydx'
     );
@@ -776,7 +779,7 @@ export class DydxAdapter extends BaseAdapter implements IExchangeAdapter {
   async *watchPositions(): AsyncGenerator<Position[]> {
     this.ensureInitialized();
     throw new NotSupportedError(
-      'WebSocket streams require additional implementation. Use fetchPositions for polling.',
+      'dYdX v4 position streaming is not implemented; use fetchPositions for REST polling.',
       'NOT_SUPPORTED',
       'dydx'
     );
@@ -786,7 +789,7 @@ export class DydxAdapter extends BaseAdapter implements IExchangeAdapter {
   async *watchOrders(): AsyncGenerator<Order[]> {
     this.ensureInitialized();
     throw new NotSupportedError(
-      'WebSocket streams require additional implementation. Use fetchOpenOrders for polling.',
+      'dYdX v4 order streaming is not implemented; use fetchOpenOrders for REST polling.',
       'NOT_SUPPORTED',
       'dydx'
     );
@@ -796,7 +799,7 @@ export class DydxAdapter extends BaseAdapter implements IExchangeAdapter {
   async *watchBalance(): AsyncGenerator<Balance[]> {
     this.ensureInitialized();
     throw new NotSupportedError(
-      'WebSocket streams require additional implementation. Use fetchBalance for polling.',
+      'dYdX v4 balance streaming is not implemented; use fetchBalance for REST polling.',
       'NOT_SUPPORTED',
       'dydx'
     );

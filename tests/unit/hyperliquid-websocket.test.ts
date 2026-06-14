@@ -160,6 +160,33 @@ describe('HyperliquidWebSocket', () => {
         })
       );
     });
+
+    it('should yield one normalized trade per element of an array frame', async () => {
+      // Live HL trades frames deliver `data` as an ARRAY ([{coin,...},...]).
+      // watchTrades must iterate it and yield per-trade, not pass the whole
+      // array to normalizeTrade (which validates a single object and throws).
+      const frame = [
+        { coin: 'ETH', px: '1681.5', sz: '0.0062', side: 'A', time: 1, tid: 1, hash: '0xa' },
+        { coin: 'ETH', px: '1681.6', sz: '0.059', side: 'B', time: 2, tid: 2, hash: '0xb' },
+      ];
+      const mockWatch = jest
+        .fn<any>()
+        .mockReturnValue(
+          (async function* () {
+            yield frame;
+          })()
+        );
+      deps.wsManager.watch = mockWatch;
+
+      const yielded: any[] = [];
+      for await (const t of ws.watchTrades('ETH/USDT:USDT')) {
+        yielded.push(t);
+      }
+
+      expect(yielded).toHaveLength(2);
+      expect(deps.normalizer.normalizeTrade).toHaveBeenNthCalledWith(1, frame[0]);
+      expect(deps.normalizer.normalizeTrade).toHaveBeenNthCalledWith(2, frame[1]);
+    });
   });
 
   describe('watchTicker', () => {

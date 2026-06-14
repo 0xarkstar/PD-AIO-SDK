@@ -92,14 +92,14 @@ describe('DydxAdapter', () => {
       expect(adapter.has.setMarginMode).toBe(false);
     });
 
-    test('supports WebSocket streams', () => {
-      expect(adapter.has.watchOrderBook).toBe(true);
-      expect(adapter.has.watchTrades).toBe(true);
-      expect(adapter.has.watchTicker).toBe(true);
-      expect(adapter.has.watchPositions).toBe(true);
-      expect(adapter.has.watchOrders).toBe(true);
-      expect(adapter.has.watchBalance).toBe(true);
-      expect(adapter.has.watchOHLCV).toBe(true);
+    test('advertises WebSocket streams as unsupported (honest-false: no WS wrapper)', () => {
+      expect(adapter.has.watchOrderBook).toBe(false);
+      expect(adapter.has.watchTrades).toBe(false);
+      expect(adapter.has.watchTicker).toBe(false);
+      expect(adapter.has.watchPositions).toBe(false);
+      expect(adapter.has.watchOrders).toBe(false);
+      expect(adapter.has.watchBalance).toBe(false);
+      expect(adapter.has.watchOHLCV).toBe(false);
     });
 
     test('does not support deposits/withdrawals', () => {
@@ -1837,32 +1837,32 @@ describe('DydxAdapter HTTP Methods', () => {
   describe('WebSocket stubs', () => {
     test('watchOrderBook should throw not implemented', async () => {
       const gen = adapter.watchOrderBook('BTC/USD:USD');
-      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+      await expect(gen.next()).rejects.toThrow(/not implemented/i);
     });
 
     test('watchTrades should throw not implemented', async () => {
       const gen = adapter.watchTrades('BTC/USD:USD');
-      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+      await expect(gen.next()).rejects.toThrow(/not implemented/i);
     });
 
     test('watchTicker should throw not implemented', async () => {
       const gen = adapter.watchTicker('BTC/USD:USD');
-      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+      await expect(gen.next()).rejects.toThrow(/not implemented/i);
     });
 
     test('watchPositions should throw not implemented', async () => {
       const gen = adapter.watchPositions();
-      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+      await expect(gen.next()).rejects.toThrow(/not implemented/i);
     });
 
     test('watchOrders should throw not implemented', async () => {
       const gen = adapter.watchOrders();
-      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+      await expect(gen.next()).rejects.toThrow(/not implemented/i);
     });
 
     test('watchBalance should throw not implemented', async () => {
       const gen = adapter.watchBalance();
-      await expect(gen.next()).rejects.toThrow(/WebSocket/);
+      await expect(gen.next()).rejects.toThrow(/not implemented/i);
     });
   });
 

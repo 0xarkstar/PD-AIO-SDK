@@ -146,11 +146,17 @@ export class HyperliquidWebSocket extends EventEmitter {
       },
     };
 
-    for await (const data of this.wsManager.watch<HyperliquidWsTrade>(
+    // HL trades frames deliver `data` as an ARRAY of trades
+    // (`{ channel:"trades", data:[{coin,...},...] }`). Iterate and yield per
+    // trade; passing the whole array to normalizeTrade would fail validation.
+    for await (const frame of this.wsManager.watch<HyperliquidWsTrade | HyperliquidWsTrade[]>(
       `${HYPERLIQUID_WS_CHANNELS.TRADES}:${exchangeSymbol}`,
       subscription
     )) {
-      yield this.normalizer.normalizeTrade(data);
+      const trades = Array.isArray(frame) ? frame : [frame];
+      for (const trade of trades) {
+        yield this.normalizer.normalizeTrade(trade);
+      }
     }
   }
 

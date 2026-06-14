@@ -46,8 +46,11 @@ export const LIGHTER_WS_CONFIG = {
  * WebSocket channels
  */
 export const LIGHTER_WS_CHANNELS = {
-    ORDERBOOK: 'orderbook',
-    TRADES: 'trades',
+    // Public market-data channels. The WIRE subscribe uses slash form
+    // ("order_book/{marketId}"), the server echoes colon form ("order_book:{marketId}")
+    // which is the routing key. Both forms are assembled at the call site.
+    ORDERBOOK: 'order_book',
+    TRADES: 'trade',
     TICKER: 'ticker',
     POSITIONS: 'positions',
     ORDERS: 'orders',

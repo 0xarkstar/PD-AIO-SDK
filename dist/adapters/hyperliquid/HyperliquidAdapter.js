@@ -12,6 +12,7 @@ import { HYPERLIQUID_MAINNET_API, HYPERLIQUID_MAINNET_WS, HYPERLIQUID_RATE_LIMIT
 import { HyperliquidAuth } from './HyperliquidAuth.js';
 import { HyperliquidNormalizer } from './HyperliquidNormalizer.js';
 import { HyperliquidWebSocket } from './HyperliquidWebSocket.js';
+import { hyperliquidResolveKeys, hyperliquidParseMessage } from './HyperliquidWsRouting.js';
 import { convertOrderRequest, mapError } from './utils.js';
 import { buildOHLCVRequest, parseCandles, parseFundingRates, buildCurrentFundingRate, getDefaultDuration as getDefaultOHLCVDuration, } from './HyperliquidMarketData.js';
 import { parseUserFees, parsePortfolio, parseRateLimitStatus } from './HyperliquidInfoMethods.js';
@@ -108,6 +109,12 @@ export class HyperliquidAdapter extends BaseAdapter {
         this.wsManager = new WebSocketManager({
             url: this.wsUrl,
             reconnect: HYPERLIQUID_WS_RECONNECT,
+            // HL frames nest the payload under `.data`; parseMessage unwraps it so the
+            // handler/normalizer receive the inner payload (coin/levels/mids/trades).
+            parseMessage: hyperliquidParseMessage,
+            // Composite-key routing: HL frames carry coin nesting (l2Book:BTC, trades:BTC),
+            // while allMids is a bare key. The resolver maps frames to subscription keys.
+            resolveMessageKeys: hyperliquidResolveKeys,
         });
         await this.wsManager.connect();
         // Initialize WebSocket handler

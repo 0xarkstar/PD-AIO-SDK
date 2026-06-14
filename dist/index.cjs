@@ -1429,6 +1429,15 @@ var init_WebSocketManager = __esm({
               }
             }
           }
+          if (message.type === "error") {
+            const err2 = message.data;
+            this.emit(
+              "error",
+              new Error(
+                `WebSocket error frame: ${err2?.error?.message ?? "unknown"}` + (err2?.error?.code !== void 0 ? ` (code ${err2.error.code})` : "")
+              )
+            );
+          }
           if (message.channel) {
             this.emit("message", message.channel, message.data);
           }
@@ -1440,6 +1449,9 @@ var init_WebSocketManager = __esm({
        * Parse incoming message into structured format
        */
       parseMessage(data) {
+        if (this.config.parseMessage) {
+          return this.config.parseMessage(data);
+        }
         const parsed = typeof data === "string" ? JSON.parse(data) : data;
         return {
           type: parsed.type ?? "unknown",
@@ -1453,6 +1465,14 @@ var init_WebSocketManager = __esm({
        * Check if message matches subscription
        */
       messageMatchesSubscription(message, subscription) {
+        if (this.config.resolveMessageKeys) {
+          const resolved = this.config.resolveMessageKeys(message);
+          if (resolved === void 0) {
+            return false;
+          }
+          const keys = Array.isArray(resolved) ? resolved : [resolved];
+          return keys.includes(subscription.channel);
+        }
         return message.channel === subscription.channel;
       }
       /**
@@ -8696,11 +8716,14 @@ var init_HyperliquidWebSocket = __esm({
             coin: exchangeSymbol
           }
         };
-        for await (const data of this.wsManager.watch(
+        for await (const frame of this.wsManager.watch(
           `${HYPERLIQUID_WS_CHANNELS.TRADES}:${exchangeSymbol}`,
           subscription
         )) {
-          yield this.normalizer.normalizeTrade(data);
+          const trades = Array.isArray(frame) ? frame : [frame];
+          for (const trade of trades) {
+            yield this.normalizer.normalizeTrade(trade);
+          }
         }
       }
       /**
@@ -8808,6 +8831,58 @@ var init_HyperliquidWebSocket = __esm({
         }
       }
     };
+  }
+});
+
+// src/adapters/hyperliquid/HyperliquidWsRouting.ts
+function hyperliquidParseMessage(data) {
+  const frame = typeof data === "string" ? JSON.parse(data) : data;
+  return {
+    type: frame?.channel ?? "unknown",
+    channel: frame?.channel,
+    data: frame?.data,
+    timestamp: Date.now()
+  };
+}
+function hyperliquidResolveKeys(message) {
+  const channel = message.channel;
+  const data = message.data;
+  switch (channel) {
+    case HYPERLIQUID_WS_CHANNELS.L2_BOOK: {
+      const coin = data?.coin;
+      return coin ? [`${HYPERLIQUID_WS_CHANNELS.L2_BOOK}:${coin}`] : void 0;
+    }
+    case HYPERLIQUID_WS_CHANNELS.TRADES: {
+      if (Array.isArray(data) && data.length > 0) {
+        const coins = Array.from(
+          new Set(
+            data.map((t) => t.coin).filter((c) => Boolean(c))
+          )
+        );
+        return coins.length > 0 ? coins.map((c) => `${HYPERLIQUID_WS_CHANNELS.TRADES}:${c}`) : void 0;
+      }
+      return void 0;
+    }
+    case HYPERLIQUID_WS_CHANNELS.ALL_MIDS:
+      return [HYPERLIQUID_WS_CHANNELS.ALL_MIDS];
+    case HYPERLIQUID_WS_CHANNELS.USER: {
+      const user = data?.user;
+      return user ? [`${HYPERLIQUID_WS_CHANNELS.USER}:${user}`] : void 0;
+    }
+    case HYPERLIQUID_WS_CHANNELS.USER_FILLS: {
+      const user = data?.user;
+      return user ? [`${HYPERLIQUID_WS_CHANNELS.USER_FILLS}:${user}`] : void 0;
+    }
+    case "subscriptionResponse":
+      return void 0;
+    default:
+      return channel ? [channel] : void 0;
+  }
+}
+var init_HyperliquidWsRouting = __esm({
+  "src/adapters/hyperliquid/HyperliquidWsRouting.ts"() {
+    "use strict";
+    init_constants();
   }
 });
 
@@ -9126,6 +9201,7 @@ var init_HyperliquidAdapter = __esm({
     init_HyperliquidAuth();
     init_HyperliquidNormalizer();
     init_HyperliquidWebSocket();
+    init_HyperliquidWsRouting();
     init_utils();
     init_HyperliquidMarketData();
     init_HyperliquidInfoMethods();
@@ -9215,7 +9291,13 @@ var init_HyperliquidAdapter = __esm({
         }
         this.wsManager = new WebSocketManager({
           url: this.wsUrl,
-          reconnect: HYPERLIQUID_WS_RECONNECT
+          reconnect: HYPERLIQUID_WS_RECONNECT,
+          // HL frames nest the payload under `.data`; parseMessage unwraps it so the
+          // handler/normalizer receive the inner payload (coin/levels/mids/trades).
+          parseMessage: hyperliquidParseMessage,
+          // Composite-key routing: HL frames carry coin nesting (l2Book:BTC, trades:BTC),
+          // while allMids is a bare key. The resolver maps frames to subscription keys.
+          resolveMessageKeys: hyperliquidResolveKeys
         });
         await this.wsManager.connect();
         this.wsHandler = new HyperliquidWebSocket({
@@ -10692,8 +10774,11 @@ var init_constants2 = __esm({
       pongTimeout: 5e3
     };
     LIGHTER_WS_CHANNELS = {
-      ORDERBOOK: "orderbook",
-      TRADES: "trades",
+      // Public market-data channels. The WIRE subscribe uses slash form
+      // ("order_book/{marketId}"), the server echoes colon form ("order_book:{marketId}")
+      // which is the routing key. Both forms are assembled at the call site.
+      ORDERBOOK: "order_book",
+      TRADES: "trade",
       TICKER: "ticker",
       POSITIONS: "positions",
       ORDERS: "orders",
@@ -11004,13 +11089,45 @@ var init_LighterNormalizer = __esm({
 });
 
 // src/adapters/lighter/LighterWebSocket.ts
-var import_events3, LighterWebSocket;
+function applyLevels(side, levels) {
+  for (const level of levels) {
+    const price = parseFloat(level.price);
+    const size = parseFloat(level.size);
+    if (size === 0) {
+      side.delete(price);
+    } else {
+      side.set(price, size);
+    }
+  }
+}
+var import_events3, LighterOrderBookState, LighterWebSocket;
 var init_LighterWebSocket = __esm({
   "src/adapters/lighter/LighterWebSocket.ts"() {
     "use strict";
     import_events3 = require("events");
     init_errors();
     init_constants2();
+    LighterOrderBookState = class {
+      bids = /* @__PURE__ */ new Map();
+      asks = /* @__PURE__ */ new Map();
+      apply(frame) {
+        const isSnapshot = frame.type.startsWith("subscribed");
+        if (isSnapshot) {
+          this.bids.clear();
+          this.asks.clear();
+        }
+        applyLevels(this.bids, frame.order_book.bids);
+        applyLevels(this.asks, frame.order_book.asks);
+      }
+      /** Full maintained book as unified [price, size] levels: bids DESC, asks ASC. */
+      sides() {
+        const toLevels = (side) => Array.from(side.entries(), ([price, size]) => [price, size]);
+        return {
+          bids: toLevels(this.bids).sort((a, b) => b[0] - a[0]),
+          asks: toLevels(this.asks).sort((a, b) => a[0] - b[0])
+        };
+      }
+    };
     LighterWebSocket = class extends import_events3.EventEmitter {
       wsManager;
       normalizer;
@@ -11023,6 +11140,8 @@ var init_LighterWebSocket = __esm({
       reconnectAttempts = 0;
       maxReconnectAttempts;
       intentionalDisconnect = false;
+      marketIdCache;
+      ensureMarkets;
       constructor(deps) {
         super();
         this.wsManager = deps.wsManager;
@@ -11034,7 +11153,28 @@ var init_LighterWebSocket = __esm({
         this._hasAuthentication = deps.hasAuthentication;
         this._hasWasmSigning = deps.hasWasmSigning;
         this.maxReconnectAttempts = deps.maxReconnectAttempts ?? 10;
+        this.marketIdCache = deps.marketIdCache;
+        this.ensureMarkets = deps.ensureMarkets;
         this.setupReconnectHandling();
+      }
+      /**
+       * Resolve the integer market_id for a Lighter symbol, warming the cache if cold.
+       * Throws a clear error rather than hanging if the market is unknown.
+       */
+      async resolveMarketId(lighterSymbol) {
+        let marketId = this.marketIdCache.get(lighterSymbol);
+        if (marketId === void 0 && this.ensureMarkets) {
+          await this.ensureMarkets();
+          marketId = this.marketIdCache.get(lighterSymbol);
+        }
+        if (marketId === void 0) {
+          throw new PerpDEXError(
+            `Unknown Lighter market for symbol "${lighterSymbol}"`,
+            "UNKNOWN_MARKET",
+            "lighter"
+          );
+        }
+        return marketId;
       }
       /**
        * Disconnect and prevent further reconnection attempts
@@ -11074,18 +11214,36 @@ var init_LighterWebSocket = __esm({
        * @param symbol - Symbol in unified format (e.g., "BTC/USDC:USDC")
        * @param limit - Optional depth limit (default: 50)
        */
-      async *watchOrderBook(symbol, limit) {
+      async *watchOrderBook(symbol, _limit) {
         const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
+        const marketId = await this.resolveMarketId(lighterSymbol);
         const subscription = {
           type: "subscribe",
-          channel: LIGHTER_WS_CHANNELS.ORDERBOOK,
-          symbol: lighterSymbol,
-          limit: limit || 50
+          channel: `${LIGHTER_WS_CHANNELS.ORDERBOOK}/${marketId}`
         };
-        const channelId = `${LIGHTER_WS_CHANNELS.ORDERBOOK}:${lighterSymbol}`;
-        for await (const update of this.wsManager.watch(channelId, subscription)) {
-          yield this.normalizer.normalizeOrderBook(update);
+        const channelId = `${LIGHTER_WS_CHANNELS.ORDERBOOK}:${marketId}`;
+        const state = new LighterOrderBookState();
+        for await (const frame of this.wsManager.watch(
+          channelId,
+          subscription
+        )) {
+          state.apply(frame);
+          yield this.normalizer.normalizeOrderBook(this.toLighterOrderBook(state, frame, symbol));
         }
+      }
+      /**
+       * Build the unified LighterOrderBook shape the normalizer expects
+       * ({ symbol, bids:[[px,sz]], asks:[[px,sz]], timestamp }) from the folded
+       * per-stream book state.
+       */
+      toLighterOrderBook(state, frame, symbol) {
+        const { bids, asks } = state.sides();
+        return {
+          symbol: this.normalizer.toLighterSymbol(symbol),
+          bids,
+          asks,
+          timestamp: frame.timestamp ?? Date.now()
+        };
       }
       /**
        * Watch trades in real-time
@@ -11094,15 +11252,32 @@ var init_LighterWebSocket = __esm({
        */
       async *watchTrades(symbol) {
         const lighterSymbol = this.normalizer.toLighterSymbol(symbol);
+        const marketId = await this.resolveMarketId(lighterSymbol);
         const subscription = {
           type: "subscribe",
-          channel: LIGHTER_WS_CHANNELS.TRADES,
-          symbol: lighterSymbol
+          channel: `${LIGHTER_WS_CHANNELS.TRADES}/${marketId}`
         };
-        const channelId = `${LIGHTER_WS_CHANNELS.TRADES}:${lighterSymbol}`;
-        for await (const trade of this.wsManager.watch(channelId, subscription)) {
-          yield this.normalizer.normalizeTrade(trade);
+        const channelId = `${LIGHTER_WS_CHANNELS.TRADES}:${marketId}`;
+        for await (const frame of this.wsManager.watch(channelId, subscription)) {
+          for (const trade of frame.trades ?? []) {
+            yield this.normalizer.normalizeTrade(this.toLighterTrade(trade, symbol));
+          }
         }
+      }
+      /**
+       * Transform a raw Lighter trade into the unified LighterTrade shape the
+       * normalizer expects ({ id, symbol, side, price, amount, timestamp }).
+       * Lighter encodes side via is_maker_ask (maker on the ask → aggressor bought).
+       */
+      toLighterTrade(trade, symbol) {
+        return {
+          id: String(trade.trade_id),
+          symbol: this.normalizer.toLighterSymbol(symbol),
+          side: trade.is_maker_ask ? "buy" : "sell",
+          price: parseFloat(trade.price),
+          amount: parseFloat(trade.size),
+          timestamp: trade.timestamp
+        };
       }
       /**
        * Watch ticker updates in real-time
@@ -11236,6 +11411,36 @@ var init_LighterWebSocket = __esm({
         return this.apiKey || "anonymous";
       }
     };
+  }
+});
+
+// src/adapters/lighter/LighterWsRouting.ts
+function lighterParseMessage(data) {
+  const parsed = typeof data === "string" ? JSON.parse(data) : data;
+  if (parsed && parsed.error) {
+    return {
+      type: "error",
+      channel: void 0,
+      data: parsed,
+      timestamp: Date.now()
+    };
+  }
+  return {
+    type: parsed?.type ?? "unknown",
+    channel: parsed?.channel,
+    data: parsed,
+    timestamp: Date.now()
+  };
+}
+function lighterResolveKeys(message) {
+  if (!message.channel) {
+    return void 0;
+  }
+  return [message.channel];
+}
+var init_LighterWsRouting = __esm({
+  "src/adapters/lighter/LighterWsRouting.ts"() {
+    "use strict";
   }
 });
 
@@ -12616,6 +12821,7 @@ var init_LighterAdapter = __esm({
     init_constants2();
     init_LighterNormalizer();
     init_LighterWebSocket();
+    init_LighterWsRouting();
     init_utils2();
     init_signer();
     init_NonceManager();
@@ -12779,7 +12985,11 @@ var init_LighterAdapter = __esm({
               enabled: true,
               interval: LIGHTER_WS_CONFIG.pingInterval,
               timeout: LIGHTER_WS_CONFIG.pongTimeout
-            }
+            },
+            // Routing fix: the server echoes colon-form channels ("order_book:1"),
+            // and parse surfaces {error:...} frames instead of hanging silently.
+            parseMessage: lighterParseMessage,
+            resolveMessageKeys: lighterResolveKeys
           });
           await this.wsManager.connect();
           this.wsHandler = new LighterWebSocket({
@@ -12790,7 +13000,11 @@ var init_LighterAdapter = __esm({
             accountIndex: this.accountIndex,
             apiKeyIndex: this.apiKeyIndex,
             hasAuthentication: this.hasAuthentication,
-            hasWasmSigning: this.hasWasmSigning
+            hasWasmSigning: this.hasWasmSigning,
+            marketIdCache: this.marketIdCache,
+            ensureMarkets: async () => {
+              await this.fetchMarkets();
+            }
           });
         } catch {
           this.wsManager = null;
@@ -44214,14 +44428,18 @@ var init_DydxAdapter = __esm({
         // dYdX v4 uses cross-margin
         setMarginMode: false,
         // WebSocket
-        watchOrderBook: true,
-        watchTrades: true,
-        watchTicker: true,
-        watchPositions: true,
-        watchOrders: true,
-        watchBalance: true,
+        // HONEST_FALSE: a real public v4_orderbook WS exists, but the adapter ships
+        // no WS wrapper (all watch* are pure stubs). Flags are false so the matrix is
+        // truthful; the stub messages contain "not implemented" so downstream
+        // isNotImplementedError matches → clean REST fallback (no reconnect loop).
+        watchOrderBook: false,
+        watchTrades: false,
+        watchTicker: false,
+        watchPositions: false,
+        watchOrders: false,
+        watchBalance: false,
         watchFundingRate: false,
-        watchOHLCV: true,
+        watchOHLCV: false,
         // Advanced
         twapOrders: false,
         vaultTrading: false,
@@ -44641,7 +44859,7 @@ var init_DydxAdapter = __esm({
       async *watchOrderBook(_symbol, _limit) {
         this.ensureInitialized();
         throw new NotSupportedError(
-          "WebSocket streams require additional implementation. Use fetchOrderBook for polling.",
+          "dYdX v4 orderbook streaming is not implemented; use fetchOrderBook for REST polling.",
           "NOT_SUPPORTED",
           "dydx"
         );
@@ -44650,7 +44868,7 @@ var init_DydxAdapter = __esm({
       async *watchTrades(_symbol) {
         this.ensureInitialized();
         throw new NotSupportedError(
-          "WebSocket streams require additional implementation. Use fetchTrades for polling.",
+          "dYdX v4 trade streaming is not implemented; use fetchTrades for REST polling.",
           "NOT_SUPPORTED",
           "dydx"
         );
@@ -44659,7 +44877,7 @@ var init_DydxAdapter = __esm({
       async *watchTicker(_symbol) {
         this.ensureInitialized();
         throw new NotSupportedError(
-          "WebSocket streams require additional implementation. Use fetchTicker for polling.",
+          "dYdX v4 ticker streaming is not implemented; use fetchTicker for REST polling.",
           "NOT_SUPPORTED",
           "dydx"
         );
@@ -44668,7 +44886,7 @@ var init_DydxAdapter = __esm({
       async *watchPositions() {
         this.ensureInitialized();
         throw new NotSupportedError(
-          "WebSocket streams require additional implementation. Use fetchPositions for polling.",
+          "dYdX v4 position streaming is not implemented; use fetchPositions for REST polling.",
           "NOT_SUPPORTED",
           "dydx"
         );
@@ -44677,7 +44895,7 @@ var init_DydxAdapter = __esm({
       async *watchOrders() {
         this.ensureInitialized();
         throw new NotSupportedError(
-          "WebSocket streams require additional implementation. Use fetchOpenOrders for polling.",
+          "dYdX v4 order streaming is not implemented; use fetchOpenOrders for REST polling.",
           "NOT_SUPPORTED",
           "dydx"
         );
@@ -44686,7 +44904,7 @@ var init_DydxAdapter = __esm({
       async *watchBalance() {
         this.ensureInitialized();
         throw new NotSupportedError(
-          "WebSocket streams require additional implementation. Use fetchBalance for polling.",
+          "dYdX v4 balance streaming is not implemented; use fetchBalance for REST polling.",
           "NOT_SUPPORTED",
           "dydx"
         );

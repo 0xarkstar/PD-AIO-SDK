@@ -28,6 +28,13 @@ function createMockDeps(overrides: Partial<LighterWebSocketDeps> = {}): LighterW
     apiKeyIndex: 255,
     hasAuthentication: false,
     hasWasmSigning: false,
+    // Lighter addresses WS markets by integer market_id; seed BTC=1, ETH=0
+    // (BTCUSDC/ETHUSDC are what the mock toLighterSymbol returns).
+    marketIdCache: new Map<string, number>([
+      ['BTCUSDC', 1],
+      ['ETHUSDC', 0],
+    ]),
+    ensureMarkets: jest.fn<any>().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -51,60 +58,161 @@ describe('LighterWebSocket', () => {
   // Public streams (no auth required)
   // =========================================================================
   describe('watchOrderBook', () => {
-    it('should subscribe to orderbook channel', async () => {
+    it('should subscribe with slash-form wire channel and colon-form routing key', async () => {
       const gen = ws.watchOrderBook('BTC/USDC:USDC');
       await gen.next();
 
+      // Routing key (colon, matches server echo) + wire subscribe (slash, no symbol).
       expect(deps.wsManager.watch).toHaveBeenCalledWith(
-        'orderbook:BTCUSDC',
-        expect.objectContaining({ type: 'subscribe', channel: 'orderbook', symbol: 'BTCUSDC' })
+        'order_book:1',
+        expect.objectContaining({ type: 'subscribe', channel: 'order_book/1' })
       );
+      // No legacy `symbol` field on the wire.
+      const sub = (deps.wsManager.watch as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
+      expect(sub).not.toHaveProperty('symbol');
     });
 
-    it('should use default limit of 50', async () => {
-      const gen = ws.watchOrderBook('BTC/USDC:USDC');
-      await gen.next();
-
-      expect(deps.wsManager.watch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ limit: 50 })
-      );
-    });
-
-    it('should use provided limit', async () => {
-      const gen = ws.watchOrderBook('BTC/USDC:USDC', 20);
-      await gen.next();
-
-      expect(deps.wsManager.watch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ limit: 20 })
-      );
-    });
-
-    it('should yield normalized order book', async () => {
-      const mockData = { bids: [], asks: [] };
+    it('should yield normalized order book from a raw wire frame', async () => {
+      const rawFrame = {
+        channel: 'order_book:1',
+        type: 'subscribed/order_book',
+        timestamp: 123,
+        order_book: {
+          asks: [{ price: '64474.8', size: '0.00007' }],
+          bids: [{ price: '64474.7', size: '0.05086' }],
+        },
+      };
       const normalized = { bids: [], asks: [], symbol: 'BTC/USDC:USDC', timestamp: 123 };
       (deps.normalizer.normalizeOrderBook as jest.Mock).mockReturnValue(normalized);
       (deps.wsManager.watch as jest.Mock).mockReturnValue(
-        (async function* () { yield mockData; })()
+        (async function* () { yield rawFrame; })()
       );
 
       const gen = ws.watchOrderBook('BTC/USDC:USDC');
       const result = await gen.next();
 
       expect(result.value).toBe(normalized);
+      // Transformed shape passed to the normalizer: number tuples + symbol.
+      const passed = (deps.normalizer.normalizeOrderBook as jest.Mock).mock.calls[0][0];
+      expect(passed.asks).toEqual([[64474.8, 0.00007]]);
+      expect(passed.bids).toEqual([[64474.7, 0.05086]]);
+    });
+
+    it('should throw a clear error for an unknown market', async () => {
+      const gen = ws.watchOrderBook('UNKNOWN/USDC:USDC');
+      await expect(gen.next()).rejects.toThrow(/Unknown Lighter market/);
+    });
+
+    it('folds snapshot + delta into a full uncrossed book (delete on size 0)', async () => {
+      // Live truth: "subscribed/order_book" = full snapshot; "update/order_book"
+      // carries only CHANGED levels (absolute size; size "0" deletes). Without
+      // folding, a raw delta frame is partial/crossed.
+      const snapshot = {
+        channel: 'order_book:1',
+        type: 'subscribed/order_book',
+        timestamp: 1,
+        order_book: {
+          bids: [
+            { price: '100.0', size: '1.0' },
+            { price: '99.0', size: '2.0' },
+          ],
+          asks: [
+            { price: '101.0', size: '1.5' },
+            { price: '102.0', size: '2.5' },
+          ],
+        },
+      };
+      // Delta: replace 99.0 bid size, delete the 101.0 ask (size 0), add 103.0 ask.
+      const delta = {
+        channel: 'order_book:1',
+        type: 'update/order_book',
+        timestamp: 2,
+        order_book: {
+          bids: [{ price: '99.0', size: '5.0' }],
+          asks: [
+            { price: '101.0', size: '0.00000' },
+            { price: '103.0', size: '3.0' },
+          ],
+        },
+      };
+      // Pass the transformed book straight through the normalizer mock.
+      (deps.normalizer.normalizeOrderBook as jest.Mock).mockImplementation((d: any) => d);
+      (deps.wsManager.watch as jest.Mock).mockReturnValue(
+        (async function* () {
+          yield snapshot;
+          yield delta;
+        })()
+      );
+
+      const gen = ws.watchOrderBook('BTC/USDC:USDC');
+      const first = (await gen.next()).value as { bids: number[][]; asks: number[][] };
+      const second = (await gen.next()).value as { bids: number[][]; asks: number[][] };
+
+      // First yield = the full snapshot (bids DESC, asks ASC).
+      expect(first.bids).toEqual([
+        [100.0, 1.0],
+        [99.0, 2.0],
+      ]);
+      expect(first.asks).toEqual([
+        [101.0, 1.5],
+        [102.0, 2.5],
+      ]);
+
+      // Second yield = folded: 99.0 bid resized, 101.0 ask deleted, 103.0 ask added.
+      expect(second.bids).toEqual([
+        [100.0, 1.0],
+        [99.0, 5.0],
+      ]);
+      expect(second.asks).toEqual([
+        [102.0, 2.5],
+        [103.0, 3.0],
+      ]);
+
+      // The folded book is uncrossed (best bid < best ask).
+      expect(second.bids[0][0]).toBeLessThan(second.asks[0][0]);
     });
   });
 
   describe('watchTrades', () => {
-    it('should subscribe to trades channel', async () => {
+    it('should subscribe with slash-form wire channel and colon-form routing key', async () => {
       const gen = ws.watchTrades('ETH/USDC:USDC');
       await gen.next();
 
       expect(deps.wsManager.watch).toHaveBeenCalledWith(
-        'trades:ETHUSDC',
-        expect.objectContaining({ type: 'subscribe', channel: 'trades', symbol: 'ETHUSDC' })
+        'trade:0',
+        expect.objectContaining({ type: 'subscribe', channel: 'trade/0' })
       );
+    });
+
+    it('should yield a normalized trade per element of the raw frame', async () => {
+      const rawFrame = {
+        channel: 'trade:1',
+        type: 'subscribed/trade',
+        trades: [
+          {
+            trade_id: 22670119915,
+            market_id: 1,
+            size: '0.00012',
+            price: '64486.2',
+            is_maker_ask: true,
+            timestamp: 1781410715437,
+          },
+        ],
+      };
+      const normalized = { id: '22670119915', symbol: 'BTC/USDC:USDC', price: 64486.2 };
+      (deps.normalizer.normalizeTrade as jest.Mock).mockReturnValue(normalized);
+      (deps.wsManager.watch as jest.Mock).mockReturnValue(
+        (async function* () { yield rawFrame; })()
+      );
+
+      const gen = ws.watchTrades('BTC/USDC:USDC');
+      const result = await gen.next();
+
+      expect(result.value).toBe(normalized);
+      const passed = (deps.normalizer.normalizeTrade as jest.Mock).mock.calls[0][0];
+      expect(passed.price).toBe(64486.2);
+      expect(passed.amount).toBe(0.00012);
+      expect(passed.id).toBe('22670119915');
     });
   });
 

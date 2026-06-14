@@ -19,6 +19,10 @@ export interface LighterWebSocketDeps {
     hasAuthentication: boolean;
     hasWasmSigning: boolean;
     maxReconnectAttempts?: number;
+    /** symbol → integer market_id map (Lighter addresses WS markets by int id). */
+    marketIdCache: Map<string, number>;
+    /** Ensure the market id cache is warm (mirrors the REST path). */
+    ensureMarkets?: () => Promise<void>;
 }
 /**
  * WebSocket streaming handler for Lighter
@@ -38,7 +42,14 @@ export declare class LighterWebSocket extends EventEmitter {
     private reconnectAttempts;
     private readonly maxReconnectAttempts;
     private intentionalDisconnect;
+    private readonly marketIdCache;
+    private readonly ensureMarkets?;
     constructor(deps: LighterWebSocketDeps);
+    /**
+     * Resolve the integer market_id for a Lighter symbol, warming the cache if cold.
+     * Throws a clear error rather than hanging if the market is unknown.
+     */
+    private resolveMarketId;
     /**
      * Disconnect and prevent further reconnection attempts
      */
@@ -54,13 +65,25 @@ export declare class LighterWebSocket extends EventEmitter {
      * @param symbol - Symbol in unified format (e.g., "BTC/USDC:USDC")
      * @param limit - Optional depth limit (default: 50)
      */
-    watchOrderBook(symbol: string, limit?: number): AsyncGenerator<OrderBook>;
+    watchOrderBook(symbol: string, _limit?: number): AsyncGenerator<OrderBook>;
+    /**
+     * Build the unified LighterOrderBook shape the normalizer expects
+     * ({ symbol, bids:[[px,sz]], asks:[[px,sz]], timestamp }) from the folded
+     * per-stream book state.
+     */
+    private toLighterOrderBook;
     /**
      * Watch trades in real-time
      *
      * @param symbol - Symbol in unified format (e.g., "BTC/USDC:USDC")
      */
     watchTrades(symbol: string): AsyncGenerator<Trade>;
+    /**
+     * Transform a raw Lighter trade into the unified LighterTrade shape the
+     * normalizer expects ({ id, symbol, side, price, amount, timestamp }).
+     * Lighter encodes side via is_maker_ask (maker on the ask → aggressor bought).
+     */
+    private toLighterTrade;
     /**
      * Watch ticker updates in real-time
      *

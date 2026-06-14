@@ -17,6 +17,7 @@ import { WebSocketManager } from '../../websocket/WebSocketManager.js';
 import { LIGHTER_API_URLS, LIGHTER_RATE_LIMITS, LIGHTER_ENDPOINT_WEIGHTS, LIGHTER_WS_CONFIG, } from './constants.js';
 import { LighterNormalizer } from './LighterNormalizer.js';
 import { LighterWebSocket } from './LighterWebSocket.js';
+import { lighterResolveKeys, lighterParseMessage } from './LighterWsRouting.js';
 import { mapError } from './utils.js';
 import { LighterWasmSigner } from './signer/index.js';
 import { NonceManager } from './NonceManager.js';
@@ -212,6 +213,10 @@ export class LighterAdapter extends BaseAdapter {
                     interval: LIGHTER_WS_CONFIG.pingInterval,
                     timeout: LIGHTER_WS_CONFIG.pongTimeout,
                 },
+                // Routing fix: the server echoes colon-form channels ("order_book:1"),
+                // and parse surfaces {error:...} frames instead of hanging silently.
+                parseMessage: lighterParseMessage,
+                resolveMessageKeys: lighterResolveKeys,
             });
             await this.wsManager.connect();
             // Initialize WebSocket handler
@@ -224,6 +229,10 @@ export class LighterAdapter extends BaseAdapter {
                 apiKeyIndex: this.apiKeyIndex,
                 hasAuthentication: this.hasAuthentication,
                 hasWasmSigning: this.hasWasmSigning,
+                marketIdCache: this.marketIdCache,
+                ensureMarkets: async () => {
+                    await this.fetchMarkets();
+                },
             });
         }
         catch {

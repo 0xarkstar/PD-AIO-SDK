@@ -274,6 +274,20 @@ export class WebSocketManager extends EventEmitter {
         }
       }
 
+      // Surface parser-flagged error frames (e.g. a venue "Invalid Channel"
+      // reply) so a bad subscribe does not become a silent 0-yield hang. The
+      // default parser never emits type 'error', so this is opt-in per adapter.
+      if (message.type === 'error') {
+        const err = message.data as { error?: { code?: number; message?: string } };
+        this.emit(
+          'error',
+          new Error(
+            `WebSocket error frame: ${err?.error?.message ?? 'unknown'}` +
+              (err?.error?.code !== undefined ? ` (code ${err.error.code})` : '')
+          )
+        );
+      }
+
       // Emit message event
       if (message.channel) {
         this.emit('message', message.channel, message.data);
@@ -287,6 +301,11 @@ export class WebSocketManager extends EventEmitter {
    * Parse incoming message into structured format
    */
   private parseMessage(data: unknown): WebSocketMessage {
+    // Per-instance override (e.g. error-frame surfacing) takes precedence.
+    if (this.config.parseMessage) {
+      return this.config.parseMessage(data);
+    }
+
     // Default parsing - exchanges will override this
     const parsed = typeof data === 'string' ? JSON.parse(data) : data;
 
@@ -306,7 +325,17 @@ export class WebSocketManager extends EventEmitter {
     message: WebSocketMessage,
     subscription: Subscription
   ): boolean {
-    // Default matching by channel
+    // Per-instance composite-key resolver (e.g. "l2Book:BTC", "order_book:1").
+    if (this.config.resolveMessageKeys) {
+      const resolved = this.config.resolveMessageKeys(message);
+      if (resolved === undefined) {
+        return false;
+      }
+      const keys = Array.isArray(resolved) ? resolved : [resolved];
+      return keys.includes(subscription.channel);
+    }
+
+    // Default matching by channel — byte-identical legacy behavior.
     return message.channel === subscription.channel;
   }
 

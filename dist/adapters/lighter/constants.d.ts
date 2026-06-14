@@ -55,8 +55,8 @@ export declare const LIGHTER_WS_CONFIG: {
  * WebSocket channels
  */
 export declare const LIGHTER_WS_CHANNELS: {
-    readonly ORDERBOOK: "orderbook";
-    readonly TRADES: "trades";
+    readonly ORDERBOOK: "order_book";
+    readonly TRADES: "trade";
     readonly TICKER: "ticker";
     readonly POSITIONS: "positions";
     readonly ORDERS: "orders";

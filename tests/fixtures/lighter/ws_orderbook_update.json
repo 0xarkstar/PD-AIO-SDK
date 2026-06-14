@@ -1,0 +1,34 @@
+{
+  "channel": "order_book:1",
+  "last_updated_at": 1781410697737809,
+  "offset": 12571917,
+  "order_book": {
+    "code": 0,
+    "asks": [
+      {
+        "price": "64503.2",
+        "size": "6.32541"
+      },
+      {
+        "price": "64505.1",
+        "size": "0.00000"
+      }
+    ],
+    "bids": [
+      {
+        "price": "64441.8",
+        "size": "0.00000"
+      },
+      {
+        "price": "64440.7",
+        "size": "6.30990"
+      }
+    ],
+    "offset": 12571917,
+    "nonce": 14598422622,
+    "last_updated_at": 1781410697737809,
+    "begin_nonce": 14598422524
+  },
+  "timestamp": 1781410697754,
+  "type": "update/order_book"
+}
